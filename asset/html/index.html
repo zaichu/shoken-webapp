@@ -2,16 +2,27 @@
 <html lang="ja">
 
 <head>
-    <meta charset="utf-8">
-    <title>Upload CSV</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataVista: CSV Insight Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body>
-    <h1>Upload CSV</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" />
-        <button type="submit">Upload</button>
-    </form>
+    <div class="container">
+        <h1>DataVista</h1>
+        <h2>CSV Insight Generator</h2>
+        <form id="upload-form" enctype="multipart/form-data">
+            <div class="file-input-wrapper">
+                <input type="file" id="csv-file" name="file" accept=".csv" required>
+                <label for="csv-file">Choose a CSV file</label>
+            </div>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="result" class="result-container"></div>
+    </div>
+    <script src="/js/main.js"></script>
 </body>
 
 </html>
