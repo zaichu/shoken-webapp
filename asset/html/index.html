@@ -4,25 +4,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataVista: CSV Insight Generator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <title>CSV Processor</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>DataVista</h1>
-        <h2>CSV Insight Generator</h2>
+        <h1>CSV Processor</h1>
+        <h2>配当金または実益損益のCSVファイルをアップロードしてください</h2>
         <form id="upload-form" enctype="multipart/form-data">
             <div class="file-input-wrapper">
-                <input type="file" id="csv-file" name="file" accept=".csv" required>
-                <label for="csv-file">Choose a CSV file</label>
+                <input type="file" id="csv-file" name="file" accept=".csv">
+                <label for="csv-file">ファイルを選択</label>
             </div>
-            <button type="submit">Upload</button>
+            <button type="button" id="process-dividend">配当金処理</button>
+            <button type="button" id="process-profit-loss">実益損益処理</button>
         </form>
-        <div id="result" class="result-container"></div>
+        <div id="result-container" class="result-container"></div>
     </div>
-    <script src="/js/main.js"></script>
+    <script>
+        document.getElementById('process-dividend').addEventListener('click', () => processCSV('dividend'));
+        document.getElementById('process-profit-loss').addEventListener('click', () => processCSV('profit-loss'));
+
+        function processCSV(type) {
+            const fileInput = document.getElementById('csv-file');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('ファイルを選択してください。');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(`/process-csv/${type}`, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('result-container').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('エラーが発生しました。');
+                });
+        }
+    </script>
 </body>
 
 </html>

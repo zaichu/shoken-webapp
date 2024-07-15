@@ -1253,6 +1253,7 @@ dependencies = [
  "encoding_rs_io",
  "futures-util",
  "openssl",
+ "regex",
  "serde",
  "serde_json",
 ]
