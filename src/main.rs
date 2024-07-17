@@ -27,9 +27,11 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
+            .service(fs::Files::new("/js", "asset/js").show_files_listing())
             .service(fs::Files::new("/css", "asset/css").show_files_listing())
-            .route("/", web::get().to(index))
+            .service(fs::Files::new("/img", "asset/img").show_files_listing())
             .route("/process-csv/{type}", web::post().to(process_csv))
+            .service(fs::Files::new("/", "asset/html").index_file("index.html"))
     })
     .bind(config.addr)?
     .run()
