@@ -2,6 +2,7 @@ use actix_files as fs;
 use actix_multipart::Multipart;
 use actix_web::{web, App, Error, HttpServer, Result};
 use futures_util::TryStreamExt;
+use std::env;
 
 mod services;
 use services::csv_processor;
@@ -21,7 +22,9 @@ async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server at: 0.0.0.0:8080");
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    println!("Starting server at: {addr}");
 
     HttpServer::new(|| {
         App::new()
@@ -29,7 +32,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(index))
             .route("/process-csv/{type}", web::post().to(process_csv))
     })
-    .bind("0.0.0.0:8080")?
+    .bind(addr)?
     .run()
     .await
 }
