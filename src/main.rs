@@ -13,10 +13,16 @@ async fn index() -> Result<fs::NamedFile> {
 
 async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<String, Error> {
     let csv_type = path.into_inner();
-    let mut field = payload.try_next().await?.unwrap();
+    let mut field = match payload.try_next().await {
+        Ok(Some(field)) => field,
+        Ok(None) => return Err(actix_web::error::ErrorBadRequest("No file in payload")),
+        Err(e) => return Err(actix_web::error::ErrorInternalServerError(e.to_string())),
+    };
+
     let result = csv_processor::process_csv(&mut field, &csv_type)
         .await
         .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
+
     Ok(result)
 }
 
@@ -25,7 +31,7 @@ async fn main() -> std::io::Result<()> {
     let config = config::get_config();
     println!("Starting server at: {}", config.addr);
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
             .service(fs::Files::new("/js", "asset/js").show_files_listing())
             .service(fs::Files::new("/css", "asset/css").show_files_listing())
