@@ -1,5 +1,6 @@
 use actix_multipart::Field;
 use anyhow::{anyhow, Result};
+use chrono::NaiveDate;
 use encoding_rs::SHIFT_JIS;
 use futures_util::StreamExt;
 use regex::Regex;
@@ -33,7 +34,7 @@ fn clean_header(header: &str) -> String {
     re.replace_all(header, "").trim().to_string()
 }
 
-pub async fn process_csv(field: &mut Field, csv_type: &str) -> Result<String> {
+pub async fn process_csv(field: &mut Field, _csv_type: &str) -> Result<String> {
     let mut bytes = Vec::new();
     while let Some(chunk) = field.next().await {
         let chunk = chunk.map_err(|e| anyhow!("Error reading multipart field: {}", e))?;
@@ -53,82 +54,103 @@ pub async fn process_csv(field: &mut Field, csv_type: &str) -> Result<String> {
     let headers = rdr
         .headers()
         .map_err(|e| anyhow!("Error reading CSV headers: {}", e))?;
-    let cleaned_headers: Vec<String> = headers.iter().map(|h| clean_header(h)).collect();
+    let headers_len = headers.len();
+    let output_headers = vec![
+        "受渡日",
+        "商品",
+        "口座",
+        "銘柄コード",
+        "銘柄名",
+        "受取通貨",
+        "単価",
+        "数量[株]",
+        "配当・分配金(税引前)",
+        "税額",
+        "受取金額",
+        "配当・分配金合計(税引前)",
+        "税額合計",
+        "受取金額",
+    ];
 
     let mut table = String::from("<table>");
     table.push_str("<thead><tr>");
-    for header in &cleaned_headers {
+    for header in &output_headers {
         table.push_str(&format!("<th>{}</th>", header));
     }
     table.push_str("</tr></thead><tbody>");
 
     let money_regex = Regex::new(r"^-?[\d,]+(\.\d+)?$").unwrap();
     let mut current_group = Vec::new();
-    let mut group_totals: HashMap<String, Vec<String>> = HashMap::new();
-
-    let money_start_index = if csv_type == "dividend" { 6 } else { 7 };
+    let mut group_totals: HashMap<String, (f64, f64, f64)> = HashMap::new();
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error parsing CSV record: {}", e))?;
 
-        if record.len() == cleaned_headers.len() {
+        if record.len() == headers_len {
             // Regular row
             table.push_str("<tr>");
             for (i, field) in record.iter().enumerate() {
-                let formatted_field =
-                    if i >= money_start_index && money_regex.is_match(field.trim()) {
-                        if field.trim() == "-" {
-                            field.to_string()
-                        } else {
-                            let formatted = format_number(&field.replace(",", ""));
-                            if formatted.starts_with('-') {
-                                format!("<span class=\"negative-amount\">{}</span>", formatted)
-                            } else {
-                                format!("{}", formatted)
-                            }
-                        }
-                    } else {
+                let formatted_field = if i >= 6 && money_regex.is_match(field.trim()) {
+                    if field.trim() == "-" {
                         field.to_string()
-                    };
+                    } else {
+                        let formatted = format_number(field);
+                        if formatted.starts_with('-') {
+                            format!("<span class=\"negative-amount\">¥{}</span>", formatted)
+                        } else {
+                            format!("¥{}", formatted)
+                        }
+                    }
+                } else {
+                    field.to_string()
+                };
                 table.push_str(&format!("<td>{}</td>", formatted_field));
             }
+            for _ in 0..3 {
+                table.push_str("<td></td>");
+            }
             table.push_str("</tr>");
-            current_group.push(record);
-        } else if record.len() == 3 {
-            // Total row
-            if !current_group.is_empty() {
-                table.push_str("<tr class=\"group-total\">");
-                for _ in 0..cleaned_headers.len() - 3 {
-                    table.push_str("<td></td>");
-                }
-                for field in record.iter() {
-                    let formatted_field = if money_regex.is_match(field.trim()) {
-                        if field.trim() == "-" {
-                            field.to_string()
-                        } else {
-                            let formatted = format_number(&field.replace(",", ""));
-                            if formatted.starts_with('-') {
-                                format!("<span class=\"negative-amount\">{}</span>", formatted)
-                            } else {
-                                format!("{}", formatted)
-                            }
-                        }
-                    } else {
-                        field.to_string()
-                    };
-                    table.push_str(&format!("<td>{}</td>", formatted_field));
-                }
-                table.push_str("</tr>");
+            current_group.push(record.clone());
 
-                // Store group totals
-                group_totals.insert(
-                    current_group[0][0].to_string(),
-                    record.iter().map(|s| s.to_string()).collect(),
-                );
-
-                current_group.clear();
+            // Update group totals
+            if let Ok(date) = NaiveDate::parse_from_str(&record[0], "%Y/%m/%d") {
+                let key = date.format("%Y/%m").to_string();
+                let dividend: f64 = record[8].replace(",", "").parse().unwrap_or(0.0);
+                let tax: f64 = record[9].replace(",", "").parse().unwrap_or(0.0);
+                let received: f64 = record[10].replace(",", "").parse().unwrap_or(0.0);
+                group_totals
+                    .entry(key)
+                    .and_modify(|e| {
+                        e.0 += dividend;
+                        e.1 += tax;
+                        e.2 += received;
+                    })
+                    .or_insert((dividend, tax, received));
             }
         }
+    }
+
+    // Display group totals
+    let mut sorted_keys: Vec<_> = group_totals.keys().collect();
+    sorted_keys.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+
+    for key in sorted_keys {
+        let (dividend, tax, received) = group_totals[key];
+        table.push_str("<tr class=\"group-total\">");
+        table.push_str(&format!("<td>{}</td>", key));
+        for _ in 0..10 {
+            table.push_str("<td></td>");
+        }
+        table.push_str(&format!(
+            "<td>¥{}</td>",
+            format_number(&dividend.to_string())
+        ));
+        table.push_str(&format!("<td>¥{}</td>", format_number(&tax.to_string())));
+        table.push_str(&format!(
+            "<td>¥{}</td>",
+            format_number(&received.to_string())
+        ));
+        table.push_str("</tr>");
     }
 
     table.push_str("</tbody></table>");
