@@ -4,53 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV Processor</title>
+    <title>証券web</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>CSV Processor</h1>
-        <h2>配当金または実益損益のCSVファイルをアップロードしてください</h2>
-        <form id="upload-form" enctype="multipart/form-data">
-            <div class="file-input-wrapper">
-                <input type="file" id="csv-file" name="file" accept=".csv">
-                <label for="csv-file">ファイルを選択</label>
-            </div>
-            <button type="button" id="process-dividend">配当金処理</button>
-            <button type="button" id="process-profit-loss">実益損益処理</button>
-        </form>
-        <div id="result-container" class="result-container"></div>
+        <h1>証券web</h1>
+        <a href="receipts.html">受取金ページへ移動</a>
     </div>
-    <script>
-        document.getElementById('process-dividend').addEventListener('click', () => processCSV('dividend'));
-        document.getElementById('process-profit-loss').addEventListener('click', () => processCSV('profit-loss'));
-
-        function processCSV(type) {
-            const fileInput = document.getElementById('csv-file');
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('ファイルを選択してください。');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            fetch(`/process-csv/${type}`, {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('result-container').innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('エラーが発生しました。');
-                });
-        }
-    </script>
+    <script src="/js/main.js"></script>
 </body>
 
 </html>

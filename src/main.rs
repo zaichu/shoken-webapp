@@ -7,10 +7,6 @@ use futures_util::TryStreamExt;
 mod services;
 use services::csv_processor;
 
-async fn index() -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("asset/html/index.html")?)
-}
-
 async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<String, Error> {
     let csv_type = path.into_inner();
     let mut field = match payload.try_next().await {
