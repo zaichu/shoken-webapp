@@ -1,0 +1,179 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.app-bar {
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.container {
+    max-width: 1900px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+}
+
+.title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.tabs {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.tab {
+    color: #333;
+    text-decoration: none;
+    padding: 8px 16px;
+    margin: 0 4px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.3s;
+}
+
+.tab.active {
+    border-bottom-color: #1976d2;
+}
+
+.mobile-title {
+    display: none;
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+main.container {
+    margin-top: 80px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.result-container {
+    margin-top: 2rem;
+    overflow-x: auto;
+}
+
+form {
+    margin-bottom: 1rem;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+label[for="dividend-csv"],
+label[for="profit-loss-csv"] {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #1976d2;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+label[for="dividend-csv"]:hover,
+label[for="profit-loss-csv"]:hover {
+    background-color: #1565c0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th,
+td {
+    border: 1px solid #e0e0e0;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.home-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #333;
+    margin-right: 20px;
+}
+
+.home-icon {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    margin-right: 8px;
+}
+
+.home-text {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+@media screen and (max-width: 768px) {
+    .title {
+        display: none;
+    }
+
+    .mobile-title {
+        display: block;
+    }
+
+    .tabs {
+        display: none;
+    }
+
+    .home-text {
+        display: none;
+    }
+}
+
+.result-container td .negative-amount {
+    color: red !important;
+}
+
+.result-container td:nth-child(n+8):not(:empty):before {
+    content: "¥";
+}
+
+.result-container td:nth-child(n+8):not(:empty)[data-value^="-"] {
+    color: red;
+}
