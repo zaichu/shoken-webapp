@@ -1,19 +1,12 @@
-<!DOCTYPE html>
-<html lang="ja">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>証券web</title>
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
+{% block title %}証券web{% endblock %}
 
-<body>
-    <div class="container">
-        <h1>証券web</h1>
-        <a href="receipts.html">受取金ページへ移動</a>
-    </div>
-    <script src="/js/main.js"></script>
-</body>
+{% block content %}
+<h1>証券web</h1>
+<a href="/receipts">受取金ページへ移動</a>
+{% endblock %}
 
-</html>
+{% block scripts %}
+<script src="/js/main.js"></script>
+{% endblock %}

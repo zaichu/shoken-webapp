@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}証券web{% endblock %}</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    {% include "header.html" %}
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

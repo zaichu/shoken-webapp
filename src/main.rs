@@ -1,8 +1,10 @@
 mod config;
 use actix_files as fs;
 use actix_multipart::Multipart;
-use actix_web::{web, App, Error, HttpServer, Result};
+use actix_web::{web, App, Error, HttpResponse, HttpServer, Result};
 use futures_util::TryStreamExt;
+use std::sync::Arc;
+use tera::Tera;
 
 mod services;
 use services::csv_processor;
@@ -22,18 +24,38 @@ async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<
     Ok(result)
 }
 
+async fn index(tmpl: web::Data<Arc<Tera>>) -> Result<HttpResponse, Error> {
+    let mut context = tera::Context::new();
+    let rendered = tmpl
+        .render("index.html", &context)
+        .map_err(|_| actix_web::error::ErrorInternalServerError("Template error"))?;
+    Ok(HttpResponse::Ok().content_type("text/html").body(rendered))
+}
+
+async fn receipts(tmpl: web::Data<Arc<Tera>>) -> Result<HttpResponse, Error> {
+    let mut context = tera::Context::new();
+    let rendered = tmpl
+        .render("receipts.html", &context)
+        .map_err(|_| actix_web::error::ErrorInternalServerError("Template error"))?;
+    Ok(HttpResponse::Ok().content_type("text/html").body(rendered))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = config::get_config();
     println!("Starting server at: {}", config.addr);
 
+    let tera = Arc::new(Tera::new("asset/html/**/*").unwrap());
+
     HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(tera.clone()))
             .service(fs::Files::new("/js", "asset/js").show_files_listing())
             .service(fs::Files::new("/css", "asset/css").show_files_listing())
             .service(fs::Files::new("/img", "asset/img").show_files_listing())
             .route("/process-csv/{type}", web::post().to(process_csv))
-            .service(fs::Files::new("/", "asset/html").index_file("index.html"))
+            .route("/", web::get().to(index))
+            .route("/receipts", web::get().to(receipts))
     })
     .bind(config.addr)?
     .run()
