@@ -8,7 +8,7 @@ function showTab(tabName) {
     document.querySelector(`.tab[href="#${tabName}"]`).classList.add('active');
     document.getElementById(tabName).classList.add('active');
 
-    window.scrollTo(0, 100); // スクロール位置を復元
+    window.scrollTo(0, 0); // スクロール位置を復元
 }
 
 function processCSV(file, type) {

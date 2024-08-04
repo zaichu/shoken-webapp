@@ -1,36 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}受取金{% endblock %}
 
 {% block content %}
-<header class="app-bar">
-    <div class="toolbar">
-        <a href="/" class="home-link">
-            <svg class="home-icon" viewBox="0 0 24 24">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-            </svg>
-            <span class="home-text">ホーム</span>
-        </a>
-    </div>
+<main class="container">
     <div class="tabs">
         <a class="tab active" href="#dividend" onclick="showTab('dividend')">配当金</a>
         <a class="tab" href="#profit-loss" onclick="showTab('profit-loss')">実現損益</a>
     </div>
-</header>
-<main class="container">
     <div id="dividend" class="tab-content active">
-        <h2>配当金</h2>
         <form id="dividend-form" enctype="multipart/form-data">
             <input type="file" id="dividend-csv" name="file" accept=".csv">
-            <label for="dividend-csv">CSVファイルを選択</label>
+            <label class="csv select" for="dividend-csv">CSVファイルを選択</label>
         </form>
         <div id="dividend-result-container" class="result-container"></div>
     </div>
     <div id="profit-loss" class="tab-content">
-        <h2>実現損益</h2>
         <form id="profit-loss-form" enctype="multipart/form-data">
             <input type="file" id="profit-loss-csv" name="file" accept=".csv">
-            <label for="profit-loss-csv">CSVファイルを選択</label>
+            <label class="csv select" for="profit-loss-csv">CSVファイルを選択</label>
         </form>
         <div id="profit-loss-result-container" class="result-container"></div>
     </div>

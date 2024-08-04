@@ -25,7 +25,7 @@ async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<
 }
 
 async fn index(tmpl: web::Data<Arc<Tera>>) -> Result<HttpResponse, Error> {
-    let mut context = tera::Context::new();
+    let context = tera::Context::new();
     let rendered = tmpl
         .render("index.html", &context)
         .map_err(|_| actix_web::error::ErrorInternalServerError("Template error"))?;
@@ -33,7 +33,7 @@ async fn index(tmpl: web::Data<Arc<Tera>>) -> Result<HttpResponse, Error> {
 }
 
 async fn receipts(tmpl: web::Data<Arc<Tera>>) -> Result<HttpResponse, Error> {
-    let mut context = tera::Context::new();
+    let context = tera::Context::new();
     let rendered = tmpl
         .render("receipts.html", &context)
         .map_err(|_| actix_web::error::ErrorInternalServerError("Template error"))?;
@@ -45,7 +45,7 @@ async fn main() -> std::io::Result<()> {
     let config = config::get_config();
     println!("Starting server at: {}", config.addr);
 
-    let tera = Arc::new(Tera::new("asset/html/**/*").unwrap());
+    let tera = Arc::new(Tera::new("asset/html/**").unwrap());
 
     HttpServer::new(move || {
         App::new()
