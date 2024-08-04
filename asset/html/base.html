@@ -11,11 +11,9 @@
 
 <body>
     {% include "header.html" %}
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+    {% block content %}{% endblock %}
     {% block scripts %}{% endblock %}
-    <script src="/js/common.js"></script>
+    <!-- <script src="/js/common.js"></script> -->
 </body>
 
 </html>

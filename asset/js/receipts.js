@@ -5,10 +5,8 @@ function showTab(tabName) {
     tabs.forEach(tab => tab.classList.remove('active'));
     tabContents.forEach(content => content.classList.remove('active'));
 
-    document.querySelector(`.tab[href="#${tabName}"]`).classList.add('active');
-    document.getElementById(tabName).classList.add('active');
-
-    window.scrollTo(0, 0); // スクロール位置を復元
+    document.querySelector(`.tab[id="${tabName}-a"]`).classList.add('active');
+    document.getElementById(`${tabName}-div`).classList.add('active');
 }
 
 function processCSV(file, type) {
