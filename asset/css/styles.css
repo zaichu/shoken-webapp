@@ -37,7 +37,7 @@
 }
 
 .tab.active {
-    border-bottom-color: #1976d2;
+    border-bottom-color: #A9CCE3;
 }
 
 .tab-content {
@@ -64,7 +64,6 @@ main.container {
 }
 
 .result-container {
-    margin-top: 2rem;
     overflow-x: auto;
 }
 
@@ -80,16 +79,17 @@ label[for="dividend-csv"],
 label[for="profit-loss-csv"] {
     display: inline-block;
     padding: 10px 20px;
-    background-color: #1976d2;
-    color: white;
+    background-color: #A9CCE3;
+    color: #000000;
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.3s;
 }
 
 label[for="dividend-csv"]:hover,
-label[for="profit-loss-csv"]:hover {
-    background-color: #1565c0;
+label[for="profit-loss-csv"]:hover,
+a:hover {
+    font-weight: bold;
 }
 
 .csv.select {
@@ -104,11 +104,13 @@ table {
 
 thead td,
 thead th {
-    background-color: #1976d2;
-    color: #ffffff;
+    background-color: #A9CCE3;
 }
 
-
+.group-total {
+    background-color: #A9CCE3;
+    font-weight: bold;
+}
 
 th,
 td {
@@ -120,16 +122,6 @@ td {
 th {
     background-color: #f5f5f5;
     font-weight: bold;
-}
-
-/* 
-tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
- */
-
-.group-total {
-    background-color: #8EB8FF
 }
 
 @media screen and (max-width: 768px) {
