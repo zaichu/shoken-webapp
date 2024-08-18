@@ -42,12 +42,7 @@ fn format_number(s: &str) -> String {
     }
 }
 
-fn clean_header(header: &str) -> String {
-    let re = Regex::new(r"\[.*?\]").unwrap();
-    re.replace_all(header, "").trim().to_string()
-}
-
-async fn read_csv_data(field: &mut Field) -> Result<String> {
+pub async fn read_csv_data(field: &mut Field) -> Result<String> {
     let mut bytes = Vec::new();
     while let Some(chunk) = field.next().await {
         let chunk = chunk.map_err(|e| anyhow!("Error reading multipart field: {}", e))?;
