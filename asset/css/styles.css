@@ -102,6 +102,14 @@ table {
     margin-top: 1rem;
 }
 
+thead td,
+thead th {
+    background-color: #1976d2;
+    color: #ffffff;
+}
+
+
+
 th,
 td {
     border: 1px solid #e0e0e0;
@@ -114,8 +122,14 @@ th {
     font-weight: bold;
 }
 
+/* 
 tr:nth-child(even) {
     background-color: #f9f9f9;
+}
+ */
+
+.group-total {
+    background-color: #8EB8FF
 }
 
 @media screen and (max-width: 768px) {

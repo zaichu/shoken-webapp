@@ -24,7 +24,7 @@ impl DividendListManager {
 }
 
 impl TemplateManager for DividendListManager {
-    fn set(&self, records: Vec<StringRecord>) {
+    fn process_records(&self, records: Vec<StringRecord>) {
         todo!()
     }
 
