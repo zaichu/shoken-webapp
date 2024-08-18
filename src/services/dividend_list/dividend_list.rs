@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use csv::StringRecord;
-use std::error::Error;
+
+use crate::services::common;
 
 #[derive(Debug, Clone)]
 pub struct DividendList {
@@ -61,23 +62,23 @@ impl DividendList {
         }
     }
 
-    pub fn from_record(record: StringRecord) -> Result<Self, Box<dyn Error>> {
-        Ok(DividendList {
-            settlement_date: Self::parse_date(record.get(0))?,
-            product: Self::parse_string(record.get(1))?,
-            account: Self::parse_string(record.get(2))?,
-            security_code: Self::parse_string(record.get(3))?,
-            security_name: Self::parse_string(record.get(4))?,
-            currency: Self::parse_string(record.get(5))?,
-            unit_price: Self::parse_string(record.get(6))?,
-            shares: Self::parse_int(record.get(7))?,
-            dividends_before_tax: Self::parse_int(record.get(8))?,
-            taxes: Self::parse_int(record.get(9))?,
-            net_amount_received: Self::parse_int(record.get(10))?,
+    pub fn from_record(record: StringRecord) -> Self {
+        DividendList {
+            settlement_date: common::parse_date(record.get(0)),
+            product: common::parse_string(record.get(1)),
+            account: common::parse_string(record.get(2)),
+            security_code: common::parse_string(record.get(3)),
+            security_name: common::parse_string(record.get(4)),
+            currency: common::parse_string(record.get(5)),
+            unit_price: common::parse_string(record.get(6)),
+            shares: common::parse_int(record.get(7)),
+            dividends_before_tax: common::parse_int(record.get(8)),
+            taxes: common::parse_int(record.get(9)),
+            net_amount_received: common::parse_int(record.get(10)),
             total_dividends_before_tax: None,
             total_taxes: None,
             total_net_amount_received: None,
-        })
+        }
     }
 
     pub fn get_all_fields(&self) -> Vec<(String, Option<String>)> {
@@ -115,26 +116,5 @@ impl DividendList {
                 self.total_net_amount_received.map(|n| n.to_string()),
             ),
         ]
-    }
-
-    fn parse_date(date_str: Option<&str>) -> Result<Option<NaiveDate>, Box<dyn Error>> {
-        date_str.map_or(Ok(None), |s| {
-            NaiveDate::parse_from_str(&s.replace("/", "-"), "%Y-%m-%d")
-                .map(Some)
-                .map_err(|e| format!("Failed to parse date '{s}': {e}").into())
-        })
-    }
-
-    fn parse_int(num_str: Option<&str>) -> Result<Option<i32>, Box<dyn Error>> {
-        num_str.map_or(Ok(None), |s| {
-            s.replace(",", "")
-                .parse::<i32>()
-                .map(Some)
-                .map_err(|e| format!("Failed to parse integer '{s}': {e}").into())
-        })
-    }
-
-    fn parse_string(value: Option<&str>) -> Result<Option<String>, Box<dyn Error>> {
-        Ok(value.map(|s| s.to_string()))
     }
 }
