@@ -1,8 +1,6 @@
-use crate::setting::HEADERS;
-
 use super::csv::lib::CSVAccessor;
+use crate::setting::HEADERS;
 use anyhow::Result;
-use async_trait::async_trait;
 use csv::StringRecord;
 
 pub struct TemplateStruct;
@@ -13,7 +11,6 @@ impl TemplateStruct {
     }
 }
 
-#[async_trait]
 pub trait TemplateManager {
     fn execute(&self, bytes: Vec<u8>) -> Result<String> {
         let records = self.read_csv_data(bytes)?;
