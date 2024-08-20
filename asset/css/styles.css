@@ -142,14 +142,10 @@ th {
     }
 }
 
-.result-container td .negative-amount {
+.result-container .negative {
     color: red !important;
 }
 
-.result-container td:nth-child(n+8):not(:empty):before {
+.result-container td:nth-child(n+7):not(:empty)::before {
     content: "¥";
-}
-
-.result-container td:nth-child(n+8):not(:empty)[data-value^="-"] {
-    color: red;
 }

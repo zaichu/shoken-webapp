@@ -49,21 +49,73 @@ pub trait TemplateManager {
         };
 
         let tr_class = format_class(tr_class);
-        let row_content: String = values
+        let row_content = values
             .iter()
             .map(|(key, value)| {
-                format!(
-                    "<td {}>{}</td>",
-                    format_class(key),
-                    value.as_deref().unwrap_or("")
-                )
+                let value = value.as_deref().unwrap_or("");
+                let value = self.format_value(key, value);
+                let key = if value.starts_with("-") {
+                    format!("{key} negative")
+                } else {
+                    key.to_string()
+                };
+                format!("<td {}>{value}</td>", format_class(&key))
             })
-            .collect();
+            .collect::<String>();
 
         format!("<tr {tr_class}>{row_content}</tr>")
     }
 
+    fn format_value(&self, key: &str, value: &str) -> String {
+        match key {
+            "settlement_date" | "trade_date" => self.format_date(value),
+            "asked_price"
+            | "dividends_before_tax"
+            | "net_amount_received"
+            | "proceeds"
+            | "profit_and_loss"
+            | "purchase_price"
+            | "realized_profit_and_loss"
+            | "shares"
+            | "taxes"
+            | "total_dividends_before_tax"
+            | "total_net_amount_received"
+            | "total_realized_profit_and_loss"
+            | "total_taxes"
+            | "withholding_tax" => self.format_number(value),
+            _ => value.to_string(),
+        }
+    }
+
     fn generate_table_row(&self, values: &[(String, Option<String>)]) -> String {
         self.generate_table_row_with_class("", values)
+    }
+
+    fn format_date(&self, s: &str) -> String {
+        s.replace("-", "/")
+    }
+
+    fn format_number(&self, s: &str) -> String {
+        let is_negative = s.starts_with('-');
+        let s = if is_negative { &s[1..] } else { s };
+        let s = s.replace(",", ""); // カンマを除去
+        let parts: Vec<&str> = s.split('.').collect();
+        let mut result = String::new();
+        for (i, c) in parts[0].chars().rev().enumerate() {
+            if i > 0 && i % 3 == 0 {
+                result.push(',');
+            }
+            result.push(c);
+        }
+        result = result.chars().rev().collect();
+        if parts.len() > 1 {
+            result.push('.');
+            result.push_str(parts[1]);
+        }
+        if is_negative {
+            format!("-{result}")
+        } else {
+            result
+        }
     }
 }

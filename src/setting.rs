@@ -2,20 +2,7 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 // 型エイリアスを定義
-type FormatMap = HashMap<String, String>;
 type HeaderMap = HashMap<String, String>;
-
-// formatsの定義
-pub static FORMATS: Lazy<FormatMap> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    map.insert(
-        "yen_decimal".to_string(),
-        "\"¥\"#,##0.00;\"¥\"-#,##0.00".to_string(),
-    );
-    map.insert("yen".to_string(), "\"¥\"#,##0;\"¥\"-#,##0".to_string());
-    map.insert("date".to_string(), "%Y/%m/%d".to_string());
-    map
-});
 
 // headersの定義
 pub static HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
