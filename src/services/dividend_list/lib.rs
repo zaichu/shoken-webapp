@@ -26,10 +26,7 @@ impl DividendListManager {
         let mut total_net_amount_received = 0; // 受取金額[円/現地通貨]
 
         for dividend in dividend_list {
-            table.push_str("<tr>");
-            for (_key, value) in dividend.get_all_fields() {
-                table.push_str(&format!("<td>{}</td>", value.unwrap_or("".to_string())));
-            }
+            table.push_str(&self.generate_table_row(&dividend.get_all_fields()));
 
             if let (Some(dividends_before_tax), Some(taxes), Some(net_amount_received)) = (
                 dividend.dividends_before_tax,
@@ -40,7 +37,6 @@ impl DividendListManager {
                 total_taxes += taxes;
                 total_net_amount_received += net_amount_received;
             }
-            table.push_str("</tr>");
         }
 
         let total = (
@@ -49,11 +45,9 @@ impl DividendListManager {
             total_net_amount_received,
         );
         let dividend_list = DividendList::new_total_dividend_list(total);
-        table.push_str("<tr class=\"group-total\">");
-        for (_key, value) in dividend_list.get_all_fields() {
-            table.push_str(&format!("<td>{}</td>", value.unwrap_or("".to_string())));
-        }
-        table.push_str("</tr>");
+        table.push_str(
+            &self.generate_table_row_with_class("group-total", &dividend_list.get_all_fields()),
+        );
     }
 }
 
