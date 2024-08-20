@@ -63,10 +63,6 @@ main.container {
     padding: 15px;
 }
 
-.result-container {
-    overflow-x: auto;
-}
-
 form {
     margin-bottom: 1rem;
 }
@@ -148,4 +144,38 @@ th {
 
 .result-container td:nth-child(n+7):not(:empty)::before {
     content: "¥";
+}
+
+.result-container {
+    max-height: 75vh;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+.result-container table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.result-container tbody {
+    max-height: max-content;
+}
+
+.result-container thead {
+    position: sticky;
+    top: 0;
+    left: 0;
+    border-top: none;
+}
+
+.result-container thead th,
+.result-container thead td {
+    background-color: #A9CCE3;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+}
+
+.result-container th,
+.result-container td {
+    border: 1px solid #e0e0e0;
+    background-clip: padding-box;
 }
