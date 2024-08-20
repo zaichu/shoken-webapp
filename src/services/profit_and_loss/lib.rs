@@ -25,10 +25,7 @@ impl ProfitAndLossManager {
         let mut nisa_account_total = 0;
 
         for profit_and_loss in profit_and_loss_list {
-            table.push_str("<tr>");
-            for (_key, value) in profit_and_loss.get_all_fields() {
-                table.push_str(&format!("<td>{}</td>", value.unwrap_or("".to_string())));
-            }
+            table.push_str(&self.generate_table_row(&profit_and_loss.get_all_fields()));
 
             if let (Some(account), Some(realized_profit_and_loss)) = (
                 profit_and_loss.account.as_deref(),
@@ -40,15 +37,15 @@ impl ProfitAndLossManager {
                     nisa_account_total += realized_profit_and_loss;
                 }
             }
-            table.push_str("</tr>");
         }
 
         let total = (specific_account_total, nisa_account_total);
         let profit_and_loss = ProfitAndLoss::new_total_realized_profit_and_loss(total);
-        table.push_str("<tr class=\"group-total\">");
-        for (_key, value) in profit_and_loss.get_all_fields() {
-            table.push_str(&format!("<td>{}</td>", value.unwrap_or("".to_string())));
-        }
+
+        table.push_str(
+            &self.generate_table_row_with_class("group-total", &profit_and_loss.get_all_fields()),
+        );
+
         table.push_str("</tr>");
     }
 }

@@ -11,7 +11,6 @@ mod services;
 use services::factroy;
 
 async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<String, Error> {
-    let csv_type = path.into_inner();
     let mut field = match payload.try_next().await {
         Ok(Some(field)) => field,
         Ok(None) => return Err(actix_web::error::ErrorBadRequest("No file in payload")),
@@ -24,6 +23,7 @@ async fn process_csv(mut payload: Multipart, path: web::Path<String>) -> Result<
         bytes.extend_from_slice(&chunk);
     }
 
+    let csv_type = path.into_inner();
     let manager = factroy::create_factory(&csv_type);
     let result = manager
         .execute(bytes)
