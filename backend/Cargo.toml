@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.8.1", features = ["macros"] }
-chrono = { version = "0.4.31", features = ["serde"] }
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.133"
+axum = { version = "0.8.2", features = ["macros"] }
+chrono = { version = "0.4.41", features = ["serde"] }
+serde = { version = "1.0.226", features = ["derive"] }
+serde_json = "1.0.140"
 shuttle-axum = "0.53.0"
 shuttle-runtime = "0.53.0"
 shuttle-shared-db = { version = "0.53.0", features = ["postgres"] }
-sqlx = { version = "0.8.2", features = [
+sqlx = { version = "0.8.3", features = [
     "runtime-tokio-native-tls",
     "postgres",
     "chrono",
 ] }
-thiserror = "2.0.4"
-tokio = { version = "1.42.0", features = ["full"] }
+thiserror = "2.0.12"
+tokio = { version = "1.44.1", features = ["full"] }
 validator = { version = "0.20.0", features = ["derive"] }
-tower = "0.5.1"
+tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["cors"] }
 oauth2 = "5.0.0"
 dotenvy = "0.15.7"
