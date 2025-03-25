@@ -5,6 +5,7 @@ mod models;
 mod state;
 
 use axum::{
+    http::HeaderValue,
     routing::{get, post},
     Router,
 };
@@ -32,17 +33,42 @@ async fn main(
     //     .await
     //     .expect("Failed to run migrations");
 
+    // カスタムのCORSレイヤーを設定（特定のオリジンを許可）
+    
+    // 許可するヘッダーのリストを定義
+    let allowed_headers = vec![
+        axum::http::header::CONTENT_TYPE,
+        axum::http::header::ACCEPT,
+        axum::http::header::ORIGIN,
+        axum::http::header::AUTHORIZATION,
+    ];
+    
+    // 許可するメソッドリストを定義
+    let allowed_methods = vec![
+        axum::http::Method::GET,
+        axum::http::Method::POST,
+        axum::http::Method::PUT,
+        axum::http::Method::DELETE,
+        axum::http::Method::OPTIONS,
+    ];
+    
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
+            origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://localhost:8080".parse::<HeaderValue>().unwrap())
+        }))
+        // 特定のメソッドのみを許可
+        .allow_methods(allowed_methods)
+        // 特定のヘッダーのみを許可
+        .allow_headers(allowed_headers)
+        .allow_credentials(true);
 
     let state = AppState { pool, secrets };
     let router = Router::new()
         .route("/oauth/google", get(handlers::oauth_google::google_oauth))
         .route("/stock", post(handlers::stock::add_stock_info))
         .route(
-            "/stock/:code_or_name",
+            "/stock/{query}",
             get(handlers::stock::select_stock_info),
         )
         .layer(cors)

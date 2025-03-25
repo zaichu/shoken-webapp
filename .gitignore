@@ -1,2 +1,4 @@
 /target
 frontend/src/env.rs
+.shuttle*
+Secrets*.toml
