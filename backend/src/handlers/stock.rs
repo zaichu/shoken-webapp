@@ -12,18 +12,18 @@ use axum::{
 };
 
 pub async fn select_stock_info(
-    Path(code_or_name): Path<String>,
+    Path(query): Path<String>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let code_or_name = code_or_name
+    let query = query
         .chars()
         .map(|c| halfwidth_to_fullwidth(c))
         .collect::<String>();
     let stock = sqlx::query_as::<_, Stock>(
         "SELECT * FROM stock WHERE code = $1 OR name ILIKE $2 ORDER BY date DESC LIMIT 1",
     )
-    .bind(&code_or_name)
-    .bind(format!("%{code_or_name}%"))
+    .bind(&query)
+    .bind(format!("%{query}%"))
     .fetch_optional(&state.pool)
     .await?
     .ok_or(ApiError::NotFound)?;
