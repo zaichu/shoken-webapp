@@ -51,11 +51,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env::VarError;
-    use axum::response::Response;
     use axum::http::StatusCode;
-    use sqlx::Error as SqlxError;
     use oauth2::url::ParseError;
+    use sqlx::Error as SqlxError;
+    use std::env::VarError;
 
     #[test]
     fn test_validation_error_into_response() {
