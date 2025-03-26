@@ -13,7 +13,7 @@ use dotenvy::dotenv;
 use shuttle_runtime::SecretStore;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -34,7 +34,7 @@ async fn main(
     //     .expect("Failed to run migrations");
 
     // カスタムのCORSレイヤーを設定（特定のオリジンを許可）
-    
+
     // 許可するヘッダーのリストを定義
     let allowed_headers = vec![
         axum::http::header::CONTENT_TYPE,
@@ -42,7 +42,7 @@ async fn main(
         axum::http::header::ORIGIN,
         axum::http::header::AUTHORIZATION,
     ];
-    
+
     // 許可するメソッドリストを定義
     let allowed_methods = vec![
         axum::http::Method::GET,
@@ -51,7 +51,7 @@ async fn main(
         axum::http::Method::DELETE,
         axum::http::Method::OPTIONS,
     ];
-    
+
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
@@ -63,14 +63,14 @@ async fn main(
         .allow_headers(allowed_headers)
         .allow_credentials(true);
 
-    let state = AppState { pool, secrets };
+    let state = AppState {
+        pool,
+        _secrets: secrets,
+    };
     let router = Router::new()
         .route("/oauth/google", get(handlers::oauth_google::google_oauth))
         .route("/stock", post(handlers::stock::add_stock_info))
-        .route(
-            "/stock/{query}",
-            get(handlers::stock::select_stock_info),
-        )
+        .route("/stock/{query}", get(handlers::stock::select_stock_info))
         .layer(cors)
         .with_state(state);
 
