@@ -68,7 +68,6 @@ async fn main(
         _secrets: secrets,
     };
     let router = Router::new()
-        .route("/oauth/google", get(handlers::oauth_google::google_oauth))
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
         .layer(cors)
