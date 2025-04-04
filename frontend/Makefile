@@ -3,17 +3,17 @@
 all: clean build run
 
 build:
-	trunk build --release --public-url /shoken-webapp-wasm/
+	trunk build --release --public-url /shoken-webapp/
 
 build-log:
-	trunk build --release --public-url /shoken-webapp-wasm/ > build.log 2>&1
+	trunk build --release --public-url /shoken-webapp/ > build.log 2>&1 || echo "Failed to build frontend: exit code $?" >> build.log
 	@echo "Build output saved to build.log"
 
 run:
-	trunk serve --release --public-url /shoken-webapp-wasm/
+	trunk serve --release --public-url /shoken-webapp/
 
 run-log:
-	trunk serve --release --public-url /shoken-webapp-wasm/ > run.log 2>&1
+	trunk serve --release --public-url /shoken-webapp/ > run.log 2>&1
 	@echo "Run output saved to run.log"
 
 clean:

@@ -2,4 +2,4 @@
 frontend/src/env.rs
 .shuttle*
 Secrets*.toml
-backend/*.log
+*.log
