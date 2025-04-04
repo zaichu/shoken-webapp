@@ -6,7 +6,7 @@
 
 以下のリンクからデモアプリを確認できます。
 
-[デモサイトリンク](https://zaichu.github.io/shoken-webapp-wasm/)
+[デモサイトリンク](https://zaichu.github.io/shoken-webapp/)
 
 ## 主な機能
 - CSVファイルからの取引データのインポート

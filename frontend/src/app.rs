@@ -12,14 +12,14 @@ use crate::{
 
 #[derive(Clone, Routable, PartialEq)]
 pub enum Route {
-    #[at("/shoken-webapp-wasm/")]
+    #[at("/shoken-webapp/")]
     Home,
-    #[at("/shoken-webapp-wasm/receipts")]
+    #[at("/shoken-webapp/receipts")]
     Receipts,
-    #[at("/shoken-webapp-wasm/search")]
+    #[at("/shoken-webapp/search")]
     Search,
     #[not_found]
-    #[at("/shoken-webapp-wasm/404")]
+    #[at("/shoken-webapp/404")]
     NotFound,
 }
 
@@ -58,23 +58,20 @@ fn initialize_user_info() -> UserInfo {
 
 fn get_user_info_from_url(window: &Window) -> Option<UserInfo> {
     window.location().search().ok().and_then(|search| {
-        Url::parse(&format!(
-            "http://localhost:8080/shoken-webapp-wasm/{}",
-            &search
-        ))
-        .ok()
-        .and_then(|url| {
-            url.query_pairs()
-                .find(|(key, _)| key == "code")
-                .map(|(_, auth_code)| {
-                    let new_info = UserInfo {
-                        auth_code: Some(auth_code.to_string()),
-                        ..Default::default()
-                    };
-                    save_user_info_to_storage(&new_info);
-                    new_info
-                })
-        })
+        Url::parse(&format!("http://localhost:8080/shoken-webapp/{}", &search))
+            .ok()
+            .and_then(|url| {
+                url.query_pairs()
+                    .find(|(key, _)| key == "code")
+                    .map(|(_, auth_code)| {
+                        let new_info = UserInfo {
+                            auth_code: Some(auth_code.to_string()),
+                            ..Default::default()
+                        };
+                        save_user_info_to_storage(&new_info);
+                        new_info
+                    })
+            })
     })
 }
 
@@ -98,7 +95,7 @@ fn save_user_info_to_storage(user_info: &UserInfo) {
 fn update_browser_history() {
     window().and_then(|w| {
         w.location().pathname().ok().and_then(|pathname| {
-            if pathname != "/shoken-webapp-wasm/" {
+            if pathname != "/shoken-webapp/" {
                 w.history().ok().and_then(|history| {
                     history
                         .replace_state_with_url(&JsValue::NULL, "", Some(&pathname))

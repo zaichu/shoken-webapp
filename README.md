@@ -1,10 +1,10 @@
 # 証券情報ウェブアプリ (shoken-webapp)
 
-このプロジェクトは、既存のshoken-webapp-wasmとshoken-webapp-apiを統合した証券情報表示用のウェブアプリケーションです。フロントエンドとバックエンドの両方にRustを使用しています。
+このプロジェクトは、既存のshoken-webappとshoken-webapp-apiを統合した証券情報表示用のウェブアプリケーションです。フロントエンドとバックエンドの両方にRustを使用しています。
 
 ## プロジェクト構成
 
-- `frontend/`: WebAssembly部分（旧shoken-webapp-wasm）
+- `frontend/`: WebAssembly部分（旧shoken-webapp）
 - `backend/`: API部分（旧shoken-webapp-api）
 - `common/`: 共通コード
 
