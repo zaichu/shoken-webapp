@@ -33,9 +33,6 @@ async fn main(
     //     .await
     //     .expect("Failed to run migrations");
 
-    // カスタムのCORSレイヤーを設定（特定のオリジンを許可）
-
-    // 許可するヘッダーのリストを定義
     let allowed_headers = vec![
         axum::http::header::CONTENT_TYPE,
         axum::http::header::ACCEPT,
@@ -57,15 +54,13 @@ async fn main(
             origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
                 || origin.eq(&"http://localhost:8080".parse::<HeaderValue>().unwrap())
         }))
-        // 特定のメソッドのみを許可
         .allow_methods(allowed_methods)
-        // 特定のヘッダーのみを許可
         .allow_headers(allowed_headers)
         .allow_credentials(true);
 
     let state = AppState {
         pool,
-        _secrets: secrets,
+        secrets: secrets,
     };
     let router = Router::new()
         .route("/stock", post(handlers::stock::add_stock_info))
