@@ -12,7 +12,7 @@ all: check run
 .PHONY: run
 run:
 	@echo "🚀 ローカルでShuttleプロジェクトを実行します..."
-	$(SHUTTLE) run
+	$(SHUTTLE) run --secrets Secrets.dev.toml
 
 .PHONY: deploy
 deploy:

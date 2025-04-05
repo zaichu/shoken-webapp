@@ -22,9 +22,11 @@ async fn main(
 ) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
 
+    let database_url = secrets.get("DATABASE_URL").unwrap_or(postgres_connection);
+    println!("database_url: {}", database_url);
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&postgres_connection)
+        .connect(&database_url)
         .await
         .expect("Failed to connect to Postgres");
 
