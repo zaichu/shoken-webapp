@@ -55,6 +55,9 @@ async fn main(
         .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
                 || origin.eq(&"http://localhost:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://127.0.0.1:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://[::1]:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://localhost.:8080".parse::<HeaderValue>().unwrap())
         }))
         .allow_methods(allowed_methods)
         .allow_headers(allowed_headers)

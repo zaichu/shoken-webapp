@@ -17,7 +17,7 @@ pub async fn select_stock_info(
 ) -> Result<impl IntoResponse, ApiError> {
     let query = query
         .chars()
-        .map(|c| halfwidth_to_fullwidth(c))
+        .map(halfwidth_to_fullwidth)
         .collect::<String>();
     let stock = sqlx::query_as::<_, Stock>(
         "SELECT * FROM stock WHERE code = $1 OR name ILIKE $2 ORDER BY date DESC LIMIT 1",

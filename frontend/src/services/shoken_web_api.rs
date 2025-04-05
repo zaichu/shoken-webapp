@@ -4,7 +4,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
-use crate::{data::stock::StockData, setting::*};
+use crate::{data::stock::StockData, env, setting::*};
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ApiError {
@@ -52,7 +52,7 @@ fn create_request(url: &str) -> Result<Request, ApiError> {
 }
 
 pub async fn fetch_stock_data(code: &str) -> Result<StockData, ApiError> {
-    let url = format!("{}/stock/{}", SHOKEN_WEB_API_URL, code);
+    let url = format!("{}/stock/{}", env::SHOKEN_WEBAPI_API_URL, code);
     let json = fetch_json(&url).await?;
 
     json.into_serde::<StockData>()
