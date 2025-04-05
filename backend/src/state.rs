@@ -4,5 +4,6 @@ use sqlx::PgPool;
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub _secrets: SecretStore,
+    #[allow(dead_code)]
+    pub secrets: SecretStore,
 }

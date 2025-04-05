@@ -53,7 +53,7 @@ mod tests {
     fn test_stock_validation_invalid_code() {
         let stock = Stock {
             date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
-            code: "".to_string(), // 空文字は無効
+            code: "".to_string(),
             name: "テスト株式会社".to_string(),
             market_category: "プライム".to_string(),
             industry_code_33: Some("123".to_string()),
@@ -72,7 +72,7 @@ mod tests {
         let stock = Stock {
             date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
             code: "1234".to_string(),
-            name: "".to_string(), // 空文字は無効
+            name: "".to_string(),
             market_category: "プライム".to_string(),
             industry_code_33: Some("123".to_string()),
             industry_category_33: Some("情報・通信業".to_string()),
@@ -91,7 +91,7 @@ mod tests {
             date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
             code: "1234".to_string(),
             name: "テスト株式会社".to_string(),
-            market_category: "".to_string(), // 空文字は無効
+            market_category: "".to_string(),
             industry_code_33: Some("123".to_string()),
             industry_category_33: Some("情報・通信業".to_string()),
             industry_code_17: Some("12".to_string()),

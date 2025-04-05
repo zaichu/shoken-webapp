@@ -4,9 +4,9 @@ use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
-use crate::{data::stock::StockData, setting::*};
+use crate::{data::stock::StockData, env, setting::*};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ApiError {
     #[error("Request failed")]
     RequestError,
@@ -51,15 +51,50 @@ fn create_request(url: &str) -> Result<Request, ApiError> {
     Request::new_with_str_and_init(url, &opts).map_err(|_| ApiError::RequestError)
 }
 
-/// 株式データを API から取得する関数。
-///
-/// - `code`: 銘柄コード (例: "7203")
-/// - 成功時: `StockData` を返す。
-/// - 失敗時: `ApiError` を返す。
 pub async fn fetch_stock_data(code: &str) -> Result<StockData, ApiError> {
-    let url = format!("{}/stock/{}", SHOKEN_WEB_API_URL, code);
+    let url = format!("{}/stock/{}", env::SHOKEN_WEBAPI_API_URL, code);
     let json = fetch_json(&url).await?;
 
     json.into_serde::<StockData>()
         .map_err(|_| ApiError::DeserializationError)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_error_display() {
+        let error = ApiError::RequestError;
+        assert_eq!(error.to_string(), "Request failed");
+
+        let error = ApiError::NoWindowObject;
+        assert_eq!(error.to_string(), "No window object");
+
+        let error = ApiError::FetchError;
+        assert_eq!(error.to_string(), "Fetch error");
+
+        let error = ApiError::ResponseError;
+        assert_eq!(error.to_string(), "Response error");
+
+        let error = ApiError::JsonError;
+        assert_eq!(error.to_string(), "JSON error");
+
+        let error = ApiError::DeserializationError;
+        assert_eq!(error.to_string(), "Deserialization error");
+    }
+
+    #[test]
+    fn test_from_js_error() {
+        let error = ApiError::from_js_error(ApiError::RequestError);
+        assert_eq!(error, ApiError::RequestError);
+    }
+
+    #[allow(dead_code)]
+    fn test_create_request() {
+        let url = "https://example.com/api";
+        let result = create_request(url);
+
+        assert!(result.is_ok());
+    }
 }

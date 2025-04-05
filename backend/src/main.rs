@@ -22,9 +22,11 @@ async fn main(
 ) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
 
+    let database_url = secrets.get("DATABASE_URL").unwrap_or(postgres_connection);
+    println!("database_url: {}", database_url);
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&postgres_connection)
+        .connect(&database_url)
         .await
         .expect("Failed to connect to Postgres");
 
@@ -33,9 +35,6 @@ async fn main(
     //     .await
     //     .expect("Failed to run migrations");
 
-    // カスタムのCORSレイヤーを設定（特定のオリジンを許可）
-
-    // 許可するヘッダーのリストを定義
     let allowed_headers = vec![
         axum::http::header::CONTENT_TYPE,
         axum::http::header::ACCEPT,
@@ -56,19 +55,19 @@ async fn main(
         .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
                 || origin.eq(&"http://localhost:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://127.0.0.1:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://[::1]:8080".parse::<HeaderValue>().unwrap())
+                || origin.eq(&"http://localhost.:8080".parse::<HeaderValue>().unwrap())
         }))
-        // 特定のメソッドのみを許可
         .allow_methods(allowed_methods)
-        // 特定のヘッダーのみを許可
         .allow_headers(allowed_headers)
         .allow_credentials(true);
 
     let state = AppState {
         pool,
-        _secrets: secrets,
+        secrets: secrets,
     };
     let router = Router::new()
-        .route("/oauth/google", get(handlers::oauth_google::google_oauth))
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
         .layer(cors)
