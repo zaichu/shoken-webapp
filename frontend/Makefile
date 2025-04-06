@@ -1,39 +1,27 @@
-.PHONY: all build build-log run run-log clean clean-log help
+.PHONY: all install build dev clean help
 
-all: clean build run
+all: clean install build
+
+install:
+	npm install
 
 build:
-	trunk build --release --public-url /shoken-webapp/
+	npm run build
 
-build-log:
-	trunk build --release --public-url /shoken-webapp/ > build.log 2>&1 || echo "Failed to build frontend: exit code $?" >> build.log
-	@echo "Build output saved to build.log"
-
-run:
-	trunk serve --release --public-url /shoken-webapp/
-
-run-log:
-	trunk serve --release --public-url /shoken-webapp/ > run.log 2>&1
-	@echo "Run output saved to run.log"
+dev:
+	npm run dev
 
 clean:
-	rm -rf dist
-	cargo clean
-
-clean-log:
-	(rm -rf dist && cargo clean) > clean.log 2>&1
-	@echo "Clean output saved to clean.log"
+	rm -rf node_modules dist
 
 # ヘルプ
 help:
-	@echo "shoken-webapp frontend Makefile"
+	@echo "shoken-webapp frontend Makefile (React)"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all        : Default target, cleans, builds and runs the frontend"
-	@echo "  build      : Build frontend in release mode"
-	@echo "  build-log  : Build frontend and save output to build.log"
-	@echo "  run        : Run frontend development server"
-	@echo "  run-log    : Run frontend development server and save output to run.log"
-	@echo "  clean      : Clean build artifacts"
-	@echo "  clean-log  : Clean build artifacts and save output to clean.log"
+	@echo "  all        : Default target, cleans, installs dependencies, and builds the frontend"
+	@echo "  install    : Install npm dependencies"
+	@echo "  build      : Build frontend in production mode"
+	@echo "  dev        : Run development server"
+	@echo "  clean      : Clean build artifacts and dependencies"
 	@echo "  help       : Show this help"

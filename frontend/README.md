@@ -1,6 +1,6 @@
-# Shoken Webapp (WASM)
+# Shoken Webapp (React)
 
-**Shoken Webapp (WASM)** は、Rust と Yew を使用して作成された株式情報検索アプリケーションです。このプロジェクトは、WebAssembly (WASM) を活用し、フロントエンドのパフォーマンスを向上させたウェブアプリケーションです。
+**Shoken Webapp** は、株式情報の検索と取引履歴管理をサポートするReactベースのウェブアプリケーションです。
 
 ## デモ
 
@@ -16,7 +16,32 @@
 
 ## 使用技術
 
-- **Rust**: バックエンドとフロントエンドの開発に使用
-- **Yew**: Rust のウェブフレームワーク
-- **WASM (WebAssembly)**: パフォーマンス向上のための技術
+- **React**: フロントエンド UI ライブラリ
+- **TypeScript**: 型安全なコーディング
+- **React Query**: サーバー状態管理
+- **React Router**: クライアントサイドルーティング
 - **Bootstrap**: レスポンシブデザインを簡素化するためのCSSフレームワーク
+- **Vite**: 高速な開発環境とビルドツール
+
+## 開発
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
+npm run dev
+
+# ビルド
+npm run build
+
+# テスト
+npm test
+```
+
+## デプロイ
+このプロジェクトはGitHub Pagesでホストすることができます。
+```bash
+npm run build
+```
+ビルド後、`dist`ディレクトリの内容をGitHub Pagesにデプロイします。
