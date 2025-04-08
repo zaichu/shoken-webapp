@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ReceiptTemplate } from './ReceiptTemplate';
+import { ReceiptTemplate } from '../../components/templates/ReceiptTemplate';
 
 interface FundTransaction {
   id: string;

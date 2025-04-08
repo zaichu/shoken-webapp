@@ -12,18 +12,18 @@ use axum::{
 };
 
 pub async fn select_stock_info(
-    Path(query): Path<String>,
+    Path(search_query): Path<String>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let query = query
+    let search_query = search_query
         .chars()
         .map(halfwidth_to_fullwidth)
         .collect::<String>();
     let stock = sqlx::query_as::<_, Stock>(
         "SELECT * FROM stock WHERE code = $1 OR name ILIKE $2 ORDER BY date DESC LIMIT 1",
     )
-    .bind(&query)
-    .bind(format!("%{query}%"))
+    .bind(&search_query)
+    .bind(format!("%{search_query}%"))
     .fetch_optional(&state.pool)
     .await?
     .ok_or(ApiError::NotFound)?;
@@ -148,7 +148,7 @@ mod tests {
         };
 
         Router::new()
-            .route("/stock/:query", get(select_stock_info))
+            .route("/stock/:search_query", get(select_stock_info))
             .route("/stock", post(add_stock_info))
             .with_state(app_state)
     }
@@ -159,6 +159,7 @@ mod tests {
         let pool = setup_test_db().await;
         let app = setup_test_app(pool);
 
+        // コードによる検索テスト
         let response = app
             .clone()
             .oneshot(
@@ -181,6 +182,7 @@ mod tests {
         assert_eq!(stock["code"], "1234");
         assert_eq!(stock["name"], "テスト株式会社");
 
+        // 銘柄名による検索テスト
         let response = app
             .clone()
             .oneshot(
@@ -195,6 +197,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
 
+        // 存在しない銘柄コードのテスト
         let response = app
             .clone()
             .oneshot(

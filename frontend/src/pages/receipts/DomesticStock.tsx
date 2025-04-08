@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ReceiptTemplate } from './ReceiptTemplate';
+import { ReceiptTemplate } from '../../components/templates/ReceiptTemplate';
 
 interface StockTransaction {
   id: string;
@@ -18,7 +18,7 @@ interface DomesticStockProps {
 
 export const DomesticStock = ({ csvData }: DomesticStockProps) => {
 
-  const [transactions, setTransactions] = useState<StockTransaction[]>();
+  const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
   // CSVデータが提供された場合は処理（実装例）
   useEffect(() => {

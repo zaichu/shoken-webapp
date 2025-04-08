@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ReceiptTemplate } from './ReceiptTemplate';
+import { useState, useEffect, useMemo } from 'react';
+import { ReceiptTemplate } from '../../components/templates/ReceiptTemplate';
 import { DividendItem, DividendSummary, parseDividendItemFromCSV, calculateDividendSummary, formatDate, formatCurrency, sortByDate, searchBySecurityCode } from '../../data/receipt';
 
 interface DividendListProps {
@@ -8,12 +8,6 @@ interface DividendListProps {
 
 export const DividendList = ({ csvData }: DividendListProps) => {
   const [dividends, setDividends] = useState<DividendItem[]>([]);
-  const [filteredDividends, setFilteredDividends] = useState<DividendItem[]>([]);
-  const [summary, setSummary] = useState<DividendSummary>({
-    total_dividends_before_tax: 0,
-    total_taxes: 0,
-    total_net_amount_received: 0
-  });
   const [searchQuery, setSearchQuery] = useState('');
 
   // CSVデータが変更されたときに配当金データを更新
@@ -22,39 +16,47 @@ export const DividendList = ({ csvData }: DividendListProps) => {
       const newDividends = csvData.map((row, index) => parseDividendItemFromCSV(row, index));
       const sortedDividends = sortByDate(newDividends);
       setDividends(sortedDividends);
-      setFilteredDividends(sortedDividends);
-      setSummary(calculateDividendSummary(sortedDividends));
     }
   }, [csvData]);
 
-  // 検索フィルタリング
+  // 検索フィルタリングとサマリー計算を最適化
+  const { filteredDividends, summary } = useMemo(() => {
+    let filtered = dividends;
+    
+    if (searchQuery) {
+      filtered = searchBySecurityCode(dividends, searchQuery);
+    }
+    
+    return {
+      filteredDividends: filtered,
+      summary: calculateDividendSummary(filtered)
+    };
+  }, [dividends, searchQuery]);
+
+  // 銘柄コードの一意なリストを取得（メモ化）
+  const securityOptions = useMemo(() => {
+    const uniqueCodes = [...new Set(dividends.map(item => item.security_code).filter(Boolean))].sort();
+    
+    return uniqueCodes.map(code => {
+      const item = dividends.find(d => d.security_code === code);
+      return {
+        value: code || '',
+        label: item ? `${code}: ${item.security_name}` : code
+      };
+    });
+  }, [dividends]);
+
+  // 検索ハンドラー
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query) {
-      const filtered = searchBySecurityCode(dividends, query);
-      setFilteredDividends(filtered);
-      setSummary(calculateDividendSummary(filtered));
-    } else {
-      setFilteredDividends(dividends);
-      setSummary(calculateDividendSummary(dividends));
-    }
   };
-
-  // 銘柄コードの一意なリストを取得
-  const securityOptions = [...new Set(dividends.map(item => item.security_code).filter(Boolean))].sort();
 
   return (
     <ReceiptTemplate
       title="配当金一覧"
       searchQuery={searchQuery}
       onSearch={handleSearch}
-      searchOptions={securityOptions.map(code => {
-        const item = dividends.find(d => d.security_code === code);
-        return {
-          value: code || '',
-          label: item ? `${code}: ${item.security_name}` : code
-        };
-      })}
+      searchOptions={securityOptions}
     >
       <div className="table-responsive">
         <table className="table table-striped">
