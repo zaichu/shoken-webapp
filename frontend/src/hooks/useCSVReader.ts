@@ -25,6 +25,8 @@ export function useCSVReader() {
       return data;
     } catch (e) {
       // エラーは parseCSVFile 内で処理済み
+      // setIsLoading(false)はonCompleteで呼ばれるはずだが、念のため明示的に設定
+      setIsLoading(false);
       throw e;
     }
   }, []);

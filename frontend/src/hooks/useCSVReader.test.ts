@@ -23,7 +23,19 @@ describe('useCSVReader フック', () => {
 
   it('parseCSV が正しくファイルを処理する', async () => {
     const mockData = [{ column1: 'value1', column2: 'value2' }];
-    (parseCSVFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockData);
+    
+    // コールバックを実行するようにモックを実装
+    (parseCSVFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      (file: File, callbacks: any) => {
+        // onStartコールバックを呼び出し
+        if (callbacks.onStart) callbacks.onStart();
+        
+        // データを返す前にonCompleteコールバックを呼び出し
+        if (callbacks.onComplete) callbacks.onComplete();
+        
+        return Promise.resolve(mockData);
+      }
+    );
     
     const { result } = renderHook(() => useCSVReader());
     const file = new File(['test csv content'], 'test.csv', { type: 'text/csv' });
