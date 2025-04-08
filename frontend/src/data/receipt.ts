@@ -78,7 +78,7 @@ export interface FundTransaction {
 export function parseDividendItemFromCSV(record: any, index: number): DividendItem {
   return {
     id: `dividend-${index}`,
-    settlement_date: parseDate(record['入金日(受渡日)']),
+    settlement_date: parseDate(record['入金日']),
     product: record['商品'],
     account: record['口座'],
     security_code: record['銘柄コード'],
@@ -115,7 +115,7 @@ export function calculateDividendSummary(items: DividendItem[]): DividendSummary
 // 銘柄コードでの検索
 export function searchBySecurityCode(items: DividendItem[], query: string): DividendItem[] {
   if (!query) return items;
-  
+
   return items.filter(
     item => item.security_code === query || item.security_name === query
   );
@@ -149,7 +149,7 @@ import { parseDate } from './csvReader';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  
+
   // YYYY/MM/DD形式の日付をパース
   const match = dateStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
   if (match) {
@@ -158,7 +158,7 @@ function parseDate(dateStr: string): Date | null {
     const day = parseInt(match[3], 10);
     return new Date(year, month, day);
   }
-  
+
   return null;
 }
 

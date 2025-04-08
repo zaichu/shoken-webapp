@@ -10,7 +10,6 @@ export const DividendList = ({ csvData }: DividendListProps) => {
   const [dividends, setDividends] = useState<DividendItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // CSVデータが変更されたときに配当金データを更新
   useEffect(() => {
     if (csvData.length > 0) {
       const newDividends = csvData.map((row, index) => parseDividendItemFromCSV(row, index));
@@ -22,11 +21,11 @@ export const DividendList = ({ csvData }: DividendListProps) => {
   // 検索フィルタリングとサマリー計算を最適化
   const { filteredDividends, summary } = useMemo(() => {
     let filtered = dividends;
-    
+
     if (searchQuery) {
       filtered = searchBySecurityCode(dividends, searchQuery);
     }
-    
+
     return {
       filteredDividends: filtered,
       summary: calculateDividendSummary(filtered)
@@ -36,7 +35,7 @@ export const DividendList = ({ csvData }: DividendListProps) => {
   // 銘柄コードの一意なリストを取得（メモ化）
   const securityOptions = useMemo(() => {
     const uniqueCodes = [...new Set(dividends.map(item => item.security_code).filter(Boolean))].sort();
-    
+
     return uniqueCodes.map(code => {
       const item = dividends.find(d => d.security_code === code);
       return {
