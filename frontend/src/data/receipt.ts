@@ -1,19 +1,19 @@
 // 共通のフィールドヘッダー
 export const HEADERS: Record<string, string> = {
-  settlement_date: "入金日(受渡日)",
+  settlement_date: "入金日",
   product: "商品",
   account: "口座",
   security_code: "銘柄コード",
-  security_name: "銘柄",
+  security_name: "銘柄名",
   currency: "受取通貨",
-  unit_price: "単価[円/現地通貨]",
+  unit_price: "単価",
   shares: "数量[株/口]",
-  dividends_before_tax: "配当・分配金（税引前）[円/現地通貨]",
-  taxes: "税額[円/現地通貨]",
-  net_amount_received: "受取金額[円/現地通貨]",
-  total_dividends_before_tax: "配当・分配金合計（税引前）[円/現地通貨]",
-  total_taxes: "税額合計[円/現地通貨]",
-  total_net_amount_received: "受取金額合計[円/現地通貨]",
+  dividends_before_tax: "配当・分配金",
+  taxes: "税額",
+  net_amount_received: "受取金額",
+  total_dividends_before_tax: "合計配当・分配金",
+  total_taxes: "合計税額",
+  total_net_amount_received: "受取金額",
 
   // 株式取引関連
   transaction_date: "取引日",
@@ -76,19 +76,22 @@ export interface FundTransaction {
 
 // CSVレコードから配当金データへの変換
 export function parseDividendItemFromCSV(record: any, index: number): DividendItem {
+  const nullToUndefined = <T>(value: T | null): T | undefined =>
+    value === null ? undefined : value;
+
   return {
     id: `dividend-${index}`,
-    settlement_date: parseDate(record['入金日']),
+    settlement_date: nullToUndefined(parseDate(record['入金日'])),
     product: record['商品'],
     account: record['口座'],
     security_code: record['銘柄コード'],
     security_name: record['銘柄'],
     currency: record['受取通貨'],
     unit_price: record['単価[円/現地通貨]'],
-    shares: parseNumberString(record['数量[株/口]']),
-    dividends_before_tax: parseNumberString(record['配当・分配金（税引前）[円/現地通貨]']),
-    taxes: parseNumberString(record['税額[円/現地通貨]']),
-    net_amount_received: parseNumberString(record['受取金額[円/現地通貨]']),
+    shares: nullToUndefined(parseNumberString(record['数量[株/口]'])),
+    dividends_before_tax: nullToUndefined(parseNumberString(record['配当・分配金合計（税引前）[円/現地通貨]'])),
+    taxes: nullToUndefined(parseNumberString(record['税額合計[円/現地通貨]'])),
+    net_amount_received: nullToUndefined(parseNumberString(record['受取金額[円/現地通貨]'])),
   };
 }
 
@@ -145,26 +148,4 @@ export function formatCurrency(amount?: number | null): string {
 }
 
 // CSV読み込み時のパーサーを日付取得用に修正
-import { parseDate } from './csvReader';
-
-function parseDate(dateStr: string): Date | null {
-  if (!dateStr) return null;
-
-  // YYYY/MM/DD形式の日付をパース
-  const match = dateStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if (match) {
-    const year = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const day = parseInt(match[3], 10);
-    return new Date(year, month, day);
-  }
-
-  return null;
-}
-
-function parseNumberString(numStr: string | null | undefined): number | null {
-  if (!numStr) return null;
-  const cleanStr = numStr.replace(/,/g, '');
-  const num = parseFloat(cleanStr);
-  return isNaN(num) ? null : num;
-}
+import { parseDate, parseNumberString } from '../services/csvUtils';

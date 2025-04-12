@@ -18,7 +18,7 @@ interface DomesticStockProps {
 
 export const DomesticStock = ({ csvData }: DomesticStockProps) => {
 
-  const [transactions, setTransactions] = useState<StockTransaction[]>([]);
+  const [transactions] = useState<StockTransaction[]>([]);
 
   // CSVデータが提供された場合は処理（実装例）
   useEffect(() => {

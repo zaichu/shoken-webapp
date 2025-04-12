@@ -43,7 +43,7 @@ export const MutualFund = ({ csvData }: MutualFundProps) => {
     },
   ];
 
-  const [transactions, setTransactions] = useState<FundTransaction[]>(sampleTransactions);
+  const [transactions] = useState<FundTransaction[]>(sampleTransactions);
 
   // CSVデータが提供された場合は処理（実装例）
   useEffect(() => {

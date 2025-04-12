@@ -1,10 +1,31 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, CSSProperties } from 'react';
 import { ReceiptTemplate } from '../../components/templates/ReceiptTemplate';
-import { DividendItem, DividendSummary, parseDividendItemFromCSV, calculateDividendSummary, formatDate, formatCurrency, sortByDate, searchBySecurityCode } from '../../data/receipt';
+import { DividendItem, parseDividendItemFromCSV, calculateDividendSummary, formatDate, formatCurrency, sortByDate, searchBySecurityCode, HEADERS } from '../../data/receipt';
 
 interface DividendListProps {
   csvData: any[];
 }
+
+const DIVIDEND_HEADER_KEYS = [
+  'settlement_date',
+  'product',
+  'account',
+  'security_code',
+  'security_name',
+  'currency',
+  'unit_price',
+  'shares',
+  'dividends_before_tax',
+  'taxes',
+  'net_amount_received',
+  'total_dividends_before_tax',
+  'total_taxes',
+  'total_net_amount_received'
+] as const;
+
+const DIVIDEND_HEADERS: Record<string, string> = Object.fromEntries(
+  DIVIDEND_HEADER_KEYS.map(key => [key, HEADERS[key]])
+);
 
 export const DividendList = ({ csvData }: DividendListProps) => {
   const [dividends, setDividends] = useState<DividendItem[]>([]);
@@ -18,37 +39,99 @@ export const DividendList = ({ csvData }: DividendListProps) => {
     }
   }, [csvData]);
 
-  // 検索フィルタリングとサマリー計算を最適化
-  const { filteredDividends, summary } = useMemo(() => {
+  const { filteredDividends, summary, groupedByYearMonth } = useMemo(() => {
     let filtered = dividends;
 
     if (searchQuery) {
-      filtered = searchBySecurityCode(dividends, searchQuery);
+      if (searchQuery.startsWith('name:')) {
+        const securityName = searchQuery.substring(5);
+        filtered = dividends.filter(item => item.security_name === securityName);
+      } else {
+        filtered = searchBySecurityCode(dividends, searchQuery);
+      }
     }
+
+    const grouped = filtered.reduce((acc, item) => {
+      if (!item.settlement_date) return acc;
+
+      const date = new Date(item.settlement_date);
+      const yearMonth = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!acc[yearMonth]) {
+        acc[yearMonth] = {
+          items: [],
+          total_dividends_before_tax: 0,
+          total_taxes: 0,
+          total_net_amount_received: 0
+        };
+      }
+
+      acc[yearMonth].items.push(item);
+      acc[yearMonth].total_dividends_before_tax += (item.dividends_before_tax || 0);
+      acc[yearMonth].total_taxes += (item.taxes || 0);
+      acc[yearMonth].total_net_amount_received += (item.net_amount_received || 0);
+
+      return acc;
+    }, {} as Record<string, {
+      items: DividendItem[],
+      total_dividends_before_tax: number,
+      total_taxes: number,
+      total_net_amount_received: number
+    }>);
 
     return {
       filteredDividends: filtered,
-      summary: calculateDividendSummary(filtered)
+      summary: calculateDividendSummary(filtered),
+      groupedByYearMonth: grouped
     };
   }, [dividends, searchQuery]);
 
-  // 銘柄コードの一意なリストを取得（メモ化）
   const securityOptions = useMemo(() => {
-    const uniqueCodes = [...new Set(dividends.map(item => item.security_code).filter(Boolean))].sort();
+    const uniqueIdentifiers = dividends
+      .map(item => {
+        const identifier = item.security_code || (item.security_name ? `name:${item.security_name}` : null);
+        return {
+          identifier,
+          name: item.security_name
+        };
+      })
+      .filter((item): item is { identifier: string; name: string | undefined } => item.identifier !== null)
+      .reduce((unique: { identifier: string; name: string | undefined }[], item) => {
+        if (!unique.some(u => u.identifier === item.identifier)) {
+          unique.push(item);
+        }
+        return unique;
+      }, [])
+      .sort((a, b) => {
+        if (a.identifier.startsWith('name:') && !b.identifier.startsWith('name:')) return 1;
+        if (!a.identifier.startsWith('name:') && b.identifier.startsWith('name:')) return -1;
+        return a.identifier.localeCompare(b.identifier);
+      });
 
-    return uniqueCodes.map(code => {
-      const item = dividends.find(d => d.security_code === code);
+    return uniqueIdentifiers.map(item => {
+      const isNameOnly = item.identifier.startsWith('name:');
       return {
-        value: code || '',
-        label: item ? `${code}: ${item.security_name}` : code
+        value: item.identifier,
+        label: isNameOnly
+          ? item.name || ''
+          : (item.name ? `${item.identifier}: ${item.name}` : item.identifier)
       };
     });
   }, [dividends]);
 
-  // 検索ハンドラー
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+  const handleSearch = (query: string) => setSearchQuery(query);
+  const stickyHeaderStyle: CSSProperties = {
+    position: 'sticky',
+    top: 0,
+    backgroundColor: 'white',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
+    zIndex: 1,
   };
+
+  const sortedYearMonthKeys = useMemo(() => {
+    return Object.keys(groupedByYearMonth).sort((a, b) => a.localeCompare(b));
+  }, [groupedByYearMonth]);
 
   return (
     <ReceiptTemplate
@@ -57,38 +140,68 @@ export const DividendList = ({ csvData }: DividendListProps) => {
       onSearch={handleSearch}
       searchOptions={securityOptions}
     >
-      <div className="table-responsive">
-        <table className="table table-striped">
+      <div className="table-responsive" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <table className="table table-bordered">
           <thead className="table-light">
             <tr>
-              <th>入金日(受渡日)</th>
-              <th>銘柄コード</th>
-              <th>銘柄名</th>
-              <th className="text-end">配当・分配金（税引前）</th>
-              <th className="text-end">税額</th>
-              <th className="text-end">受取金額</th>
+              {Object.entries(DIVIDEND_HEADERS).map((header, index) => (
+                <th key={index} scope="col" style={stickyHeaderStyle}>
+                  {header[1]}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filteredDividends.map(item => (
-              <tr key={item.id}>
-                <td>{formatDate(item.settlement_date)}</td>
-                <td>{item.security_code}</td>
-                <td>{item.security_name}</td>
-                <td className="text-end">{formatCurrency(item.dividends_before_tax)}</td>
-                <td className="text-end">{formatCurrency(item.taxes)}</td>
-                <td className="text-end">{formatCurrency(item.net_amount_received)}</td>
-              </tr>
-            ))}
+            {searchQuery ? (
+              <>
+                {filteredDividends.map(item => (
+                  <tr key={item.id}>
+                    <td>{formatDate(item.settlement_date)}</td>
+                    <td>{item.product}</td>
+                    <td>{item.account}</td>
+                    <td>{item.security_code}</td>
+                    <td>{item.security_name}</td>
+                    <td>{item.currency}</td>
+                    <td>{item.unit_price}</td>
+                    <td className="text-end">{item.shares}</td>
+                    <td className="text-end">{formatCurrency(item.dividends_before_tax)}</td>
+                    <td className="text-end">{formatCurrency(item.taxes)}</td>
+                    <td className="text-end">{formatCurrency(item.net_amount_received)}</td>
+                  </tr>
+                ))}
+                <tr className="table-success">
+                  <td colSpan={11}></td>
+                  <td className="text-end">{formatCurrency(summary.total_dividends_before_tax)}</td>
+                  <td className="text-end">{formatCurrency(summary.total_taxes)}</td>
+                  <td className="text-end">{formatCurrency(summary.total_net_amount_received)}</td>
+                </tr>
+              </>
+            ) : (
+              sortedYearMonthKeys.flatMap(yearMonth => [
+                ...groupedByYearMonth[yearMonth].items.map(item => (
+                  <tr key={item.id}>
+                    <td>{formatDate(item.settlement_date)}</td>
+                    <td>{item.product}</td>
+                    <td>{item.account}</td>
+                    <td>{item.security_code}</td>
+                    <td>{item.security_name}</td>
+                    <td>{item.currency}</td>
+                    <td>{item.unit_price}</td>
+                    <td className="text-end">{item.shares}</td>
+                    <td className="text-end">{formatCurrency(item.dividends_before_tax)}</td>
+                    <td className="text-end">{formatCurrency(item.taxes)}</td>
+                    <td className="text-end">{formatCurrency(item.net_amount_received)}</td>
+                  </tr>
+                )),
+                <tr key={`total-${yearMonth}`} className="table-success">
+                  <td colSpan={11}></td>
+                  <td className="text-end">{formatCurrency(groupedByYearMonth[yearMonth].total_dividends_before_tax)}</td>
+                  <td className="text-end">{formatCurrency(groupedByYearMonth[yearMonth].total_taxes)}</td>
+                  <td className="text-end">{formatCurrency(groupedByYearMonth[yearMonth].total_net_amount_received)}</td>
+                </tr>
+              ])
+            )}
           </tbody>
-          <tfoot className="table-success">
-            <tr>
-              <th colSpan={3}>合計</th>
-              <th className="text-end">{formatCurrency(summary.total_dividends_before_tax)}</th>
-              <th className="text-end">{formatCurrency(summary.total_taxes)}</th>
-              <th className="text-end">{formatCurrency(summary.total_net_amount_received)}</th>
-            </tr>
-          </tfoot>
         </table>
       </div>
     </ReceiptTemplate>

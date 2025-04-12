@@ -74,7 +74,7 @@ export async function parseCSVFile(
             }
             if (callbacks.onComplete) callbacks.onComplete();
           },
-          error: (error) => {
+          error: (error: Error) => {
             const errorMessage = `CSV解析エラー: ${error.message}`;
             if (callbacks.onError) callbacks.onError(errorMessage);
             reject(error);

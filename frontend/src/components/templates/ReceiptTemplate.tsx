@@ -37,7 +37,6 @@ export const ReceiptTemplate = ({
             {onSearch && searchOptions.length > 0 && (
               <div className="col-md-4">
                 <div className="d-flex align-items-center">
-                  <label htmlFor="security-search" className="me-2 mb-0">銘柄コード:</label>
                   <select
                     id="security-search"
                     className="form-select form-select-sm"
