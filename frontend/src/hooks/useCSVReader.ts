@@ -1,16 +1,14 @@
 import { useState, useCallback } from 'react';
-import { parseCSVFile } from '../services/csvUtils';
+import { parseCSVFile } from '../lib/csv/parser';
 
+/**
+ * CSVファイルを読み込むためのカスタムフック
+ */
 export function useCSVReader() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
 
-  /*
-   * CSVファイルを読み込んでパースする関数
-   * @param file CSVファイル
-   * @returns パースされたデータ
-   */
   const parseCSV = useCallback(async (file: File): Promise<any[]> => {
     setIsLoading(true);
     setError(null);
@@ -29,9 +27,6 @@ export function useCSVReader() {
     }
   }, []);
 
-  /**
-   * エラーをリセットする関数
-   */
   const resetError = useCallback(() => {
     setError(null);
   }, []);

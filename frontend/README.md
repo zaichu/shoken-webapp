@@ -14,6 +14,18 @@
 - 銘柄情報の検索と表示
 - 各種証券情報サイトへのリンク生成
 
+## プロジェクト構造
+
+このプロジェクトでは、**Atomic Design**パターンを採用しています。UIコンポーネントは以下の5つのレベルに分類されています：
+
+1. **Atoms**: 基本的なUIコンポーネント（Button, InputField, SelectFieldなど）
+2. **Molecules**: 複数のAtomsを組み合わせたコンポーネント（CSVFileInput, StockInfoLinksなど）
+3. **Organisms**: より複雑な機能ブロック（Header, Footer, SearchFormなど）
+4. **Templates**: ページレイアウトの定義（ErrorPage, ReceiptTemplateなど）
+5. **Pages**: 実際のページコンポーネント（Home, Search, Receiptsなど）
+
+詳細は `/src/components/README.md` を参照してください。
+
 ## 使用技術
 
 - **React**: フロントエンド UI ライブラリ
@@ -22,6 +34,8 @@
 - **React Router**: クライアントサイドルーティング
 - **Bootstrap**: レスポンシブデザインを簡素化するためのCSSフレームワーク
 - **Vite**: 高速な開発環境とビルドツール
+- **Vitest**: ユニットテスト
+- **Testing Library**: コンポーネントテスト
 
 ## 開発
 

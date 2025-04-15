@@ -1,12 +1,11 @@
-import { Layout } from './Layout';
+import { ErrorPage } from '../components/templates/ErrorPage';
 
-export const NotFound = () => {
+export function NotFoundPage() {
   return (
-    <Layout>
-      <div className="text-center mt-5">
-        <h1>404 - ページが見つかりません</h1>
-        <p>お探しのページは存在しないか、移動した可能性があります。</p>
-      </div>
-    </Layout>
+    <ErrorPage
+      title="404 - ページが見つかりません"
+      message="お探しのページは存在しないか、移動した可能性があります。"
+      showHomeButton={true}
+    />
   );
 }

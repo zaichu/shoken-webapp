@@ -1,4 +1,3 @@
-// src/types/api.ts
 import { AxiosError } from 'axios';
 
 export enum ApiErrorType {

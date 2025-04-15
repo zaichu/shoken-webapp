@@ -1,5 +1,3 @@
-// src/types/csv.ts
-
 export interface CSVParseCallbacks {
   onStart?: () => void;
   onSuccess?: (data: any[]) => void;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStockData } from '../services/api';
-import { StockData } from '../data/stock';
+import { fetchStockData } from '../api';
+import { StockData } from '../types';
 
 export function useStockSearch() {
   const [stockCode, setStockCode] = useState('');

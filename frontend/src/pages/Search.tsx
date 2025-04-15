@@ -1,40 +1,47 @@
 import { Layout } from './Layout';
-import { useStockSearch } from '../hooks/useStockSearch';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
-import { ErrorPage } from '../components/templates/ErrorPage';
+import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 
-export const Search = () => {
+export function SearchPage() {
   const {
     stockCode,
     setStockCode,
     stockData,
     error,
     isLoading,
-    handleSearch,
-    resetSearch,
+    isError,
+    handleSearch
   } = useStockSearch();
 
   return (
     <Layout>
-      <SearchForm
-        stockCode={stockCode}
-        onStockCodeChange={setStockCode}
-        onSubmit={handleSearch}
-        isLoading={isLoading}
-      />
+      <div className="search-page">
+        <h2 className="mb-4">銘柄検索</h2>
 
-      {error && (
-        <div className="mb-4">
-          <ErrorPage
-            title="検索エラー"
-            message={`エラーが発生しました: ${error.message}`}
-            onRetry={resetSearch}
-          />
-        </div>
-      )}
+        <SearchForm
+          stockCode={stockCode}
+          onStockCodeChange={setStockCode}
+          onSubmit={handleSearch}
+          isLoading={isLoading}
+        />
 
-      {stockData && <StockInfo data={stockData} />}
+        {isError && (
+          <div className="alert alert-danger" role="alert">
+            <strong>エラー:</strong> {error?.message || '銘柄情報の取得に失敗しました。'}
+          </div>
+        )}
+
+        {stockData && !isError && (
+          <StockInfo stockData={stockData} />
+        )}
+
+        {!stockData && !isError && !isLoading && (
+          <div className="text-center my-5">
+            <p className="text-muted">銘柄コードを入力して検索してください。</p>
+          </div>
+        )}
+      </div>
     </Layout>
   );
 }

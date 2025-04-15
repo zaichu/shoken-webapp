@@ -1,16 +1,7 @@
+import { StockData } from './types';
+import { apiClient } from '../../lib/api/client';
+import { ApiError, ApiErrorType } from '../../lib/types/api';
 import axios from 'axios';
-import { StockData } from '../data/stock';
-import { ApiError, ApiErrorType } from '../types/api';
-
-// APIクライアントの作成
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-  timeout: 10000, // 10秒でタイムアウト
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  }
-});
 
 /**
  * 銘柄データを取得する

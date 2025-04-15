@@ -27,14 +27,14 @@ export function SelectField({
   const baseClasses = 'form-select';
   const errorClass = error ? 'is-invalid' : '';
   const widthClass = fullWidth ? 'w-100' : '';
-  
+
   const combinedClasses = [
     baseClasses,
     errorClass,
     widthClass,
     className
   ].filter(Boolean).join(' ');
-  
+
   return (
     <div className={`mb-3 ${widthClass}`}>
       {label && (

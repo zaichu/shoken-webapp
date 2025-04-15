@@ -19,20 +19,20 @@ const STOCK_INFO_LINKS_OBJECTS: StockInfoLinkObject[] = [
   { name: "みんかぶ", url: "https://minkabu.jp/stock/{}/" },
   { name: "IR BANK", url: "https://irbank.net/{}" },
   { name: "銘柄スカウター", url: "https://monex.ifis.co.jp/index.php?sa=report_index&bcode={}" },
-  { name: "ザイマニ", url: "https://zaimani.com/search/?_sf_s={}" },
+  { name: "ザイマニ", url: "https://zaimani.com/search/?_sf_s={}" }
 ];
 
 export const StockInfoLinks = memo(({ code }: StockInfoLinksProps) => {
   if (!code) return null;
-  
+
   return (
     <div className='d-flex flex-wrap'>
       {STOCK_INFO_LINKS_OBJECTS.map((item, index) => (
         <Fragment key={index}>
-          <a 
-            className='fw-bold' 
-            href={item.url.replace('{}', code)} 
-            target='_blank' 
+          <a
+            className='fw-bold'
+            href={item.url.replace('{}', code)}
+            target='_blank'
             rel="noopener noreferrer"
           >
             {item.name}

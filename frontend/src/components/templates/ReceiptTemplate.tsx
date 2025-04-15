@@ -13,13 +13,13 @@ interface ReceiptTemplateProps {
   searchOptions?: SearchOption[];
 }
 
-export const ReceiptTemplate = ({
+export function ReceiptTemplate({
   title,
   children,
   searchQuery = '',
   onSearch,
   searchOptions = []
-}: ReceiptTemplateProps) => {
+}: ReceiptTemplateProps) {
   const handleSearchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (onSearch) {
       onSearch(e.target.value);
