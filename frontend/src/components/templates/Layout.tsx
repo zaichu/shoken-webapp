@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
-import { Header } from '../components/organisms/Header';
-import { Footer } from '../components/organisms/Footer';
+import { Header } from '../organisms/Header';
+import { Footer } from '../organisms/Footer';
 
 interface LayoutProps {
   children: ReactNode;

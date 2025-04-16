@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout } from './Layout';
+import { Layout } from '../components/templates/Layout';
 import { ReceiptTemplate } from '../components/templates/ReceiptTemplate';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -10,65 +10,64 @@ import { useCSVReader } from '../hooks/useCSVReader';
 export function ReceiptsPage() {
   const { parseCSV, isLoading, error, resetError } = useCSVReader();
   const [dividendItems, setDividendItems] = useState<any[]>([]);
-  const [stockCodes, setStockCodes] = useState<string[]>([]);
+  const [stocks, setStocks] = useState<any[]>([]);
   const [filter, setFilter] = useState('');
-  
+
   /**
    * CSVファイル選択時のハンドラ
    */
   const handleFileSelect = async (file: File) => {
     try {
       const data = await parseCSV(file);
-      
+
       // 銘柄コードのセット
-      const codes = Array.from(
+      const stocks = Array.from(
         new Set(
           data
             .filter(item => item['銘柄コード'])
-            .map(item => item['銘柄コード'])
         )
       );
-      
+
       setDividendItems(data);
-      setStockCodes(codes);
-      
+      setStocks(stocks);
+
       // エラーがあればリセット
       if (error) resetError();
     } catch (e) {
       console.error('CSV処理エラー:', e);
     }
   };
-  
+
   /**
    * 検索オプションの生成
    */
-  const searchOptions = stockCodes.map(code => ({
-    value: code,
-    label: code
+  const searchOptions = stocks.sort((a, b) => a['銘柄コード'].localeCompare(b['銘柄コード'])).map(stock => ({
+    value: stock['銘柄コード'],
+    label: stock['銘柄コード'] + ": " + stock['銘柄']
   }));
-  
+
   /**
    * フィルタリングされた配当データの取得
    */
   const filteredData = filter
     ? dividendItems.filter(item => item['銘柄コード'] === filter)
     : dividendItems;
-  
+
   return (
     <Layout>
       <div className="receipt-page">
         <h2 className="mb-4">受取金管理</h2>
-        
+
         <div className="mb-4">
           <CSVFileInput onFileSelect={handleFileSelect} />
         </div>
-        
+
         {error && (
           <div className="alert alert-danger mb-4" role="alert">
             <strong>エラー:</strong> {error}
           </div>
         )}
-        
+
         {isLoading && (
           <div className="text-center my-4">
             <div className="spinner-border text-primary" role="status">
@@ -76,7 +75,7 @@ export function ReceiptsPage() {
             </div>
           </div>
         )}
-        
+
         {dividendItems.length > 0 && !isLoading && (
           <ReceiptTemplate
             title="配当金情報"
@@ -112,7 +111,7 @@ export function ReceiptsPage() {
             </div>
           </ReceiptTemplate>
         )}
-        
+
         {dividendItems.length === 0 && !isLoading && !error && (
           <div className="text-center my-5">
             <p className="text-muted">CSVファイルをアップロードして受取金情報を表示します。</p>

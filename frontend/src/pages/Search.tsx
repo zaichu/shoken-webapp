@@ -1,4 +1,4 @@
-import { Layout } from './Layout';
+import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
