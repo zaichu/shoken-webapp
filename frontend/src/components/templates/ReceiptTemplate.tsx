@@ -7,7 +7,9 @@ interface SearchOption {
 
 interface ReceiptTemplateProps {
   title: string;
+  header?: ReactNode;
   children: ReactNode;
+  footer?: ReactNode;
   searchQuery?: string;
   onSearch?: (query: string) => void;
   searchOptions?: SearchOption[];
@@ -15,7 +17,9 @@ interface ReceiptTemplateProps {
 
 export function ReceiptTemplate({
   title,
+  header,
   children,
+  footer,
   searchQuery = '',
   onSearch,
   searchOptions = []
@@ -28,6 +32,11 @@ export function ReceiptTemplate({
 
   return (
     <div className="receipt-container">
+      {header && (
+        <div className="mb-3">
+          {header}
+        </div>
+      )}
       <div className="card shadow-sm">
         <div className="card-header bg-info text-white">
           <div className="row align-items-center">
@@ -58,6 +67,11 @@ export function ReceiptTemplate({
         <div className="card-body p-0">
           {children}
         </div>
+        {footer && (
+          <div className="card-footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

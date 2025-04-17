@@ -1,64 +1,58 @@
 import { useState } from 'react';
 import { Layout } from '../components/templates/Layout';
-import { ReceiptTemplate } from '../components/templates/ReceiptTemplate';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
+import Dividend from './Receipt/dividend';
 
-/**
- * 受取金管理ページコンポーネント
- */
+type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
+
 export function ReceiptsPage() {
+  const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
   const { parseCSV, isLoading, error, resetError } = useCSVReader();
-  const [dividendItems, setDividendItems] = useState<any[]>([]);
-  const [stocks, setStocks] = useState<any[]>([]);
-  const [filter, setFilter] = useState('');
+  const [csvData, setCsvData] = useState<any[]>([]);
 
-  /**
-   * CSVファイル選択時のハンドラ
-   */
   const handleFileSelect = async (file: File) => {
     try {
-      const data = await parseCSV(file);
-
-      // 銘柄コードのセット
-      const stocks = Array.from(
-        new Set(
-          data
-            .filter(item => item['銘柄コード'])
-        )
-      );
-
-      setDividendItems(data);
-      setStocks(stocks);
-
-      // エラーがあればリセット
+      setCsvData(await parseCSV(file));
       if (error) resetError();
     } catch (e) {
       console.error('CSV処理エラー:', e);
     }
   };
 
-  /**
-   * 検索オプションの生成
-   */
-  const searchOptions = stocks.sort((a, b) => a['銘柄コード'].localeCompare(b['銘柄コード'])).map(stock => ({
-    value: stock['銘柄コード'],
-    label: stock['銘柄コード'] + ": " + stock['銘柄']
-  }));
-
-  /**
-   * フィルタリングされた配当データの取得
-   */
-  const filteredData = filter
-    ? dividendItems.filter(item => item['銘柄コード'] === filter)
-    : dividendItems;
-
   return (
     <Layout>
-      <div className="receipt-page">
-        <h2 className="mb-4">受取金管理</h2>
+      <nav className="nav nav-tabs">
+        <ul className="nav nav-tabs">
+          <li className="nav-item">
+            <button
+              className={receiptsType === 'dividend' ? 'nav-link active' : 'nav-link'}
+              onClick={() => setReceiptsType('dividend')}
+            >
+              配当金
+            </button>
+          </li>
+          <li className="nav-item">
+            <button
+              className={receiptsType === 'domesticstock' ? 'nav-link active' : 'nav-link'}
+              onClick={() => setReceiptsType('domesticstock')}
+            >
+              国内株式
+            </button>
+          </li>
+          <li className="nav-item">
+            <button
+              className={receiptsType === 'mutualfund' ? 'nav-link active' : 'nav-link'}
+              onClick={() => setReceiptsType('mutualfund')}
+            >
+              投資信託
+            </button>
+          </li>
+        </ul>
+      </nav>
+      <div className="receipt-page mt-2">
 
-        <div className="mb-4">
+        <div className="mt-2">
           <CSVFileInput onFileSelect={handleFileSelect} />
         </div>
 
@@ -76,48 +70,14 @@ export function ReceiptsPage() {
           </div>
         )}
 
-        {dividendItems.length > 0 && !isLoading && (
-          <ReceiptTemplate
-            title="配当金情報"
-            searchQuery={filter}
-            onSearch={setFilter}
-            searchOptions={searchOptions}
-          >
-            <div className="table-responsive">
-              <table className="table table-striped mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th>入金日</th>
-                    <th>銘柄コード</th>
-                    <th>銘柄名</th>
-                    <th>単価</th>
-                    <th>数量</th>
-                    <th>受取金額</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((item, index) => (
-                    <tr key={index}>
-                      <td>{item['入金日']}</td>
-                      <td>{item['銘柄コード']}</td>
-                      <td>{item['銘柄']}</td>
-                      <td>{item['単価[円/現地通貨]']}</td>
-                      <td>{item['数量[株/口]']}</td>
-                      <td>{item['受取金額[円/現地通貨]']}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </ReceiptTemplate>
-        )}
+        <Dividend csvData={csvData} />
 
-        {dividendItems.length === 0 && !isLoading && !error && (
+        {csvData && !isLoading && !error && (
           <div className="text-center my-5">
             <p className="text-muted">CSVファイルをアップロードして受取金情報を表示します。</p>
           </div>
         )}
       </div>
-    </Layout>
+    </Layout >
   );
 }
