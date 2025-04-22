@@ -22,7 +22,7 @@ export function HomePage() {
           <div className="col-md-4 mb-4">
             <div className="card h-100">
               <div className="card-body">
-                <h5 className="card-title">受取金管理</h5>
+                <h5 className="card-title">受取金</h5>
                 <p className="card-text">配当金や分配金の記録を管理できます。CSVファイルのインポートにも対応しています。</p>
               </div>
             </div>

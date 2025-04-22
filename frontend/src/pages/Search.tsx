@@ -17,8 +17,6 @@ export function SearchPage() {
   return (
     <Layout>
       <div className="search-page">
-        <h2 className="mb-4">銘柄検索</h2>
-
         <SearchForm
           stockCode={stockCode}
           onStockCodeChange={setStockCode}
