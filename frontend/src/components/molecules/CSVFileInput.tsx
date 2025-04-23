@@ -19,7 +19,7 @@ export function CSVFileInput({ onFileSelect }: CSVFileInputProps) {
   return (
     <div className="input-group">
       <label className="input-group-btn" htmlFor="csv-file-input">
-        <span className="btn bg-info text-white">CSVファイル選択</span>
+        <span className="btn bg-primary text-white">CSVファイル選択</span>
       </label>
       <input
         id="csv-file-input"

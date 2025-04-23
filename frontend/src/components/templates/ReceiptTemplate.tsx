@@ -38,7 +38,7 @@ export function ReceiptTemplate({
         </div>
       )}
       <div className="card shadow-sm mt-2">
-        <div className="card-header bg-info text-white">
+        <div className="card-header bg-primary text-white">
           <div className="row align-items-center">
             <div className="col">
               <h5 className="mb-0">{title}</h5>
