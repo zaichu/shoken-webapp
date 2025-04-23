@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
-import Dividend from './Receipt/dividend';
+import { Dividend } from './Receipt/Dividend';
+import { DomesticStock } from './Receipt/DomesticStock';
+import { Mutualfund } from './Receipt/Mutualfund';
 
 type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
@@ -70,14 +72,21 @@ export function ReceiptsPage() {
           </div>
         )}
 
-        <Dividend csvData={csvData} />
+        {RenderReceipt(receiptsType, csvData)};
 
-        {csvData && !isLoading && !error && (
-          <div className="text-center my-5">
-            <p className="text-muted">CSVファイルをアップロードして受取金情報を表示します。</p>
-          </div>
-        )}
       </div>
     </Layout >
   );
+}
+
+const RenderReceipt = (type: ReceiptsType, csvData: any[]) => {
+  switch (type) {
+    case 'dividend':
+      return <Dividend csvData={csvData} />;
+    case 'domesticstock':
+      return <DomesticStock csvData={csvData} />;
+    case 'mutualfund':
+      return <Mutualfund csvData={csvData} />;
+    default: return null;
+  }
 }

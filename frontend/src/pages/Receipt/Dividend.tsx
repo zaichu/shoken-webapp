@@ -32,7 +32,7 @@ const Header = () => {
     )
 }
 
-const Dividend: React.FC<DividendProps> = ({ csvData }: DividendProps) => {
+export const Dividend: React.FC<DividendProps> = ({ csvData }: DividendProps) => {
     return (
         <ReceiptTemplate title="配当金">
             <div className="table-responsive">
@@ -64,5 +64,3 @@ const Dividend: React.FC<DividendProps> = ({ csvData }: DividendProps) => {
         </ReceiptTemplate>
     );
 };
-
-export default Dividend;
