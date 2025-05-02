@@ -33,7 +33,35 @@ export function formatDateString(date: Date, format: 'short' | 'long' = 'short')
   return `${year}年${month}月${day}日`;
 }
 
-export function formatCurrencyString(amount: number | null | undefined, currency: string = '¥'): string {
-  if (amount === null || amount === undefined) return '';
-  return `${currency} ${amount.toLocaleString()}`;
+export function formatCurrencyString(value: string | number): string {
+  try {
+    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    if (isNaN(num)) {
+      return '-';
+    }
+    return new Intl.NumberFormat('ja-JP', {
+      style: 'currency',
+      currency: 'JPY'
+    }).format(num);
+  } catch (error) {
+    console.error('数値のフォーマットに失敗しました:', error);
+    return '-';
+  }
 }
+
+export function formatNumber(value: string | number): string {
+  try {
+    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    if (isNaN(num)) {
+      return '-';
+    }
+    return new Intl.NumberFormat('ja-JP', {
+      style: 'decimal',
+      useGrouping: true
+    }).format(num);
+  } catch (error) {
+    console.error('数値のフォーマットに失敗しました:', error);
+    return '-';
+  }
+}
+

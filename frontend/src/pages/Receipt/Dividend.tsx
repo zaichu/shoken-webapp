@@ -1,5 +1,6 @@
 import { ReceiptTemplate } from '@/components';
 import React, { useMemo } from 'react';
+import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 
 interface DividendData {
     入金日: string;
@@ -25,6 +26,7 @@ interface Calculations {
 }
 
 const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
+
     return (
         <div className="card mt-2">
             <div className="card-header bg-primary text-white">
@@ -34,15 +36,15 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
                 <div className="row">
                     <div className="col-md-4">
                         <h6>配当金合計</h6>
-                        <p className="h4">{calculations.totalDividends}</p>
+                        <p className="h4">{formatCurrencyString(calculations.totalDividends)}</p>
                     </div>
                     <div className="col-md-4">
                         <h6>税額合計</h6>
-                        <p className="h4">{calculations.totalTaxes}</p>
+                        <p className="h4">{formatCurrencyString(calculations.totalTaxes)}</p>
                     </div>
                     <div className="col-md-4">
                         <h6>受取金額合計</h6>
-                        <p className="h4">{calculations.totalNetAmount}</p>
+                        <p className="h4">{formatCurrencyString(calculations.totalNetAmount)}</p>
                     </div>
                 </div>
             </div>
@@ -51,12 +53,13 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
 }
 
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
+
     const calculations = useMemo(() => {
         return csvData.reduce((acc, item) => {
             return {
-                totalDividends: acc.totalDividends + Number(item['配当・分配金合計（税引前）[円/現地通貨]'] || 0),
-                totalTaxes: acc.totalTaxes + Number(item['税額合計[円/現地通貨]'] || 0),
-                totalNetAmount: acc.totalNetAmount + Number(item['受取金額[円/現地通貨]'] || 0)
+                totalDividends: acc.totalDividends + Number(item['配当・分配金合計（税引前）[円/現地通貨]'].replace(/,/g, '') || 0),
+                totalTaxes: acc.totalTaxes + Number(item['税額合計[円/現地通貨]'].replace(/,/g, '') || 0),
+                totalNetAmount: acc.totalNetAmount + Number(item['受取金額[円/現地通貨]'].replace(/,/g, '') || 0)
             };
         }, {
             totalDividends: 0,
@@ -94,11 +97,11 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                                 <td>{item['口座']}</td>
                                 <td>{item['銘柄コード']}</td>
                                 <td>{item['銘柄']}</td>
-                                <td>{item['単価[円/現地通貨]']}</td>
-                                <td>{item['数量[株/口]']}</td>
-                                <td>{item['配当・分配金合計（税引前）[円/現地通貨]']}</td>
-                                <td>{item['税額合計[円/現地通貨]']}</td>
-                                <td>{item['受取金額[円/現地通貨]']}</td>
+                                <td>{formatCurrencyString(item['単価[円/現地通貨]'])}</td>
+                                <td>{formatNumber(item['数量[株/口]'])}</td>
+                                <td>{formatCurrencyString(item['配当・分配金合計（税引前）[円/現地通貨]'])}</td>
+                                <td>{formatCurrencyString(item['税額合計[円/現地通貨]'])}</td>
+                                <td>{formatCurrencyString(item['受取金額[円/現地通貨]'])}</td>
                             </tr>
                         ))}
                     </tbody>
