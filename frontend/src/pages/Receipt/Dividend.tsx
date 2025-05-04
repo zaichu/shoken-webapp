@@ -1,68 +1,26 @@
-import { ReceiptTemplate, Table, TableBody, TableCell, TableHeader, TableRow } from '@/components';
+import { ReceiptTemplate } from '@/components/templates';
+import { ReceiptHeader } from '@/components/molecules';
+import { ReceiptTable } from '@/components/organisms';
 import React, { useMemo, useState } from 'react';
 import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
-
-interface DividendData {
-    settlement_date: Date;
-    product: string;
-    account: string;
-    security_code: string;
-    security_name: string;
-    unit_price: number;
-    shares: number;
-    dividends_before_tax: number;
-    taxes: number;
-    net_amount_received: number;
-}
+import {
+    DividendData,
+    DividendCalculations,
+    DividendSummary
+} from '@/lib/interfaces/dividend';
+import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 
 interface DividendProps {
     csvData: any[];
 }
 
-interface Calculations {
-    total_dividends_before_tax: number;
-    total_taxes: number;
-    total_net_amount_received: number;
-}
-
-interface summary {
-    filter: string;
-    dividends_before_tax: number;
-    taxes: number;
-    net_amount_received: number;
-}
-
-const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
-    return (
-        <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">集計情報</h5>
-            </div>
-            <div className="card-body">
-                <div className="row">
-                    <div className="col">
-                        <h6 className='mb-0'>配当金合計</h6>
-                        <h4 className='mb-0'>{formatCurrencyString(calculations.total_dividends_before_tax)}</h4>
-                    </div>
-                    <div className="col">
-                        <h6 className='mb-0'>税額合計</h6>
-                        <h4 className='mb-0'>{formatCurrencyString(calculations.total_taxes)}</h4>
-                    </div>
-                    <div className="col">
-                        <h6 className='mb-0'>受取金額合計</h6>
-                        <h4 className='mb-0'>{formatCurrencyString(calculations.total_net_amount_received)}</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const onSearch = (query: string) => setSearchQuery(query);
-    var dividendData: DividendData[] = useMemo(() => {
-        return csvData.map((item) => ({
+
+    const dividendData = useMemo(() => {
+        const rawData = csvData.map((item) => ({
             settlement_date: new Date(item['入金日']),
             product: item['商品'],
             account: item['口座'],
@@ -74,115 +32,113 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             taxes: Number(item['税額合計[円/現地通貨]'].replace(/,/g, '') || 0),
             net_amount_received: Number(item['受取金額[円/現地通貨]'].replace(/,/g, '') || 0),
         }));
+
+        return [...rawData].sort((a, b) =>
+            a.settlement_date.getTime() - b.settlement_date.getTime()
+        );
     }, [csvData]);
 
-    dividendData = useMemo(() => {
-        return [...dividendData].sort((a, b) => {
-            return a.settlement_date.getTime() - b.settlement_date.getTime();
-        });
-    }, [dividendData]);
-
-    const calculations: Calculations = useMemo(() => {
-        return dividendData.reduce((acc, item) => {
-            return {
-                total_dividends_before_tax: acc.total_dividends_before_tax + item.dividends_before_tax,
-                total_taxes: acc.total_taxes + item.taxes,
-                total_net_amount_received: acc.total_net_amount_received + item.net_amount_received,
-            };
-        }, {
+    const calculations: DividendCalculations = useMemo(() => {
+        return dividendData.reduce((acc, item) => ({
+            total_dividends_before_tax: acc.total_dividends_before_tax + item.dividends_before_tax,
+            total_taxes: acc.total_taxes + item.taxes,
+            total_net_amount_received: acc.total_net_amount_received + item.net_amount_received,
+        }), {
             total_dividends_before_tax: 0,
             total_taxes: 0,
             total_net_amount_received: 0
         });
-    }, [csvData]);
+    }, [dividendData]);
 
-    const searchOptions =
-        dividendData.map((item) => ({
-            value: item.security_code ? item.security_code : item.security_name,
-            label: (item.security_code ? item.security_code + ':' : '') + item.security_name,
-        })).filter((item, index, self) =>
-            index === self.findIndex((t) => (
-                t.value === item.value
-            ))
-        ).sort((a, b) => a.value.localeCompare(b.value));
+    const searchOptions = useMemo(() =>
+        createSearchOptions(
+            dividendData,
+            'security_code',
+            'security_name',
+            true
+        ),
+        [dividendData]);
 
-    const filteredData = dividendData.filter((item) => {
-        const searchValue = searchQuery.toLowerCase();
-        return item.security_code.toLowerCase().includes(searchValue) || item.security_name.toLowerCase().includes(searchValue);
-    });
+    const filteredData = useMemo(() =>
+        filterDataBySearchQuery(
+            dividendData,
+            searchQuery,
+            ['security_code', 'security_name']
+        ),
+        [dividendData, searchQuery]);
 
-    const summary: summary[] = useMemo(() => {
-        const filterMap = new Map<string, summary>();
-        filteredData.forEach(item => {
-            const date = item.settlement_date;
-            const key = searchQuery ? searchQuery.toLocaleLowerCase() : `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    const getGroupKey = (item: DividendData): string => {
+        if (searchQuery) {
+            return searchQuery.toLowerCase();
+        }
+        const date = item.settlement_date;
+        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    };
 
-            if (!filterMap.has(key)) {
-                filterMap.set(key, {
-                    filter: key,
-                    dividends_before_tax: 0,
-                    taxes: 0,
-                    net_amount_received: 0
-                });
-            }
+    const summary = useMemo(() =>
+        groupAndSummarizeData(
+            filteredData,
+            getGroupKey,
+            ['dividends_before_tax', 'taxes', 'net_amount_received'],
+            searchQuery
+        ),
+        [filteredData, searchQuery]);
 
-            const data = filterMap.get(key)!;
-            data.dividends_before_tax += item.dividends_before_tax;
-            data.taxes += item.taxes;
-            data.net_amount_received += item.net_amount_received;
-        });
+    const headerItems = [
+        {
+            title: '配当金合計',
+            value: calculations.total_dividends_before_tax,
+            format: formatCurrencyString
+        },
+        {
+            title: '税額合計',
+            value: calculations.total_taxes,
+            format: formatCurrencyString
+        },
+        {
+            title: '受取金額合計',
+            value: calculations.total_net_amount_received,
+            format: formatCurrencyString
+        }
+    ];
 
-        return Array.from(filterMap.values())
-            .sort((a, b) => a.filter.localeCompare(b.filter));
-    }, [filteredData]);
+    const columns: TableColumnConfig[] = [
+        { key: 'settlement_date', header: '入金日', format: (date) => date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }) },
+        { key: 'product', header: '商品' },
+        { key: 'account', header: '口座', width: '100px' },
+        { key: 'security_code', header: '銘柄コード' },
+        { key: 'security_name', header: '銘柄名', width: '250px' },
+        { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrencyString },
+        { key: 'shares', header: '数量[株]', width: '100px', textAlign: 'right', format: formatNumber },
+        { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrencyString },
+        { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrencyString },
+        { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrencyString },
+        { key: '', header: '配当・分配金合計' },
+        { key: '', header: '税額合計' },
+        { key: '', header: '受取金額合計' }
+    ];
 
-    const headerName = ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量[株]', '配当・分配金', '税額', '受取金額', '配当・分配金合計', '税額合計', '受取金額合計'];
+    const summaryColumns: SummaryColumnConfig[] = [
+        { key: 'dividends_before_tax', colSpan: 11, textAlign: 'right', format: formatCurrencyString },
+        { key: 'taxes', textAlign: 'right', format: formatCurrencyString },
+        { key: 'net_amount_received', textAlign: 'right', format: formatCurrencyString },
+    ];
+
     return (
-        <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />} searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions}>
-            <Table className='mb-0' striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                <TableHeader>
-                    <TableRow variant="warning">
-                        {headerName.map((name, index) => (
-                            <TableCell as="th" style={{ textAlign: 'center' }} key={index}>{name}</TableCell>
-                        ))}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {summary.map((summary, summaryIndex) => {
-                        const data = filteredData.filter(item => {
-                            const date = item.settlement_date;
-                            const key = searchQuery ? searchQuery.toLocaleLowerCase() : `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                            console.log(key, summary.filter);
-                            return key === summary.filter;
-                        });
-
-                        return (
-                            <React.Fragment key={`month-${summaryIndex}`}>
-                                {data.map((item, index) => (
-                                    <TableRow key={`item-${summaryIndex}-${index}`}>
-                                        <TableCell>{item.settlement_date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', })}</TableCell>
-                                        <TableCell>{item.product}</TableCell>
-                                        <TableCell style={{ width: '100px' }}>{item.account}</TableCell>
-                                        <TableCell>{item.security_code}</TableCell>
-                                        <TableCell style={{ width: '250px' }}>{item.security_name}</TableCell>
-                                        <TableCell style={{ width: '80px', textAlign: 'right' }}>{formatCurrencyString(item.unit_price)}</TableCell>
-                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatNumber(item.shares)}</TableCell>
-                                        <TableCell style={{ width: '150px', textAlign: 'right' }}>{formatCurrencyString(item.dividends_before_tax)}</TableCell>
-                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.taxes)}</TableCell>
-                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.net_amount_received)}</TableCell>
-                                    </TableRow>
-                                ))}
-
-                                <TableRow variant="info">
-                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }} colSpan={11}>{formatCurrencyString(summary.dividends_before_tax)}</TableCell>
-                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(summary.taxes)}</TableCell>
-                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(summary.net_amount_received)}</TableCell>
-                                </TableRow>
-                            </React.Fragment>
-                        );
-                    })}
-                </TableBody>
-            </Table>
-        </ReceiptTemplate >
-    )
+        <ReceiptTemplate
+            title="配当金"
+            header={<ReceiptHeader items={headerItems} />}
+            searchQuery={searchQuery}
+            onSearch={onSearch}
+            searchOptions={searchOptions}
+        >
+            <ReceiptTable
+                data={filteredData}
+                summary={summary}
+                columns={columns}
+                summaryColumns={summaryColumns}
+                getGroupKey={getGroupKey}
+            />
+        </ReceiptTemplate>
+    );
 };
