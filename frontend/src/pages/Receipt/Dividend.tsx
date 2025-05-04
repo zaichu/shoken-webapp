@@ -53,6 +53,7 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
 
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const onSearch = (query: string) => setSearchQuery(query);
 
     csvData = useMemo(() => {
         return [...csvData].sort((a, b) => {
@@ -91,15 +92,14 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         return item['銘柄コード'].toLowerCase().includes(searchValue) || item['銘柄'].toLowerCase().includes(searchValue);
     });
 
-    const onSearch = (query: string) => setSearchQuery(query)
     const headerName = ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量[株]', '配当・分配金', '税額', '受取金額', '配当・分配金合計', '税額合計', '受取金額合計'];
     return (
         <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />} searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions}>
             <Table className='mb-0' striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <TableHeader>
-                    <TableRow>
+                    <TableRow variant="success">
                         {headerName.map((name, index) => (
-                            <TableCell as="th" key={index}>{name}</TableCell>
+                            <TableCell as="th" style={{ textAlign: 'center' }} key={index}>{name}</TableCell>
                         ))}
                     </TableRow>
                 </TableHeader>
@@ -108,14 +108,14 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                         <TableRow key={index}>
                             <TableCell>{item['入金日']}</TableCell>
                             <TableCell>{item['商品']}</TableCell>
-                            <TableCell>{item['口座']}</TableCell>
+                            <TableCell style={{ width: '100px' }}>{item['口座']}</TableCell>
                             <TableCell>{item['銘柄コード']}</TableCell>
-                            <TableCell>{item['銘柄']}</TableCell>
-                            <TableCell>{formatCurrencyString(item['単価[円/現地通貨]'])}</TableCell>
-                            <TableCell>{formatNumber(item['数量[株/口]'])}</TableCell>
-                            <TableCell>{formatCurrencyString(item['配当・分配金合計（税引前）[円/現地通貨]'])}</TableCell>
-                            <TableCell>{formatCurrencyString(item['税額合計[円/現地通貨]'])}</TableCell>
-                            <TableCell>{formatCurrencyString(item['受取金額[円/現地通貨]'])}</TableCell>
+                            <TableCell style={{ width: '250px' }}>{item['銘柄']}</TableCell>
+                            <TableCell style={{ width: '80px', textAlign: 'right' }}>{formatCurrencyString(item['単価[円/現地通貨]'])}</TableCell>
+                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatNumber(item['数量[株/口]'])}</TableCell>
+                            <TableCell style={{ width: '150px', textAlign: 'right' }}>{formatCurrencyString(item['配当・分配金合計（税引前）[円/現地通貨]'])}</TableCell>
+                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item['税額合計[円/現地通貨]'])}</TableCell>
+                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item['受取金額[円/現地通貨]'])}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
