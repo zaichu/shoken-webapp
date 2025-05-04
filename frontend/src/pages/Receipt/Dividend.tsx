@@ -97,7 +97,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />} searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions}>
             <Table className='mb-0' striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <TableHeader>
-                    <TableRow variant="success">
+                    <TableRow variant="warning">
                         {headerName.map((name, index) => (
                             <TableCell as="th" style={{ textAlign: 'center' }} key={index}>{name}</TableCell>
                         ))}
