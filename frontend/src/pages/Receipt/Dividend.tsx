@@ -1,6 +1,6 @@
 import { ReceiptTemplate } from '@/components';
 import React, { useMemo } from 'react';
-import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
+import { formatCurrencyString, formatNumber, formatDateString } from '@/lib/utils/format';
 
 interface DividendData {
     入金日: string;
@@ -34,15 +34,15 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
             </div>
             <div className="card-body">
                 <div className="row">
-                    <div className="col-md-4">
+                    <div className="col-md">
                         <h6>配当金合計</h6>
                         <p className="h4">{formatCurrencyString(calculations.totalDividends)}</p>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md">
                         <h6>税額合計</h6>
                         <p className="h4">{formatCurrencyString(calculations.totalTaxes)}</p>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md">
                         <h6>受取金額合計</h6>
                         <p className="h4">{formatCurrencyString(calculations.totalNetAmount)}</p>
                     </div>
@@ -53,6 +53,13 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
 }
 
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
+    csvData = useMemo(() => {
+        return [...csvData].sort((a, b) => {
+            const dateA = new Date(a['入金日'].replace(/(\d+)\/(\d+)\/(\d+)/, '$1-$2-$3'));
+            const dateB = new Date(b['入金日'].replace(/(\d+)\/(\d+)\/(\d+)/, '$1-$2-$3'));
+            return dateA.getTime() - dateB.getTime();
+        });
+    }, [csvData]);
 
     const calculations = useMemo(() => {
         return csvData.reduce((acc, item) => {
@@ -108,5 +115,5 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                 </table>
             </div>
         </ReceiptTemplate>
-    );
+    )
 };

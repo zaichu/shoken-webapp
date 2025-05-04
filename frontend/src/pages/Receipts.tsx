@@ -72,7 +72,7 @@ export function ReceiptsPage() {
           </div>
         )}
 
-        {RenderReceipt(receiptsType, csvData)};
+        {RenderReceipt(receiptsType, csvData)}
 
       </div>
     </Layout >
@@ -82,11 +82,12 @@ export function ReceiptsPage() {
 const RenderReceipt = (type: ReceiptsType, csvData: any[]) => {
   switch (type) {
     case 'dividend':
-      return <Dividend csvData={csvData} />;
+      return <Dividend csvData={csvData} />
     case 'domesticstock':
-      return <DomesticStock csvData={csvData} />;
+      return <DomesticStock csvData={csvData} />
     case 'mutualfund':
-      return <Mutualfund csvData={csvData} />;
-    default: return null;
+      return <Mutualfund csvData={csvData} />
+    default:
+      return null
   }
 }

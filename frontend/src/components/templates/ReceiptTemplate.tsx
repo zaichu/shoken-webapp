@@ -64,7 +64,7 @@ export function ReceiptTemplate({
             )}
           </div>
         </div>
-        <div className="card-body p-0">
+        <div className="card-body p-0" style={{ maxHeight: '500px', overflowY: 'auto' }}>
           {children}
         </div>
         {footer && (
