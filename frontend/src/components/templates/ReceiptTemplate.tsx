@@ -68,23 +68,15 @@ export function ReceiptTemplate({
             <div className={`col ${hasSearchFeature ? '' : 'col-12'}`}>
               <h5 className="mb-0">{title}</h5>
             </div>
-
-            {hasSearchFeature && (
-              <SearchControl
-                searchQuery={searchQuery}
-                onSearch={onSearch}
-                searchOptions={searchOptions}
-              />
-            )}
+            {hasSearchFeature && <SearchControl searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions} />}
           </div>
         </div>
 
-        <div className="card-body p-0">
-          {children}
-        </div>
-
-        {footer && <div className="card-footer">{footer}</div>}
+        <div className="card-body p-0">{children}</div>
       </div>
+
+      {footer && <div className="mb-3">{footer}</div>}
+
     </div>
   );
 }
