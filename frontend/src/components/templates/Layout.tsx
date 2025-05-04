@@ -21,7 +21,7 @@ export function Layout({ children }: LayoutProps) {
     <div className={`app-container ${theme}`}>
       <Header onToggleTheme={toggleTheme} />
 
-      <main className="container mt-4" style={{ maxWidth: '1600px' }}>
+      <main className="container mt-2" style={{ maxWidth: '1600px' }}>
         {children}
       </main>
 

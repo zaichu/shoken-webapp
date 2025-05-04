@@ -53,8 +53,7 @@ export function ReceiptsPage() {
         </ul>
       </nav>
       <div className="receipt-page mt-2">
-
-        <div className="mt-2">
+        <div>
           <CSVFileInput onFileSelect={handleFileSelect} />
         </div>
 

@@ -26,25 +26,24 @@ interface Calculations {
 }
 
 const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
-
     return (
-        <div className="card mt-2">
+        <div className="card shadow-sm mt-1">
             <div className="card-header bg-primary text-white">
                 <h5 className="mb-0">集計情報</h5>
             </div>
             <div className="card-body">
                 <div className="row">
-                    <div className="col-md">
-                        <h6>配当金合計</h6>
-                        <p className="h4">{formatCurrencyString(calculations.totalDividends)}</p>
+                    <div className="col">
+                        <h6 className='mb-0'>配当金合計</h6>
+                        <h4 className='mb-0'>{formatCurrencyString(calculations.totalDividends)}</h4>
                     </div>
-                    <div className="col-md">
-                        <h6>税額合計</h6>
-                        <p className="h4">{formatCurrencyString(calculations.totalTaxes)}</p>
+                    <div className="col">
+                        <h6 className='mb-0'>税額合計</h6>
+                        <h4 className='mb-0'>{formatCurrencyString(calculations.totalTaxes)}</h4>
                     </div>
-                    <div className="col-md">
-                        <h6>受取金額合計</h6>
-                        <p className="h4">{formatCurrencyString(calculations.totalNetAmount)}</p>
+                    <div className="col">
+                        <h6 className='mb-0'>受取金額合計</h6>
+                        <h4 className='mb-0'>{formatCurrencyString(calculations.totalNetAmount)}</h4>
                     </div>
                 </div>
             </div>
@@ -96,7 +95,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const headerName = ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量[株]', '配当・分配金', '税額', '受取金額', '配当・分配金合計', '税額合計', '受取金額合計'];
     return (
         <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />} searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions}>
-            <Table striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
+            <Table className='mb-0' striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <TableHeader>
                     <TableRow>
                         {headerName.map((name, index) => (

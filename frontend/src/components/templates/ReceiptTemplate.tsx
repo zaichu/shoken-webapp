@@ -26,23 +26,22 @@ const SearchControl = ({ searchQuery = '', onSearch, searchOptions = [] }: Searc
   };
 
   return (
-    <div className="col-md-4">
-      <div className="d-flex align-items-center">
-        <select
-          id="security-search"
-          className="form-select form-select-sm"
-          value={searchQuery}
-          onChange={handleSearchChange}
-          aria-label="検索フィルター"
-        >
-          <option value="">全て表示</option>
-          {searchOptions.map((option, index) => (
-            <option key={`search-option-${option.value}-${index}`} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="col-md-3 d-flex align-items-center">
+      <select
+        id="security-search"
+        className="form-select form-select-sm"
+        value={searchQuery}
+        onChange={handleSearchChange}
+        aria-label="検索フィルター"
+      >
+        <option value="">全て表示</option>
+        {searchOptions.map((option, index) => (
+          <option key={`search-option-${option.value}-${index}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+
     </div>
   );
 };
@@ -60,13 +59,13 @@ export function ReceiptTemplate({
 
   return (
     <div className="receipt-container">
-      {header && <div className="mb-3">{header}</div>}
+      {header && <div>{header}</div>}
 
-      <div className="card shadow-sm mt-2">
+      <div className="card shadow-sm mt-1">
         <div className="card-header bg-primary text-white">
           <div className="row align-items-center">
             <div className={`col ${hasSearchFeature ? '' : 'col-12'}`}>
-              <h5 className="mb-0">{title}</h5>
+              <h5 className='mb-0'>{title}</h5>
             </div>
             {hasSearchFeature && <SearchControl searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions} />}
           </div>
@@ -75,8 +74,8 @@ export function ReceiptTemplate({
         <div className="card-body p-0">{children}</div>
       </div>
 
-      {footer && <div className="mb-3">{footer}</div>}
+      {footer && <div>{footer}</div>}
 
-    </div>
+    </div >
   );
 }
