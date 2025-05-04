@@ -77,9 +77,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
     return (
         <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />}>
-            <div className="table-responsive">
+            <div className="table-responsive" style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <table className="table table-striped mb-0">
-                    <thead className="bg-light">
+                    <thead className="bg-light sticky-top">
                         <tr>
                             <th scope="col">入金日</th>
                             <th scope="col">商品</th>
