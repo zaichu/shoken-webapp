@@ -25,6 +25,13 @@ interface Calculations {
     total_net_amount_received: number;
 }
 
+interface MonthlyTotal {
+    month: string;
+    dividends_before_tax: number;
+    taxes: number;
+    net_amount_received: number;
+}
+
 const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
     return (
         <div className="card shadow-sm mt-1">
@@ -89,6 +96,33 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         });
     }, [csvData]);
 
+    const monthlyTotals: MonthlyTotal[] = useMemo(() => {
+        const monthMap = new Map<string, MonthlyTotal>();
+        dividendData.forEach(item => {
+            const date = item.settlement_date;
+            const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            const monthLabel = `${date.getFullYear()}年${(date.getMonth() + 1).toString().padStart(2, '0')}月`;
+
+            if (!monthMap.has(monthKey)) {
+                monthMap.set(monthKey, {
+                    month: monthLabel,
+                    dividends_before_tax: 0,
+                    taxes: 0,
+                    net_amount_received: 0
+                });
+            }
+
+            const monthData = monthMap.get(monthKey)!;
+            monthData.dividends_before_tax += item.dividends_before_tax;
+            monthData.taxes += item.taxes;
+            monthData.net_amount_received += item.net_amount_received;
+        });
+
+        // Mapから配列に変換して日付順にソート
+        return Array.from(monthMap.values())
+            .sort((a, b) => a.month.localeCompare(b.month));
+    }, [dividendData]);
+
     const searchOptions =
         dividendData.map((item) => ({
             value: item.security_code ? item.security_code : item.security_name,
@@ -116,20 +150,47 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredData.map((item, index) => (
-                        <TableRow key={index}>
-                            <TableCell>{item.settlement_date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', })}</TableCell>
-                            <TableCell>{item.product}</TableCell>
-                            <TableCell style={{ width: '100px' }}>{item.account}</TableCell>
-                            <TableCell>{item.security_code}</TableCell>
-                            <TableCell style={{ width: '250px' }}>{item.security_name}</TableCell>
-                            <TableCell style={{ width: '80px', textAlign: 'right' }}>{formatCurrencyString(item.unit_price)}</TableCell>
-                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatNumber(item.shares)}</TableCell>
-                            <TableCell style={{ width: '150px', textAlign: 'right' }}>{formatCurrencyString(item.dividends_before_tax)}</TableCell>
-                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.taxes)}</TableCell>
-                            <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.net_amount_received)}</TableCell>
-                        </TableRow>
-                    ))}
+                    {monthlyTotals.map((monthTotal, monthIndex) => {
+                        const monthData = filteredData.filter(item => {
+                            const date = item.settlement_date;
+                            const monthStr = `${date.getFullYear()}年${(date.getMonth() + 1).toString().padStart(2, '0')}月`;
+                            return monthStr === monthTotal.month;
+                        });
+                        return (
+                            <React.Fragment key={`month-${monthIndex}`}>
+
+                                {monthData.map((item, index) => (
+                                    <TableRow key={`item-${monthIndex}-${index}`}>
+                                        <TableCell>{item.settlement_date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', })}</TableCell>
+                                        <TableCell>{item.product}</TableCell>
+                                        <TableCell style={{ width: '100px' }}>{item.account}</TableCell>
+                                        <TableCell>{item.security_code}</TableCell>
+                                        <TableCell style={{ width: '250px' }}>{item.security_name}</TableCell>
+                                        <TableCell style={{ width: '80px', textAlign: 'right' }}>{formatCurrencyString(item.unit_price)}</TableCell>
+                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatNumber(item.shares)}</TableCell>
+                                        <TableCell style={{ width: '150px', textAlign: 'right' }}>{formatCurrencyString(item.dividends_before_tax)}</TableCell>
+                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.taxes)}</TableCell>
+                                        <TableCell style={{ width: '100px', textAlign: 'right' }}>{formatCurrencyString(item.net_amount_received)}</TableCell>
+                                    </TableRow>
+                                ))}
+                                <TableRow variant="info">
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell>{""}</TableCell>
+                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.dividends_before_tax)}</TableCell>
+                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.taxes)}</TableCell>
+                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.net_amount_received)}</TableCell>
+                                </TableRow>
+                            </React.Fragment>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </ReceiptTemplate >
