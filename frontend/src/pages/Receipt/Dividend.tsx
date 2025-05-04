@@ -1,6 +1,6 @@
-import { ReceiptTemplate } from '@/components';
+import { ReceiptTemplate, Table, TableBody, TableCell, TableHeader, TableRow } from '@/components';
 import React, { useMemo } from 'react';
-import { formatCurrencyString, formatNumber, formatDateString } from '@/lib/utils/format';
+import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 
 interface DividendData {
     入金日: string;
@@ -75,45 +75,34 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         });
     }, [csvData]);
 
+    const headerName = ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量[株]', '配当・分配金', '税額', '受取金額', '配当・分配金合計', '税額合計', '受取金額合計'];
     return (
         <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />}>
-            <div className="table-responsive" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                <table className="table table-striped mb-0">
-                    <thead className="bg-light sticky-top">
-                        <tr>
-                            <th scope="col">入金日</th>
-                            <th scope="col">商品</th>
-                            <th scope="col">口座</th>
-                            <th scope="col">銘柄コード</th>
-                            <th scope="col">銘柄名</th>
-                            <th scope="col">単価</th>
-                            <th scope="col">数量[株]</th>
-                            <th scope="col">配当・分配金</th>
-                            <th scope="col">税額</th>
-                            <th scope="col">受取金額</th>
-                            <th scope="col">配当・分配金合計</th>
-                            <th scope="col">税額合計</th>
-                            <th scope="col">受取金額合計</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {csvData.map((item, index) => (
-                            <tr key={index}>
-                                <td>{item['入金日']}</td>
-                                <td>{item['商品']}</td>
-                                <td>{item['口座']}</td>
-                                <td>{item['銘柄コード']}</td>
-                                <td>{item['銘柄']}</td>
-                                <td>{formatCurrencyString(item['単価[円/現地通貨]'])}</td>
-                                <td>{formatNumber(item['数量[株/口]'])}</td>
-                                <td>{formatCurrencyString(item['配当・分配金合計（税引前）[円/現地通貨]'])}</td>
-                                <td>{formatCurrencyString(item['税額合計[円/現地通貨]'])}</td>
-                                <td>{formatCurrencyString(item['受取金額[円/現地通貨]'])}</td>
-                            </tr>
+            <Table striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <TableHeader>
+                    <TableRow>
+                        {headerName.map((name, index) => (
+                            <TableCell as="th" key={index}>{name}</TableCell>
                         ))}
-                    </tbody>
-                </table>
-            </div>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {csvData.map((item, index) => (
+                        <TableRow key={index}>
+                            <TableCell>{item['入金日']}</TableCell>
+                            <TableCell>{item['商品']}</TableCell>
+                            <TableCell>{item['口座']}</TableCell>
+                            <TableCell>{item['銘柄コード']}</TableCell>
+                            <TableCell>{item['銘柄']}</TableCell>
+                            <TableCell>{formatCurrencyString(item['単価[円/現地通貨]'])}</TableCell>
+                            <TableCell>{formatNumber(item['数量[株/口]'])}</TableCell>
+                            <TableCell>{formatCurrencyString(item['配当・分配金合計（税引前）[円/現地通貨]'])}</TableCell>
+                            <TableCell>{formatCurrencyString(item['税額合計[円/現地通貨]'])}</TableCell>
+                            <TableCell>{formatCurrencyString(item['受取金額[円/現地通貨]'])}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </ReceiptTemplate>
     )
 };
