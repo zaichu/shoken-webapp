@@ -1,5 +1,5 @@
 import { ReceiptTemplate, Table, TableBody, TableCell, TableHeader, TableRow } from '@/components';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 
 interface DividendData {
@@ -53,6 +53,8 @@ const Header: React.FC<{ calculations: Calculations }> = ({ calculations }) => {
 }
 
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+
     csvData = useMemo(() => {
         return [...csvData].sort((a, b) => {
             const dateA = new Date(a['入金日'].replace(/(\d+)\/(\d+)\/(\d+)/, '$1-$2-$3'));
@@ -75,9 +77,25 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         });
     }, [csvData]);
 
+    const searchOptions =
+        csvData.map((item) => ({
+            value: item['銘柄コード'] ? item['銘柄コード'] : item['銘柄'],
+            label: item['銘柄コード'] ? item['銘柄コード'] + ':' + item['銘柄'] : item['銘柄']
+        })).filter((item, index, self) =>
+            index === self.findIndex((t) => (
+                t.value === item.value
+            ))
+        ).sort((a, b) => a.value.localeCompare(b.value));
+
+    const filteredData = csvData.filter((item) => {
+        const searchValue = searchQuery.toLowerCase();
+        return item['銘柄コード'].toLowerCase().includes(searchValue) || item['銘柄'].toLowerCase().includes(searchValue);
+    });
+
+    const onSearch = (query: string) => setSearchQuery(query)
     const headerName = ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量[株]', '配当・分配金', '税額', '受取金額', '配当・分配金合計', '税額合計', '受取金額合計'];
     return (
-        <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />}>
+        <ReceiptTemplate title="配当金" header={<Header calculations={calculations} />} searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions}>
             <Table striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <TableHeader>
                     <TableRow>
@@ -87,7 +105,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {csvData.map((item, index) => (
+                    {filteredData.map((item, index) => (
                         <TableRow key={index}>
                             <TableCell>{item['入金日']}</TableCell>
                             <TableCell>{item['商品']}</TableCell>
