@@ -29,6 +29,7 @@ interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   children: ReactNode;
   as?: 'td' | 'th';
   scope?: 'col' | 'row' | 'colgroup' | 'rowgroup';
+  colSpan?: number;
   className?: string;
 }
 
@@ -147,6 +148,7 @@ export function TableCell({
   children,
   as = 'td',
   scope = 'col',
+  colSpan = 1,
   className = '',
   ...rest
 }: TableCellProps) {
@@ -154,7 +156,7 @@ export function TableCell({
   const scopeAttr = as === 'th' ? { scope } : {};
 
   return (
-    <Cell className={className} {...scopeAttr} {...rest}>
+    <Cell className={className} {...scopeAttr} {...rest} colSpan={colSpan}>
       {children}
     </Cell>
   );

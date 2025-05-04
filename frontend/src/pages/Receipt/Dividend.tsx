@@ -156,9 +156,10 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                             const monthStr = `${date.getFullYear()}年${(date.getMonth() + 1).toString().padStart(2, '0')}月`;
                             return monthStr === monthTotal.month;
                         });
+                        if (monthData.length === 0) return null;
+
                         return (
                             <React.Fragment key={`month-${monthIndex}`}>
-
                                 {monthData.map((item, index) => (
                                     <TableRow key={`item-${monthIndex}-${index}`}>
                                         <TableCell>{item.settlement_date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', })}</TableCell>
@@ -174,17 +175,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                                     </TableRow>
                                 ))}
                                 <TableRow variant="info">
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell>{""}</TableCell>
-                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.dividends_before_tax)}</TableCell>
+                                    <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }} colSpan={11}>{formatCurrencyString(monthTotal.dividends_before_tax)}</TableCell>
                                     <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.taxes)}</TableCell>
                                     <TableCell style={{ fontWeight: 'bold', textAlign: 'right' }}>{formatCurrencyString(monthTotal.net_amount_received)}</TableCell>
                                 </TableRow>
