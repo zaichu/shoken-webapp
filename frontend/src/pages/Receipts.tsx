@@ -8,19 +8,62 @@ import { Mutualfund } from './Receipt/Mutualfund';
 
 type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
+/**
+ * 明細種類ごとにCSVデータを管理するページコンポーネント
+ */
 export function ReceiptsPage() {
+  // アクティブなタブの状態管理
   const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
-  const { parseCSV, isLoading, error, resetError } = useCSVReader();
-  const [csvData, setCsvData] = useState<any[]>([]);
 
+  // 各明細種類ごとのCSVデータを個別に管理
+  const [dividendCsvData, setDividendCsvData] = useState<any[]>([]);
+  const [domesticStockCsvData, setDomesticStockCsvData] = useState<any[]>([]);
+  const [mutualfundCsvData, setMutualfundCsvData] = useState<any[]>([]);
+
+  // 各明細種類ごとにCSVリーダーフックを作成
+  const dividendCSV = useCSVReader();
+  const domesticStockCSV = useCSVReader();
+  const mutualfundCSV = useCSVReader();
+
+  /**
+   * 現在選択中のタブに応じてCSV処理を切り替える
+   */
   const handleFileSelect = async (file: File) => {
     try {
-      setCsvData(await parseCSV(file));
-      if (error) resetError();
+      switch (receiptsType) {
+        case 'dividend':
+          setDividendCsvData(await dividendCSV.parseCSV(file));
+          if (dividendCSV.error) dividendCSV.resetError();
+          break;
+        case 'domesticstock':
+          setDomesticStockCsvData(await domesticStockCSV.parseCSV(file));
+          if (domesticStockCSV.error) domesticStockCSV.resetError();
+          break;
+        case 'mutualfund':
+          setMutualfundCsvData(await mutualfundCSV.parseCSV(file));
+          if (mutualfundCSV.error) mutualfundCSV.resetError();
+          break;
+      }
     } catch (e) {
       console.error('CSV処理エラー:', e);
     }
   };
+
+  /**
+   * 現在選択中のタブに対応するエラーとローディング状態を取得
+   */
+  const getCurrentCSVState = () => {
+    switch (receiptsType) {
+      case 'dividend':
+        return { isLoading: dividendCSV.isLoading, error: dividendCSV.error, fileName: dividendCSV.fileName };
+      case 'domesticstock':
+        return { isLoading: domesticStockCSV.isLoading, error: domesticStockCSV.error, fileName: domesticStockCSV.fileName };
+      case 'mutualfund':
+        return { isLoading: mutualfundCSV.isLoading, error: mutualfundCSV.error, fileName: mutualfundCSV.fileName };
+    }
+  };
+
+  const { isLoading, error, fileName } = getCurrentCSVState();
 
   return (
     <Layout>
@@ -53,12 +96,12 @@ export function ReceiptsPage() {
         </ul>
       </nav>
       <div className="receipt-page mt-2">
-        <div>
-          <CSVFileInput onFileSelect={handleFileSelect} />
+        <div className="row">
+          <div className='col'><CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} /></div>
         </div>
 
         {error && (
-          <div className="alert alert-danger mb-4" role="alert">
+          <div className="alert alert-danger my-3" role="alert">
             <strong>エラー:</strong> {error}
           </div>
         )}
@@ -71,22 +114,10 @@ export function ReceiptsPage() {
           </div>
         )}
 
-        {RenderReceipt(receiptsType, csvData)}
-
+        {receiptsType === 'dividend' && <Dividend csvData={dividendCsvData} />}
+        {receiptsType === 'domesticstock' && <DomesticStock csvData={domesticStockCsvData} />}
+        {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundCsvData} />}
       </div>
-    </Layout >
+    </Layout>
   );
-}
-
-const RenderReceipt = (type: ReceiptsType, csvData: any[]) => {
-  switch (type) {
-    case 'dividend':
-      return <Dividend csvData={csvData} />
-    case 'domesticstock':
-      return <DomesticStock csvData={csvData} />
-    case 'mutualfund':
-      return <Mutualfund csvData={csvData} />
-    default:
-      return null
-  }
 }

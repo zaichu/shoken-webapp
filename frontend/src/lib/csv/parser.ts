@@ -1,6 +1,41 @@
 import Papa from 'papaparse';
 import { CSVParseCallbacks } from '../types/csv';
 
+/**
+ * 複数のエンコーディングを試して正常に読み込めるものを使用
+ * @param uint8Array CSVファイルのバイナリデータ
+ * @returns デコード結果のテキスト
+ */
+const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): { text: string; encoding: string } => {
+  // 試すエンコーディングの順序
+  const encodings = ['shift-jis', 'utf-8', 'iso-8859-1'];
+  
+  for (const encoding of encodings) {
+    try {
+      const decoder = new TextDecoder(encoding);
+      const text = decoder.decode(uint8Array);
+      
+      // 文字化けチェック（文字化けしていると �� が含まれることが多い）
+      if (!text.includes('��') && text.trim().length > 0) {
+        return { text, encoding };
+      }
+    } catch (e) {
+      // エラーが出ても次のエンコーディングを試す
+      continue;
+    }
+  }
+  
+  // 全て失敗した場合は最後にShift-JISで強制的にデコード
+  const decoder = new TextDecoder('shift-jis', { fatal: false });
+  return { text: decoder.decode(uint8Array), encoding: 'shift-jis' };
+};
+
+/**
+ * CSVファイルをパースする
+ * @param file CSVファイル
+ * @param callbacks コールバック関数群
+ * @returns パース結果の配列
+ */
 export async function parseCSVFile(
   file: File,
   callbacks: CSVParseCallbacks = {}
@@ -11,9 +46,10 @@ export async function parseCSVFile(
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
-    const decoder = new TextDecoder('shift-jis');
     try {
-      const text = decoder.decode(uint8Array);
+      // 複数のエンコーディングを試してデコード
+      const { text, encoding } = tryDecodeWithMultipleEncodings(uint8Array);
+      console.log(`CSVファイルを ${encoding} エンコーディングで読み込みました`);
 
       return new Promise((resolve, reject) => {
         Papa.parse(text, {

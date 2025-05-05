@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface CSVFileInputProps {
   onFileSelect: (file: File) => void;
+  selectedFileName?: string;
 }
 
-export function CSVFileInput({ onFileSelect }: CSVFileInputProps) {
-  const [selectedFileName, setSelectedFileName] = useState('');
+/**
+ * CSVファイル選択コンポーネント
+ * ファイル選択UIとファイル名表示を提供
+ */
+export function CSVFileInput({ onFileSelect, selectedFileName = '' }: CSVFileInputProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      setSelectedFileName(file.name);
       onFileSelect(file);
     }
   };
