@@ -9,6 +9,7 @@ export const JP_DATE_FORMAT_OPTIONS = {
 
 /**
  * 税率定数
+ * 配当金や分配金の源泉徴収税率（20.315%）
  */
 export const TAX_RATE = 0.20315;
 
@@ -24,6 +25,7 @@ export const formatJPDate = (date: Date): string => {
 
 /**
  * 日付から年月のグループキーを生成する関数
+ * 受取金データの月次集計などに利用可能
  */
 export const createYearMonthKey = (date: Date): string => {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
@@ -40,4 +42,73 @@ export const createISODateKey = (date: Date): string => {
     return '';
   }
   return date.toISOString().split('T')[0];
+};
+
+/**
+ * 数値を「¥ XXX」形式の通貨文字列にフォーマットする
+ * マイナスの場合は「¥ -XXX」形式になる（マイナス記号が数字の前に）
+ * @param value フォーマットする数値または数値文字列
+ * @returns フォーマットされた通貨文字列
+ */
+export const formatCurrency = (value: string | number): string => {
+  try {
+    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    if (isNaN(num)) {
+      return '-';
+    }
+    
+    // マイナスの場合は絶対値を使ってフォーマットし、自分でマイナス記号を配置
+    const isNegative = num < 0;
+    const absNum = Math.abs(num);
+    
+    // 数値のみのフォーマット（マイナス記号と通貨記号なし）
+    const formattedNumber = new Intl.NumberFormat('ja-JP', {
+      style: 'decimal',
+      useGrouping: true
+    }).format(absNum);
+    
+    // マイナスの場合は赤文字にするためのCSSクラスをデータ属性として追加
+    if (isNegative) {
+      return `<span data-negative="true">¥ -${formattedNumber}</span>`;
+    } else {
+      return `¥ ${formattedNumber}`;
+    }
+  } catch (error) {
+    console.error('数値のフォーマットに失敗しました:', error);
+    return '-';
+  }
+};
+
+/**
+ * 数値をフォーマットする（通貨記号なし）
+ * マイナスの場合は「-XXX」形式になる
+ * @param value フォーマットする数値または数値文字列
+ * @returns フォーマットされた数値文字列
+ */
+export const formatNumber = (value: string | number): string => {
+  try {
+    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    if (isNaN(num)) {
+      return '-';
+    }
+    
+    // マイナスの場合は絶対値を使ってフォーマットし、自分でマイナス記号を配置
+    const isNegative = num < 0;
+    const absNum = Math.abs(num);
+    
+    const formattedNumber = new Intl.NumberFormat('ja-JP', {
+      style: 'decimal',
+      useGrouping: true
+    }).format(absNum);
+    
+    // マイナスの場合は赤文字にするためのCSSクラスをデータ属性として追加
+    if (isNegative) {
+      return `<span data-negative="true">-${formattedNumber}</span>`;
+    } else {
+      return formattedNumber;
+    }
+  } catch (error) {
+    console.error('数値のフォーマットに失敗しました:', error);
+    return '-';
+  }
 };

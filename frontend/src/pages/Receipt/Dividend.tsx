@@ -2,14 +2,18 @@ import { ReceiptTemplate } from '@/components/templates';
 import { ReceiptHeader } from '@/components/molecules';
 import { ReceiptTable } from '@/components/organisms';
 import React, { useMemo, useState, useCallback } from 'react';
-import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 import {
     DividendData,
     DividendCalculations
 } from '@/lib/interfaces/dividend';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
-import { JP_DATE_FORMAT_OPTIONS } from '@/lib/constants/formats';
+import {
+    formatJPDate,
+    createYearMonthKey,
+    formatCurrency,
+    formatNumber
+} from '@/lib/constants/formats';
 
 interface DividendProps {
     csvData: any[];
@@ -89,8 +93,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         if (searchQuery) {
             return searchQuery.toLowerCase();
         }
-        const date = item.settlement_date;
-        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        return createYearMonthKey(item.settlement_date);
     }, [searchQuery]);
 
     /**
@@ -112,17 +115,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         {
             title: '合計配当金',
             value: calculations.total_dividends_before_tax,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計税額',
             value: calculations.total_taxes,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計受取金額',
             value: calculations.total_net_amount_received,
-            format: formatCurrencyString
+            format: formatCurrency
         }
     ], [calculations]);
 
@@ -133,17 +136,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         {
             key: 'settlement_date',
             header: '入金日',
-            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+            format: formatJPDate
         },
         { key: 'product', header: '商品' },
         { key: 'account', header: '口座', width: '100px' },
         { key: 'security_code', header: '銘柄コード' },
         { key: 'security_name', header: '銘柄名', width: '250px' },
-        { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrencyString },
+        { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrency },
         { key: 'shares', header: '数量[株]', width: '100px', textAlign: 'right', format: formatNumber },
-        { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrencyString },
-        { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrencyString },
-        { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrencyString },
+        { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrency },
+        { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrency },
         { key: 'total_dividends_before_tax', header: '合計配当・分配金' },
         { key: 'total_taxes', header: '合計税額' },
         { key: 'total_net_amount_received', header: '合計受取金額' }
@@ -153,9 +156,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
      * サマリーカラムの定義
      */
     const summaryColumns = useMemo<SummaryColumnConfig[]>(() => [
-        { key: 'dividends_before_tax', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrencyString },
-        { key: 'taxes', textAlign: 'right', format: formatCurrencyString },
-        { key: 'net_amount_received', textAlign: 'right', format: formatCurrencyString },
+        { key: 'dividends_before_tax', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', textAlign: 'right', format: formatCurrency },
+        { key: 'net_amount_received', textAlign: 'right', format: formatCurrency },
     ], [columns.length]);
 
     return (

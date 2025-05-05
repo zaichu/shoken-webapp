@@ -2,14 +2,19 @@ import { ReceiptTemplate } from '@/components/templates';
 import { ReceiptHeader } from '@/components/molecules';
 import { ReceiptTable } from '@/components/organisms';
 import React, { useMemo, useState, useCallback } from 'react';
-import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 import {
     MutualfundData,
     MutualfundCalculations
 } from '@/lib/interfaces/mutualfund';
 import { TableColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
-import { JP_DATE_FORMAT_OPTIONS, TAX_RATE } from '@/lib/constants/formats';
+import {
+    formatJPDate,
+    createYearMonthKey,
+    TAX_RATE,
+    formatCurrency,
+    formatNumber
+} from '@/lib/constants/formats';
 
 interface MutualfundProps {
     csvData: any[];
@@ -26,7 +31,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
      * CSVデータをMutualfundData形式に変換
      */
     const mutualfundData = useMemo<MutualfundData[]>(() => {
-        // ,平均取得価額［円］,実現損益［円］
         const parsedData = csvData.map((item) => ({
             trade_date: new Date(item['約定日'] || ''),
             settlement_date: new Date(item['受渡日'] || ''),
@@ -94,8 +98,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         if (searchQuery) {
             return searchQuery.toLowerCase();
         }
-        const date = item.trade_date;
-        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        return createYearMonthKey(item.trade_date);
     }, [searchQuery]);
 
     /**
@@ -117,17 +120,17 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         {
             title: '合計実現損益',
             value: calculations.total_realized_profit_and_loss,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計税額',
             value: calculations.total_taxes,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計実現損益(税引)',
             value: calculations.total_realized_profit_and_loss_after_tax,
-            format: formatCurrencyString
+            format: formatCurrency
         }
     ], [calculations]);
 
@@ -138,23 +141,23 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         {
             key: 'trade_date',
             header: '約定日',
-            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+            format: formatJPDate
         },
         {
             key: 'settlement_date',
             header: '受渡日',
-            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+            format: formatJPDate
         },
         { key: 'fund_name', header: 'ファンド名', width: '250px' },
         { key: 'account', header: '口座', width: '80px' },
         { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
         { key: 'exchange_rate', header: '為替レート', textAlign: 'right', format: formatNumber },
-        { key: 'cancellation_unit_price_yen', header: '解約単価', textAlign: 'right', format: formatCurrencyString },
-        { key: 'cancellation_amount_yen', header: '解約額', textAlign: 'right', format: formatCurrencyString },
-        { key: 'average_acquisition_price_yen', header: '平均取得価額', textAlign: 'right', format: formatCurrencyString },
-        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrencyString },
-        { key: 'taxes', header: '税額', textAlign: 'right', format: formatCurrencyString },
-        { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrencyString },
+        { key: 'cancellation_unit_price_yen', header: '解約単価', textAlign: 'right', format: formatCurrency },
+        { key: 'cancellation_amount_yen', header: '解約額', textAlign: 'right', format: formatCurrency },
+        { key: 'average_acquisition_price_yen', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrency },
     ], []);
 
     return (

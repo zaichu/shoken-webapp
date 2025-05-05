@@ -2,7 +2,6 @@ import { ReceiptTemplate } from '@/components/templates';
 import { ReceiptHeader } from '@/components/molecules';
 import { ReceiptTable } from '@/components/organisms';
 import React, { useMemo, useState, useCallback } from 'react';
-import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 import {
     DomesticStockData,
     DomesticStockCalculations,
@@ -10,7 +9,13 @@ import {
 } from '@/lib/interfaces/domesticStock';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery } from '@/lib/utils/dataTransformer';
-import { formatJPDate, TAX_RATE } from '@/lib/constants/formats';
+import {
+    formatJPDate,
+    TAX_RATE,
+    formatCurrency,
+    formatNumber,
+    createISODateKey
+} from '@/lib/constants/formats';
 
 interface DomesticStockProps {
     csvData: any[];
@@ -52,8 +57,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         const map = new Map<string, DomesticStockData[]>();
 
         domesticStockData.forEach(item => {
-            const dateKey = item.trade_date.toISOString().split('T')[0];
-
+            const dateKey = createISODateKey(item.trade_date);
             if (!map.has(dateKey)) {
                 map.set(dateKey, []);
             }
@@ -135,7 +139,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
      * グループキーの取得（日付文字列）
      */
     const getGroupKey = useCallback((item: DomesticStockData): string => {
-        return item.trade_date.toISOString().split('T')[0];
+        return createISODateKey(item.trade_date);
     }, []);
 
     /**
@@ -145,17 +149,17 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         {
             title: '合計実現損益',
             value: calculations.total_realized_profit_and_loss,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計税額',
             value: calculations.total_taxes,
-            format: formatCurrencyString
+            format: formatCurrency
         },
         {
             title: '合計実現損益(税引)',
             value: calculations.total_realized_profit_and_loss_after_tax,
-            format: formatCurrencyString
+            format: formatCurrency
         }
     ], [calculations]);
 
@@ -166,21 +170,21 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         {
             key: 'trade_date',
             header: '約定日',
-            format: (date) => formatJPDate(date),
+            format: formatJPDate,
         },
         {
             key: 'settlement_date',
             header: '受渡日',
-            format: (date) => formatJPDate(date),
+            format: formatJPDate,
         },
         { key: 'security_code', header: '銘柄コード' },
         { key: 'security_name', header: '銘柄名', width: '250px' },
         { key: 'account', header: '口座', width: '100px' },
         { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
-        { key: 'asked_price', header: '売却単価', textAlign: 'right', format: formatCurrencyString },
-        { key: 'proceeds', header: '売却額', textAlign: 'right', format: formatCurrencyString },
-        { key: 'purchase_price', header: '平均取得価額', textAlign: 'right', format: formatCurrencyString },
-        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrencyString },
+        { key: 'asked_price', header: '売却単価', textAlign: 'right', format: formatCurrency },
+        { key: 'proceeds', header: '売却額', textAlign: 'right', format: formatCurrency },
+        { key: 'purchase_price', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
         { key: 'total_realized_profit_and_loss', header: '合計実現損益' },
         { key: 'total_taxes', header: '合計税額' },
         { key: 'total_realized_profit_and_loss_after_tax', header: '合計実現損益(税引)' },
@@ -190,9 +194,9 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
      * サマリーカラムの定義
      */
     const summaryColumns = useMemo<SummaryColumnConfig[]>(() => [
-        { key: 'total_realized_profit_and_loss', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrencyString },
-        { key: 'total_taxes', textAlign: 'right', format: formatCurrencyString },
-        { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrencyString },
+        { key: 'total_realized_profit_and_loss', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
+        { key: 'total_taxes', textAlign: 'right', format: formatCurrency },
+        { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ], [columns.length]);
 
     return (
