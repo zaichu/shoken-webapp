@@ -31,6 +31,7 @@ interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   scope?: 'col' | 'row' | 'colgroup' | 'rowgroup';
   colSpan?: number;
   className?: string;
+  dangerouslySetInnerHTML?: { __html: string };
 }
 
 export function Table({
@@ -150,10 +151,23 @@ export function TableCell({
   scope = 'col',
   colSpan = 1,
   className = '',
+  dangerouslySetInnerHTML,
   ...rest
 }: TableCellProps) {
   const Cell = as;
   const scopeAttr = as === 'th' ? { scope } : {};
+
+  if (dangerouslySetInnerHTML) {
+    return (
+      <Cell 
+        className={className} 
+        {...scopeAttr} 
+        {...rest} 
+        colSpan={colSpan} 
+        dangerouslySetInnerHTML={dangerouslySetInnerHTML} 
+      />
+    );
+  }
 
   return (
     <Cell className={className} {...scopeAttr} {...rest} colSpan={colSpan}>

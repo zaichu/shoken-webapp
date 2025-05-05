@@ -49,8 +49,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             cancellation_amount_yen: Number(String(item['解約額［円］'] || '0').replace(/,/g, '')),
             average_acquisition_price_yen: Number(String(item['平均取得価額［円］'] || '0').replace(/,/g, '')),
             realized_profit_and_loss: Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')),
-            taxes: String(item['口座'] || '').includes('特定') ? Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * TAX_RATE : 0,
-            realized_profit_and_loss_after_tax: Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * (String(item['口座'] || '').includes('特定') ? (1 - TAX_RATE) : 1),
+            taxes: String(item['口座'] || '').includes('特定') ? Math.floor(Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * TAX_RATE) : 0,
+            realized_profit_and_loss_after_tax: Math.floor(Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * (String(item['口座'] || '').includes('特定') ? (1 - TAX_RATE) : 1)),
         }));
 
         return [...parsedData].sort((a, b) =>

@@ -11,6 +11,7 @@
   --danger-color: #dc3545;
   --light-color: #f8f9fa;
   --dark-color: #212529;
+  --negative-color: #dc3545; /* 負の値用の色 */
 }
 
 body {
@@ -28,6 +29,16 @@ body {
 [data-bs-theme="dark"] .card {
   background-color: #1e1e1e;
   border-color: #333;
+}
+
+/* 負の値を赤色で表示 */
+[data-negative="true"] {
+  color: var(--negative-color);
+}
+
+/* ダークモードでも負の値を赤色で表示 */
+[data-bs-theme="dark"] [data-negative="true"] {
+  color: #ff6b6b; /* ダークモードでは少し明るい赤色 */
 }
 
 .app-container {

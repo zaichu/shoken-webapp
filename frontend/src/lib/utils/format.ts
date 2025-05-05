@@ -33,16 +33,35 @@ export function formatDateString(date: Date, format: 'short' | 'long' = 'short')
   return `${year}年${month}月${day}日`;
 }
 
+/**
+ * 数値を「¥ XXX」形式の通貨文字列にフォーマットする
+ * マイナスの場合は「¥ -XXX」形式になる（マイナス記号が数字の前に）
+ * @param value フォーマットする数値または数値文字列
+ * @returns フォーマットされた通貨文字列
+ */
 export function formatCurrencyString(value: string | number): string {
   try {
     const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
     if (isNaN(num)) {
       return '-';
     }
-    return new Intl.NumberFormat('ja-JP', {
-      style: 'currency',
-      currency: 'JPY'
-    }).format(num);
+    
+    // マイナスの場合は絶対値を使ってフォーマットし、自分でマイナス記号を配置
+    const isNegative = num < 0;
+    const absNum = Math.abs(num);
+    
+    // 数値のみのフォーマット（マイナス記号と通貨記号なし）
+    const formattedNumber = new Intl.NumberFormat('ja-JP', {
+      style: 'decimal',
+      useGrouping: true
+    }).format(absNum);
+    
+    // マイナスの場合は赤文字にするためのCSSクラスをデータ属性として追加
+    if (isNegative) {
+      return `<span data-negative="true">¥ -${formattedNumber}</span>`;
+    } else {
+      return `¥ ${formattedNumber}`;
+    }
   } catch (error) {
     console.error('数値のフォーマットに失敗しました:', error);
     return '-';
@@ -55,13 +74,24 @@ export function formatNumber(value: string | number): string {
     if (isNaN(num)) {
       return '-';
     }
-    return new Intl.NumberFormat('ja-JP', {
+    
+    // マイナスの場合は絶対値を使ってフォーマットし、自分でマイナス記号を配置
+    const isNegative = num < 0;
+    const absNum = Math.abs(num);
+    
+    const formattedNumber = new Intl.NumberFormat('ja-JP', {
       style: 'decimal',
       useGrouping: true
-    }).format(num);
+    }).format(absNum);
+    
+    // マイナスの場合は赤文字にするためのCSSクラスをデータ属性として追加
+    if (isNegative) {
+      return `<span data-negative="true">-${formattedNumber}</span>`;
+    } else {
+      return formattedNumber;
+    }
   } catch (error) {
     console.error('数値のフォーマットに失敗しました:', error);
     return '-';
   }
 }
-

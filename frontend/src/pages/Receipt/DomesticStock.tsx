@@ -91,8 +91,8 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
 
             // 実現損益の計算
             const totalRealizedPnL = dailyTotals.specificTotal + dailyTotals.nisaTotal;
-            const tax = Math.floor(dailyTotals.specificTotal * TAX_RATE);
-            const totalRealizedPnLAfterTax = Math.floor(dailyTotals.specificTotal * (1.0 - TAX_RATE)) + dailyTotals.nisaTotal;
+            const tax = Math.floor(Math.max(0, dailyTotals.specificTotal) * TAX_RATE);
+            const totalRealizedPnLAfterTax = dailyTotals.specificTotal - tax + dailyTotals.nisaTotal;
 
             return {
                 filter: dateKey,
