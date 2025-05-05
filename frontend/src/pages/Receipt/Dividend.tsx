@@ -9,15 +9,7 @@ import {
 } from '@/lib/interfaces/dividend';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
-
-/**
- * 日本の日付フォーマット用のオプション
- */
-const JP_DATE_FORMAT_OPTIONS = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-} as const;
+import { JP_DATE_FORMAT_OPTIONS } from '@/lib/constants/formats';
 
 interface DividendProps {
     csvData: any[];

@@ -10,17 +10,7 @@ import {
 } from '@/lib/interfaces/domesticStock';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery } from '@/lib/utils/dataTransformer';
-
-const TAX_RATE = 0.20315;
-
-/**
- * 日本の日付フォーマット用のオプション
- */
-const JP_DATE_FORMAT_OPTIONS = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-} as const;
+import { formatJPDate, TAX_RATE } from '@/lib/constants/formats';
 
 interface DomesticStockProps {
     csvData: any[];
@@ -176,12 +166,12 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         {
             key: 'trade_date',
             header: '約定日',
-            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+            format: (date) => formatJPDate(date),
         },
         {
             key: 'settlement_date',
             header: '受渡日',
-            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+            format: (date) => formatJPDate(date),
         },
         { key: 'security_code', header: '銘柄コード' },
         { key: 'security_name', header: '銘柄名', width: '250px' },

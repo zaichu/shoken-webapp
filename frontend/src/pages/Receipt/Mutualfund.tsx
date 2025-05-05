@@ -9,17 +9,7 @@ import {
 } from '@/lib/interfaces/mutualfund';
 import { TableColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
-
-const TAX_RATE = 0.20315;
-
-/**
- * 日本の日付フォーマット用のオプション
- */
-const JP_DATE_FORMAT_OPTIONS = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-} as const;
+import { JP_DATE_FORMAT_OPTIONS, TAX_RATE } from '@/lib/constants/formats';
 
 interface MutualfundProps {
     csvData: any[];
