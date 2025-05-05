@@ -23,9 +23,9 @@ export function ReceiptTable<T, S>({
             <TableHeader>
                 <TableRow variant="warning">
                     {columns.map((column, index) => (
-                        <TableCell 
-                            as="th" 
-                            style={{ textAlign: column.textAlign || 'center', width: column.width }} 
+                        <TableCell
+                            as="th"
+                            style={{ textAlign: 'center', width: column.width }}
                             key={index}
                         >
                             {column.header}
@@ -35,7 +35,7 @@ export function ReceiptTable<T, S>({
             </TableHeader>
             <TableBody>
                 {summary.map((summaryItem, summaryIndex) => {
-                    const groupItems = data.filter(item => 
+                    const groupItems = data.filter(item =>
                         getGroupKey(item) === (summaryItem as any).filter
                     );
 
@@ -44,15 +44,15 @@ export function ReceiptTable<T, S>({
                             {groupItems.map((item, index) => (
                                 <TableRow key={`item-${summaryIndex}-${index}`}>
                                     {columns.map((column, colIndex) => (
-                                        <TableCell 
+                                        <TableCell
                                             key={`cell-${summaryIndex}-${index}-${colIndex}`}
-                                            style={{ 
-                                                width: column.width, 
-                                                textAlign: column.textAlign 
+                                            style={{
+                                                width: column.width,
+                                                textAlign: column.textAlign
                                             }}
                                         >
-                                            {column.format 
-                                                ? column.format((item as any)[column.key]) 
+                                            {column.format
+                                                ? column.format((item as any)[column.key])
                                                 : (item as any)[column.key]
                                             }
                                         </TableCell>
@@ -62,16 +62,16 @@ export function ReceiptTable<T, S>({
 
                             <TableRow variant="info">
                                 {summaryColumns.map((column, colIndex) => (
-                                    <TableCell 
+                                    <TableCell
                                         key={`summary-${summaryIndex}-${colIndex}`}
-                                        style={{ 
-                                            fontWeight: 'bold', 
-                                            textAlign: column.textAlign || 'right' 
+                                        style={{
+                                            fontWeight: 'bold',
+                                            textAlign: column.textAlign || 'right'
                                         }}
                                         colSpan={column.colSpan}
                                     >
-                                        {column.format 
-                                            ? column.format((summaryItem as any)[column.key]) 
+                                        {column.format
+                                            ? column.format((summaryItem as any)[column.key])
                                             : (summaryItem as any)[column.key]
                                         }
                                     </TableCell>
