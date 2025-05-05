@@ -18,9 +18,3 @@ export interface DividendCalculations {
     total_net_amount_received: number;
 }
 
-export interface DividendSummary {
-    filter: string;
-    dividends_before_tax: number;
-    taxes: number;
-    net_amount_received: number;
-}
