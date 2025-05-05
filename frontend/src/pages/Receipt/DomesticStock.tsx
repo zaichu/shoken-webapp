@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates';
 import { ReceiptHeader } from '@/components/molecules';
 import { ReceiptTable } from '@/components/organisms';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { formatCurrencyString, formatNumber } from '@/lib/utils/format';
 import {
     DomesticStockData,
@@ -13,15 +13,30 @@ import { createSearchOptions, filterDataBySearchQuery } from '@/lib/utils/dataTr
 
 const TAX_RATE = 0.20315;
 
+/**
+ * 日本の日付フォーマット用のオプション
+ */
+const JP_DATE_FORMAT_OPTIONS = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+} as const;
+
 interface DomesticStockProps {
     csvData: any[];
 }
 
+/**
+ * 国内株式取引データを表示するコンポーネント
+ */
 export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const onSearch = (query: string) => setSearchQuery(query);
+    const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
-    const domesticStockData: DomesticStockData[] = useMemo(() => {
+    /**
+     * CSVデータをDomesticStockData形式に変換
+     */
+    const domesticStockData = useMemo<DomesticStockData[]>(() => {
         const parsedData = csvData.map((item) => ({
             trade_date: new Date(item['約定日']),
             settlement_date: new Date(item['受渡日']),
@@ -40,20 +55,31 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         );
     }, [csvData]);
 
+    /**
+     * データを日付ごとにグループ化
+     */
     const dailyGroupMap = useMemo(() => {
         const map = new Map<string, DomesticStockData[]>();
+
         domesticStockData.forEach(item => {
             const dateKey = item.trade_date.toISOString().split('T')[0];
+
             if (!map.has(dateKey)) {
                 map.set(dateKey, []);
             }
+
             map.get(dateKey)?.push(item);
         });
+
         return map;
     }, [domesticStockData]);
 
-    const dailyData = useMemo(() => {
+    /**
+     * 日次データの集計
+     */
+    const dailyData = useMemo<DomesticStockSummary[]>(() => {
         return Array.from(dailyGroupMap.entries()).map(([dateKey, items]) => {
+            // 特定口座とNISA口座の集計を分離
             const dailyTotals = items.reduce((acc, item) => {
                 const isSpecificAccount = item.account.includes('特定');
                 return {
@@ -63,29 +89,38 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
                 };
             }, { specificTotal: 0, nisaTotal: 0, amount: 0 });
 
+            // 実現損益の計算
+            const totalRealizedPnL = dailyTotals.specificTotal + dailyTotals.nisaTotal;
+            const tax = Math.floor(dailyTotals.specificTotal * TAX_RATE);
+            const totalRealizedPnLAfterTax = Math.floor(dailyTotals.specificTotal * (1.0 - TAX_RATE)) + dailyTotals.nisaTotal;
+
             return {
                 filter: dateKey,
-                total_realized_profit_and_loss: dailyTotals.specificTotal + dailyTotals.nisaTotal,
-                total_taxes: Math.floor(dailyTotals.specificTotal * TAX_RATE),
-                total_realized_profit_and_loss_after_tax: Math.floor(dailyTotals.specificTotal * (1.0 - TAX_RATE)) + dailyTotals.nisaTotal,
-            } as DomesticStockSummary;
+                total_realized_profit_and_loss: totalRealizedPnL,
+                total_taxes: tax,
+                total_realized_profit_and_loss_after_tax: totalRealizedPnLAfterTax,
+            };
         }).sort((a, b) => a.filter.localeCompare(b.filter));
     }, [dailyGroupMap]);
 
-    const calculations: DomesticStockCalculations = useMemo(() => {
-        return dailyData.reduce((acc, item) => {
-            return {
-                total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.total_realized_profit_and_loss,
-                total_taxes: acc.total_taxes + item.total_taxes,
-                total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.total_realized_profit_and_loss_after_tax
-            };
-        }, {
+    /**
+     * 全体の集計
+     */
+    const calculations = useMemo<DomesticStockCalculations>(() => {
+        return dailyData.reduce((acc, item) => ({
+            total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.total_realized_profit_and_loss,
+            total_taxes: acc.total_taxes + item.total_taxes,
+            total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.total_realized_profit_and_loss_after_tax
+        }), {
             total_realized_profit_and_loss: 0,
             total_taxes: 0,
             total_realized_profit_and_loss_after_tax: 0,
         });
     }, [dailyData]);
 
+    /**
+     * 検索オプションの生成
+     */
     const searchOptions = useMemo(() =>
         createSearchOptions(
             domesticStockData,
@@ -95,6 +130,9 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         ),
         [domesticStockData]);
 
+    /**
+     * 検索クエリに基づくフィルタリング
+     */
     const filteredData = useMemo(() =>
         filterDataBySearchQuery(
             domesticStockData,
@@ -103,11 +141,17 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         ),
         [domesticStockData, searchQuery]);
 
-    const getGroupKey = (item: DomesticStockData): string => {
+    /**
+     * グループキーの取得（日付文字列）
+     */
+    const getGroupKey = useCallback((item: DomesticStockData): string => {
         return item.trade_date.toISOString().split('T')[0];
-    };
+    }, []);
 
-    const headerItems = [
+    /**
+     * ヘッダー項目の定義
+     */
+    const headerItems = useMemo(() => [
         {
             title: '合計実現損益',
             value: calculations.total_realized_profit_and_loss,
@@ -123,11 +167,22 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
             value: calculations.total_realized_profit_and_loss_after_tax,
             format: formatCurrencyString
         }
-    ];
+    ], [calculations]);
 
-    const columns: TableColumnConfig[] = [
-        { key: 'trade_date', header: '約定日', format: (date) => date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }) },
-        { key: 'settlement_date', header: '受渡日', format: (date) => date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }) },
+    /**
+     * テーブルカラムの定義
+     */
+    const columns = useMemo<TableColumnConfig[]>(() => [
+        {
+            key: 'trade_date',
+            header: '約定日',
+            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+        },
+        {
+            key: 'settlement_date',
+            header: '受渡日',
+            format: (date) => date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS)
+        },
         { key: 'security_code', header: '銘柄コード' },
         { key: 'security_name', header: '銘柄名', width: '250px' },
         { key: 'account', header: '口座', width: '100px' },
@@ -139,14 +194,16 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         { key: 'total_realized_profit_and_loss', header: '合計実現損益' },
         { key: 'total_taxes', header: '合計税額' },
         { key: 'total_realized_profit_and_loss_after_tax', header: '合計実現損益(税引)' },
+    ], []);
 
-    ];
-
-    const summaryColumns: SummaryColumnConfig[] = [
-        { key: 'total_realized_profit_and_loss', colSpan: 11, textAlign: 'right', format: formatCurrencyString },
+    /**
+     * サマリーカラムの定義
+     */
+    const summaryColumns = useMemo<SummaryColumnConfig[]>(() => [
+        { key: 'total_realized_profit_and_loss', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrencyString },
         { key: 'total_taxes', textAlign: 'right', format: formatCurrencyString },
         { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrencyString },
-    ];
+    ], [columns.length]);
 
     return (
         <ReceiptTemplate
