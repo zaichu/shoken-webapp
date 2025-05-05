@@ -1,6 +1,8 @@
 import { ReceiptBase } from './receipt';
 
 export interface DividendData extends ReceiptBase {
+    product: string;
+    account: string;
     security_code: string;
     security_name: string;
     unit_price: number;

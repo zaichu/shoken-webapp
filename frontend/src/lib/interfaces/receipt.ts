@@ -1,7 +1,5 @@
 export interface ReceiptBase {
     settlement_date: Date;
-    product: string;
-    account: string;
 }
 
 export interface Calculations {
