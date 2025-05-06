@@ -1,11 +1,11 @@
 # 証券情報ウェブアプリケーション (shoken-webapp)
 
-このプロジェクトは、株式情報を検索・表示するためのウェブアプリケーションです。フロントエンドとバックエンドの両方にRustを使用し、フロントエンドはWebAssembly（Yewフレームワーク）、バックエンドはAxumを採用しています。
+証券情報を検索・表示し、取引データを管理するためのウェブアプリケーションです。フロントエンドはReact+TypeScript、バックエンドはRust+Axumで構築されています。
 
 ## 機能概要
 
 - 証券情報の検索と表示
-- CSVからの取引データのインポート
+- CSVからの取引データのインポートと分析
 - 実現損益の計算と表示
 - 各種証券情報サイトへのリンク生成
 - Google OAuth認証（開発中）
@@ -21,18 +21,21 @@
 
 このプロジェクトは以下のコンポーネントで構成されています：
 
-- **フロントエンド**: Rust + Yew + WebAssembly (旧shoken-webapp)
-- **バックエンド**: Rust + Axum + SQLx + PostgreSQL (旧shoken-webapp-api)
-- **デプロイ**: Shuttle (バックエンド)
+- **フロントエンド**: React + TypeScript + Vite
+- **バックエンド**: Rust + Axum + SQLx + PostgreSQL
+- **デプロイ**: Shuttle (バックエンド)、GitHub Pages (フロントエンド)
 
 ## 技術スタック
 
 ### フロントエンド
-- **Rust** (1.70以上)
-- **Yew** (0.21): Rustベースのフロントエンドフレームワーク
-- **WebAssembly**: パフォーマンス向上のための技術
-- **Yew Router**: SPA内の画面遷移
-- **Gloo**: WebブラウザAPIへのRustバインディング
+- **React** (18.2)
+- **TypeScript** (5.4)
+- **Vite**: 高速な開発環境とビルドツール
+- **React Router**: SPAのルーティング
+- **React Query**: データフェッチングとキャッシュ管理
+- **Bootstrap**: UIコンポーネント
+- **TailwindCSS**: ユーティリティファーストCSSフレームワーク
+- **Axios**: HTTPクライアント
 
 ### バックエンド
 - **Rust** (1.70以上)
@@ -40,16 +43,16 @@
 - **SQLx**: 非同期SQLツールキット
 - **PostgreSQL**: データベース
 - **Shuttle**: Rustアプリのデプロイプラットフォーム
+- **OAuth2**: Google認証
+- **Validator**: 入力データの検証
 
 ## 開発環境のセットアップ
 
 ### 必要なツール
 
 - Rust (1.70以上)
-- wasm-pack
-- cargo
+- Node.js (18以上) と npm
 - PostgreSQL (ローカル開発用)
-- Node.js と npm (オプション: フロントエンド開発用)
 
 ### インストール手順
 
@@ -57,8 +60,6 @@
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup target add wasm32-unknown-unknown
-cargo install wasm-pack
 cargo install cargo-shuttle  # Shuttleデプロイ用
 ```
 
@@ -69,13 +70,20 @@ git clone https://github.com/yourusername/shoken-webapp.git
 cd shoken-webapp
 ```
 
+3. フロントエンドの依存関係をインストール:
+
+```bash
+cd frontend
+npm install
+```
+
 ### 環境変数の設定
 
 バックエンドの`.env`ファイルを作成:
 
 ```bash
 cd backend
-touch .env
+cp .env.example .env  # .env.exampleがある場合
 ```
 
 `.env`ファイルに以下の変数を設定:
@@ -84,7 +92,20 @@ touch .env
 DATABASE_URL=postgres://username:password@localhost:5432/shoken_db
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
-FRONTEND_URL=http://localhost:8080
+FRONTEND_URL=http://localhost:5173
+```
+
+フロントエンドの`.env.development.local`ファイルを作成:
+
+```bash
+cd frontend
+cp .env.example .env.development.local  # .env.exampleがある場合
+```
+
+`.env.development.local`ファイルに以下の変数を設定:
+
+```
+VITE_API_URL=http://localhost:8000
 ```
 
 ## ビルドと実行
@@ -106,18 +127,32 @@ make build-backend
 # バックエンドサーバーを実行
 make run-backend
 
+# フロントエンド開発サーバーを実行
+make run-frontend
+
 # ビルド成果物をクリーン
 make clean
 ```
 
 ### 手動ビルド手順
 
+#### フロントエンドの開発サーバー起動
+
+```bash
+cd frontend
+npm run dev
+```
+
+開発サーバーは http://localhost:5173 で起動します。
+
 #### フロントエンドのビルド
 
 ```bash
 cd frontend
-wasm-pack build --target web
+npm run build
 ```
+
+ビルド成果物は `frontend/dist` ディレクトリに生成されます。
 
 #### バックエンドの実行
 
@@ -126,7 +161,7 @@ cd backend
 cargo run
 ```
 
-アプリケーションは http://localhost:8000 で起動します。
+バックエンドサーバーは http://localhost:8000 で起動します。
 
 ## テスト実行
 
@@ -141,46 +176,139 @@ make test
 ```bash
 # フロントエンドのテスト
 cd frontend
-wasm-pack test --headless --chrome
+npm test
 
 # バックエンドのテスト
 cd backend
 cargo test
 ```
 
-## デプロイ
+## データベースマイグレーション
 
-Shuttleを使用してバックエンドをデプロイ:
+SQLxを使用してデータベースマイグレーションを実行:
 
 ```bash
-make deploy
+cd backend
+cargo sqlx migrate run
+```
+
+新しいマイグレーションを作成:
+
+```bash
+cd backend
+cargo sqlx migrate add <migration_name>
+```
+
+## デプロイ
+
+### バックエンドのデプロイ (Shuttle)
+
+```bash
+make deploy-backend
+# または
+cd backend
+cargo shuttle deploy
 ```
 
 デプロイの状態を確認:
 
 ```bash
-make status
+cd backend
+cargo shuttle status
+```
+
+### フロントエンドのデプロイ (GitHub Pages)
+
+GitHub Actionsを使用した自動デプロイが設定されています。mainブランチにプッシュすると、フロントエンドが自動的にビルドされてGitHub Pagesにデプロイされます。
+
+手動でデプロイする場合:
+
+```bash
+cd frontend
+npm run build
+# 生成された dist ディレクトリの内容を GitHub Pages にデプロイ
 ```
 
 ## プロジェクト構造
 
 ```
 shoken-webapp/
-├── frontend/        # Yew + WebAssemblyフロントエンド
-│   ├── src/         # フロントエンドソースコード
-│   ├── static/      # 静的アセット
-│   └── Cargo.toml   # フロントエンド依存関係
-├── backend/         # Axumバックエンド
-│   ├── src/         # バックエンドソースコード
-│   ├── migrations/  # SQLxデータベースマイグレーション
-│   └── Cargo.toml   # バックエンド依存関係
-├── Cargo.toml       # ワークスペース設定
-└── Makefile         # ビルド/デプロイコマンド
+├── frontend/                # Reactフロントエンド
+│   ├── src/                 # フロントエンドソースコード
+│   │   ├── api/             # APIクライアント
+│   │   ├── components/      # Reactコンポーネント
+│   │   ├── hooks/           # カスタムフック
+│   │   ├── pages/           # ページコンポーネント
+│   │   ├── types/           # TypeScript型定義
+│   │   └── utils/           # ユーティリティ関数
+│   ├── public/              # 静的アセット
+│   └── package.json         # フロントエンド依存関係
+├── backend/                 # Axumバックエンド
+│   ├── src/                 # バックエンドソースコード
+│   │   ├── api/             # APIエンドポイント
+│   │   ├── db/              # データベース操作
+│   │   ├── models/          # データモデル
+│   │   ├── services/        # ビジネスロジック
+│   │   ├── utils/           # ユーティリティ関数
+│   │   └── main.rs          # エントリーポイント
+│   ├── migrations/          # SQLxデータベースマイグレーション
+│   ├── tests/               # 統合テスト
+│   └── Cargo.toml           # バックエンド依存関係
+├── Cargo.toml               # ワークスペース設定
+└── Makefile                 # ビルド/デプロイコマンド
 ```
+
+## API仕様
+
+バックエンドAPIは以下のエンドポイントを提供します:
+
+### 認証
+
+- `POST /auth/login`: ログイン
+- `POST /auth/logout`: ログアウト
+- `GET /auth/google`: Google OAuth認証の開始
+- `GET /auth/google/callback`: Google OAuth認証のコールバック
+
+### 証券情報
+
+- `GET /api/stocks`: 証券情報のリスト取得
+- `GET /api/stocks/{id}`: 指定した証券の詳細情報取得
+- `POST /api/stocks/search`: 証券情報の検索
+
+### 取引データ
+
+- `GET /api/transactions`: 取引データのリスト取得
+- `POST /api/transactions`: 新しい取引データの登録
+- `POST /api/transactions/import`: CSVからの取引データインポート
+
+### 分析
+
+- `GET /api/analysis/profit-loss`: 実現損益の計算結果を取得
+
+## テスト
+
+本プロジェクトでは以下のテストを実装しています:
+
+### バックエンドテスト
+
+- 単体テスト: 各モジュールの機能をテスト
+- 統合テスト: エンドポイントの挙動を検証
+- モックを使用したサービスレイヤーのテスト
+
+### フロントエンドテスト
+
+- コンポーネントテスト: React Testing Libraryを使用
+- ユーティリティ関数のテスト
 
 ## 貢献方法
 
-プロジェクトへの貢献を歓迎します。バグの報告や機能追加の提案は、Issueを作成してください。
+プロジェクトへの貢献を歓迎します。以下の手順で貢献できます:
+
+1. このリポジトリをフォーク
+2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチをプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
 
 ## ライセンス
 
