@@ -133,11 +133,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
      * テーブルカラムの定義
      */
     const columns = useMemo<TableColumnConfig[]>(() => [
-        {
-            key: 'settlement_date',
-            header: '入金日',
-            format: formatJPDate
-        },
+        { key: 'settlement_date', header: '入金日', format: formatJPDate },
         { key: 'product', header: '商品' },
         { key: 'account', header: '口座', width: '100px' },
         { key: 'security_code', header: '銘柄コード' },
