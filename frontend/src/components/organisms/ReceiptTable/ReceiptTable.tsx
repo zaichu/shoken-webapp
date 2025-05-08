@@ -23,7 +23,7 @@ export function ReceiptTable<T, S>({
     getGroupKey
 }: ReceiptTableProps<T, S>) {
     return (
-        <Table className='mb-0' striped bordered hover small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
+        <Table className='mb-0' bordered small responsive style={{ maxHeight: '500px', overflowY: 'auto' }}>
             <TableHeader>
                 <TableRow variant="warning">
                     {columns.map((column, index) => (

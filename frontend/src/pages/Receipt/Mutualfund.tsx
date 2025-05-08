@@ -138,16 +138,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
      * テーブルカラムの定義
      */
     const columns = useMemo<TableColumnConfig[]>(() => [
-        {
-            key: 'trade_date',
-            header: '約定日',
-            format: formatJPDate
-        },
-        {
-            key: 'settlement_date',
-            header: '受渡日',
-            format: formatJPDate
-        },
+        { key: 'trade_date', header: '約定日', format: formatJPDate },
+        { key: 'settlement_date', header: '受渡日', format: formatJPDate },
         { key: 'fund_name', header: 'ファンド名', width: '250px' },
         { key: 'account', header: '口座', width: '80px' },
         { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },

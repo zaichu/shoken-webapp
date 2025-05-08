@@ -167,16 +167,8 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
      * テーブルカラムの定義
      */
     const columns = useMemo<TableColumnConfig[]>(() => [
-        {
-            key: 'trade_date',
-            header: '約定日',
-            format: formatJPDate,
-        },
-        {
-            key: 'settlement_date',
-            header: '受渡日',
-            format: formatJPDate,
-        },
+        { key: 'trade_date', header: '約定日', format: formatJPDate, },
+        { key: 'settlement_date', header: '受渡日', format: formatJPDate, },
         { key: 'security_code', header: '銘柄コード' },
         { key: 'security_name', header: '銘柄名', width: '250px' },
         { key: 'account', header: '口座', width: '100px' },
