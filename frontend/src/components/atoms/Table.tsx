@@ -1,4 +1,4 @@
-import { ReactNode, HTMLAttributes, TableHTMLAttributes } from 'react';
+import { ReactNode, HTMLAttributes, TableHTMLAttributes, useState, useRef, useEffect } from 'react';
 
 interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
@@ -62,6 +62,25 @@ export function Table({
     className
   ].filter(Boolean).join(' ');
 
+  const [tableHeight, setTableHeight] = useState('auto');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const newHeight = window.innerHeight - rect.top - 10;
+        setTableHeight(`${newHeight}px`);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   const renderTable = () => (
     <table className={tableClasses}>
       {children}
@@ -74,14 +93,14 @@ export function Table({
       : `table-responsive-${responsive}`;
 
     return (
-      <div className={responsiveClass} {...rest}>
+      <div className={responsiveClass} ref={containerRef} style={{ maxHeight: tableHeight, overflowY: 'auto' }} {...rest}>
         {renderTable()}
       </div>
     );
   }
 
   return (
-    <div {...rest}>
+    <div ref={containerRef} style={{ maxHeight: tableHeight, overflowY: 'auto' }} {...rest}>
       {renderTable()}
     </div>
   );
@@ -159,12 +178,12 @@ export function TableCell({
 
   if (dangerouslySetInnerHTML) {
     return (
-      <Cell 
-        className={className} 
-        {...scopeAttr} 
-        {...rest} 
-        colSpan={colSpan} 
-        dangerouslySetInnerHTML={dangerouslySetInnerHTML} 
+      <Cell
+        className={className}
+        {...scopeAttr}
+        {...rest}
+        colSpan={colSpan}
+        dangerouslySetInnerHTML={dangerouslySetInnerHTML}
       />
     );
   }
