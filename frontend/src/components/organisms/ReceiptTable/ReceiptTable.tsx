@@ -23,7 +23,7 @@ export function ReceiptTable<T, S>({
     getGroupKey
 }: ReceiptTableProps<T, S>) {
     return (
-        <Table className='mb-0' bordered small responsive>
+        <Table className='mb-0' bordered small>
             <TableHeader>
                 <TableRow variant="warning">
                     {columns.map((column, index) => (

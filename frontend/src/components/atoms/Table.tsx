@@ -1,4 +1,10 @@
-import { ReactNode, HTMLAttributes, TableHTMLAttributes, useState, useRef, useEffect } from 'react';
+import { ReactNode, HTMLAttributes, TableHTMLAttributes, useState, useRef, useEffect, useCallback } from 'react';
+
+// ウィンドウサイズの型を定義
+interface WindowSize {
+  width: number;
+  height: number;
+}
 
 interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
@@ -6,9 +12,13 @@ interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   bordered?: boolean;
   hover?: boolean;
   small?: boolean;
-  responsive?: boolean | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+  responsive?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
   className?: string;
+  autoHeight?: boolean;
+  minHeight?: number;
+  maxHeight?: number | string;
+  bottomMargin?: number;
 }
 
 interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
@@ -40,9 +50,13 @@ export function Table({
   bordered = false,
   hover = false,
   small = false,
-  responsive = false,
+  responsive,
   variant,
   className = '',
+  autoHeight = true,
+  minHeight = 200,
+  maxHeight,
+  bottomMargin = 20,
   ...rest
 }: TableProps) {
   const baseClasses = 'table';
@@ -62,24 +76,74 @@ export function Table({
     className
   ].filter(Boolean).join(' ');
 
-  const [tableHeight, setTableHeight] = useState('auto');
+  const [tableHeight, setTableHeight] = useState<string>('auto');
+  const [windowSize, setWindowSize] = useState<WindowSize>({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const newHeight = window.innerHeight - rect.top - 10;
-        setTableHeight(`${newHeight}px`);
-      }
-    };
+  // テーブルの高さを計算する関数をuseCallbackでメモ化
+  const calculateTableHeight = useCallback(() => {
+    if (!autoHeight || !containerRef.current) return;
 
-    handleResize();
+    const rect = containerRef.current.getBoundingClientRect();
+    const availableHeight = window.innerHeight - rect.top - bottomMargin;
+
+    // 最小高さと最大高さの制約を適用
+    let finalHeight = Math.max(availableHeight, minHeight);
+    if (typeof maxHeight === 'number') {
+      finalHeight = Math.min(finalHeight, maxHeight);
+    }
+
+    setTableHeight(`${finalHeight}px`);
+  }, [autoHeight, minHeight, maxHeight, bottomMargin]);
+
+  // リサイズハンドラーをuseCallbackでメモ化
+  const handleResize = useCallback(() => {
+    setWindowSize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    calculateTableHeight();
+  }, [calculateTableHeight]);
+
+  // 初期レンダリング時にテーブルの高さを計算
+  useEffect(() => {
+    // ResizeObserverを使用してコンテナのサイズ変更を監視
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        calculateTableHeight();
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      // クリーンアップ関数でObserverを解除
+      return () => {
+        if (containerRef.current) {
+          resizeObserver.unobserve(containerRef.current);
+        }
+        resizeObserver.disconnect();
+      };
+    }
+  }, [calculateTableHeight]);
+
+  // ウィンドウのリサイズイベントを監視
+  useEffect(() => {
     window.addEventListener('resize', handleResize);
+
+    // 初期計算
+    calculateTableHeight();
+
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [handleResize, calculateTableHeight]);
+
+  // ウィンドウサイズ変更時に高さを再計算
+  useEffect(() => {
+    calculateTableHeight();
+  }, [windowSize, calculateTableHeight]);
 
   const renderTable = () => (
     <table className={tableClasses}>
@@ -87,23 +151,25 @@ export function Table({
     </table>
   );
 
-  if (responsive) {
-    const responsiveClass = typeof responsive === 'boolean'
-      ? 'table-responsive'
-      : `table-responsive-${responsive}`;
+  // スタイルオブジェクトの作成
+  const containerStyle = {
+    maxHeight: autoHeight ? tableHeight : maxHeight,
+    overflowY: 'auto' as const,
+    position: 'relative' as const,
+  };
 
-    return (
-      <div className={responsiveClass} ref={containerRef} style={{ maxHeight: tableHeight, overflowY: 'auto' }} {...rest}>
-        {renderTable()}
-      </div>
-    );
-  }
-
+  const responsiveClass = responsive ? `table-responsive-${responsive}` : 'table-responsive';
   return (
-    <div ref={containerRef} style={{ maxHeight: tableHeight, overflowY: 'auto' }} {...rest}>
+    <div
+      className={responsiveClass}
+      ref={containerRef}
+      style={containerStyle}
+      {...rest}
+    >
       {renderTable()}
     </div>
   );
+
 }
 
 export function TableHeader({
