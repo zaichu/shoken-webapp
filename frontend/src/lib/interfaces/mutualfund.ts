@@ -35,4 +35,6 @@ export interface MutualfundCalculations {
  */
 export interface MutualfundSummary extends MutualfundCalculations {
     filter: string;                            // 集計単位（日付や検索クエリ）
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }

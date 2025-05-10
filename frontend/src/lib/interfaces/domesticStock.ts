@@ -22,4 +22,6 @@ export interface DomesticStockCalculations {
 
 export interface DomesticStockSummary extends DomesticStockCalculations {
     filter: string;
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }
