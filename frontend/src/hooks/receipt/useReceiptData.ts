@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { parseNumber } from '../../lib/utils/number';
 
 /**
  * 受取データ用の共通カスタムフック
