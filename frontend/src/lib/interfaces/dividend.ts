@@ -10,6 +10,8 @@ export interface DividendData extends ReceiptBase {
     dividends_before_tax: number;
     taxes: number;
     net_amount_received: number;
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }
 
 export interface DividendCalculations {

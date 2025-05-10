@@ -5,10 +5,15 @@ export interface UserInfo {
   id?: string;
 }
 
+export interface LoginCredentials {
+  username?: string;
+  password?: string;
+}
+
 export interface AuthContextType {
   user: UserInfo | null;
   setUser: (user: UserInfo | null) => void;
-  login: (credentials?: any) => Promise<void>;
+  login: (credentials?: LoginCredentials) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }

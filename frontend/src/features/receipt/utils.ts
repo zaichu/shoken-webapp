@@ -1,4 +1,19 @@
 import { DividendItem, DividendSummary } from './types';
+import { parseDate, parseNumberString } from '../../lib/utils/format';
+
+interface CSVRecord {
+  '入金日': string;
+  '商品': string;
+  '口座': string;
+  '銘柄コード': string;
+  '銘柄': string;
+  '受取通貨': string;
+  '単価[円/現地通貨]': string;
+  '数量[株/口]': string | null;
+  '配当・分配金合計（税引前）[円/現地通貨]': string | null;
+  '税額合計[円/現地通貨]': string | null;
+  '受取金額[円/現地通貨]': string | null;
+}
 
 /**
  * CSVレコードから配当金データへの変換
@@ -6,7 +21,7 @@ import { DividendItem, DividendSummary } from './types';
  * @param index インデックス
  * @returns 配当金データ
  */
-export function parseDividendItemFromCSV(record: any, index: number): DividendItem {
+export function parseDividendItemFromCSV(record: CSVRecord, index: number): DividendItem {
   const nullToUndefined = <T>(value: T | null): T | undefined =>
     value === null ? undefined : value;
 
@@ -98,6 +113,3 @@ export function formatCurrency(amount?: number | null): string {
   if (amount === undefined || amount === null) return '';
   return `¥ ${amount.toLocaleString()}`;
 }
-
-// CSV読み込み時のパーサーを日付取得用に修正
-import { parseDate, parseNumberString } from '../../lib/utils/format';

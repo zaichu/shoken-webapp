@@ -1,3 +1,5 @@
+import { FormatFunction, TableColumnAlignment, SelectOption } from '../../types/common';
+
 export interface ReceiptBase {
     settlement_date: Date;
 }
@@ -11,22 +13,19 @@ export interface ReceiptSummary {
     [key: string]: string | number;
 }
 
-export interface SearchOption {
-    value: string;
-    label: string;
-}
+export type SearchOption = SelectOption;
 
 export interface TableColumnConfig {
     key: string;
     header: string;
     width?: string;
-    textAlign?: 'left' | 'center' | 'right';
-    format?: (value: any) => string;
+    textAlign?: TableColumnAlignment;
+    format?: FormatFunction;
 }
 
 export interface SummaryColumnConfig {
     key: string;
     colSpan?: number;
-    textAlign?: 'left' | 'center' | 'right';
-    format?: (value: any) => string;
+    textAlign?: TableColumnAlignment;
+    format?: FormatFunction;
 }

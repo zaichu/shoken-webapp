@@ -1,12 +1,8 @@
 import { Link } from 'react-router-dom';
 // import { Button } from '../atoms/Button';
-// import { useAuth } from '../../features/auth/context/AuthContext';
+// import { useAuth } from '../../features/auth/hooks/useAuth';
 
-interface HeaderProps {
-  onToggleTheme?: () => void;
-}
-
-export function Header({ onToggleTheme }: HeaderProps) {
+export function Header() {
   // const { user, logout } = useAuth();
 
   return (

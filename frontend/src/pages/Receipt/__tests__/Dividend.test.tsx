@@ -1,10 +1,9 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Dividend } from '../Dividend';
 import * as dataTransformer from '@/lib/utils/dataTransformer';
 
 jest.mock('@/components/templates', () => ({
-    ReceiptTemplate: ({ children, title, header, searchQuery, onSearch, searchOptions }) => (
+    ReceiptTemplate: ({ children, title, header, searchQuery, searchOptions }) => (
         <div data-testid="receipt-template">
             <div data-testid="title">{title}</div>
             <div data-testid="header">{header}</div>
@@ -31,7 +30,7 @@ jest.mock('@/components/molecules', () => ({
 }));
 
 jest.mock('@/components/organisms', () => ({
-    ReceiptTable: ({ data, summary, columns, summaryColumns, getGroupKey }) => (
+    ReceiptTable: ({ data, summary, columns, summaryColumns }) => (
         <div data-testid="receipt-table">
             <div data-testid="data">{JSON.stringify(data)}</div>
             <div data-testid="summary">{JSON.stringify(summary)}</div>
@@ -137,14 +136,14 @@ describe('Dividend', () => {
         
         expect(screen.getByTestId('title')).toHaveTextContent('配当金');
         
-        expect(screen.getByTestId('title-0')).toHaveTextContent('配当金合計');
-        expect(screen.getByTestId('value-0')).toHaveTextContent('¥5,000');
+        expect(screen.getByTestId('title-0')).toHaveTextContent('合計配当金');
+        expect(screen.getByTestId('value-0')).toHaveTextContent('¥ 5,000');
         
-        expect(screen.getByTestId('title-1')).toHaveTextContent('税額合計');
-        expect(screen.getByTestId('value-1')).toHaveTextContent('¥1,000');
+        expect(screen.getByTestId('title-1')).toHaveTextContent('合計税額');
+        expect(screen.getByTestId('value-1')).toHaveTextContent('¥ 1,000');
         
-        expect(screen.getByTestId('title-2')).toHaveTextContent('受取金額合計');
-        expect(screen.getByTestId('value-2')).toHaveTextContent('¥4,000');
+        expect(screen.getByTestId('title-2')).toHaveTextContent('合計受取金額');
+        expect(screen.getByTestId('value-2')).toHaveTextContent('¥ 4,000');
     });
 
     it('テーブルに正しいデータと設定が渡される', () => {
@@ -154,7 +153,7 @@ describe('Dividend', () => {
         const summaryColumnsData = JSON.parse(screen.getByTestId('summary-columns').textContent || '[]');
         
         // カラム設定の検証
-        expect(columnsData).toHaveLength(10);
+        expect(columnsData).toHaveLength(13);
         expect(columnsData[0].key).toBe('settlement_date');
         expect(columnsData[0].header).toBe('入金日');
         
@@ -191,8 +190,7 @@ describe('Dividend', () => {
         expect(dataTransformer.groupAndSummarizeData).toHaveBeenCalledWith(
             expect.any(Array),
             expect.any(Function),
-            ['dividends_before_tax', 'taxes', 'net_amount_received'],
-            ''
+            ['dividends_before_tax', 'taxes', 'net_amount_received']
         );
     });
 });

@@ -1,117 +1,140 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ReceiptTable } from '../ReceiptTable';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 
-interface TestItem {
-    id: number;
-    name: string;
-    category: string;
-    amount: number;
-}
-
-interface TestSummary {
-    filter: string;
-    total: number;
-}
-
 describe('ReceiptTable', () => {
-    const testData: TestItem[] = [
-        { id: 1, name: 'テスト1', category: 'A', amount: 1000 },
-        { id: 2, name: 'テスト2', category: 'A', amount: 2000 },
-        { id: 3, name: 'テスト3', category: 'B', amount: 3000 }
+  const mockColumns: TableColumnConfig[] = [
+    { header: '日付', key: 'date', width: '100px', textAlign: 'center' },
+    { header: '銘柄', key: 'name', width: '200px', textAlign: 'left' },
+    { header: '金額', key: 'amount', width: '120px', textAlign: 'right', format: (value) => `¥${value.toLocaleString()}` },
+  ];
+
+  const mockSummaryColumns: SummaryColumnConfig[] = [
+    { key: 'name', colSpan: 2, textAlign: 'right', format: () => '合計:' },
+    { key: 'amount', colSpan: 1, textAlign: 'right', format: (value) => `¥${value.toLocaleString()}` },
+  ];
+
+  const mockData = [
+    { date: '2024-01-01', name: '銘柄A', amount: 1000, group: 'A' },
+    { date: '2024-01-02', name: '銘柄B', amount: 2000, group: 'A' },
+    { date: '2024-01-03', name: '銘柄C', amount: 3000, group: 'B' },
+  ];
+
+  const mockSummary = [
+    { filter: 'A', amount: 3000, name: 'グループA' },
+    { filter: 'B', amount: 3000, name: 'グループB' },
+  ];
+
+  const getGroupKey = (item: typeof mockData[0]) => item.group;
+
+  it('データが正しくレンダリングされる', () => {
+    render(
+      <ReceiptTable
+        data={mockData}
+        summary={mockSummary}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
+
+    // ヘッダー
+    expect(screen.getByText('日付')).toBeInTheDocument();
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+    expect(screen.getByText('金額')).toBeInTheDocument();
+
+    // データ
+    expect(screen.getByText('銘柄A')).toBeInTheDocument();
+    expect(screen.getByText('銘柄B')).toBeInTheDocument();
+    expect(screen.getByText('銘柄C')).toBeInTheDocument();
+    expect(screen.getByText('¥1,000')).toBeInTheDocument();
+    expect(screen.getByText('¥2,000')).toBeInTheDocument();
+
+    // サマリー
+    expect(screen.getAllByText('合計:')).toHaveLength(2);
+    expect(screen.getAllByText('¥3,000')).toHaveLength(2);
+  });
+
+  it('HTMLタグが含まれる値が正しくレンダリングされる', () => {
+    const columnsWithHtml: TableColumnConfig[] = [
+      ...mockColumns,
+      { 
+        header: 'リンク', 
+        key: 'link', 
+        width: '100px', 
+        textAlign: 'center',
+        format: (value) => `<a href="${value}">リンク</a>`
+      },
     ];
 
-    const testSummary: TestSummary[] = [
-        { filter: 'A', total: 3000 },
-        { filter: 'B', total: 3000 }
-    ];
+    const dataWithHtml = mockData.map(item => ({ ...item, link: 'https://example.com' }));
 
-    const getGroupKey = (item: TestItem) => item.category;
+    render(
+      <ReceiptTable
+        data={dataWithHtml}
+        summary={mockSummary}
+        columns={columnsWithHtml}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
 
-    const columns: TableColumnConfig[] = [
-        { key: 'id', header: 'ID' },
-        { key: 'name', header: '名前' },
-        { key: 'category', header: 'カテゴリ' },
-        { key: 'amount', header: '金額', format: (value) => `¥${value.toLocaleString()}` }
-    ];
-
-    const summaryColumns: SummaryColumnConfig[] = [
-        { key: 'total', colSpan: 4, format: (value) => `¥${value.toLocaleString()}` }
-    ];
-
-    it('データが正しく表示される', () => {
-        render(
-            <ReceiptTable
-                data={testData}
-                summary={testSummary}
-                columns={columns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
-        );
-
-        expect(screen.getByText('ID')).toBeInTheDocument();
-        expect(screen.getByText('名前')).toBeInTheDocument();
-        expect(screen.getByText('カテゴリ')).toBeInTheDocument();
-        expect(screen.getByText('金額')).toBeInTheDocument();
-
-        testData.forEach(item => {
-            expect(screen.getByText(String(item.id))).toBeInTheDocument();
-            expect(screen.getByText(item.name)).toBeInTheDocument();
-            expect(screen.getByText(item.category)).toBeInTheDocument();
-            expect(screen.getByText(`¥${item.amount.toLocaleString()}`)).toBeInTheDocument();
-        });
-
-        testSummary.forEach(item => {
-            expect(screen.getByText(`¥${item.total.toLocaleString()}`)).toBeInTheDocument();
-        });
+    const links = screen.getAllByText('リンク');
+    expect(links).toHaveLength(3);
+    links.forEach(link => {
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveAttribute('href', 'https://example.com');
     });
+  });
 
-    it('空のデータでも表示される', () => {
-        render(
-            <ReceiptTable
-                data={[]}
-                summary={[]}
-                columns={columns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
-        );
+  it('空のデータでも正しくレンダリングされる', () => {
+    render(
+      <ReceiptTable
+        data={[]}
+        summary={[]}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
 
-        expect(screen.getByText('ID')).toBeInTheDocument();
-        expect(screen.getByText('名前')).toBeInTheDocument();
-        expect(screen.getByText('カテゴリ')).toBeInTheDocument();
-        expect(screen.getByText('金額')).toBeInTheDocument();
-    });
+    // ヘッダーは表示される
+    expect(screen.getByText('日付')).toBeInTheDocument();
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+    expect(screen.getByText('金額')).toBeInTheDocument();
 
-    it('スタイルとformatが正しく適用される', () => {
-        const styledColumns: TableColumnConfig[] = [
-            { key: 'id', header: 'ID', width: '50px', textAlign: 'center' },
-            { key: 'name', header: '名前', width: '150px' },
-            { key: 'category', header: 'カテゴリ' },
-            { key: 'amount', header: '金額', width: '100px', textAlign: 'right', format: (value) => `¥${value.toLocaleString()}` }
-        ];
+    // データ行は表示されない
+    expect(screen.queryByText('銘柄A')).not.toBeInTheDocument();
+  });
 
-        const { container } = render(
-            <ReceiptTable
-                data={testData}
-                summary={testSummary}
-                columns={styledColumns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
-        );
+  it('グループごとにデータが正しくフィルタリングされる', () => {
+    render(
+      <ReceiptTable
+        data={mockData}
+        summary={mockSummary}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
 
-        const cells = container.querySelectorAll('td');
-        const headers = container.querySelectorAll('th');
-        
-        expect(headers[0]).toHaveStyle('textAlign: center');
-        expect(headers[3]).toHaveStyle('textAlign: center');
-        
-        expect(cells[0]).toHaveStyle('width: 50px');
-        expect(cells[1]).toHaveStyle('width: 150px');
-        expect(cells[3]).toHaveStyle('width: 100px');
-        expect(cells[3]).toHaveStyle('textAlign: right');
-    });
+    // グループAのデータの後にグループAのサマリーが表示される
+    const table = screen.getByRole('table');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    // グループAのデータは最初の2行
+    expect(rows[0]).toHaveTextContent('銘柄A');
+    expect(rows[1]).toHaveTextContent('銘柄B');
+    
+    // グループAのサマリーは3行目
+    expect(rows[2]).toHaveTextContent('合計:');
+    expect(rows[2]).toHaveTextContent('¥3,000');
+    
+    // グループBのデータは4行目
+    expect(rows[3]).toHaveTextContent('銘柄C');
+    
+    // グループBのサマリーは5行目
+    expect(rows[4]).toHaveTextContent('合計:');
+    expect(rows[4]).toHaveTextContent('¥3,000');
+  });
 });

@@ -35,12 +35,16 @@ export function filterDataBySearchQuery<T>(
     );
 }
 
+export type SummaryResult<K extends string | number | symbol> = { 
+    filter: string;
+    [key: string]: unknown;
+} & Record<K, number>;
+
 export function groupAndSummarizeData<T, K extends keyof T>(
     data: T[],
     groupByFn: (item: T) => string,
-    sumFields: K[],
-    searchQuery?: string
-): Array<{ filter: string } & Record<K, number>> {
+    sumFields: K[]
+): SummaryResult<K>[] {
     const groupMap = new Map<string, Record<K, number>>();
     
     data.forEach(item => {
@@ -63,7 +67,8 @@ export function groupAndSummarizeData<T, K extends keyof T>(
     return Array.from(groupMap.entries())
         .map(([filter, values]) => ({
             filter,
-            ...values
-        }))
+            ...values,
+            [Symbol.for('key')]: undefined // インデックスシグネチャを満たすための仮のプロパティ
+        } as SummaryResult<K>))
         .sort((a, b) => a.filter.localeCompare(b.filter));
 }

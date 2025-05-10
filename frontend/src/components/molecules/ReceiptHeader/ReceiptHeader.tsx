@@ -1,5 +1,4 @@
 import React from 'react';
-import { Calculations } from '@/lib/interfaces/receipt';
 
 interface HeaderItem {
     title: string;

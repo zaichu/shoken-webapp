@@ -1,6 +1,6 @@
 export interface CSVParseCallbacks {
   onStart?: () => void;
-  onSuccess?: (data: any[]) => void;
+  onSuccess?: (data: Record<string, unknown>[]) => void;
   onError?: (error: string) => void;
   onComplete?: () => void;
 }

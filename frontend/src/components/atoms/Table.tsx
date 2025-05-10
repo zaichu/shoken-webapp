@@ -111,18 +111,17 @@ export function Table({
   // 初期レンダリング時にテーブルの高さを計算
   useEffect(() => {
     // ResizeObserverを使用してコンテナのサイズ変更を監視
-    if (containerRef.current) {
+    const currentContainer = containerRef.current;
+    if (currentContainer) {
       const resizeObserver = new ResizeObserver(() => {
         calculateTableHeight();
       });
 
-      resizeObserver.observe(containerRef.current);
+      resizeObserver.observe(currentContainer);
 
       // クリーンアップ関数でObserverを解除
       return () => {
-        if (containerRef.current) {
-          resizeObserver.unobserve(containerRef.current);
-        }
+        resizeObserver.unobserve(currentContainer);
         resizeObserver.disconnect();
       };
     }

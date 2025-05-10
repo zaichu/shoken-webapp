@@ -10,6 +10,8 @@ export interface DomesticStockData extends ReceiptBase {
     proceeds: number;
     purchase_price: number;
     realized_profit_and_loss: number;
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }
 
 export interface DomesticStockCalculations {
@@ -20,4 +22,6 @@ export interface DomesticStockCalculations {
 
 export interface DomesticStockSummary extends DomesticStockCalculations {
     filter: string;
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }

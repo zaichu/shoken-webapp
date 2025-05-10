@@ -15,7 +15,7 @@ describe('日付フォーマット関数', () => {
   });
 
   test('無効な日付に対してハイフンを返す', () => {
-    // @ts-ignore: テスト目的で無効な値を渡す
+    // @ts-expect-error: テスト目的で無効な値を渡す
     const result = formatJPDate(null);
     expect(result).toBe('-');
 
@@ -39,7 +39,7 @@ describe('日付キー生成関数', () => {
   });
 
   test('無効な日付に対して空文字を返す', () => {
-    // @ts-ignore: テスト目的で無効な値を渡す
+    // @ts-expect-error: テスト目的で無効な値を渡す
     const result = createYearMonthKey(null);
     expect(result).toBe('');
 
@@ -55,7 +55,7 @@ describe('日付キー生成関数', () => {
   });
 
   test('無効な日付に対して空文字を返す', () => {
-    // @ts-ignore: テスト目的で無効な値を渡す
+    // @ts-expect-error: テスト目的で無効な値を渡す
     const result = createISODateKey(null);
     expect(result).toBe('');
 

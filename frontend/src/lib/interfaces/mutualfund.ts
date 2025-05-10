@@ -17,6 +17,8 @@ export interface MutualfundData extends ReceiptBase {
     realized_profit_and_loss: number;       // 実現損益[円]
     taxes: number;                          // 税額
     realized_profit_and_loss_after_tax: number; // 実現損益(税引)[円]
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }
 
 /**
@@ -33,4 +35,6 @@ export interface MutualfundCalculations {
  */
 export interface MutualfundSummary extends MutualfundCalculations {
     filter: string;                            // 集計単位（日付や検索クエリ）
+    // インデックスシグネチャを追加して汎用的なアクセスを許可
+    [key: string]: unknown;
 }

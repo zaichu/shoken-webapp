@@ -17,7 +17,7 @@ import {
 } from '@/lib/constants/formats';
 
 interface MutualfundProps {
-    csvData: any[];
+    csvData: Record<string, unknown>[];
 }
 
 /**
@@ -32,8 +32,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
      */
     const mutualfundData = useMemo<MutualfundData[]>(() => {
         const parsedData = csvData.map((item) => ({
-            trade_date: new Date(item['約定日'] || ''),
-            settlement_date: new Date(item['受渡日'] || ''),
+            trade_date: new Date(item['約定日'] as string || ''),
+            settlement_date: new Date(item['受渡日'] as string || ''),
             fund_name: String(item['ファンド名'] || ''),
             dividends: String(item['分配金'] || ''),
             account: String(item['口座'] || ''),
@@ -108,10 +108,9 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         groupAndSummarizeData(
             filteredData,
             getGroupKey,
-            ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax'],
-            searchQuery
+            ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
         ),
-        [filteredData, getGroupKey, searchQuery]);
+        [filteredData, getGroupKey]);
 
     /**
      * ヘッダー項目の定義
@@ -143,7 +142,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         { key: 'fund_name', header: 'ファンド名', width: '250px' },
         { key: 'account', header: '口座', width: '80px' },
         { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
-        { key: 'exchange_rate', header: '為替レート', textAlign: 'right', format: formatNumber },
+        { key: 'exchange_rate', header: '為替レート', textAlign: 'right', format: formatCurrency },
         { key: 'cancellation_unit_price_yen', header: '解約単価', textAlign: 'right', format: formatCurrency },
         { key: 'cancellation_amount_yen', header: '解約額', textAlign: 'right', format: formatCurrency },
         { key: 'average_acquisition_price_yen', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
