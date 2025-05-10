@@ -10,7 +10,7 @@ import { expect } from 'vitest';
 expect.extend(matchers);
 
 // Jest互換性のためのグローバル設定
-(globalThis as any).jest = {
+(globalThis as Record<string, unknown>).jest = {
   fn: vi.fn,
   spyOn: vi.spyOn,
   mocked: vi.mocked
@@ -21,4 +21,4 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-})) as any;
+})) as unknown as typeof ResizeObserver;

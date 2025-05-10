@@ -106,7 +106,9 @@ describe('groupAndSummarizeData', () => {
         
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
-            const { [Symbol.for('key')]: _, ...rest } = item;
+            const symbolKey = Symbol.for('key');
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { [symbolKey]: _, ...rest } = item;
             return rest;
         });
         
@@ -122,7 +124,9 @@ describe('groupAndSummarizeData', () => {
         
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
-            const { [Symbol.for('key')]: _, ...rest } = item;
+            const symbolKey = Symbol.for('key');
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { [symbolKey]: _, ...rest } = item;
             return rest;
         });
         
@@ -139,7 +143,9 @@ describe('groupAndSummarizeData', () => {
         
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
-            const { [Symbol.for('key')]: _, ...rest } = item;
+            const symbolKey = Symbol.for('key');
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { [symbolKey]: _, ...rest } = item;
             return rest;
         });
         
