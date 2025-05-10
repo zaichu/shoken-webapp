@@ -1,34 +1,52 @@
 import { useState, useCallback } from 'react';
 import { parseCSVFile } from '../lib/csv/parser';
 
+export interface CSVReaderState {
+  isLoading: boolean;
+  error: string | null;
+  fileName: string;
+}
+
+export interface CSVReaderActions {
+  parseCSV: (file: File) => Promise<Record<string, unknown>[]>;
+  resetError: () => void;
+  setFile: (name: string) => void;
+  reset: () => void;
+}
+
+export type CSVReaderHook = CSVReaderState & CSVReaderActions;
+
 /**
  * CSVファイルを読み込むためのカスタムフック
- * 各明細種類ごとに独立したCSVファイル処理を提供
+ * ファイルの読み込み、パース、エラーハンドリングを統一的に管理する
  */
-export function useCSVReader() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState('');
+export function useCSVReader(): CSVReaderHook {
+  const [state, setState] = useState<CSVReaderState>({
+    isLoading: false,
+    error: null,
+    fileName: '',
+  });
 
   /**
    * CSVファイルをパースする
-   * @param file CSVファイル
-   * @returns パース結果の配列
    */
   const parseCSV = useCallback(async (file: File): Promise<Record<string, unknown>[]> => {
-    setIsLoading(true);
-    setError(null);
-    setFileName(file.name);
+    setState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+      fileName: file.name,
+    }));
 
     try {
       const data = await parseCSVFile(file, {
-        onStart: () => setIsLoading(true),
-        onError: (errorMsg) => setError(errorMsg),
-        onComplete: () => setIsLoading(false)
+        onStart: () => setState(prev => ({ ...prev, isLoading: true })),
+        onError: (errorMsg) => setState(prev => ({ ...prev, error: errorMsg })),
+        onComplete: () => setState(prev => ({ ...prev, isLoading: false })),
       });
       return data;
     } catch (e) {
-      setIsLoading(false);
+      setState(prev => ({ ...prev, isLoading: false }));
       throw e;
     }
   }, []);
@@ -37,33 +55,32 @@ export function useCSVReader() {
    * エラー状態をリセットする
    */
   const resetError = useCallback(() => {
-    setError(null);
+    setState(prev => ({ ...prev, error: null }));
   }, []);
 
   /**
    * ファイル名を手動で設定する
-   * @param name ファイル名
    */
   const setFile = useCallback((name: string) => {
-    setFileName(name);
+    setState(prev => ({ ...prev, fileName: name }));
   }, []);
 
   /**
    * すべての状態をリセットする
    */
   const reset = useCallback(() => {
-    setIsLoading(false);
-    setError(null);
-    setFileName('');
+    setState({
+      isLoading: false,
+      error: null,
+      fileName: '',
+    });
   }, []);
 
   return {
+    ...state,
     parseCSV,
-    isLoading,
-    error,
     resetError,
-    fileName,
     setFile,
-    reset
+    reset,
   };
 }
