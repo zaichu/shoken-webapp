@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { NumberInputField } from '../NumberInputField';
 
 describe('NumberInputField', () => {
@@ -16,7 +17,7 @@ describe('NumberInputField', () => {
   });
 
   it('calls onChange with number value when input changes', () => {
-    const mockOnChange = jest.fn();
+    const mockOnChange = vi.fn();
     render(
       <NumberInputField
         label="テストラベル"
@@ -74,7 +75,7 @@ describe('NumberInputField', () => {
   });
 
   it('converts empty string to 0', () => {
-    const mockOnChange = jest.fn();
+    const mockOnChange = vi.fn();
     render(
       <NumberInputField
         label="テストラベル"
@@ -90,7 +91,7 @@ describe('NumberInputField', () => {
   });
 
   it('converts NaN to 0', () => {
-    const mockOnChange = jest.fn();
+    const mockOnChange = vi.fn();
     render(
       <NumberInputField
         label="テストラベル"
