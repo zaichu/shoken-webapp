@@ -104,7 +104,13 @@ describe('groupAndSummarizeData', () => {
 
         const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
         
-        expect(result).toEqual([
+        // Symbol.for('key')を除外して比較
+        const resultWithoutSymbol = result.map(item => {
+            const { [Symbol.for('key')]: _, ...rest } = item;
+            return rest;
+        });
+        
+        expect(resultWithoutSymbol).toEqual([
             { filter: '2023-01', amount: 300, tax: 30 },
             { filter: '2023-02', amount: 700, tax: 70 }
         ]);
@@ -114,7 +120,13 @@ describe('groupAndSummarizeData', () => {
         const groupByFn = (item: TestItemWithDate) => item.category;
         const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
         
-        expect(result).toEqual([
+        // Symbol.for('key')を除外して比較
+        const resultWithoutSymbol = result.map(item => {
+            const { [Symbol.for('key')]: _, ...rest } = item;
+            return rest;
+        });
+        
+        expect(resultWithoutSymbol).toEqual([
             { filter: 'A', amount: 300, tax: 30 },
             { filter: 'B', amount: 300, tax: 30 },
             { filter: 'C', amount: 400, tax: 40 }
@@ -125,7 +137,13 @@ describe('groupAndSummarizeData', () => {
         const groupByFn = () => 'search';
         const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
         
-        expect(result).toEqual([
+        // Symbol.for('key')を除外して比較
+        const resultWithoutSymbol = result.map(item => {
+            const { [Symbol.for('key')]: _, ...rest } = item;
+            return rest;
+        });
+        
+        expect(resultWithoutSymbol).toEqual([
             { filter: 'search', amount: 1000, tax: 100 }
         ]);
     });

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { StatItem, StatItemWithRate } from '../StatItem';
 
 describe('StatItem', () => {
@@ -56,7 +57,7 @@ describe('StatItem', () => {
 
 describe('StatItemWithRate', () => {
   it('renders value with rate correctly', () => {
-    const mockFormat = jest.fn((value) => `¥${value.toLocaleString()}`);
+    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
     render(
       <StatItemWithRate
         title="収益"
@@ -72,7 +73,7 @@ describe('StatItemWithRate', () => {
   });
 
   it('renders value without rate when rate is undefined', () => {
-    const mockFormat = jest.fn((value) => `¥${value.toLocaleString()}`);
+    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
     render(
       <StatItemWithRate
         title="収益"
@@ -86,8 +87,8 @@ describe('StatItemWithRate', () => {
   });
 
   it('uses custom rateFormat when provided', () => {
-    const mockFormat = jest.fn((value) => `¥${value.toLocaleString()}`);
-    const mockRateFormat = jest.fn((rate) => `${rate}%`);
+    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
+    const mockRateFormat = vi.fn((rate) => `${rate}%`);
     
     render(
       <StatItemWithRate
@@ -130,7 +131,7 @@ describe('StatItemWithRate', () => {
   });
 
   it('handles zero value correctly', () => {
-    const mockFormat = jest.fn((value) => `¥${value.toLocaleString()}`);
+    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
     render(
       <StatItemWithRate
         title="収益"
@@ -144,7 +145,7 @@ describe('StatItemWithRate', () => {
   });
 
   it('handles negative rate correctly', () => {
-    const mockFormat = jest.fn((value) => `¥${value.toLocaleString()}`);
+    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
     render(
       <StatItemWithRate
         title="損失"

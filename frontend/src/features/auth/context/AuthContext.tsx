@@ -11,7 +11,7 @@ function getUserInfoFromStorage(): UserInfo | null {
   if (storedInfo) {
     try {
       return JSON.parse(storedInfo);
-    } catch (e) {
+    } catch {
       return null;
     }
   }

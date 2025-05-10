@@ -1,6 +1,14 @@
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { ReceiptTable } from '../ReceiptTable';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+
+// ResizeObserver のモック
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+})) as any;
 
 describe('ReceiptTable', () => {
   const mockColumns: TableColumnConfig[] = [
@@ -49,10 +57,13 @@ describe('ReceiptTable', () => {
     expect(screen.getByText('銘柄C')).toBeInTheDocument();
     expect(screen.getByText('¥1,000')).toBeInTheDocument();
     expect(screen.getByText('¥2,000')).toBeInTheDocument();
+    
+    // ¥3,000は複数あるので、getAllByTextを使用
+    const threeThousandElements = screen.getAllByText('¥3,000');
+    expect(threeThousandElements).toHaveLength(3); // データ1つ + サマリー2つ
 
     // サマリー
     expect(screen.getAllByText('合計:')).toHaveLength(2);
-    expect(screen.getAllByText('¥3,000')).toHaveLength(2);
   });
 
   it('HTMLタグが含まれる値が正しくレンダリングされる', () => {
@@ -79,11 +90,15 @@ describe('ReceiptTable', () => {
       />
     );
 
-    const links = screen.getAllByText('リンク');
+    // ヘッダーの「リンク」を確認
+    expect(screen.getAllByText('リンク')).toHaveLength(4); // ヘッダー1つ + データ3つ
+
+    // リンク要素だけを取得
+    const links = screen.getAllByRole('link');
     expect(links).toHaveLength(3);
     links.forEach(link => {
-      expect(link.tagName).toBe('A');
       expect(link).toHaveAttribute('href', 'https://example.com');
+      expect(link).toHaveTextContent('リンク');
     });
   });
 

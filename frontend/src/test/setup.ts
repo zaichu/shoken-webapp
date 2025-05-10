@@ -30,7 +30,7 @@ global.IntersectionObserver = class IntersectionObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
-} as any;
+} as unknown as typeof IntersectionObserver;
 
 // React 19対応: global ISモックの追加
 if (typeof global.IS_REACT_ACT_ENVIRONMENT === 'undefined') {

@@ -104,7 +104,7 @@ describe('NumberInputField', () => {
     fireEvent.change(input, { target: { value: 'not a number' } });
 
     // Number('not a number') returns NaN, which gets converted to 0
-    expect(mockOnChange).toHaveBeenCalledWith(NaN);
+    expect(mockOnChange).toHaveBeenCalledWith(0);
   });
 
   it('renders with placeholder when provided', () => {
