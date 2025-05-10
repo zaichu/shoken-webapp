@@ -43,3 +43,5 @@ export const StockInfoLinks = memo(({ code }: StockInfoLinksProps) => {
     </div>
   );
 });
+
+StockInfoLinks.displayName = 'StockInfoLinks';

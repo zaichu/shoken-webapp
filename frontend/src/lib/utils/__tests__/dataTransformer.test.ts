@@ -1,8 +1,21 @@
 import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '../dataTransformer';
 
+interface TestItemWithCode {
+    code: string;
+    name: string;
+    value?: number;
+}
+
+interface TestItemWithDate {
+    date: Date;
+    category: string;
+    amount: number;
+    tax: number;
+}
+
 describe('createSearchOptions', () => {
     it('正しい検索オプションを生成する', () => {
-        const testData = [
+        const testData: TestItemWithCode[] = [
             { code: '1234', name: 'テスト1' },
             { code: '5678', name: 'テスト2' },
             { code: '', name: 'テスト3' }
@@ -18,7 +31,7 @@ describe('createSearchOptions', () => {
     });
 
     it('プレフィックスなしで正しい検索オプションを生成する', () => {
-        const testData = [
+        const testData: TestItemWithCode[] = [
             { code: '1234', name: 'テスト1' },
             { code: '5678', name: 'テスト2' }
         ];
@@ -32,7 +45,7 @@ describe('createSearchOptions', () => {
     });
 
     it('重複した値をフィルタリングする', () => {
-        const testData = [
+        const testData: TestItemWithCode[] = [
             { code: '1234', name: 'テスト1' },
             { code: '1234', name: 'テスト1' },
             { code: '5678', name: 'テスト2' }
@@ -48,7 +61,7 @@ describe('createSearchOptions', () => {
 });
 
 describe('filterDataBySearchQuery', () => {
-    const testData = [
+    const testData: TestItemWithCode[] = [
         { code: '1234', name: 'テスト1', value: 100 },
         { code: '5678', name: 'サンプル', value: 200 },
         { code: '9012', name: 'テスト2', value: 300 }
@@ -76,7 +89,7 @@ describe('filterDataBySearchQuery', () => {
 });
 
 describe('groupAndSummarizeData', () => {
-    const testData = [
+    const testData: TestItemWithDate[] = [
         { date: new Date('2023-01-01'), category: 'A', amount: 100, tax: 10 },
         { date: new Date('2023-01-02'), category: 'A', amount: 200, tax: 20 },
         { date: new Date('2023-02-01'), category: 'B', amount: 300, tax: 30 },
@@ -84,7 +97,7 @@ describe('groupAndSummarizeData', () => {
     ];
 
     it('日付の月でグループ化する', () => {
-        const groupByFn = (item: any) => {
+        const groupByFn = (item: TestItemWithDate) => {
             const date = item.date;
             return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         };
@@ -98,7 +111,7 @@ describe('groupAndSummarizeData', () => {
     });
 
     it('カテゴリでグループ化する', () => {
-        const groupByFn = (item: any) => item.category;
+        const groupByFn = (item: TestItemWithDate) => item.category;
         const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
         
         expect(result).toEqual([
@@ -109,8 +122,8 @@ describe('groupAndSummarizeData', () => {
     });
 
     it('検索クエリありでデータをグループ化する', () => {
-        const groupByFn = (item: any) => 'search';
-        const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax'], 'query');
+        const groupByFn = () => 'search';
+        const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
         
         expect(result).toEqual([
             { filter: 'search', amount: 1000, tax: 100 }

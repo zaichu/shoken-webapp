@@ -16,11 +16,11 @@ export const TAX_RATE = 0.20315;
 /**
  * 日付をJP形式でフォーマットする関数
  */
-export const formatJPDate = (date: Date): string => {
-  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+export const formatJPDate = (value: unknown): string => {
+  if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
     return '-';
   }
-  return date.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS);
+  return value.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS);
 };
 
 /**
@@ -50,9 +50,18 @@ export const createISODateKey = (date: Date): string => {
  * @param value フォーマットする数値または数値文字列
  * @returns フォーマットされた通貨文字列
  */
-export const formatCurrency = (value: string | number): string => {
+export const formatCurrency = (value: unknown): string => {
   try {
-    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    let num: number;
+    
+    if (typeof value === 'string') {
+      num = Number(value.replace(/,/g, ''));
+    } else if (typeof value === 'number') {
+      num = value;
+    } else {
+      return '-';
+    }
+    
     if (isNaN(num)) {
       return '-';
     }
@@ -85,9 +94,18 @@ export const formatCurrency = (value: string | number): string => {
  * @param value フォーマットする数値または数値文字列
  * @returns フォーマットされた数値文字列
  */
-export const formatNumber = (value: string | number): string => {
+export const formatNumber = (value: unknown): string => {
   try {
-    const num = typeof value === 'string' ? Number(value.replace(/,/g, '')) : value;
+    let num: number;
+    
+    if (typeof value === 'string') {
+      num = Number(value.replace(/,/g, ''));
+    } else if (typeof value === 'number') {
+      num = value;
+    } else {
+      return '-';
+    }
+    
     if (isNaN(num)) {
       return '-';
     }

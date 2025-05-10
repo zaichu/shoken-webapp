@@ -16,7 +16,7 @@ import {
 } from '@/lib/constants/formats';
 
 interface DividendProps {
-    csvData: any[];
+    csvData: Record<string, unknown>[];
 }
 
 /**
@@ -31,7 +31,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
      */
     const dividendData = useMemo<DividendData[]>(() => {
         const parsedData = csvData.map((item) => ({
-            settlement_date: new Date(item['入金日']),
+            settlement_date: new Date(item['入金日'] as string),
             product: String(item['商品'] || ''),
             account: String(item['口座'] || ''),
             security_code: String(item['銘柄コード'] || ''),
@@ -103,10 +103,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         groupAndSummarizeData(
             filteredData,
             getGroupKey,
-            ['dividends_before_tax', 'taxes', 'net_amount_received'],
-            searchQuery
+            ['dividends_before_tax', 'taxes', 'net_amount_received']
         ),
-        [filteredData, getGroupKey, searchQuery]);
+        [filteredData, getGroupKey]);
 
     /**
      * ヘッダー項目の定義

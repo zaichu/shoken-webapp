@@ -18,7 +18,7 @@ import {
 } from '@/lib/constants/formats';
 
 interface DomesticStockProps {
-    csvData: any[];
+    csvData: Record<string, unknown>[];
 }
 
 /**
@@ -33,8 +33,8 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
      */
     const domesticStockData = useMemo<DomesticStockData[]>(() => {
         const parsedData = csvData.map((item) => ({
-            trade_date: new Date(item['約定日']),
-            settlement_date: new Date(item['受渡日']),
+            trade_date: new Date(item['約定日'] as string),
+            settlement_date: new Date(item['受渡日'] as string),
             security_code: String(item['銘柄コード']),
             security_name: String(item['銘柄名']),
             account: String(item['口座']),

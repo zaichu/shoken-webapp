@@ -1,41 +1,75 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ReceiptHeader } from '../ReceiptHeader';
 
 describe('ReceiptHeader', () => {
-    const mockFormatter = (value: number) => `¥${value.toLocaleString()}`;
+  const defaultItems = [
+    {
+      title: 'テスト項目1',
+      value: 1000,
+      format: (value: number) => `¥${value.toLocaleString()}`,
+    },
+    {
+      title: 'テスト項目2',
+      value: 50,
+      format: (value: number) => `${value}件`,
+    },
+  ];
 
-    it('各項目が正しく表示される', () => {
-        const items = [
-            { title: 'テスト項目1', value: 1000, format: mockFormatter },
-            { title: 'テスト項目2', value: 2000, format: mockFormatter },
-            { title: 'テスト項目3', value: 3000, format: mockFormatter }
-        ];
+  it('正しくレンダリングされる', () => {
+    render(<ReceiptHeader items={defaultItems} />);
+    
+    expect(screen.getByText('集計情報')).toBeInTheDocument();
+    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
+    expect(screen.getByText('¥1,000')).toBeInTheDocument();
+    expect(screen.getByText('テスト項目2')).toBeInTheDocument();
+    expect(screen.getByText('50件')).toBeInTheDocument();
+  });
 
-        render(<ReceiptHeader items={items} />);
+  it('空の配列でも正しくレンダリングされる', () => {
+    render(<ReceiptHeader items={[]} />);
+    
+    expect(screen.getByText('集計情報')).toBeInTheDocument();
+  });
 
-        expect(screen.getByText('集計情報')).toBeInTheDocument();
-        
-        items.forEach(item => {
-            expect(screen.getByText(item.title)).toBeInTheDocument();
-            expect(screen.getByText(mockFormatter(item.value))).toBeInTheDocument();
-        });
-    });
+  it('itemsの配列数に応じて適切な数の項目がレンダリングされる', () => {
+    const items = [
+      ...defaultItems,
+      {
+        title: 'テスト項目3',
+        value: 200,
+        format: (value: number) => `${value}%`,
+      },
+    ];
 
-    it('0項目でも表示される', () => {
-        render(<ReceiptHeader items={[]} />);
-        expect(screen.getByText('集計情報')).toBeInTheDocument();
-    });
+    const { container } = render(<ReceiptHeader items={items} />);
+    
+    const columns = container.querySelectorAll('.col');
+    expect(columns).toHaveLength(3);
+  });
 
-    it('1項目でも表示される', () => {
-        const items = [
-            { title: '単一項目', value: 1000, format: mockFormatter }
-        ];
+  it('異なるフォーマット関数が正しく適用される', () => {
+    const items = [
+      {
+        title: '通貨',
+        value: 1500,
+        format: (value: number) => `¥${value}`,
+      },
+      {
+        title: 'パーセント',
+        value: 75,
+        format: (value: number) => `${value}%`,
+      },
+      {
+        title: '数量',
+        value: 10,
+        format: (value: number) => `${value}個`,
+      },
+    ];
 
-        render(<ReceiptHeader items={items} />);
-        
-        expect(screen.getByText('集計情報')).toBeInTheDocument();
-        expect(screen.getByText('単一項目')).toBeInTheDocument();
-        expect(screen.getByText(mockFormatter(1000))).toBeInTheDocument();
-    });
+    render(<ReceiptHeader items={items} />);
+    
+    expect(screen.getByText('¥1500')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByText('10個')).toBeInTheDocument();
+  });
 });

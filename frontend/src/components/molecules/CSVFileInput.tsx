@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react';
-
 interface CSVFileInputProps {
   onFileSelect: (file: File) => void;
   selectedFileName?: string;

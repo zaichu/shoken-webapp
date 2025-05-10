@@ -38,8 +38,7 @@ export function filterDataBySearchQuery<T>(
 export function groupAndSummarizeData<T, K extends keyof T>(
     data: T[],
     groupByFn: (item: T) => string,
-    sumFields: K[],
-    searchQuery?: string
+    sumFields: K[]
 ): Array<{ filter: string } & Record<K, number>> {
     const groupMap = new Map<string, Record<K, number>>();
     

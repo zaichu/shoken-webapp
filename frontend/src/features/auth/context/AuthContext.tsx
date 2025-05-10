@@ -1,7 +1,6 @@
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { UserInfo, AuthContextType } from '../types';
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { useState, useEffect, ReactNode } from 'react';
+import { UserInfo } from '../types';
+import { AuthContext } from './context';
 
 function initializeUserInfo(): UserInfo | null {
   return getUserInfoFromStorage() || null;
@@ -48,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const login = async (credentials?: any) => {
+  const login = async () => {
     try {
       const mockUser: UserInfo = {
         authCode: 'mock-auth-code',
@@ -80,12 +79,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

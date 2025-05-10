@@ -15,7 +15,7 @@ export function useCSVReader() {
    * @param file CSVファイル
    * @returns パース結果の配列
    */
-  const parseCSV = useCallback(async (file: File): Promise<any[]> => {
+  const parseCSV = useCallback(async (file: File): Promise<Record<string, unknown>[]> => {
     setIsLoading(true);
     setError(null);
     setFileName(file.name);

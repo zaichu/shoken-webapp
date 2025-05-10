@@ -16,9 +16,9 @@ export function ReceiptsPage() {
   const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
 
   // 各明細種類ごとのCSVデータを個別に管理
-  const [dividendCsvData, setDividendCsvData] = useState<any[]>([]);
-  const [domesticStockCsvData, setDomesticStockCsvData] = useState<any[]>([]);
-  const [mutualfundCsvData, setMutualfundCsvData] = useState<any[]>([]);
+  const [dividendCsvData, setDividendCsvData] = useState<Record<string, unknown>[]>([]);
+  const [domesticStockCsvData, setDomesticStockCsvData] = useState<Record<string, unknown>[]>([]);
+  const [mutualfundCsvData, setMutualfundCsvData] = useState<Record<string, unknown>[]>([]);
 
   // 各明細種類ごとにCSVリーダーフックを作成
   const dividendCSV = useCSVReader();

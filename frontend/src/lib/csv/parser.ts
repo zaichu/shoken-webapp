@@ -39,7 +39,7 @@ const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): { text: string;
 export async function parseCSVFile(
   file: File,
   callbacks: CSVParseCallbacks = {}
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   if (callbacks.onStart) callbacks.onStart();
 
   try {
@@ -52,11 +52,12 @@ export async function parseCSVFile(
       console.log(`CSVファイルを ${encoding} エンコーディングで読み込みました`);
 
       return new Promise((resolve, reject) => {
-        Papa.parse(text, {
+        Papa.parse<Record<string, unknown>>(text, {
           header: true,
           skipEmptyLines: true,
+          dynamicTyping: true, // 数値や日付を適切な型に変換
           transformHeader: (header) => header.trim(),
-          complete: (results) => {
+          complete: (results: Papa.ParseResult<Record<string, unknown>>) => {
             if (results.errors.length > 0) {
               const errorMessage = results.errors.map(e => e.message).join('. ');
               const error = `CSV解析エラー: ${errorMessage}`;

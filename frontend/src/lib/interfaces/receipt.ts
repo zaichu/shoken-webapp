@@ -21,12 +21,12 @@ export interface TableColumnConfig {
     header: string;
     width?: string;
     textAlign?: 'left' | 'center' | 'right';
-    format?: (value: any) => string;
+    format?: (value: unknown) => string;
 }
 
 export interface SummaryColumnConfig {
     key: string;
     colSpan?: number;
     textAlign?: 'left' | 'center' | 'right';
-    format?: (value: any) => string;
+    format?: (value: unknown) => string;
 }
