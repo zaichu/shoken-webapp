@@ -1,5 +1,5 @@
 import { ReceiptTemplate } from '@/components/templates';
-import { ReceiptHeader } from '@/components/molecules';
+import { CSVFileInput, ReceiptHeader } from '@/components/molecules';
 import { ReceiptTable } from '@/components/organisms';
 import React, { useMemo, useState, useCallback } from 'react';
 import {
@@ -14,6 +14,8 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/constants/formats';
+import { InputField } from '@/components';
+import { useCSVReader } from '@/hooks/useCSVReader';
 
 interface DividendProps {
     csvData: Record<string, unknown>[];
@@ -156,10 +158,125 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         { key: 'net_amount_received', textAlign: 'right', format: formatCurrency },
     ], [columns.length]);
 
+    const [assetbalance, setAssetbalanceCsvData] = useState<Record<string, unknown>[]>([]);
+    const assetbalanceCSV = useCSVReader();
+    const { isLoading, error, fileName } = assetbalanceCSV;
+    const handleFileSelect = async (file: File) => {
+        try {
+            setAssetbalanceCsvData(await assetbalanceCSV.parseCSV(file));
+            if (assetbalanceCSV.error) assetbalanceCSV.resetError();
+        } catch (e) {
+            console.error('CSV処理エラー:', e);
+        }
+    };
+    const [averageUnitPrice, setAverageUnitPrice] = useState<number>(0); // 平均取得単価
+    const [holdingQuantity, setHoldingQuantity] = useState<number>(0);   // 保有数量(株)
+    const [dividendPerShare, setDividendPerShare] = useState<number>(0); // 一株配当
+    // 配当利回りの計算
+    const dividendYield = useMemo(() => {
+        if (averageUnitPrice && dividendPerShare) {
+            return (dividendPerShare / averageUnitPrice) * 100;
+        }
+        return 0;
+    }, [averageUnitPrice, dividendPerShare]);
+
+    // 年間配当金額の計算
+    const annualDividendAmount = useMemo(() => {
+        return holdingQuantity * dividendPerShare;
+    }, [holdingQuantity, dividendPerShare]);
+
+    // 投資金額の計算
+    const totalInvestment = useMemo(() => {
+        return averageUnitPrice * holdingQuantity;
+    }, [averageUnitPrice, holdingQuantity]);
+
+    // 投資リターン率の計算
+    const dividendReturnRate = useMemo(() => {
+        if (totalInvestment > 0) {
+            return (summary[0]["net_amount_received"] / totalInvestment) * 100;
+        }
+        return 0;
+    }, [summary, totalInvestment]);
+
+    const AnalyzeDividend = useMemo(() => {
+        if (!searchQuery) {
+            return;
+        }
+
+        return (
+            <div className="card shadow-sm mt-1">
+                <div className="card-header bg-primary text-white">
+                    <h5 className="mb-0">配当情報</h5>
+                </div>
+                <div className="card-body">
+                    {/* <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} /> */}
+                    {error && (
+                        <div className="alert alert-danger my-3" role="alert">
+                            <strong>エラー:</strong> {error}
+                        </div>
+                    )}
+
+                    {isLoading && (
+                        <div className="text-center my-4">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="row">
+                        <div className='col'>
+                            <InputField
+                                label="平均取得価格"
+                                type="number"
+                                className="form-control-plaintext border"
+                                value={averageUnitPrice}
+                                onChange={(e) => setAverageUnitPrice(Number(e.target.value))}
+                            />
+                        </div>
+                        <div className='col'>
+                            <InputField
+                                label="保有数量(株)"
+                                type="number"
+                                className="form-control-plaintext border"
+                                value={holdingQuantity}
+                                onChange={(e) => setHoldingQuantity(Number(e.target.value))}
+                            />
+                        </div>
+                        <div className='col'>
+                            <InputField
+                                label="一株配当"
+                                type="number"
+                                className="form-control-plaintext border"
+                                value={dividendPerShare}
+                                onChange={(e) => setDividendPerShare(Number(e.target.value))}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="row mt-3">
+                        <div className="col">
+                            <h6 className='mb-0'>取得総額</h6>
+                            <h4 className='mb-0'>{formatCurrency(totalInvestment)}</h4>
+                        </div>
+                        <div className="col">
+                            <h6 className='mb-0'>合計受取金額 (累積利回り)</h6>
+                            <h4 className='mb-0'>{formatCurrency(summary[0]['net_amount_received'])} ({dividendReturnRate.toFixed(2)}%)</h4>
+                        </div>
+                        <div className="col">
+                            <h6 className='mb-0'>年間配当金額 (配当利回り)</h6>
+                            <h4 className='mb-0'>{formatCurrency(annualDividendAmount)} ({dividendYield.toFixed(2)}%)</h4>
+                        </div>
+                    </div>
+                </div>
+            </div >
+        );
+    }, [searchQuery, averageUnitPrice, holdingQuantity, dividendPerShare, calculations.total_net_amount_received, totalInvestment, dividendYield]);
+
     return (
         <ReceiptTemplate
             title="配当金"
-            header={<ReceiptHeader items={headerItems} />}
+            header={AnalyzeDividend ?? <ReceiptHeader items={headerItems} />}
             searchQuery={searchQuery}
             onSearch={onSearch}
             searchOptions={searchOptions}

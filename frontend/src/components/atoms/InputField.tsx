@@ -4,6 +4,9 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   fullWidth?: boolean;
+  className?: string;
+  id?: string;
+  placeholder?: string;
 }
 
 export function InputField({
@@ -12,6 +15,7 @@ export function InputField({
   fullWidth = false,
   className = '',
   id,
+  placeholder = '',
   ...rest
 }: InputFieldProps) {
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
@@ -33,7 +37,7 @@ export function InputField({
           {label}
         </label>
       )}
-      <input id={inputId} className={combinedClasses} {...rest} />
+      <input id={inputId} className={combinedClasses} placeholder={placeholder} {...rest} />
       {error && <div className="invalid-feedback">{error}</div>}
     </div>
   );
