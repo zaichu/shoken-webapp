@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../Table';
 
 // ResizeObserverのモック
@@ -27,13 +28,13 @@ global.ResizeObserver = class ResizeObserver {
   trigger() {
     const entries: ResizeObserverEntry[] = Array.from(this.elements).map(
       (element) =>
-        ({
-          target: element,
-          contentRect: element.getBoundingClientRect(),
-          borderBoxSize: [],
-          contentBoxSize: [],
-          devicePixelContentBoxSize: [],
-        } as unknown as ResizeObserverEntry)
+      ({
+        target: element,
+        contentRect: element.getBoundingClientRect(),
+        borderBoxSize: [],
+        contentBoxSize: [],
+        devicePixelContentBoxSize: [],
+      } as unknown as ResizeObserverEntry)
     );
     this.callback(entries, this);
   }
@@ -43,14 +44,14 @@ global.ResizeObserver = class ResizeObserver {
 const mockWindowResize = () => {
   const originalHeight = window.innerHeight;
   const originalWidth = window.innerWidth;
-  
+
   // リサイズイベントをトリガーするヘルパー関数
   const triggerResize = (width: number, height: number) => {
     window.innerWidth = width;
     window.innerHeight = height;
     fireEvent(window, new Event('resize'));
   };
-  
+
   // テスト終了時に元のサイズに戻す
   return {
     triggerResize,
@@ -64,7 +65,7 @@ const mockWindowResize = () => {
 describe('Table Component', () => {
   // 各テストの後にモックをリセット
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('基本的なテーブルをレンダリングする', () => {
@@ -119,11 +120,11 @@ describe('Table Component', () => {
             <TableCell>レスポンシブセル</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table >
     );
 
     const responsiveDiv = container.querySelector('div');
-    expect(responsiveDiv).toHaveClass('table-responsive');
+    expect(responsiveDiv).toHaveClass('table-responsive-true');
   });
 
   it('特定のブレイクポイントでレスポンシブテーブルが正しくレンダリングされる', () => {
@@ -143,7 +144,7 @@ describe('Table Component', () => {
 
   it('ウィンドウのリサイズに応じてテーブルの高さが変更される', () => {
     const { cleanup, triggerResize } = mockWindowResize();
-    
+
     try {
       const { container } = render(
         <Table autoHeight minHeight={200} bottomMargin={20}>

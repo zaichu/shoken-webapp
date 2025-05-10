@@ -19,7 +19,7 @@ const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): { text: string;
       if (!text.includes('��') && text.trim().length > 0) {
         return { text, encoding };
       }
-    } catch (e) {
+    } catch {
       // エラーが出ても次のエンコーディングを試す
       continue;
     }
@@ -77,7 +77,7 @@ export async function parseCSVFile(
           }
         });
       });
-    } catch (e) {
+    } catch {
       const errorMessage = 'デコードに失敗しました';
       if (callbacks.onError) callbacks.onError(errorMessage);
       throw new Error(errorMessage);

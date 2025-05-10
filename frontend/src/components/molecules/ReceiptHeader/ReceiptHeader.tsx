@@ -1,4 +1,5 @@
 import React from 'react';
+import { StatItem } from '@/components';
 
 interface HeaderItem {
     title: string;
@@ -19,10 +20,7 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({ items }) => {
             <div className="card-body">
                 <div className="row">
                     {items.map((item, index) => (
-                        <div className="col" key={index}>
-                            <h6 className='mb-0'>{item.title}</h6>
-                            <h4 className='mb-0'>{item.format(item.value)}</h4>
-                        </div>
+                        <StatItem key={index} title={item.title} value={item.format(item.value)} />
                     ))}
                 </div>
             </div>

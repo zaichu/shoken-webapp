@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { Dividend } from '../Dividend';
 import * as dataTransformer from '@/lib/utils/dataTransformer';
 
-jest.mock('@/components/templates', () => ({
+vi.mock('@/components/templates', () => ({
     ReceiptTemplate: ({ children, title, header, searchQuery, searchOptions }) => (
         <div data-testid="receipt-template">
             <div data-testid="title">{title}</div>
@@ -16,7 +17,7 @@ jest.mock('@/components/templates', () => ({
     )
 }));
 
-jest.mock('@/components/molecules', () => ({
+vi.mock('@/components/molecules', () => ({
     ReceiptHeader: ({ items }) => (
         <div data-testid="receipt-header">
             {items.map((item, index) => (
@@ -29,7 +30,7 @@ jest.mock('@/components/molecules', () => ({
     )
 }));
 
-jest.mock('@/components/organisms', () => ({
+vi.mock('@/components/organisms', () => ({
     ReceiptTable: ({ data, summary, columns, summaryColumns }) => (
         <div data-testid="receipt-table">
             <div data-testid="data">{JSON.stringify(data)}</div>
@@ -40,10 +41,10 @@ jest.mock('@/components/organisms', () => ({
     )
 }));
 
-jest.mock('@/lib/utils/dataTransformer', () => ({
-    createSearchOptions: jest.fn(),
-    filterDataBySearchQuery: jest.fn(),
-    groupAndSummarizeData: jest.fn()
+vi.mock('@/lib/utils/dataTransformer', () => ({
+    createSearchOptions: vi.fn(),
+    filterDataBySearchQuery: vi.fn(),
+    groupAndSummarizeData: vi.fn()
 }));
 
 describe('Dividend', () => {
@@ -76,12 +77,12 @@ describe('Dividend', () => {
 
     beforeEach(() => {
         // モックをリセット
-        (dataTransformer.createSearchOptions as jest.Mock).mockReset();
-        (dataTransformer.filterDataBySearchQuery as jest.Mock).mockReset();
-        (dataTransformer.groupAndSummarizeData as jest.Mock).mockReset();
+        vi.mocked(dataTransformer.createSearchOptions).mockReset();
+        vi.mocked(dataTransformer.filterDataBySearchQuery).mockReset();
+        vi.mocked(dataTransformer.groupAndSummarizeData).mockReset();
 
         // モックの初期化
-        (dataTransformer.createSearchOptions as jest.Mock).mockReturnValue([
+        vi.mocked(dataTransformer.createSearchOptions).mockReturnValue([
             { value: '1234', label: '1234:テスト株式1' },
             { value: '5678', label: '5678:テスト株式2' }
         ]);
@@ -113,9 +114,9 @@ describe('Dividend', () => {
             }
         ];
         
-        (dataTransformer.filterDataBySearchQuery as jest.Mock).mockReturnValue(mockDividendData);
+        vi.mocked(dataTransformer.filterDataBySearchQuery).mockReturnValue(mockDividendData);
         
-        (dataTransformer.groupAndSummarizeData as jest.Mock).mockReturnValue([
+        vi.mocked(dataTransformer.groupAndSummarizeData).mockReturnValue([
             {
                 filter: '2023-01',
                 dividends_before_tax: 1000,
