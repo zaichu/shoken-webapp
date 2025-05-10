@@ -19,7 +19,7 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/constants/formats';
-import { InputField } from '@/components';
+import { NumberInputField, StatItem, StatItemWithRate } from '@/components';
 import { parseNumber } from '@/lib/utils/number';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 
@@ -103,51 +103,20 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
             <div className="card-body">
                 <div className="row">
                     <div className='col'>
-                        <InputField
-                            label="平均取得価格"
-                            type="number"
-                            className="form-control-plaintext border"
-                            value={averageUnitPrice}
-                            onChange={(e) => setAverageUnitPrice(Number(e.target.value))}
-                        />
+                        <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
                     </div>
                     <div className='col'>
-                        <InputField
-                            label="保有数量(株)"
-                            type="number"
-                            className="form-control-plaintext border"
-                            value={holdingQuantity}
-                            onChange={(e) => setHoldingQuantity(Number(e.target.value))}
-                        />
+                        <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
                     </div>
                     <div className='col'>
-                        <InputField
-                            label="一株配当"
-                            type="number"
-                            className="form-control-plaintext border"
-                            value={dividendPerShare}
-                            onChange={(e) => setDividendPerShare(Number(e.target.value))}
-                        />
+                        <NumberInputField label="一株配当" value={dividendPerShare} onChange={setDividendPerShare} />
                     </div>
                 </div>
 
                 <div className="row mt-3">
-                    <div className="col">
-                        <h6 className='mb-0'>取得総額</h6>
-                        <h4 className='mb-0'>{formatCurrency(totalInvestment)}</h4>
-                    </div>
-                    <div className="col">
-                        <h6 className='mb-0'>合計受取金額 (累積利回り)</h6>
-                        <h4 className='mb-0'>
-                            {formatCurrency(summary[0]?.net_amount_received || 0)} ({dividendReturnRate.toFixed(2)}%)
-                        </h4>
-                    </div>
-                    <div className="col">
-                        <h6 className='mb-0'>年間配当金額 (配当利回り)</h6>
-                        <h4 className='mb-0'>
-                            {formatCurrency(annualDividendAmount)} ({dividendYield.toFixed(2)}%)
-                        </h4>
-                    </div>
+                    <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
+                    <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
+                    <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
                 </div>
             </div>
         </div>
