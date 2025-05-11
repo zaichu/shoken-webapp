@@ -79,11 +79,11 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     React.useEffect(() => {
         setAverageUnitPrice(undefined);
         setHoldingQuantity(undefined);
-        setDividendPerShare(undefined);
     }, [searchQuery]);
 
     // APIからデータが取得されたら自動設定
     React.useEffect(() => {
+        setDividendPerShare(undefined);
         if (searchQuery && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
             setDividendPerShare(apiDividendPerShare);
         }
@@ -270,6 +270,6 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                 summaryColumns={summaryColumns}
                 getGroupKey={getGroupKey}
             />
-        </ReceiptTemplate>
+        </ReceiptTemplate >
     );
 };
