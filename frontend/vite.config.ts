@@ -9,6 +9,13 @@ export default defineConfig({
   server: {
     port: 8080,
     open: true,
+    proxy: {
+      '/api/jquants': {
+        target: 'https://api.jquants.com/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/jquants/, ''),
+      },
+    },
   },
   build: {
     outDir: 'dist',

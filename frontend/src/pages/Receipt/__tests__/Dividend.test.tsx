@@ -1,10 +1,17 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { Dividend } from '../Dividend';
 import * as dataTransformer from '@/lib/utils/dataTransformer';
+import * as jquantsApi from '@/lib/api/jquants';
+
+// J-Quants APIフックのモック
+vi.mock('@/lib/api/jquants', () => ({
+    useJQuantsDividend: vi.fn()
+}));
 
 vi.mock('@/components/templates', () => ({
-    ReceiptTemplate: ({ children, title, header, searchQuery, searchOptions }) => (
+    ReceiptTemplate: ({ children, title, header, searchQuery, searchOptions, onSearch }) => (
         <div data-testid="receipt-template">
             <div data-testid="title">{title}</div>
             <div data-testid="header">{header}</div>
@@ -12,6 +19,19 @@ vi.mock('@/components/templates', () => ({
             <div data-testid="search-options">
                 {JSON.stringify(searchOptions)}
             </div>
+            <select 
+                data-testid="search-select" 
+                aria-label="検索フィルター"
+                value={searchQuery} 
+                onChange={e => onSearch?.(e.target.value)} 
+            >
+                <option value="">全て表示</option>
+                {searchOptions?.map((option, index) => (
+                    <option key={index} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
             <div data-testid="content">{children}</div>
         </div>
     )
@@ -26,6 +46,35 @@ vi.mock('@/components/molecules', () => ({
                     <div data-testid={`value-${index}`}>{item.format(item.value)}</div>
                 </div>
             ))}
+        </div>
+    )
+}));
+
+vi.mock('@/components', () => ({
+    NumberInputField: ({ label, value, onChange, disabled, helpText }) => (
+        <div data-testid={`input-${label}`}>
+            <label>{label}</label>
+            <input 
+                type="number" 
+                value={value} 
+                onChange={e => onChange?.(Number(e.target.value))}
+                disabled={disabled}
+                data-testid={`input-field-${label}`}
+            />
+            {helpText && <div data-testid={`help-text-${label}`}>{helpText}</div>}
+        </div>
+    ),
+    StatItem: ({ title, value }) => (
+        <div data-testid={`stat-${title}`}>
+            <div>{title}</div>
+            <div>{value}</div>
+        </div>
+    ),
+    StatItemWithRate: ({ title, value, rate, format }) => (
+        <div data-testid={`stat-with-rate-${title}`}>
+            <div>{title}</div>
+            <div>{format ? format(value) : value}</div>
+            <div>{rate}%</div>
         </div>
     )
 }));
@@ -48,6 +97,8 @@ vi.mock('@/lib/utils/dataTransformer', () => ({
 }));
 
 describe('Dividend', () => {
+    const mockJQuantsHook = vi.mocked(jquantsApi.useJQuantsDividend);
+    
     const mockCsvData = [
         {
             '入金日': '2023/01/15',
@@ -130,6 +181,13 @@ describe('Dividend', () => {
                 net_amount_received: 3200
             }
         ]);
+        
+        // J-Quants APIフックのデフォルトモック
+        mockJQuantsHook.mockReturnValue({
+            dividendPerShare: 0,
+            loading: false,
+            error: null
+        });
     });
 
     it('正しいタイトルとヘッダーアイテムが表示される', () => {
@@ -193,5 +251,125 @@ describe('Dividend', () => {
             expect.any(Function),
             ['dividends_before_tax', 'taxes', 'net_amount_received']
         );
+    });
+
+    describe('J-Quants APIを使用した配当情報の自動取得', () => {
+        it('APIから配当情報が取得される場合', async () => {
+            const user = userEvent.setup();
+            
+            // APIのモックを設定
+            mockJQuantsHook.mockReturnValue({
+                dividendPerShare: 50,
+                loading: false,
+                error: null
+            });
+            
+            render(<Dividend csvData={mockCsvData} />);
+            
+            // 検索入力で銘柄を検索
+            const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
+            await user.selectOptions(searchSelect, '1234');
+            
+            // APIフックが正しい引数で呼ばれることを確認
+            expect(mockJQuantsHook).toHaveBeenCalledWith('1234', true);
+            
+            // 一株配当フィールドがAPIから取得した値で設定されていることを確認
+            const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
+            expect(dividendPerShareInput).toHaveValue(50);
+            
+            // フィールドが無効化されていることを確認
+            expect(dividendPerShareInput).toBeDisabled();
+            
+            // ヘルプテキストが表示されていることを確認
+            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('J-Quantsから自動取得');
+        });
+        
+        it('APIがローディング中の場合', async () => {
+            const user = userEvent.setup();
+            
+            // APIのモックを設定（ローディング中）
+            mockJQuantsHook.mockReturnValue({
+                dividendPerShare: 0,
+                loading: true,
+                error: null
+            });
+            
+            render(<Dividend csvData={mockCsvData} />);
+            
+            // 検索入力で銘柄を検索
+            const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
+            await user.selectOptions(searchSelect, '1234');
+            
+            // フィールドが無効化されていることを確認
+            const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
+            expect(dividendPerShareInput).toBeDisabled();
+            
+            // ローディングメッセージが表示されていることを確認
+            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('データ取得中...');
+        });
+        
+        it('APIでエラーが発生した場合', async () => {
+            const user = userEvent.setup();
+            
+            // APIのモックを設定（エラー）
+            mockJQuantsHook.mockReturnValue({
+                dividendPerShare: 0,
+                loading: false,
+                error: 'APIエラーが発生しました'
+            });
+            
+            render(<Dividend csvData={mockCsvData} />);
+            
+            // 検索入力で銘柄を検索
+            const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
+            await user.selectOptions(searchSelect, '1234');
+            
+            // フィールドが有効であることを確認（手動入力可能）
+            const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
+            expect(dividendPerShareInput).not.toBeDisabled();
+            
+            // エラーメッセージが表示されていることを確認
+            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('エラー: APIエラーが発生しました');
+        });
+        
+        it('銘柄検索を解除すると手動入力可能になる', async () => {
+            const user = userEvent.setup();
+            
+            // APIのモックを動的に変更できるように実装
+            mockJQuantsHook.mockImplementation((code: string, enabled: boolean) => {
+                if (!enabled || !code) {
+                    return {
+                        dividendPerShare: 0,
+                        loading: false,
+                        error: null
+                    };
+                }
+                return {
+                    dividendPerShare: 50,
+                    loading: false,
+                    error: null
+                };
+            });
+            
+            render(<Dividend csvData={mockCsvData} />);
+            
+            // 検索入力
+            const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
+            await user.selectOptions(searchSelect, '1234');
+            
+            // 自動設定されていることを確認
+            const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
+            expect(dividendPerShareInput).toBeDisabled();
+            expect(dividendPerShareInput).toHaveValue(50);
+            
+            // 検索クリア
+            await user.selectOptions(searchSelect, '');
+            
+            // DividendInfoコンポーネントがアンマウントされ、配当入力フィールド自体が表示されないことを確認
+            expect(screen.queryByTestId('input-field-一株配当')).not.toBeInTheDocument();
+            
+            // 代わりにheaderが表示されることを確認
+            expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
+        });
     });
 });

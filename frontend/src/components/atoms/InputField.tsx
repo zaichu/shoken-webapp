@@ -1,4 +1,4 @@
-import { InputHTMLAttributes } from 'react';
+import { InputHTMLAttributes, ReactNode } from 'react';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -7,6 +7,7 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   className?: string;
   id?: string;
   placeholder?: string;
+  helpText?: ReactNode;
 }
 
 export function InputField({
@@ -16,6 +17,7 @@ export function InputField({
   className = '',
   id,
   placeholder = '',
+  helpText,
   ...rest
 }: InputFieldProps) {
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
@@ -39,6 +41,7 @@ export function InputField({
       )}
       <input id={inputId} className={combinedClasses} placeholder={placeholder} {...rest} />
       {error && <div className="invalid-feedback">{error}</div>}
+      {helpText && <div className="form-text text-muted">{helpText}</div>}
     </div>
   );
 }

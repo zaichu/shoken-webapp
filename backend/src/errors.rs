@@ -27,6 +27,12 @@ pub enum ApiError {
     Unauthorized,
     #[error("Service unavailable")]
     ServiceUnavailable,
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    #[error("API error: {0}")]
+    ApiError(String),
+    #[error("Serde JSON error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -136,6 +142,30 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
+            ApiError::NetworkError(msg) => (
+                StatusCode::BAD_GATEWAY,
+                ErrorDetails {
+                    code: "NETWORK_ERROR".to_string(),
+                    message: msg,
+                    details: None,
+                },
+            ),
+            ApiError::ApiError(msg) => (
+                StatusCode::BAD_REQUEST,
+                ErrorDetails {
+                    code: "API_ERROR".to_string(),
+                    message: msg,
+                    details: None,
+                },
+            ),
+            ApiError::SerdeJsonError(ref e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorDetails {
+                    code: "JSON_ERROR".to_string(),
+                    message: "JSON processing error".to_string(),
+                    details: Some(e.to_string()),
+                },
+            ),
         };
 
         (
@@ -156,6 +186,9 @@ where
         ApiError::OAuthError(err.to_string())
     }
 }
+
+// 既存のコードとの互換性のためのエイリアス
+pub use ApiError as AppError;
 
 #[cfg(test)]
 mod tests {

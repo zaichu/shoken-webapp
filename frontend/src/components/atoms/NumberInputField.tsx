@@ -8,6 +8,8 @@ interface NumberInputFieldProps {
   id?: string;
   error?: string;
   className?: string;
+  disabled?: boolean;
+  helpText?: string | React.ReactNode;
 }
 
 /**
@@ -22,7 +24,8 @@ export function NumberInputField({
   id,
   error,
   className = 'form-control-plaintext border',
-  ...rest
+  disabled,
+  helpText,
 }: NumberInputFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numberValue = Number(e.target.value);
@@ -39,7 +42,8 @@ export function NumberInputField({
       placeholder={placeholder}
       id={id}
       error={error}
-      {...rest}
+      disabled={disabled}
+      helpText={helpText}
     />
   );
 }

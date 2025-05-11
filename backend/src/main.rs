@@ -10,6 +10,7 @@ use axum::{
     Router,
 };
 use dotenvy::dotenv;
+use reqwest::Client;
 use shuttle_runtime::SecretStore;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
@@ -63,13 +64,23 @@ async fn main(
         .allow_headers(allowed_headers)
         .allow_credentials(true);
 
+    let client = Client::new();
     let state = AppState {
         pool,
         secrets: secrets,
+        client,
     };
+
     let router = Router::new()
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
+        // JQuantsのエンドポイントを追加
+        .route("/jquants/auth", post(handlers::jquants::authenticate))
+        .route("/jquants/refresh", post(handlers::jquants::refresh_token))
+        .route(
+            "/jquants/fins/statements",
+            get(handlers::jquants::get_statements),
+        )
         .layer(cors)
         .with_state(state);
 

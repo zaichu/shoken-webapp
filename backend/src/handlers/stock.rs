@@ -68,6 +68,7 @@ mod tests {
         Router,
     };
     use chrono::NaiveDate;
+    use reqwest::Client;
     use serde_json::{json, Value};
     use shuttle_runtime::SecretStore;
     use sqlx::{
@@ -141,10 +142,11 @@ mod tests {
             ("1".to_owned(), "2".to_owned().into()),
             ("3".to_owned(), "4".to_owned().into()),
         ]);
-
+        let client = Client::new();
         let app_state = AppState {
             pool: pool.clone(),
             secrets: SecretStore::new(bt),
+            client,
         };
 
         Router::new()
