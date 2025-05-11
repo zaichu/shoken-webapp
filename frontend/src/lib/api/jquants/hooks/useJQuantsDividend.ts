@@ -9,14 +9,14 @@ export const useJQuantsDividend = (
   securityCode: string,
   enabled: boolean = true
 ) => {
-  const [dividendPerShare, setDividendPerShare] = useState<number>(0);
+  const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDividend = async () => {
+      setDividendPerShare(undefined);
       if (!enabled || !securityCode) {
-        setDividendPerShare(0);
         return;
       }
 
@@ -39,7 +39,7 @@ export const useJQuantsDividend = (
       } catch (err) {
         console.error('配当取得エラー:', err);
         setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
-        setDividendPerShare(0);
+        setDividendPerShare(undefined);
       } finally {
         setLoading(false);
       }

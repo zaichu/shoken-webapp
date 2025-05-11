@@ -69,6 +69,13 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
+    if (!searchQuery) {
+        setAverageUnitPrice(undefined);
+        setHoldingQuantity(undefined);
+        setDividendPerShare(undefined);
+        return null;
+    }
+
     // J-Quants APIから配当情報を取得
     const {
         dividendPerShare: apiDividendPerShare,
@@ -77,10 +84,9 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
 
     // APIからデータが取得されたら自動設定
     React.useEffect(() => {
-        if (searchQuery && apiDividendPerShare > 0) {
+        setDividendPerShare(undefined);
+        if (searchQuery && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
             setDividendPerShare(apiDividendPerShare);
-        } else if (!searchQuery) {
-            setDividendPerShare(undefined);
         }
     }, [apiDividendPerShare, searchQuery]);
 
@@ -106,10 +112,6 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         }
         return 0;
     }, [summary, totalInvestment]);
-
-    if (!searchQuery) {
-        return null;
-    }
 
     return (
         <div className="card shadow-sm mt-1">
