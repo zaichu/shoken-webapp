@@ -15,8 +15,8 @@ export const useJQuantsDividend = (
 
   useEffect(() => {
     const fetchDividend = async () => {
-      setDividendPerShare(undefined);
       if (!enabled || !securityCode) {
+        setDividendPerShare(undefined);
         return;
       }
 

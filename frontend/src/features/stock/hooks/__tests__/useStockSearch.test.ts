@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
 import { useStockSearch } from '../useStockSearch';
 import { fetchStockData } from '../../api';
 import { StockData } from '../../types';
+import React from 'react';
 
 vi.mock('../../api', () => ({
   fetchStockData: vi.fn(),
@@ -20,11 +20,11 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client= { queryClient } >
-    { children }
-    </QueryClientProvider>
-  );
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+  
+  return Wrapper;
+
 };
 
 describe('useStockSearch', () => {

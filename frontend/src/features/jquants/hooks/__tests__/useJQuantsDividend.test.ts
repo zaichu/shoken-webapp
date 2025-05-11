@@ -25,7 +25,7 @@ describe('useJQuantsDividend', () => {
   it('enabledがfalseの場合、配当情報を取得しない', () => {
     const { result } = renderHook(() => useJQuantsDividend('1234', false));
 
-    expect(result.current.dividendPerShare).toBe(0);
+    expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
@@ -34,7 +34,7 @@ describe('useJQuantsDividend', () => {
   it('securityCodeが空の場合、配当情報を取得しない', () => {
     const { result } = renderHook(() => useJQuantsDividend('', true));
 
-    expect(result.current.dividendPerShare).toBe(0);
+    expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('useJQuantsDividend', () => {
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
     expect(result.current.loading).toBe(true);
-    expect(result.current.dividendPerShare).toBe(0);
+    expect(result.current.dividendPerShare).toBeUndefined();
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -103,7 +103,7 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.dividendPerShare).toBe(0);
+    expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.error).toBe('API Error');
   });
 
@@ -116,7 +116,7 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.dividendPerShare).toBe(0);
+    expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.error).toBe('配当情報の取得に失敗しました');
   });
 

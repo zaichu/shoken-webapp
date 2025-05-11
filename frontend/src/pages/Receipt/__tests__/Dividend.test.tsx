@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { Dividend } from '../Dividend';
 import * as dataTransformer from '@/lib/utils/dataTransformer';
-import * as jquantsApi from '@/lib/api/jquants';
+import * as jquantsApi from '@/features/jquants';
 
 // J-Quants APIフックのモック
-vi.mock('@/lib/api/jquants', () => ({
+vi.mock('@/features/jquants', () => ({
     useJQuantsDividend: vi.fn()
 }));
 
