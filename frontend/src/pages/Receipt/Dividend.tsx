@@ -22,6 +22,7 @@ import {
 import { NumberInputField, StatItem, StatItemWithRate } from '@/components';
 import { parseNumber } from '@/lib/utils/number';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useJQuantsDividend } from '@/lib/api/jquants';
 
 // CSVアイテムをDividendDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
@@ -64,9 +65,24 @@ interface DividendInfoProps {
 }
 
 const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, summary }) => {
-    const [averageUnitPrice, setAverageUnitPrice] = useState<number>(0);
-    const [holdingQuantity, setHoldingQuantity] = useState<number>(0);
-    const [dividendPerShare, setDividendPerShare] = useState<number>(0);
+    const [averageUnitPrice, setAverageUnitPrice] = useState<number | undefined>(undefined);
+    const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
+    const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
+
+    // J-Quants APIから配当情報を取得
+    const {
+        dividendPerShare: apiDividendPerShare,
+        loading: apiLoading,
+    } = useJQuantsDividend(searchQuery, !!searchQuery);
+
+    // APIからデータが取得されたら自動設定
+    React.useEffect(() => {
+        if (searchQuery && apiDividendPerShare > 0) {
+            setDividendPerShare(apiDividendPerShare);
+        } else if (!searchQuery) {
+            setDividendPerShare(undefined);
+        }
+    }, [apiDividendPerShare, searchQuery]);
 
     // 各種計算値
     const dividendYield = useMemo(() => {
@@ -77,11 +93,11 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     }, [averageUnitPrice, dividendPerShare]);
 
     const annualDividendAmount = useMemo(() => {
-        return holdingQuantity * dividendPerShare;
+        return parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
     }, [holdingQuantity, dividendPerShare]);
 
     const totalInvestment = useMemo(() => {
-        return averageUnitPrice * holdingQuantity;
+        return parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
     }, [averageUnitPrice, holdingQuantity]);
 
     const dividendReturnRate = useMemo(() => {
@@ -109,7 +125,13 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
                         <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
                     </div>
                     <div className='col'>
-                        <NumberInputField label="一株配当" value={dividendPerShare} onChange={setDividendPerShare} />
+                        <NumberInputField
+                            label="一株配当"
+                            value={dividendPerShare}
+                            onChange={setDividendPerShare}
+                            disabled={apiLoading}
+                            placeholder={apiLoading ? "データ取得中..." : ""}
+                        />
                     </div>
                 </div>
 

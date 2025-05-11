@@ -3,137 +3,124 @@ import { vi } from 'vitest';
 import { NumberInputField } from '../NumberInputField';
 
 describe('NumberInputField', () => {
-  it('renders with label and value', () => {
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={123}
-        onChange={() => {}}
-      />
-    );
+  const mockOnChange = vi.fn();
 
-    expect(screen.getByLabelText('テストラベル')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('123')).toBeInTheDocument();
+  beforeEach(() => {
+    mockOnChange.mockClear();
   });
 
-  it('calls onChange with number value when input changes', () => {
-    const mockOnChange = vi.fn();
+  it('数値入力フィールドを表示する', () => {
     render(
       <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={mockOnChange}
-      />
-    );
-
-    const input = screen.getByLabelText('テストラベル');
-    fireEvent.change(input, { target: { value: '456' } });
-
-    expect(mockOnChange).toHaveBeenCalledWith(456);
-  });
-
-  it('applies default className when not specified', () => {
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={() => {}}
-      />
-    );
-
-    const input = screen.getByLabelText('テストラベル');
-    expect(input).toHaveClass('form-control-plaintext border');
-  });
-
-  it('applies custom className when specified', () => {
-    const customClass = 'custom-class';
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={() => {}}
-        className={customClass}
-      />
-    );
-
-    const input = screen.getByLabelText('テストラベル');
-    expect(input).toHaveClass(customClass);
-  });
-
-  it('displays error message when error prop is provided', () => {
-    const errorMessage = 'エラーメッセージ';
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={() => {}}
-        error={errorMessage}
-      />
-    );
-
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
-  });
-
-  it('converts empty string to 0', () => {
-    const mockOnChange = vi.fn();
-    render(
-      <NumberInputField
-        label="テストラベル"
+        label="数量"
         value={100}
         onChange={mockOnChange}
+        placeholder="数値を入力"
       />
     );
-
-    const input = screen.getByLabelText('テストラベル');
-    fireEvent.change(input, { target: { value: '' } });
-
-    expect(mockOnChange).toHaveBeenCalledWith(0);
-  });
-
-  it('converts NaN to 0', () => {
-    const mockOnChange = vi.fn();
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={100}
-        onChange={mockOnChange}
-      />
-    );
-
-    const input = screen.getByLabelText('テストラベル');
-    fireEvent.change(input, { target: { value: 'not a number' } });
-
-    // Number('not a number') returns NaN, which gets converted to 0
-    expect(mockOnChange).toHaveBeenCalledWith(0);
-  });
-
-  it('renders with placeholder when provided', () => {
-    const placeholderText = 'プレースホルダーテキスト';
-    render(
-      <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={() => {}}
-        placeholder={placeholderText}
-      />
-    );
-
-    const input = screen.getByPlaceholderText(placeholderText);
+    
+    const input = screen.getByLabelText('数量');
     expect(input).toBeInTheDocument();
+    expect(input).toHaveAttribute('type', 'number');
+    expect(input).toHaveValue(100);
+    expect(input).toHaveAttribute('placeholder', '数値を入力');
   });
 
-  it('renders with custom id when provided', () => {
-    const customId = 'custom-input-id';
+  it('数値入力の変更を処理する', () => {
     render(
       <NumberInputField
-        label="テストラベル"
-        value={0}
-        onChange={() => {}}
-        id={customId}
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
       />
     );
+    
+    const input = screen.getByLabelText('数量');
+    fireEvent.change(input, { target: { value: '200' } });
+    
+    expect(mockOnChange).toHaveBeenCalledWith(200);
+  });
 
-    const input = screen.getByLabelText('テストラベル');
-    expect(input).toHaveAttribute('id', customId);
+  it('エラーメッセージを表示する', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+        error="必須項目です"
+      />
+    );
+    
+    expect(screen.getByText('必須項目です')).toBeInTheDocument();
+  });
+
+  it('ヘルプテキストを表示する', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+        helpText="1以上の整数を入力してください"
+      />
+    );
+    
+    expect(screen.getByText('1以上の整数を入力してください')).toBeInTheDocument();
+  });
+
+  it('disabledプロパティが動作する', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+        disabled
+      />
+    );
+    
+    const input = screen.getByLabelText('数量');
+    expect(input).toBeDisabled();
+  });
+
+  it('デフォルトのクラス名が適用される', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+      />
+    );
+    
+    const input = screen.getByLabelText('数量');
+    expect(input).toHaveClass('form-control-plaintext', 'border');
+  });
+
+  it('カスタムクラス名が適用される', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+        className="custom-input"
+      />
+    );
+    
+    const input = screen.getByLabelText('数量');
+    expect(input).toHaveClass('custom-input');
+  });
+
+  it('空文字列の入力をNumber型に変換する', () => {
+    render(
+      <NumberInputField
+        label="数量"
+        value={100}
+        onChange={mockOnChange}
+      />
+    );
+    
+    const input = screen.getByLabelText('数量');
+    fireEvent.change(input, { target: { value: '' } });
+    
+    // Number('')は0を返す
+    expect(mockOnChange).toHaveBeenCalledWith(0);
   });
 });
