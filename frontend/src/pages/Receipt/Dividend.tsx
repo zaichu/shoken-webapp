@@ -65,15 +65,14 @@ interface DividendInfoProps {
 }
 
 const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, summary }) => {
-    const [averageUnitPrice, setAverageUnitPrice] = useState<number>(0);
-    const [holdingQuantity, setHoldingQuantity] = useState<number>(0);
-    const [dividendPerShare, setDividendPerShare] = useState<number>(0);
+    const [averageUnitPrice, setAverageUnitPrice] = useState<number | undefined>(undefined);
+    const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
+    const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
     // J-Quants APIから配当情報を取得
     const {
         dividendPerShare: apiDividendPerShare,
         loading: apiLoading,
-        error: apiError
     } = useJQuantsDividend(searchQuery, !!searchQuery);
 
     // APIからデータが取得されたら自動設定
@@ -81,7 +80,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         if (searchQuery && apiDividendPerShare > 0) {
             setDividendPerShare(apiDividendPerShare);
         } else if (!searchQuery) {
-            setDividendPerShare(0);
+            setDividendPerShare(undefined);
         }
     }, [apiDividendPerShare, searchQuery]);
 
@@ -94,11 +93,11 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     }, [averageUnitPrice, dividendPerShare]);
 
     const annualDividendAmount = useMemo(() => {
-        return holdingQuantity * dividendPerShare;
+        return parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
     }, [holdingQuantity, dividendPerShare]);
 
     const totalInvestment = useMemo(() => {
-        return averageUnitPrice * holdingQuantity;
+        return parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
     }, [averageUnitPrice, holdingQuantity]);
 
     const dividendReturnRate = useMemo(() => {
@@ -130,8 +129,8 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
                             label="一株配当"
                             value={dividendPerShare}
                             onChange={setDividendPerShare}
-                            disabled={!!searchQuery && (apiLoading || apiDividendPerShare > 0)}
-                            helpText={apiLoading && "データ取得中..."}
+                            disabled={apiLoading}
+                            placeholder={apiLoading ? "データ取得中..." : ""}
                         />
                     </div>
                 </div>

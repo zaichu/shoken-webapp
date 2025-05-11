@@ -19,11 +19,11 @@ vi.mock('@/components/templates', () => ({
             <div data-testid="search-options">
                 {JSON.stringify(searchOptions)}
             </div>
-            <select 
-                data-testid="search-select" 
+            <select
+                data-testid="search-select"
                 aria-label="検索フィルター"
-                value={searchQuery} 
-                onChange={e => onSearch?.(e.target.value)} 
+                value={searchQuery}
+                onChange={e => onSearch?.(e.target.value)}
             >
                 <option value="">全て表示</option>
                 {searchOptions?.map((option, index) => (
@@ -54,9 +54,9 @@ vi.mock('@/components', () => ({
     NumberInputField: ({ label, value, onChange, disabled, helpText }) => (
         <div data-testid={`input-${label}`}>
             <label>{label}</label>
-            <input 
-                type="number" 
-                value={value} 
+            <input
+                type="number"
+                value={value}
                 onChange={e => onChange?.(Number(e.target.value))}
                 disabled={disabled}
                 data-testid={`input-field-${label}`}
@@ -98,7 +98,7 @@ vi.mock('@/lib/utils/dataTransformer', () => ({
 
 describe('Dividend', () => {
     const mockJQuantsHook = vi.mocked(jquantsApi.useJQuantsDividend);
-    
+
     const mockCsvData = [
         {
             '入金日': '2023/01/15',
@@ -164,9 +164,9 @@ describe('Dividend', () => {
                 net_amount_received: 3200
             }
         ];
-        
+
         vi.mocked(dataTransformer.filterDataBySearchQuery).mockReturnValue(mockDividendData);
-        
+
         vi.mocked(dataTransformer.groupAndSummarizeData).mockReturnValue([
             {
                 filter: '2023-01',
@@ -181,7 +181,7 @@ describe('Dividend', () => {
                 net_amount_received: 3200
             }
         ]);
-        
+
         // J-Quants APIフックのデフォルトモック
         mockJQuantsHook.mockReturnValue({
             dividendPerShare: 0,
@@ -192,34 +192,34 @@ describe('Dividend', () => {
 
     it('正しいタイトルとヘッダーアイテムが表示される', () => {
         render(<Dividend csvData={mockCsvData} />);
-        
+
         expect(screen.getByTestId('title')).toHaveTextContent('配当金');
-        
+
         expect(screen.getByTestId('title-0')).toHaveTextContent('合計配当金');
         expect(screen.getByTestId('value-0')).toHaveTextContent('¥ 5,000');
-        
+
         expect(screen.getByTestId('title-1')).toHaveTextContent('合計税額');
         expect(screen.getByTestId('value-1')).toHaveTextContent('¥ 1,000');
-        
+
         expect(screen.getByTestId('title-2')).toHaveTextContent('合計受取金額');
         expect(screen.getByTestId('value-2')).toHaveTextContent('¥ 4,000');
     });
 
     it('テーブルに正しいデータと設定が渡される', () => {
         render(<Dividend csvData={mockCsvData} />);
-        
+
         const columnsData = JSON.parse(screen.getByTestId('columns').textContent || '[]');
         const summaryColumnsData = JSON.parse(screen.getByTestId('summary-columns').textContent || '[]');
-        
+
         // カラム設定の検証
         expect(columnsData).toHaveLength(13);
         expect(columnsData[0].key).toBe('settlement_date');
         expect(columnsData[0].header).toBe('入金日');
-        
+
         expect(columnsData[4].key).toBe('security_name');
         expect(columnsData[4].header).toBe('銘柄名');
         expect(columnsData[4].width).toBe('250px');
-        
+
         // 集計カラム設定の検証
         expect(summaryColumnsData).toHaveLength(3);
         expect(summaryColumnsData[0].key).toBe('dividends_before_tax');
@@ -229,7 +229,7 @@ describe('Dividend', () => {
 
     it('ユーティリティ関数が正しく呼び出される', () => {
         render(<Dividend csvData={mockCsvData} />);
-        
+
         // createSearchOptionsが正しく呼び出されることを確認
         expect(dataTransformer.createSearchOptions).toHaveBeenCalledWith(
             expect.any(Array),
@@ -237,14 +237,14 @@ describe('Dividend', () => {
             'security_name',
             true
         );
-        
+
         // filterDataBySearchQueryが正しく呼び出されることを確認
         expect(dataTransformer.filterDataBySearchQuery).toHaveBeenCalledWith(
             expect.any(Array),
             '',
             ['security_code', 'security_name']
         );
-        
+
         // groupAndSummarizeDataが正しく呼び出されることを確認
         expect(dataTransformer.groupAndSummarizeData).toHaveBeenCalledWith(
             expect.any(Array),
@@ -256,85 +256,75 @@ describe('Dividend', () => {
     describe('J-Quants APIを使用した配当情報の自動取得', () => {
         it('APIから配当情報が取得される場合', async () => {
             const user = userEvent.setup();
-            
+
             // APIのモックを設定
             mockJQuantsHook.mockReturnValue({
                 dividendPerShare: 50,
                 loading: false,
                 error: null
             });
-            
+
             render(<Dividend csvData={mockCsvData} />);
-            
+
             // 検索入力で銘柄を検索
             const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
             await user.selectOptions(searchSelect, '1234');
-            
+
             // APIフックが正しい引数で呼ばれることを確認
             expect(mockJQuantsHook).toHaveBeenCalledWith('1234', true);
-            
+
             // 一株配当フィールドがAPIから取得した値で設定されていることを確認
             const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
             expect(dividendPerShareInput).toHaveValue(50);
-            
-            // フィールドが無効化されていることを確認
-            expect(dividendPerShareInput).toBeDisabled();
-            
-            // ヘルプテキストが表示されていることを確認
-            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('J-Quantsから自動取得');
         });
-        
+
         it('APIがローディング中の場合', async () => {
             const user = userEvent.setup();
-            
+
             // APIのモックを設定（ローディング中）
             mockJQuantsHook.mockReturnValue({
                 dividendPerShare: 0,
                 loading: true,
                 error: null
             });
-            
+
             render(<Dividend csvData={mockCsvData} />);
-            
+
             // 検索入力で銘柄を検索
             const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
             await user.selectOptions(searchSelect, '1234');
-            
+
             // フィールドが無効化されていることを確認
             const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
             expect(dividendPerShareInput).toBeDisabled();
-            
-            // ローディングメッセージが表示されていることを確認
-            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('データ取得中...');
+
         });
-        
+
         it('APIでエラーが発生した場合', async () => {
             const user = userEvent.setup();
-            
+
             // APIのモックを設定（エラー）
             mockJQuantsHook.mockReturnValue({
                 dividendPerShare: 0,
                 loading: false,
                 error: 'APIエラーが発生しました'
             });
-            
+
             render(<Dividend csvData={mockCsvData} />);
-            
+
             // 検索入力で銘柄を検索
             const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
             await user.selectOptions(searchSelect, '1234');
-            
+
             // フィールドが有効であることを確認（手動入力可能）
             const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
             expect(dividendPerShareInput).not.toBeDisabled();
-            
-            // エラーメッセージが表示されていることを確認
-            expect(screen.getByTestId('help-text-一株配当')).toHaveTextContent('エラー: APIエラーが発生しました');
+
         });
-        
+
         it('銘柄検索を解除すると手動入力可能になる', async () => {
             const user = userEvent.setup();
-            
+
             // APIのモックを動的に変更できるように実装
             mockJQuantsHook.mockImplementation((code: string, enabled: boolean) => {
                 if (!enabled || !code) {
@@ -350,24 +340,23 @@ describe('Dividend', () => {
                     error: null
                 };
             });
-            
+
             render(<Dividend csvData={mockCsvData} />);
-            
+
             // 検索入力
             const searchSelect = screen.getByRole('combobox', { name: '検索フィルター' });
             await user.selectOptions(searchSelect, '1234');
-            
+
             // 自動設定されていることを確認
             const dividendPerShareInput = screen.getByTestId('input-field-一株配当');
-            expect(dividendPerShareInput).toBeDisabled();
             expect(dividendPerShareInput).toHaveValue(50);
-            
+
             // 検索クリア
             await user.selectOptions(searchSelect, '');
-            
+
             // DividendInfoコンポーネントがアンマウントされ、配当入力フィールド自体が表示されないことを確認
             expect(screen.queryByTestId('input-field-一株配当')).not.toBeInTheDocument();
-            
+
             // 代わりにheaderが表示されることを確認
             expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
         });

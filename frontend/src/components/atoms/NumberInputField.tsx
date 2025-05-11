@@ -2,7 +2,7 @@ import { InputField } from './InputField';
 
 interface NumberInputFieldProps {
   label: string;
-  value: number;
+  value: number | undefined;
   onChange: (value: number) => void;
   placeholder?: string;
   id?: string;
