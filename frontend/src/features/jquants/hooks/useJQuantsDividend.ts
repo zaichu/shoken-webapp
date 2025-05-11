@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { jquantsApiClient } from '../api/client';
 import { parseNumber } from '@/lib/utils/number';
-import { jquantsApiClient } from '@/features/jquants';
 
 /**
  * J-Quants APIを使用して配当情報を取得するフック

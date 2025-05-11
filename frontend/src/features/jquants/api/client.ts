@@ -1,9 +1,8 @@
 import {
-  JQuantsStatementsResponse,
-  JQuantsError
+  JQuantsStatementsResponse
 } from './types';
-import { apiClient } from '../client';
-import { ApiError, ApiErrorType } from '../../types/api';
+import { apiClient } from '@/lib/api/client';
+import { ApiError, ApiErrorType } from '@/lib/types/api';
 import axios from 'axios';
 
 /**

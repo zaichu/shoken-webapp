@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { useStockSearch } from '../useStockSearch';
 import { fetchStockData } from '../../api';
 import { StockData } from '../../types';
@@ -18,40 +19,26 @@ const createWrapper = () => {
       },
     },
   });
-  
+
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      {children}
+    <QueryClientProvider client= { queryClient } >
+    { children }
     </QueryClientProvider>
   );
 };
 
 describe('useStockSearch', () => {
   const mockStockData: StockData = {
-    securityCode: '1234',
-    securityNameJa: 'テスト株式',
-    sectorName: 'テクノロジー',
-    marketCode: 'TSE',
-    marketName: '東証プライム',
-    priceYesterday: 1000,
-    currentPrice: 1050,
-    changeFromYesterday: 50,
-    percentChangeFromYesterday: 5.0,
-    currentPriceTime: '2024-01-01T12:00:00Z',
-    volume: 1000000,
-    bidPrice: 1048,
-    bidTime: '2024-01-01T12:00:00Z',
-    askPrice: 1052,
-    askTime: '2024-01-01T12:00:00Z',
-    tradingValue: 1050000000,
-    priceEarningsRatio: 15.5,
-    priceBookValueRatio: 1.2,
-    returnOnEquity: 8.5,
-    capitalAdequacyRatio: 45.0,
-    stockLabelsJa: [],
-    description: 'テスト企業の説明',
-    website: 'https://example.com',
-    numberOfShares: 1000000,
+    date: '2024-01-01',
+    code: '1234',
+    name: 'テスト株式',
+    market_category: '東証プライム',
+    industry_code_33: '10',
+    industry_category_33: 'テクノロジー',
+    industry_code_17: '01',
+    industry_category_17: '情報・通信業',
+    size_code: 'L',
+    size_category: '大型株',
   };
 
   beforeEach(() => {

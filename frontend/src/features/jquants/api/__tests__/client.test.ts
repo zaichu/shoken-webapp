@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { jquantsApiClient, JQuantsApiClient } from '../client';
-import { apiClient } from '../../client';
-import { ApiError, ApiErrorType } from '../../../types/api';
+import { JQuantsApiClient } from '../client';
+import { apiClient } from '@/lib/api/client';
+import { ApiError, ApiErrorType } from '@/lib/types/api';
 
-vi.mock('../../client', () => ({
+vi.mock('@/lib/api/client', () => ({
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),
@@ -36,7 +36,7 @@ describe('JQuantsApiClient', () => {
       const axiosError = new Error('Network Error');
       (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
       (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
-      
+
       // Mock ApiError.fromAxiosError
       const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
@@ -57,8 +57,8 @@ describe('JQuantsApiClient', () => {
   describe('getStatements', () => {
     it('財務諸表データを正常に取得できる', async () => {
       // 認証のモック
-      const authenticateSpy = vi.spyOn(client, 'authenticate').mockResolvedValue('test-refresh-token');
-      
+      vi.spyOn(client, 'authenticate').mockResolvedValue('test-refresh-token');
+
       // IDトークン取得のモック
       (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         data: { id_token: 'test-id-token' }
@@ -84,7 +84,7 @@ describe('JQuantsApiClient', () => {
 
     it('fromとtoを指定して財務諸表データを取得できる', async () => {
       client.setRefreshToken('existing-refresh-token');
-      
+
       // IDトークン取得のモック
       (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         data: { id_token: 'test-id-token' }
@@ -101,7 +101,7 @@ describe('JQuantsApiClient', () => {
       expect(apiClient.get).toHaveBeenCalledWith(
         '/jquants/fins/statements',
         {
-          params: { 
+          params: {
             code: '1234',
             from: '2023-01-01',
             to: '2023-12-31'
@@ -113,7 +113,7 @@ describe('JQuantsApiClient', () => {
 
     it('取得エラーの場合、適切なApiErrorを投げる', async () => {
       client.setRefreshToken('existing-refresh-token');
-      
+
       // IDトークン取得のモック
       (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         data: { id_token: 'test-id-token' }
@@ -123,7 +123,7 @@ describe('JQuantsApiClient', () => {
       const axiosError = new Error('Network Error');
       (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
-      
+
       // Mock ApiError.fromAxiosError
       const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);

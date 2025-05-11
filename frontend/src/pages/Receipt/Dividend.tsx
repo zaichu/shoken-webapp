@@ -22,7 +22,7 @@ import {
 import { NumberInputField, StatItem, StatItemWithRate } from '@/components';
 import { parseNumber } from '@/lib/utils/number';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useJQuantsDividend } from '@/lib/api/jquants';
+import { useJQuantsDividend } from '@/features/jquants';
 
 // CSVアイテムをDividendDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
@@ -69,22 +69,21 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
-    if (!searchQuery) {
-        setAverageUnitPrice(undefined);
-        setHoldingQuantity(undefined);
-        setDividendPerShare(undefined);
-        return null;
-    }
-
     // J-Quants APIから配当情報を取得
     const {
         dividendPerShare: apiDividendPerShare,
         loading: apiLoading,
     } = useJQuantsDividend(searchQuery, !!searchQuery);
 
+    // searchQueryが変更されたときにstateを初期化
+    React.useEffect(() => {
+        setAverageUnitPrice(undefined);
+        setHoldingQuantity(undefined);
+        setDividendPerShare(undefined);
+    }, [searchQuery]);
+
     // APIからデータが取得されたら自動設定
     React.useEffect(() => {
-        setDividendPerShare(undefined);
         if (searchQuery && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
             setDividendPerShare(apiDividendPerShare);
         }
@@ -112,6 +111,10 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         }
         return 0;
     }, [summary, totalInvestment]);
+
+    if (!searchQuery) {
+        return null;
+    }
 
     return (
         <div className="card shadow-sm mt-1">
