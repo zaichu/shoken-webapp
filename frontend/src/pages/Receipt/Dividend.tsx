@@ -24,6 +24,7 @@ import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useJQuantsDividend } from '@/features/jquants';
+import { useHoldingsStorage } from '@/hooks/common/useHoldingsStorage';
 
 // CSVアイテムをDividendDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
@@ -70,17 +71,31 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
+    // 保有株データを取得
+    const { getHoldingByCode } = useHoldingsStorage();
+
     // J-Quants APIから配当情報を取得
     const {
         dividendPerShare: apiDividendPerShare,
         loading: apiLoading,
     } = useJQuantsDividend(searchQuery, !!searchQuery);
 
-    // searchQueryが変更されたときにstateを初期化
+    // searchQueryが変更されたときにstateを初期化し、保有株データがあれば自動入力
     React.useEffect(() => {
-        setAverageUnitPrice(undefined);
-        setHoldingQuantity(undefined);
-    }, [searchQuery]);
+        if (searchQuery) {
+            const holdingData = getHoldingByCode(searchQuery);
+            if (holdingData) {
+                setAverageUnitPrice(holdingData.average_purchase_price);
+                setHoldingQuantity(holdingData.shares);
+            } else {
+                setAverageUnitPrice(undefined);
+                setHoldingQuantity(undefined);
+            }
+        } else {
+            setAverageUnitPrice(undefined);
+            setHoldingQuantity(undefined);
+        }
+    }, [searchQuery, getHoldingByCode]);
 
     // APIからデータが取得されたら自動設定
     React.useEffect(() => {
@@ -117,10 +132,17 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         return null;
     }
 
+    const holdingData = getHoldingByCode(searchQuery);
+
     return (
         <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white">
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">配当情報</h5>
+                {holdingData && (
+                    <small className="text-light">
+                        保有株データから自動入力
+                    </small>
+                )}
             </div>
             <div className="card-body">
                 <div className="row">
