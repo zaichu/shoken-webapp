@@ -50,7 +50,7 @@ export function HoldingsPage() {
     if (holdingsCsvData.length > 0) {
       setHoldingsData(tmpHoldingsData.filter(item => item.security_code !== ''));
     }
-  }, [holdingsCsvData]);
+  }, [tmpHoldingsData, holdingsCsvData]);
 
   const handleSaveToStorage = useCallback(() => {
     if (holdingsData.length > 0) {
@@ -67,7 +67,7 @@ export function HoldingsPage() {
       holdingsCSV.reset();
       // alert('保有株データを削除しました');
     }
-  }, [clearHoldings]);
+  }, [holdingsCSV, clearHoldings]);
 
   return (
     <Layout>

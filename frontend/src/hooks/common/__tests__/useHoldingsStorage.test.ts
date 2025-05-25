@@ -37,12 +37,25 @@ const mockHoldingsData: HoldingsData = {
   profit_loss_rate: 4.0,
 };
 
+const mockHoldingsData2: HoldingsData = {
+  security_code: '6758',
+  security_name: 'ソニーグループ',
+  shares: 50,
+  executing_shares: 10,
+  average_purchase_price: 15000.0,
+  total_purchase_amount: 750000,
+  current_price: 16000.0,
+  daily_change: 100.0,
+  market_value: 800000,
+  profit_loss_rate: 6.67,
+};
+
 describe('useHoldingsStorage', () => {
   beforeEach(() => {
     localStorageMock.clear();
     localStorageMock._storage = {};
     vi.clearAllMocks();
-    
+
     // localStorageMockを再設定
     localStorageMock.setItem = vi.fn((key: string, value: string) => {
       localStorageMock._storage[key] = value;
@@ -58,7 +71,7 @@ describe('useHoldingsStorage', () => {
   it('初期状態では空の配列を返す', () => {
     const { result } = renderHook(() => useHoldingsStorage());
 
-    expect(result.current.holdings).toEqual([]);
+    expect(result.current.holdingsStorageData).toEqual([]);
     expect(result.current.lastUpdated).toBeNull();
   });
 
@@ -70,11 +83,24 @@ describe('useHoldingsStorage', () => {
       result.current.saveHoldings(holdings);
     });
 
-    expect(result.current.holdings).toEqual(holdings);
+    expect(result.current.holdingsStorageData).toEqual(holdings);
     expect(result.current.lastUpdated).not.toBeNull();
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+
+    // setItemの呼び出し回数を確認
+    expect(localStorageMock.setItem).toHaveBeenCalledTimes(2);
+
+    // 1回目の呼び出し（holdings-data）
+    expect(localStorageMock.setItem).toHaveBeenNthCalledWith(
+      1,
       'holdings-data',
       JSON.stringify(holdings)
+    );
+
+    // 2回目の呼び出し（holdings-last-updated）
+    expect(localStorageMock.setItem).toHaveBeenNthCalledWith(
+      2,
+      'holdings-last-updated',
+      expect.stringMatching(/^".+Z"$/) // JSON.stringifyされた文字列なので、クォートで囲まれる
     );
   });
 
@@ -87,20 +113,40 @@ describe('useHoldingsStorage', () => {
       result.current.saveHoldings(holdings);
     });
 
-    expect(result.current.holdings).toEqual(holdings);
+    expect(result.current.holdingsStorageData).toEqual(holdings);
+
+    // モックをクリアして新しい呼び出しを追跡
+    vi.clearAllMocks();
 
     // データをクリア
     act(() => {
       result.current.clearHoldings();
     });
 
-    expect(result.current.holdings).toEqual([]);
+    expect(result.current.holdingsStorageData).toEqual([]);
     expect(result.current.lastUpdated).toBeNull();
+
+    // setItemが2回呼ばれることを確認（空配列とnullを設定）
+    expect(localStorageMock.setItem).toHaveBeenCalledTimes(2);
+
+    // 1回目の呼び出し（holdings-data に空配列）
+    expect(localStorageMock.setItem).toHaveBeenNthCalledWith(
+      1,
+      'holdings-data',
+      JSON.stringify([])
+    );
+
+    // 2回目の呼び出し（holdings-last-updated に null）
+    expect(localStorageMock.setItem).toHaveBeenNthCalledWith(
+      2,
+      'holdings-last-updated',
+      JSON.stringify(null)
+    );
   });
 
   it('銘柄コードで保有株を検索できる', () => {
     const { result } = renderHook(() => useHoldingsStorage());
-    const holdings = [mockHoldingsData];
+    const holdings = [mockHoldingsData, mockHoldingsData2];
 
     act(() => {
       result.current.saveHoldings(holdings);
@@ -109,6 +155,9 @@ describe('useHoldingsStorage', () => {
     const foundHolding = result.current.getHoldingByCode('7203');
     expect(foundHolding).toEqual(mockHoldingsData);
 
+    const foundHolding2 = result.current.getHoldingByCode('6758');
+    expect(foundHolding2).toEqual(mockHoldingsData2);
+
     const notFoundHolding = result.current.getHoldingByCode('9999');
     expect(notFoundHolding).toBeUndefined();
   });
@@ -116,33 +165,128 @@ describe('useHoldingsStorage', () => {
   it('既存の保有株データを読み込める', () => {
     const holdings = [mockHoldingsData];
     const lastUpdated = new Date().toISOString();
-    
-    localStorageMock.setItem('holdings-data', JSON.stringify(holdings));
-    localStorageMock.setItem('holdings-last-updated', JSON.stringify(lastUpdated));
+
+    // モックストレージに事前にデータを設定
+    localStorageMock._storage['holdings-data'] = JSON.stringify(holdings);
+    localStorageMock._storage['holdings-last-updated'] = JSON.stringify(lastUpdated);
 
     const { result } = renderHook(() => useHoldingsStorage());
 
-    expect(result.current.holdings).toEqual(holdings);
+    expect(result.current.holdingsStorageData).toEqual(holdings);
     expect(result.current.lastUpdated).toBe(lastUpdated);
   });
 
   it('複数の保有株を管理できる', () => {
     const { result } = renderHook(() => useHoldingsStorage());
-    const holdings = [
-      mockHoldingsData,
-      {
-        ...mockHoldingsData,
-        security_code: '6758',
-        security_name: 'ソニーグループ',
-      },
-    ];
+    const holdings = [mockHoldingsData, mockHoldingsData2];
 
     act(() => {
       result.current.saveHoldings(holdings);
     });
 
-    expect(result.current.holdings).toHaveLength(2);
+    expect(result.current.holdingsStorageData).toHaveLength(2);
     expect(result.current.getHoldingByCode('7203')).toEqual(mockHoldingsData);
-    expect(result.current.getHoldingByCode('6758')).toBeDefined();
+    expect(result.current.getHoldingByCode('6758')).toEqual(mockHoldingsData2);
+  });
+
+  it('保有株データを更新できる', () => {
+    const { result } = renderHook(() => useHoldingsStorage());
+    const initialHoldings = [mockHoldingsData];
+    const updatedHoldings = [
+      {
+        ...mockHoldingsData,
+        shares: 200,
+        market_value: 520000,
+      },
+    ];
+
+    // 初期データを保存
+    act(() => {
+      result.current.saveHoldings(initialHoldings);
+    });
+
+    const firstUpdated = result.current.lastUpdated;
+    expect(result.current.holdingsStorageData).toEqual(initialHoldings);
+
+    // データを更新
+    setTimeout(() => {
+      act(() => {
+        result.current.saveHoldings(updatedHoldings);
+      });
+
+      expect(result.current.holdingsStorageData).toEqual(updatedHoldings);
+      expect(result.current.lastUpdated).not.toBe(firstUpdated);
+      expect(result.current.lastUpdated).not.toBeNull();
+    }, 100);
+  });
+
+  it('空の配列を保存できる', () => {
+    const { result } = renderHook(() => useHoldingsStorage());
+    const holdings = [mockHoldingsData];
+
+    // まずデータを保存
+    act(() => {
+      result.current.saveHoldings(holdings);
+    });
+
+    expect(result.current.holdingsStorageData).toEqual(holdings);
+
+    // 空の配列を保存
+    act(() => {
+      result.current.saveHoldings([]);
+    });
+
+    expect(result.current.holdingsStorageData).toEqual([]);
+    expect(result.current.lastUpdated).not.toBeNull();
+  });
+
+  it('執行中の株式がある銘柄を正しく処理できる', () => {
+    const { result } = renderHook(() => useHoldingsStorage());
+    const holdingsWithExecuting = [
+      {
+        ...mockHoldingsData,
+        executing_shares: 20,
+      },
+    ];
+
+    act(() => {
+      result.current.saveHoldings(holdingsWithExecuting);
+    });
+
+    const foundHolding = result.current.getHoldingByCode('7203');
+    expect(foundHolding?.executing_shares).toBe(20);
+  });
+
+  it('インデックスシグネチャによる動的アクセスをテスト', () => {
+    const { result } = renderHook(() => useHoldingsStorage());
+    const holdingsWithExtra = [
+      {
+        ...mockHoldingsData,
+        custom_field: 'カスタム値',
+      },
+    ];
+
+    act(() => {
+      result.current.saveHoldings(holdingsWithExtra);
+    });
+
+    const foundHolding = result.current.getHoldingByCode('7203');
+    expect(foundHolding?.['custom_field']).toBe('カスタム値');
+  });
+
+  it('lastUpdatedがISO文字列形式であることを確認', () => {
+    const { result } = renderHook(() => useHoldingsStorage());
+    const holdings = [mockHoldingsData];
+
+    act(() => {
+      result.current.saveHoldings(holdings);
+    });
+
+    const lastUpdated = result.current.lastUpdated;
+    expect(lastUpdated).not.toBeNull();
+    if (lastUpdated) {
+      const date = new Date(lastUpdated);
+      expect(date.toISOString()).toBe(lastUpdated);
+    }
   });
 });

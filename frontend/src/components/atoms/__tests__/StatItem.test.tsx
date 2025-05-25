@@ -19,7 +19,7 @@ describe('StatItem', () => {
 
   it('デフォルトバリアントが適用される', () => {
     render(<StatItem title="タイトル" value="値" />);
-    
+
     const titleElement = screen.getByText('タイトル');
     const valueElement = screen.getByText('値');
 
@@ -79,8 +79,7 @@ describe('StatItemWithRate', () => {
     render(<StatItemWithRate title="売上高" value={1000000} rate={15.5} />);
 
     expect(screen.getByText('売上高')).toBeInTheDocument();
-    expect(screen.getByText('1,000,000')).toBeInTheDocument();
-    expect(screen.getByText('(15.50%)')).toBeInTheDocument();
+    expect(screen.getByText('1,000,000 (15.50%)')).toBeInTheDocument();
   });
 
   it('レートなしで表示する', () => {
@@ -95,32 +94,17 @@ describe('StatItemWithRate', () => {
     render(<StatItemWithRate title="売上高" value={1000000} rate={15.5} showRate={false} />);
 
     expect(screen.getByText('1,000,000')).toBeInTheDocument();
-    expect(screen.queryByText('(15.50%)')).not.toBeInTheDocument();
   });
 
   it('カスタムフォーマット関数が適用される', () => {
     const format = (value: number) => `$${value}`;
-    const rateFormat = (rate: number) => `${rate}パーセント`;
+    const rateFormat = (rate: number) => `${rate}%`;
 
     render(
-      <StatItemWithRate
-        title="売上高"
-        value={1000}
-        rate={10}
-        format={format}
-        rateFormat={rateFormat}
-      />
+      <StatItemWithRate title="売上高" value={1000} rate={10} format={format} rateFormat={rateFormat} />
     );
 
-    expect(screen.getByText('$1000')).toBeInTheDocument();
-    expect(screen.getByText('(10パーセント)')).toBeInTheDocument();
-  });
-
-  it('rateClassNameが適用される', () => {
-    render(<StatItemWithRate title="売上高" value={1000} rate={10} rateClassName="custom-rate" />);
-
-    const rateElement = screen.getByText('(10.00%)');
-    expect(rateElement).toHaveClass('custom-rate');
+    expect(screen.getByText('$1000 (10%)')).toBeInTheDocument();
   });
 
   it('variantが適用される', () => {
@@ -144,14 +128,11 @@ describe('StatItemWithRate', () => {
   it('0の値も正しく表示される', () => {
     render(<StatItemWithRate title="利益" value={0} rate={0} />);
 
-    expect(screen.getByText('0')).toBeInTheDocument();
-    expect(screen.getByText('(0.00%)')).toBeInTheDocument();
+    expect(screen.getByText('0 (0.00%)')).toBeInTheDocument();
   });
 
   it('負の値も正しく表示される', () => {
     render(<StatItemWithRate title="損失" value={-1000} rate={-5.5} />);
-
-    expect(screen.getByText('-1,000')).toBeInTheDocument();
-    expect(screen.getByText('(-5.50%)')).toBeInTheDocument();
+    expect(screen.getByText('-1,000 (-5.50%)')).toBeInTheDocument();
   });
 });
