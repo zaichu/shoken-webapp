@@ -114,7 +114,23 @@ export function ReceiptTable<T extends Record<string, unknown>, S extends Record
                         </React.Fragment>
                     );
                 })}
+                {summary.length === 0 && (
+                    <React.Fragment>
+                        {data.map((item, itemIndex) => (
+                            <TableRow key={`item-${itemIndex}`}>
+                                {columns.map((column, colIndex) =>
+                                    renderCell(
+                                        item[column.key],
+                                        column,
+                                        `cell-${itemIndex}`,
+                                        colIndex
+                                    )
+                                )}
+                            </TableRow>
+                        ))}
+                    </React.Fragment>)
+                }
             </TableBody>
-        </Table>
+        </Table >
     );
 }

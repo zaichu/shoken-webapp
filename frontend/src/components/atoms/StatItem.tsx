@@ -84,11 +84,10 @@ export const StatItemWithRate = memo<StatItemWithRateProps>(({
   rateFormat = (r) => `${r.toFixed(2)}%`,
   className = 'col',
   showRate = true,
-  rateClassName = 'text-muted small',
   variant = 'default'
 }) => {
   const formattedValue = format(value);
-  
+
   const renderValue = () => {
     if (!showRate || rate === undefined) {
       return formattedValue;
@@ -96,10 +95,7 @@ export const StatItemWithRate = memo<StatItemWithRateProps>(({
 
     return (
       <div>
-        <div>{formattedValue}</div>
-        <div className={rateClassName}>
-          ({rateFormat(rate)})
-        </div>
+        <div>{formattedValue} ({rateFormat(rate)})</div>
       </div>
     );
   };

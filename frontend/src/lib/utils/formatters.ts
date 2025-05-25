@@ -6,10 +6,10 @@
 /**
  * 日本の日付フォーマット用のオプション
  */
-export const JP_DATE_FORMAT_OPTIONS = { 
-  year: 'numeric', 
-  month: '2-digit', 
-  day: '2-digit' 
+export const JP_DATE_FORMAT_OPTIONS = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
 } as const;
 
 /**
@@ -147,7 +147,7 @@ export function formatNumber(
 
   try {
     let num: number;
-    
+
     if (typeof value === 'string') {
       num = Number(value.replace(/,/g, ''));
     } else if (typeof value === 'number') {
@@ -155,21 +155,21 @@ export function formatNumber(
     } else {
       return '-';
     }
-    
+
     if (isNaN(num)) {
       return '-';
     }
-    
+
     const isNegative = num < 0;
     const absNum = Math.abs(num);
-    
+
     const formattedNumber = new Intl.NumberFormat('ja-JP', {
       style: 'decimal',
       useGrouping,
       minimumFractionDigits,
       maximumFractionDigits
     }).format(absNum);
-    
+
     if (isNegative && showNegativeSpan) {
       return `<span data-negative="true">-${formattedNumber}</span>`;
     } else if (isNegative) {
@@ -201,13 +201,13 @@ export function formatCurrency(
   const {
     currency = '¥',
     minimumFractionDigits = 0,
-    maximumFractionDigits = 0,
+    maximumFractionDigits = 15,
     showNegativeSpan = true
   } = options;
 
   try {
     let num: number;
-    
+
     if (typeof value === 'string') {
       num = Number(value.replace(/,/g, ''));
     } else if (typeof value === 'number') {
@@ -215,21 +215,21 @@ export function formatCurrency(
     } else {
       return '-';
     }
-    
+
     if (isNaN(num)) {
       return '-';
     }
-    
+
     const isNegative = num < 0;
     const absNum = Math.abs(num);
-    
+
     const formattedNumber = new Intl.NumberFormat('ja-JP', {
       style: 'decimal',
       useGrouping: true,
       minimumFractionDigits,
       maximumFractionDigits
     }).format(absNum);
-    
+
     if (isNegative && showNegativeSpan) {
       return `<span data-negative="true">${currency} -${formattedNumber}</span>`;
     } else if (isNegative) {

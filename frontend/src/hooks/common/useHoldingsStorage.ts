@@ -35,7 +35,7 @@ export const useHoldingsStorage = () => {
   }, [storedHoldings]);
 
   return {
-    holdings: storedHoldings,
+    holdingsStorageData: storedHoldings,
     lastUpdated,
     saveHoldings,
     clearHoldings,
