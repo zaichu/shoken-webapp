@@ -1,0 +1,1 @@
+export { useJQuantsDividend } from './useJQuantsDividend';

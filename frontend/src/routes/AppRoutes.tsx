@@ -4,6 +4,7 @@ import { ErrorPage } from '../components/templates/ErrorPage';
 import { HomePage } from '../pages/Home';
 import { SearchPage } from '../pages/Search';
 import { ReceiptsPage } from '../pages/Receipts';
+import { HoldingsPage } from '../pages/HoldingsPage';
 import { NotFoundPage } from '../pages/NotFound';
 
 const router = createBrowserRouter([
@@ -19,6 +20,10 @@ const router = createBrowserRouter([
   {
     path: "/shoken-webapp/receipts",
     element: <ReceiptsPage />,
+  },
+  {
+    path: "/shoken-webapp/holdings",
+    element: <HoldingsPage />,
   },
   {
     path: "/shoken-webapp/404",

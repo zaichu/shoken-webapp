@@ -1,126 +1,183 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi } from 'vitest';
-import { NumberInputField } from '../NumberInputField';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { NumberInputField, NumberInputFieldProps } from '../NumberInputField';
+
+const defaultProps: Partial<NumberInputFieldProps> = {
+  label: '数値入力',
+  value: undefined,
+  onChange: vi.fn(),
+};
 
 describe('NumberInputField', () => {
-  const mockOnChange = vi.fn();
-
   beforeEach(() => {
-    mockOnChange.mockClear();
+    vi.clearAllMocks();
   });
 
-  it('数値入力フィールドを表示する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-        placeholder="数値を入力"
-      />
-    );
+  it('基本的な数値フィールドを表示する', () => {
+    render(<NumberInputField {...defaultProps} />);
     
-    const input = screen.getByLabelText('数量');
+    const input = screen.getByLabelText('数値入力');
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute('type', 'number');
-    expect(input).toHaveValue(100);
-    expect(input).toHaveAttribute('placeholder', '数値を入力');
   });
 
-  it('数値入力の変更を処理する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-      />
-    );
+  it('初期値が正しく表示される', () => {
+    render(<NumberInputField {...defaultProps} value={123} />);
     
-    const input = screen.getByLabelText('数量');
-    fireEvent.change(input, { target: { value: '200' } });
-    
-    expect(mockOnChange).toHaveBeenCalledWith(200);
+    const input = screen.getByDisplayValue('123');
+    expect(input).toBeInTheDocument();
   });
 
-  it('エラーメッセージを表示する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-        error="必須項目です"
-      />
-    );
+  it('undefinedの場合は空文字が表示される', () => {
+    render(<NumberInputField {...defaultProps} value={undefined} />);
+    
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    expect(input.value).toBe('');
+  });
+
+  it('数値入力時にonChangeが呼ばれる', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '123' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(123);
+  });
+
+  it('空文字入力時にonChangeがundefinedで呼ばれる', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField label="数値入力" value={123} onChange={handleChange} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    // まず値があることを確認
+    expect(input).toHaveValue(123);
+    
+    // 空文字に変更
+    fireEvent.change(input, { target: { value: '' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it('小数点入力が許可される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} allowDecimal />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '123.45' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(123.45);
+  });
+
+  it('小数点入力が制限される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} allowDecimal={false} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '123.45' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(123);
+  });
+
+  it('負の値入力が許可される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} allowNegative />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '-123' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(-123);
+  });
+
+  it('負の値入力が制限される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} allowNegative={false} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '-123' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(0);
+  });
+
+  it('最小値が適用される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} min={10} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '5' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(10);
+  });
+
+  it('最大値が適用される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} max={100} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '150' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(100);
+  });
+
+  it('精度が適用される', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} precision={1} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: '123.456' } });
+    
+    expect(handleChange).toHaveBeenCalledWith(123.5);
+  });
+
+  it('無効な文字入力時はonChangeが呼ばれない', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} />);
+    
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.change(input, { target: { value: 'abc' } });
+    
+    expect(handleChange).not.toHaveBeenCalled();
+  });
+
+  it('エラーメッセージが表示される', () => {
+    render(<NumberInputField {...defaultProps} error="必須項目です" />);
     
     expect(screen.getByText('必須項目です')).toBeInTheDocument();
+    expect(screen.getByText('必須項目です')).toHaveClass('invalid-feedback');
   });
 
-  it('ヘルプテキストを表示する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-        helpText="1以上の整数を入力してください"
-      />
-    );
+  it('ヘルプテキストが表示される', () => {
+    render(<NumberInputField {...defaultProps} helpText="数値を入力してください" />);
     
-    expect(screen.getByText('1以上の整数を入力してください')).toBeInTheDocument();
+    expect(screen.getByText('数値を入力してください')).toBeInTheDocument();
   });
 
   it('disabledプロパティが動作する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-        disabled
-      />
-    );
+    render(<NumberInputField {...defaultProps} disabled />);
     
-    const input = screen.getByLabelText('数量');
+    const input = screen.getByLabelText('数値入力');
     expect(input).toBeDisabled();
   });
 
-  it('デフォルトのクラス名が適用される', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-      />
-    );
+  it('カスタムクラスが適用される', () => {
+    render(<NumberInputField {...defaultProps} className="custom-class" />);
     
-    const input = screen.getByLabelText('数量');
-    expect(input).toHaveClass('form-control-plaintext', 'border');
+    const input = screen.getByLabelText('数値入力');
+    expect(input).toHaveClass('custom-class');
   });
 
-  it('カスタムクラス名が適用される', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-        className="custom-input"
-      />
-    );
+  it('step属性が適用される', () => {
+    render(<NumberInputField {...defaultProps} step={0.1} />);
     
-    const input = screen.getByLabelText('数量');
-    expect(input).toHaveClass('custom-input');
+    const input = screen.getByLabelText('数値入力');
+    expect(input).toHaveAttribute('step', '0.1');
   });
 
-  it('空文字列の入力をNumber型に変換する', () => {
-    render(
-      <NumberInputField
-        label="数量"
-        value={100}
-        onChange={mockOnChange}
-      />
-    );
+  it('min/max属性が適用される', () => {
+    render(<NumberInputField {...defaultProps} min={0} max={100} />);
     
-    const input = screen.getByLabelText('数量');
-    fireEvent.change(input, { target: { value: '' } });
-    
-    // Number('')は0を返す
-    expect(mockOnChange).toHaveBeenCalledWith(0);
+    const input = screen.getByLabelText('数値入力');
+    expect(input).toHaveAttribute('min', '0');
+    expect(input).toHaveAttribute('max', '100');
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatItem } from '@/components';
+import { StatItem } from '@/components/atoms/StatItem';
 
 interface HeaderItem {
     title: string;

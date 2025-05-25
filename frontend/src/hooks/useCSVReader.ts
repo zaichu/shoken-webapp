@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { parseCSVFile } from '../lib/csv/parser';
+import { CSVParseOptions } from '@/lib/types/csv';
 
 export interface CSVReaderState {
   isLoading: boolean;
@@ -20,7 +21,7 @@ export type CSVReaderHook = CSVReaderState & CSVReaderActions;
  * CSVファイルを読み込むためのカスタムフック
  * ファイルの読み込み、パース、エラーハンドリングを統一的に管理する
  */
-export function useCSVReader(): CSVReaderHook {
+export function useCSVReader(options?: CSVParseOptions): CSVReaderHook {
   const [state, setState] = useState<CSVReaderState>({
     isLoading: false,
     error: null,
@@ -39,17 +40,19 @@ export function useCSVReader(): CSVReaderHook {
     }));
 
     try {
-      const data = await parseCSVFile(file, {
-        onStart: () => setState(prev => ({ ...prev, isLoading: true })),
-        onError: (errorMsg) => setState(prev => ({ ...prev, error: errorMsg })),
-        onComplete: () => setState(prev => ({ ...prev, isLoading: false })),
-      });
+      const data = await parseCSVFile(file,
+        options,
+        {
+          onStart: () => setState(prev => ({ ...prev, isLoading: true })),
+          onError: (errorMsg) => setState(prev => ({ ...prev, error: errorMsg })),
+          onComplete: () => setState(prev => ({ ...prev, isLoading: false })),
+        });
       return data;
     } catch (e) {
       setState(prev => ({ ...prev, isLoading: false }));
       throw e;
     }
-  }, []);
+  }, [options]);
 
   /**
    * エラー状態をリセットする

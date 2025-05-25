@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { jquantsApiClient } from '../client';
-import { parseNumber } from '@/lib/utils/number';
+import { jquantsApiClient } from '../api/client';
+import { parseNumber } from '@/lib/utils/formatters';
 
 /**
  * J-Quants APIを使用して配当情報を取得するフック
@@ -9,14 +9,14 @@ export const useJQuantsDividend = (
   securityCode: string,
   enabled: boolean = true
 ) => {
-  const [dividendPerShare, setDividendPerShare] = useState<number>(0);
+  const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDividend = async () => {
       if (!enabled || !securityCode) {
-        setDividendPerShare(0);
+        setDividendPerShare(undefined);
         return;
       }
 
@@ -39,7 +39,7 @@ export const useJQuantsDividend = (
       } catch (err) {
         console.error('配当取得エラー:', err);
         setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
-        setDividendPerShare(0);
+        setDividendPerShare(undefined);
       } finally {
         setLoading(false);
       }

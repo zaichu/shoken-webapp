@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 interface CSVFileInputProps {
   onFileSelect: (file: File) => void;
   selectedFileName?: string;
@@ -8,12 +10,15 @@ interface CSVFileInputProps {
  * ファイル選択UIとファイル名表示を提供
  */
 export function CSVFileInput({ onFileSelect, selectedFileName = '' }: CSVFileInputProps) {
-
+  const ref = useRef<HTMLInputElement>(null);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
       onFileSelect(file);
+      if (ref.current) {
+        ref.current.value = ''; // ファイル選択後にinputをリセット
+      }
     }
   };
 
@@ -24,6 +29,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '' }: CSVFileInp
       </label>
       <input
         id="csv-file-input"
+        ref={ref}
         type="file"
         accept=".csv"
         style={{ display: 'none' }}

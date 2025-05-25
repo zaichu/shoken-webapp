@@ -1,44 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi } from 'vitest';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../Table';
-
-// ResizeObserverのモック
-global.ResizeObserver = class ResizeObserver {
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
-    this.elements = new Set();
-  }
-
-  private callback: ResizeObserverCallback;
-  private elements: Set<Element>;
-
-  observe(target: Element) {
-    this.elements.add(target);
-  }
-
-  unobserve(target: Element) {
-    this.elements.delete(target);
-  }
-
-  disconnect() {
-    this.elements.clear();
-  }
-
-  // ResizeObserverをテスト内でトリガーするためのヘルパーメソッド
-  trigger() {
-    const entries: ResizeObserverEntry[] = Array.from(this.elements).map(
-      (element) =>
-      ({
-        target: element,
-        contentRect: element.getBoundingClientRect(),
-        borderBoxSize: [],
-        contentBoxSize: [],
-        devicePixelContentBoxSize: [],
-      } as unknown as ResizeObserverEntry)
-    );
-    this.callback(entries, this);
-  }
-};
 
 // ウィンドウのリサイズイベントをモック
 const mockWindowResize = () => {
@@ -63,11 +24,6 @@ const mockWindowResize = () => {
 };
 
 describe('Table Component', () => {
-  // 各テストの後にモックをリセット
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('基本的なテーブルをレンダリングする', () => {
     render(
       <Table>
@@ -120,11 +76,11 @@ describe('Table Component', () => {
             <TableCell>レスポンシブセル</TableCell>
           </TableRow>
         </TableBody>
-      </Table >
+      </Table>
     );
 
     const responsiveDiv = container.querySelector('div');
-    expect(responsiveDiv).toHaveClass('table-responsive-true');
+    expect(responsiveDiv).toHaveClass('table-responsive');
   });
 
   it('特定のブレイクポイントでレスポンシブテーブルが正しくレンダリングされる', () => {

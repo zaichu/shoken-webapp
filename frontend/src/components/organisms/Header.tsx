@@ -16,6 +16,9 @@ export function Header() {
               <Link className="nav-link" to="/shoken-webapp/search">銘柄検索</Link>
             </li>
             <li className="nav-item">
+              <Link className="nav-link" to="/shoken-webapp/holdings">保有株</Link>
+            </li>
+            <li className="nav-item">
               <Link className="nav-link" to="/shoken-webapp/receipts">受取金</Link>
             </li>
           </ul>
