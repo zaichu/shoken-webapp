@@ -35,7 +35,10 @@ export function HoldingsPage() {
   const { holdingsStorageData, saveHoldings, clearHoldings, lastUpdated } = useHoldingsStorage();
   const [holdingsData, setHoldingsData] = useState<HoldingsData[]>(holdingsStorageData);
   const tmpHoldingsData = useReceiptData(holdingsCsvData, parseCsvItem, sortBySecurityCode);
-  const holdingsCSV = useCSVReader();
+  const options = {
+    skipHeaderRows: 6,
+  };
+  const holdingsCSV = useCSVReader(options);
 
   const handleFileSelect = async (file: File) => {
     try {

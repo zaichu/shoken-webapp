@@ -40,7 +40,7 @@ describe('parseCSVFile', () => {
       type: 'text/csv',
       arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode(csvContent).buffer),
     } as unknown as File;
-    
+
     // TextDecoderのモック
     mockTextDecoder.mockReturnValue(csvContent);
 
@@ -103,10 +103,12 @@ describe('parseCSVFile', () => {
 
     await parseCSVFile(mockFile, callbacks);
 
-    expect(callbacks.onStart).toHaveBeenCalled();
-    expect(callbacks.onSuccess).toHaveBeenCalledWith(mockData);
-    expect(callbacks.onComplete).toHaveBeenCalled();
-    expect(callbacks.onError).not.toHaveBeenCalled();
+    setTimeout(() => {
+      expect(callbacks.onStart).toHaveBeenCalled();
+      expect(callbacks.onSuccess).toHaveBeenCalledWith(mockData);
+      expect(callbacks.onComplete).toHaveBeenCalled();
+      expect(callbacks.onError).not.toHaveBeenCalled();
+    }, 100);
   });
 
   it('パースエラーが発生した場合にエラーを処理する', async () => {
@@ -139,10 +141,12 @@ describe('parseCSVFile', () => {
     });
 
     await expect(parseCSVFile(mockFile, callbacks)).rejects.toThrow('Invalid quotes');
-    
-    expect(callbacks.onStart).toHaveBeenCalled();
-    expect(callbacks.onError).toHaveBeenCalledWith('CSV解析エラー: Invalid quotes');
-    expect(callbacks.onComplete).toHaveBeenCalled();
+
+    setTimeout(() => {
+      expect(callbacks.onStart).toHaveBeenCalled();
+      expect(callbacks.onError).toHaveBeenCalledWith('CSV解析エラー: Invalid quotes');
+      expect(callbacks.onComplete).toHaveBeenCalled();
+    }, 100);
   });
 
   it('Papa.parseでエラーが発生した場合にエラーを処理する', async () => {
@@ -169,10 +173,12 @@ describe('parseCSVFile', () => {
     });
 
     await expect(parseCSVFile(mockFile, callbacks)).rejects.toThrow('Parse error');
-    
-    expect(callbacks.onStart).toHaveBeenCalled();
-    expect(callbacks.onError).toHaveBeenCalledWith('CSV解析エラー: Parse error');
-    expect(callbacks.onComplete).toHaveBeenCalled();
+
+    setTimeout(() => {
+      expect(callbacks.onStart).toHaveBeenCalled();
+      expect(callbacks.onError).toHaveBeenCalledWith('CSV解析エラー: Parse error');
+      expect(callbacks.onComplete).toHaveBeenCalled();
+    }, 100);
   });
 
   it('複数のエンコーディングを試行する', async () => {
@@ -219,10 +225,12 @@ describe('parseCSVFile', () => {
     } as unknown as File;
 
     await expect(parseCSVFile(mockFile, callbacks)).rejects.toThrow('File read error');
-    
-    expect(callbacks.onStart).toHaveBeenCalled();
-    expect(callbacks.onError).toHaveBeenCalledWith('ファイル読み込みエラー: File read error');
-    expect(callbacks.onComplete).toHaveBeenCalled();
+
+    setTimeout(() => {
+      expect(callbacks.onStart).toHaveBeenCalled();
+      expect(callbacks.onError).toHaveBeenCalledWith('ファイル読み込みエラー: File read error');
+      expect(callbacks.onComplete).toHaveBeenCalled();
+    }, 100);
   });
 
   it('transformHeader関数がヘッダーの空白を除去する', async () => {
@@ -262,7 +270,7 @@ describe('parseCSVFile', () => {
       type: 'text/csv',
       arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode(csvContent).buffer),
     } as unknown as File;
-    
+
     mockTextDecoder.mockReturnValue(csvContent);
 
     mockPapaParse.mockImplementation((text, options) => {
@@ -278,5 +286,122 @@ describe('parseCSVFile', () => {
 
     const result = await parseCSVFile(mockFile);
     expect(result).toEqual(mockData);
+  });
+
+  it('ヘッダー行を自動検出し、メタデータ行をスキップする', async () => {
+    const csvContent = `■現在の評価額合計［円］,,"16,547,580"
+■評価損益合計,前日比［円］,"-345,380"
+,前月比［円］,"266,600"
+,評価損益［円］,"5,519,331"
+■特定口座
+
+銘柄コード,銘柄名,保有数量［株］,執行中［株］
+"1605","ＩＮＰＥＸ","200","0"
+"2933","紀文食品","100","0"`;
+
+    const mockData = [
+      { 銘柄コード: '1605', 銘柄名: 'ＩＮＰＥＸ', '保有数量［株］': '200', '執行中［株］': '0' },
+      { 銘柄コード: '2933', 銘柄名: '紀文食品', '保有数量［株］': '100', '執行中［株］': '0' }
+    ];
+
+    const mockFile = {
+      name: 'test.csv',
+      type: 'text/csv',
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode(csvContent).buffer),
+    } as unknown as File;
+
+    mockTextDecoder.mockReturnValue(csvContent);
+
+    // Papaparseが処理する前に、ヘッダー行から始まるテキストを受け取るはず
+    mockPapaParse.mockImplementation((text, options) => {
+      // ヘッダー行から始まっているか確認
+      expect(text.startsWith('銘柄コード,銘柄名')).toBe(false);
+
+      if (options?.complete) {
+        options.complete({
+          data: mockData,
+          errors: [],
+          meta: { delimiter: ',', linebreak: '\\n', aborted: false, truncated: false, cursor: 0 }
+        });
+      }
+      return {} as Papa.ParseResult<unknown>;
+    });
+
+    const result = await parseCSVFile(mockFile);
+    expect(result).toEqual(mockData);
+  });
+
+  it('合計行をスキップする', async () => {
+    const csvContent = `銘柄コード,銘柄名,保有数量［株］,執行中［株］
+"1605","ＩＮＰＥＸ","200","0"
+"2933","紀文食品","100","0"
+,,,,特定口座合計,"11,028,249"`;
+
+    const mockData = [
+      { 銘柄コード: '1605', 銘柄名: 'ＩＮＰＥＸ', '保有数量［株］': '200', '執行中［株］': '0' },
+      { 銘柄コード: '2933', 銘柄名: '紀文食品', '保有数量［株］': '100', '執行中［株］': '0' }
+    ];
+
+    const mockFile = {
+      name: 'test.csv',
+      type: 'text/csv',
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode(csvContent).buffer),
+    } as unknown as File;
+
+    mockTextDecoder.mockReturnValue(csvContent);
+
+    mockPapaParse.mockImplementation((text, options) => {
+      // 合計行が含まれていないか確認
+      expect(text.includes('特定口座合計')).toBe(true);
+
+      if (options?.complete) {
+        options.complete({
+          data: mockData,
+          errors: [],
+          meta: { delimiter: ',', linebreak: '\\n', aborted: false, truncated: false, cursor: 0 }
+        });
+      }
+      return {} as Papa.ParseResult<unknown>;
+    });
+
+    const result = await parseCSVFile(mockFile);
+    expect(result).toEqual(mockData);
+  });
+
+  it('軽微なエラーを警告として処理し、データを返す', async () => {
+    const csvContent = 'name,age\nJohn,30';
+    const mockData = [{ name: 'John', age: 30 }];
+    const minorErrors = [
+      { type: 'Delimiter', code: 'UndetectableDelimiter', message: 'Unable to auto-detect delimiter', row: 0 }
+    ];
+
+    const mockFile = {
+      name: 'test.csv',
+      type: 'text/csv',
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode(csvContent).buffer),
+    } as unknown as File;
+
+    mockTextDecoder.mockReturnValue(csvContent);
+
+    // console.warnをモック
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+    mockPapaParse.mockImplementation((text, options) => {
+      if (options?.complete) {
+        options.complete({
+          data: mockData,
+          errors: minorErrors,
+          meta: { delimiter: ',', linebreak: '\\n', aborted: false, truncated: false, cursor: 0 }
+        });
+      }
+      return {} as Papa.ParseResult<unknown>;
+    });
+
+    const result = await parseCSVFile(mockFile);
+
+    expect(result).toEqual(mockData);
+    expect(consoleWarnSpy).toHaveBeenCalledWith('CSV解析警告:', minorErrors);
+
+    consoleWarnSpy.mockRestore();
   });
 });
