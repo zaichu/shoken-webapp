@@ -1,47 +1,86 @@
-import { InputHTMLAttributes, ReactNode } from 'react';
+import { InputHTMLAttributes, ReactNode, forwardRef, useId } from 'react';
 
-interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   fullWidth?: boolean;
-  className?: string;
-  id?: string;
-  placeholder?: string;
   helpText?: ReactNode;
+  required?: boolean;
+  variant?: 'outlined' | 'filled' | 'standard';
 }
 
-export function InputField({
-  label,
-  error,
-  fullWidth = false,
-  className = '',
-  id,
-  placeholder = '',
-  helpText,
-  ...rest
-}: InputFieldProps) {
-  const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
-  const baseClasses = 'form-control';
-  const errorClass = error ? 'is-invalid' : '';
-  const widthClass = fullWidth ? 'w-100' : '';
+const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
+  (
+    {
+      label,
+      error,
+      fullWidth = false,
+      helpText,
+      required = false,
+      variant = 'outlined',
+      className = '',
+      id,
+      placeholder = '',
+      ...rest
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
-  const combinedClasses = [
-    baseClasses,
-    errorClass,
-    widthClass,
-    className
-  ].filter(Boolean).join(' ');
+    const baseClasses = 'form-control';
+    const errorClass = error ? 'is-invalid' : '';
+    const widthClass = fullWidth ? 'w-100' : '';
+    const variantClass = variant !== 'outlined' ? `form-control-${variant}` : '';
 
-  return (
-    <div className={`${widthClass}`}>
-      {label && (
-        <label htmlFor={inputId} className="form-label">
-          {label}
-        </label>
-      )}
-      <input id={inputId} className={combinedClasses} placeholder={placeholder} {...rest} />
-      {error && <div className="invalid-feedback">{error}</div>}
-      {helpText && <div className="form-text text-muted">{helpText}</div>}
-    </div>
-  );
-}
+    const combinedClasses = [
+      baseClasses,
+      variantClass,
+      errorClass,
+      widthClass,
+      className
+    ].filter(Boolean).join(' ');
+
+    const labelElement = label && (
+      <label htmlFor={inputId} className="form-label">
+        {label}
+        {required && <span className="text-danger ms-1">*</span>}
+      </label>
+    );
+
+    return (
+      <div className={widthClass}>
+        {labelElement}
+        <input
+          ref={ref}
+          id={inputId}
+          className={combinedClasses}
+          placeholder={placeholder}
+          required={required}
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={
+            [
+              error ? `${inputId}-error` : '',
+              helpText ? `${inputId}-help` : ''
+            ].filter(Boolean).join(' ') || undefined
+          }
+          {...rest}
+        />
+        {error && (
+          <div id={`${inputId}-error`} className="invalid-feedback" role="alert">
+            {error}
+          </div>
+        )}
+        {helpText && (
+          <div id={`${inputId}-help`} className="form-text text-muted">
+            {helpText}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+InputField.displayName = 'InputField';
+
+export { InputField };

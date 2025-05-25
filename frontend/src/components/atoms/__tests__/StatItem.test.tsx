@@ -1,160 +1,157 @@
 import { render, screen } from '@testing-library/react';
-import { vi } from 'vitest';
 import { StatItem, StatItemWithRate } from '../StatItem';
 
 describe('StatItem', () => {
-  it('renders title and value correctly', () => {
-    render(
-      <StatItem
-        title="テストタイトル"
-        value="テスト値"
-      />
-    );
+  it('基本的な統計アイテムを表示する', () => {
+    render(<StatItem title="売上高" value="¥ 1,000,000" />);
 
-    expect(screen.getByText('テストタイトル')).toBeInTheDocument();
-    expect(screen.getByText('テスト値')).toBeInTheDocument();
+    expect(screen.getByText('売上高')).toBeInTheDocument();
+    expect(screen.getByText('¥ 1,000,000')).toBeInTheDocument();
   });
 
-  it('applies custom className when provided', () => {
-    const customClass = 'custom-col-class';
-    render(
-      <StatItem
-        title="テストタイトル"
-        value="テスト値"
-        className={customClass}
-      />
-    );
+  it('ReactNodeを値として表示する', () => {
+    const value = <span data-testid="custom-value">カスタム値</span>;
+    render(<StatItem title="カスタム項目" value={value} />);
 
-    const container = screen.getByText('テストタイトル').closest('div');
-    expect(container).toHaveClass(customClass);
+    expect(screen.getByText('カスタム項目')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-value')).toBeInTheDocument();
   });
 
-  it('applies default className when not provided', () => {
-    render(
-      <StatItem
-        title="テストタイトル"
-        value="テスト値"
-      />
-    );
+  it('デフォルトバリアントが適用される', () => {
+    render(<StatItem title="タイトル" value="値" />);
+    
+    const titleElement = screen.getByText('タイトル');
+    const valueElement = screen.getByText('値');
 
-    const container = screen.getByText('テストタイトル').closest('div');
-    expect(container).toHaveClass('col');
+    expect(titleElement).toHaveClass('h6');
+    expect(titleElement).toHaveClass('mb-0');
+    expect(valueElement).toHaveClass('h4');
+    expect(valueElement).toHaveClass('mb-0');
   });
 
-  it('renders React element as value', () => {
-    const reactElement = <span data-testid="custom-element">カスタム要素</span>;
-    render(
+  it('カードバリアントが適用される', () => {
+    const { container } = render(<StatItem title="タイトル" value="値" variant="card" />);
+
+    const containerElement = container.querySelector('.card.p-3');
+    const titleElement = screen.getByText('タイトル');
+    const valueElement = screen.getByText('値');
+
+    expect(containerElement).toBeInTheDocument();
+    expect(titleElement).toHaveClass('card-title', 'h6');
+    expect(valueElement).toHaveClass('card-text', 'h4');
+  });
+
+  it('インラインバリアントが適用される', () => {
+    const { container } = render(<StatItem title="タイトル" value="値" variant="inline" />);
+
+    const containerElement = container.querySelector('.d-flex.justify-content-between.align-items-center');
+    const titleElement = screen.getByText('タイトル');
+    const valueElement = screen.getByText('値');
+
+    expect(containerElement).toBeInTheDocument();
+    expect(titleElement).toHaveClass('mb-0', 'text-muted');
+    expect(valueElement).toHaveClass('mb-0', 'fw-bold');
+  });
+
+  it('カスタムクラス名が適用される', () => {
+    const { container } = render(
       <StatItem
-        title="テストタイトル"
-        value={reactElement}
+        title="タイトル"
+        value="値"
+        className="custom-container"
+        titleClassName="custom-title"
+        valueClassName="custom-value"
       />
     );
 
-    expect(screen.getByTestId('custom-element')).toBeInTheDocument();
-    expect(screen.getByText('カスタム要素')).toBeInTheDocument();
+    const containerElement = container.querySelector('.custom-container');
+    const titleElement = screen.getByText('タイトル');
+    const valueElement = screen.getByText('値');
+
+    expect(containerElement).toBeInTheDocument();
+    expect(titleElement).toHaveClass('custom-title');
+    expect(valueElement).toHaveClass('custom-value');
   });
 });
 
 describe('StatItemWithRate', () => {
-  it('renders value with rate correctly', () => {
-    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
-    render(
-      <StatItemWithRate
-        title="収益"
-        value={1000000}
-        rate={15.5}
-        format={mockFormat}
-      />
-    );
+  it('基本的な統計アイテム（レート付き）を表示する', () => {
+    render(<StatItemWithRate title="売上高" value={1000000} rate={15.5} />);
 
-    expect(screen.getByText('収益')).toBeInTheDocument();
-    expect(screen.getByText('¥1,000,000 (15.50%)')).toBeInTheDocument();
-    expect(mockFormat).toHaveBeenCalledWith(1000000);
+    expect(screen.getByText('売上高')).toBeInTheDocument();
+    expect(screen.getByText('1,000,000')).toBeInTheDocument();
+    expect(screen.getByText('(15.50%)')).toBeInTheDocument();
   });
 
-  it('renders value without rate when rate is undefined', () => {
-    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
-    render(
-      <StatItemWithRate
-        title="収益"
-        value={1000000}
-        format={mockFormat}
-      />
-    );
+  it('レートなしで表示する', () => {
+    render(<StatItemWithRate title="売上高" value={1000000} />);
 
-    expect(screen.getByText('¥1,000,000')).toBeInTheDocument();
-    expect(screen.queryByText(/\(/)).not.toBeInTheDocument(); // パーセンテージが含まれていないことを確認
+    expect(screen.getByText('売上高')).toBeInTheDocument();
+    expect(screen.getByText('1,000,000')).toBeInTheDocument();
+    expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
   });
 
-  it('uses custom rateFormat when provided', () => {
-    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
-    const mockRateFormat = vi.fn((rate) => `${rate}%`);
-    
-    render(
-      <StatItemWithRate
-        title="収益"
-        value={1000000}
-        rate={15.555}
-        format={mockFormat}
-        rateFormat={mockRateFormat}
-      />
-    );
+  it('showRateがfalseの場合はレートを表示しない', () => {
+    render(<StatItemWithRate title="売上高" value={1000000} rate={15.5} showRate={false} />);
 
-    expect(screen.getByText('¥1,000,000 (15.555%)')).toBeInTheDocument();
-    expect(mockRateFormat).toHaveBeenCalledWith(15.555);
+    expect(screen.getByText('1,000,000')).toBeInTheDocument();
+    expect(screen.queryByText('(15.50%)')).not.toBeInTheDocument();
   });
 
-  it('uses default format when not provided', () => {
+  it('カスタムフォーマット関数が適用される', () => {
+    const format = (value: number) => `$${value}`;
+    const rateFormat = (rate: number) => `${rate}パーセント`;
+
     render(
       <StatItemWithRate
-        title="収益"
-        value={1000000}
-        rate={15.5}
+        title="売上高"
+        value={1000}
+        rate={10}
+        format={format}
+        rateFormat={rateFormat}
       />
     );
 
-    expect(screen.getByText('1000000 (15.50%)')).toBeInTheDocument();
+    expect(screen.getByText('$1000')).toBeInTheDocument();
+    expect(screen.getByText('(10パーセント)')).toBeInTheDocument();
   });
 
-  it('passes className to StatItem', () => {
-    const customClass = 'custom-col-span';
-    render(
-      <StatItemWithRate
-        title="収益"
-        value={1000000}
-        className={customClass}
-      />
-    );
+  it('rateClassNameが適用される', () => {
+    render(<StatItemWithRate title="売上高" value={1000} rate={10} rateClassName="custom-rate" />);
 
-    const container = screen.getByText('収益').closest('div');
-    expect(container).toHaveClass(customClass);
+    const rateElement = screen.getByText('(10.00%)');
+    expect(rateElement).toHaveClass('custom-rate');
   });
 
-  it('handles zero value correctly', () => {
-    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
-    render(
-      <StatItemWithRate
-        title="収益"
-        value={0}
-        rate={0}
-        format={mockFormat}
-      />
+  it('variantが適用される', () => {
+    const { container } = render(
+      <StatItemWithRate title="売上高" value={1000} rate={10} variant="card" />
     );
 
-    expect(screen.getByText('¥0 (0.00%)')).toBeInTheDocument();
+    const cardElement = container.querySelector('.card.p-3');
+    expect(cardElement).toBeInTheDocument();
   });
 
-  it('handles negative rate correctly', () => {
-    const mockFormat = vi.fn((value) => `¥${value.toLocaleString()}`);
-    render(
-      <StatItemWithRate
-        title="損失"
-        value={1000000}
-        rate={-15.5}
-        format={mockFormat}
-      />
+  it('カスタムクラス名が適用される', () => {
+    const { container } = render(
+      <StatItemWithRate title="売上高" value={1000} className="custom-stat" />
     );
 
-    expect(screen.getByText('¥1,000,000 (-15.50%)')).toBeInTheDocument();
+    const containerElement = container.querySelector('.custom-stat');
+    expect(containerElement).toBeInTheDocument();
+  });
+
+  it('0の値も正しく表示される', () => {
+    render(<StatItemWithRate title="利益" value={0} rate={0} />);
+
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('(0.00%)')).toBeInTheDocument();
+  });
+
+  it('負の値も正しく表示される', () => {
+    render(<StatItemWithRate title="損失" value={-1000} rate={-5.5} />);
+
+    expect(screen.getByText('-1,000')).toBeInTheDocument();
+    expect(screen.getByText('(-5.50%)')).toBeInTheDocument();
   });
 });

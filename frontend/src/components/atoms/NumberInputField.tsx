@@ -1,49 +1,115 @@
-import { InputField } from './InputField';
+import { forwardRef, useCallback } from 'react';
+import { InputField, InputFieldProps } from './InputField';
 
-interface NumberInputFieldProps {
-  label: string;
+export interface NumberInputFieldProps extends Omit<InputFieldProps, 'type' | 'value' | 'onChange'> {
   value: number | undefined;
-  onChange: (value: number) => void;
-  placeholder?: string;
-  id?: string;
-  error?: string;
-  className?: string;
-  disabled?: boolean;
-  helpText?: string | React.ReactNode;
+  onChange: (value: number | undefined) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  allowDecimal?: boolean;
+  allowNegative?: boolean;
+  precision?: number;
 }
 
 /**
  * 数値入力専用のフィールドコンポーネント
  * InputFieldをラップして、数値入力用のプロパティを簡略化
  */
-export function NumberInputField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  id,
-  error,
-  className = 'form-control-plaintext border',
-  disabled,
-  helpText,
-}: NumberInputFieldProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numberValue = Number(e.target.value);
-    onChange(numberValue);
-  };
+const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
+  (
+    {
+      value,
+      onChange,
+      min,
+      max,
+      step = 1,
+      allowDecimal = true,
+      allowNegative = true,
+      precision = 2,
+      className = 'form-control-plaintext border',
+      ...rest
+    },
+    ref
+  ) => {
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      
+      // 空文字の場合はundefinedを返す
+      if (inputValue === '') {
+        onChange(undefined);
+        return;
+      }
 
-  return (
-    <InputField
-      label={label}
-      type="number"
-      className={className}
-      value={value}
-      onChange={handleChange}
-      placeholder={placeholder}
-      id={id}
-      error={error}
-      disabled={disabled}
-      helpText={helpText}
-    />
-  );
-}
+      // 数値変換
+      let numberValue = parseFloat(inputValue);
+      
+      // NaNの場合は処理しない
+      if (isNaN(numberValue)) {
+        return;
+      }
+
+      // 負の値の制限
+      if (!allowNegative && numberValue < 0) {
+        numberValue = 0;
+      }
+
+      // 小数点の制限
+      if (!allowDecimal) {
+        numberValue = Math.round(numberValue);
+      } else if (precision >= 0) {
+        numberValue = Math.round(numberValue * Math.pow(10, precision)) / Math.pow(10, precision);
+      }
+
+      // 最小値・最大値の制限
+      if (min !== undefined && numberValue < min) {
+        numberValue = min;
+      }
+      if (max !== undefined && numberValue > max) {
+        numberValue = max;
+      }
+
+      onChange(numberValue);
+    }, [onChange, allowDecimal, allowNegative, precision, min, max]);
+
+    const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      
+      // 空文字の場合は何もしない
+      if (inputValue === '') {
+        return;
+      }
+
+      // 数値変換してフォーマット
+      const numberValue = parseFloat(inputValue);
+      if (!isNaN(numberValue)) {
+        // 入力フィールドの値を適切な形式で更新
+        e.target.value = allowDecimal 
+          ? numberValue.toFixed(precision).replace(/\\.?0+$/, '')
+          : numberValue.toString();
+      }
+
+      // 元のonBlurイベントがあれば実行
+      rest.onBlur?.(e);
+    }, [allowDecimal, precision, rest]);
+
+    return (
+      <InputField
+        ref={ref}
+        type="number"
+        className={className}
+        value={value?.toString() ?? ''}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        min={min}
+        max={max}
+        step={step}
+        {...rest}
+      />
+    );
+  }
+);
+
+NumberInputField.displayName = 'NumberInputField';
+
+export { NumberInputField };

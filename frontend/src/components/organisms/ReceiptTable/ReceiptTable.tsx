@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 
 interface ReceiptTableProps<T extends Record<string, unknown>, S extends Record<string, unknown> & { filter: string }> {
@@ -42,22 +42,32 @@ export function ReceiptTable<T extends Record<string, unknown>, S extends Record
             ...additionalStyle
         };
 
+        if (containsHtml) {
+            return (
+                <TableCell
+                    key={`${keyPrefix}-${index}`}
+                    style={style}
+                    colSpan={'colSpan' in column ? column.colSpan : undefined}
+                    dangerouslySetInnerHTML={{ __html: formattedValue as string }}
+                />
+            );
+        }
 
         return (
             <TableCell
                 key={`${keyPrefix}-${index}`}
                 style={style}
                 colSpan={'colSpan' in column ? column.colSpan : undefined}
-                dangerouslySetInnerHTML={{ __html: formattedValue as string }}>
-                {!containsHtml && String(formattedValue ?? '')}
+            >
+                {String(formattedValue ?? '')}
             </TableCell>
         );
     };
 
     return (
-        <Table className='mb-0' bordered small>
+        <Table className="mb-0" bordered small responsive>
             <TableHeader>
-                <TableRow variant="warning">
+                <TableRow className="table-warning">
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
@@ -90,7 +100,7 @@ export function ReceiptTable<T extends Record<string, unknown>, S extends Record
                                 </TableRow>
                             ))}
 
-                            <TableRow variant="info">
+                            <TableRow className="table-info">
                                 {summaryColumns.map((column, colIndex) =>
                                     renderCell(
                                         summaryItem[column.key],

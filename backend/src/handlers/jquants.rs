@@ -506,6 +506,7 @@ pub async fn get_statements(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_statements_query_deserialize() {
@@ -518,5 +519,108 @@ mod tests {
         assert_eq!(query.code, "7203");
         assert_eq!(query.from.unwrap(), "2023-01-01");
         assert_eq!(query.to.unwrap(), "2023-12-31");
+    }
+
+    #[test]
+    fn test_statements_query_optional_params() {
+        let query = StatementsQuery {
+            code: "7203".to_string(),
+            from: None,
+            to: None,
+        };
+
+        assert_eq!(query.code, "7203");
+        assert!(query.from.is_none());
+        assert!(query.to.is_none());
+    }
+
+    #[test]
+    fn test_auth_response_serialize() {
+        let response = AuthResponse {
+            refresh_token: "test_token".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("refresh_token"));
+        assert!(json.contains("test_token"));
+    }
+
+    #[test]
+    fn test_refresh_token_request_deserialize() {
+        let json_str = r#"{"refresh_token": "test_refresh_token"}"#;
+        let request: RefreshTokenRequest = serde_json::from_str(json_str).unwrap();
+        
+        assert_eq!(request.refresh_token, "test_refresh_token");
+    }
+
+    #[test]
+    fn test_id_token_response_serialize() {
+        let response = IdTokenResponse {
+            id_token: "test_id_token".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("id_token"));
+        assert!(json.contains("test_id_token"));
+    }
+
+    #[test]
+    fn test_statements_data_deserialize() {
+        let json_data = json!({
+            "DisclosedDate": "2023-11-14",
+            "DisclosedTime": "15:00:00",
+            "LocalCode": "72030",
+            "DisclosureNumber": "20231114502171",
+            "TypeOfDocument": "決算短信",
+            "TypeOfCurrentPeriod": "2Q",
+            "CurrentPeriodStartDate": "2023-04-01",
+            "CurrentPeriodEndDate": "2023-09-30",
+            "CurrentFiscalYearStartDate": "2023-04-01",
+            "CurrentFiscalYearEndDate": "2024-03-31",
+            "NextFiscalYearStartDate": "2024-04-01",
+            "NextFiscalYearEndDate": "2025-03-31",
+            "NetSales": "18733067000000",
+            "OperatingProfit": "1686297000000",
+            "NextYearForecastDividendPerShareAnnual": "50.00"
+        });
+
+        let statements_data: StatementsData = serde_json::from_value(json_data).unwrap();
+        
+        assert_eq!(statements_data.disclosed_date, "2023-11-14");
+        assert_eq!(statements_data.local_code, "72030");
+        assert_eq!(statements_data.net_sales, Some("18733067000000".to_string()));
+        assert_eq!(statements_data.next_year_forecast_dividend_per_share_annual, Some("50.00".to_string()));
+    }
+
+    #[test]
+    fn test_statements_response_deserialize() {
+        let json_data = json!({
+            "statements": [
+                {
+                    "DisclosedDate": "2023-11-14",
+                    "LocalCode": "72030",
+                    "TypeOfDocument": "決算短信",
+                    "TypeOfCurrentPeriod": "2Q",
+                    "CurrentPeriodStartDate": "2023-04-01",
+                    "CurrentPeriodEndDate": "2023-09-30",
+                    "CurrentFiscalYearStartDate": "2023-04-01",
+                    "CurrentFiscalYearEndDate": "2024-03-31"
+                }
+            ]
+        });
+
+        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+        
+        assert_eq!(response.statements.len(), 1);
+        assert_eq!(response.statements[0].disclosed_date, "2023-11-14");
+        assert_eq!(response.statements[0].local_code, "72030");
+    }
+
+    #[test]
+    fn test_statements_response_empty() {
+        let json_data = json!({ "statements": [] });
+        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+        
+        assert_eq!(response.statements.len(), 0);
     }
 }

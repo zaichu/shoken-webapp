@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useJQuantsDividend } from '../useJQuantsDividend';
 import { jquantsApiClient } from '../../api/client';
-import { parseNumber } from '@/lib/utils/number';
+import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
   jquantsApiClient: {
@@ -12,7 +12,7 @@ vi.mock('../../api/client', () => ({
   }
 }));
 
-vi.mock('@/lib/utils/number', () => ({
+vi.mock('@/lib/utils/formatters', () => ({
   parseNumber: vi.fn(),
 }));
 

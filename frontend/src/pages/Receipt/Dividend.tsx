@@ -1,6 +1,6 @@
-import { ReceiptTemplate } from '@/components/templates';
-import { ReceiptHeader } from '@/components/molecules';
-import { ReceiptTable } from '@/components/organisms';
+import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
+import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
+import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import React, { useMemo, useState, useCallback } from 'react';
 import {
     DividendData,
@@ -18,9 +18,10 @@ import {
     createYearMonthKey,
     formatCurrency,
     formatNumber
-} from '@/lib/constants/formats';
-import { NumberInputField, StatItem, StatItemWithRate } from '@/components';
-import { parseNumber } from '@/lib/utils/number';
+} from '@/lib/utils/formatters';
+import { NumberInputField } from '@/components/atoms/NumberInputField';
+import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
+import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useJQuantsDividend } from '@/features/jquants';
 

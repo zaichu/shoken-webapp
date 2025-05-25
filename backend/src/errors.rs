@@ -217,7 +217,7 @@ mod tests {
         let sql_error = SqlxError::RowNotFound;
         let error = ApiError::DatabaseError(sql_error);
         let response = error.into_response();
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[test]

@@ -1,6 +1,6 @@
-import { ReceiptTemplate } from '@/components/templates';
-import { ReceiptHeader } from '@/components/molecules';
-import { ReceiptTable } from '@/components/organisms';
+import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
+import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
+import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import React, { useMemo, useState, useCallback } from 'react';
 import {
     MutualfundData,
@@ -14,7 +14,7 @@ import {
     TAX_RATE,
     formatCurrency,
     formatNumber
-} from '@/lib/constants/formats';
+} from '@/lib/utils/formatters';
 
 interface MutualfundProps {
     csvData: Record<string, unknown>[];
