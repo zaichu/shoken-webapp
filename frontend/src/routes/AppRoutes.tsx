@@ -4,7 +4,7 @@ import { ErrorPage } from '../components/templates/ErrorPage';
 import { HomePage } from '../pages/Home';
 import { SearchPage } from '../pages/Search';
 import { ReceiptsPage } from '../pages/Receipts';
-import { HoldingsPage } from '../pages/HoldingsPage';
+import { AssetBalancePage } from '../pages/AssetBalance';
 import { NotFoundPage } from '../pages/NotFound';
 
 const router = createBrowserRouter([
@@ -22,8 +22,8 @@ const router = createBrowserRouter([
     element: <ReceiptsPage />,
   },
   {
-    path: "/shoken-webapp/holdings",
-    element: <HoldingsPage />,
+    path: "/shoken-webapp/assetbalance",
+    element: <AssetBalancePage />,
   },
   {
     path: "/shoken-webapp/404",
