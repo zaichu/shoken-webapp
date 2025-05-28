@@ -1,4 +1,5 @@
-import { ReactNode, HTMLAttributes, TableHTMLAttributes, forwardRef, useEffect, useRef, useState, useCallback } from 'react';
+import { ReactNode, TableHTMLAttributes, forwardRef, useEffect, useRef, useState, useCallback } from 'react';
+import { useForceResize } from '@/contexts/ResizeContext';
 
 // ウィンドウサイズの型を定義
 interface WindowSize {
@@ -6,7 +7,7 @@ interface WindowSize {
   height: number;
 }
 
-export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
+export interface TableWithContextProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
   striped?: boolean;
   bordered?: boolean;
@@ -18,31 +19,9 @@ export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   minHeight?: number;
   maxHeight?: number | string;
   bottomMargin?: number;
-  forceResize?: number; // 外部からの強制リサイズトリガー
 }
 
-export interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
-  children: ReactNode;
-  variant?: 'light' | 'dark';
-  stickyTop?: boolean;
-  className?: string;
-}
-
-export interface TableRowProps extends HTMLAttributes<HTMLTableRowElement> {
-  children: ReactNode;
-  active?: boolean;
-  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
-}
-
-export interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
-  children?: ReactNode;
-  as?: 'td' | 'th';
-  scope?: 'col' | 'row' | 'colgroup' | 'rowgroup';
-  colSpan?: number;
-  dangerouslySetInnerHTML?: { __html: string };
-}
-
-const Table = forwardRef<HTMLTableElement, TableProps>(
+const TableWithContext = forwardRef<HTMLTableElement, TableWithContextProps>(
   (
     {
       children,
@@ -56,7 +35,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       minHeight = 200,
       maxHeight,
       bottomMargin = 20,
-      forceResize,
       className = '',
       ...rest
     },
@@ -68,6 +46,9 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       height: typeof window !== 'undefined' ? window.innerHeight : 0,
     }));
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Context から forceResize を取得
+    const contextForceResize = useForceResize();
 
     // テーブルの高さを計算する関数をuseCallbackでメモ化
     const calculateTableHeight = useCallback(() => {
@@ -133,12 +114,17 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       };
     }, [handleResize, calculateTableHeight]);
 
-    // forceResizeプロパティが変更された時に高さを再計算
+    // Context からの forceResize が変更された時に高さを再計算
     useEffect(() => {
-      if (forceResize !== undefined) {
-        calculateTableHeight();
+      if (contextForceResize !== undefined) {
+        // 少し遅延を入れてDOMが更新されるのを待つ  
+        const timer = setTimeout(() => {
+          calculateTableHeight();
+        }, 100);
+
+        return () => clearTimeout(timer);
       }
-    }, [forceResize, calculateTableHeight]);
+    }, [contextForceResize, calculateTableHeight]);
 
     // ウィンドウサイズ変更時に高さを再計算
     useEffect(() => {
@@ -203,91 +189,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
   }
 );
 
-Table.displayName = 'Table';
+TableWithContext.displayName = 'TableWithContext';
 
-const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
-  ({ children, variant, stickyTop = true, className = '', ...rest }, ref) => {
-    const variantClass = variant ? `table-${variant}` : '';
-    const stickyClass = stickyTop ? 'sticky-top' : '';
-
-    const headClasses = [variantClass, stickyClass, className].filter(Boolean).join(' ');
-
-    return (
-      <thead ref={ref} className={headClasses} {...rest}>
-        {children}
-      </thead>
-    );
-  }
-);
-
-TableHeader.displayName = 'TableHeader';
-
-const TableBody = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTableSectionElement>>(
-  ({ children, className = '', ...rest }, ref) => {
-    return (
-      <tbody ref={ref} className={className} {...rest}>
-        {children}
-      </tbody>
-    );
-  }
-);
-
-TableBody.displayName = 'TableBody';
-
-const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
-  ({ children, active = false, variant, className = '', ...rest }, ref) => {
-    const activeClass = active ? 'table-active' : '';
-    const variantClass = variant ? `table-${variant}` : '';
-
-    const rowClasses = [activeClass, variantClass, className].filter(Boolean).join(' ');
-
-    return (
-      <tr ref={ref} className={rowClasses} {...rest}>
-        {children}
-      </tr>
-    );
-  }
-);
-
-TableRow.displayName = 'TableRow';
-
-const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
-  (
-    {
-      children,
-      as = 'td',
-      scope = 'col',
-      colSpan = 1,
-      className = '',
-      dangerouslySetInnerHTML,
-      ...rest
-    },
-    ref
-  ) => {
-    const Cell = as;
-    const scopeAttr = as === 'th' ? { scope } : {};
-
-    if (dangerouslySetInnerHTML) {
-      return (
-        <Cell
-          ref={ref}
-          className={className}
-          {...scopeAttr}
-          {...rest}
-          colSpan={colSpan}
-          dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        />
-      );
-    }
-
-    return (
-      <Cell ref={ref} className={className} {...scopeAttr} {...rest} colSpan={colSpan}>
-        {children}
-      </Cell>
-    );
-  }
-);
-
-TableCell.displayName = 'TableCell';
-
-export { Table, TableHeader, TableBody, TableRow, TableCell };
+export { TableWithContext };

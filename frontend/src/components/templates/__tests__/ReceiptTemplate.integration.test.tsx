@@ -65,7 +65,7 @@ const testSummary: TestSummaryItem[] = [
 
 const getGroupKey = (item: TestDataItem) => item.category;
 
-describe('ReceiptTemplate統合テスト', () => {
+describe('ReceiptTemplate Context API統合テスト', () => {
   const mockOnSearch = jest.fn();
   const mockOnSearchExpandToggle = jest.fn();
 
@@ -332,6 +332,25 @@ describe('ReceiptTemplate統合テスト', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
 
     consoleSpy.mockRestore();
+  });
+
+  test('Context無しでも既存のテーブルが動作する', () => {
+    // ResizeProvider外でReceiptTableを直接使用（Context無し）
+    render(
+      <ReceiptTable
+        data={testData}
+        summary={testSummary}
+        columns={testColumns}
+        summaryColumns={testSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
+
+    // テーブルが正常に表示されることを確認（forceResizeはundefinedでも動作）
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('商品A')).toBeInTheDocument();
+    expect(screen.getByText('商品B')).toBeInTheDocument();
+    expect(screen.getByText('商品C')).toBeInTheDocument();
   });
 
   test('ResizeObserverが正しく設定される', () => {

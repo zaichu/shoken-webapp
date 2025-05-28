@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import { useForceResize } from '@/contexts/ResizeContext';
 
 type DataItem = Record<string, unknown>;
 type SummaryItem = Record<string, unknown> & { filter: string };
@@ -12,21 +13,23 @@ interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     columns: TableColumnConfig[];
     summaryColumns: SummaryColumnConfig[];
     getGroupKey: (item: T) => string;
-    forceResize?: number; // テーブルの強制リサイズトリガー
 }
 
 /**
  * 明細表示用テーブルコンポーネント
  * 数値のフォーマットやマイナス値の赤文字表示に対応
+ * Context APIを使用してリサイズイベントを受信
  */
 export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     data,
     summary,
     columns,
     summaryColumns,
-    getGroupKey,
-    forceResize
+    getGroupKey
 }: ReceiptTableProps<T, S>) {
+    // Context からの forceResize を取得
+    const forceResize = useForceResize();
+
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
         const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
