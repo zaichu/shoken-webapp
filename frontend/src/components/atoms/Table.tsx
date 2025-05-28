@@ -1,10 +1,5 @@
-import { ReactNode, HTMLAttributes, TableHTMLAttributes, forwardRef, useEffect, useRef, useState, useCallback } from 'react';
-
-// ウィンドウサイズの型を定義
-interface WindowSize {
-  width: number;
-  height: number;
-}
+import { ReactNode, HTMLAttributes, TableHTMLAttributes, forwardRef } from 'react';
+import { useTableAutoResize } from '../../hooks/common/useTableAutoResize';
 
 export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
@@ -62,136 +57,59 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
     },
     ref
   ) => {
-    const [tableHeight, setTableHeight] = useState<string>('auto');
-    const [windowSize, setWindowSize] = useState<WindowSize>(() => ({
-      width: typeof window !== 'undefined' ? window.innerWidth : 0,
-      height: typeof window !== 'undefined' ? window.innerHeight : 0,
-    }));
-    const containerRef = useRef<HTMLDivElement>(null);
+    // 自動リサイズ機能
+    const { containerRef, height } = useTableAutoResize({
+      enabled: autoHeight,
+      minHeight,
+      maxHeight,
+      bottomMargin,
+      forceResize,
+    });
 
-    // テーブルの高さを計算する関数をuseCallbackでメモ化
-    const calculateTableHeight = useCallback(() => {
-      if (!autoHeight || !containerRef.current || typeof window === 'undefined') return;
+    // CSSクラスの構築
+    const buildTableClasses = () => {
+      const classes = ['table'];
+      
+      if (striped) classes.push('table-striped');
+      if (bordered) classes.push('table-bordered');
+      if (hover) classes.push('table-hover');
+      if (small) classes.push('table-sm');
+      if (variant) classes.push(`table-${variant}`);
+      if (className) classes.push(className);
+      
+      return classes.join(' ');
+    };
 
-      const rect = containerRef.current.getBoundingClientRect();
-      const availableHeight = window.innerHeight - rect.top - bottomMargin;
-
-      // 最小高さと最大高さの制約を適用
-      let finalHeight = Math.max(availableHeight, minHeight);
-      if (typeof maxHeight === 'number') {
-        finalHeight = Math.min(finalHeight, maxHeight);
-      }
-
-      setTableHeight(`${finalHeight}px`);
-    }, [autoHeight, minHeight, maxHeight, bottomMargin]);
-
-    // リサイズハンドラーをuseCallbackでメモ化
-    const handleResize = useCallback(() => {
-      if (typeof window === 'undefined') return;
-
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-      calculateTableHeight();
-    }, [calculateTableHeight]);
-
-    // 初期レンダリング時にテーブルの高さを計算
-    useEffect(() => {
-      if (typeof window === 'undefined') return;
-
-      // ResizeObserverを使用してコンテナのサイズ変更を監視
-      const currentContainer = containerRef.current;
-      if (currentContainer && 'ResizeObserver' in window) {
-        const resizeObserver = new ResizeObserver(() => {
-          calculateTableHeight();
-        });
-
-        resizeObserver.observe(currentContainer);
-
-        // クリーンアップ関数でObserverを解除
-        return () => {
-          resizeObserver.unobserve(currentContainer);
-          resizeObserver.disconnect();
-        };
-      }
-    }, [calculateTableHeight]);
-
-    // ウィンドウのリサイズイベントを監視
-    useEffect(() => {
-      if (typeof window === 'undefined') return;
-
-      // ウィンドウサイズ変更時に高さを再計算
-      window.addEventListener('resize', handleResize);
-
-      // 初回計算
-      calculateTableHeight();
-
-      // クリーンアップ
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }, [handleResize, calculateTableHeight]);
-
-    // forceResizeプロパティが変更された時に高さを再計算
-    useEffect(() => {
-      if (forceResize !== undefined) {
-        calculateTableHeight();
-      }
-    }, [forceResize, calculateTableHeight]);
-
-    // ウィンドウサイズ変更時に高さを再計算
-    useEffect(() => {
-      calculateTableHeight();
-    }, [windowSize, calculateTableHeight]);
-
-    const baseClasses = 'table';
-    const stripedClass = striped ? 'table-striped' : '';
-    const borderedClass = bordered ? 'table-bordered' : '';
-    const hoverClass = hover ? 'table-hover' : '';
-    const smallClass = small ? 'table-sm' : '';
-    const variantClass = variant ? `table-${variant}` : '';
-
-    const tableClasses = [
-      baseClasses,
-      stripedClass,
-      borderedClass,
-      hoverClass,
-      smallClass,
-      variantClass,
-      className
-    ].filter(Boolean).join(' ');
+    // レスポンシブクラスの構築
+    const buildResponsiveClass = () => {
+      if (responsive === true) return 'table-responsive';
+      if (typeof responsive === 'string') return `table-responsive-${responsive}`;
+      if (autoHeight) return 'table-responsive';
+      return '';
+    };
 
     const table = (
-      <table ref={ref} className={tableClasses} {...rest}>
+      <table ref={ref} className={buildTableClasses()} {...rest}>
         {children}
       </table>
     );
 
+    // レスポンシブまたは自動高さが有効な場合はラッパーで包む
     if (responsive || autoHeight) {
-      const responsiveClass = responsive === true
-        ? 'table-responsive'
-        : responsive
-          ? `table-responsive-${responsive}`
-          : autoHeight
-            ? 'table-responsive'
-            : '';
-
-      // スタイルオブジェクトの作成
+      const responsiveClass = buildResponsiveClass();
+      
       const containerStyle = autoHeight
         ? {
-          position: 'relative' as const,
-          overflowY: 'auto' as const,
-          maxHeight: tableHeight
-        }
+            position: 'relative' as const,
+            overflowY: 'auto' as const,
+            maxHeight: height,
+          }
         : {};
-
-      const containerClasses = [responsiveClass].filter(Boolean).join(' ');
 
       return (
         <div
           ref={containerRef}
-          className={containerClasses}
+          className={responsiveClass}
           style={containerStyle}
         >
           {table}
@@ -207,13 +125,18 @@ Table.displayName = 'Table';
 
 const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
   ({ children, variant, stickyTop = true, className = '', ...rest }, ref) => {
-    const variantClass = variant ? `table-${variant}` : '';
-    const stickyClass = stickyTop ? 'sticky-top' : '';
-
-    const headClasses = [variantClass, stickyClass, className].filter(Boolean).join(' ');
+    const buildHeaderClasses = () => {
+      const classes = [];
+      
+      if (variant) classes.push(`table-${variant}`);
+      if (stickyTop) classes.push('sticky-top');
+      if (className) classes.push(className);
+      
+      return classes.join(' ');
+    };
 
     return (
-      <thead ref={ref} className={headClasses} {...rest}>
+      <thead ref={ref} className={buildHeaderClasses()} {...rest}>
         {children}
       </thead>
     );
@@ -236,13 +159,18 @@ TableBody.displayName = 'TableBody';
 
 const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
   ({ children, active = false, variant, className = '', ...rest }, ref) => {
-    const activeClass = active ? 'table-active' : '';
-    const variantClass = variant ? `table-${variant}` : '';
-
-    const rowClasses = [activeClass, variantClass, className].filter(Boolean).join(' ');
+    const buildRowClasses = () => {
+      const classes = [];
+      
+      if (active) classes.push('table-active');
+      if (variant) classes.push(`table-${variant}`);
+      if (className) classes.push(className);
+      
+      return classes.join(' ');
+    };
 
     return (
-      <tr ref={ref} className={rowClasses} {...rest}>
+      <tr ref={ref} className={buildRowClasses()} {...rest}>
         {children}
       </tr>
     );
