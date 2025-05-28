@@ -1,81 +1,65 @@
-import { ReactNode, ChangeEvent } from 'react';
+import { ReactNode } from 'react';
+import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 
-interface SearchOption {
-  value: string;
-  label: string;
+interface SearchCategories {
+  securities?: { value: string, label: string }[];
+  products?: string[];
+  accounts?: string[];
+  years?: string[];
+  yearMonths?: { value: string, label: string }[];
 }
 
-interface SearchProps {
-  searchQuery?: string;
-  onSearch?: (query: string) => void;
-  searchOptions?: SearchOption[];
-}
-
-interface ReceiptTemplateProps extends SearchProps {
+interface ReceiptTemplateProps {
   title: string;
   header?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  onSearch?: (query: string) => void;
+  searchCategories?: SearchCategories;
 }
-
-const SearchControl = ({ searchQuery = '', onSearch, searchOptions = [] }: SearchProps) => {
-  if (!onSearch || searchOptions.length === 0) return null;
-
-  const handleSearchChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    onSearch(e.target.value);
-  };
-
-  return (
-    <div className="col-md-3 d-flex align-items-center">
-      <select
-        id="security-search"
-        className="form-select form-select-sm"
-        value={searchQuery}
-        onChange={handleSearchChange}
-        aria-label="検索フィルター"
-      >
-        <option value="">全て表示</option>
-        {searchOptions.map((option, index) => (
-          <option key={`search-option-${option.value}-${index}`} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-
-    </div>
-  );
-};
 
 export function ReceiptTemplate({
   title,
   header,
   children,
   footer,
-  searchQuery = '',
   onSearch,
-  searchOptions = []
+  searchCategories,
 }: ReceiptTemplateProps) {
-  const hasSearchFeature = onSearch && searchOptions.length > 0;
-
   return (
     <div className="receipt-container">
+      {/* 検索カード */}
+      {onSearch && (
+        <SearchCard
+          onSearch={onSearch}
+          categories={{
+            securities: searchCategories?.securities,
+            products: searchCategories?.products,
+            accounts: searchCategories?.accounts,
+            years: searchCategories?.years,
+            yearMonths: searchCategories?.yearMonths,
+          }}
+        />
+      )}
+
+      {/* ヘッダー情報 */}
       {header && <div>{header}</div>}
 
+      {/* メインコンテンツ */}
       <div className="card shadow-sm mt-1">
         <div className="card-header bg-primary text-white">
           <div className="row align-items-center">
-            <div className={`col ${hasSearchFeature ? '' : 'col-12'}`}>
+            <div className="col-12">
               <h5 className='mb-0'>{title}</h5>
             </div>
-            {hasSearchFeature && <SearchControl searchQuery={searchQuery} onSearch={onSearch} searchOptions={searchOptions} />}
           </div>
         </div>
 
         <div className="card-body p-0">{children}</div>
       </div>
 
+      {/* フッター */}
       {footer && <div>{footer}</div>}
-
-    </div >
+    </div>
   );
 }
