@@ -18,6 +18,7 @@ export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   minHeight?: number;
   maxHeight?: number | string;
   bottomMargin?: number;
+  forceResize?: number; // 外部からの強制リサイズトリガー
 }
 
 export interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
@@ -55,6 +56,7 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       minHeight = 200,
       maxHeight,
       bottomMargin = 20,
+      forceResize,
       className = '',
       ...rest
     },
@@ -130,6 +132,13 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
         window.removeEventListener('resize', handleResize);
       };
     }, [handleResize, calculateTableHeight]);
+
+    // forceResizeプロパティが変更された時に高さを再計算
+    useEffect(() => {
+      if (forceResize !== undefined) {
+        calculateTableHeight();
+      }
+    }, [forceResize, calculateTableHeight]);
 
     // ウィンドウサイズ変更時に高さを再計算
     useEffect(() => {

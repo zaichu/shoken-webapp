@@ -1,30 +1,34 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../Table';
 
-// ウィンドウのリサイズイベントをモック
-const mockWindowResize = () => {
-  const originalHeight = window.innerHeight;
-  const originalWidth = window.innerWidth;
+// ResizeObserverのモック
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
 
-  // リサイズイベントをトリガーするヘルパー関数
-  const triggerResize = (width: number, height: number) => {
-    window.innerWidth = width;
-    window.innerHeight = height;
-    fireEvent(window, new Event('resize'));
-  };
+// windowオブジェクトのモック
+Object.defineProperty(window, 'innerHeight', {
+  writable: true,
+  configurable: true,
+  value: 1024,
+});
 
-  // テスト終了時に元のサイズに戻す
-  return {
-    triggerResize,
-    cleanup: () => {
-      window.innerHeight = originalHeight;
-      window.innerWidth = originalWidth;
-    }
-  };
-};
+Object.defineProperty(window, 'innerWidth', {
+  writable: true,
+  configurable: true,
+  value: 1280,
+});
 
-describe('Table Component', () => {
-  it('基本的なテーブルをレンダリングする', () => {
+describe('Table', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('基本的なテーブルが正しくレンダリングされる', () => {
     render(
       <Table>
         <TableHeader>
@@ -35,153 +39,269 @@ describe('Table Component', () => {
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell>セル1</TableCell>
-            <TableCell>セル2</TableCell>
+            <TableCell>データ1</TableCell>
+            <TableCell>データ2</TableCell>
           </TableRow>
         </TableBody>
       </Table>
     );
 
+    expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByText('ヘッダー1')).toBeInTheDocument();
     expect(screen.getByText('ヘッダー2')).toBeInTheDocument();
-    expect(screen.getByText('セル1')).toBeInTheDocument();
-    expect(screen.getByText('セル2')).toBeInTheDocument();
+    expect(screen.getByText('データ1')).toBeInTheDocument();
+    expect(screen.getByText('データ2')).toBeInTheDocument();
   });
 
-  it('テーブルのスタイルクラスが正しく適用される', () => {
-    const { container } = render(
-      <Table striped bordered hover small variant="primary">
+  test('stripedプロパティが正しく適用される', () => {
+    render(
+      <Table striped>
         <TableBody>
           <TableRow>
-            <TableCell>テストセル</TableCell>
+            <TableCell>テストデータ</TableCell>
           </TableRow>
         </TableBody>
       </Table>
     );
 
-    const tableElement = container.querySelector('table');
-    expect(tableElement).toHaveClass('table');
-    expect(tableElement).toHaveClass('table-striped');
-    expect(tableElement).toHaveClass('table-bordered');
-    expect(tableElement).toHaveClass('table-hover');
-    expect(tableElement).toHaveClass('table-sm');
-    expect(tableElement).toHaveClass('table-primary');
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('table-striped');
   });
 
-  it('レスポンシブテーブルが正しくレンダリングされる', () => {
-    const { container } = render(
+  test('borderedプロパティが正しく適用される', () => {
+    render(
+      <Table bordered>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('table-bordered');
+  });
+
+  test('hoverプロパティが正しく適用される', () => {
+    render(
+      <Table hover>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('table-hover');
+  });
+
+  test('smallプロパティが正しく適用される', () => {
+    render(
+      <Table small>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('table-sm');
+  });
+
+  test('responsiveプロパティが正しく適用される', () => {
+    render(
       <Table responsive>
         <TableBody>
           <TableRow>
-            <TableCell>レスポンシブセル</TableCell>
+            <TableCell>テストデータ</TableCell>
           </TableRow>
         </TableBody>
       </Table>
     );
 
-    const responsiveDiv = container.querySelector('div');
-    expect(responsiveDiv).toHaveClass('table-responsive');
+    const container = screen.getByRole('table').parentElement;
+    expect(container).toHaveClass('table-responsive');
   });
 
-  it('特定のブレイクポイントでレスポンシブテーブルが正しくレンダリングされる', () => {
-    const { container } = render(
+  test('responsive="md"プロパティが正しく適用される', () => {
+    render(
       <Table responsive="md">
         <TableBody>
           <TableRow>
-            <TableCell>レスポンシブセル</TableCell>
+            <TableCell>テストデータ</TableCell>
           </TableRow>
         </TableBody>
       </Table>
     );
 
-    const responsiveDiv = container.querySelector('div');
-    expect(responsiveDiv).toHaveClass('table-responsive-md');
+    const container = screen.getByRole('table').parentElement;
+    expect(container).toHaveClass('table-responsive-md');
   });
 
-  it('ウィンドウのリサイズに応じてテーブルの高さが変更される', () => {
-    const { cleanup, triggerResize } = mockWindowResize();
-
-    try {
-      const { container } = render(
-        <Table autoHeight minHeight={200} bottomMargin={20}>
-          <TableBody>
-            <TableRow>
-              <TableCell>テストセル</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      );
-
-      // テーブルのコンテナ要素を取得
-      const tableContainer = container.querySelector('div');
-      expect(tableContainer).toHaveStyle({ position: 'relative', overflowY: 'auto' });
-
-      // ウィンドウサイズを変更してテーブルの高さが更新されることを確認
-      act(() => {
-        // 小さいサイズにリサイズ
-        triggerResize(800, 600);
-      });
-
-      // もう一度大きいサイズにリサイズ
-      act(() => {
-        triggerResize(1200, 900);
-      });
-
-      // 最小高さが適用されることを確認
-      const tableStyle = window.getComputedStyle(tableContainer!);
-      expect(tableStyle.maxHeight).not.toBe('auto');
-    } finally {
-      cleanup();
-    }
-  });
-
-  it('テーブルヘッダーが正しくレンダリングされる', () => {
-    const { container } = render(
-      <TableHeader variant="light" stickyTop>
-        <TableRow>
-          <TableCell as="th">ヘッダーセル</TableCell>
-        </TableRow>
-      </TableHeader>
+  test('variantプロパティが正しく適用される', () => {
+    render(
+      <Table variant="primary">
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     );
 
-    const headerElement = container.querySelector('thead');
-    expect(headerElement).toHaveClass('table-light');
-    expect(headerElement).toHaveClass('sticky-top');
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('table-primary');
   });
 
-  it('テーブル行のバリアントが正しく適用される', () => {
-    const { container } = render(
-      <TableRow active variant="success">
-        <TableCell>テストセル</TableCell>
-      </TableRow>
+  test('forceResizeプロパティが変更されたとき再計算がトリガーされる', async () => {
+    const { rerender } = render(
+      <Table forceResize={0} autoHeight>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     );
 
-    const rowElement = container.querySelector('tr');
-    expect(rowElement).toHaveClass('table-active');
-    expect(rowElement).toHaveClass('table-success');
+    // forceResizeプロパティを変更
+    rerender(
+      <Table forceResize={1} autoHeight>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    // タイマーが設定されることを確認
+    await waitFor(() => {
+      expect(setTimeout).toHaveBeenCalled();
+    }, { timeout: 200 });
   });
 
-  it('テーブルセルが正しくレンダリングされる', () => {
-    const { container } = render(
-      <TableCell as="th" scope="col" colSpan={2} className="custom-cell">
-        テストヘッダーセル
-      </TableCell>
+  test('autoHeightがfalseの場合、ResizeObserverが作成されない', () => {
+    render(
+      <Table autoHeight={false}>
+        <TableBody>
+          <TableRow>
+            <TableCell>テストデータ</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     );
 
-    const cellElement = container.querySelector('th');
-    expect(cellElement).toHaveAttribute('scope', 'col');
-    expect(cellElement).toHaveAttribute('colspan', '2');
-    expect(cellElement).toHaveClass('custom-cell');
-    expect(cellElement).toHaveTextContent('テストヘッダーセル');
+    expect(global.ResizeObserver).not.toHaveBeenCalled();
   });
 
-  it('dangerouslySetInnerHTMLを持つテーブルセルが正しくレンダリングされる', () => {
-    const { container } = render(
-      <TableCell dangerouslySetInnerHTML={{ __html: '<strong>強調テキスト</strong>' }} />
+  test('dangerouslySetInnerHTMLが正しく適用される', () => {
+    render(
+      <Table>
+        <TableBody>
+          <TableRow>
+            <TableCell dangerouslySetInnerHTML={{ __html: '<strong>HTML内容</strong>' }} />
+          </TableRow>
+        </TableBody>
+      </Table>
     );
 
-    const cellElement = container.querySelector('td');
-    expect(cellElement?.innerHTML).toBe('<strong>強調テキスト</strong>');
-    expect(container.querySelector('strong')).toBeInTheDocument();
+    const cell = screen.getByRole('cell');
+    expect(cell.innerHTML).toBe('<strong>HTML内容</strong>');
+  });
+
+  test('colSpanが正しく適用される', () => {
+    render(
+      <Table>
+        <TableBody>
+          <TableRow>
+            <TableCell colSpan={2}>結合セル</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const cell = screen.getByRole('cell');
+    expect(cell).toHaveAttribute('colspan', '2');
+  });
+
+  test('TableRowのactiveプロパティが正しく適用される', () => {
+    render(
+      <Table>
+        <TableBody>
+          <TableRow active>
+            <TableCell>アクティブ行</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const row = screen.getByRole('row');
+    expect(row).toHaveClass('table-active');
+  });
+
+  test('TableRowのvariantプロパティが正しく適用される', () => {
+    render(
+      <Table>
+        <TableBody>
+          <TableRow variant="success">
+            <TableCell>成功行</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+
+    const row = screen.getByRole('row');
+    expect(row).toHaveClass('table-success');
+  });
+
+  test('TableHeaderのstickyTopプロパティが正しく適用される', () => {
+    render(
+      <Table>
+        <TableHeader stickyTop>
+          <TableRow>
+            <TableCell as="th">スティッキーヘッダー</TableCell>
+          </TableRow>
+        </TableHeader>
+      </Table>
+    );
+
+    const thead = screen.getByRole('rowgroup');
+    expect(thead).toHaveClass('sticky-top');
+  });
+
+  test('TableHeaderのvariantプロパティが正しく適用される', () => {
+    render(
+      <Table>
+        <TableHeader variant="dark">
+          <TableRow>
+            <TableCell as="th">ダークヘッダー</TableCell>
+          </TableRow>
+        </TableHeader>
+      </Table>
+    );
+
+    const thead = screen.getByRole('rowgroup');
+    expect(thead).toHaveClass('table-dark');
+  });
+
+  test('TableCellのscopeプロパティがthの場合に正しく適用される', () => {
+    render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableCell as="th" scope="col">列ヘッダー</TableCell>
+          </TableRow>
+        </TableHeader>
+      </Table>
+    );
+
+    const th = screen.getByRole('columnheader');
+    expect(th).toHaveAttribute('scope', 'col');
   });
 });

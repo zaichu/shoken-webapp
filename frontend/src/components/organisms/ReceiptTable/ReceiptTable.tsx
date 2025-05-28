@@ -12,6 +12,7 @@ interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     columns: TableColumnConfig[];
     summaryColumns: SummaryColumnConfig[];
     getGroupKey: (item: T) => string;
+    forceResize?: number; // テーブルの強制リサイズトリガー
 }
 
 /**
@@ -23,7 +24,8 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     summary,
     columns,
     summaryColumns,
-    getGroupKey
+    getGroupKey,
+    forceResize
 }: ReceiptTableProps<T, S>) {
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
@@ -79,7 +81,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         });
 
     return (
-        <Table className="mb-0" bordered small responsive>
+        <Table className="mb-0" bordered small responsive forceResize={forceResize}>
             <TableHeader>
                 <TableRow className="table-warning">
                     {columns.map((column, index) => (
