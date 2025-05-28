@@ -47,7 +47,7 @@ export function useCSVReader(options?: CSVParseOptions): CSVReaderHook {
           onError: (errorMsg) => setState(prev => ({ ...prev, error: errorMsg })),
           onComplete: () => setState(prev => ({ ...prev, isLoading: false })),
         });
-      return data;
+      return data.data;
     } catch (e) {
       setState(prev => ({ ...prev, isLoading: false }));
       throw e;

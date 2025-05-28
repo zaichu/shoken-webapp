@@ -1,44 +1,61 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useLocalStorage } from './useLocalStorage';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
-import { useLocalStorage } from '@/hooks/common/useLocalStorage';
 
-const ASSET_BALANCE_STORAGE_KEY = 'asset-balance-data';
+export interface UseAssetBalanceStorageReturn {
+  assetBalanceStorageData: AssetBalanceData[];
+  isLoading: boolean;
+  saveAssetBalance: (data: AssetBalanceData[]) => void;
+  clearAssetBalance: () => void;
+  getAssetBalanceByCode: (code: string) => AssetBalanceData | undefined;
+  getTotalMarketValue: () => number;
+  lastUpdated: string | null;
+}
 
-/**
- * 保有株データをローカルストレージで管理するカスタムフック
- */
-export const useAssetBalanceStorage = () => {
-  const [storedAssetBalance, setStoredAssetBalance] = useLocalStorage<AssetBalanceData[]>(ASSET_BALANCE_STORAGE_KEY, []);
-  const [lastUpdated, setLastUpdated] = useLocalStorage<string | null>('asset-balance-last-updated', null);
+export function useAssetBalanceStorage(): UseAssetBalanceStorageReturn {
+  const [assetBalanceStorageData, setAssetBalanceStorageData] = useLocalStorage<AssetBalanceData[]>('assetBalances', []);
+  const [lastUpdated, setLastUpdated] = useLocalStorage<string | null>('assetBalancesLastUpdated', null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  /**
-   * 保有株データを保存する
-   */
-  const saveAssetBalance = useCallback((assetBalance: AssetBalanceData[]) => {
-    setStoredAssetBalance(assetBalance);
-    setLastUpdated(new Date().toISOString());
-  }, [setStoredAssetBalance, setLastUpdated]);
+  // 資産データを保存
+  const saveAssetBalance = useCallback((data: AssetBalanceData[]): void => {
+    setIsLoading(true);
+    try {
+      setAssetBalanceStorageData(data);
+      setLastUpdated(new Date().toLocaleString('ja-JP'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setAssetBalanceStorageData, setLastUpdated]);
 
-  /**
-   * 保有株データをクリアする
-   */
-  const clearAssetBalance = useCallback(() => {
-    setStoredAssetBalance([]);
-    setLastUpdated(null);
-  }, [setStoredAssetBalance, setLastUpdated]);
+  // 資産データをクリア
+  const clearAssetBalance = useCallback((): void => {
+    setIsLoading(true);
+    try {
+      setAssetBalanceStorageData([]);
+      setLastUpdated(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setAssetBalanceStorageData, setLastUpdated]);
 
-  /**
-   * 特定の銘柄の保有株情報を取得する
-   */
-  const getAssetBalanceByCode = useCallback((security_code: string): AssetBalanceData | undefined => {
-    return storedAssetBalance.find(assetBalance => assetBalance.security_code === security_code);
-  }, [storedAssetBalance]);
+  // 銘柄コードで資産を取得
+  const getAssetBalanceByCode = useCallback((code: string): AssetBalanceData | undefined => {
+    return assetBalanceStorageData.find(balance => balance && balance.security_code === code);
+  }, [assetBalanceStorageData]);
+
+  // 全資産の市場価値合計を計算
+  const getTotalMarketValue = useCallback((): number => {
+    return assetBalanceStorageData.reduce((total, balance) => total + (balance?.market_value || 0), 0);
+  }, [assetBalanceStorageData]);
 
   return {
-    assetBalanceStorageData: storedAssetBalance,
-    lastUpdated,
+    assetBalanceStorageData,
+    isLoading,
     saveAssetBalance,
     clearAssetBalance,
     getAssetBalanceByCode,
+    getTotalMarketValue,
+    lastUpdated,
   };
-};
+}

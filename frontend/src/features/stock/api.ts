@@ -11,7 +11,7 @@ import axios from 'axios';
 export async function fetchStockData(query: string): Promise<StockData> {
   try {
     const response = await apiClient.get<StockData>(`/stock/${query}`);
-    return response.data;
+    return response;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw ApiError.fromAxiosError(error);

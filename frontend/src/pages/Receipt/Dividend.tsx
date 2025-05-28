@@ -23,7 +23,7 @@ import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useJQuantsDividend } from '@/features/jquants';
+import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
 import { useAssetBalanceStorage } from '@/hooks/common/useAssetBalanceStorage';
 
 // CSVアイテムをDividendDataに変換

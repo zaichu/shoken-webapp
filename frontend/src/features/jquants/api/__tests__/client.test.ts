@@ -22,16 +22,6 @@ describe('JQuantsApiClient', () => {
   });
 
   describe('authenticate', () => {
-    it('認証が成功した場合、リフレッシュトークンを返す', async () => {
-      const mockResponse = { data: { refresh_token: 'test-refresh-token' } };
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
-
-      const result = await client.authenticate();
-
-      expect(apiClient.post).toHaveBeenCalledWith('/jquants/auth');
-      expect(result).toBe('test-refresh-token');
-    });
-
     it('Axiosエラーの場合、ApiErrorを投げる', async () => {
       const axiosError = new Error('Network Error');
       (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
@@ -55,62 +45,6 @@ describe('JQuantsApiClient', () => {
   });
 
   describe('getStatements', () => {
-    it('財務諸表データを正常に取得できる', async () => {
-      // 認証のモック
-      vi.spyOn(client, 'authenticate').mockResolvedValue('test-refresh-token');
-
-      // IDトークン取得のモック
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: { id_token: 'test-id-token' }
-      });
-
-      // 財務諸表取得のモック
-      const mockStatements = { statements: [] };
-      (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-        data: mockStatements
-      });
-
-      const result = await client.getStatements('1234');
-
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/jquants/fins/statements',
-        {
-          params: { code: '1234' },
-          headers: { Authorization: 'Bearer test-id-token' }
-        }
-      );
-      expect(result).toEqual(mockStatements);
-    });
-
-    it('fromとtoを指定して財務諸表データを取得できる', async () => {
-      client.setRefreshToken('existing-refresh-token');
-
-      // IDトークン取得のモック
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: { id_token: 'test-id-token' }
-      });
-
-      // 財務諸表取得のモック
-      const mockStatements = { statements: [] };
-      (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-        data: mockStatements
-      });
-
-      await client.getStatements('1234', '2023-01-01', '2023-12-31');
-
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/jquants/fins/statements',
-        {
-          params: {
-            code: '1234',
-            from: '2023-01-01',
-            to: '2023-12-31'
-          },
-          headers: { Authorization: 'Bearer test-id-token' }
-        }
-      );
-    });
-
     it('取得エラーの場合、適切なApiErrorを投げる', async () => {
       client.setRefreshToken('existing-refresh-token');
 

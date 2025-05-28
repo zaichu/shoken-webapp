@@ -73,11 +73,16 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
 
   // テーブルカラムの定義
   const columns = useMemo<TableColumnConfig[]>(() => [
-    { key: 'security_code', header: '銘柄コード', width: '1px' },
-    { key: 'security_name', header: '銘柄名', width: '150px' },
-    { key: 'shares', header: '保有数量', width: '1px', textAlign: 'right', format: formatNumber },
-    { key: 'average_purchase_price', header: '平均取得価額', width: '1px', textAlign: 'right', format: formatCurrency },
-    { key: 'total_purchase_amount', header: '取得総額', width: '1px', textAlign: 'right', format: formatCurrency },
+    { key: 'security_code', header: '銘柄コード', width: '90px' },
+    { key: 'security_name', header: '銘柄名', width: '200px' },
+    { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
+    // { key: 'executing_shares', header: '執行中', width: '60px', textAlign: 'right', format: formatNumber },
+    { key: 'average_purchase_price', header: '平均取得価額', width: '100px', textAlign: 'right', format: formatCurrency },
+    { key: 'total_purchase_amount', header: '取得総額', width: '100px', textAlign: 'right', format: formatCurrency },
+    // { key: 'current_price', header: '現在値', width: '80px', textAlign: 'right', format: formatCurrency },
+    // { key: 'daily_change', header: '前日比', width: '80px', textAlign: 'right', format: formatCurrency },
+    // { key: 'market_value', header: '時価評価額', width: '100px', textAlign: 'right', format: formatCurrency },
+    // { key: 'profit_loss_rate', header: '評価損益率', width: '90px', textAlign: 'right', format: (value: number) => `${formatNumber(value)}%` },
   ], []);
 
   return (

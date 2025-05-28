@@ -128,6 +128,7 @@ describe('AssetBalance', () => {
   it('テーブルのヘッダーが正しく表示される', () => {
     render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
+    // 実際に表示されるカラムのみテスト
     expect(screen.getByTestId('header-security_code')).toHaveTextContent('銘柄コード');
     expect(screen.getByTestId('header-security_name')).toHaveTextContent('銘柄名');
     expect(screen.getByTestId('header-shares')).toHaveTextContent('保有数量');
@@ -138,7 +139,11 @@ describe('AssetBalance', () => {
   it('テーブルのプロパティが正しく渡される', () => {
     render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    expect(screen.getByTestId('table-props')).toHaveTextContent('summary: 0, summaryColumns: 0, groupKey:');
+    // summaryとsummaryColumnsが正しくセットされていることを確認
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
+    expect(tableProps).toHaveTextContent('summaryColumns: 0');
+    expect(tableProps).toHaveTextContent('groupKey:');
   });
 
   it('検索機能が正しく動作する', () => {
@@ -165,8 +170,24 @@ describe('AssetBalance', () => {
   it('カラム設定が正しく定義される', () => {
     render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    // テーブルのヘッダーが5つ表示されることを確認
+    // テーブルのヘッダーが5個表示されることを確認
     const headers = screen.getByTestId('table-headers');
     expect(headers.children).toHaveLength(5);
+  });
+
+  it('合計情報が正しく表示される', () => {
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+
+    // サマリーデータが正しく計算されていることを確認
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
+  });
+
+  it('空のデータでも合計情報が正しく表示される', () => {
+    render(<AssetBalanceInfo assetBalanceData={[]} />);
+
+    // 空のデータの場合でもサマリーが表示される
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
   });
 });

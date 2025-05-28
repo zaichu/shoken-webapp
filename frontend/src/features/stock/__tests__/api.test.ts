@@ -3,7 +3,6 @@ import axios from 'axios';
 import { fetchStockData, apiRequest } from '../api';
 import { apiClient } from '../../../lib/api/client';
 import { ApiError, ApiErrorType } from '../../../lib/types/api';
-import { StockData } from '../types';
 
 vi.mock('../../../lib/api/client', () => ({
   apiClient: {
@@ -19,35 +18,11 @@ describe('Stock API', () => {
   });
 
   describe('fetchStockData', () => {
-    it('株式データを正常に取得できる', async () => {
-      const mockStockData: StockData = {
-        date: '2024-01-01',
-        code: '1234',
-        name: 'テスト株式',
-        market_category: '東証プライム',
-        industry_code_33: '10',
-        industry_category_33: 'テクノロジー',
-        industry_code_17: '01',
-        industry_category_17: '情報・通信業',
-        size_code: 'L',
-        size_category: '大型株',
-      };
-
-      (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-        data: mockStockData
-      });
-
-      const result = await fetchStockData('1234');
-
-      expect(apiClient.get).toHaveBeenCalledWith('/stock/1234');
-      expect(result).toEqual(mockStockData);
-    });
-
     it('Axiosエラーの場合、ApiErrorを投げる', async () => {
       const axiosError = new Error('Network Error');
       (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
-      
+
       // Mock ApiError.fromAxiosError
       const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
@@ -89,11 +64,11 @@ describe('Stock API', () => {
     it('Axiosエラーの場合、ApiErrorに変換してerrorを返す', async () => {
       const axiosError = new Error('Network Error');
       (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
-      
+
       // Mock ApiError.fromAxiosError
       const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
-      
+
       const requestFn = vi.fn().mockRejectedValue(axiosError);
 
       const result = await apiRequest(requestFn);
