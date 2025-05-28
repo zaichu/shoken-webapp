@@ -24,7 +24,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 // J-Quants APIフックのモック
-vi.mock('@/features/jquants', () => ({
+vi.mock('@/features/jquants/hooks/useJQuantsDividend', () => ({
   useJQuantsDividend: vi.fn(() => ({
     dividendPerShare: undefined,
     loading: false,

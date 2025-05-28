@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * 値をデバウンスするカスタムフック
@@ -21,84 +21,83 @@ export function useDebounce<T>(
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const maxTimeoutRef = useRef<NodeJS.Timeout>();
-  const lastInvokeTimeRef = useRef<number>(0);
-  const isFirstCallRef = useRef<boolean>(true);
+  const lastCallTimeRef = useRef<number>(0);
+  const leadingCallRef = useRef<boolean>(true);
 
-  useEffect(() => {
-    // 初回の場合、leadingオプションに関係なく初期値を設定
-    if (isFirstCallRef.current) {
-      isFirstCallRef.current = false;
-      if (leading) {
-        setDebouncedValue(value);
-        lastInvokeTimeRef.current = Date.now();
-        return;
-      }
-    }
-
-    // 既存のタイマーをクリア
+  const cancel = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = undefined;
     }
     if (maxTimeoutRef.current) {
       clearTimeout(maxTimeoutRef.current);
+      maxTimeoutRef.current = undefined;
     }
+  }, []);
 
-    // leadingが有効で、初回でない場合は即座に更新
-    if (leading && !isFirstCallRef.current) {
+  useEffect(() => {
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCallTimeRef.current;
+
+    // 既存のタイマーをクリア
+    cancel();
+
+    // leadingオプションの処理
+    if (leading && leadingCallRef.current) {
       setDebouncedValue(value);
-      lastInvokeTimeRef.current = Date.now();
+      leadingCallRef.current = false;
     }
 
-    // trailing: 指定時間後に値を更新
+    // trailing オプションの処理
     if (trailing) {
       timeoutRef.current = setTimeout(() => {
         setDebouncedValue(value);
-        lastInvokeTimeRef.current = Date.now();
+        leadingCallRef.current = true;
+        lastCallTimeRef.current = Date.now();
       }, delay);
+    } else if (!leading) {
+      // trailing=false で leading=false の場合、値を更新しない
+      leadingCallRef.current = true;
     }
 
-    // maxWait: 最大待機時間を設定
-    if (maxWait !== undefined) {
-      const timeSinceLastInvoke = Date.now() - lastInvokeTimeRef.current;
-      const remainingMaxWait = maxWait - timeSinceLastInvoke;
+    // maxWait オプションの処理
+    if (maxWait !== undefined && trailing) {
+      const remainingMaxWait = Math.max(0, maxWait - timeSinceLastCall);
       
-      if (remainingMaxWait > 0) {
+      if (remainingMaxWait === 0) {
+        // maxWaitを超えている場合は即座に実行
+        setDebouncedValue(value);
+        lastCallTimeRef.current = now;
+        leadingCallRef.current = true;
+      } else if (remainingMaxWait < delay) {
+        // maxWaitまでの残り時間がdelayより短い場合
         maxTimeoutRef.current = setTimeout(() => {
           setDebouncedValue(value);
-          lastInvokeTimeRef.current = Date.now();
+          lastCallTimeRef.current = Date.now();
+          leadingCallRef.current = true;
           // 通常のデバウンスタイマーもクリア
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
+            timeoutRef.current = undefined;
           }
         }, remainingMaxWait);
-      } else {
-        // maxWaitを超えている場合は即座に実行
-        setDebouncedValue(value);
-        lastInvokeTimeRef.current = Date.now();
       }
     }
 
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (maxTimeoutRef.current) {
-        clearTimeout(maxTimeoutRef.current);
-      }
-    };
-  }, [value, delay, leading, trailing, maxWait]);
+    // 値が変更されたら、leading callをリセット
+    if (timeSinceLastCall > delay) {
+      leadingCallRef.current = true;
+    }
+
+    lastCallTimeRef.current = now;
+
+    return cancel;
+  }, [value, delay, leading, trailing, maxWait, cancel]);
 
   // コンポーネントアンマウント時のクリーンアップ
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (maxTimeoutRef.current) {
-        clearTimeout(maxTimeoutRef.current);
-      }
-    };
-  }, []);
+    return cancel;
+  }, [cancel]);
 
   return debouncedValue;
 }

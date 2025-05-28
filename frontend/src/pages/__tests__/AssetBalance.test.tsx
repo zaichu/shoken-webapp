@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Holdings } from '../Receipt/Holdings';
-import { HoldingsData } from '@/lib/interfaces/holdings';
+import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import { AssetBalanceInfo } from '../AssetBalance';
 
 // その他の依存関係のモック
 vi.mock('@/components/templates/ReceiptTemplate', () => ({
@@ -67,7 +67,7 @@ vi.mock('@/lib/utils/dataTransformer', () => ({
   ]),
   filterDataBySearchQuery: vi.fn().mockImplementation((data, query) => {
     if (!query) return data;
-    return data.filter((item: HoldingsData) =>
+    return data.filter((item: AssetBalanceData) =>
       item.security_code.includes(query) || item.security_name.includes(query)
     );
   }),
@@ -78,7 +78,7 @@ vi.mock('@/lib/utils/formatters', () => ({
   formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
 }));
 
-const mockHoldingsData: HoldingsData[] = [
+const mockAssetBalanceData: AssetBalanceData[] = [
   {
     security_code: '7203',
     security_name: 'トヨタ自動車',
@@ -105,13 +105,13 @@ const mockHoldingsData: HoldingsData[] = [
   },
 ];
 
-describe('Holdings', () => {
+describe('AssetBalance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('保有株データを正しく表示する', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
     expect(screen.getByText('保有株一覧')).toBeInTheDocument();
     expect(screen.getByTestId('receipt-table')).toBeInTheDocument();
@@ -119,15 +119,16 @@ describe('Holdings', () => {
   });
 
   it('空のデータの場合でも正しく表示される', () => {
-    render(<Holdings holdingsData={[]} />);
+    render(<AssetBalanceInfo assetBalanceData={[]} />);
 
     expect(screen.getByText('保有株一覧')).toBeInTheDocument();
     expect(screen.getByText('データ数: 0')).toBeInTheDocument();
   });
 
   it('テーブルのヘッダーが正しく表示される', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
+    // 実際に表示されるカラムのみテスト
     expect(screen.getByTestId('header-security_code')).toHaveTextContent('銘柄コード');
     expect(screen.getByTestId('header-security_name')).toHaveTextContent('銘柄名');
     expect(screen.getByTestId('header-shares')).toHaveTextContent('保有数量');
@@ -136,13 +137,17 @@ describe('Holdings', () => {
   });
 
   it('テーブルのプロパティが正しく渡される', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    expect(screen.getByTestId('table-props')).toHaveTextContent('summary: 0, summaryColumns: 0, groupKey:');
+    // summaryとsummaryColumnsが正しくセットされていることを確認
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
+    expect(tableProps).toHaveTextContent('summaryColumns: 0');
+    expect(tableProps).toHaveTextContent('groupKey:');
   });
 
   it('検索機能が正しく動作する', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
     const searchInput = screen.getByTestId('search-input');
 
@@ -157,16 +162,32 @@ describe('Holdings', () => {
   });
 
   it('検索オプションが正しく表示される', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
     expect(screen.getByTestId('search-options')).toHaveTextContent('オプション数: 2');
   });
 
   it('カラム設定が正しく定義される', () => {
-    render(<Holdings holdingsData={mockHoldingsData} />);
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    // テーブルのヘッダーが5つ表示されることを確認
+    // テーブルのヘッダーが5個表示されることを確認
     const headers = screen.getByTestId('table-headers');
     expect(headers.children).toHaveLength(5);
+  });
+
+  it('合計情報が正しく表示される', () => {
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+
+    // サマリーデータが正しく計算されていることを確認
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
+  });
+
+  it('空のデータでも合計情報が正しく表示される', () => {
+    render(<AssetBalanceInfo assetBalanceData={[]} />);
+
+    // 空のデータの場合でもサマリーが表示される
+    const tableProps = screen.getByTestId('table-props');
+    expect(tableProps).toHaveTextContent('summary: 0');
   });
 });

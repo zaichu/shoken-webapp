@@ -28,8 +28,8 @@ export class JQuantsApiClient {
   async authenticate(): Promise<string> {
     try {
       const response = await apiClient.post<{ refresh_token: string }>('/jquants/auth');
-      this.refreshToken = response.data.refresh_token;
-      return response.data.refresh_token;
+      this.refreshToken = response.refresh_token;
+      return response.refresh_token;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw ApiError.fromAxiosError(error);
@@ -54,7 +54,7 @@ export class JQuantsApiClient {
       const response = await apiClient.post<{ id_token: string }>('/jquants/refresh', {
         refresh_token: this.refreshToken,
       });
-      return response.data.id_token;
+      return response.id_token;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw ApiError.fromAxiosError(error);
@@ -91,7 +91,7 @@ export class JQuantsApiClient {
         },
       });
 
-      return response.data;
+      return response;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw ApiError.fromAxiosError(error);

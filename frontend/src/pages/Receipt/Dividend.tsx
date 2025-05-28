@@ -23,8 +23,8 @@ import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useJQuantsDividend } from '@/features/jquants';
-import { useHoldingsStorage } from '@/hooks/common/useHoldingsStorage';
+import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
+import { useAssetBalanceStorage } from '@/hooks/common/useAssetBalanceStorage';
 
 // CSVアイテムをDividendDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
@@ -72,7 +72,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
     // 保有株データを取得
-    const { getHoldingByCode } = useHoldingsStorage();
+    const { getAssetBalanceByCode } = useAssetBalanceStorage();
 
     // J-Quants APIから配当情報を取得
     const {
@@ -83,10 +83,10 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     // searchQueryが変更されたときにstateを初期化し、保有株データがあれば自動入力
     React.useEffect(() => {
         if (searchQuery) {
-            const holdingData = getHoldingByCode(searchQuery);
-            if (holdingData) {
-                setAverageUnitPrice(holdingData.average_purchase_price);
-                setHoldingQuantity(holdingData.shares);
+            const assetBalanceData = getAssetBalanceByCode(searchQuery);
+            if (assetBalanceData) {
+                setAverageUnitPrice(assetBalanceData.average_purchase_price);
+                setHoldingQuantity(assetBalanceData.shares);
             } else {
                 setAverageUnitPrice(undefined);
                 setHoldingQuantity(undefined);
@@ -95,7 +95,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
             setAverageUnitPrice(undefined);
             setHoldingQuantity(undefined);
         }
-    }, [searchQuery, getHoldingByCode]);
+    }, [searchQuery, getAssetBalanceByCode]);
 
     // APIからデータが取得されたら自動設定
     React.useEffect(() => {
@@ -132,13 +132,13 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         return null;
     }
 
-    const holdingData = getHoldingByCode(searchQuery);
+    const assetBalanceData = getAssetBalanceByCode(searchQuery);
 
     return (
         <div className="card shadow-sm mt-1">
             <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">配当情報</h5>
-                {holdingData && (
+                {assetBalanceData && (
                     <small className="text-light">
                         保有株データから自動入力
                     </small>
