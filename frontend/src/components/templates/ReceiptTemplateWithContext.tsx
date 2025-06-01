@@ -6,7 +6,7 @@ interface SearchCategories {
   securities?: { value: string, label: string }[];
   products?: string[];
   accounts?: string[];
-  years?: string[];
+  years?: { value: string, label: string }[];
   yearMonths?: { value: string, label: string }[];
 }
 

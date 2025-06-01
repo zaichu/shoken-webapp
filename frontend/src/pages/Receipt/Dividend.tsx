@@ -205,9 +205,12 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             .filter(account => account && account.trim() !== '');
 
         // 年度（昇順）
-        const years = [...new Set(dividendData.map(item =>
-            item.settlement_date.getFullYear().toString()
-        ))].sort((a, b) => a.localeCompare(b));
+        const years = [...new Set(dividendData.map(item => {
+            const year = item.settlement_date.getFullYear().toString()
+            const label = `${year}年`;
+            return { value: year, label }
+        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
+            .sort((a, b) => a.value.localeCompare(b.value));
 
         // 年月（昇順）
         const yearMonths = [...new Set(dividendData.map(item => {
