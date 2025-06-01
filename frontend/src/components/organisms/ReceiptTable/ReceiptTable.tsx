@@ -1,71 +1,90 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import { useForceResize } from '@/contexts/ResizeContext';
 
-interface ReceiptTableProps<T extends Record<string, unknown>, S extends Record<string, unknown> & { filter: string }> {
+type DataItem = Record<string, unknown>;
+type SummaryItem = Record<string, unknown> & { filter: string };
+type ColumnConfig = TableColumnConfig | SummaryColumnConfig;
+
+interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     data: T[];
     summary: S[];
     columns: TableColumnConfig[];
     summaryColumns: SummaryColumnConfig[];
-    groupByField?: string;
     getGroupKey: (item: T) => string;
 }
 
 /**
  * 明細表示用テーブルコンポーネント
  * 数値のフォーマットやマイナス値の赤文字表示に対応
+ * Context APIを使用してリサイズイベントを受信
  */
-export function ReceiptTable<T extends Record<string, unknown>, S extends Record<string, unknown> & { filter: string }>({
+export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     data,
     summary,
     columns,
     summaryColumns,
     getGroupKey
 }: ReceiptTableProps<T, S>) {
-    const renderCell = (
-        value: unknown,
-        column: TableColumnConfig | SummaryColumnConfig,
-        keyPrefix: string,
-        index: number,
-        additionalStyle?: React.CSSProperties
-    ) => {
-        const cellValue = value;
-        const formattedValue = column.format ? column.format(cellValue) : cellValue;
+    // Context からの forceResize を取得
+    const forceResize = useForceResize();
 
-        // HTMLタグが含まれているかどうかチェック
-        const containsHtml = typeof formattedValue === 'string' &&
-            /<[^>]*>/.test(formattedValue);
-
-        const style: React.CSSProperties = {
+    const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
+        const formattedValue = column.format ? column.format(value) : value;
+        const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
+        
+        const cellStyle: React.CSSProperties = {
             width: 'width' in column ? column.width : undefined,
             textAlign: column.textAlign,
-            ...additionalStyle
+            ...style
         };
 
-        if (containsHtml) {
-            return (
-                <TableCell
-                    key={`${keyPrefix}-${index}`}
-                    style={style}
-                    colSpan={'colSpan' in column ? column.colSpan : undefined}
-                    dangerouslySetInnerHTML={{ __html: formattedValue as string }}
-                />
-            );
-        }
+        const props = {
+            key,
+            style: cellStyle,
+            colSpan: 'colSpan' in column ? column.colSpan : undefined
+        };
 
-        return (
-            <TableCell
-                key={`${keyPrefix}-${index}`}
-                style={style}
-                colSpan={'colSpan' in column ? column.colSpan : undefined}
-            >
-                {String(formattedValue ?? '')}
-            </TableCell>
+        return isHtml ? (
+            <TableCell {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
+        ) : (
+            <TableCell {...props}>{String(formattedValue ?? '')}</TableCell>
         );
     };
 
+    const renderDataRows = (items: T[], keyPrefix: string) => 
+        items.map((item, itemIndex) => (
+            <TableRow key={`${keyPrefix}-${itemIndex}`}>
+                {columns.map((column, colIndex) =>
+                    renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`)
+                )}
+            </TableRow>
+        ));
+
+    const renderGroupedRows = () => 
+        summary.map((summaryItem, summaryIndex) => {
+            const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
+            
+            return (
+                <React.Fragment key={`group-${summaryIndex}`}>
+                    {renderDataRows(groupItems, `item-${summaryIndex}`)}
+                    <TableRow className="table-info">
+                        {summaryColumns.map((column, colIndex) =>
+                            renderCell(
+                                summaryItem[column.key],
+                                column,
+                                `summary-${summaryIndex}-${colIndex}`,
+                                { fontWeight: 'bold' }
+                            )
+                        )}
+                    </TableRow>
+                </React.Fragment>
+            );
+        });
+
     return (
-        <Table className="mb-0" bordered small responsive>
+        <Table className="mb-0" bordered small responsive forceResize={forceResize}>
             <TableHeader>
                 <TableRow className="table-warning">
                     {columns.map((column, index) => (
@@ -80,57 +99,8 @@ export function ReceiptTable<T extends Record<string, unknown>, S extends Record
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {summary.map((summaryItem, summaryIndex) => {
-                    const groupItems = data.filter(item =>
-                        getGroupKey(item) === summaryItem.filter
-                    );
-
-                    return (
-                        <React.Fragment key={`group-${summaryIndex}`}>
-                            {groupItems.map((item, itemIndex) => (
-                                <TableRow key={`item-${summaryIndex}-${itemIndex}`}>
-                                    {columns.map((column, colIndex) =>
-                                        renderCell(
-                                            item[column.key],
-                                            column,
-                                            `cell-${summaryIndex}-${itemIndex}`,
-                                            colIndex
-                                        )
-                                    )}
-                                </TableRow>
-                            ))}
-
-                            <TableRow className="table-info">
-                                {summaryColumns.map((column, colIndex) =>
-                                    renderCell(
-                                        summaryItem[column.key],
-                                        column,
-                                        `summary-${summaryIndex}`,
-                                        colIndex,
-                                        { fontWeight: 'bold' }
-                                    )
-                                )}
-                            </TableRow>
-                        </React.Fragment>
-                    );
-                })}
-                {summary.length === 0 && (
-                    <React.Fragment>
-                        {data.map((item, itemIndex) => (
-                            <TableRow key={`item-${itemIndex}`}>
-                                {columns.map((column, colIndex) =>
-                                    renderCell(
-                                        item[column.key],
-                                        column,
-                                        `cell-${itemIndex}`,
-                                        colIndex
-                                    )
-                                )}
-                            </TableRow>
-                        ))}
-                    </React.Fragment>)
-                }
+                {summary.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
             </TableBody>
-        </Table >
+        </Table>
     );
 }

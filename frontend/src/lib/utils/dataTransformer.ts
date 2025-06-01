@@ -1,17 +1,17 @@
 export function createSearchOptions<T>(
-    data: T[], 
-    valueField: keyof T, 
-    labelField: keyof T, 
+    data: T[],
+    valueField: keyof T,
+    labelField: keyof T,
     prefix?: boolean
 ): { value: string, label: string }[] {
     return data
         .map(item => ({
             value: String(item[valueField] || item[labelField]),
-            label: prefix 
-                ? `${item[valueField] ? `${String(item[valueField])}:` : ''}${String(item[labelField])}` 
+            label: prefix
+                ? `${item[valueField] ? `${String(item[valueField])}: ` : ''}${String(item[labelField])}`
                 : String(item[labelField]),
         }))
-        .filter((item, index, self) => 
+        .filter((item, index, self) =>
             index === self.findIndex(t => t.value === item.value)
         )
         .sort((a, b) => a.value.localeCompare(b.value));
@@ -23,19 +23,19 @@ export function filterDataBySearchQuery<T>(
     searchFields: (keyof T)[]
 ): T[] {
     const query = searchQuery.toLowerCase();
-    
+
     if (!query) {
         return data;
     }
-    
-    return data.filter(item => 
-        searchFields.some(field => 
+
+    return data.filter(item =>
+        searchFields.some(field =>
             String(item[field]).toLowerCase().includes(query)
         )
     );
 }
 
-export type SummaryResult<K extends string | number | symbol> = { 
+export type SummaryResult<K extends string | number | symbol> = {
     filter: string;
     [key: string]: unknown;
 } & Record<K, number>;
@@ -46,10 +46,10 @@ export function groupAndSummarizeData<T, K extends keyof T>(
     sumFields: K[]
 ): SummaryResult<K>[] {
     const groupMap = new Map<string, Record<K, number>>();
-    
+
     data.forEach(item => {
         const key = groupByFn(item);
-        
+
         if (!groupMap.has(key)) {
             const initial = {} as Record<K, number>;
             sumFields.forEach(field => {
@@ -57,13 +57,13 @@ export function groupAndSummarizeData<T, K extends keyof T>(
             });
             groupMap.set(key, initial);
         }
-        
+
         const group = groupMap.get(key)!;
         sumFields.forEach(field => {
             group[field] += Number(item[field]) || 0;
         });
     });
-    
+
     return Array.from(groupMap.entries())
         .map(([filter, values]) => ({
             filter,
