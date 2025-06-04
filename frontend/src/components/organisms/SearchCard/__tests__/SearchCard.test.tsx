@@ -224,8 +224,32 @@ describe('SearchCard', () => {
     expect(screen.queryByText('商品')).not.toBeInTheDocument();
   });
 
-  test('undefinedカテゴリが正しく処理される', () => {
+  test('年度のみのデータがある場合のレイアウト', () => {
     render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={{
+          securities: undefined,
+          products: undefined,
+          accounts: undefined,
+          years: [{ value: '2024', label: '2024年' }],
+          yearMonths: undefined
+        }}
+      />
+    );
+
+    const header = screen.getByText('検索オプション').closest('.card-header');
+    fireEvent.click(header!);
+
+    expect(screen.getByText('年度')).toBeInTheDocument();
+    expect(screen.queryByText('年月')).not.toBeInTheDocument();
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+    expect(screen.queryByText('商品')).not.toBeInTheDocument();
+    expect(screen.queryByText('口座')).not.toBeInTheDocument();
+  });
+
+  test('undefinedカテゴリの場合はSearchCardが非表示になる', () => {
+    const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
         categories={{
@@ -238,13 +262,8 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
-    fireEvent.click(header!);
-
-    // undefinedのカテゴリは表示されない
-    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
-    expect(screen.queryByText('年度')).not.toBeInTheDocument();
-    expect(screen.queryByText('商品')).not.toBeInTheDocument();
+    // SearchCardがレンダーされないことを確認
+    expect(container.firstChild).toBeNull();
   });
 
   test('10個を超えるボタンで改行が適用される', () => {
