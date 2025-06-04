@@ -1,14 +1,9 @@
 import React, { useState, useCallback } from 'react';
+import { SearchCategories } from '@/types/common';
 
 interface SearchCardProps {
     onSearch: (query: string) => void;
-    categories?: {
-        securities: { value: string, label: string }[] | undefined;
-        products: string[] | undefined;
-        accounts: string[] | undefined;
-        years: { value: string, label: string }[] | undefined;
-        yearMonths: { value: string, label: string }[] | undefined;
-    } | undefined;
+    categories?: SearchCategories;
     onExpandToggle?: (isExpanded: boolean) => void; // 展開状態変更の通知
 }
 

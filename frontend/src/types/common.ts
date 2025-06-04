@@ -252,6 +252,15 @@ export interface Metadata {
   tags?: string[];
 }
 
+// 検索カテゴリ
+export interface SearchCategories {
+  securities?: { value: string, label: string }[];
+  products?: string[];
+  accounts?: string[];
+  years?: { value: string, label: string }[];
+  yearMonths?: { value: string, label: string }[];
+}
+
 // エクスポート
 export type { 
   HeaderItem as HeaderItemType,
