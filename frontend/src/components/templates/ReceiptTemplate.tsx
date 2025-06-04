@@ -1,14 +1,7 @@
 import React, { ReactNode, useCallback } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { ResizeProvider, useTriggerResize } from '@/contexts/ResizeContext';
-
-interface SearchCategories {
-  securities?: { value: string, label: string }[];
-  products?: string[];
-  accounts?: string[];
-  years?: { value: string, label: string }[];
-  yearMonths?: { value: string, label: string }[];
-}
+import { SearchCategories } from '@/types/common';
 
 interface ReceiptTemplateProps {
   title: string;
@@ -46,13 +39,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       {onSearch && (
         <SearchCard
           onSearch={onSearch}
-          categories={{
-            securities: searchCategories?.securities,
-            products: searchCategories?.products,
-            accounts: searchCategories?.accounts,
-            years: searchCategories?.years,
-            yearMonths: searchCategories?.yearMonths,
-          }}
+          categories={searchCategories}
           onExpandToggle={handleSearchExpandToggle}
         />
       )}
