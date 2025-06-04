@@ -86,11 +86,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     return (
         <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center" onClick={handleToggleExpanded}>
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center" style={{ cursor: 'pointer' }} onClick={handleToggleExpanded}>
                 <h5 className="mb-0 text-white">検索オプション</h5>
-                <button type="button" className="btn btn-sm mb-0 text-white">
-                    {isExpanded ? '折りたたむ' : '展開'}
-                </button>
+                <a>{isExpanded ? '-' : '+'}</a>
             </div>
             {isExpanded && categories && (
                 <div className="card-body">
