@@ -1,70 +1,82 @@
 # CLAUDE.md
+
 日本語で必ず回答してください。
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+このファイルは Claude Code (claude.ai/code) がこのリポジトリで作業する際のガイダンスを提供します。
 
-## Commands
+## コマンド
 
-### Development
-- `npm run dev` - Start development server on port 8080 with auto-open
-- `npm run build` - Production build to `dist/` directory
-- `npm run lint` - Run ESLint with TypeScript and React rules
-- `npm test` - Run Vitest tests
-- `npm test:watch` - Run tests in watch mode
+### 開発用コマンド
+- `npm run dev` - ポート8080で開発サーバーを起動（自動でブラウザ起動）
+- `npm run build` - `dist/`ディレクトリにプロダクションビルド
+- `npm run lint` - TypeScriptとReactルールでESLintを実行
+- `npm test` - メモリ最適化したVitestテスト実行
+- `npm test:watch` - メモリ最適化したVitestテストをウォッチモードで実行
 
-### Make Commands
-- `make dev` - Run development server
-- `make build` - Production build
-- `make install` - Install dependencies
-- `make clean` - Remove node_modules and dist
-- `make all` - Clean, install, and build
+### Makeコマンド
+- `make dev` - 開発サーバー起動
+- `make build` - プロダクションビルド
+- `make install` - 依存関係インストール
+- `make clean` - node_modulesとdistを削除
+- `make all` - クリーン、インストール、ビルドを順次実行
 
-## Architecture Overview
+## アーキテクチャ概要
 
-### Tech Stack
+### 技術スタック
 - **React 19.1.0** with TypeScript and Vite
-- **TanStack React Query** for server state management
-- **React Router DOM 7.6.0** for routing
-- **Bootstrap 5.3.6** for styling
-- **Vitest + Testing Library** for testing
+- **TanStack React Query** サーバー状態管理
+- **React Router DOM 7.6.0** ルーティング
+- **Bootstrap 5.3.6** スタイリング
+- **Vitest + Testing Library** テスト
 
-### Project Structure
-This is a Japanese stock/securities webapp following **Atomic Design** methodology:
+### プロジェクト構造
+**Atomic Design**手法に従った日本株取引Webアプリケーション：
 
-- `src/components/atoms/` - Basic UI elements (Button, InputField, Table)
-- `src/components/molecules/` - Composite components (CSVFileInput, ErrorBoundary)
-- `src/components/organisms/` - Complex UI blocks (Header, SearchForm, ReceiptTable)
-- `src/components/templates/` - Page layouts (Layout, ReceiptTemplate)
-- `src/pages/` - Route-level components (Home, Search, Receipts, AssetBalance)
-- `src/features/` - Domain logic (auth, jquants API, receipt processing, stock search)
-- `src/lib/` - Core utilities (api client, csv processing, interfaces, utils)
-- `src/hooks/` - Custom React hooks
-- `src/contexts/` - React contexts
+- `src/components/atoms/` - 基本的なUI要素（Button, InputField, Table）
+- `src/components/molecules/` - 複合コンポーネント（CSVFileInput, ErrorBoundary）
+- `src/components/organisms/` - 複雑なUIブロック（Header, SearchForm, ReceiptTable）
+- `src/components/templates/` - ページレイアウト（Layout, ReceiptTemplate）
+- `src/pages/` - ルートレベルコンポーネント（Home, Search, Receipts, AssetBalance）
+- `src/features/` - ドメインロジック（認証, jquants API, 取引履歴処理, 株式検索）
+- `src/lib/` - コアユーティリティ（API クライアント, CSV処理, インターフェース, ユーティリティ）
+- `src/hooks/` - カスタムReactフック
+- `src/contexts/` - Reactコンテキスト
 
-### Domain & Features
-The app handles:
-- **CSV Import**: Trading transaction data with encoding detection
-- **Stock Search**: Japanese stock lookup by code/name
-- **Receipt Management**: Trading analysis (domestic stock, mutual funds, dividends)
-- **Tax Calculations**: Built-in Japanese tax rates (20.315%)
-- **J-Quants API**: Financial data integration via `/api/jquants` proxy
+### ドメイン機能
+このアプリが扱う機能：
+- **CSVインポート**: エンコーディング検出付き取引データ
+- **株式検索**: 銘柄コード/名前による日本株検索
+- **取引履歴管理**: 取引分析（国内株式、投資信託、配当）
+- **税計算**: 日本の税率内蔵（20.315%）
+- **J-Quants API**: `/api/jquants` プロキシ経由の金融データ連携
 
-### Key Architectural Patterns
-- **Atomic Design**: Strict component hierarchy with single responsibility
-- **Feature-based organization**: Domain logic grouped by business feature  
-- **Custom HTTP client**: Axios wrapper with retry logic and error handling
-- **Type-safe CSV processing**: Strong typing throughout import pipeline
-- **Responsive tables**: Auto-resizing with grouping and summary rows
+### 主要アーキテクチャパターン
+- **Atomic Design**: 単一責任での厳密なコンポーネント階層
+- **機能ベース組織**: ビジネス機能でグループ化されたドメインロジック
+- **カスタムHTTPクライアント**: リトライロジックとエラーハンドリング付きAxiosラッパー
+- **型安全なCSV処理**: インポートパイプライン全体での強い型付け
+- **レスポンシブテーブル**: グループ化とサマリー行付き自動リサイズ
 
-### Configuration Notes
-- **Base path**: `/shoken-webapp/` for GitHub Pages deployment
-- **Path aliases**: `@/*` maps to `src/*`
-- **API proxy**: Development server proxies J-Quants API
-- **Testing**: Single fork configuration with jsdom environment
-- **Build**: Vendor chunk splitting with Terser minification
+### 設定注意事項
+- **ベースパス**: GitHub Pages デプロイ用の `/shoken-webapp/`
+- **パスエイリアス**: `@/*` は `src/*` にマップ
+- **API プロキシ**: 開発サーバーがJ-Quants APIをプロキシ
+- **テスト**: jsdom環境での単一フォーク設定
+- **ビルド**: Terser圧縮でのベンダーチャンク分割
 
-### Development Guidelines
-- Components must follow Atomic Design categorization
-- Business logic belongs in custom hooks or feature modules
-- All CSV processing must maintain type safety
-- Use React Query for server state management
-- Japanese language throughout (comments and UI text)
+### 開発ガイドライン
+- コンポーネントはAtomic Design分類に従う必要がある
+- ビジネスロジックはカスタムフックまたは機能モジュールに配置
+- すべてのCSV処理で型安全性を維持
+- サーバー状態管理にはReact Queryを使用
+- コメントとUIテキストは日本語で統一
+
+### テスト注意事項
+- メモリ最適化でテスト実行（`NODE_OPTIONS='--max-old-space-size=8192'`）
+- 安定性のための単一フォーク設定
+- テストとフックのタイムアウト10秒
+- DOMテスト用のjsdom環境使用
+
+### API連携
+- 開発時の `/api/jquants` プロキシ経由でのJ-Quants API連携
+- リトライロジックとエラーハンドリング付きカスタムHTTPクライアント
+- バックエンドプロキシ経由での認証管理
