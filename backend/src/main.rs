@@ -1,20 +1,21 @@
+mod config;
 mod errors;
 mod extractors;
 mod handlers;
 mod models;
+mod services;
 mod state;
 
 use axum::{
-    http::HeaderValue,
     routing::{get, post},
     Router,
 };
+use config::Config;
 use dotenvy::dotenv;
 use reqwest::Client;
 use shuttle_runtime::SecretStore;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
-use tower_http::cors::CorsLayer;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -23,10 +24,12 @@ async fn main(
 ) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
 
+    let config = Config::default();
+    
     let database_url = secrets.get("DATABASE_URL").unwrap_or(postgres_connection);
     println!("database_url: {}", database_url);
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(config.database_max_connections)
         .connect(&database_url)
         .await
         .expect("Failed to connect to Postgres");
@@ -36,33 +39,7 @@ async fn main(
     //     .await
     //     .expect("Failed to run migrations");
 
-    let allowed_headers = vec![
-        axum::http::header::CONTENT_TYPE,
-        axum::http::header::ACCEPT,
-        axum::http::header::ORIGIN,
-        axum::http::header::AUTHORIZATION,
-    ];
-
-    // 許可するメソッドリストを定義
-    let allowed_methods = vec![
-        axum::http::Method::GET,
-        axum::http::Method::POST,
-        axum::http::Method::PUT,
-        axum::http::Method::DELETE,
-        axum::http::Method::OPTIONS,
-    ];
-
-    let cors = CorsLayer::new()
-        .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
-            origin.eq(&"https://zaichu.github.io".parse::<HeaderValue>().unwrap())
-                || origin.eq(&"http://localhost:8080".parse::<HeaderValue>().unwrap())
-                || origin.eq(&"http://127.0.0.1:8080".parse::<HeaderValue>().unwrap())
-                || origin.eq(&"http://[::1]:8080".parse::<HeaderValue>().unwrap())
-                || origin.eq(&"http://localhost.:8080".parse::<HeaderValue>().unwrap())
-        }))
-        .allow_methods(allowed_methods)
-        .allow_headers(allowed_headers)
-        .allow_credentials(true);
+    let cors = config.build_cors_layer();
 
     let client = Client::new();
     let state = AppState {
@@ -162,8 +139,8 @@ mod tests {
         assert!(allowed_methods.contains(&axum::http::Method::POST));
     }
 
-    #[test]
-    fn test_app_state_creation_from_config() {
+    #[tokio::test]
+    async fn test_app_state_creation_from_config() {
         let database_url = "postgresql://user:password@localhost/test_db";
         let pool = PgPoolOptions::new()
             .max_connections(5)
