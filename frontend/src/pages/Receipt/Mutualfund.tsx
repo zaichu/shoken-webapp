@@ -71,25 +71,49 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     /**
      * 検索オプションの生成
      */
-    const searchOptions = useMemo(() =>
-        createSearchOptions(
-            mutualfundData,
-            'fund_name',
-            'fund_name',
-            false
-        ),
-        [mutualfundData]);
+    const searchCategories = useMemo(() => {
+        // ファンド名
+        const securities = createSearchOptions(mutualfundData, '', 'fund_name', true);
+
+        // 年度（昇順）
+        const years = [...new Set(mutualfundData.map(item => {
+            const year = item.trade_date.getFullYear().toString()
+            const label = `${year}年`;
+            return { value: year, label }
+        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
+            .sort((a, b) => a.value.localeCompare(b.value));
+
+        return {
+            securities,
+            years,
+        };
+    }, [mutualfundData]);
 
     /**
      * 検索クエリに基づくフィルタリング
      */
-    const filteredData = useMemo(() =>
-        filterDataBySearchQuery(
-            mutualfundData,
-            searchQuery,
-            ['fund_name']
-        ),
-        [mutualfundData, searchQuery]);
+    const filteredData = useMemo(() => {
+        if (!searchQuery) return mutualfundData;
+
+        const query = searchQuery.toLowerCase();
+        return mutualfundData.filter(item => {
+            // 銘柄コード・銘柄名での検索
+            if (item.fund_name.toLowerCase() === query) {
+                return true;
+            }
+
+            // 口座での検索
+            if (item.account.toLowerCase() === query) {
+                return true;
+            }
+
+            // 年度での検索（YYYY形式）
+            const year = item.trade_date.getFullYear().toString();
+            if (year === query) {
+                return true;
+            }
+        });
+    }, [mutualfundData, searchQuery]);
 
     /**
      * グループキーの取得（日付文字列：年月）
@@ -155,9 +179,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         <ReceiptTemplate
             title="投資信託"
             header={<ReceiptHeader items={headerItems} />}
-            searchQuery={searchQuery}
             onSearch={onSearch}
-            searchOptions={searchOptions}
+            searchCategories={searchCategories}
         >
             <ReceiptTable
                 data={filteredData}
