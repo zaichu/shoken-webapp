@@ -51,15 +51,10 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
   const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
   // 検索オプションの生成
-  const searchOptions = useMemo(() =>
-    createSearchOptions(
-      assetBalanceData,
-      'security_code',
-      'security_name',
-      true
-    ),
-    [assetBalanceData]
-  );
+  const searchCategories = useMemo(() => {
+    const securities = createSearchOptions(assetBalanceData, 'security_code', 'security_name', true);
+    return { securities };
+  }, [assetBalanceData]);
 
   // 検索クエリに基づくフィルタリング
   const filteredData = useMemo(() =>
@@ -88,9 +83,8 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
   return (
     <ReceiptTemplate
       title="保有株一覧"
-      searchQuery={searchQuery}
       onSearch={onSearch}
-      searchOptions={searchOptions}
+      searchCategories={searchCategories}
     >
       <ReceiptTable
         data={filteredData}
