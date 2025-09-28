@@ -110,10 +110,10 @@ describe('AssetBalance', () => {
     vi.clearAllMocks();
   });
 
-  it('保有株データを正しく表示する', () => {
+  it('保有銘柄データを正しく表示する', () => {
     render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    expect(screen.getByText('保有株一覧')).toBeInTheDocument();
+    expect(screen.getByText('保有銘柄一覧')).toBeInTheDocument();
     expect(screen.getByTestId('receipt-table')).toBeInTheDocument();
     expect(screen.getByText('データ数: 2')).toBeInTheDocument();
   });
@@ -121,7 +121,7 @@ describe('AssetBalance', () => {
   it('空のデータの場合でも正しく表示される', () => {
     render(<AssetBalanceInfo assetBalanceData={[]} />);
 
-    expect(screen.getByText('保有株一覧')).toBeInTheDocument();
+    expect(screen.getByText('保有銘柄一覧')).toBeInTheDocument();
     expect(screen.getByText('データ数: 0')).toBeInTheDocument();
   });
 

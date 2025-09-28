@@ -1,5 +1,5 @@
 /**
- * 保有株の情報を表すインターフェース
+ * 保有銘柄の情報を表すインターフェース
  */
 export interface AssetBalanceData {
   /** 銘柄コード */

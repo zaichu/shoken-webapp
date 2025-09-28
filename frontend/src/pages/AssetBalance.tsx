@@ -44,7 +44,7 @@ interface AssetBalanceProps {
 }
 
 /**
- * 保有株データを表示するコンポーネント
+ * 保有銘柄データを表示するコンポーネント
  */
 export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +82,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
 
   return (
     <ReceiptTemplate
-      title="保有株一覧"
+      title="保有銘柄"
       onSearch={onSearch}
       searchCategories={searchCategories}
     >
@@ -100,7 +100,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
 AssetBalanceInfo.displayName = 'AssetBalanceInfo';
 
 /**
- * 保有株管理ページコンポーネント
+ * 保有銘柄管理ページコンポーネント
  */
 export function AssetBalancePage() {
   const [assetBalanceCsvData, setAssetBalanceCsvData] = useState<Record<string, unknown>[]>([]);
@@ -130,17 +130,17 @@ export function AssetBalancePage() {
   const handleSaveToStorage = useCallback(() => {
     if (assetBalanceData.length > 0) {
       saveAssetBalance(assetBalanceData);
-      // alert('保有株データをローカルストレージに保存しました');
+      // alert('保有銘柄データをローカルストレージに保存しました');
     }
   }, [assetBalanceData, saveAssetBalance]);
 
   const handleClearStorage = useCallback(() => {
-    if (window.confirm('保存された保有株データを削除しますか？')) {
+    if (window.confirm('保存された保有銘柄データを削除しますか？')) {
       clearAssetBalance();
       setAssetBalanceData([]);
       setAssetBalanceCsvData([]);
       assetBalanceCSV.reset();
-      // alert('保有株データを削除しました');
+      // alert('保有銘柄データを削除しました');
     }
   }, [assetBalanceCSV, clearAssetBalance]);
 

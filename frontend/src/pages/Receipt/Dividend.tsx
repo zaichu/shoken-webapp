@@ -70,7 +70,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
-    // 保有株データを取得
+    // 保有銘柄データを取得
     const { getAssetBalanceByCode } = useAssetBalanceStorage();
 
     // J-Quants APIから配当情報を取得
@@ -79,7 +79,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         loading: apiLoading,
     } = useJQuantsDividend(searchQuery, !!searchQuery);
 
-    // searchQueryが変更されたときにstateを初期化し、保有株データがあれば自動入力
+    // searchQueryが変更されたときにstateを初期化し、保有銘柄データがあれば自動入力
     React.useEffect(() => {
         if (searchQuery) {
             const assetBalanceData = getAssetBalanceByCode(searchQuery);
@@ -139,7 +139,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
                 <h5 className="mb-0">配当情報</h5>
                 {assetBalanceData && (
                     <small className="text-light">
-                        保有株データから自動入力
+                        保有銘柄データから自動入力
                     </small>
                 )}
             </div>
