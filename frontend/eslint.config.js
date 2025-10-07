@@ -4,10 +4,11 @@ import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import reactRefreshPlugin from 'eslint-plugin-react-refresh';
+import reactCompilerPlugin from 'eslint-plugin-react-compiler';
 
 export default tseslint.config(
-  { 
-    ignores: ['dist/**', 'coverage/**'] 
+  {
+    ignores: ['dist/**', 'coverage/**']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -26,6 +27,7 @@ export default tseslint.config(
       'react': reactPlugin,
       'react-hooks': reactHooksPlugin,
       'react-refresh': reactRefreshPlugin,
+      'react-compiler': reactCompilerPlugin,
     },
     rules: {
       ...reactPlugin.configs.recommended.rules,
@@ -35,6 +37,7 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      'react-compiler/react-compiler': 'error',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
     },

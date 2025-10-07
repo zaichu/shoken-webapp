@@ -22,10 +22,11 @@
 ## アーキテクチャ概要
 
 ### 技術スタック
-- **React 19.1.0** with TypeScript and Vite
+- **React 19.2.0** with TypeScript and Vite
+- **React Compiler** 自動メモ化による最適化（babel-plugin-react-compiler）
 - **TanStack React Query** サーバー状態管理
-- **React Router DOM 7.6.0** ルーティング
-- **Bootstrap 5.3.6** スタイリング
+- **React Router DOM 7.9.3** ルーティング
+- **Bootstrap 5.3.8** スタイリング
 - **Vitest + Testing Library** テスト
 
 ### プロジェクト構造
@@ -62,6 +63,7 @@
 - **API プロキシ**: 開発サーバーがJ-Quants APIをプロキシ
 - **テスト**: jsdom環境での単一フォーク設定
 - **ビルド**: Terser圧縮でのベンダーチャンク分割
+- **React Compiler**: Vite設定で`babel-plugin-react-compiler`を使用、ESLintで`eslint-plugin-react-compiler`を有効化
 
 ### 開発ガイドライン
 - コンポーネントはAtomic Design分類に従う必要がある
@@ -69,6 +71,8 @@
 - すべてのCSV処理で型安全性を維持
 - サーバー状態管理にはReact Queryを使用
 - コメントとUIテキストは日本語で統一
+- **React Compiler使用**: `useMemo`、`useCallback`は不要（自動最適化される）
+- パフォーマンス最適化が必要な場合のみ、React Compilerのルールに従ってコードを記述
 
 ### テスト注意事項
 - メモリ最適化でテスト実行（`NODE_OPTIONS='--max-old-space-size=8192'`）

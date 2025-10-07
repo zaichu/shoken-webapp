@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     DividendData,
     DividendCalculations
@@ -70,7 +70,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
     const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
-    // 保有株データを取得
+    // 保有銘柄データを取得
     const { getAssetBalanceByCode } = useAssetBalanceStorage();
 
     // J-Quants APIから配当情報を取得
@@ -79,7 +79,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
         loading: apiLoading,
     } = useJQuantsDividend(searchQuery, !!searchQuery);
 
-    // searchQueryが変更されたときにstateを初期化し、保有株データがあれば自動入力
+    // searchQueryが変更されたときにstateを初期化し、保有銘柄データがあれば自動入力
     React.useEffect(() => {
         if (searchQuery) {
             const assetBalanceData = getAssetBalanceByCode(searchQuery);
@@ -105,27 +105,23 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
     }, [apiDividendPerShare, searchQuery]);
 
     // 各種計算値
-    const dividendYield = useMemo(() => {
+    const dividendYield = (() => {
         if (averageUnitPrice && dividendPerShare) {
             return (dividendPerShare / averageUnitPrice) * 100;
         }
         return 0;
-    }, [averageUnitPrice, dividendPerShare]);
+    })();
 
-    const annualDividendAmount = useMemo(() => {
-        return parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
-    }, [holdingQuantity, dividendPerShare]);
+    const annualDividendAmount = parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
 
-    const totalInvestment = useMemo(() => {
-        return parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
-    }, [averageUnitPrice, holdingQuantity]);
+    const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
 
-    const dividendReturnRate = useMemo(() => {
+    const dividendReturnRate = (() => {
         if (totalInvestment > 0 && summary[0]) {
             return (summary[0].net_amount_received / totalInvestment) * 100;
         }
         return 0;
-    }, [summary, totalInvestment]);
+    })();
 
     if (!searchQuery) {
         return null;
@@ -139,7 +135,7 @@ const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, sum
                 <h5 className="mb-0">配当情報</h5>
                 {assetBalanceData && (
                     <small className="text-light">
-                        保有株データから自動入力
+                        保有銘柄データから自動入力
                     </small>
                 )}
             </div>
@@ -183,7 +179,6 @@ interface DividendProps {
  */
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
     // CSVデータを配当データ形式に変換
     const dividendData = useReceiptData(csvData, parseCsvItem, sortBySettlementDate);
@@ -192,49 +187,39 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const calculations = useReceiptCalculations(dividendData, calculateDividends);
 
     // 検索カテゴリーの生成
-    const searchCategories = useMemo(() => {
+    const searchCategories = {
         // 銘柄（銘柄コード + 銘柄名の形式）
-        const securities = createSearchOptions(dividendData, 'security_code', 'security_name', true);
+        securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
 
         // 商品
-        const products = [...new Set(dividendData.map(item => item.product))]
-            .filter(product => product && product.trim() !== '');
+        products: [...new Set(dividendData.map(item => item.product))]
+            .filter(product => product && product.trim() !== ''),
 
         // 口座
-        const accounts = [...new Set(dividendData.map(item => item.account))]
-            .filter(account => account && account.trim() !== '');
+        accounts: [...new Set(dividendData.map(item => item.account))]
+            .filter(account => account && account.trim() !== ''),
 
         // 年度（昇順）
-        const years = [...new Set(dividendData.map(item => {
+        years: [...new Set(dividendData.map(item => {
             const year = item.settlement_date.getFullYear().toString()
             const label = `${year}年`;
             return { value: year, label }
         }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value));
+            .sort((a, b) => a.value.localeCompare(b.value)),
 
         // 年月（昇順）
-        const yearMonths = [...new Set(dividendData.map(item => {
+        yearMonths: [...new Set(dividendData.map(item => {
             const year = item.settlement_date.getFullYear();
             const month = item.settlement_date.getMonth() + 1;
             const value = `${year}-${month.toString().padStart(2, '0')}`;
             const label = `${year}年${month.toString().padStart(2, '0')}月`;
             return { value, label }
         }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value));
-
-        return {
-            securities,
-            products,
-            accounts,
-            years,
-            yearMonths
-        };
-    }, [dividendData]);
+            .sort((a, b) => a.value.localeCompare(b.value))
+    };
 
     // 検索クエリに基づくフィルタリング（複数フィールドに対応）
-    const filteredData = useMemo(() => {
-        if (!searchQuery) return dividendData;
-
+    const filteredData = !searchQuery ? dividendData : (() => {
         const query = searchQuery.toLowerCase();
         return dividendData.filter(item => {
             // 銘柄コード・銘柄名での検索
@@ -282,10 +267,10 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
             return amounts.some(amount => amount.includes(query));
         });
-    }, [dividendData, searchQuery]);
+    })();
 
     // グループキーの取得（検索タイプに応じて動的に変更）
-    const getGroupKey = useCallback((item: DividendData): string => {
+    const getGroupKey = (item: DividendData): string => {
         if (!searchQuery) {
             return createYearMonthKey(item.settlement_date);
         }
@@ -322,20 +307,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
         // デフォルトは年月でグループ化
         return createYearMonthKey(item.settlement_date);
-    }, [searchQuery]);
+    };
 
     // サマリーデータの集計
-    const summary = useMemo(() =>
-        groupAndSummarizeData(
-            filteredData,
-            getGroupKey,
-            ['dividends_before_tax', 'taxes', 'net_amount_received']
-        ),
-        [filteredData, getGroupKey]
+    const summary = groupAndSummarizeData(
+        filteredData,
+        getGroupKey,
+        ['dividends_before_tax', 'taxes', 'net_amount_received']
     );
 
     // ヘッダー項目の定義
-    const headerItems = useMemo(() => [
+    const headerItems = [
         {
             title: '合計配当金',
             value: calculations.total_dividends_before_tax,
@@ -351,54 +333,52 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             value: calculations.total_net_amount_received,
             format: formatCurrency
         }
-    ], [calculations]);
+    ];
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
-    const columns = useMemo<TableColumnConfig[]>(() => {
-        const baseColumns = [
-            { key: 'settlement_date', header: '入金日', format: formatJPDate },
-            { key: 'product', header: '商品' },
-            { key: 'account', header: '口座', width: '100px' },
-            { key: 'security_code', header: '銘柄コード' },
-            { key: 'security_name', header: '銘柄名', width: '250px' },
-            { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrency },
-            { key: 'shares', header: '数量[株]', width: '100px', textAlign: 'right', format: formatNumber },
-            { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrency },
-            { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrency },
-            { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrency },
-            { key: 'total_dividends_before_tax', header: '合計配当・分配金' },
-            { key: 'total_taxes', header: '合計税額' },
-            { key: 'total_net_amount_received', header: '合計受取金額' }
-        ] as TableColumnConfig[];
+    const baseColumns: TableColumnConfig[] = [
+        { key: 'settlement_date', header: '入金日', format: formatJPDate },
+        { key: 'product', header: '商品' },
+        { key: 'account', header: '口座', width: '100px' },
+        { key: 'security_code', header: '銘柄コード' },
+        { key: 'security_name', header: '銘柄名', width: '250px' },
+        { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrency },
+        { key: 'shares', header: '数量[株]', width: '100px', textAlign: 'right', format: formatNumber },
+        { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrency },
+        { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrency },
+        { key: 'total_dividends_before_tax', header: '合計配当・分配金' },
+        { key: 'total_taxes', header: '合計税額' },
+        { key: 'total_net_amount_received', header: '合計受取金額' }
+    ];
 
-        // 検索タイプに応じて重要なカラムを前面に配置
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+    // 検索タイプに応じて重要なカラムを前面に配置
+    const columns = !searchQuery ? baseColumns : (() => {
+        const query = searchQuery.toLowerCase();
 
-            // 商品検索の場合、商品カラムを前面に
-            if (filteredData.some(item => item.product.toLowerCase().includes(query))) {
-                const productCol = baseColumns.find(col => col.key === 'product')!;
-                const otherCols = baseColumns.filter(col => col.key !== 'product');
-                return [baseColumns[0], productCol, ...otherCols.slice(1)];
-            }
+        // 商品検索の場合、商品カラムを前面に
+        if (filteredData.some(item => item.product.toLowerCase().includes(query))) {
+            const productCol = baseColumns.find(col => col.key === 'product')!;
+            const otherCols = baseColumns.filter(col => col.key !== 'product');
+            return [baseColumns[0], productCol, ...otherCols.slice(1)];
+        }
 
-            // 口座検索の場合、口座カラムを前面に
-            if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
-                const accountCol = baseColumns.find(col => col.key === 'account')!;
-                const otherCols = baseColumns.filter(col => col.key !== 'account');
-                return [baseColumns[0], accountCol, ...otherCols.slice(1)];
-            }
+        // 口座検索の場合、口座カラムを前面に
+        if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
+            const accountCol = baseColumns.find(col => col.key === 'account')!;
+            const otherCols = baseColumns.filter(col => col.key !== 'account');
+            return [baseColumns[0], accountCol, ...otherCols.slice(1)];
         }
 
         return baseColumns;
-    }, [searchQuery, filteredData]);
+    })();
 
     // サマリーカラムの定義
-    const summaryColumns = useMemo<SummaryColumnConfig[]>(() => [
+    const summaryColumns: SummaryColumnConfig[] = [
         { key: 'dividends_before_tax', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
         { key: 'taxes', textAlign: 'right', format: formatCurrency },
         { key: 'net_amount_received', textAlign: 'right', format: formatCurrency },
-    ], [columns.length]);
+    ];
 
     return (
         <ReceiptTemplate
@@ -408,7 +388,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             ) : (
                 <ReceiptHeader items={headerItems} />
             )}
-            onSearch={onSearch}
+            onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
             <ReceiptTable

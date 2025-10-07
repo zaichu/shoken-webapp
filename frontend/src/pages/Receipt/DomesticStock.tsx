@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     DomesticStockData,
     DomesticStockCalculations,
@@ -40,45 +40,43 @@ const sortByTradeDate = (data: DomesticStockData[]): DomesticStockData[] => {
     );
 };
 
-// カスタムフック: 日次データ集計
-const useDailyData = (domesticStockData: DomesticStockData[]): DomesticStockSummary[] => {
-    return useMemo(() => {
-        // データを日付ごとにグループ化
-        const dailyGroupMap = new Map<string, DomesticStockData[]>();
+// 日次データ集計
+const calculateDailyData = (domesticStockData: DomesticStockData[]): DomesticStockSummary[] => {
+    // データを日付ごとにグループ化
+    const dailyGroupMap = new Map<string, DomesticStockData[]>();
 
-        domesticStockData.forEach(item => {
-            const dateKey = createISODateKey(item.trade_date);
-            if (!dailyGroupMap.has(dateKey)) {
-                dailyGroupMap.set(dateKey, []);
-            }
-            dailyGroupMap.get(dateKey)?.push(item);
-        });
+    domesticStockData.forEach(item => {
+        const dateKey = createISODateKey(item.trade_date);
+        if (!dailyGroupMap.has(dateKey)) {
+            dailyGroupMap.set(dateKey, []);
+        }
+        dailyGroupMap.get(dateKey)?.push(item);
+    });
 
-        // 日次データの集計
-        return Array.from(dailyGroupMap.entries()).map(([dateKey, items]) => {
-            // 特定口座とNISA口座の集計を分離
-            const dailyTotals = items.reduce((acc, item) => {
-                const isSpecificAccount = item.account.includes('特定');
-                return {
-                    specificTotal: acc.specificTotal + (isSpecificAccount ? item.realized_profit_and_loss : 0),
-                    nisaTotal: acc.nisaTotal + (!isSpecificAccount ? item.realized_profit_and_loss : 0),
-                    amount: acc.amount + item.proceeds
-                };
-            }, { specificTotal: 0, nisaTotal: 0, amount: 0 });
-
-            // 実現損益の計算
-            const totalRealizedPnL = dailyTotals.specificTotal + dailyTotals.nisaTotal;
-            const tax = Math.floor(Math.max(0, dailyTotals.specificTotal) * TAX_RATE);
-            const totalRealizedPnLAfterTax = dailyTotals.specificTotal - tax + dailyTotals.nisaTotal;
-
+    // 日次データの集計
+    return Array.from(dailyGroupMap.entries()).map(([dateKey, items]) => {
+        // 特定口座とNISA口座の集計を分離
+        const dailyTotals = items.reduce((acc, item) => {
+            const isSpecificAccount = item.account.includes('特定');
             return {
-                filter: dateKey,
-                total_realized_profit_and_loss: totalRealizedPnL,
-                total_taxes: tax,
-                total_realized_profit_and_loss_after_tax: totalRealizedPnLAfterTax,
+                specificTotal: acc.specificTotal + (isSpecificAccount ? item.realized_profit_and_loss : 0),
+                nisaTotal: acc.nisaTotal + (!isSpecificAccount ? item.realized_profit_and_loss : 0),
+                amount: acc.amount + item.proceeds
             };
-        }).sort((a, b) => a.filter.localeCompare(b.filter));
-    }, [domesticStockData]);
+        }, { specificTotal: 0, nisaTotal: 0, amount: 0 });
+
+        // 実現損益の計算
+        const totalRealizedPnL = dailyTotals.specificTotal + dailyTotals.nisaTotal;
+        const tax = Math.floor(Math.max(0, dailyTotals.specificTotal) * TAX_RATE);
+        const totalRealizedPnLAfterTax = dailyTotals.specificTotal - tax + dailyTotals.nisaTotal;
+
+        return {
+            filter: dateKey,
+            total_realized_profit_and_loss: totalRealizedPnL,
+            total_taxes: tax,
+            total_realized_profit_and_loss_after_tax: totalRealizedPnLAfterTax,
+        };
+    }).sort((a, b) => a.filter.localeCompare(b.filter));
 };
 
 // 全体集計関数
@@ -103,56 +101,46 @@ interface DomesticStockProps {
  */
 export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
     // CSVデータを国内株式データ形式に変換
     const domesticStockData = useReceiptData(csvData, parseCsvItem, sortByTradeDate);
 
     // 日次データの集計
-    const dailyData = useDailyData(domesticStockData);
+    const dailyData = calculateDailyData(domesticStockData);
 
     // 全体の集計
     const calculations = useReceiptCalculations(dailyData, calculateDomesticStock);
 
     // 検索カテゴリーの生成
-    const searchCategories = useMemo(() => {
+    const searchCategories = {
         // 銘柄（銘柄コード + 銘柄名の形式）
-        const securities = createSearchOptions(domesticStockData, 'security_code', 'security_name', true);
+        securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
 
         // 口座
-        const accounts = [...new Set(domesticStockData.map(item => item.account))]
-            .filter(account => account && account.trim() !== '');
+        accounts: [...new Set(domesticStockData.map(item => item.account))]
+            .filter(account => account && account.trim() !== ''),
 
         // 年度（昇順）
-        const years = [...new Set(domesticStockData.map(item => {
+        years: [...new Set(domesticStockData.map(item => {
             const year = item.trade_date.getFullYear().toString()
             const label = `${year}年`;
             return { value: year, label }
         }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value));
+            .sort((a, b) => a.value.localeCompare(b.value)),
 
         // 年月（昇順）
-        const yearMonths = [...new Set(domesticStockData.map(item => {
+        yearMonths: [...new Set(domesticStockData.map(item => {
             const year = item.trade_date.getFullYear();
             const month = item.trade_date.getMonth() + 1;
             const value = `${year}-${month.toString().padStart(2, '0')}`;
             const label = `${year}年${month.toString().padStart(2, '0')}月`;
             return { value, label }
         }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value));
-
-        return {
-            securities,
-            accounts,
-            years,
-            yearMonths
-        };
-    }, [domesticStockData]);
+            .sort((a, b) => a.value.localeCompare(b.value))
+    };
 
     // 検索クエリに基づくフィルタリング（複数フィールドに対応）
-    const filteredData = useMemo(() => {
-        if (!searchQuery) return domesticStockData;
-
+    const filteredData = !searchQuery ? domesticStockData : (() => {
         const query = searchQuery.toLowerCase();
         return domesticStockData.filter(item => {
             // 銘柄コード・銘柄名での検索
@@ -183,18 +171,15 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
 
             return amounts.some(amount => amount.includes(query));
         });
-    }, [domesticStockData, searchQuery]);
+    })();
 
-    // グループキーの取得（検索タイプに応じて動的に変更）
-    const getGroupKey = useCallback((item: DomesticStockData): string => {
-        // if (searchQuery) {
-        //     return searchQuery.toLowerCase();
-        // }
+    // グループキーの取得
+    const getGroupKey = (item: DomesticStockData): string => {
         return createISODateKey(item.trade_date);
-    }, [searchQuery]);
+    };
 
     // ヘッダー項目の定義
-    const headerItems = useMemo(() => [
+    const headerItems = [
         {
             title: '合計実現損益',
             value: calculations.total_realized_profit_and_loss,
@@ -210,53 +195,51 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
             value: calculations.total_realized_profit_and_loss_after_tax,
             format: formatCurrency
         }
-    ], [calculations]);
+    ];
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
-    const columns = useMemo<TableColumnConfig[]>(() => {
-        const baseColumns = [
-            { key: 'trade_date', header: '約定日', format: formatJPDate },
-            { key: 'settlement_date', header: '受渡日', format: formatJPDate },
-            { key: 'security_code', header: '銘柄コード' },
-            { key: 'security_name', header: '銘柄名', width: '250px' },
-            { key: 'account', header: '口座', width: '100px' },
-            { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
-            { key: 'asked_price', header: '売却単価', textAlign: 'right', format: formatCurrency },
-            { key: 'proceeds', header: '売却額', textAlign: 'right', format: formatCurrency },
-            { key: 'purchase_price', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
-            { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
-            { key: 'total_realized_profit_and_loss', header: '合計実現損益' },
-            { key: 'total_taxes', header: '合計税額' },
-            { key: 'total_realized_profit_and_loss_after_tax', header: '合計実現損益(税引)' },
-        ] as TableColumnConfig[];
+    const baseColumns: TableColumnConfig[] = [
+        { key: 'trade_date', header: '約定日', format: formatJPDate },
+        { key: 'settlement_date', header: '受渡日', format: formatJPDate },
+        { key: 'security_code', header: '銘柄コード' },
+        { key: 'security_name', header: '銘柄名', width: '250px' },
+        { key: 'account', header: '口座', width: '100px' },
+        { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
+        { key: 'asked_price', header: '売却単価', textAlign: 'right', format: formatCurrency },
+        { key: 'proceeds', header: '売却額', textAlign: 'right', format: formatCurrency },
+        { key: 'purchase_price', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
+        { key: 'total_realized_profit_and_loss', header: '合計実現損益' },
+        { key: 'total_taxes', header: '合計税額' },
+        { key: 'total_realized_profit_and_loss_after_tax', header: '合計実現損益(税引)' },
+    ];
 
-        // 検索タイプに応じて重要なカラムを前面に配置
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+    // 検索タイプに応じて重要なカラムを前面に配置
+    const columns = !searchQuery ? baseColumns : (() => {
+        const query = searchQuery.toLowerCase();
 
-            // 口座検索の場合、口座カラムを前面に
-            if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
-                const accountCol = baseColumns.find(col => col.key === 'account')!;
-                const otherCols = baseColumns.filter(col => col.key !== 'account');
-                return [baseColumns[0], baseColumns[1], accountCol, ...otherCols.slice(2)];
-            }
+        // 口座検索の場合、口座カラムを前面に
+        if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
+            const accountCol = baseColumns.find(col => col.key === 'account')!;
+            const otherCols = baseColumns.filter(col => col.key !== 'account');
+            return [baseColumns[0], baseColumns[1], accountCol, ...otherCols.slice(2)];
         }
 
         return baseColumns;
-    }, [searchQuery, filteredData]);
+    })();
 
     // サマリーカラムの定義
-    const summaryColumns = useMemo<SummaryColumnConfig[]>(() => [
+    const summaryColumns: SummaryColumnConfig[] = [
         { key: 'total_realized_profit_and_loss', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
         { key: 'total_taxes', textAlign: 'right', format: formatCurrency },
         { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
-    ], [columns.length]);
+    ];
 
     return (
         <ReceiptTemplate
             title="国内株式"
             header={<ReceiptHeader items={headerItems} />}
-            onSearch={onSearch}
+            onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
             <ReceiptTable

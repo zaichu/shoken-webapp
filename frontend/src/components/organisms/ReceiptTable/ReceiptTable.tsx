@@ -1,7 +1,7 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
-import { useForceResize } from '@/contexts/ResizeContext';
+import { useForceResize } from '@/hooks/common/useResize';
 
 type DataItem = Record<string, unknown>;
 type SummaryItem = Record<string, unknown> & { filter: string };

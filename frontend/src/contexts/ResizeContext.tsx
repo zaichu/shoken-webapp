@@ -1,24 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-
-// リサイズコンテキストの型定義
-interface ResizeContextValue {
-  forceResize: number;
-  triggerResize: () => void;
-}
-
-// リサイズコンテキストの作成
-const ResizeContext = createContext<ResizeContextValue | null>(null);
-
-// カスタムフック
-export const useForceResize = () => {
-  const context = useContext(ResizeContext);
-  return context?.forceResize;
-};
-
-export const useTriggerResize = () => {
-  const context = useContext(ResizeContext);
-  return context?.triggerResize;
-};
+import React, { useState, useCallback, ReactNode } from 'react';
+import { ResizeContext, ResizeContextValue } from './ResizeContextDefinition';
 
 // プロバイダーコンポーネント
 interface ResizeProviderProps {

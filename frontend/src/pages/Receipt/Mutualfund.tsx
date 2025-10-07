@@ -1,13 +1,13 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     MutualfundData,
     MutualfundCalculations
 } from '@/lib/interfaces/mutualfund';
 import { TableColumnConfig } from '@/lib/interfaces/receipt';
-import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
+import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
     createYearMonthKey,
@@ -25,12 +25,11 @@ interface MutualfundProps {
  */
 export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
     /**
      * CSVデータをMutualfundData形式に変換
      */
-    const mutualfundData = useMemo<MutualfundData[]>(() => {
+    const mutualfundData: MutualfundData[] = (() => {
         const parsedData = csvData.map((item) => ({
             trade_date: new Date(item['約定日'] as string || ''),
             settlement_date: new Date(item['受渡日'] as string || ''),
@@ -50,28 +49,26 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         return [...parsedData].sort((a, b) =>
             a.trade_date.getTime() - b.trade_date.getTime()
         );
-    }, [csvData]);
+    })();
 
     /**
      * 全体の集計
      */
-    const calculations = useMemo<MutualfundCalculations>(() => {
-        return mutualfundData.reduce((acc, item) => ({
-            total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
-            total_taxes: acc.total_taxes + item.taxes,
-            total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
+    const calculations: MutualfundCalculations = mutualfundData.reduce((acc, item) => ({
+        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
+        total_taxes: acc.total_taxes + item.taxes,
+        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
 
-        }), {
-            total_realized_profit_and_loss: 0,
-            total_taxes: 0,
-            total_realized_profit_and_loss_after_tax: 0,
-        });
-    }, [mutualfundData]);
+    }), {
+        total_realized_profit_and_loss: 0,
+        total_taxes: 0,
+        total_realized_profit_and_loss_after_tax: 0,
+    });
 
     /**
      * 検索オプションの生成
      */
-    const searchCategories = useMemo(() => {
+    const searchCategories = (() => {
         // ファンド名
         const securities = createSearchOptions(mutualfundData, '', 'fund_name', true);
 
@@ -87,14 +84,12 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             securities,
             years,
         };
-    }, [mutualfundData]);
+    })();
 
     /**
      * 検索クエリに基づくフィルタリング
      */
-    const filteredData = useMemo(() => {
-        if (!searchQuery) return mutualfundData;
-
+    const filteredData = !searchQuery ? mutualfundData : (() => {
         const query = searchQuery.toLowerCase();
         return mutualfundData.filter(item => {
             // 銘柄コード・銘柄名での検索
@@ -113,33 +108,31 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
                 return true;
             }
         });
-    }, [mutualfundData, searchQuery]);
+    })();
 
     /**
      * グループキーの取得（日付文字列：年月）
      */
-    const getGroupKey = useCallback((item: MutualfundData): string => {
+    const getGroupKey = (item: MutualfundData): string => {
         if (searchQuery) {
             return searchQuery.toLowerCase();
         }
         return createYearMonthKey(item.trade_date);
-    }, [searchQuery]);
+    };
 
     /**
      * サマリーデータの集計
      */
-    const summary = useMemo(() =>
-        groupAndSummarizeData(
-            filteredData,
-            getGroupKey,
-            ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
-        ),
-        [filteredData, getGroupKey]);
+    const summary = groupAndSummarizeData(
+        filteredData,
+        getGroupKey,
+        ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
+    );
 
     /**
      * ヘッダー項目の定義
      */
-    const headerItems = useMemo(() => [
+    const headerItems = [
         {
             title: '合計実現損益',
             value: calculations.total_realized_profit_and_loss,
@@ -155,12 +148,12 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             value: calculations.total_realized_profit_and_loss_after_tax,
             format: formatCurrency
         }
-    ], [calculations]);
+    ];
 
     /**
      * テーブルカラムの定義
      */
-    const columns = useMemo<TableColumnConfig[]>(() => [
+    const columns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', format: formatJPDate },
         { key: 'settlement_date', header: '受渡日', format: formatJPDate },
         { key: 'fund_name', header: 'ファンド名', width: '250px' },
@@ -173,13 +166,13 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
         { key: 'taxes', header: '税額', textAlign: 'right', format: formatCurrency },
         { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrency },
-    ], []);
+    ];
 
     return (
         <ReceiptTemplate
             title="投資信託"
             header={<ReceiptHeader items={headerItems} />}
-            onSearch={onSearch}
+            onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
             <ReceiptTable

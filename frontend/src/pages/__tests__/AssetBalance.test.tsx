@@ -9,29 +9,28 @@ vi.mock('@/components/templates/ReceiptTemplate', () => ({
   ReceiptTemplate: ({
     children,
     title,
-    searchQuery,
     onSearch,
-    searchOptions
+    searchCategories
   }: {
     children: React.ReactNode;
     title: string;
-    searchQuery: string;
-    onSearch: (query: string) => void;
-    searchOptions: Array<{ value: string; label: string }>;
+    onSearch?: (query: string) => void;
+    searchCategories?: Record<string, Array<{ value: string; label: string }>>;
   }) => (
     <div data-testid="receipt-template">
       <h1>{title}</h1>
-      <div data-testid="search-area">
-        <input
-          data-testid="search-input"
-          value={searchQuery}
-          onChange={(e) => onSearch(e.target.value)}
-          placeholder="検索"
-        />
-        <div data-testid="search-options">
-          オプション数: {searchOptions.length}
+      {onSearch && searchCategories && (
+        <div data-testid="search-area">
+          <input
+            data-testid="search-input"
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="検索"
+          />
+          <div data-testid="search-options">
+            オプション数: {Object.values(searchCategories).flat().length}
+          </div>
         </div>
-      </div>
+      )}
       {children}
     </div>
   ),
@@ -110,10 +109,10 @@ describe('AssetBalance', () => {
     vi.clearAllMocks();
   });
 
-  it('保有株データを正しく表示する', () => {
+  it('保有銘柄データを正しく表示する', () => {
     render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
 
-    expect(screen.getByText('保有株一覧')).toBeInTheDocument();
+    expect(screen.getByText('保有銘柄一覧')).toBeInTheDocument();
     expect(screen.getByTestId('receipt-table')).toBeInTheDocument();
     expect(screen.getByText('データ数: 2')).toBeInTheDocument();
   });
@@ -121,7 +120,7 @@ describe('AssetBalance', () => {
   it('空のデータの場合でも正しく表示される', () => {
     render(<AssetBalanceInfo assetBalanceData={[]} />);
 
-    expect(screen.getByText('保有株一覧')).toBeInTheDocument();
+    expect(screen.getByText('保有銘柄一覧')).toBeInTheDocument();
     expect(screen.getByText('データ数: 0')).toBeInTheDocument();
   });
 
