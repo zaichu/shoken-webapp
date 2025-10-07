@@ -72,10 +72,16 @@ export const validateFileSize = (file: File, maxSizeInMB: number = 50): void => 
   }
 };
 
+interface ParseError {
+  type: string;
+  row: number;
+  message: string;
+}
+
 /**
  * パース結果のエラーを検証
  */
-export const validateParseErrors = (errors: any[]): void => {
+export const validateParseErrors = (errors: ParseError[]): void => {
   if (errors.length === 0) return;
 
   const criticalErrors = errors.filter(e =>

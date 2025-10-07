@@ -16,7 +16,7 @@ class MockResizeObserver {
 }
 
 // グローバルのResizeObserverをモック
-global.ResizeObserver = MockResizeObserver as any;
+global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 describe('useTableAutoResize', () => {
   const originalInnerHeight = window.innerHeight;

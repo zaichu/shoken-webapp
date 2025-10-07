@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -48,26 +48,21 @@ interface AssetBalanceProps {
  */
 export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const onSearch = useCallback((query: string) => setSearchQuery(query), []);
 
   // 検索オプションの生成
-  const searchCategories = useMemo(() => {
-    const securities = createSearchOptions(assetBalanceData, 'security_code', 'security_name', true);
-    return { securities };
-  }, [assetBalanceData]);
+  const searchCategories = {
+    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
+  };
 
   // 検索クエリに基づくフィルタリング
-  const filteredData = useMemo(() =>
-    filterDataBySearchQuery(
-      assetBalanceData,
-      searchQuery,
-      ['security_code', 'security_name']
-    ),
-    [assetBalanceData, searchQuery]
+  const filteredData = filterDataBySearchQuery(
+    assetBalanceData,
+    searchQuery,
+    ['security_code', 'security_name']
   );
 
   // テーブルカラムの定義
-  const columns = useMemo<TableColumnConfig[]>(() => [
+  const columns: TableColumnConfig[] = [
     { key: 'security_code', header: '銘柄コード', width: '90px' },
     { key: 'security_name', header: '銘柄名', width: '200px' },
     { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
@@ -78,12 +73,12 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
     // { key: 'daily_change', header: '前日比', width: '80px', textAlign: 'right', format: formatCurrency },
     // { key: 'market_value', header: '時価評価額', width: '100px', textAlign: 'right', format: formatCurrency },
     // { key: 'profit_loss_rate', header: '評価損益率', width: '90px', textAlign: 'right', format: (value: number) => `${formatNumber(value)}%` },
-  ], []);
+  ];
 
   return (
     <ReceiptTemplate
       title="保有銘柄"
-      onSearch={onSearch}
+      onSearch={(query: string) => setSearchQuery(query)}
       searchCategories={searchCategories}
     >
       <ReceiptTable
@@ -127,14 +122,14 @@ export function AssetBalancePage() {
     }
   }, [tmpAssetBalanceData, assetBalanceCsvData]);
 
-  const handleSaveToStorage = useCallback(() => {
+  const handleSaveToStorage = () => {
     if (assetBalanceData.length > 0) {
       saveAssetBalance(assetBalanceData);
       // alert('保有銘柄データをローカルストレージに保存しました');
     }
-  }, [assetBalanceData, saveAssetBalance]);
+  };
 
-  const handleClearStorage = useCallback(() => {
+  const handleClearStorage = () => {
     if (window.confirm('保存された保有銘柄データを削除しますか？')) {
       clearAssetBalance();
       setAssetBalanceData([]);
@@ -142,7 +137,7 @@ export function AssetBalancePage() {
       assetBalanceCSV.reset();
       // alert('保有銘柄データを削除しました');
     }
-  }, [assetBalanceCSV, clearAssetBalance]);
+  };
 
   return (
     <Layout>

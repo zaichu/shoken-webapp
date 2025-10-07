@@ -23,16 +23,16 @@ const mockLocalStorage = (() => {
 })();
 
 // イベントリスナーのモック
-const eventListeners: { [key: string]: ((event: any) => void)[] } = {};
+const eventListeners: { [key: string]: ((event: StorageEvent | CustomEvent) => void)[] } = {};
 
-const mockAddEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+const mockAddEventListener = vi.fn((type: string, listener: (event: StorageEvent | CustomEvent) => void) => {
   if (!eventListeners[type]) {
     eventListeners[type] = [];
   }
   eventListeners[type].push(listener);
 });
 
-const mockRemoveEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+const mockRemoveEventListener = vi.fn((type: string, listener: (event: StorageEvent | CustomEvent) => void) => {
   if (eventListeners[type]) {
     const index = eventListeners[type].indexOf(listener);
     if (index > -1) {
@@ -41,7 +41,7 @@ const mockRemoveEventListener = vi.fn((type: string, listener: (event: any) => v
   }
 });
 
-const mockDispatchEvent = vi.fn((event: any) => {
+const mockDispatchEvent = vi.fn((event: StorageEvent | CustomEvent) => {
   const type = event.type;
   if (eventListeners[type]) {
     eventListeners[type].forEach(listener => listener(event));

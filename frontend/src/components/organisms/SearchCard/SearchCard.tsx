@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { SearchCategories } from '@/types/common';
 
 interface SearchCardProps {
@@ -26,26 +26,26 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     // 全ての検索カテゴリが空かチェック
-    const hasAnyCategories = useCallback(() => {
+    const hasAnyCategories = () => {
         if (!categories) return false;
         return hasData(categories.securities) ||
             hasData(categories.products) ||
             hasData(categories.accounts) ||
             hasData(categories.years) ||
             hasData(categories.yearMonths);
-    }, [categories]);
+    };
 
     // 展開状態の切り替え処理
-    const handleToggleExpanded = useCallback(() => {
+    const handleToggleExpanded = () => {
         const newExpandedState = !isExpanded;
         setIsExpanded(newExpandedState);
         onExpandToggle?.(newExpandedState);
-    }, [isExpanded, onExpandToggle]);
+    };
 
-    const handleQuickSearch = useCallback((value: string) => {
+    const handleQuickSearch = (value: string) => {
         setSearchQuery(value);
         onSearch(value);
-    }, [onSearch]);
+    };
 
     // カテゴリが何もない場合は SearchCard 自体を非表示
     if (!hasAnyCategories()) {

@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ResizeProvider, useForceResize, useTriggerResize } from '../ResizeContext';
+import { ResizeProvider } from '../ResizeContext';
+import { useForceResize, useTriggerResize } from '@/hooks/common/useResize';
 
 // テスト用コンポーネント
 const TestConsumer = () => {

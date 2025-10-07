@@ -1,6 +1,7 @@
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
-import { ResizeProvider, useTriggerResize } from '@/contexts/ResizeContext';
+import { ResizeProvider } from '@/contexts/ResizeContext';
+import { useTriggerResize } from '@/hooks/common/useResize';
 import { SearchCategories } from '@/types/common';
 
 interface ReceiptTemplateProps {
@@ -26,12 +27,12 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   const triggerResize = useTriggerResize();
 
   // 検索カードの展開状態変更時の処理
-  const handleSearchExpandToggle = useCallback((isExpanded: boolean) => {
+  const handleSearchExpandToggle = (isExpanded: boolean) => {
     // テーブルの強制リサイズをトリガー
     triggerResize?.();
     // 親コンポーネントにも通知
     onSearchExpandToggle?.(isExpanded);
-  }, [triggerResize, onSearchExpandToggle]);
+  };
 
   return (
     <div className="receipt-container">
