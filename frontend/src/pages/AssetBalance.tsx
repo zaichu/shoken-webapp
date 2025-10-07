@@ -171,7 +171,7 @@ export function AssetBalancePage() {
             保存
           </button>
           <button className="btn btn-outline-danger" onClick={handleClearStorage} disabled={assetBalanceStorageData.length === 0}>
-            保存データを削除
+            削除
           </button>
           {lastUpdated && (
             <span className="align-self-center text-muted ms-3">
