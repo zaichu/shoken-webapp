@@ -6,7 +6,7 @@
 
 以下のリンクからデモアプリを確認できます。
 
-[デモサイトリンク](https://zaichu.github.io/shoken-webapp/)
+[https://shoken-webapp.vercel.app](https://shoken-webapp.vercel.app)
 
 ## 主な機能
 - **CSVインポート**: エンコーディング自動検出付き取引データのインポート
@@ -38,14 +38,14 @@
 
 ## 使用技術
 
-- **React 19.2.0**: フロントエンド UI ライブラリ
-- **TypeScript**: 型安全なコーディング
-- **React Compiler**: 自動メモ化による最適化（babel-plugin-react-compiler）
-- **TanStack React Query**: サーバー状態管理
-- **React Router DOM 7.9.3**: クライアントサイドルーティング
+- **React 19.2.3**: フロントエンド UI ライブラリ
+- **TypeScript 5.9.3**: 型安全なコーディング
+- **React Compiler 19.1.0**: 自動メモ化による最適化（babel-plugin-react-compiler）
+- **TanStack React Query 5.90.16**: サーバー状態管理
+- **React Router DOM 7.11.0**: クライアントサイドルーティング
 - **Bootstrap 5.3.8**: レスポンシブデザインを簡素化するためのCSSフレームワーク
-- **Vite**: 高速な開発環境とビルドツール
-- **Vitest + Testing Library**: ユニットテストとコンポーネントテスト
+- **Vite 7.3.0**: 高速な開発環境とビルドツール
+- **Vitest 4.0.16 + Testing Library 16.3.1**: ユニットテストとコンポーネントテスト
 
 ### 主要アーキテクチャパターン
 - **Atomic Design**: 単一責任での厳密なコンポーネント階層
@@ -116,13 +116,13 @@ make all
 
 ## デプロイ
 
-このプロジェクトはGitHub Pagesでホストされています。
+このプロジェクトはVercelでホストされています。
 
 ```bash
 npm run build
 ```
 
-ビルド後、`dist`ディレクトリの内容をGitHub Pagesにデプロイします。
+ビルド後、`dist`ディレクトリの内容がVercelに自動デプロイされます。`vercel.json`の設定により、SPAのクライアントサイドルーティングが正しく動作します。
 
 ## ライセンス
 

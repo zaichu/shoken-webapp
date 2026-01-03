@@ -109,23 +109,23 @@ describe('useSimpleLocalStorage', () => {
     });
 
     it('localStorageエラーが発生してもクラッシュしない', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       // setItemでエラーを発生させる
       mockLocalStorage.setItem.mockImplementationOnce(() => {
         throw new Error('Storage quota exceeded');
       });
-      
+
       const { result } = renderHook(() => useLocalStorage('error-key', 'default'));
-      
+
       act(() => {
         result.current[1]('new-value');
       });
-      
-      // エラーが警告として出力されることを確認
+
+      // エラーが出力されることを確認
       expect(consoleSpy).toHaveBeenCalled();
       expect(result.current[0]).toBe('new-value'); // 状態は更新される
-      
+
       consoleSpy.mockRestore();
     });
   });

@@ -10,7 +10,10 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(cat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm audit fix:*)",
+      "Bash(npm view babel-plugin-react-compiler versions --json)",
+      "Bash(npm view eslint-plugin-react-compiler versions --json)"
     ]
   },
   "enableAllProjectMcpServers": false

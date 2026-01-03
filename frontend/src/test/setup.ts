@@ -32,7 +32,18 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 } as unknown as typeof IntersectionObserver;
 
+// ResizeObserver のモック
+global.ResizeObserver = class ResizeObserver {
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+  callback: ResizeObserverCallback;
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as unknown as typeof ResizeObserver;
+
 // React 19対応: global ISモックの追加
-if (typeof global.IS_REACT_ACT_ENVIRONMENT === 'undefined') {
-  global.IS_REACT_ACT_ENVIRONMENT = true;
+if (typeof (global as typeof global & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT === 'undefined') {
+  (global as typeof global & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 }
