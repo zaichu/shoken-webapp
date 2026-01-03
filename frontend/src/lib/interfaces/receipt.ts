@@ -8,6 +8,13 @@ export interface Calculations {
     [key: string]: number;
 }
 
+/**
+ * 税金計算を含む共通インターフェース
+ */
+export interface TaxCalculations {
+    total_taxes: number;
+}
+
 export interface ReceiptSummary {
     filter: string;
     [key: string]: string | number;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * 値をデバウンスするカスタムフック
@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * @returns デバウンスされた値
  */
 export function useDebounce<T>(
-  value: T, 
+  value: T,
   delay: number,
   options: {
     leading?: boolean;  // 最初の呼び出しを即座に実行するか
@@ -17,29 +17,29 @@ export function useDebounce<T>(
   } = {}
 ): T {
   const { leading = false, trailing = true, maxWait } = options;
-  
+
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const maxTimeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const maxTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
   const lastCallTimeRef = useRef<number>(0);
   const leadingCallRef = useRef<boolean>(true);
-
-  const cancel = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = undefined;
-    }
-    if (maxTimeoutRef.current) {
-      clearTimeout(maxTimeoutRef.current);
-      maxTimeoutRef.current = undefined;
-    }
-  }, []);
 
   useEffect(() => {
     const now = Date.now();
     const timeSinceLastCall = now - lastCallTimeRef.current;
 
     // 既存のタイマーをクリア
+    const cancel = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
+      }
+      if (maxTimeoutRef.current) {
+        clearTimeout(maxTimeoutRef.current);
+        maxTimeoutRef.current = undefined;
+      }
+    };
+
     cancel();
 
     // leadingオプションの処理
@@ -92,12 +92,7 @@ export function useDebounce<T>(
     lastCallTimeRef.current = now;
 
     return cancel;
-  }, [value, delay, leading, trailing, maxWait, cancel]);
-
-  // コンポーネントアンマウント時のクリーンアップ
-  useEffect(() => {
-    return cancel;
-  }, [cancel]);
+  }, [value, delay, leading, trailing, maxWait]);
 
   return debouncedValue;
 }

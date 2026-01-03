@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * 基本的なローカルストレージ機能を提供するカスタムフック
@@ -30,7 +30,7 @@ export function useLocalStorage<T>(
   });
 
   // 値を設定する関数
-  const setValue = useCallback((value: T | ((prevValue: T) => T)) => {
+  const setValue = (value: T | ((prevValue: T) => T)) => {
     try {
       setStoredValue(prevValue => {
         const valueToStore = value instanceof Function ? value(prevValue) : value;
@@ -48,10 +48,10 @@ export function useLocalStorage<T>(
     } catch (error) {
       console.warn(`値の設定に失敗しました (キー: ${key}):`, error);
     }
-  }, [key, isClient]);
+  };
 
   // 値を削除する関数
-  const removeValue = useCallback(() => {
+  const removeValue = () => {
     try {
       setStoredValue(initialValue);
 
@@ -65,7 +65,7 @@ export function useLocalStorage<T>(
     } catch (error) {
       console.warn(`値の削除に失敗しました (キー: ${key}):`, error);
     }
-  }, [key, initialValue, isClient]);
+  };
 
   return [storedValue, setValue, removeValue];
 }

@@ -15,6 +15,7 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
+import { createYearOptions, matchesYear } from '@/lib/utils/searchUtils';
 
 interface MutualfundProps {
     csvData: Record<string, unknown>[];
@@ -68,23 +69,10 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     /**
      * 検索オプションの生成
      */
-    const searchCategories = (() => {
-        // ファンド名
-        const securities = createSearchOptions(mutualfundData, '', 'fund_name', true);
-
-        // 年度（昇順）
-        const years = [...new Set(mutualfundData.map(item => {
-            const year = item.trade_date.getFullYear().toString()
-            const label = `${year}年`;
-            return { value: year, label }
-        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value));
-
-        return {
-            securities,
-            years,
-        };
-    })();
+    const searchCategories = {
+        securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
+        years: createYearOptions(mutualfundData, item => item.trade_date)
+    };
 
     /**
      * 検索クエリに基づくフィルタリング
@@ -103,10 +91,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             }
 
             // 年度での検索（YYYY形式）
-            const year = item.trade_date.getFullYear().toString();
-            if (year === query) {
-                return true;
-            }
+            return matchesYear(item.trade_date, query);
         });
     })();
 

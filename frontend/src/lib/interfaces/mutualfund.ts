@@ -1,4 +1,4 @@
-import { ReceiptBase } from './receipt';
+import { ReceiptBase, TaxCalculations } from './receipt';
 
 /**
  * 投資信託データの基本構造
@@ -24,9 +24,8 @@ export interface MutualfundData extends ReceiptBase {
 /**
  * 投資信託の集計計算結果
  */
-export interface MutualfundCalculations {
+export interface MutualfundCalculations extends TaxCalculations {
     total_realized_profit_and_loss: number;           // 合計実現損益
-    total_taxes: number;                              // 合計税額
     total_realized_profit_and_loss_after_tax: number; // 合計実現損益(税引)
 }
 

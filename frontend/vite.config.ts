@@ -13,7 +13,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/shoken-webapp/',
+  base: '/',
   server: {
     port: 8080,
     open: true,

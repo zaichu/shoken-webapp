@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -17,6 +17,7 @@ import {
   formatCurrency,
   formatNumber
 } from '@/lib/utils/formatters';
+import { logError } from '@/lib/utils/errorHandler';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -92,8 +93,6 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
   );
 };
 
-AssetBalanceInfo.displayName = 'AssetBalanceInfo';
-
 /**
  * 保有銘柄管理ページコンポーネント
  */
@@ -111,8 +110,8 @@ export function AssetBalancePage() {
     try {
       setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
       if (assetBalanceCSV.error) assetBalanceCSV.resetError();
-    } catch (e) {
-      console.error('CSV処理エラー:', e);
+    } catch (error) {
+      logError('AssetBalance CSV処理', error);
     }
   };
 

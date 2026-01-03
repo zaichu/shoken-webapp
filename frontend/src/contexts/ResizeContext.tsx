@@ -1,4 +1,4 @@
-import React, { useState, useCallback, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { ResizeContext, ResizeContextValue } from './ResizeContextDefinition';
 
 // プロバイダーコンポーネント
@@ -9,9 +9,9 @@ interface ResizeProviderProps {
 export const ResizeProvider: React.FC<ResizeProviderProps> = ({ children }) => {
   const [forceResize, setForceResize] = useState(0);
 
-  const triggerResize = useCallback(() => {
+  const triggerResize = () => {
     setForceResize(prev => prev + 1);
-  }, []);
+  };
 
   const value: ResizeContextValue = {
     forceResize,

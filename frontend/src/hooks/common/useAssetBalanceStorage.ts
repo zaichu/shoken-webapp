@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 
@@ -18,7 +18,7 @@ export function useAssetBalanceStorage(): UseAssetBalanceStorageReturn {
   const [isLoading, setIsLoading] = useState(false);
 
   // 資産データを保存
-  const saveAssetBalance = useCallback((data: AssetBalanceData[]): void => {
+  const saveAssetBalance = (data: AssetBalanceData[]): void => {
     setIsLoading(true);
     try {
       setAssetBalanceStorageData(data);
@@ -26,10 +26,10 @@ export function useAssetBalanceStorage(): UseAssetBalanceStorageReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [setAssetBalanceStorageData, setLastUpdated]);
+  };
 
   // 資産データをクリア
-  const clearAssetBalance = useCallback((): void => {
+  const clearAssetBalance = (): void => {
     setIsLoading(true);
     try {
       setAssetBalanceStorageData([]);
@@ -37,17 +37,17 @@ export function useAssetBalanceStorage(): UseAssetBalanceStorageReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [setAssetBalanceStorageData, setLastUpdated]);
+  };
 
   // 銘柄コードで資産を取得
-  const getAssetBalanceByCode = useCallback((code: string): AssetBalanceData | undefined => {
+  const getAssetBalanceByCode = (code: string): AssetBalanceData | undefined => {
     return assetBalanceStorageData.find(balance => balance && balance.security_code === code);
-  }, [assetBalanceStorageData]);
+  };
 
   // 全資産の市場価値合計を計算
-  const getTotalMarketValue = useCallback((): number => {
+  const getTotalMarketValue = (): number => {
     return assetBalanceStorageData.reduce((total, balance) => total + (balance?.market_value || 0), 0);
-  }, [assetBalanceStorageData]);
+  };
 
   return {
     assetBalanceStorageData,
