@@ -1,4 +1,4 @@
-import { memo, Fragment } from 'react';
+import { Fragment } from 'react';
 
 interface StockInfoLinkObject {
   name: string;
@@ -22,7 +22,7 @@ const STOCK_INFO_LINKS_OBJECTS: StockInfoLinkObject[] = [
   { name: "ザイマニ", url: "https://zaimani.com/search/?_sf_s={}" }
 ];
 
-export const StockInfoLinks = memo(({ code }: StockInfoLinksProps) => {
+export const StockInfoLinks = ({ code }: StockInfoLinksProps) => {
   if (!code) return null;
 
   return (
@@ -42,6 +42,4 @@ export const StockInfoLinks = memo(({ code }: StockInfoLinksProps) => {
       ))}
     </div>
   );
-});
-
-StockInfoLinks.displayName = 'StockInfoLinks';
+};

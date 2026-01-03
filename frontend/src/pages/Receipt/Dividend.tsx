@@ -9,8 +9,7 @@ import {
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import {
     createSearchOptions,
-    groupAndSummarizeData,
-    SummaryResult
+    groupAndSummarizeData
 } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
@@ -18,12 +17,18 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { NumberInputField } from '@/components/atoms/NumberInputField';
-import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
-import { useAssetBalanceStorage } from '@/hooks/common/useAssetBalanceStorage';
+import {
+    createYearOptions,
+    createYearMonthOptions,
+    getUniqueValues,
+    matchesYear,
+    matchesYearMonth,
+    matchesDate,
+    matchesAmounts
+} from '@/lib/utils/searchUtils';
+import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 
 // CSVアイテムをDividendDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
@@ -59,117 +64,6 @@ const calculateDividends = (data: DividendData[]): DividendCalculations => {
     });
 };
 
-// 配当情報コンポーネント
-interface DividendInfoProps {
-    searchQuery: string;
-    summary: SummaryResult<keyof Pick<DividendData, 'dividends_before_tax' | 'taxes' | 'net_amount_received'>>[];
-}
-
-const DividendInfo: React.FC<DividendInfoProps> = React.memo(({ searchQuery, summary }) => {
-    const [averageUnitPrice, setAverageUnitPrice] = useState<number | undefined>(undefined);
-    const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
-    const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
-
-    // 保有銘柄データを取得
-    const { getAssetBalanceByCode } = useAssetBalanceStorage();
-
-    // J-Quants APIから配当情報を取得
-    const {
-        dividendPerShare: apiDividendPerShare,
-        loading: apiLoading,
-    } = useJQuantsDividend(searchQuery, !!searchQuery);
-
-    // searchQueryが変更されたときにstateを初期化し、保有銘柄データがあれば自動入力
-    React.useEffect(() => {
-        if (searchQuery) {
-            const assetBalanceData = getAssetBalanceByCode(searchQuery);
-            if (assetBalanceData) {
-                setAverageUnitPrice(assetBalanceData.average_purchase_price);
-                setHoldingQuantity(assetBalanceData.shares);
-            } else {
-                setAverageUnitPrice(undefined);
-                setHoldingQuantity(undefined);
-            }
-        } else {
-            setAverageUnitPrice(undefined);
-            setHoldingQuantity(undefined);
-        }
-    }, [searchQuery, getAssetBalanceByCode]);
-
-    // APIからデータが取得されたら自動設定
-    React.useEffect(() => {
-        setDividendPerShare(undefined);
-        if (searchQuery && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
-            setDividendPerShare(apiDividendPerShare);
-        }
-    }, [apiDividendPerShare, searchQuery]);
-
-    // 各種計算値
-    const dividendYield = (() => {
-        if (averageUnitPrice && dividendPerShare) {
-            return (dividendPerShare / averageUnitPrice) * 100;
-        }
-        return 0;
-    })();
-
-    const annualDividendAmount = parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
-
-    const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
-
-    const dividendReturnRate = (() => {
-        if (totalInvestment > 0 && summary[0]) {
-            return (summary[0].net_amount_received / totalInvestment) * 100;
-        }
-        return 0;
-    })();
-
-    if (!searchQuery) {
-        return null;
-    }
-
-    const assetBalanceData = getAssetBalanceByCode(searchQuery);
-
-    return (
-        <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">配当情報</h5>
-                {assetBalanceData && (
-                    <small className="text-light">
-                        保有銘柄データから自動入力
-                    </small>
-                )}
-            </div>
-            <div className="card-body">
-                <div className="row">
-                    <div className='col'>
-                        <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
-                    </div>
-                    <div className='col'>
-                        <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
-                    </div>
-                    <div className='col'>
-                        <NumberInputField
-                            label="一株配当"
-                            value={dividendPerShare}
-                            onChange={setDividendPerShare}
-                            disabled={apiLoading}
-                            placeholder={apiLoading ? "データ取得中..." : ""}
-                        />
-                    </div>
-                </div>
-
-                <div className="row mt-3">
-                    <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
-                    <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
-                    <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
-                </div>
-            </div>
-        </div>
-    );
-});
-
-DividendInfo.displayName = 'DividendInfo';
-
 interface DividendProps {
     csvData: Record<string, unknown>[];
 }
@@ -188,34 +82,11 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
     // 検索カテゴリーの生成
     const searchCategories = {
-        // 銘柄（銘柄コード + 銘柄名の形式）
         securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
-
-        // 商品
-        products: [...new Set(dividendData.map(item => item.product))]
-            .filter(product => product && product.trim() !== ''),
-
-        // 口座
-        accounts: [...new Set(dividendData.map(item => item.account))]
-            .filter(account => account && account.trim() !== ''),
-
-        // 年度（昇順）
-        years: [...new Set(dividendData.map(item => {
-            const year = item.settlement_date.getFullYear().toString()
-            const label = `${year}年`;
-            return { value: year, label }
-        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value)),
-
-        // 年月（昇順）
-        yearMonths: [...new Set(dividendData.map(item => {
-            const year = item.settlement_date.getFullYear();
-            const month = item.settlement_date.getMonth() + 1;
-            const value = `${year}-${month.toString().padStart(2, '0')}`;
-            const label = `${year}年${month.toString().padStart(2, '0')}月`;
-            return { value, label }
-        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value))
+        products: getUniqueValues(dividendData, item => item.product),
+        accounts: getUniqueValues(dividendData, item => item.account),
+        years: createYearOptions(dividendData, item => item.settlement_date),
+        yearMonths: createYearMonthOptions(dividendData, item => item.settlement_date)
     };
 
     // 検索クエリに基づくフィルタリング（複数フィールドに対応）
@@ -239,33 +110,28 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             }
 
             // 年度での検索（YYYY形式）
-            const year = item.settlement_date.getFullYear().toString();
-            if (year === query) {
+            if (matchesYear(item.settlement_date, query)) {
                 return true;
             }
 
             // 年月での検索（YYYY-MM形式）
-            const yearMonth = `${item.settlement_date.getFullYear()}-${(item.settlement_date.getMonth() + 1).toString().padStart(2, '0')}`;
-            if (yearMonth === query) {
+            if (matchesYearMonth(item.settlement_date, query)) {
                 return true;
             }
 
             // 日付での検索（YYYY-MM-DD形式）
-            const dateStr = item.settlement_date.toISOString().split('T')[0];
-            if (dateStr === query) {
+            if (matchesDate(item.settlement_date, query)) {
                 return true;
             }
 
             // 金額での検索（部分一致）
-            const amounts = [
-                item.unit_price.toString(),
-                item.shares.toString(),
-                item.dividends_before_tax.toString(),
-                item.taxes.toString(),
-                item.net_amount_received.toString()
-            ];
-
-            return amounts.some(amount => amount.includes(query));
+            return matchesAmounts([
+                item.unit_price,
+                item.shares,
+                item.dividends_before_tax,
+                item.taxes,
+                item.net_amount_received
+            ], query);
         });
     })();
 
@@ -294,15 +160,13 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         }
 
         // 年度での検索の場合
-        const year = item.settlement_date.getFullYear().toString();
-        if (year === query) {
-            return year;
+        if (matchesYear(item.settlement_date, query)) {
+            return item.settlement_date.getFullYear().toString();
         }
 
         // 年月での検索の場合
-        const yearMonth = `${item.settlement_date.getFullYear()}-${(item.settlement_date.getMonth() + 1).toString().padStart(2, '0')}`;
-        if (yearMonth === query) {
-            return yearMonth;
+        if (matchesYearMonth(item.settlement_date, query)) {
+            return query;
         }
 
         // デフォルトは年月でグループ化

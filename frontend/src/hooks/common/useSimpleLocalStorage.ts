@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { withSyncErrorHandling } from '@/lib/utils/errorHandler';
 
 /**
  * 基本的なローカルストレージ機能を提供するカスタムフック
@@ -17,55 +18,46 @@ export function useLocalStorage<T>(
       return initialValue;
     }
 
-    try {
-      const item = window.localStorage.getItem(key);
-      if (item === null) {
-        return initialValue;
-      }
-      return JSON.parse(item);
-    } catch (error) {
-      console.warn(`ローカルストレージからの読み込みに失敗しました (キー: ${key}):`, error);
-      return initialValue;
-    }
+    return withSyncErrorHandling(
+      () => {
+        const item = window.localStorage.getItem(key);
+        if (item === null) {
+          return initialValue;
+        }
+        return JSON.parse(item);
+      },
+      `LocalStorage読み込み (キー: ${key})`,
+      initialValue
+    ) ?? initialValue;
   });
 
   // 値を設定する関数
-  const setValue = useCallback((value: T | ((prevValue: T) => T)) => {
-    try {
-      setStoredValue(prevValue => {
-        const valueToStore = value instanceof Function ? value(prevValue) : value;
-
-        if (isClient) {
-          try {
-            window.localStorage.setItem(key, JSON.stringify(valueToStore));
-          } catch (error) {
-            console.warn(`ローカルストレージへの保存に失敗しました (キー: ${key}):`, error);
-          }
-        }
-
-        return valueToStore;
-      });
-    } catch (error) {
-      console.warn(`値の設定に失敗しました (キー: ${key}):`, error);
-    }
-  }, [key, isClient]);
-
-  // 値を削除する関数
-  const removeValue = useCallback(() => {
-    try {
-      setStoredValue(initialValue);
+  const setValue = (value: T | ((prevValue: T) => T)) => {
+    setStoredValue(prevValue => {
+      const valueToStore = value instanceof Function ? value(prevValue) : value;
 
       if (isClient) {
-        try {
-          window.localStorage.removeItem(key);
-        } catch (error) {
-          console.warn(`ローカルストレージからの削除に失敗しました (キー: ${key}):`, error);
-        }
+        withSyncErrorHandling(
+          () => window.localStorage.setItem(key, JSON.stringify(valueToStore)),
+          `LocalStorage保存 (キー: ${key})`
+        );
       }
-    } catch (error) {
-      console.warn(`値の削除に失敗しました (キー: ${key}):`, error);
+
+      return valueToStore;
+    });
+  };
+
+  // 値を削除する関数
+  const removeValue = () => {
+    setStoredValue(initialValue);
+
+    if (isClient) {
+      withSyncErrorHandling(
+        () => window.localStorage.removeItem(key),
+        `LocalStorage削除 (キー: ${key})`
+      );
     }
-  }, [key, initialValue, isClient]);
+  };
 
   return [storedValue, setValue, removeValue];
 }
@@ -74,13 +66,13 @@ export function useLocalStorage<T>(
  * ローカルストレージのキーの存在チェック
  */
 export function useLocalStorageKey(key: string): boolean {
-  const [exists, setExists] = useState(false);
+  if (typeof window === 'undefined') {
+    return false;
+  }
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setExists(window.localStorage.getItem(key) !== null);
-    }
-  }, [key]);
-
-  return exists;
+  return withSyncErrorHandling(
+    () => window.localStorage.getItem(key) !== null,
+    `LocalStorageキー確認 (キー: ${key})`,
+    false
+  ) ?? false;
 }

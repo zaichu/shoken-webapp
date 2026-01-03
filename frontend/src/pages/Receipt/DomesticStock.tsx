@@ -18,6 +18,13 @@ import {
 } from '@/lib/utils/formatters';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import {
+    createYearOptions,
+    createYearMonthOptions,
+    getUniqueValues,
+    matchesYear,
+    matchesAmounts
+} from '@/lib/utils/searchUtils';
 
 // CSVアイテムをDomesticStockDataに変換
 const parseCsvItem = (item: Record<string, unknown>): DomesticStockData => ({
@@ -113,30 +120,10 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
 
     // 検索カテゴリーの生成
     const searchCategories = {
-        // 銘柄（銘柄コード + 銘柄名の形式）
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
-
-        // 口座
-        accounts: [...new Set(domesticStockData.map(item => item.account))]
-            .filter(account => account && account.trim() !== ''),
-
-        // 年度（昇順）
-        years: [...new Set(domesticStockData.map(item => {
-            const year = item.trade_date.getFullYear().toString()
-            const label = `${year}年`;
-            return { value: year, label }
-        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value)),
-
-        // 年月（昇順）
-        yearMonths: [...new Set(domesticStockData.map(item => {
-            const year = item.trade_date.getFullYear();
-            const month = item.trade_date.getMonth() + 1;
-            const value = `${year}-${month.toString().padStart(2, '0')}`;
-            const label = `${year}年${month.toString().padStart(2, '0')}月`;
-            return { value, label }
-        }))].filter((item, index, self) => index === self.findIndex(t => t.value === item.value))
-            .sort((a, b) => a.value.localeCompare(b.value))
+        accounts: getUniqueValues(domesticStockData, item => item.account),
+        years: createYearOptions(domesticStockData, item => item.trade_date),
+        yearMonths: createYearMonthOptions(domesticStockData, item => item.trade_date)
     };
 
     // 検索クエリに基づくフィルタリング（複数フィールドに対応）
@@ -155,21 +142,18 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
             }
 
             // 年度での検索（YYYY形式）
-            const year = item.trade_date.getFullYear().toString();
-            if (year === query) {
+            if (matchesYear(item.trade_date, query)) {
                 return true;
             }
 
             // 金額での検索（部分一致）
-            const amounts = [
-                item.shares.toString(),
-                item.asked_price.toString(),
-                item.proceeds.toString(),
-                item.purchase_price.toString(),
-                item.realized_profit_and_loss.toString()
-            ];
-
-            return amounts.some(amount => amount.includes(query));
+            return matchesAmounts([
+                item.shares,
+                item.asked_price,
+                item.proceeds,
+                item.purchase_price,
+                item.realized_profit_and_loss
+            ], query);
         });
     })();
 

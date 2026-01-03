@@ -1,4 +1,4 @@
-import { forwardRef, useCallback } from 'react';
+import { forwardRef } from 'react';
 import { InputField, InputFieldProps } from './InputField';
 
 export interface NumberInputFieldProps extends Omit<InputFieldProps, 'type' | 'value' | 'onChange'> {
@@ -32,9 +32,9 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
     },
     ref
   ) => {
-    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      
+
       // 空文字の場合はundefinedを返す
       if (inputValue === '') {
         onChange(undefined);
@@ -43,7 +43,7 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
 
       // 数値変換
       let numberValue = parseFloat(inputValue);
-      
+
       // NaNの場合は処理しない
       if (isNaN(numberValue)) {
         return;
@@ -70,11 +70,11 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
       }
 
       onChange(numberValue);
-    }, [onChange, allowDecimal, allowNegative, precision, min, max]);
+    };
 
-    const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      
+
       // 空文字の場合は何もしない
       if (inputValue === '') {
         return;
@@ -84,14 +84,14 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
       const numberValue = parseFloat(inputValue);
       if (!isNaN(numberValue)) {
         // 入力フィールドの値を適切な形式で更新
-        e.target.value = allowDecimal 
+        e.target.value = allowDecimal
           ? numberValue.toFixed(precision).replace(/\\.?0+$/, '')
           : numberValue.toString();
       }
 
       // 元のonBlurイベントがあれば実行
       rest.onBlur?.(e);
-    }, [allowDecimal, precision, rest]);
+    };
 
     return (
       <InputField

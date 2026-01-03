@@ -9,29 +9,29 @@ import { NotFoundPage } from '../pages/NotFound';
 
 const router = createBrowserRouter([
   {
-    path: "/shoken-webapp/",
+    path: "/",
     element: <HomePage />,
     errorElement: <ErrorPage />,
   },
   {
-    path: "/shoken-webapp/search",
+    path: "/search",
     element: <SearchPage />,
   },
   {
-    path: "/shoken-webapp/receipts",
+    path: "/receipts",
     element: <ReceiptsPage />,
   },
   {
-    path: "/shoken-webapp/assetbalance",
+    path: "/assetbalance",
     element: <AssetBalancePage />,
   },
   {
-    path: "/shoken-webapp/404",
+    path: "/404",
     element: <NotFoundPage />,
   },
   {
     path: "*",
-    element: <Navigate to="/shoken-webapp/404" replace />,
+    element: <Navigate to="/404" replace />,
   },
 ]);
 

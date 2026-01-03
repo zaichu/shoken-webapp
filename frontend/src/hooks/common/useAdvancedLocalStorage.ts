@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 export interface UseAdvancedLocalStorageOptions<T = unknown> {
   serializer?: {
@@ -44,7 +44,7 @@ export function useAdvancedLocalStorage<T>(
     }
   });
 
-  const setValue = useCallback((value: T | ((prevValue: T) => T)) => {
+  const setValue = (value: T | ((prevValue: T) => T)) => {
     try {
       setStoredValue(prevValue => {
         const valueToStore = value instanceof Function ? value(prevValue) : value;
@@ -69,9 +69,9 @@ export function useAdvancedLocalStorage<T>(
     } catch (error) {
       console.warn(`値の設定に失敗しました (キー: ${key}):`, error);
     }
-  }, [key, serializer, isClient, syncAcrossTabs]);
+  };
 
-  const removeValue = useCallback(() => {
+  const removeValue = () => {
     try {
       setStoredValue(initialValue);
 
@@ -92,7 +92,7 @@ export function useAdvancedLocalStorage<T>(
     } catch (error) {
       console.warn(`値の削除に失敗しました (キー: ${key}):`, error);
     }
-  }, [key, initialValue, isClient, syncAcrossTabs]);
+  };
 
   // タブ間での同期を監視
   useEffect(() => {
@@ -158,7 +158,7 @@ export function useMultipleLocalStorage<T extends Record<string, unknown>>(
     return result;
   });
 
-  const setValue = useCallback((key: keyof T, value: T[keyof T]) => {
+  const setValue = (key: keyof T, value: T[keyof T]) => {
     setValues(prev => ({ ...prev, [key]: value }));
 
     if (typeof window !== 'undefined') {
@@ -168,9 +168,9 @@ export function useMultipleLocalStorage<T extends Record<string, unknown>>(
         console.warn(`ローカルストレージへの保存に失敗しました (キー: ${String(key)}):`, error);
       }
     }
-  }, []);
+  };
 
-  const removeValue = useCallback((key: keyof T) => {
+  const removeValue = (key: keyof T) => {
     setValues(prev => ({ ...prev, [key]: keys[key] }));
 
     if (typeof window !== 'undefined') {
@@ -180,7 +180,7 @@ export function useMultipleLocalStorage<T extends Record<string, unknown>>(
         console.warn(`ローカルストレージからの削除に失敗しました (キー: ${String(key)}):`, error);
       }
     }
-  }, [keys]);
+  };
 
   return [values, setValue, removeValue];
 }

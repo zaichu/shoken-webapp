@@ -1,4 +1,4 @@
-import { ReceiptBase } from './receipt';
+import { ReceiptBase, TaxCalculations } from './receipt';
 
 export interface DividendData extends ReceiptBase {
     product: string;
@@ -14,9 +14,8 @@ export interface DividendData extends ReceiptBase {
     [key: string]: unknown;
 }
 
-export interface DividendCalculations {
+export interface DividendCalculations extends TaxCalculations {
     total_dividends_before_tax: number;
-    total_taxes: number;
     total_net_amount_received: number;
 }
 

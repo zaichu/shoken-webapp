@@ -1,4 +1,4 @@
-import { FormEvent, memo, useCallback } from 'react';
+import React, { FormEvent } from 'react';
 import { Button } from '../atoms/Button';
 import { InputField } from '../atoms/InputField';
 
@@ -9,28 +9,22 @@ interface SearchFormProps {
   isLoading?: boolean;
 }
 
-export const SearchForm = memo<SearchFormProps>(({
+export const SearchForm: React.FC<SearchFormProps> = ({
   stockCode,
   onStockCodeChange,
   onSubmit,
   isLoading = false
 }) => {
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onStockCodeChange(e.target.value);
-    },
-    [onStockCodeChange]
-  );
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onStockCodeChange(e.target.value);
+  };
 
-  const handleSubmit = useCallback(
-    (e: FormEvent) => {
-      e.preventDefault();
-      if (!isLoading && stockCode) {
-        onSubmit(e);
-      }
-    },
-    [onSubmit, isLoading, stockCode]
-  );
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!isLoading && stockCode) {
+      onSubmit(e);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="mb-4">
@@ -58,6 +52,4 @@ export const SearchForm = memo<SearchFormProps>(({
       </div>
     </form>
   );
-});
-
-SearchForm.displayName = 'SearchForm';
+};

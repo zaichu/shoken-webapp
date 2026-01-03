@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { parseCSVFile } from '../lib/csv/parser';
 import { CSVParseOptions } from '@/lib/types/csv';
 
@@ -31,7 +31,7 @@ export function useCSVReader(options?: CSVParseOptions): CSVReaderHook {
   /**
    * CSVファイルをパースする
    */
-  const parseCSV = useCallback(async (file: File): Promise<Record<string, unknown>[]> => {
+  const parseCSV = async (file: File): Promise<Record<string, unknown>[]> => {
     setState(prev => ({
       ...prev,
       isLoading: true,
@@ -52,32 +52,32 @@ export function useCSVReader(options?: CSVParseOptions): CSVReaderHook {
       setState(prev => ({ ...prev, isLoading: false }));
       throw e;
     }
-  }, [options]);
+  };
 
   /**
    * エラー状態をリセットする
    */
-  const resetError = useCallback(() => {
+  const resetError = () => {
     setState(prev => ({ ...prev, error: null }));
-  }, []);
+  };
 
   /**
    * ファイル名を手動で設定する
    */
-  const setFile = useCallback((name: string) => {
+  const setFile = (name: string) => {
     setState(prev => ({ ...prev, fileName: name }));
-  }, []);
+  };
 
   /**
    * すべての状態をリセットする
    */
-  const reset = useCallback(() => {
+  const reset = () => {
     setState({
       isLoading: false,
       error: null,
       fileName: '',
     });
-  }, []);
+  };
 
   return {
     ...state,

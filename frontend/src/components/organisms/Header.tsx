@@ -8,18 +8,18 @@ export function Header() {
   return (
     <header className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container" style={{ maxWidth: '1600px' }}>
-        <Link className="navbar-brand" to="/shoken-webapp/">証券Web</Link>
+        <Link className="navbar-brand" to="/">証券Web</Link>
 
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav">
             <li className="nav-item">
-              <Link className="nav-link" to="/shoken-webapp/search">銘柄検索</Link>
+              <Link className="nav-link" to="/search">銘柄検索</Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/shoken-webapp/assetbalance">保有銘柄</Link>
+              <Link className="nav-link" to="/assetbalance">保有銘柄</Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/shoken-webapp/receipts">受取金</Link>
+              <Link className="nav-link" to="/receipts">受取金</Link>
             </li>
           </ul>
 

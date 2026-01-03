@@ -1,4 +1,4 @@
-import { ReceiptBase } from './receipt';
+import { ReceiptBase, TaxCalculations } from './receipt';
 
 export interface DomesticStockData extends ReceiptBase {
     trade_date: Date;
@@ -14,9 +14,8 @@ export interface DomesticStockData extends ReceiptBase {
     [key: string]: unknown;
 }
 
-export interface DomesticStockCalculations {
+export interface DomesticStockCalculations extends TaxCalculations {
     total_realized_profit_and_loss: number;
-    total_taxes: number;
     total_realized_profit_and_loss_after_tax: number;
 }
 

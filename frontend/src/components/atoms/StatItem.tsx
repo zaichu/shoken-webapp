@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 
 export interface StatItemProps {
   title: string;
@@ -13,7 +13,7 @@ export interface StatItemProps {
  * 統計情報アイテムを表示するコンポーネント
  * タイトルと値をセットで表示
  */
-export const StatItem = memo<StatItemProps>(({
+export const StatItem: React.FC<StatItemProps> = ({
   title,
   value,
   className = 'col',
@@ -56,9 +56,7 @@ export const StatItem = memo<StatItemProps>(({
       </div>
     </div>
   );
-});
-
-StatItem.displayName = 'StatItem';
+};
 
 export interface StatItemWithRateProps {
   title: string;
@@ -76,7 +74,7 @@ export interface StatItemWithRateProps {
  * 統計情報アイテムを表示するコンポーネント（レート表示付き）
  * 金額などの値とレート（パーセンテージ）を併せて表示
  */
-export const StatItemWithRate = memo<StatItemWithRateProps>(({
+export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
   title,
   value,
   rate,
@@ -108,6 +106,4 @@ export const StatItemWithRate = memo<StatItemWithRateProps>(({
       variant={variant}
     />
   );
-});
-
-StatItemWithRate.displayName = 'StatItemWithRate';
+};
