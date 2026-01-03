@@ -4,8 +4,8 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches: [ main ]
+#   push:
+#     branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: 18
           cache: 'npm'
@@ -34,17 +34,17 @@ jobs:
         env:
           VITE_SHOKEN_WEBAPI_API_URL: ${{ secrets.VITE_SHOKEN_WEBAPI_API_URL }}
 
-      - name: Create 404.html
-        working-directory: frontend
-        run: cp dist/index.html dist/404.html
+      # - name: Create 404.html
+      #   working-directory: frontend
+      #   run: cp dist/index.html dist/404.html
 
-      - name: Add .nojekyll file
-        working-directory: frontend
-        run: touch dist/.nojekyll
+      # - name: Add .nojekyll file
+      #   working-directory: frontend
+      #   run: touch dist/.nojekyll
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./frontend/dist
-          cname: ${{ secrets.CNAME }}
+      # - name: Deploy
+      #   uses: peaceiris/actions-gh-pages@v3
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     publish_dir: ./frontend/dist
+      #     cname: ${{ secrets.CNAME }}
