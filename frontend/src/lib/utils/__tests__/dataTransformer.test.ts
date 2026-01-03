@@ -24,8 +24,8 @@ describe('createSearchOptions', () => {
         const result = createSearchOptions(testData, 'code', 'name', true);
         
         expect(result).toEqual([
-            { value: '1234', label: '1234:テスト1' },
-            { value: '5678', label: '5678:テスト2' },
+            { value: '1234', label: '1234: テスト1' },
+            { value: '5678', label: '5678: テスト2' },
             { value: 'テスト3', label: 'テスト3' }
         ]);
     });
@@ -54,8 +54,8 @@ describe('createSearchOptions', () => {
         const result = createSearchOptions(testData, 'code', 'name', true);
         
         expect(result).toEqual([
-            { value: '1234', label: '1234:テスト1' },
-            { value: '5678', label: '5678:テスト2' }
+            { value: '1234', label: '1234: テスト1' },
+            { value: '5678', label: '5678: テスト2' }
         ]);
     });
 });
@@ -107,8 +107,8 @@ describe('groupAndSummarizeData', () => {
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
             const symbolKey = Symbol.for('key');
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { [symbolKey]: _, ...rest } = item;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+            const { [symbolKey as any]: _, ...rest } = item;
             return rest;
         });
         
@@ -125,8 +125,8 @@ describe('groupAndSummarizeData', () => {
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
             const symbolKey = Symbol.for('key');
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { [symbolKey]: _, ...rest } = item;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+            const { [symbolKey as any]: _, ...rest } = item;
             return rest;
         });
         
@@ -144,8 +144,8 @@ describe('groupAndSummarizeData', () => {
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
             const symbolKey = Symbol.for('key');
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { [symbolKey]: _, ...rest } = item;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+            const { [symbolKey as any]: _, ...rest } = item;
             return rest;
         });
         

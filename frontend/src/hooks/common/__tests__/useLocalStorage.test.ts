@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { useLocalStorage, useLocalStorageKey } from '../useLocalStorage';
 
@@ -202,23 +202,26 @@ describe('useLocalStorageKey', () => {
     expect(result.current).toBe(true);
   });
 
-  it('キーの変更を正しく追跡する', () => {
+  it('キーの変更を正しく追跡する', async () => {
+    // 事前にkey1に値を設定
+    mockLocalStorage.setItem('key1', 'value1');
+
     const { result, rerender } = renderHook(
       ({ key }) => useLocalStorageKey(key),
       { initialProps: { key: 'key1' } }
     );
-    
-    expect(result.current).toBe(false);
-    
-    // key1に値を設定
-    mockLocalStorage.setItem('key1', 'value1');
-    rerender({ key: 'key1' });
-    
-    expect(result.current).toBe(true);
-    
-    // 異なるキーに変更
+
+    // useEffectの実行を待つ
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
+
+    // 異なるキーに変更（key2は存在しない）
     rerender({ key: 'key2' });
-    
-    expect(result.current).toBe(false);
+
+    // useEffectの実行を待つ
+    await waitFor(() => {
+      expect(result.current).toBe(false);
+    });
   });
 });

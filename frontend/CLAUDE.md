@@ -22,12 +22,12 @@
 ## アーキテクチャ概要
 
 ### 技術スタック
-- **React 19.2.0** with TypeScript and Vite
-- **React Compiler** 自動メモ化による最適化（babel-plugin-react-compiler）
-- **TanStack React Query** サーバー状態管理
-- **React Router DOM 7.9.3** ルーティング
+- **React 19.2.3** with TypeScript 5.9.3 and Vite 7.3.0
+- **React Compiler 19.1.0** 自動メモ化による最適化（babel-plugin-react-compiler）
+- **TanStack React Query 5.90.16** サーバー状態管理
+- **React Router DOM 7.11.0** ルーティング
 - **Bootstrap 5.3.8** スタイリング
-- **Vitest + Testing Library** テスト
+- **Vitest 4.0.16 + Testing Library 16.3.1** テスト
 
 ### プロジェクト構造
 **Atomic Design**手法に従った日本株取引Webアプリケーション：
@@ -58,10 +58,11 @@
 - **レスポンシブテーブル**: グループ化とサマリー行付き自動リサイズ
 
 ### 設定注意事項
-- **ベースパス**: GitHub Pages デプロイ用の `/shoken-webapp/`
+- **ベースパス**: `/` (Vercel ルート)
+- **Vercel設定**: `vercel.json`でSPAルーティング対応（すべてのルートを`index.html`にリライト）
 - **パスエイリアス**: `@/*` は `src/*` にマップ
 - **API プロキシ**: 開発サーバーがJ-Quants APIをプロキシ
-- **テスト**: jsdom環境での単一フォーク設定
+- **テスト**: jsdom環境、Vitest 4の forks pool使用
 - **ビルド**: Terser圧縮でのベンダーチャンク分割
 - **React Compiler**: Vite設定で`babel-plugin-react-compiler`を使用、ESLintで`eslint-plugin-react-compiler`を有効化
 
