@@ -1,6 +1,6 @@
 # Shoken Webapp (React)
 
-**Shoken Webapp** は、株式情報の検索と取引履歴管理をサポートするReactベースのウェブアプリケーションです。
+**Shoken Webapp** は、日本株取引の検索と取引履歴管理をサポートするReactベースのウェブアプリケーションです。
 
 ## デモ
 
@@ -9,53 +9,121 @@
 [デモサイトリンク](https://zaichu.github.io/shoken-webapp/)
 
 ## 主な機能
-- CSVファイルからの取引データのインポート
-- 実現損益の計算と表示
-- 銘柄情報の検索と表示
-- 各種証券情報サイトへのリンク生成
+- **CSVインポート**: エンコーディング自動検出付き取引データのインポート
+- **株式検索**: 銘柄コード/名前による日本株検索
+- **取引履歴管理**: 取引分析（国内株式、投資信託、配当）
+- **税計算**: 日本の税率内蔵（20.315%）
+- **J-Quants API連携**: `/api/jquants` プロキシ経由の金融データ取得
+- **実現損益の計算と表示**
+- **各種証券情報サイトへのリンク生成**
 
 ## プロジェクト構造
 
-このプロジェクトでは、**Atomic Design**パターンを採用しています。UIコンポーネントは以下の5つのレベルに分類されています：
+このプロジェクトでは、**Atomic Design**パターンと**機能ベース組織**を採用しています。
 
-1. **Atoms**: 基本的なUIコンポーネント（Button, InputField, SelectFieldなど）
-2. **Molecules**: 複数のAtomsを組み合わせたコンポーネント（CSVFileInput, StockInfoLinksなど）
-3. **Organisms**: より複雑な機能ブロック（Header, Footer, SearchFormなど）
-4. **Templates**: ページレイアウトの定義（ErrorPage, ReceiptTemplateなど）
-5. **Pages**: 実際のページコンポーネント（Home, Search, Receiptsなど）
+### UIコンポーネント（Atomic Design）
+1. **Atoms**: 基本的なUIコンポーネント（Button, InputField, Tableなど）
+2. **Molecules**: 複数のAtomsを組み合わせたコンポーネント（CSVFileInput, ErrorBoundaryなど）
+3. **Organisms**: より複雑な機能ブロック（Header, SearchForm, ReceiptTableなど）
+4. **Templates**: ページレイアウトの定義（Layout, ReceiptTemplateなど）
+5. **Pages**: 実際のページコンポーネント（Home, Search, Receipts, AssetBalanceなど）
+
+### ドメイン機能とユーティリティ
+- **`src/features/`**: ドメインロジック（認証、jquants API、取引履歴処理、株式検索）
+- **`src/lib/`**: コアユーティリティ（API クライアント、CSV処理、インターフェース、ユーティリティ）
+- **`src/hooks/`**: カスタムReactフック
+- **`src/contexts/`**: Reactコンテキスト
 
 詳細は `/src/components/README.md` を参照してください。
 
 ## 使用技術
 
-- **React**: フロントエンド UI ライブラリ
+- **React 19.2.0**: フロントエンド UI ライブラリ
 - **TypeScript**: 型安全なコーディング
-- **React Query**: サーバー状態管理
-- **React Router**: クライアントサイドルーティング
-- **Bootstrap**: レスポンシブデザインを簡素化するためのCSSフレームワーク
+- **React Compiler**: 自動メモ化による最適化（babel-plugin-react-compiler）
+- **TanStack React Query**: サーバー状態管理
+- **React Router DOM 7.9.3**: クライアントサイドルーティング
+- **Bootstrap 5.3.8**: レスポンシブデザインを簡素化するためのCSSフレームワーク
 - **Vite**: 高速な開発環境とビルドツール
-- **Vitest**: ユニットテスト
-- **Testing Library**: コンポーネントテスト
+- **Vitest + Testing Library**: ユニットテストとコンポーネントテスト
+
+### 主要アーキテクチャパターン
+- **Atomic Design**: 単一責任での厳密なコンポーネント階層
+- **機能ベース組織**: ビジネス機能でグループ化されたドメインロジック
+- **カスタムHTTPクライアント**: リトライロジックとエラーハンドリング付きAxiosラッパー
+- **型安全なCSV処理**: インポートパイプライン全体での強い型付け
+- **レスポンシブテーブル**: グループ化とサマリー行付き自動リサイズ
 
 ## 開発
 
+### NPMコマンド
 ```bash
 # 依存関係のインストール
 npm install
 
-# 開発サーバーの起動
+# 開発サーバーの起動（ポート8080で自動ブラウザ起動）
 npm run dev
 
-# ビルド
+# プロダクションビルド（dist/ディレクトリに出力）
 npm run build
 
-# テスト
+# ESLintによるコード検証（TypeScript + React + React Compilerルール）
+npm run lint
+
+# テスト実行（メモリ最適化済み）
 npm test
+
+# テストをウォッチモードで実行
+npm test:watch
 ```
 
+### Makeコマンド
+```bash
+# 開発サーバー起動
+make dev
+
+# プロダクションビルド
+make build
+
+# 依存関係インストール
+make install
+
+# node_modulesとdistを削除
+make clean
+
+# クリーン、インストール、ビルドを順次実行
+make all
+```
+
+## 開発ガイドライン
+
+- **コンポーネント設計**: Atomic Design分類に従ってコンポーネントを配置
+- **ビジネスロジック**: カスタムフックまたは`src/features/`に配置
+- **型安全性**: すべてのCSV処理とAPI通信で型安全性を維持
+- **状態管理**: サーバー状態はReact Query、ローカル状態はReactコンテキストまたはフックを使用
+- **コメントとUI**: 日本語で統一
+- **React Compiler**: `useMemo`、`useCallback`は不要（自動最適化される）
+  - パフォーマンス最適化が必要な場合のみ、React Compilerのルールに従ってコードを記述
+  - ESLintで`eslint-plugin-react-compiler`が有効化されており、違反を検出
+
+## 設定注意事項
+
+- **ベースパス**: GitHub Pagesデプロイ用に `/shoken-webapp/` を設定
+- **パスエイリアス**: `@/*` は `src/*` にマップ
+- **API プロキシ**: 開発サーバーがJ-Quants APIをプロキシ（`/api/jquants`）
+- **テスト環境**: jsdom環境での単一フォーク設定、10秒タイムアウト
+- **ビルド最適化**: Terser圧縮でのベンダーチャンク分割
+
 ## デプロイ
-このプロジェクトはGitHub Pagesでホストすることができます。
+
+このプロジェクトはGitHub Pagesでホストされています。
+
 ```bash
 npm run build
 ```
+
 ビルド後、`dist`ディレクトリの内容をGitHub Pagesにデプロイします。
+
+## ライセンス
+
+このプロジェクトは個人プロジェクトです。
