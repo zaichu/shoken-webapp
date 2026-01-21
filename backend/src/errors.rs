@@ -25,8 +25,6 @@ pub enum ApiError {
     OAuthError(String),
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
-    #[error("Service unavailable")]
-    ServiceUnavailable,
     #[error("Network error: {0}")]
     NetworkError(String),
     #[error("API error: {0}")]
@@ -134,14 +132,6 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
-            ApiError::ServiceUnavailable => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                ErrorDetails {
-                    code: "SERVICE_UNAVAILABLE".to_string(),
-                    message: "Service temporarily unavailable".to_string(),
-                    details: None,
-                },
-            ),
             ApiError::NetworkError(msg) => (
                 StatusCode::BAD_GATEWAY,
                 ErrorDetails {
@@ -186,9 +176,6 @@ where
         ApiError::OAuthError(err.to_string())
     }
 }
-
-// 既存のコードとの互換性のためのエイリアス
-pub use ApiError as AppError;
 
 #[cfg(test)]
 mod tests {

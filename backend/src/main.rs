@@ -117,7 +117,6 @@ mod tests {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
-            session_secret: "test-secret".to_string(),
         });
 
         let client = Client::new();
@@ -185,7 +184,6 @@ mod tests {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
-            session_secret: "test-secret".to_string(),
         });
         let client = Client::new();
 

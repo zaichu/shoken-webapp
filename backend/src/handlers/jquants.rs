@@ -39,10 +39,6 @@ pub async fn get_statements(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    // ここではハンドラーのユニットテストではなく、
-    // サービス層のテストに依存するため、基本的な構造テストのみ実装
     #[test]
     fn test_module_compilation() {
         // モジュールが正常にコンパイルされることを確認

@@ -15,15 +15,6 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
-/// ユーザー作成リクエスト
-#[derive(Debug, Clone, Deserialize)]
-pub struct CreateUserRequest {
-    pub google_id: String,
-    pub email: String,
-    pub name: Option<String>,
-    pub picture_url: Option<String>,
-}
-
 /// APIレスポンス用のユーザー情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserResponse {

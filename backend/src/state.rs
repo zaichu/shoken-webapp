@@ -11,7 +11,6 @@ pub struct Secrets {
     pub google_client_id: Option<String>,
     pub google_client_secret: Option<String>,
     pub frontend_url: String,
-    pub session_secret: String,
 }
 
 impl Secrets {
@@ -26,24 +25,9 @@ impl Secrets {
             google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").ok(),
             frontend_url: std::env::var("FRONTEND_URL")
                 .unwrap_or_else(|_| "http://localhost:8080".to_string()),
-            session_secret: std::env::var("SESSION_SECRET")
-                .unwrap_or_else(|_| "dev-secret-key-change-in-production-12345678".to_string()),
         })
     }
 
-    /// 指定したキーのシークレットを取得（後方互換性のため）
-    pub fn get(&self, key: &str) -> Option<String> {
-        match key {
-            "DATABASE_URL" => Some(self.database_url.clone()),
-            "JQUANTS_EMAIL" => self.jquants_email.clone(),
-            "JQUANTS_PASSWORD" => self.jquants_password.clone(),
-            "GOOGLE_CLIENT_ID" => self.google_client_id.clone(),
-            "GOOGLE_CLIENT_SECRET" => self.google_client_secret.clone(),
-            "FRONTEND_URL" => Some(self.frontend_url.clone()),
-            "SESSION_SECRET" => Some(self.session_secret.clone()),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -66,7 +50,6 @@ mod tests {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
-            session_secret: "test-secret-key".to_string(),
         }
     }
 
@@ -124,18 +107,4 @@ mod tests {
         let _ = &cloned_state.client;
     }
 
-    #[test]
-    fn test_secrets_get() {
-        let secrets = create_test_secrets();
-
-        assert_eq!(
-            secrets.get("DATABASE_URL"),
-            Some("postgresql://user:password@localhost/test_db".to_string())
-        );
-        assert_eq!(
-            secrets.get("JQUANTS_EMAIL"),
-            Some("test@example.com".to_string())
-        );
-        assert_eq!(secrets.get("NONEXISTENT_KEY"), None);
-    }
 }
