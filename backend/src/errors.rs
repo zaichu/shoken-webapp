@@ -23,8 +23,8 @@ pub enum ApiError {
     UrlParseError(#[from] ParseError),
     #[error("OAuth error: {0}")]
     OAuthError(String),
-    #[error("Unauthorized")]
-    Unauthorized,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
     #[error("Service unavailable")]
     ServiceUnavailable,
     #[error("Network error: {0}")]
@@ -126,11 +126,11 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
-            ApiError::Unauthorized => (
+            ApiError::Unauthorized(msg) => (
                 StatusCode::UNAUTHORIZED,
                 ErrorDetails {
                     code: "UNAUTHORIZED".to_string(),
-                    message: "Unauthorized access".to_string(),
+                    message: msg,
                     details: None,
                 },
             ),
