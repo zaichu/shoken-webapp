@@ -47,11 +47,20 @@ fn create_oauth_client(state: &AppState) -> Result<BasicClient, ApiError> {
 
     let redirect_url = format!("{}/auth/google/callback", get_backend_url());
 
-    let client = BasicClient::new(ClientId::new(client_id))
-        .set_client_secret(ClientSecret::new(client_secret))
-        .set_auth_uri(AuthUrl::new(GOOGLE_AUTH_URL.to_string()).unwrap())
-        .set_token_uri(TokenUrl::new(GOOGLE_TOKEN_URL.to_string()).unwrap())
-        .set_redirect_uri(RedirectUrl::new(redirect_url).unwrap());
+    let client = BasicClient::new(
+        ClientId::new(client_id),
+        Some(ClientSecret::new(client_secret)),
+        AuthUrl::new(GOOGLE_AUTH_URL.to_string())
+            .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
+        Some(
+            TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
+                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {}", e)))?,
+        ),
+    )
+    .set_redirect_uri(
+        RedirectUrl::new(redirect_url)
+            .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
+    );
 
     Ok(client)
 }
@@ -91,7 +100,7 @@ pub async fn google_callback(
     // 認証コードをトークンに交換
     let token_result = client
         .exchange_code(AuthorizationCode::new(query.code))
-        .request_async(&state.client)
+        .request_async(oauth2::reqwest::async_http_client)
         .await
         .map_err(|e| ApiError::ApiError(format!("トークン交換エラー: {:?}", e)))?;
 
@@ -134,8 +143,7 @@ pub async fn google_callback(
 
 /// ユーザーを登録または更新
 async fn upsert_user(state: &AppState, user_info: &GoogleUserInfo) -> Result<User, ApiError> {
-    let user = sqlx::query_as!(
-        User,
+    let user = sqlx::query_as::<_, User>(
         r#"
         INSERT INTO users (google_id, email, name, picture_url)
         VALUES ($1, $2, $3, $4)
@@ -146,11 +154,11 @@ async fn upsert_user(state: &AppState, user_info: &GoogleUserInfo) -> Result<Use
             updated_at = NOW()
         RETURNING id, google_id, email, name, picture_url, created_at, updated_at
         "#,
-        user_info.sub,
-        user_info.email,
-        user_info.name,
-        user_info.picture,
     )
+    .bind(&user_info.sub)
+    .bind(&user_info.email)
+    .bind(&user_info.name)
+    .bind(&user_info.picture)
     .fetch_one(&state.pool)
     .await?;
 
@@ -171,15 +179,14 @@ pub async fn get_current_user(
         .parse()
         .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
 
-    let user = sqlx::query_as!(
-        User,
+    let user = sqlx::query_as::<_, User>(
         r#"
         SELECT id, google_id, email, name, picture_url, created_at, updated_at
         FROM users
         WHERE id = $1
         "#,
-        user_id
     )
+    .bind(user_id)
     .fetch_optional(&state.pool)
     .await?
     .ok_or_else(|| ApiError::Unauthorized("ユーザーが見つかりません".to_string()))?;

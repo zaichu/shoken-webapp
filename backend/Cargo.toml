@@ -20,7 +20,7 @@ tokio = { version = "1.44.1", features = ["full"] }
 validator = { version = "0.20.0", features = ["derive"] }
 tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["cors"] }
-oauth2 = "5.0.0"
+oauth2 = "4.4"
 dotenvy = "0.15.7"
 mockall = "0.13.1"
 hyper = "1.6.0"
@@ -29,6 +29,7 @@ reqwest = { version = "0.12", features = ["json"] }
 uuid = { version = "1.11", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+time = "0.3"
 
 [dev-dependencies]
 tokio-test = "0.4.4"
