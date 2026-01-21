@@ -8,7 +8,7 @@ use axum::{
 };
 
 pub async fn authenticate(State(state): State<AppState>) -> Result<Json<AuthResponse>, ApiError> {
-    let response = JQuantsService::authenticate(&state.client, &state.secrets).await?;
+    let response = JQuantsService::authenticate(&state.client, &*state.secrets).await?;
     Ok(Json(response))
 }
 
@@ -25,7 +25,7 @@ pub async fn get_statements(
     Query(params): Query<StatementsQuery>,
     headers: axum::http::HeaderMap,
 ) -> Result<Json<StatementsResponse>, ApiError> {
-    println!("財務諸表取得パラメータ: {:?}", params);
+    tracing::info!("財務諸表取得パラメータ: {:?}", params);
 
     let auth_header = headers
         .get("Authorization")

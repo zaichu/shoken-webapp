@@ -13,66 +13,93 @@ use axum::{
 use config::Config;
 use dotenvy::dotenv;
 use reqwest::Client;
-use shuttle_runtime::SecretStore;
 use sqlx::postgres::PgPoolOptions;
-use state::AppState;
+use state::{AppState, Secrets};
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-#[shuttle_runtime::main]
-async fn main(
-    #[shuttle_shared_db::Postgres] postgres_connection: String,
-    #[shuttle_runtime::Secrets] secrets: SecretStore,
-) -> shuttle_axum::ShuttleAxum {
+#[tokio::main]
+async fn main() {
+    // 環境変数の読み込み
     dotenv().ok();
 
+    // ロギングの初期化
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "backend=info,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // シークレットの読み込み
+    let secrets = Secrets::from_env().expect("シークレットの読み込みに失敗しました");
+    let secrets = Arc::new(secrets);
+
     let config = Config::default();
-    
-    let database_url = secrets.get("DATABASE_URL").unwrap_or(postgres_connection);
-    println!("database_url: {}", database_url);
+
+    tracing::info!("データベースに接続中...");
     let pool = PgPoolOptions::new()
         .max_connections(config.database_max_connections)
-        .connect(&database_url)
+        .connect(&secrets.database_url)
         .await
-        .expect("Failed to connect to Postgres");
+        .expect("データベースへの接続に失敗しました");
 
-    // sqlx::migrate!()
-    //     .run(&pool)
-    //     .await
-    //     .expect("Failed to run migrations");
+    // マイグレーションの実行
+    tracing::info!("マイグレーションを実行中...");
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("マイグレーションの実行に失敗しました");
 
     let cors = config.build_cors_layer();
 
     let client = Client::new();
     let state = AppState {
         pool,
-        secrets: secrets,
+        secrets,
         client,
     };
 
     let router = Router::new()
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
-        // JQuantsのエンドポイントを追加
+        // JQuantsのエンドポイント
         .route("/jquants/auth", post(handlers::jquants::authenticate))
         .route("/jquants/refresh", post(handlers::jquants::refresh_token))
         .route(
             "/jquants/fins/statements",
             get(handlers::jquants::get_statements),
         )
+        // 認証エンドポイント
+        .route("/auth/google", get(handlers::auth::google_auth))
+        .route("/auth/google/callback", get(handlers::auth::google_callback))
+        .route("/auth/me", get(handlers::auth::get_current_user))
+        .route("/auth/logout", post(handlers::auth::logout))
+        // ヘルスチェック
+        .route("/health", get(|| async { "OK" }))
         .layer(cors)
         .with_state(state);
 
-    Ok(router.into())
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3001".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+
+    tracing::info!("サーバーを {} で起動します", addr);
+
+    let listener = TcpListener::bind(&addr)
+        .await
+        .expect("TCPリスナーのバインドに失敗しました");
+
+    axum::serve(listener, router)
+        .await
+        .expect("サーバーの起動に失敗しました");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
-    use tower::ServiceExt;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
+    use axum::http::Method;
     use sqlx::postgres::PgPoolOptions;
 
     /// テスト用のアプリケーションルーターを作成する
@@ -83,12 +110,15 @@ mod tests {
             .connect_lazy(database_url)
             .expect("Failed to create connection pool");
 
-        let bt = BTreeMap::from([
-            ("DATABASE_URL".to_owned(), database_url.to_owned().into()),
-            ("JQUANTS_EMAIL".to_owned(), "test@example.com".to_owned().into()),
-            ("JQUANTS_PASSWORD".to_owned(), "password123".to_owned().into()),
-        ]);
-        let secrets = SecretStore::new(bt);
+        let secrets = Arc::new(Secrets {
+            database_url: database_url.to_string(),
+            jquants_email: Some("test@example.com".to_string()),
+            jquants_password: Some("password123".to_string()),
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+            session_secret: "test-secret".to_string(),
+        });
 
         let client = Client::new();
         let state = AppState {
@@ -102,16 +132,17 @@ mod tests {
             .route("/stock/{query}", get(handlers::stock::select_stock_info))
             .route("/jquants/auth", post(handlers::jquants::authenticate))
             .route("/jquants/refresh", post(handlers::jquants::refresh_token))
-            .route("/jquants/fins/statements", get(handlers::jquants::get_statements))
+            .route(
+                "/jquants/fins/statements",
+                get(handlers::jquants::get_statements),
+            )
             .with_state(state)
     }
 
     #[tokio::test]
     async fn test_router_creation() {
-        let router = create_test_router();
-        
+        let _router = create_test_router();
         // ルーターが正常に作成されることを確認
-        // 実際のリクエストは送信せず、ルーターの作成のみをテスト
         assert!(true);
     }
 
@@ -125,18 +156,18 @@ mod tests {
         ];
 
         let allowed_methods = vec![
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::PUT,
-            axum::http::Method::DELETE,
-            axum::http::Method::OPTIONS,
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
         ];
 
         // CORS設定が正しく構成されることを確認
         assert_eq!(allowed_headers.len(), 4);
         assert_eq!(allowed_methods.len(), 5);
-        assert!(allowed_methods.contains(&axum::http::Method::GET));
-        assert!(allowed_methods.contains(&axum::http::Method::POST));
+        assert!(allowed_methods.contains(&Method::GET));
+        assert!(allowed_methods.contains(&Method::POST));
     }
 
     #[tokio::test]
@@ -147,10 +178,15 @@ mod tests {
             .connect_lazy(database_url)
             .expect("Failed to create connection pool");
 
-        let bt = BTreeMap::from([
-            ("DATABASE_URL".to_owned(), database_url.to_owned().into()),
-        ]);
-        let secrets = SecretStore::new(bt);
+        let secrets = Arc::new(Secrets {
+            database_url: database_url.to_string(),
+            jquants_email: None,
+            jquants_password: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+            session_secret: "test-secret".to_string(),
+        });
         let client = Client::new();
 
         let state = AppState {
