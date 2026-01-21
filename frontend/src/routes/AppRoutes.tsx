@@ -6,6 +6,7 @@ import { SearchPage } from '../pages/Search';
 import { ReceiptsPage } from '../pages/Receipts';
 import { AssetBalancePage } from '../pages/AssetBalance';
 import { NotFoundPage } from '../pages/NotFound';
+import { LoginPage } from '../pages/Login';
 
 const router = createBrowserRouter([
   {
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
   {
     path: "/assetbalance",
     element: <AssetBalancePage />,
+  },
+  {
+    path: "/login",
+    element: <LoginPage />,
   },
   {
     path: "/404",
