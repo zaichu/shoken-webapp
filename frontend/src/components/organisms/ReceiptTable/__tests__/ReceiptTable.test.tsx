@@ -3,12 +3,13 @@ import { vi } from 'vitest';
 import { ReceiptTable } from '../ReceiptTable';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 
-// ResizeObserver のモック
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-})) as unknown as typeof ResizeObserver;
+// ResizeObserver のモック（class形式で定義）
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 describe('ReceiptTable', () => {
   const mockColumns: TableColumnConfig[] = [
