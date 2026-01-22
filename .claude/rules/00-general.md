@@ -4,8 +4,9 @@
 
 - **shoken-webapp**: 日本株の証券情報を管理するウェブアプリケーション
 - フロントエンド: React 19 + TypeScript + Vite
-- バックエンド: Rust + Axum + SQLx + Shuttle
-- データベース: PostgreSQL
+- バックエンド: Rust + Axum + SQLx + Fly.io
+- データベース: PostgreSQL (Neon)
+- 認証: Google OAuth
 
 ## 言語・コミュニケーション
 
@@ -36,9 +37,9 @@ npm run lint  # ESLint実行
 ### バックエンド (`backend/`)
 
 ```bash
-make run      # 開発サーバー起動 (port 3001)
+make run      # 開発サーバー起動
 make test     # テスト実行
-make deploy   # Shuttleへデプロイ
+make deploy   # Fly.ioへデプロイ
 ```
 
 ## 環境変数
@@ -51,9 +52,8 @@ make deploy   # Shuttleへデプロイ
 
 ### バックエンド
 
-- `Secrets.dev.toml` - ローカル開発用
-- `Secrets.toml` - 本番用 (gitignore)
-- Shuttle SecretStore で管理
+- `.env` - ローカル開発用 (gitignore)
+- Fly.io Secrets で本番環境を管理
 
 ## Git運用
 

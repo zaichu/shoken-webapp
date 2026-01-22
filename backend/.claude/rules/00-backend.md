@@ -5,9 +5,10 @@
 - **Rust**: 最新 stable
 - **Axum**: 0.8.x (Webフレームワーク)
 - **SQLx**: 0.8.x (型安全DBアクセス)
-- **Shuttle**: デプロイプラットフォーム
-- **PostgreSQL**: データベース
+- **Fly.io**: デプロイプラットフォーム
+- **Neon**: PostgreSQL データベース
 - **Tokio**: 非同期ランタイム
+- **OAuth2**: Google認証
 
 ## ディレクトリ構成
 
@@ -77,35 +78,40 @@ impl IntoResponse for AppError {
 - `oauth2` クレート
 - セッション管理は `handlers/` 内で実装
 
-## Shuttle デプロイ
+## Fly.io デプロイ
 
 ### ローカル開発
 
 ```bash
-make run  # shuttle run --secrets Secrets.dev.toml --port 3001
+make run  # cargo run（環境変数は .env から読み込み）
 ```
 
 ### デプロイ
 
 ```bash
-make deploy        # クリーンデプロイ
-make deploy-dirty  # ダーティデプロイ（未コミット変更あり）
+make deploy  # fly deploy
+make status  # fly status
+make logs    # fly logs
 ```
 
-### Secrets管理
+### 環境変数管理
 
-- `Secrets.dev.toml` - ローカル開発用
-- `Secrets.toml` - 本番用（gitignore対象）
-- Shuttle SecretStore で注入
+- `.env` - ローカル開発用（gitignore対象）
+- Fly.io Secrets で本番環境の環境変数を管理
 
-```rust
-#[shuttle_runtime::main]
-async fn main(
-    #[shuttle_shared_db::Postgres] pool: PgPool,
-    #[shuttle_runtime::Secrets] secrets: SecretStore,
-) -> ShuttleAxum {
-    // ...
-}
+```bash
+# Fly.io に環境変数を設定
+fly secrets set DATABASE_URL="postgres://..."
+fly secrets set GOOGLE_CLIENT_ID="..."
+fly secrets set GOOGLE_CLIENT_SECRET="..."
+fly secrets set FRONTEND_URL="https://..."
+fly secrets set BACKEND_URL="https://..."
+```
+
+### Docker ビルド
+
+```bash
+make docker-build  # docker build -t shoken-backend .
 ```
 
 ## バリデーション

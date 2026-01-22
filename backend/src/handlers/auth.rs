@@ -5,7 +5,7 @@ use axum::{
     extract::{Query, State},
     response::{IntoResponse, Json, Redirect, Response},
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     RedirectUrl, Scope, TokenResponse, TokenUrl,
@@ -125,10 +125,14 @@ pub async fn google_callback(
     let session_token = user.id.to_string();
 
     // Cookieを設定
+    // クロスオリジン（フロントエンド: GitHub Pages, バックエンド: Fly.io）で
+    // Cookieを送受信するには SameSite=None + Secure が必要
+    let is_production = std::env::var("BACKEND_URL").is_ok();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, session_token))
         .path("/")
         .http_only(true)
-        .secure(std::env::var("BACKEND_URL").is_ok()) // 本番環境ではsecure
+        .secure(is_production)
+        .same_site(if is_production { SameSite::None } else { SameSite::Lax })
         .max_age(time::Duration::days(7))
         .build();
 
@@ -196,9 +200,12 @@ pub async fn get_current_user(
 
 /// ログアウト処理
 pub async fn logout(jar: CookieJar) -> impl IntoResponse {
+    let is_production = std::env::var("BACKEND_URL").is_ok();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, ""))
         .path("/")
         .http_only(true)
+        .secure(is_production)
+        .same_site(if is_production { SameSite::None } else { SameSite::Lax })
         .max_age(time::Duration::seconds(0))
         .build();
 

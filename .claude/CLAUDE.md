@@ -8,8 +8,9 @@
 **shoken-webapp** は日本株の証券情報を管理するウェブアプリケーションです。
 
 - **フロントエンド**: React 19 + TypeScript + Vite
-- **バックエンド**: Rust + Axum + SQLx + Shuttle
-- **データベース**: PostgreSQL
+- **バックエンド**: Rust + Axum + SQLx + Fly.io
+- **データベース**: PostgreSQL (Neon)
+- **認証**: Google OAuth
 
 ## プロジェクト構造
 
@@ -53,9 +54,9 @@ npm run lint  # ESLint実行
 
 ```bash
 cd backend
-make run      # 開発サーバー起動 (port 3001)
+make run      # 開発サーバー起動
 make test     # テスト実行
-make deploy   # Shuttleへデプロイ
+make deploy   # Fly.ioへデプロイ
 ```
 
 ## 主要機能
@@ -96,5 +97,5 @@ make deploy   # Shuttleへデプロイ
 
 ### バックエンド
 
-- `Secrets.dev.toml` - ローカル開発用
-- `Secrets.toml` - 本番用 (gitignore)
+- `.env` - ローカル開発用 (gitignore)
+- Fly.io Secrets で本番環境を管理

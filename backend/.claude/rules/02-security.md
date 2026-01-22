@@ -2,13 +2,19 @@
 
 ## 環境変数
 
-```toml
-# Secrets.toml (gitignore)
-API_KEY = "xxx"
-DATABASE_URL = "postgres://..."
+```bash
+# .env (gitignore)
+DATABASE_URL="postgres://..."
+GOOGLE_CLIENT_ID="xxx"
+GOOGLE_CLIENT_SECRET="xxx"
+FRONTEND_URL="https://..."
+BACKEND_URL="https://..."
 ```
 
-Shuttle SecretStore で管理。
+Fly.io Secrets で本番環境を管理:
+```bash
+fly secrets set DATABASE_URL="..."
+```
 
 ## 認証・認可
 
@@ -22,7 +28,16 @@ Shuttle SecretStore で管理。
 
 - HTTPOnly Cookie を使用
 - Secure フラグを有効化（本番環境）
+- **SameSite=None**（クロスオリジン認証に必要）
 - 適切な有効期限を設定
+
+```rust
+// クロスオリジン Cookie 設定例
+Cookie::build((name, value))
+    .http_only(true)
+    .secure(is_production)
+    .same_site(if is_production { SameSite::None } else { SameSite::Lax })
+```
 
 ## 入力バリデーション
 
