@@ -8,7 +8,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    RedirectUrl, Scope, TokenResponse, TokenUrl,
+    EndpointNotSet, EndpointSet, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 
@@ -31,8 +31,22 @@ pub struct AuthCallbackQuery {
     pub state: Option<String>,
 }
 
+/// OAuthクライアントの型エイリアス（oauth2 5.0.0 の新しい型システム対応）
+type GoogleOAuthClient = oauth2::Client<
+    oauth2::basic::BasicErrorResponse,
+    oauth2::basic::BasicTokenResponse,
+    oauth2::basic::BasicTokenIntrospectionResponse,
+    oauth2::StandardRevocableToken,
+    oauth2::basic::BasicRevocationErrorResponse,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
+
 /// OAuthクライアントを作成
-fn create_oauth_client(state: &AppState) -> Result<BasicClient, ApiError> {
+fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
     let client_id = state
         .secrets
         .google_client_id
@@ -47,20 +61,21 @@ fn create_oauth_client(state: &AppState) -> Result<BasicClient, ApiError> {
 
     let redirect_url = format!("{}/auth/google/callback", get_backend_url());
 
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        AuthUrl::new(GOOGLE_AUTH_URL.to_string())
-            .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
-        Some(
+    // oauth2 5.0.0 のビルダーパターンを使用
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_client_secret(ClientSecret::new(client_secret))
+        .set_auth_uri(
+            AuthUrl::new(GOOGLE_AUTH_URL.to_string())
+                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
+        )
+        .set_token_uri(
             TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
                 .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {}", e)))?,
-        ),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(redirect_url)
-            .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
-    );
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_url)
+                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
+        );
 
     Ok(client)
 }
@@ -97,10 +112,11 @@ pub async fn google_callback(
 ) -> Result<Response, ApiError> {
     let client = create_oauth_client(&state)?;
 
-    // 認証コードをトークンに交換
+    // 認証コードをトークンに交換（oauth2 5.0.0 の新しい HTTP クライアント API）
+    let http_client = oauth2::reqwest::Client::new();
     let token_result = client
         .exchange_code(AuthorizationCode::new(query.code))
-        .request_async(oauth2::reqwest::async_http_client)
+        .request_async(&http_client)
         .await
         .map_err(|e| ApiError::ApiError(format!("トークン交換エラー: {:?}", e)))?;
 
