@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchStockData } from '../api';
 import { StockData } from '../types';
 
-export function useStockSearch() {
-  const [stockCode, setStockCode] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+export function useStockSearch(initialCode?: string) {
+  const [stockCode, setStockCode] = useState(initialCode || '');
+  const [searchQuery, setSearchQuery] = useState(initialCode || '');
 
   const {
     data: stockData,
@@ -23,6 +23,12 @@ export function useStockSearch() {
     setSearchQuery(stockCode);
   };
 
+  // 検索を直接実行（URLパラメータからの自動検索用）
+  const searchByCode = (code: string) => {
+    setStockCode(code);
+    setSearchQuery(code);
+  };
+
   const resetSearch = () => {
     setStockCode('');
     setSearchQuery('');
@@ -36,6 +42,7 @@ export function useStockSearch() {
     isLoading,
     isError,
     handleSearch,
+    searchByCode,
     resetSearch
   };
 }

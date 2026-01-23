@@ -13,27 +13,67 @@ interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     columns: TableColumnConfig[];
     summaryColumns: SummaryColumnConfig[];
     getGroupKey: (item: T) => string;
+    formatGroupHeader?: (key: string) => string;
+    onSearch?: (query: string) => void;
 }
 
 /**
  * 明細表示用テーブルコンポーネント
- * 数値のフォーマットやマイナス値の赤文字表示に対応
- * Context APIを使用してリサイズイベントを受信
  */
+const defaultFormatGroupHeader = (key: string): string => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        const date = new Date(key);
+        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    }
+    if (/^\d{4}-\d{2}$/.test(key)) {
+        const [year, month] = key.split('-');
+        return `${year}年${parseInt(month, 10)}月`;
+    }
+    if (/^\d{4}$/.test(key)) {
+        return `${key}年`;
+    }
+    return key;
+};
+
+// 件数バッジのスタイル
+const badgeStyle: React.CSSProperties = {
+    display: 'inline-block',
+    background: 'rgba(255, 255, 255, 0.2)',
+    color: 'white',
+    padding: '3px 10px',
+    borderRadius: '4px',
+    fontSize: '0.85em',
+    fontWeight: '600',
+    marginLeft: '12px',
+    verticalAlign: 'middle',
+};
+
 export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     data,
     summary,
     columns,
     summaryColumns,
-    getGroupKey
+    getGroupKey,
+    formatGroupHeader = defaultFormatGroupHeader,
+    onSearch
 }: ReceiptTableProps<T, S>) {
-    // Context からの forceResize を取得
     const forceResize = useForceResize();
+
+    // テーブル内のクリックイベントをハンドル（銘柄コードリンク用）
+    const handleTableClick = (e: React.MouseEvent<HTMLTableElement>) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('security-code-link') && onSearch) {
+            const searchValue = target.dataset.search;
+            if (searchValue) {
+                onSearch(searchValue);
+            }
+        }
+    };
 
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
         const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
-        
+
         const cellStyle: React.CSSProperties = {
             width: 'width' in column ? column.width : undefined,
             textAlign: column.textAlign,
@@ -53,7 +93,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         );
     };
 
-    const renderDataRows = (items: T[], keyPrefix: string) => 
+    const renderDataRows = (items: T[], keyPrefix: string) =>
         items.map((item, itemIndex) => (
             <TableRow key={`${keyPrefix}-${itemIndex}`}>
                 {columns.map((column, colIndex) =>
@@ -62,29 +102,109 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             </TableRow>
         ));
 
-    const renderGroupedRows = () => 
+    // サマリー値のフォーマット
+    const formatSummaryValue = (value: unknown, column: SummaryColumnConfig) => {
+        return column.format ? column.format(value) : value;
+    };
+
+    // サマリーのラベルを取得
+    const getSummaryLabel = (key: string): string => {
+        const labels: Record<string, string> = {
+            'total_realized_profit_and_loss': '損益',
+            'dividends_before_tax': '配当',
+            'total_taxes': '税額',
+            'taxes': '税額',
+            'total_realized_profit_and_loss_after_tax': '税引後',
+            'net_amount_received': '受取額',
+        };
+        return labels[key] || key;
+    };
+
+    const renderGroupedRows = () =>
         summary.map((summaryItem, summaryIndex) => {
             const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
-            
+            const headerText = formatGroupHeader(summaryItem.filter);
+            const itemCount = groupItems.length;
+
+            // サマリー値の取得
+            const summaryValues = summaryColumns.map(column => ({
+                key: column.key,
+                label: getSummaryLabel(column.key),
+                value: formatSummaryValue(summaryItem[column.key], column)
+            }));
+
+            // 左側セルのスタイル（年月＋件数）- 検索オプションと同じ青
+            const summaryLeftCellStyle: React.CSSProperties = {
+                padding: '10px 16px',
+                backgroundColor: '#0d6efd',
+                borderLeft: '4px solid #0a58ca',
+                borderTop: summaryIndex > 0 ? '2px solid #3d8bfd' : undefined,
+            };
+
+            // 右側セルのスタイル（サマリー値）
+            const summaryValueCellStyle: React.CSSProperties = {
+                padding: '10px 16px',
+                backgroundColor: '#0d6efd',
+                borderTop: summaryIndex > 0 ? '2px solid #3d8bfd' : undefined,
+                textAlign: 'right',
+                fontWeight: '700',
+                fontSize: '1.05em',
+                color: '#ffffff',
+            };
+
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>
-                    {renderDataRows(groupItems, `item-${summaryIndex}`)}
-                    <TableRow className="table-info">
-                        {summaryColumns.map((column, colIndex) =>
-                            renderCell(
-                                summaryItem[column.key],
-                                column,
-                                `summary-${summaryIndex}-${colIndex}`,
-                                { fontWeight: 'bold' }
-                            )
-                        )}
-                    </TableRow>
+                    {/* グループサマリー行 */}
+                    {summaryColumns.length > 0 && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={columns.length - summaryColumns.length}
+                                style={summaryLeftCellStyle}
+                            >
+                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                    {headerText}
+                                </span>
+                                <span style={badgeStyle}>
+                                    {itemCount}件
+                                </span>
+                            </TableCell>
+                            {summaryValues.map((sv, idx) => (
+                                <TableCell key={idx} style={summaryValueCellStyle}>
+                                    {String(sv.value)}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    )}
+                    {/* サマリーがない場合のヘッダー */}
+                    {summaryColumns.length === 0 && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={columns.length}
+                                style={summaryLeftCellStyle}
+                            >
+                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                    {headerText}
+                                </span>
+                                <span style={badgeStyle}>
+                                    {itemCount}件
+                                </span>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                    {/* 明細行 */}
+                    {groupItems.map((item, itemIndex) => (
+                        <TableRow key={`item-${summaryIndex}-${itemIndex}`}>
+                            {columns.map((column, colIndex) =>
+                                renderCell(item[column.key], column, `item-${summaryIndex}-${itemIndex}-${colIndex}`)
+                            )}
+                        </TableRow>
+                    ))}
                 </React.Fragment>
             );
         });
 
     return (
-        <Table className="mb-0" bordered small responsive forceResize={forceResize}>
+        <Table className="mb-0" bordered small responsive forceResize={forceResize} onClick={handleTableClick}>
             <TableHeader>
                 <TableRow className="table-warning">
                     {columns.map((column, index) => (
