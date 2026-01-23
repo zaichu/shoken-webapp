@@ -27,18 +27,37 @@ import {
 } from '@/lib/utils/searchUtils';
 
 // CSVアイテムをDomesticStockDataに変換
-const parseCsvItem = (item: Record<string, unknown>): DomesticStockData => ({
-    trade_date: new Date(item['約定日'] as string),
-    settlement_date: new Date(item['受渡日'] as string),
-    security_code: String(item['銘柄コード']),
-    security_name: String(item['銘柄名']),
-    account: String(item['口座']),
-    shares: parseNumber(item['数量[株]']),
-    asked_price: parseNumber(item['売却/決済単価[円]']),
-    proceeds: parseNumber(item['売却/決済額[円]']),
-    purchase_price: parseNumber(item['平均取得価額[円]']),
-    realized_profit_and_loss: parseNumber(item['実現損益[円]']),
-});
+const parseCsvItem = (item: Record<string, unknown>): DomesticStockData => {
+    const account = String(item['口座'] || '');
+    const realizedPnL = parseNumber(item['実現損益[円]']);
+    // 特定口座の場合のみ税金を計算（利益がある場合のみ）
+    const isSpecificAccount = account.includes('特定');
+    const taxes = isSpecificAccount ? Math.floor(Math.max(0, realizedPnL) * TAX_RATE) : 0;
+    const realizedPnLAfterTax = realizedPnL - taxes;
+
+    const securityCode = String(item['銘柄コード']);
+    const securityName = String(item['銘柄名']);
+    // 銘柄コードをリンク形式で表示（/searchページに遷移）
+    const securityCodeLink = `<a href="/search?code=${securityCode}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${securityCode}</a>`;
+    // security_infoは後方互換性のため残す
+    const securityInfo = securityCodeLink;
+
+    return {
+        trade_date: new Date(item['約定日'] as string),
+        settlement_date: new Date(item['受渡日'] as string),
+        security_code: securityCode,
+        security_name: securityName,
+        security_info: securityInfo,
+        account,
+        shares: parseNumber(item['数量[株]']),
+        asked_price: parseNumber(item['売却/決済単価[円]']),
+        proceeds: parseNumber(item['売却/決済額[円]']),
+        purchase_price: parseNumber(item['平均取得価額[円]']),
+        realized_profit_and_loss: realizedPnL,
+        taxes,
+        realized_profit_and_loss_after_tax: realizedPnLAfterTax,
+    };
+};
 
 // 取引日でソート
 const sortByTradeDate = (data: DomesticStockData[]): DomesticStockData[] => {
@@ -182,20 +201,19 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     ];
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
+    // サマリーと一致するよう、最後の3カラムは「実現損益」「税額」「税引後」にする
     const baseColumns: TableColumnConfig[] = [
-        { key: 'trade_date', header: '約定日', format: formatJPDate },
-        { key: 'settlement_date', header: '受渡日', format: formatJPDate },
-        { key: 'security_code', header: '銘柄コード' },
-        { key: 'security_name', header: '銘柄名', width: '250px' },
-        { key: 'account', header: '口座', width: '100px' },
-        { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
-        { key: 'asked_price', header: '売却単価', textAlign: 'right', format: formatCurrency },
-        { key: 'proceeds', header: '売却額', textAlign: 'right', format: formatCurrency },
-        { key: 'purchase_price', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
-        { key: 'total_realized_profit_and_loss', header: '合計実現損益' },
-        { key: 'total_taxes', header: '合計税額' },
-        { key: 'total_realized_profit_and_loss_after_tax', header: '合計実現損益(税引)' },
+        { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
+        { key: 'security_info', header: '銘柄コード', width: '80px', textAlign: 'center' },
+        { key: 'security_name', header: '銘柄名', width: '180px' },
+        { key: 'account', header: '口座', width: '70px' },
+        { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },
+        { key: 'asked_price', header: '売却単価', width: '85px', textAlign: 'right', format: formatCurrency },
+        { key: 'proceeds', header: '売却額', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'purchase_price', header: '取得価額', width: '85px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '損益', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '税引後', width: '90px', textAlign: 'right', format: formatCurrency },
     ];
 
     // 検索タイプに応じて重要なカラムを前面に配置
@@ -212,9 +230,9 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         return baseColumns;
     })();
 
-    // サマリーカラムの定義
+    // サマリーカラムの定義（最後の3カラムと一致）
     const summaryColumns: SummaryColumnConfig[] = [
-        { key: 'total_realized_profit_and_loss', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
+        { key: 'total_realized_profit_and_loss', textAlign: 'right', format: formatCurrency },
         { key: 'total_taxes', textAlign: 'right', format: formatCurrency },
         { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ];

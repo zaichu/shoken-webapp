@@ -31,18 +31,28 @@ import {
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 
 // CSVアイテムをDividendDataに変換
-const parseCsvItem = (item: Record<string, unknown>): DividendData => ({
-    settlement_date: new Date(item['入金日'] as string),
-    product: String(item['商品'] || ''),
-    account: String(item['口座'] || ''),
-    security_code: String(item['銘柄コード'] || ''),
-    security_name: String(item['銘柄'] || ''),
-    unit_price: parseNumber(item['単価[円/現地通貨]']),
-    shares: parseNumber(item['数量[株/口]']),
-    dividends_before_tax: parseNumber(item['配当・分配金合計（税引前）[円/現地通貨]']),
-    taxes: parseNumber(item['税額合計[円/現地通貨]']),
-    net_amount_received: parseNumber(item['受取金額[円/現地通貨]']),
-});
+const parseCsvItem = (item: Record<string, unknown>): DividendData => {
+    const securityCode = String(item['銘柄コード'] || '');
+    const securityName = String(item['銘柄'] || '');
+    // 銘柄コードをリンク形式で表示（/searchページに遷移）
+    const securityCodeLink = `<a href="/search?code=${securityCode}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${securityCode}</a>`;
+    // security_infoは後方互換性のため残す
+    const securityInfo = securityCodeLink;
+
+    return {
+        settlement_date: new Date(item['入金日'] as string),
+        product: String(item['商品'] || ''),
+        account: String(item['口座'] || ''),
+        security_code: securityCode,
+        security_name: securityName,
+        security_info: securityInfo,
+        unit_price: parseNumber(item['単価[円/現地通貨]']),
+        shares: parseNumber(item['数量[株/口]']),
+        dividends_before_tax: parseNumber(item['配当・分配金合計（税引前）[円/現地通貨]']),
+        taxes: parseNumber(item['税額合計[円/現地通貨]']),
+        net_amount_received: parseNumber(item['受取金額[円/現地通貨]']),
+    };
+};
 
 // 決済日でソート
 const sortBySettlementDate = (data: DividendData[]): DividendData[] => {
@@ -201,19 +211,16 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = [
-        { key: 'settlement_date', header: '入金日', format: formatJPDate },
-        { key: 'product', header: '商品' },
-        { key: 'account', header: '口座', width: '100px' },
-        { key: 'security_code', header: '銘柄コード' },
-        { key: 'security_name', header: '銘柄名', width: '250px' },
-        { key: 'unit_price', header: '単価', width: '80px', textAlign: 'right', format: formatCurrency },
-        { key: 'shares', header: '数量[株]', width: '100px', textAlign: 'right', format: formatNumber },
-        { key: 'dividends_before_tax', header: '配当・分配金', width: '150px', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', width: '100px', textAlign: 'right', format: formatCurrency },
-        { key: 'net_amount_received', header: '受取金額', width: '100px', textAlign: 'right', format: formatCurrency },
-        { key: 'total_dividends_before_tax', header: '合計配当・分配金' },
-        { key: 'total_taxes', header: '合計税額' },
-        { key: 'total_net_amount_received', header: '合計受取金額' }
+        { key: 'settlement_date', header: '入金日', width: '90px', format: formatJPDate },
+        { key: 'product', header: '商品', width: '80px' },
+        { key: 'account', header: '口座', width: '70px' },
+        { key: 'security_info', header: '銘柄コード', width: '80px', textAlign: 'center' },
+        { key: 'security_name', header: '銘柄名', width: '200px' },
+        { key: 'unit_price', header: '単価', width: '70px', textAlign: 'right', format: formatCurrency },
+        { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },
+        { key: 'dividends_before_tax', header: '配当金', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
+        { key: 'net_amount_received', header: '受取額', width: '90px', textAlign: 'right', format: formatCurrency },
     ];
 
     // 検索タイプに応じて重要なカラムを前面に配置

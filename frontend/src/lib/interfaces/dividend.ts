@@ -5,6 +5,7 @@ export interface DividendData extends ReceiptBase {
     account: string;
     security_code: string;
     security_name: string;
+    security_info: string; // 銘柄コード + 銘柄名の表示用HTML
     unit_price: number;
     shares: number;
     dividends_before_tax: number;

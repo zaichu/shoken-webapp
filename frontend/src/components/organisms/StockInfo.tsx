@@ -31,7 +31,7 @@ export function StockInfo({ stockData }: StockInfoProps) {
   return (
     <div className="stock-info">
       <div className="card mb-4">
-        <div className="card-header bg-info text-white">
+        <div className="card-header bg-primary text-white">
           <h5 className="mb-0">{name} ({code})</h5>
         </div>
         <div className="card-body">
