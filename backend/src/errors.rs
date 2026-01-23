@@ -23,10 +23,8 @@ pub enum ApiError {
     UrlParseError(#[from] ParseError),
     #[error("OAuth error: {0}")]
     OAuthError(String),
-    #[error("Unauthorized")]
-    Unauthorized,
-    #[error("Service unavailable")]
-    ServiceUnavailable,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
     #[error("Network error: {0}")]
     NetworkError(String),
     #[error("API error: {0}")]
@@ -126,19 +124,11 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
-            ApiError::Unauthorized => (
+            ApiError::Unauthorized(msg) => (
                 StatusCode::UNAUTHORIZED,
                 ErrorDetails {
                     code: "UNAUTHORIZED".to_string(),
-                    message: "Unauthorized access".to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::ServiceUnavailable => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                ErrorDetails {
-                    code: "SERVICE_UNAVAILABLE".to_string(),
-                    message: "Service temporarily unavailable".to_string(),
+                    message: msg,
                     details: None,
                 },
             ),
@@ -186,9 +176,6 @@ where
         ApiError::OAuthError(err.to_string())
     }
 }
-
-// 既存のコードとの互換性のためのエイリアス
-pub use ApiError as AppError;
 
 #[cfg(test)]
 mod tests {

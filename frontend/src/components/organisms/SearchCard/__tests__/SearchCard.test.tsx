@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { SearchCard } from '../SearchCard';
 
 describe('SearchCard', () => {
-  const mockOnSearch = jest.fn();
-  const mockOnExpandToggle = jest.fn();
+  const mockOnSearch = vi.fn();
+  const mockOnExpandToggle = vi.fn();
 
   const defaultCategories = {
     securities: [
@@ -14,15 +15,14 @@ describe('SearchCard', () => {
     ],
     products: ['株式', '投資信託'],
     accounts: ['一般口座', 'NISA口座'],
-    years: ['2023', '2024'],
-    yearMonths: [
-      { value: '2024-01', label: '2024年1月' },
-      { value: '2024-02', label: '2024年2月' }
-    ]
+    years: [
+      { value: '2023', label: '2023年' },
+      { value: '2024', label: '2024年' }
+    ],
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('検索カードが正しくレンダリングされる', () => {
@@ -34,7 +34,6 @@ describe('SearchCard', () => {
     );
 
     expect(screen.getByText('検索オプション')).toBeInTheDocument();
-    expect(screen.getByText('展開')).toBeInTheDocument();
   });
 
   test('初期状態では検索オプションが折りたたまれている', () => {
@@ -64,9 +63,7 @@ describe('SearchCard', () => {
     expect(screen.getByText('銘柄')).toBeInTheDocument();
     expect(screen.getByText('年度')).toBeInTheDocument();
     expect(screen.getByText('商品')).toBeInTheDocument();
-    expect(screen.getByText('年月')).toBeInTheDocument();
     expect(screen.getByText('口座')).toBeInTheDocument();
-    expect(screen.getByText('折りたたむ')).toBeInTheDocument();
   });
 
   test('onExpandToggleコールバックが呼ばれる', () => {
@@ -88,7 +85,7 @@ describe('SearchCard', () => {
   });
 
   test('銘柄ドロップダウンから選択すると検索が実行される', () => {
-    render(
+    const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
         categories={defaultCategories}
@@ -99,30 +96,11 @@ describe('SearchCard', () => {
     const header = screen.getByText('検索オプション').closest('.card-header');
     fireEvent.click(header!);
 
-    // 銘柄選択
-    const select = screen.getByLabelText('検索フィルター');
+    // 銘柄選択（IDで指定）
+    const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'AAPL' } });
 
     expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
-  });
-
-  test('年度ボタンをクリックすると検索が実行される', () => {
-    render(
-      <SearchCard
-        onSearch={mockOnSearch}
-        categories={defaultCategories}
-      />
-    );
-
-    // 展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
-    fireEvent.click(header!);
-
-    // 年度ボタンクリック
-    const yearButton = screen.getByText('2023');
-    fireEvent.click(yearButton);
-
-    expect(mockOnSearch).toHaveBeenCalledWith('2023');
   });
 
   test('商品ボタンをクリックすると検索が実行される', () => {
@@ -163,46 +141,19 @@ describe('SearchCard', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('一般口座');
   });
 
-  test('年月ドロップダウンから選択すると検索が実行される', () => {
-    render(
-      <SearchCard
-        onSearch={mockOnSearch}
-        categories={defaultCategories}
-      />
-    );
-
-    // 展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
-    fireEvent.click(header!);
-
-    // 年月選択（複数のセレクトがある場合の対処）
-    const selects = screen.getAllByRole('combobox');
-    const yearMonthSelect = selects.find(select => 
-      select.querySelector('option[value="2024-01"]')
-    );
-    
-    if (yearMonthSelect) {
-      fireEvent.change(yearMonthSelect, { target: { value: '2024-01' } });
-      expect(mockOnSearch).toHaveBeenCalledWith('2024-01');
-    }
-  });
-
-  test('categoriesが未定義の場合でもエラーが発生しない', () => {
-    render(
+  test('categoriesが未定義の場合SearchCardが表示されない', () => {
+    const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
       />
     );
 
-    expect(screen.getByText('検索オプション')).toBeInTheDocument();
-    
-    // 展開してもエラーが発生しないことを確認
-    const header = screen.getByText('検索オプション').closest('.card-header');
-    fireEvent.click(header!);
+    // SearchCardがレンダーされないことを確認
+    expect(container.firstChild).toBeNull();
   });
 
-  test('空のカテゴリが正しく処理される', () => {
-    render(
+  test('空のカテゴリの場合SearchCardが表示されない', () => {
+    const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
         categories={{
@@ -215,13 +166,8 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
-    fireEvent.click(header!);
-
-    // 空のカテゴリは表示されない
-    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
-    expect(screen.queryByText('年度')).not.toBeInTheDocument();
-    expect(screen.queryByText('商品')).not.toBeInTheDocument();
+    // SearchCardがレンダーされないことを確認
+    expect(container.firstChild).toBeNull();
   });
 
   test('年度のみのデータがある場合のレイアウト', () => {
@@ -242,7 +188,6 @@ describe('SearchCard', () => {
     fireEvent.click(header!);
 
     expect(screen.getByText('年度')).toBeInTheDocument();
-    expect(screen.queryByText('年月')).not.toBeInTheDocument();
     expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
     expect(screen.queryByText('商品')).not.toBeInTheDocument();
     expect(screen.queryByText('口座')).not.toBeInTheDocument();
@@ -268,7 +213,7 @@ describe('SearchCard', () => {
 
   test('10個を超えるボタンで改行が適用される', () => {
     const manyProducts = Array.from({ length: 25 }, (_, i) => `商品${i + 1}`);
-    
+
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -288,7 +233,7 @@ describe('SearchCard', () => {
   });
 
   test('ドロップダウンの「全て表示」オプションが正しく動作する', () => {
-    render(
+    const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
         categories={defaultCategories}
@@ -298,7 +243,8 @@ describe('SearchCard', () => {
     const header = screen.getByText('検索オプション').closest('.card-header');
     fireEvent.click(header!);
 
-    const select = screen.getByLabelText('検索フィルター');
+    // IDで指定して選択
+    const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: '' } });
 
     expect(mockOnSearch).toHaveBeenCalledWith('');

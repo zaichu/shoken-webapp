@@ -1,22 +1,23 @@
 use crate::errors::ApiError;
-use crate::models::jquants::{AuthResponse, IdTokenResponse, RefreshTokenRequest, StatementsQuery, StatementsResponse};
+use crate::models::jquants::{
+    AuthResponse, IdTokenResponse, RefreshTokenRequest, StatementsQuery, StatementsResponse,
+};
+use crate::state::Secrets;
 use reqwest::Client;
-use shuttle_runtime::SecretStore;
 
 pub struct JQuantsService;
 
 impl JQuantsService {
-    pub async fn authenticate(
-        client: &Client,
-        secrets: &SecretStore,
-    ) -> Result<AuthResponse, ApiError> {
+    pub async fn authenticate(client: &Client, secrets: &Secrets) -> Result<AuthResponse, ApiError> {
         let url = "https://api.jquants.com/v1/token/auth_user";
 
         let mailaddress = secrets
-            .get("JQUANTS_EMAIL")
+            .jquants_email
+            .clone()
             .ok_or_else(|| ApiError::ApiError("JQUANTS_EMAIL がシークレットに見つかりません".to_string()))?;
         let password = secrets
-            .get("JQUANTS_PASSWORD")
+            .jquants_password
+            .clone()
             .ok_or_else(|| ApiError::ApiError("JQUANTS_PASSWORD がシークレットに見つかりません".to_string()))?;
 
         let payload = serde_json::json!({
@@ -108,7 +109,7 @@ impl JQuantsService {
             url.push_str(&format!("&to={}", to));
         }
 
-        println!("JQuants API URL: {}", url);
+        tracing::info!("JQuants API URL: {}", url);
 
         let response = client
             .get(&url)

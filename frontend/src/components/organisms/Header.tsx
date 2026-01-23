@@ -1,9 +1,17 @@
 import { Link } from 'react-router-dom';
-// import { Button } from '../atoms/Button';
-// import { useAuth } from '../../features/auth/hooks/useAuth';
+import { Button } from '../atoms/Button';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 
 export function Header() {
-  // const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('ログアウトエラー:', error);
+    }
+  };
 
   return (
     <header className="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -23,22 +31,21 @@ export function Header() {
             </li>
           </ul>
 
-          {/* <div className="d-flex align-items-center">
-            {onToggleTheme && (
-              <Button
-                variant="outline-light"
-                size="sm"
-                onClick={onToggleTheme}
-                className="me-3"
-              >
-                <span role="img" aria-label="テーマ切替">🌓</span>
-              </Button>
-            )}
-
-            {user && user.authCode ? (
+          <div className="d-flex align-items-center ms-auto">
+            {isLoading ? (
+              <span className="text-light">読み込み中...</span>
+            ) : isAuthenticated && user ? (
               <div className="d-flex align-items-center">
-                <span className="text-light me-3">{user.name || 'ユーザー'}</span>
-                <Button variant="outline-light" size="sm" onClick={logout}>
+                {user.picture_url && (
+                  <img
+                    src={user.picture_url}
+                    alt={user.name || 'ユーザー'}
+                    className="rounded-circle me-2"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                )}
+                <span className="text-light me-3">{user.name || user.email}</span>
+                <Button variant="outline-light" size="sm" onClick={handleLogout}>
                   ログアウト
                 </Button>
               </div>
@@ -49,7 +56,7 @@ export function Header() {
                 </Button>
               </Link>
             )}
-          </div> */}
+          </div>
         </div>
       </div>
     </header>

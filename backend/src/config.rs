@@ -10,7 +10,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             cors_origins: vec![
-                "https://zaichu.github.io".to_string(),
+                "https://shoken-webapp.vercel.app".to_string(),
                 "http://localhost:8080".to_string(),
                 "http://127.0.0.1:8080".to_string(),
                 "http://[::1]:8080".to_string(),
@@ -64,7 +64,7 @@ mod tests {
     fn test_config_default() {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
-        assert!(config.cors_origins.contains(&"https://zaichu.github.io".to_string()));
+        assert!(config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()));
         assert!(config.cors_origins.contains(&"http://localhost:8080".to_string()));
     }
 

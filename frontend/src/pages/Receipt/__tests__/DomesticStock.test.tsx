@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { DomesticStock } from '../DomesticStock';
 
@@ -93,17 +94,25 @@ describe('DomesticStock', () => {
         expect(screen.getByText('テスト株式2')).toBeInTheDocument();
     });
 
-    it('検索オプションが正しく生成される', () => {
-        render(<DomesticStock csvData={mockCsvData} />);
-        
-        // 検索セレクトボックスの確認
-        const selectElement = screen.getByLabelText('検索フィルター');
-        expect(selectElement).toBeInTheDocument();
-        
-        // オプションの確認
-        expect(screen.getByText('全て表示')).toBeInTheDocument();
-        expect(screen.getByText('1234:テスト株式')).toBeInTheDocument();
-        expect(screen.getByText('5678:テスト株式2')).toBeInTheDocument();
+    it('検索オプションが正しく生成される', async () => {
+        const user = userEvent.setup();
+        const { container } = render(<DomesticStock csvData={mockCsvData} />);
+
+        // 検索オプションのヘッダーをクリックして展開
+        const searchOptionsHeader = screen.getByText('検索オプション');
+        expect(searchOptionsHeader).toBeInTheDocument();
+        await user.click(searchOptionsHeader);
+
+        // 銘柄検索セレクトボックスの確認（IDで指定）
+        await waitFor(() => {
+            expect(container.querySelector('#securities-search')).toBeInTheDocument();
+        });
+
+        // オプションの確認（複数の「全て表示」があるためgetAllByTextを使用）
+        const allOptions = screen.getAllByText('全て表示');
+        expect(allOptions.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText('1234: テスト株式')).toBeInTheDocument();
+        expect(screen.getByText('5678: テスト株式2')).toBeInTheDocument();
     });
 
     it('空のデータでもエラーが発生しない', () => {

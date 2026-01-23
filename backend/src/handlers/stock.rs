@@ -58,9 +58,10 @@ pub async fn add_stock_info(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::sync::Arc;
 
     use super::*;
+    use crate::state::Secrets;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -70,7 +71,6 @@ mod tests {
     use chrono::NaiveDate;
     use reqwest::Client;
     use serde_json::{json, Value};
-    use shuttle_runtime::SecretStore;
     use sqlx::{
         postgres::{PgConnectOptions, PgPoolOptions},
         Pool, Postgres,
@@ -138,14 +138,18 @@ mod tests {
     }
 
     fn setup_test_app(pool: Pool<Postgres>) -> Router {
-        let bt = BTreeMap::from([
-            ("1".to_owned(), "2".to_owned().into()),
-            ("3".to_owned(), "4".to_owned().into()),
-        ]);
+        let secrets = Arc::new(Secrets {
+            database_url: "postgresql://postgres:password@localhost/test_db".to_string(),
+            jquants_email: None,
+            jquants_password: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
         let client = Client::new();
         let app_state = AppState {
             pool: pool.clone(),
-            secrets: SecretStore::new(bt),
+            secrets,
             client,
         };
 

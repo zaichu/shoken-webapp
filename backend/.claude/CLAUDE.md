@@ -6,22 +6,22 @@
 ## コマンド
 
 ### 開発用コマンド
-- `make run` - ポート3001でdev secretsを使用してローカルShuttleプロジェクトを実行
+- `make run` - ローカルでサーバーを起動（cargo run）
 - `make build` - cargo buildでバックエンドをビルド
+- `make build-release` - リリースビルドを作成
 - `make check` - ビルドなしでコンパイルチェックを実行
 - `make test` - cargo testですべてのテストを実行
-- `cargo run` - 直接実行（make runの代替）
 
 ### データベースコマンド
-- `cargo sqlx migrate run` - データベースマイグレーションを実行
+- `make migrate` - データベースマイグレーションを実行
 - `cargo sqlx migrate add <name>` - 新しいマイグレーションを作成
 - `make sqlx-prepare` - デプロイ用SQLxクエリキャッシュを準備
 
 ### デプロイコマンド
-- `make deploy` - Shuttleプラットフォームへデプロイ
-- `make deploy-dirty` - 未コミット変更でデプロイ
-- `make status` - Shuttleサービスステータスを確認
-- `make logs` - デプロイログを表示
+- `make deploy` - Fly.ioへデプロイ
+- `make status` - Fly.ioサービスステータスを確認
+- `make logs` - アプリケーションログを表示
+- `make docker-build` - Dockerイメージをビルド
 
 ### ユーティリティコマンド
 - `make clean` - ビルド成果物をクリーン
@@ -32,7 +32,8 @@
 
 ### 技術スタック
 - **Rust** と **Axum 0.8.1** Webフレームワーク
-- **Shuttle.rs** デプロイプラットフォーム（PostgreSQL付き）
+- **Fly.io** デプロイプラットフォーム
+- **Neon** PostgreSQLデータベース
 - **SQLx 0.8.3** 型安全なデータベース操作
 - **OAuth2** 認証（Google OAuth）
 - **Tower-HTTP** CORS とミドルウェア
@@ -44,7 +45,7 @@
 - `src/lib.rs` - モジュールエクスポートとパブリックAPI
 - `src/state.rs` - データベースプール、secrets、HTTPクライアント付きAppState
 - `src/errors.rs` - 構造化APIレスポンス付き一元エラーハンドリング
-- `src/handlers/` - ドメイン別に整理されたビジネスロジック（stock、jquants）
+- `src/handlers/` - ドメイン別に整理されたビジネスロジック（stock、jquants、auth）
 - `src/models/` - バリデーション付きデータ構造（serde + validator）
 - `src/extractors/` - リクエスト処理用カスタムAxumエクストラクター
 - `migrations/` - SQLxデータベーススキーママイグレーション
@@ -52,13 +53,13 @@
 
 ### コアアーキテクチャパターン
 
-**ドメイン駆動構造**: ドメイン別に分離されたビジネスロジック（株式操作、JQuants API統合）
+**ドメイン駆動構造**: ドメイン別に分離されたビジネスロジック（株式操作、JQuants API統合、認証）
 
-**型安全なデータベース層**: SQLxを使用してコンパイル時に検証される全SQLクエリ、自動マッピング用`FromRow`派生
+**型安全なデータベース層**: SQLxを使用したデータベース操作、自動マッピング用`FromRow`派生
 
 **包括的エラーハンドリング**: バリデーション、データベース、ネットワーク、OAuthエラーをカバーする構造化`ApiError` enum、自動HTTPステータスマッピング
 
-**カスタムリクエスト処理**: 
+**カスタムリクエスト処理**:
 - `ValidatedJson<T>` エクストラクター：自動JSON解析 + バリデーション
 - `char_width_converter`：日本語テキスト処理（半角→全角変換）
 
@@ -75,27 +76,53 @@
 - `POST /jquants/refresh` - 認証トークンをリフレッシュ
 - `GET /jquants/fins/statements` - 財務諸表を取得
 
+**Google OAuth認証**:
+- `GET /auth/google` - Google認証URLを取得
+- `GET /auth/google/callback` - OAuthコールバック処理
+- `GET /auth/me` - 現在のユーザー情報を取得
+- `POST /auth/logout` - ログアウト処理
+
 ### データベーススキーマ
 
 **株式モデル** (`migrations/0001_init.sql`):
 ```sql
 stocks (
     date DATE NOT NULL,
-    code VARCHAR(10) PRIMARY KEY,  -- 株式コード（1-10文字でバリデーション）
-    name CITEXT NOT NULL,          -- 会社名（大文字小文字区別なし、1-100文字）
-    market_category VARCHAR(50),   -- 市場カテゴリ（1-50文字）
-    -- オプション：業界/規模分類フィールド
+    code VARCHAR(10) PRIMARY KEY,
+    name CITEXT NOT NULL,
+    market_category VARCHAR(50),
+)
+```
+
+**ユーザーモデル** (`migrations/0002_create_users.sql`):
+```sql
+users (
+    id UUID PRIMARY KEY,
+    google_id VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    picture_url TEXT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 )
 ```
 
 ### 設定
 
-**環境変数** (Shuttle SecretStore経由):
-- `DATABASE_URL` - PostgreSQL接続文字列
+**環境変数** (.env または Fly.io Secrets):
+- `DATABASE_URL` - PostgreSQL接続文字列（Neon）
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth認証情報
-- `FRONTEND_URL` - CORS origin設定
+- `FRONTEND_URL` - フロントエンドURL（CORS origin設定）
+- `BACKEND_URL` - バックエンドURL（本番環境判定用）
 
-**開発用secrets**: ローカル開発用`Secrets.dev.toml`
+**Fly.io Secrets設定**:
+```bash
+fly secrets set DATABASE_URL="postgres://..."
+fly secrets set GOOGLE_CLIENT_ID="..."
+fly secrets set GOOGLE_CLIENT_SECRET="..."
+fly secrets set FRONTEND_URL="https://..."
+fly secrets set BACKEND_URL="https://..."
+```
 
 **データベース接続**: 最大5接続のPostgreSQLプール
 
@@ -105,13 +132,18 @@ stocks (
 - 標準化入力用半角→全角カタカナ変換
 
 ### 開発ガイドライン
-- すべてのSQLクエリはSQLxでコンパイル時検証が必要
 - すべてのリクエストモデルで入力バリデーション用`validator`クレートの派生を使用
 - ビジネスロジックはドメイン固有のハンドラーモジュールに配置
 - エラーレスポンスはエラーコード付き構造化JSON形式に従う
-- CORSは特定のフロントエンドoriginのみに設定
+- CORSは特定のフロントエンドoriginのみに設定（credentials許可）
 - スキーマ変更にはデータベースマイグレーションが必要
 - mod.rsは古い書き方なので非推奨
+
+### Cookie設定（クロスオリジン認証）
+フロントエンド（Vercel）とバックエンド（Fly.io）が異なるドメインのため：
+- `SameSite=None` + `Secure` が必須（本番環境）
+- `HttpOnly` でXSS対策
+- ローカル開発では `SameSite=Lax`
 
 ### テスト戦略
 - すべてのHTTPエンドポイントの統合テスト
@@ -120,7 +152,8 @@ stocks (
 - フィクスチャ付きテストデータベースセットアップ
 
 ### デプロイ注意事項
-- ShuttleプラットフォームがPostgreSQLプロビジョニングを処理
-- Shuttle SecretStoreでsecrets管理
+- Fly.io + Neon PostgreSQLの構成
+- Dockerfileでマルチステージビルド
+- fly.tomlでデプロイ設定（東京リージョン）
 - CORS originはデプロイ済みフロントエンドURLと一致させる必要がある
-- デプロイ時にデータベースマイグレーションを適用
+- 起動時にデータベースマイグレーションを自動適用

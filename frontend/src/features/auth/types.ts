@@ -1,8 +1,9 @@
+/// バックエンドから返されるユーザー情報
 export interface UserInfo {
-  authCode: string | null;
+  id: string;
+  email: string;
   name?: string;
-  email?: string;
-  id?: string;
+  picture_url?: string;
 }
 
 export interface LoginCredentials {
@@ -14,6 +15,12 @@ export interface AuthContextType {
   user: UserInfo | null;
   setUser: (user: UserInfo | null) => void;
   login: (credentials?: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
+/// Google OAuth認証URL取得のレスポンス
+export interface AuthUrlResponse {
+  auth_url: string;
 }

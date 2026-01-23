@@ -2,22 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseCSVFile, parseCSVString, validateCSVData } from '../parser';
 import { CSVParseCallbacks, CSVParseOptions } from '../../types/csv';
 
-// TextDecoderのモック
-interface MockTextDecoder {
-  decode: ReturnType<typeof vi.fn>;
+// TextDecoderのモック用デコード関数
+const mockDecode = vi.fn();
+
+// グローバルTextDecoderをモック（class形式で定義）
+class MockTextDecoderClass {
+  encoding: string;
+  constructor(encoding: string) {
+    this.encoding = encoding;
+  }
+  decode(buffer: ArrayBuffer) {
+    return mockDecode(buffer);
+  }
 }
-
-const mockTextDecoder: MockTextDecoder = {
-  decode: vi.fn(),
-};
-
-// グローバルTextDecoderをモック
-global.TextDecoder = vi.fn().mockImplementation((encoding: string) => {
-  return {
-    decode: mockTextDecoder.decode,
-    encoding,
-  };
-}) as unknown as typeof TextDecoder;
+global.TextDecoder = MockTextDecoderClass as unknown as typeof TextDecoder;
 
 describe('CSV Parser', () => {
   beforeEach(() => {
@@ -123,7 +121,7 @@ John,30,Tokyo
 Jane,25,Osaka`;
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const callbacks: CSVParseCallbacks = {
         onStart: vi.fn(),
@@ -158,7 +156,7 @@ name,age,city
 John,30,Tokyo`;
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const options: CSVParseOptions = {
         skipHeaderRows: 2,
@@ -176,7 +174,7 @@ John,30,Tokyo
 Jane,25`; // 不完全な行
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const callbacks: CSVParseCallbacks = {
         onError: vi.fn(),
@@ -189,7 +187,7 @@ Jane,25`; // 不完全な行
 
     it('空のファイルを拒否する', async () => {
       const file = createMockFile('');
-      mockTextDecoder.decode.mockReturnValue('');
+      mockDecode.mockReturnValue('');
 
       const callbacks: CSVParseCallbacks = {
         onError: vi.fn(),
@@ -207,7 +205,7 @@ Jane,25`; // 不完全な行
 John,30,Tokyo`;
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const result = await parseCSVFile(file);
 
@@ -219,7 +217,7 @@ John,30,Tokyo`;
       const csvContent = 'name,age,city\nJohn,30,Tokyo';
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const result = await parseCSVFile(file);
 
@@ -281,7 +279,7 @@ John,30,Tokyo`;
 ����,30,����`;
 
       const file = createMockFile(csvContent);
-      mockTextDecoder.decode.mockReturnValue(csvContent);
+      mockDecode.mockReturnValue(csvContent);
 
       const result = await parseCSVFile(file);
 

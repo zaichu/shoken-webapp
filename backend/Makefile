@@ -1,8 +1,8 @@
 # shoken-webapp backend Makefile
 
 # 変数
-SHUTTLE := shuttle
 CARGO := cargo
+FLY := fly
 
 # デフォルトターゲット
 .PHONY: all
@@ -11,39 +11,34 @@ all: check run
 # 基本ターゲット
 .PHONY: run
 run:
-	@echo "🚀 ローカルでShuttleプロジェクトを実行します..."
-	$(SHUTTLE) run --secrets Secrets.dev.toml --port 3001
+	@echo "🚀 ローカルでサーバーを起動します..."
+	$(CARGO) run
 
 .PHONY: deploy
 deploy:
-	@echo "🚀 Shuttleにプロジェクトをデプロイします..."
-	$(SHUTTLE) deploy
-
-.PHONY: deploy-dirty
-deploy-dirty:
-	@echo "🚀 未コミットの変更でShuttleにデプロイします..."
-	$(SHUTTLE) deploy --allow-dirty
+	@echo "🚀 Fly.ioにデプロイします..."
+	$(FLY) deploy
 
 .PHONY: status
 status:
-	@echo "📊 Shuttleサービスのステータスを確認します..."
-	$(SHUTTLE) status
-
-.PHONY: stop
-stop:
-	@echo "🛑 Shuttleサービスを停止します..."
-	$(SHUTTLE) stop
+	@echo "📊 Fly.ioサービスのステータスを確認します..."
+	$(FLY) status
 
 .PHONY: logs
 logs:
-	@echo "📜 ビルドとデプロイメントのログを表示します..."
-	$(SHUTTLE) logs
+	@echo "📜 アプリケーションログを表示します..."
+	$(FLY) logs
 
 # ビルド関連
 .PHONY: build
 build:
 	@echo "🔨 バックエンドをビルドします..."
 	$(CARGO) build
+
+.PHONY: build-release
+build-release:
+	@echo "🔨 リリースビルドを作成します..."
+	$(CARGO) build --release
 
 .PHONY: build-log
 build-log:
@@ -62,11 +57,22 @@ test:
 	@echo "🧪 テストを実行します..."
 	$(CARGO) test
 
-# SQLx関連
+# データベース関連
+.PHONY: migrate
+migrate:
+	@echo "📦 データベースマイグレーションを実行します..."
+	$(CARGO) sqlx migrate run
+
 .PHONY: sqlx-prepare
 sqlx-prepare:
 	@echo "📦 SQLxクエリキャッシュを準備します..."
 	$(CARGO) sqlx prepare --merged
+
+# Docker関連
+.PHONY: docker-build
+docker-build:
+	@echo "🐳 Dockerイメージをビルドします..."
+	docker build -t shoken-backend .
 
 # ヘルプ
 .PHONY: help
@@ -74,19 +80,22 @@ help:
 	@echo "shoken-webapp バックエンド Makefile"
 	@echo ""
 	@echo "利用可能なターゲット:"
-	@echo "  all          : デフォルトターゲット、チェックして実行します"
-	@echo "  run          : ローカルでShuttleプロジェクトを実行します"
-	@echo "  deploy       : Shuttleにプロジェクトをデプロイします"
-	@echo "  deploy-dirty : 未コミットの変更でShuttleにデプロイします"
-	@echo "  status       : Shuttleサービスのステータスを確認します"
-	@echo "  stop         : Shuttleサービスを停止します"
-	@echo "  logs         : ビルドとデプロイメントのログを表示します"
-	@echo "  build        : バックエンドをビルドします"
-	@echo "  build-log    : バックエンドをビルドし、結果をbuild.logに保存します"
-	@echo "  check        : コンパイルチェックのみを実行します"
-	@echo "  test         : テストを実行します"
-	@echo "  sqlx-prepare : SQLxクエリキャッシュを準備します"
-	@echo "  help         : このヘルプを表示します"
+	@echo "  all           : デフォルトターゲット、チェックして実行します"
+	@echo "  run           : ローカルでサーバーを起動します"
+	@echo "  deploy        : Fly.ioにデプロイします"
+	@echo "  status        : Fly.ioサービスのステータスを確認します"
+	@echo "  logs          : アプリケーションログを表示します"
+	@echo "  build         : バックエンドをビルドします"
+	@echo "  build-release : リリースビルドを作成します"
+	@echo "  build-log     : バックエンドをビルドし、結果をbuild.logに保存します"
+	@echo "  check         : コンパイルチェックのみを実行します"
+	@echo "  test          : テストを実行します"
+	@echo "  migrate       : データベースマイグレーションを実行します"
+	@echo "  sqlx-prepare  : SQLxクエリキャッシュを準備します"
+	@echo "  docker-build  : Dockerイメージをビルドします"
+	@echo "  clean         : ビルド成果物をクリーンアップします"
+	@echo "  clean-build   : クリーンアップして再ビルドします"
+	@echo "  help          : このヘルプを表示します"
 
 # ビルドとクリーンアップ
 .PHONY: clean-build
@@ -101,4 +110,3 @@ clean-build:
 clean:
 	@echo "🧹 ビルド成果物をクリーンアップします..."
 	$(CARGO) clean
-	$(SHUTTLE) clean
