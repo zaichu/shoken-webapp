@@ -1,5 +1,5 @@
 # ビルドステージ
-FROM rust:1.83-bookworm AS builder
+FROM rust:1.86-bookworm AS builder
 
 WORKDIR /app
 
@@ -18,10 +18,11 @@ COPY migrations ./migrations
 RUN touch src/main.rs
 
 # SQLxのオフラインモード用（.sqlxディレクトリがある場合）
-COPY .sqlx ./.sqlx 2>/dev/null || true
+# 注意: .sqlxディレクトリが存在しない場合はこの行をコメントアウトするか、
+# cargo sqlx prepare を実行して作成してください
+# COPY .sqlx ./.sqlx
 
-# 本番ビルド
-ENV SQLX_OFFLINE=true
+# 本番ビルド（SQLX_OFFLINE=falseでビルド - マクロはランタイムでチェックされる）
 RUN cargo build --release
 
 # 実行ステージ

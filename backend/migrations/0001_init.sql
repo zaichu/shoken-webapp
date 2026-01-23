@@ -1,3 +1,6 @@
+-- CITEXT 拡張を有効化（大文字小文字を区別しない検索用）
+CREATE EXTENSION IF NOT EXISTS citext;
+
 CREATE TABLE IF NOT EXISTS stock (
   date DATE NOT NULL,
   code VARCHAR(10) NOT NULL,
