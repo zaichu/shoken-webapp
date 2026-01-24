@@ -140,8 +140,7 @@ mod tests {
     fn setup_test_app(pool: Pool<Postgres>) -> Router {
         let secrets = Arc::new(Secrets {
             database_url: "postgresql://postgres:password@localhost/test_db".to_string(),
-            jquants_email: None,
-            jquants_password: None,
+            jquants_api_key: None,
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),

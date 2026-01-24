@@ -6,8 +6,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct Secrets {
     pub database_url: String,
-    pub jquants_email: Option<String>,
-    pub jquants_password: Option<String>,
+    pub jquants_api_key: Option<String>,
     pub google_client_id: Option<String>,
     pub google_client_secret: Option<String>,
     pub frontend_url: String,
@@ -19,15 +18,13 @@ impl Secrets {
         Ok(Self {
             database_url: std::env::var("DATABASE_URL")
                 .map_err(|_| "DATABASE_URL が設定されていません".to_string())?,
-            jquants_email: std::env::var("JQUANTS_EMAIL").ok(),
-            jquants_password: std::env::var("JQUANTS_PASSWORD").ok(),
+            jquants_api_key: std::env::var("JQUANTS_API_KEY").ok(),
             google_client_id: std::env::var("GOOGLE_CLIENT_ID").ok(),
             google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").ok(),
             frontend_url: std::env::var("FRONTEND_URL")
                 .unwrap_or_else(|_| "http://localhost:8080".to_string()),
         })
     }
-
 }
 
 #[derive(Clone)]
@@ -45,8 +42,7 @@ mod tests {
     fn create_test_secrets() -> Secrets {
         Secrets {
             database_url: "postgresql://user:password@localhost/test_db".to_string(),
-            jquants_email: Some("test@example.com".to_string()),
-            jquants_password: Some("password123".to_string()),
+            jquants_api_key: Some("test_api_key".to_string()),
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
