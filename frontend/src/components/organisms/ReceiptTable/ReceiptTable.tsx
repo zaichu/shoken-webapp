@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { useForceResize } from '@/hooks/common/useResize';
@@ -6,6 +6,15 @@ import { useForceResize } from '@/hooks/common/useResize';
 type DataItem = Record<string, unknown>;
 type SummaryItem = Record<string, unknown> & { filter: string };
 type ColumnConfig = TableColumnConfig | SummaryColumnConfig;
+
+// ソート方向
+type SortDirection = 'asc' | 'desc' | null;
+
+// ソート設定
+interface SortConfig {
+    key: string;
+    direction: SortDirection;
+}
 
 interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     data: T[];
@@ -58,6 +67,78 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     onSearch
 }: ReceiptTableProps<T, S>) {
     const forceResize = useForceResize();
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: '', direction: null });
+
+    // 値を比較用に正規化
+    const normalizeValue = (value: unknown): string | number | Date => {
+        if (value instanceof Date) {
+            return value.getTime();
+        }
+        if (typeof value === 'number') {
+            return value;
+        }
+        if (typeof value === 'string') {
+            // 数値文字列の場合は数値に変換
+            const num = parseFloat(value.replace(/,/g, ''));
+            if (!isNaN(num)) {
+                return num;
+            }
+            return value.toLowerCase();
+        }
+        return String(value ?? '').toLowerCase();
+    };
+
+    // ソート済みデータ
+    const sortedData = useMemo(() => {
+        if (!sortConfig.key || !sortConfig.direction) {
+            return data;
+        }
+
+        return [...data].sort((a, b) => {
+            const aValue = normalizeValue(a[sortConfig.key]);
+            const bValue = normalizeValue(b[sortConfig.key]);
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    }, [data, sortConfig]);
+
+    // ヘッダークリック時のソート処理
+    const handleHeaderClick = (columnKey: string) => {
+        setSortConfig(prev => {
+            if (prev.key !== columnKey) {
+                // 新しいカラム: 昇順でソート開始
+                return { key: columnKey, direction: 'asc' };
+            }
+            // 同じカラム: asc -> desc -> null の順で切り替え
+            if (prev.direction === 'asc') {
+                return { key: columnKey, direction: 'desc' };
+            }
+            if (prev.direction === 'desc') {
+                return { key: '', direction: null };
+            }
+            return { key: columnKey, direction: 'asc' };
+        });
+    };
+
+    // ソートインジケーターを取得
+    const getSortIndicator = (columnKey: string): string => {
+        if (sortConfig.key !== columnKey) {
+            return ' ↕';
+        }
+        if (sortConfig.direction === 'asc') {
+            return ' ↑';
+        }
+        if (sortConfig.direction === 'desc') {
+            return ' ↓';
+        }
+        return ' ↕';
+    };
 
     // テーブル内のクリックイベントをハンドル（銘柄コードリンク用）
     const handleTableClick = (e: React.MouseEvent<HTMLTableElement>) => {
@@ -93,14 +174,15 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         );
     };
 
-    const renderDataRows = (items: T[], keyPrefix: string) =>
-        items.map((item, itemIndex) => (
+    const renderDataRows = (items: T[], keyPrefix: string) => {
+        return items.map((item, itemIndex) => (
             <TableRow key={`${keyPrefix}-${itemIndex}`}>
                 {columns.map((column, colIndex) =>
                     renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`)
                 )}
             </TableRow>
         ));
+    };
 
     // サマリー値のフォーマット
     const formatSummaryValue = (value: unknown, column: SummaryColumnConfig) => {
@@ -122,7 +204,8 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 
     const renderGroupedRows = () =>
         summary.map((summaryItem, summaryIndex) => {
-            const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
+            // ソート済みデータからグループ内のアイテムを取得（ソート順を維持）
+            const groupItems = sortedData.filter(item => getGroupKey(item as T) === summaryItem.filter) as T[];
             const headerText = formatGroupHeader(summaryItem.filter);
             const itemCount = groupItems.length;
 
@@ -210,16 +293,28 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
-                            style={{ textAlign: 'center', width: column.width }}
+                            style={{
+                                textAlign: 'center',
+                                width: column.width,
+                                cursor: 'pointer',
+                                userSelect: 'none'
+                            }}
                             key={index}
+                            onClick={() => handleHeaderClick(column.key)}
                         >
                             {column.header}
+                            <span style={{
+                                fontSize: '0.75em',
+                                opacity: sortConfig.key === column.key ? 1 : 0.4
+                            }}>
+                                {getSortIndicator(column.key)}
+                            </span>
                         </TableCell>
                     ))}
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {summary.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
+                {summary.length > 0 ? renderGroupedRows() : renderDataRows(sortedData as T[], 'item')}
             </TableBody>
         </Table>
     );
