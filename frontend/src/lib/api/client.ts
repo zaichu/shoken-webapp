@@ -55,13 +55,6 @@ class ApiClient {
       (config) => {
         // リクエスト開始時刻を記録
         config.metadata = { startTime: Date.now() };
-        
-        // 認証トークンがあれば追加
-        const token = this.getAuthToken();
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-
         return config;
       },
       (error) => {
@@ -72,37 +65,19 @@ class ApiClient {
     // レスポンスインターセプター
     this.client.interceptors.response.use(
       (response) => {
-        // レスポンス時間を記録
-        const duration = Date.now() - (response.config.metadata?.startTime || 0);
-        console.debug(`API Call: ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
-        
         return response;
       },
       async (error) => {
         const apiError = this.handleError(error);
-        
+
         // 再試行ロジック
         if (this.shouldRetry(error.config, apiError)) {
           return this.retryRequest(error.config, apiError);
         }
-        
+
         return Promise.reject(apiError);
       }
     );
-  }
-
-  private getAuthToken(): string | null {
-    // LocalStorageから認証トークンを取得
-    try {
-      const userInfo = localStorage.getItem('user_info');
-      if (userInfo) {
-        const parsed = JSON.parse(userInfo);
-        return parsed.authCode || null;
-      }
-    } catch {
-      // パースエラーは無視
-    }
-    return null;
   }
 
   private handleError(error: unknown): ApiError {
