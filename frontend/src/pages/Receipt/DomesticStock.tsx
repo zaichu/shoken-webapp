@@ -2,21 +2,15 @@ import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import React, { useState } from 'react';
-import {
-    DomesticStockData,
-    DomesticStockCalculations,
-    DomesticStockSummary
-} from '@/lib/interfaces/domesticStock';
+import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
-    TAX_RATE,
     formatCurrency,
     formatNumber,
     createISODateKey
 } from '@/lib/utils/formatters';
-import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
@@ -25,98 +19,8 @@ import {
     matchesYear,
     matchesAmounts
 } from '@/lib/utils/searchUtils';
-
-// CSVアイテムをDomesticStockDataに変換
-const parseCsvItem = (item: Record<string, unknown>): DomesticStockData => {
-    const account = String(item['口座'] || '');
-    const realizedPnL = parseNumber(item['実現損益[円]']);
-    // 特定口座の場合のみ税金を計算（利益がある場合のみ）
-    const isSpecificAccount = account.includes('特定');
-    const taxes = isSpecificAccount ? Math.floor(Math.max(0, realizedPnL) * TAX_RATE) : 0;
-    const realizedPnLAfterTax = realizedPnL - taxes;
-
-    const securityCode = String(item['銘柄コード']);
-    const securityName = String(item['銘柄名']);
-    // 銘柄コードをリンク形式で表示（/searchページに遷移）
-    const securityCodeLink = `<a href="/search?code=${securityCode}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${securityCode}</a>`;
-    // security_infoは後方互換性のため残す
-    const securityInfo = securityCodeLink;
-
-    return {
-        trade_date: new Date(item['約定日'] as string),
-        settlement_date: new Date(item['受渡日'] as string),
-        security_code: securityCode,
-        security_name: securityName,
-        security_info: securityInfo,
-        account,
-        shares: parseNumber(item['数量[株]']),
-        asked_price: parseNumber(item['売却/決済単価[円]']),
-        proceeds: parseNumber(item['売却/決済額[円]']),
-        purchase_price: parseNumber(item['平均取得価額[円]']),
-        realized_profit_and_loss: realizedPnL,
-        taxes,
-        realized_profit_and_loss_after_tax: realizedPnLAfterTax,
-    };
-};
-
-// 取引日でソート
-const sortByTradeDate = (data: DomesticStockData[]): DomesticStockData[] => {
-    return [...data].sort((a, b) =>
-        a.trade_date.getTime() - b.trade_date.getTime()
-    );
-};
-
-// 日次データ集計
-const calculateDailyData = (domesticStockData: DomesticStockData[]): DomesticStockSummary[] => {
-    // データを日付ごとにグループ化
-    const dailyGroupMap = new Map<string, DomesticStockData[]>();
-
-    domesticStockData.forEach(item => {
-        const dateKey = createISODateKey(item.trade_date);
-        if (!dailyGroupMap.has(dateKey)) {
-            dailyGroupMap.set(dateKey, []);
-        }
-        dailyGroupMap.get(dateKey)?.push(item);
-    });
-
-    // 日次データの集計
-    return Array.from(dailyGroupMap.entries()).map(([dateKey, items]) => {
-        // 特定口座とNISA口座の集計を分離
-        const dailyTotals = items.reduce((acc, item) => {
-            const isSpecificAccount = item.account.includes('特定');
-            return {
-                specificTotal: acc.specificTotal + (isSpecificAccount ? item.realized_profit_and_loss : 0),
-                nisaTotal: acc.nisaTotal + (!isSpecificAccount ? item.realized_profit_and_loss : 0),
-                amount: acc.amount + item.proceeds
-            };
-        }, { specificTotal: 0, nisaTotal: 0, amount: 0 });
-
-        // 実現損益の計算
-        const totalRealizedPnL = dailyTotals.specificTotal + dailyTotals.nisaTotal;
-        const tax = Math.floor(Math.max(0, dailyTotals.specificTotal) * TAX_RATE);
-        const totalRealizedPnLAfterTax = dailyTotals.specificTotal - tax + dailyTotals.nisaTotal;
-
-        return {
-            filter: dateKey,
-            total_realized_profit_and_loss: totalRealizedPnL,
-            total_taxes: tax,
-            total_realized_profit_and_loss_after_tax: totalRealizedPnLAfterTax,
-        };
-    }).sort((a, b) => a.filter.localeCompare(b.filter));
-};
-
-// 全体集計関数
-const calculateDomesticStock = (dailyData: DomesticStockSummary[]): DomesticStockCalculations => {
-    return dailyData.reduce((acc, item) => ({
-        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.total_realized_profit_and_loss,
-        total_taxes: acc.total_taxes + item.total_taxes,
-        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.total_realized_profit_and_loss_after_tax
-    }), {
-        total_realized_profit_and_loss: 0,
-        total_taxes: 0,
-        total_realized_profit_and_loss_after_tax: 0,
-    });
-};
+import { parseDomesticStockCsvItem, sortDomesticStockByTradeDate } from '@/features/receipt/parsers';
+import { calculateDailyData, calculateDomesticStock } from '@/features/receipt/calculations';
 
 interface DomesticStockProps {
     csvData: Record<string, unknown>[];
@@ -129,7 +33,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
     // CSVデータを国内株式データ形式に変換
-    const domesticStockData = useReceiptData(csvData, parseCsvItem, sortByTradeDate);
+    const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
 
     // 日次データの集計
     const dailyData = calculateDailyData(domesticStockData);

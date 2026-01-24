@@ -26,14 +26,12 @@ export const useJQuantsDividend = (
       try {
         jquantsApiClient.setRefreshToken(await jquantsApiClient.authenticate());
         const statements = await jquantsApiClient.getStatements(securityCode);
-        console.log('配当情報:', statements);
         let nextYearForecastDividendPerShareAnnual = '';
         for (const statement of statements.statements) {
           if (statement.NextYearForecastDividendPerShareAnnual === '') {
             continue;
           }
           nextYearForecastDividendPerShareAnnual = statement.NextYearForecastDividendPerShareAnnual;
-          console.log('配当:', nextYearForecastDividendPerShareAnnual);
         }
         setDividendPerShare(parseNumber(nextYearForecastDividendPerShareAnnual));
       } catch (err) {

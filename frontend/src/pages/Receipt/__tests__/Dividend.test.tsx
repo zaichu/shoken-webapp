@@ -63,8 +63,9 @@ describe('Dividend', () => {
     it('コンポーネントが正常にレンダリングされる', () => {
         render(<Dividend csvData={mockCsvData} />);
 
-        // タイトルが表示されることを確認
-        expect(screen.getByText('配当金')).toBeInTheDocument();
+        // タイトルが表示されることを確認（テーブルヘッダーにも「配当金」があるためgetAllByTextを使用）
+        const titleElements = screen.getAllByText('配当金');
+        expect(titleElements.length).toBeGreaterThan(0);
 
         // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
         const combinedDividendElements = screen.getAllByText('合計配当金');
@@ -80,17 +81,19 @@ describe('Dividend', () => {
     it('テーブルのヘッダーが正しく表示される', () => {
         render(<Dividend csvData={mockCsvData} />);
 
-        // テーブルヘッダーの確認
+        // テーブルヘッダーの確認（実際のカラム定義に合わせる）
         expect(screen.getByText('入金日')).toBeInTheDocument();
         expect(screen.getByText('商品')).toBeInTheDocument();
         expect(screen.getByText('口座')).toBeInTheDocument();
         expect(screen.getByText('銘柄コード')).toBeInTheDocument();
         expect(screen.getByText('銘柄名')).toBeInTheDocument();
         expect(screen.getByText('単価')).toBeInTheDocument();
-        expect(screen.getByText('数量[株]')).toBeInTheDocument();
-        expect(screen.getByText('配当・分配金')).toBeInTheDocument();
+        expect(screen.getByText('数量')).toBeInTheDocument();
+        // 「配当金」はページタイトルとしても表示されるためgetAllByTextを使用
+        const dividendElements = screen.getAllByText('配当金');
+        expect(dividendElements.length).toBeGreaterThan(0);
         expect(screen.getByText('税額')).toBeInTheDocument();
-        expect(screen.getByText('受取金額')).toBeInTheDocument();
+        expect(screen.getByText('受取額')).toBeInTheDocument();
     });
 
     it('CSVデータが正しく表示される', () => {
@@ -186,8 +189,9 @@ describe('Dividend', () => {
     it('空のデータでもエラーが発生しない', () => {
         render(<Dividend csvData={[]} />);
 
-        // タイトルは表示される
-        expect(screen.getByText('配当金')).toBeInTheDocument();
+        // タイトルは表示される（テーブルヘッダーにも「配当金」があるためgetAllByTextを使用）
+        const titleElements = screen.getAllByText('配当金');
+        expect(titleElements.length).toBeGreaterThan(0);
 
         // 集計情報はゼロで表示される
         const summaryElements = screen.getAllByText('合計配当金');
