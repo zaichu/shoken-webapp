@@ -7,7 +7,7 @@ mod services;
 mod state;
 
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use config::Config;
@@ -75,6 +75,18 @@ async fn main() {
         .route("/auth/google/callback", get(handlers::auth::google_callback))
         .route("/auth/me", get(handlers::auth::get_current_user))
         .route("/auth/logout", post(handlers::auth::logout))
+        // 配当金エンドポイント
+        .route("/dividends", get(handlers::dividend::list))
+        .route("/dividends/bulk", post(handlers::dividend::bulk_create))
+        .route("/dividends/all", delete(handlers::dividend::delete_all))
+        // 国内株式エンドポイント
+        .route("/domestic-stocks", get(handlers::domestic_stock::list))
+        .route("/domestic-stocks/bulk", post(handlers::domestic_stock::bulk_create))
+        .route("/domestic-stocks/all", delete(handlers::domestic_stock::delete_all))
+        // 投資信託エンドポイント
+        .route("/mutualfunds", get(handlers::mutualfund::list))
+        .route("/mutualfunds/bulk", post(handlers::mutualfund::bulk_create))
+        .route("/mutualfunds/all", delete(handlers::mutualfund::delete_all))
         // ヘルスチェック
         .route("/health", get(|| async { "OK" }))
         .layer(cors)
