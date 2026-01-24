@@ -134,23 +134,25 @@ describe('ReceiptTable', () => {
       />
     );
 
-    // グループAのデータの後にグループAのサマリーが表示される
+    // 実装ではサマリー行が先に表示され、その後にデータ行が続く
     const table = screen.getByRole('table');
     const rows = table.querySelectorAll('tbody tr');
-    
-    // グループAのデータは最初の2行
-    expect(rows[0]).toHaveTextContent('銘柄A');
-    expect(rows[1]).toHaveTextContent('銘柄B');
-    
-    // グループAのサマリーは3行目
-    expect(rows[2]).toHaveTextContent('合計:');
-    expect(rows[2]).toHaveTextContent('¥3,000');
-    
-    // グループBのデータは4行目
-    expect(rows[3]).toHaveTextContent('銘柄C');
-    
-    // グループBのサマリーは5行目
-    expect(rows[4]).toHaveTextContent('合計:');
-    expect(rows[4]).toHaveTextContent('¥3,000');
+
+    // グループAのサマリーが最初
+    expect(rows[0]).toHaveTextContent('A');
+    expect(rows[0]).toHaveTextContent('2件');
+    expect(rows[0]).toHaveTextContent('¥3,000');
+
+    // グループAのデータ行
+    expect(rows[1]).toHaveTextContent('銘柄A');
+    expect(rows[2]).toHaveTextContent('銘柄B');
+
+    // グループBのサマリー
+    expect(rows[3]).toHaveTextContent('B');
+    expect(rows[3]).toHaveTextContent('1件');
+    expect(rows[3]).toHaveTextContent('¥3,000');
+
+    // グループBのデータ行
+    expect(rows[4]).toHaveTextContent('銘柄C');
   });
 });

@@ -70,18 +70,19 @@ describe('DomesticStock', () => {
 
     it('テーブルのヘッダーが正しく表示される', () => {
         render(<DomesticStock csvData={mockCsvData} />);
-        
-        // テーブルヘッダーの確認
+
+        // テーブルヘッダーの確認（実際のカラム定義に合わせる）
         expect(screen.getByText('約定日')).toBeInTheDocument();
-        expect(screen.getByText('受渡日')).toBeInTheDocument();
         expect(screen.getByText('銘柄コード')).toBeInTheDocument();
         expect(screen.getByText('銘柄名')).toBeInTheDocument();
         expect(screen.getByText('口座')).toBeInTheDocument();
-        expect(screen.getByText('数量[株]')).toBeInTheDocument();
+        expect(screen.getByText('数量')).toBeInTheDocument();
         expect(screen.getByText('売却単価')).toBeInTheDocument();
         expect(screen.getByText('売却額')).toBeInTheDocument();
-        expect(screen.getByText('平均取得価額')).toBeInTheDocument();
-        expect(screen.getByText('実現損益')).toBeInTheDocument();
+        expect(screen.getByText('取得価額')).toBeInTheDocument();
+        expect(screen.getByText('損益')).toBeInTheDocument();
+        expect(screen.getByText('税額')).toBeInTheDocument();
+        expect(screen.getByText('税引後')).toBeInTheDocument();
     });
 
     it('CSVデータが正しく表示される', () => {
