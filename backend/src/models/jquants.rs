@@ -1,20 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    pub refresh_token: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RefreshTokenRequest {
-    pub refresh_token: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct IdTokenResponse {
-    pub id_token: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct StatementsQuery {
     pub code: String,
@@ -383,36 +368,6 @@ mod tests {
         assert_eq!(query.code, "7203");
         assert!(query.from.is_none());
         assert!(query.to.is_none());
-    }
-
-    #[test]
-    fn test_auth_response_serialize() {
-        let response = AuthResponse {
-            refresh_token: "test_token".to_string(),
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("refresh_token"));
-        assert!(json.contains("test_token"));
-    }
-
-    #[test]
-    fn test_refresh_token_request_deserialize() {
-        let json_str = r#"{"refresh_token": "test_refresh_token"}"#;
-        let request: RefreshTokenRequest = serde_json::from_str(json_str).unwrap();
-        
-        assert_eq!(request.refresh_token, "test_refresh_token");
-    }
-
-    #[test]
-    fn test_id_token_response_serialize() {
-        let response = IdTokenResponse {
-            id_token: "test_id_token".to_string(),
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("id_token"));
-        assert!(json.contains("test_id_token"));
     }
 
     #[test]

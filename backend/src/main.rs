@@ -65,9 +65,7 @@ async fn main() {
     let router = Router::new()
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
-        // JQuantsのエンドポイント
-        .route("/jquants/auth", post(handlers::jquants::authenticate))
-        .route("/jquants/refresh", post(handlers::jquants::refresh_token))
+        // JQuantsのエンドポイント（V2 APIキー認証）
         .route(
             "/jquants/fins/statements",
             get(handlers::jquants::get_statements),
@@ -112,8 +110,7 @@ mod tests {
 
         let secrets = Arc::new(Secrets {
             database_url: database_url.to_string(),
-            jquants_email: Some("test@example.com".to_string()),
-            jquants_password: Some("password123".to_string()),
+            jquants_api_key: Some("test_api_key".to_string()),
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
@@ -129,8 +126,6 @@ mod tests {
         Router::new()
             .route("/stock", post(handlers::stock::add_stock_info))
             .route("/stock/{query}", get(handlers::stock::select_stock_info))
-            .route("/jquants/auth", post(handlers::jquants::authenticate))
-            .route("/jquants/refresh", post(handlers::jquants::refresh_token))
             .route(
                 "/jquants/fins/statements",
                 get(handlers::jquants::get_statements),
@@ -179,8 +174,7 @@ mod tests {
 
         let secrets = Arc::new(Secrets {
             database_url: database_url.to_string(),
-            jquants_email: None,
-            jquants_password: None,
+            jquants_api_key: None,
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),

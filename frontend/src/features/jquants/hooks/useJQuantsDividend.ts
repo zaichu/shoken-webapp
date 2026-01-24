@@ -24,7 +24,6 @@ export const useJQuantsDividend = (
       setError(null);
 
       try {
-        jquantsApiClient.setRefreshToken(await jquantsApiClient.authenticate());
         const statements = await jquantsApiClient.getStatements(securityCode);
         let nextYearForecastDividendPerShareAnnual = '';
         for (const statement of statements.statements) {

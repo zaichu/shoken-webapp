@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::jquants::{AuthResponse, IdTokenResponse, RefreshTokenRequest, StatementsQuery, StatementsResponse};
+use crate::models::jquants::{StatementsQuery, StatementsResponse};
 use crate::services::jquants::JQuantsService;
 use crate::state::AppState;
 use axum::{
@@ -7,33 +7,20 @@ use axum::{
     response::Json,
 };
 
-pub async fn authenticate(State(state): State<AppState>) -> Result<Json<AuthResponse>, ApiError> {
-    let response = JQuantsService::authenticate(&state.client, &*state.secrets).await?;
-    Ok(Json(response))
-}
-
-pub async fn refresh_token(
-    State(state): State<AppState>,
-    Json(payload): Json<RefreshTokenRequest>,
-) -> Result<Json<IdTokenResponse>, ApiError> {
-    let response = JQuantsService::refresh_token(&state.client, payload).await?;
-    Ok(Json(response))
-}
-
+/// 財務諸表を取得（J-Quants API V2）
 pub async fn get_statements(
     State(state): State<AppState>,
     Query(params): Query<StatementsQuery>,
-    headers: axum::http::HeaderMap,
 ) -> Result<Json<StatementsResponse>, ApiError> {
     tracing::info!("財務諸表取得パラメータ: {:?}", params);
 
-    let auth_header = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| ApiError::ApiError("Authorizationヘッダーが見つかりません".to_string()))?;
+    let api_key = state
+        .secrets
+        .jquants_api_key
+        .as_ref()
+        .ok_or_else(|| ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string()))?;
 
-    let token = JQuantsService::extract_bearer_token(auth_header)?;
-    let response = JQuantsService::get_statements(&state.client, params, token).await?;
+    let response = JQuantsService::get_statements(&state.client, params, api_key).await?;
     Ok(Json(response))
 }
 
