@@ -6,10 +6,8 @@ import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
   jquantsApiClient: {
-    authenticate: vi.fn(),
-    setRefreshToken: vi.fn(),
     getStatements: vi.fn(),
-  }
+  },
 }));
 
 vi.mock('@/lib/utils/formatters', () => ({
@@ -41,16 +39,14 @@ describe('useJQuantsDividend', () => {
   });
 
   it('配当情報を正常に取得できる', async () => {
-    const mockRefreshToken = 'test-refresh-token';
     const mockStatements = {
       statements: [
         { NextYearForecastDividendPerShareAnnual: '' },
         { NextYearForecastDividendPerShareAnnual: '50.00' },
         { NextYearForecastDividendPerShareAnnual: '60.00' },
-      ]
+      ],
     };
 
-    (jquantsApiClient.authenticate as Mock).mockResolvedValue(mockRefreshToken);
     (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
     (parseNumber as Mock).mockReturnValue(60);
 
@@ -63,8 +59,6 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(jquantsApiClient.authenticate).toHaveBeenCalled();
-    expect(jquantsApiClient.setRefreshToken).toHaveBeenCalledWith(mockRefreshToken);
     expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('1234');
     expect(result.current.dividendPerShare).toBe(60);
     expect(result.current.error).toBeNull();
@@ -75,10 +69,9 @@ describe('useJQuantsDividend', () => {
       statements: [
         { NextYearForecastDividendPerShareAnnual: '' },
         { NextYearForecastDividendPerShareAnnual: '' },
-      ]
+      ],
     };
 
-    (jquantsApiClient.authenticate as Mock).mockResolvedValue('test-token');
     (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
     (parseNumber as Mock).mockReturnValue(0);
 
@@ -95,7 +88,7 @@ describe('useJQuantsDividend', () => {
   it('エラーが発生した場合、エラーメッセージを設定する', async () => {
     const mockError = new Error('API Error');
 
-    (jquantsApiClient.authenticate as Mock).mockRejectedValue(mockError);
+    (jquantsApiClient.getStatements as Mock).mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -108,7 +101,7 @@ describe('useJQuantsDividend', () => {
   });
 
   it('非Errorオブジェクトのエラーの場合、デフォルトメッセージを設定する', async () => {
-    (jquantsApiClient.authenticate as Mock).mockRejectedValue('string error');
+    (jquantsApiClient.getStatements as Mock).mockRejectedValue('string error');
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -122,12 +115,9 @@ describe('useJQuantsDividend', () => {
 
   it('securityCodeが変更された場合、再取得する', async () => {
     const mockStatements = {
-      statements: [
-        { NextYearForecastDividendPerShareAnnual: '50.00' }
-      ]
+      statements: [{ NextYearForecastDividendPerShareAnnual: '50.00' }],
     };
 
-    (jquantsApiClient.authenticate as Mock).mockResolvedValue('test-token');
     (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
     (parseNumber as Mock).mockReturnValue(50);
 
