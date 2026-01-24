@@ -3,5 +3,8 @@
     "allow": [
       "Bash(fly version:*)"
     ]
+  },
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true"
   }
 }
