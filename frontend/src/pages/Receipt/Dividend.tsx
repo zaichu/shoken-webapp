@@ -29,19 +29,7 @@ import {
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
-
-// 配当計算関数
-const calculateDividends = (data: DividendData[]): DividendCalculations => {
-    return data.reduce((acc, item) => ({
-        total_dividends_before_tax: acc.total_dividends_before_tax + item.dividends_before_tax,
-        total_taxes: acc.total_taxes + item.taxes,
-        total_net_amount_received: acc.total_net_amount_received + item.net_amount_received,
-    }), {
-        total_dividends_before_tax: 0,
-        total_taxes: 0,
-        total_net_amount_received: 0
-    });
-};
+import { calculateDividends } from '@/features/receipt/calculations';
 
 interface DividendProps {
     csvData: Record<string, unknown>[];
