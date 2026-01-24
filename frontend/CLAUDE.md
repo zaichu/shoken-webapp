@@ -38,6 +38,8 @@
 - `src/components/templates/` - ページレイアウト（Layout, ReceiptTemplate）
 - `src/pages/` - ルートレベルコンポーネント（Home, Search, Receipts, AssetBalance）
 - `src/features/` - ドメインロジック（認証, jquants API, 取引履歴処理, 株式検索）
+  - `receipt/parsers/` - CSVデータのパース・変換ロジック
+  - `receipt/calculations/` - 配当金・国内株式の計算ロジック
 - `src/lib/` - コアユーティリティ（API クライアント, CSV処理, インターフェース, ユーティリティ）
 - `src/hooks/` - カスタムReactフック
 - `src/contexts/` - Reactコンテキスト

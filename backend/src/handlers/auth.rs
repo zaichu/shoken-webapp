@@ -137,8 +137,8 @@ pub async fn google_callback(
     // ユーザーをデータベースに登録または更新
     let user = upsert_user(&state, &user_info).await?;
 
-    // セッショントークンを生成（シンプルな実装ではユーザーIDを使用）
-    let session_token = user.id.to_string();
+    // ランダムなセッショントークンを生成してデータベースに保存
+    let session_token = create_session(&state, user.id).await?;
 
     // Cookieを設定
     // クロスオリジン（フロントエンド: GitHub Pages, バックエンド: Fly.io）で
@@ -159,6 +159,22 @@ pub async fn google_callback(
     let redirect_url = format!("{}?login=success", frontend_url);
 
     Ok((jar, Redirect::to(&redirect_url)).into_response())
+}
+
+/// セッションを作成してトークンを返す
+async fn create_session(state: &AppState, user_id: uuid::Uuid) -> Result<String, ApiError> {
+    let session_id: (uuid::Uuid,) = sqlx::query_as(
+        r#"
+        INSERT INTO sessions (user_id)
+        VALUES ($1)
+        RETURNING id
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(&state.pool)
+    .await?;
+
+    Ok(session_id.0.to_string())
 }
 
 /// ユーザーを登録または更新
@@ -195,27 +211,42 @@ pub async fn get_current_user(
         .map(|c| c.value().to_string())
         .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
 
-    let user_id: uuid::Uuid = session_token
+    let session_id: uuid::Uuid = session_token
         .parse()
         .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
 
+    // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
     let user = sqlx::query_as::<_, User>(
         r#"
-        SELECT id, google_id, email, name, picture_url, created_at, updated_at
-        FROM users
-        WHERE id = $1
+        SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
+        FROM users u
+        INNER JOIN sessions s ON u.id = s.user_id
+        WHERE s.id = $1 AND s.expires_at > NOW()
         "#,
     )
-    .bind(user_id)
+    .bind(session_id)
     .fetch_optional(&state.pool)
     .await?
-    .ok_or_else(|| ApiError::Unauthorized("ユーザーが見つかりません".to_string()))?;
+    .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
 
     Ok(Json(user.into()))
 }
 
 /// ログアウト処理
-pub async fn logout(jar: CookieJar) -> impl IntoResponse {
+pub async fn logout(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> impl IntoResponse {
+    // セッションをデータベースから削除
+    if let Some(session_token) = jar.get(SESSION_COOKIE_NAME).map(|c| c.value().to_string()) {
+        if let Ok(session_id) = session_token.parse::<uuid::Uuid>() {
+            let _ = sqlx::query("DELETE FROM sessions WHERE id = $1")
+                .bind(session_id)
+                .execute(&state.pool)
+                .await;
+        }
+    }
+
     let is_production = std::env::var("BACKEND_URL").is_ok();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, ""))
         .path("/")
