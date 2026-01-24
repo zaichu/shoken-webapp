@@ -202,20 +202,16 @@ export function ReceiptsPage() {
         </ul>
       </nav>
       <div className="receipt-page mt-2">
-        <div className="row align-items-center">
-          <div className='col'>
-            <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
-          </div>
+        <div className="d-flex align-items-center gap-2">
+          <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
           {isAuthenticated && hasCsvData && (
-            <div className='col-auto'>
-              <button
-                className="btn btn-primary"
-                onClick={handleSaveToDB}
-                disabled={saving}
-              >
-                {saving ? 'DBに保存中...' : 'DBに保存'}
-              </button>
-            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleSaveToDB}
+              disabled={saving}
+            >
+              {saving ? '保存中...' : '保存'}
+            </button>
           )}
         </div>
 
