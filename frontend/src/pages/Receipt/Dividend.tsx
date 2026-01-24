@@ -17,7 +17,6 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
@@ -29,37 +28,7 @@ import {
     matchesAmounts
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
-
-// CSVアイテムをDividendDataに変換
-const parseCsvItem = (item: Record<string, unknown>): DividendData => {
-    const securityCode = String(item['銘柄コード'] || '');
-    const securityName = String(item['銘柄'] || '');
-    // 銘柄コードをリンク形式で表示（/searchページに遷移）
-    const securityCodeLink = `<a href="/search?code=${securityCode}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${securityCode}</a>`;
-    // security_infoは後方互換性のため残す
-    const securityInfo = securityCodeLink;
-
-    return {
-        settlement_date: new Date(item['入金日'] as string),
-        product: String(item['商品'] || ''),
-        account: String(item['口座'] || ''),
-        security_code: securityCode,
-        security_name: securityName,
-        security_info: securityInfo,
-        unit_price: parseNumber(item['単価[円/現地通貨]']),
-        shares: parseNumber(item['数量[株/口]']),
-        dividends_before_tax: parseNumber(item['配当・分配金合計（税引前）[円/現地通貨]']),
-        taxes: parseNumber(item['税額合計[円/現地通貨]']),
-        net_amount_received: parseNumber(item['受取金額[円/現地通貨]']),
-    };
-};
-
-// 決済日でソート
-const sortBySettlementDate = (data: DividendData[]): DividendData[] => {
-    return [...data].sort((a, b) =>
-        a.settlement_date.getTime() - b.settlement_date.getTime()
-    );
-};
+import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
 
 // 配当計算関数
 const calculateDividends = (data: DividendData[]): DividendCalculations => {
@@ -85,7 +54,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
     // CSVデータを配当データ形式に変換
-    const dividendData = useReceiptData(csvData, parseCsvItem, sortBySettlementDate);
+    const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
 
     // 全体の集計
     const calculations = useReceiptCalculations(dividendData, calculateDividends);
