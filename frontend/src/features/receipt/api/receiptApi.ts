@@ -17,6 +17,12 @@ const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+// 数値を安全に変換（NaN, null, undefinedを0に変換）
+const safeNumber = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
 // 配当金API
 export const dividendApi = {
   list: () =>
@@ -30,11 +36,11 @@ export const dividendApi = {
       account: item.account,
       security_code: item.security_code,
       security_name: item.security_name,
-      unit_price: item.unit_price,
-      shares: item.shares,
-      dividends_before_tax: item.dividends_before_tax,
-      taxes: item.taxes,
-      net_amount_received: item.net_amount_received,
+      unit_price: safeNumber(item.unit_price),
+      shares: safeNumber(item.shares),
+      dividends_before_tax: safeNumber(item.dividends_before_tax),
+      taxes: safeNumber(item.taxes),
+      net_amount_received: safeNumber(item.net_amount_received),
     }));
     try {
       const response = await apiClient.post<BulkCreateResponse>('/dividends/bulk', { items: payload }, { withCredentials: true });
@@ -72,13 +78,13 @@ export const domesticStockApi = {
       security_code: item.security_code,
       security_name: item.security_name,
       account: item.account,
-      shares: item.shares,
-      asked_price: item.asked_price,
-      proceeds: item.proceeds,
-      purchase_price: item.purchase_price,
-      realized_profit_and_loss: item.realized_profit_and_loss,
-      taxes: item.taxes,
-      realized_profit_and_loss_after_tax: item.realized_profit_and_loss_after_tax,
+      shares: safeNumber(item.shares),
+      asked_price: safeNumber(item.asked_price),
+      proceeds: safeNumber(item.proceeds),
+      purchase_price: safeNumber(item.purchase_price),
+      realized_profit_and_loss: safeNumber(item.realized_profit_and_loss),
+      taxes: safeNumber(item.taxes),
+      realized_profit_and_loss_after_tax: safeNumber(item.realized_profit_and_loss_after_tax),
     }));
     try {
       const response = await apiClient.post<BulkCreateResponse>('/domestic-stocks/bulk', { items: payload }, { withCredentials: true });
@@ -116,14 +122,14 @@ export const mutualfundApi = {
       fund_name: item.fund_name,
       dividends: item.dividends || null,
       account: item.account,
-      shares: item.shares,
-      exchange_rate: item.exchange_rate,
-      cancellation_unit_price_yen: item.cancellation_unit_price_yen,
-      cancellation_amount_yen: item.cancellation_amount_yen,
-      average_acquisition_price_yen: item.average_acquisition_price_yen,
-      realized_profit_and_loss: item.realized_profit_and_loss,
-      taxes: item.taxes,
-      realized_profit_and_loss_after_tax: item.realized_profit_and_loss_after_tax,
+      shares: safeNumber(item.shares),
+      exchange_rate: safeNumber(item.exchange_rate),
+      cancellation_unit_price_yen: safeNumber(item.cancellation_unit_price_yen),
+      cancellation_amount_yen: safeNumber(item.cancellation_amount_yen),
+      average_acquisition_price_yen: safeNumber(item.average_acquisition_price_yen),
+      realized_profit_and_loss: safeNumber(item.realized_profit_and_loss),
+      taxes: safeNumber(item.taxes),
+      realized_profit_and_loss_after_tax: safeNumber(item.realized_profit_and_loss_after_tax),
     }));
     try {
       const response = await apiClient.post<BulkCreateResponse>('/mutualfunds/bulk', { items: payload }, { withCredentials: true });
