@@ -1,6 +1,7 @@
 use crate::errors::ApiError;
 use axum::{extract::FromRequest, http::Request, Json};
 use serde::de::DeserializeOwned;
+use tracing::error;
 use validator::Validate;
 
 #[derive(Debug)]
@@ -20,10 +21,15 @@ where
     ) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state)
             .await
-            .map_err(|_| ApiError::JsonParseError)?;
+            .map_err(|_| {
+                error!("[ValidatedJson] JSONパースエラー");
+                ApiError::JsonParseError
+            })?;
 
         value.validate().map_err(|rejection| {
-            ApiError::ValidationError(format!("{}", rejection).replace('\n', ", "))
+            let msg = format!("{}", rejection).replace('\n', ", ");
+            error!("[ValidatedJson] バリデーションエラー: {}", msg);
+            ApiError::ValidationError(msg)
         })?;
 
         Ok(ValidatedJson(value))
