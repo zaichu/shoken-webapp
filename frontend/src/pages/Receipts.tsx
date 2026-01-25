@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -50,9 +50,17 @@ export function ReceiptsPage() {
   const domesticStockCSV = useCSVReader();
   const mutualfundCSV = useCSVReader();
 
+  // フェッチ済みフラグ（多重実行防止）
+  const hasFetched = useRef(false);
+
   // DBからデータを取得
-  const fetchFromDB = useCallback(async () => {
-    if (!isAuthenticated || authLoading) return;
+  const fetchFromDB = useCallback(async (force = false) => {
+    // 認証状態が確定していない場合は待機
+    if (authLoading) return;
+    // 未認証の場合はスキップ
+    if (!isAuthenticated) return;
+    // 既にフェッチ済みで強制更新でない場合はスキップ
+    if (hasFetched.current && !force) return;
 
     setDbLoading(true);
     setDbError(null);
@@ -67,6 +75,7 @@ export function ReceiptsPage() {
       setDividendDBData(dividends.map(d => transformDBDividend(d as unknown as Record<string, unknown>)));
       setDomesticStockDBData(stocks.map(d => transformDBDomesticStock(d as unknown as Record<string, unknown>)));
       setMutualfundDBData(funds.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>)));
+      hasFetched.current = true;
     } catch (err) {
       setDbError(err instanceof Error ? err.message : 'データ取得に失敗しました');
     } finally {
@@ -74,10 +83,12 @@ export function ReceiptsPage() {
     }
   }, [isAuthenticated, authLoading]);
 
-  // 初回ロード時にDBからデータを取得
+  // 認証状態が確定したらDBからデータを取得
   useEffect(() => {
-    fetchFromDB();
-  }, [fetchFromDB]);
+    if (!authLoading) {
+      fetchFromDB();
+    }
+  }, [authLoading, fetchFromDB]);
 
   /**
    * 現在選択中のタブに応じてCSV処理を切り替える
@@ -133,7 +144,7 @@ export function ReceiptsPage() {
           break;
         }
       }
-      await fetchFromDB();
+      await fetchFromDB(true);
     } catch (err) {
       setDbError(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
@@ -281,7 +292,7 @@ export function ReceiptsPage() {
           </div>
         )}
 
-        {(isLoading || dbLoading) && (
+        {(isLoading || dbLoading || authLoading) && (
           <div className="text-center my-4">
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
