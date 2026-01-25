@@ -86,11 +86,13 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    sqlx::query("DELETE FROM dividends WHERE user_id = $1")
+    info!("[dividend.delete_all] リクエスト受信");
+    let result = sqlx::query("DELETE FROM dividends WHERE user_id = $1")
         .bind(auth_user.id())
         .execute(&state.pool)
         .await?;
 
+    info!("[dividend.delete_all] 完了: {}件削除", result.rows_affected());
     Ok((
         StatusCode::OK,
         Json(serde_json::json!({"message": "全ての配当金データを削除しました"})),
