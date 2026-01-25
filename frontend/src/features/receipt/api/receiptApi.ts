@@ -46,8 +46,17 @@ export const dividendApi = {
     }
   },
 
-  deleteAll: () =>
-    apiClient.delete('/dividends/all', { withCredentials: true }),
+  deleteAll: async () => {
+    console.log('[dividendApi.deleteAll] 開始');
+    try {
+      const response = await apiClient.delete('/dividends/all', { withCredentials: true });
+      console.log('[dividendApi.deleteAll] 成功');
+      return response;
+    } catch (error) {
+      console.error('[dividendApi.deleteAll] 失敗:', error);
+      throw error;
+    }
+  },
 };
 
 // 国内株式API
@@ -81,8 +90,17 @@ export const domesticStockApi = {
     }
   },
 
-  deleteAll: () =>
-    apiClient.delete('/domestic-stocks/all', { withCredentials: true }),
+  deleteAll: async () => {
+    console.log('[domesticStockApi.deleteAll] 開始');
+    try {
+      const response = await apiClient.delete('/domestic-stocks/all', { withCredentials: true });
+      console.log('[domesticStockApi.deleteAll] 成功');
+      return response;
+    } catch (error) {
+      console.error('[domesticStockApi.deleteAll] 失敗:', error);
+      throw error;
+    }
+  },
 };
 
 // 投資信託API
@@ -117,6 +135,15 @@ export const mutualfundApi = {
     }
   },
 
-  deleteAll: () =>
-    apiClient.delete('/mutualfunds/all', { withCredentials: true }),
+  deleteAll: async () => {
+    console.log('[mutualfundApi.deleteAll] 開始');
+    try {
+      const response = await apiClient.delete('/mutualfunds/all', { withCredentials: true });
+      console.log('[mutualfundApi.deleteAll] 成功');
+      return response;
+    } catch (error) {
+      console.error('[mutualfundApi.deleteAll] 失敗:', error);
+      throw error;
+    }
+  },
 };
