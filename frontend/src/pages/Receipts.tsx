@@ -43,6 +43,7 @@ export function ReceiptsPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // 各明細種類ごとにCSVリーダーフックを作成
   const dividendCSV = useCSVReader();
@@ -141,6 +142,41 @@ export function ReceiptsPage() {
   };
 
   /**
+   * DBデータを全削除
+   */
+  const handleDeleteAll = async () => {
+    if (!isAuthenticated) return;
+    if (!window.confirm('現在のタブのデータをすべて削除しますか？')) return;
+
+    setDeleting(true);
+    setDbError(null);
+    console.log(`[handleDeleteAll] 開始: ${receiptsType}`);
+
+    try {
+      switch (receiptsType) {
+        case 'dividend':
+          await dividendApi.deleteAll();
+          setDividendDBData([]);
+          break;
+        case 'domesticstock':
+          await domesticStockApi.deleteAll();
+          setDomesticStockDBData([]);
+          break;
+        case 'mutualfund':
+          await mutualfundApi.deleteAll();
+          setMutualfundDBData([]);
+          break;
+      }
+      console.log(`[handleDeleteAll] 成功: ${receiptsType}`);
+    } catch (err) {
+      console.error(`[handleDeleteAll] 失敗: ${receiptsType}`, err);
+      setDbError(err instanceof Error ? err.message : '削除に失敗しました');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  /**
    * 現在選択中のタブに対応するエラーとローディング状態を取得
    */
   const getCurrentCSVState = () => {
@@ -156,6 +192,15 @@ export function ReceiptsPage() {
 
   const { isLoading, error, fileName, csvData } = getCurrentCSVState();
   const hasCsvData = csvData.length > 0;
+
+  // 現在のタブのDBデータがあるか判定
+  const hasDbData = (() => {
+    switch (receiptsType) {
+      case 'dividend': return dividendDBData.length > 0;
+      case 'domesticstock': return domesticStockDBData.length > 0;
+      case 'mutualfund': return mutualfundDBData.length > 0;
+    }
+  })();
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
   const getDividendData = () => {
@@ -202,18 +247,31 @@ export function ReceiptsPage() {
         </ul>
       </nav>
       <div className="receipt-page mt-2">
-        <div className="d-flex align-items-center gap-2">
-          <div style={{ maxWidth: '400px' }}>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div style={{ width: '350px' }}>
             <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
           </div>
-          {isAuthenticated && hasCsvData && (
-            <button
-              className="btn btn-primary"
-              onClick={handleSaveToDB}
-              disabled={saving}
-            >
-              {saving ? '保存中...' : '保存'}
-            </button>
+          {isAuthenticated && (
+            <div className="btn-group">
+              {hasCsvData && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSaveToDB}
+                  disabled={saving || deleting}
+                >
+                  {saving ? '保存中...' : '保存'}
+                </button>
+              )}
+              {hasDbData && (
+                <button
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={handleDeleteAll}
+                  disabled={saving || deleting}
+                >
+                  {deleting ? '削除中...' : '削除'}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
