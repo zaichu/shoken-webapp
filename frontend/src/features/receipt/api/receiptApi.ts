@@ -22,12 +22,28 @@ export const dividendApi = {
   list: () =>
     apiClient.get<DividendData[]>('/dividends', { withCredentials: true }),
 
-  bulkCreate: (items: Omit<DividendData, 'id' | 'security_info' | 'created_at' | 'updated_at'>[]) => {
+  bulkCreate: async (items: DividendData[]) => {
+    console.log('[dividendApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
-      ...item,
       settlement_date: formatDate(item.settlement_date as Date),
+      product: item.product,
+      account: item.account,
+      security_code: item.security_code,
+      security_name: item.security_name,
+      unit_price: item.unit_price,
+      shares: item.shares,
+      dividends_before_tax: item.dividends_before_tax,
+      taxes: item.taxes,
+      net_amount_received: item.net_amount_received,
     }));
-    return apiClient.post<BulkCreateResponse>('/dividends/bulk', { items: payload }, { withCredentials: true });
+    try {
+      const response = await apiClient.post<BulkCreateResponse>('/dividends/bulk', { items: payload }, { withCredentials: true });
+      console.log('[dividendApi.bulkCreate] 成功');
+      return response;
+    } catch (error) {
+      console.error('[dividendApi.bulkCreate] 失敗:', error);
+      throw error;
+    }
   },
 
   deleteAll: () =>
@@ -39,12 +55,30 @@ export const domesticStockApi = {
   list: () =>
     apiClient.get<DomesticStockData[]>('/domestic-stocks', { withCredentials: true }),
 
-  bulkCreate: (items: Omit<DomesticStockData, 'id' | 'security_info' | 'created_at' | 'updated_at'>[]) => {
+  bulkCreate: async (items: DomesticStockData[]) => {
+    console.log('[domesticStockApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
-      ...item,
       trade_date: formatDate(item.trade_date as Date),
+      settlement_date: formatDate(item.settlement_date as Date),
+      security_code: item.security_code,
+      security_name: item.security_name,
+      account: item.account,
+      shares: item.shares,
+      asked_price: item.asked_price,
+      proceeds: item.proceeds,
+      purchase_price: item.purchase_price,
+      realized_profit_and_loss: item.realized_profit_and_loss,
+      taxes: item.taxes,
+      realized_profit_and_loss_after_tax: item.realized_profit_and_loss_after_tax,
     }));
-    return apiClient.post<BulkCreateResponse>('/domestic-stocks/bulk', { items: payload }, { withCredentials: true });
+    try {
+      const response = await apiClient.post<BulkCreateResponse>('/domestic-stocks/bulk', { items: payload }, { withCredentials: true });
+      console.log('[domesticStockApi.bulkCreate] 成功');
+      return response;
+    } catch (error) {
+      console.error('[domesticStockApi.bulkCreate] 失敗:', error);
+      throw error;
+    }
   },
 
   deleteAll: () =>
@@ -56,12 +90,31 @@ export const mutualfundApi = {
   list: () =>
     apiClient.get<MutualfundData[]>('/mutualfunds', { withCredentials: true }),
 
-  bulkCreate: (items: Omit<MutualfundData, 'id' | 'created_at' | 'updated_at'>[]) => {
+  bulkCreate: async (items: MutualfundData[]) => {
+    console.log('[mutualfundApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
-      ...item,
       trade_date: formatDate(item.trade_date as Date),
+      settlement_date: formatDate(item.settlement_date as Date),
+      fund_name: item.fund_name,
+      dividends: item.dividends || null,
+      account: item.account,
+      shares: item.shares,
+      exchange_rate: item.exchange_rate,
+      cancellation_unit_price_yen: item.cancellation_unit_price_yen,
+      cancellation_amount_yen: item.cancellation_amount_yen,
+      average_acquisition_price_yen: item.average_acquisition_price_yen,
+      realized_profit_and_loss: item.realized_profit_and_loss,
+      taxes: item.taxes,
+      realized_profit_and_loss_after_tax: item.realized_profit_and_loss_after_tax,
     }));
-    return apiClient.post<BulkCreateResponse>('/mutualfunds/bulk', { items: payload }, { withCredentials: true });
+    try {
+      const response = await apiClient.post<BulkCreateResponse>('/mutualfunds/bulk', { items: payload }, { withCredentials: true });
+      console.log('[mutualfundApi.bulkCreate] 成功');
+      return response;
+    } catch (error) {
+      console.error('[mutualfundApi.bulkCreate] 失敗:', error);
+      throw error;
+    }
   },
 
   deleteAll: () =>

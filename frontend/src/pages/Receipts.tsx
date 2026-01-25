@@ -203,7 +203,9 @@ export function ReceiptsPage() {
       </nav>
       <div className="receipt-page mt-2">
         <div className="d-flex align-items-center gap-2">
-          <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
+          <div style={{ maxWidth: '400px' }}>
+            <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
+          </div>
           {isAuthenticated && hasCsvData && (
             <button
               className="btn btn-primary"

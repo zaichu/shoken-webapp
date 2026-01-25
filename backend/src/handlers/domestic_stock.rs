@@ -7,12 +7,14 @@ use crate::{
     state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use tracing::info;
 
 /// 認証ユーザーの国内株式取引一覧を取得
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
+    info!("[domestic_stock.list] リクエスト受信");
     let stocks = sqlx::query_as::<_, DomesticStock>(
         r#"
         SELECT id, user_id, trade_date, settlement_date, security_code, security_name,
@@ -37,6 +39,7 @@ pub async fn bulk_create(
     auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<BulkCreateDomesticStockRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    info!("[domestic_stock.bulk_create] リクエスト受信: {}件", data.items.len());
     let user_id = auth_user.id();
     let mut inserted = 0;
     let mut skipped = 0;
@@ -76,6 +79,7 @@ pub async fn bulk_create(
         }
     }
 
+    info!("[domestic_stock.bulk_create] 完了: inserted={}, skipped={}", inserted, skipped);
     Ok((
         StatusCode::CREATED,
         Json(BulkCreateResponse { inserted, skipped }),
