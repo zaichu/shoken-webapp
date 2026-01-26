@@ -88,8 +88,8 @@ fn get_backend_url() -> String {
     })
 }
 
-/// Google OAuth認証を開始
-pub async fn google_auth(State(state): State<AppState>) -> Result<Json<AuthUrlResponse>, ApiError> {
+/// Google OAuth認証を開始（直接リダイレクト）
+pub async fn google_auth(State(state): State<AppState>) -> Result<Redirect, ApiError> {
     let client = create_oauth_client(&state)?;
 
     let (auth_url, _csrf_token) = client
@@ -99,9 +99,7 @@ pub async fn google_auth(State(state): State<AppState>) -> Result<Json<AuthUrlRe
         .add_scope(Scope::new("profile".to_string()))
         .url();
 
-    Ok(Json(AuthUrlResponse {
-        auth_url: auth_url.to_string(),
-    }))
+    Ok(Redirect::to(auth_url.as_str()))
 }
 
 /// Google OAuthコールバックを処理

@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
-import { UserInfo, AuthUrlResponse } from '../types';
+import { UserInfo } from '../types';
 import { AuthContext } from './context';
 import { apiClient } from '@/lib/api/client';
 
@@ -34,19 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  const login = async () => {
-    try {
-      // Google OAuth認証URLを取得
-      const response = await apiClient.get<AuthUrlResponse>('/auth/google', {
-        withCredentials: true,
-      });
-
-      // Googleの認証ページにリダイレクト
-      window.location.href = response.auth_url;
-    } catch (error) {
-      console.error('ログイン開始に失敗しました:', error);
-      throw error;
-    }
+  const login = () => {
+    // バックエンドの認証エンドポイントに直接リダイレクト
+    // バックエンドがGoogleの認証ページにリダイレクトする
+    const apiBaseUrl = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL;
+    window.location.href = `${apiBaseUrl}/auth/google`;
   };
 
   const logout = async () => {
