@@ -7,6 +7,7 @@ use crate::{
     state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use std::time::Instant;
 use tracing::info;
 
 /// 認証ユーザーの投資信託一覧を取得
@@ -39,48 +40,102 @@ pub async fn bulk_create(
     auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<BulkCreateMutualfundRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    info!("[mutualfund.bulk_create] リクエスト受信: {}件", data.items.len());
-    let user_id = auth_user.id();
-    let mut inserted = 0;
-    let mut skipped = 0;
+    let total = data.items.len();
+    info!("[mutualfund.bulk_create] リクエスト受信: {}件", total);
+    let start = Instant::now();
 
-    for item in data.items {
-        let result = sqlx::query(
-            r#"
-            INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
-                                     account, shares, exchange_rate, cancellation_unit_price_yen,
-                                     cancellation_amount_yen, average_acquisition_price_yen,
-                                     realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
-            DO NOTHING
-            "#,
-        )
-        .bind(user_id)
-        .bind(item.trade_date)
-        .bind(item.settlement_date)
-        .bind(&item.fund_name)
-        .bind(&item.dividends)
-        .bind(&item.account)
-        .bind(item.shares)
-        .bind(item.exchange_rate)
-        .bind(item.cancellation_unit_price_yen)
-        .bind(item.cancellation_amount_yen)
-        .bind(item.average_acquisition_price_yen)
-        .bind(item.realized_profit_and_loss)
-        .bind(item.taxes)
-        .bind(item.realized_profit_and_loss_after_tax)
-        .execute(&state.pool)
-        .await?;
-
-        if result.rows_affected() > 0 {
-            inserted += 1;
-        } else {
-            skipped += 1;
-        }
+    if data.items.is_empty() {
+        return Ok((
+            StatusCode::CREATED,
+            Json(BulkCreateResponse {
+                inserted: 0,
+                skipped: 0,
+            }),
+        ));
     }
 
-    info!("[mutualfund.bulk_create] 完了: inserted={}, skipped={}", inserted, skipped);
+    let user_id = auth_user.id();
+
+    // 各フィールドを配列に変換
+    let user_ids: Vec<uuid::Uuid> = vec![user_id; total];
+    let trade_dates: Vec<chrono::NaiveDate> = data.items.iter().map(|i| i.trade_date).collect();
+    let settlement_dates: Vec<chrono::NaiveDate> =
+        data.items.iter().map(|i| i.settlement_date).collect();
+    let fund_names: Vec<&str> = data.items.iter().map(|i| i.fund_name.as_str()).collect();
+    let dividends: Vec<Option<&str>> = data
+        .items
+        .iter()
+        .map(|i| i.dividends.as_deref())
+        .collect();
+    let accounts: Vec<&str> = data.items.iter().map(|i| i.account.as_str()).collect();
+    let shares: Vec<f64> = data.items.iter().map(|i| i.shares).collect();
+    let exchange_rates: Vec<f64> = data.items.iter().map(|i| i.exchange_rate).collect();
+    let cancellation_unit_prices: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.cancellation_unit_price_yen)
+        .collect();
+    let cancellation_amounts: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.cancellation_amount_yen)
+        .collect();
+    let avg_acquisition_prices: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.average_acquisition_price_yen)
+        .collect();
+    let realized_pls: Vec<f64> = data.items.iter().map(|i| i.realized_profit_and_loss).collect();
+    let taxes: Vec<f64> = data.items.iter().map(|i| i.taxes).collect();
+    let realized_pls_after_tax: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.realized_profit_and_loss_after_tax)
+        .collect();
+
+    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
+    let result = sqlx::query(
+        r#"
+        INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
+                                 account, shares, exchange_rate, cancellation_unit_price_yen,
+                                 cancellation_amount_yen, average_acquisition_price_yen,
+                                 realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax)
+        SELECT * FROM UNNEST(
+            $1::uuid[], $2::date[], $3::date[], $4::text[], $5::text[],
+            $6::text[], $7::float8[], $8::float8[], $9::float8[],
+            $10::float8[], $11::float8[], $12::float8[], $13::float8[], $14::float8[]
+        )
+        ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
+        DO NOTHING
+        "#,
+    )
+    .bind(&user_ids)
+    .bind(&trade_dates)
+    .bind(&settlement_dates)
+    .bind(&fund_names)
+    .bind(&dividends)
+    .bind(&accounts)
+    .bind(&shares)
+    .bind(&exchange_rates)
+    .bind(&cancellation_unit_prices)
+    .bind(&cancellation_amounts)
+    .bind(&avg_acquisition_prices)
+    .bind(&realized_pls)
+    .bind(&taxes)
+    .bind(&realized_pls_after_tax)
+    .execute(&state.pool)
+    .await?;
+
+    let inserted = result.rows_affected() as usize;
+    let skipped = total - inserted;
+    let elapsed = start.elapsed();
+
+    info!(
+        "[mutualfund.bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
+        inserted,
+        skipped,
+        elapsed.as_secs_f64() * 1000.0
+    );
     Ok((
         StatusCode::CREATED,
         Json(BulkCreateResponse { inserted, skipped }),
