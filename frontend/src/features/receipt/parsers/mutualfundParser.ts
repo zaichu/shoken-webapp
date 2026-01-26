@@ -2,9 +2,40 @@ import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import { parseNumber, TAX_RATE } from '@/lib/utils/formatters';
 
 /**
- * CSVアイテムをMutualfundDataに変換
+ * データがDB形式かどうかを判定
+ */
+const isDBFormat = (item: Record<string, unknown>): boolean => {
+    return 'trade_date' in item && 'fund_name' in item && !('約定日' in item);
+};
+
+/**
+ * CSVまたはDBアイテムをMutualfundDataに変換
  */
 export const parseMutualfundCsvItem = (item: Record<string, unknown>): MutualfundData => {
+    // DB形式の場合はそのまま返す（既に変換済み）
+    if (isDBFormat(item)) {
+        return {
+            trade_date: item.trade_date instanceof Date
+                ? item.trade_date
+                : new Date(item.trade_date as string),
+            settlement_date: item.settlement_date instanceof Date
+                ? item.settlement_date
+                : new Date(item.settlement_date as string),
+            fund_name: String(item.fund_name || ''),
+            dividends: String(item.dividends || ''),
+            account: String(item.account || ''),
+            shares: Number(item.shares) || 0,
+            exchange_rate: Number(item.exchange_rate) || 0,
+            cancellation_unit_price_yen: Number(item.cancellation_unit_price_yen) || 0,
+            cancellation_amount_yen: Number(item.cancellation_amount_yen) || 0,
+            average_acquisition_price_yen: Number(item.average_acquisition_price_yen) || 0,
+            realized_profit_and_loss: Number(item.realized_profit_and_loss) || 0,
+            taxes: Number(item.taxes) || 0,
+            realized_profit_and_loss_after_tax: Number(item.realized_profit_and_loss_after_tax) || 0,
+        };
+    }
+
+    // CSV形式の場合
     const account = String(item['口座'] || '');
     const realizedPnL = parseNumber(item['実現損益［円］']);
     const isSpecificAccount = account.includes('特定');
