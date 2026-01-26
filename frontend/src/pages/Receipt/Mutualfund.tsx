@@ -11,11 +11,11 @@ import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTran
 import {
     formatJPDate,
     createYearMonthKey,
-    TAX_RATE,
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
 import { createYearOptions, matchesYear } from '@/lib/utils/searchUtils';
+import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 
 interface MutualfundProps {
     csvData: Record<string, unknown>[];
@@ -28,29 +28,11 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
     /**
-     * CSVデータをMutualfundData形式に変換
+     * CSVまたはDBデータをMutualfundData形式に変換
      */
-    const mutualfundData: MutualfundData[] = (() => {
-        const parsedData = csvData.map((item) => ({
-            trade_date: new Date(item['約定日'] as string || ''),
-            settlement_date: new Date(item['受渡日'] as string || ''),
-            fund_name: String(item['ファンド名'] || ''),
-            dividends: String(item['分配金'] || ''),
-            account: String(item['口座'] || ''),
-            shares: Number(String(item['数量[口]'] || '0').replace(/,/g, '')),
-            exchange_rate: Number(String(item['為替レート［円］'] || '0').replace(/,/g, '')),
-            cancellation_unit_price_yen: Number(String(item['解約単価［円］'] || '0').replace(/,/g, '')),
-            cancellation_amount_yen: Number(String(item['解約額［円］'] || '0').replace(/,/g, '')),
-            average_acquisition_price_yen: Number(String(item['平均取得価額［円］'] || '0').replace(/,/g, '')),
-            realized_profit_and_loss: Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')),
-            taxes: String(item['口座'] || '').includes('特定') ? Math.floor(Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * TAX_RATE) : 0,
-            realized_profit_and_loss_after_tax: Math.floor(Number(String(item['実現損益［円］'] || '0').replace(/,/g, '')) * (String(item['口座'] || '').includes('特定') ? (1 - TAX_RATE) : 1)),
-        }));
-
-        return [...parsedData].sort((a, b) =>
-            a.trade_date.getTime() - b.trade_date.getTime()
-        );
-    })();
+    const mutualfundData: MutualfundData[] = sortMutualfundByTradeDate(
+        csvData.map(parseMutualfundCsvItem)
+    );
 
     /**
      * 全体の集計
