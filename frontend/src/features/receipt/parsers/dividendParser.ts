@@ -3,9 +3,37 @@ import { parseNumber } from '@/lib/utils/formatters';
 import { createSecurityCodeLink } from './securityLink';
 
 /**
- * CSVアイテムをDividendDataに変換
+ * データがDB形式かどうかを判定
+ */
+const isDBFormat = (item: Record<string, unknown>): boolean => {
+    return 'settlement_date' in item && 'security_code' in item;
+};
+
+/**
+ * CSVまたはDBアイテムをDividendDataに変換
  */
 export const parseDividendCsvItem = (item: Record<string, unknown>): DividendData => {
+    // DB形式の場合はそのまま返す（既に変換済み）
+    if (isDBFormat(item)) {
+        const securityCode = String(item.security_code || '');
+        return {
+            settlement_date: item.settlement_date instanceof Date
+                ? item.settlement_date
+                : new Date(item.settlement_date as string),
+            product: String(item.product || ''),
+            account: String(item.account || ''),
+            security_code: securityCode,
+            security_name: String(item.security_name || ''),
+            security_info: item.security_info || createSecurityCodeLink(securityCode),
+            unit_price: Number(item.unit_price) || 0,
+            shares: Number(item.shares) || 0,
+            dividends_before_tax: Number(item.dividends_before_tax) || 0,
+            taxes: Number(item.taxes) || 0,
+            net_amount_received: Number(item.net_amount_received) || 0,
+        };
+    }
+
+    // CSV形式の場合
     const securityCode = String(item['銘柄コード'] || '');
     const securityName = String(item['銘柄'] || '');
 
