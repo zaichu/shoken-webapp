@@ -1,3 +1,4 @@
+pub mod asset_balance;
 pub mod dividend;
 pub mod domestic_stock;
 pub mod jquants;

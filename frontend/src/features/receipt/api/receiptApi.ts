@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { DividendData } from '@/lib/interfaces/dividend';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
@@ -149,6 +150,48 @@ export const mutualfundApi = {
       return response;
     } catch (error) {
       console.error('[mutualfundApi.deleteAll] 失敗:', error);
+      throw error;
+    }
+  },
+};
+
+// 保有銘柄API
+export const assetBalanceApi = {
+  list: () =>
+    apiClient.get<AssetBalanceData[]>('/asset-balances', { withCredentials: true }),
+
+  bulkCreate: async (items: AssetBalanceData[]) => {
+    console.log('[assetBalanceApi.bulkCreate] 開始:', items.length, '件');
+    const payload = items.map(item => ({
+      security_code: item.security_code,
+      security_name: item.security_name,
+      shares: safeNumber(item.shares),
+      executing_shares: safeNumber(item.executing_shares),
+      average_purchase_price: safeNumber(item.average_purchase_price),
+      total_purchase_amount: safeNumber(item.total_purchase_amount),
+      current_price: safeNumber(item.current_price),
+      daily_change: safeNumber(item.daily_change),
+      market_value: safeNumber(item.market_value),
+      profit_loss_rate: safeNumber(item.profit_loss_rate),
+    }));
+    try {
+      const response = await apiClient.post<BulkCreateResponse>('/asset-balances/bulk', { items: payload }, { withCredentials: true });
+      console.log('[assetBalanceApi.bulkCreate] 成功');
+      return response;
+    } catch (error) {
+      console.error('[assetBalanceApi.bulkCreate] 失敗:', error);
+      throw error;
+    }
+  },
+
+  deleteAll: async () => {
+    console.log('[assetBalanceApi.deleteAll] 開始');
+    try {
+      const response = await apiClient.delete('/asset-balances/all', { withCredentials: true });
+      console.log('[assetBalanceApi.deleteAll] 成功');
+      return response;
+    } catch (error) {
+      console.error('[assetBalanceApi.deleteAll] 失敗:', error);
       throw error;
     }
   },

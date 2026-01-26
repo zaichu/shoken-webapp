@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
-import { useAssetBalanceStorage } from '@/hooks/common/useAssetBalanceStorage';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
@@ -18,6 +17,7 @@ import {
   formatNumber
 } from '@/lib/utils/formatters';
 import { logError } from '@/lib/utils/errorHandler';
+import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -98,13 +98,34 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
  */
 export function AssetBalancePage() {
   const [assetBalanceCsvData, setAssetBalanceCsvData] = useState<Record<string, unknown>[]>([]);
-  const { assetBalanceStorageData, saveAssetBalance, clearAssetBalance, lastUpdated } = useAssetBalanceStorage();
-  const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>(assetBalanceStorageData);
+  const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
+  const [savedData, setSavedData] = useState<AssetBalanceData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const tmpAssetBalanceData = useReceiptData(assetBalanceCsvData, parseCsvItem, sortBySecurityCode);
   const options = {
     skipHeaderRows: 6,
   };
   const assetBalanceCSV = useCSVReader(options);
+
+  // DBから保有銘柄データを取得
+  const fetchAssetBalances = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await assetBalanceApi.list();
+      setSavedData(data || []);
+      setAssetBalanceData(data || []);
+    } catch (error) {
+      logError('保有銘柄データ取得', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 初回読み込み
+  useEffect(() => {
+    fetchAssetBalances();
+  }, [fetchAssetBalances]);
 
   const handleFileSelect = async (file: File) => {
     try {
@@ -121,20 +142,32 @@ export function AssetBalancePage() {
     }
   }, [tmpAssetBalanceData, assetBalanceCsvData]);
 
-  const handleSaveToStorage = () => {
-    if (assetBalanceData.length > 0) {
-      saveAssetBalance(assetBalanceData);
-      // alert('保有銘柄データをローカルストレージに保存しました');
+  const handleSaveToDb = async () => {
+    if (assetBalanceData.length === 0) return;
+    setIsSaving(true);
+    try {
+      await assetBalanceApi.bulkCreate(assetBalanceData);
+      setSavedData(assetBalanceData);
+    } catch (error) {
+      logError('保有銘柄データ保存', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleClearStorage = () => {
-    if (window.confirm('保存された保有銘柄データを削除しますか？')) {
-      clearAssetBalance();
+  const handleDeleteAll = async () => {
+    if (!window.confirm('保存された保有銘柄データを削除しますか？')) return;
+    setIsSaving(true);
+    try {
+      await assetBalanceApi.deleteAll();
+      setSavedData([]);
       setAssetBalanceData([]);
       setAssetBalanceCsvData([]);
       assetBalanceCSV.reset();
-      // alert('保有銘柄データを削除しました');
+    } catch (error) {
+      logError('保有銘柄データ削除', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -152,7 +185,7 @@ export function AssetBalancePage() {
           </div>
         )}
 
-        {assetBalanceCSV.isLoading && (
+        {(assetBalanceCSV.isLoading || isLoading) && (
           <div className="text-center my-4">
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
@@ -161,17 +194,20 @@ export function AssetBalancePage() {
         )}
 
         <div className="mt-2 d-flex gap-2">
-          <button className="btn btn-primary" onClick={handleSaveToStorage} disabled={assetBalanceData.length === 0}>
-            保存
+          <button
+            className="btn btn-primary"
+            onClick={handleSaveToDb}
+            disabled={assetBalanceData.length === 0 || isSaving}
+          >
+            {isSaving ? '保存中...' : '保存'}
           </button>
-          <button className="btn btn-outline-danger" onClick={handleClearStorage} disabled={assetBalanceStorageData.length === 0}>
+          <button
+            className="btn btn-outline-danger"
+            onClick={handleDeleteAll}
+            disabled={savedData.length === 0 || isSaving}
+          >
             削除
           </button>
-          {lastUpdated && (
-            <span className="align-self-center text-muted ms-3">
-              最終更新: {lastUpdated}
-            </span>
-          )}
         </div>
 
         {assetBalanceData.length > 0 && <AssetBalanceInfo assetBalanceData={assetBalanceData} />}
