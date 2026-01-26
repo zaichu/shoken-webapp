@@ -50,12 +50,8 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
 
       {/* メインコンテンツ */}
       <div className="card shadow-sm mt-1">
-        <div className="card-header bg-primary text-white">
-          <div className="row align-items-center">
-            <div className="col-12">
-              <h5 className='mb-0'>{title}</h5>
-            </div>
-          </div>
+        <div className="card-header bg-primary text-white py-2">
+          <h5 className="mb-0 lh-base">{title}</h5>
         </div>
 
         <div className="card-body p-0">{children}</div>

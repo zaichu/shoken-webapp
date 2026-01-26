@@ -3,7 +3,7 @@ import { Button } from '../atoms/Button';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 
 export function Header() {
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const { user, login, logout, isAuthenticated, isLoading } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -50,11 +50,9 @@ export function Header() {
                 </Button>
               </div>
             ) : (
-              <Link to="/login">
-                <Button variant="outline-light" size="sm">
-                  ログイン
-                </Button>
-              </Link>
+              <Button variant="outline-light" size="sm" onClick={login}>
+                ログイン
+              </Button>
             )}
           </div>
         </div>
