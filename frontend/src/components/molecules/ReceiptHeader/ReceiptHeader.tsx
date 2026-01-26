@@ -14,8 +14,8 @@ interface ReceiptHeaderProps {
 export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({ items }) => {
     return (
         <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">集計情報</h5>
+            <div className="card-header bg-primary text-white py-2">
+                <h5 className="mb-0 lh-base">集計情報</h5>
             </div>
             <div className="card-body">
                 <div className="row">
