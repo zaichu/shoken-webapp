@@ -47,17 +47,14 @@ type GoogleOAuthClient = oauth2::Client<
 
 /// OAuthクライアントを作成
 fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
-    let client_id = state
-        .secrets
-        .google_client_id
-        .clone()
-        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string()))?;
+    let client_id =
+        state.secrets.google_client_id.clone().ok_or_else(|| {
+            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
+        })?;
 
-    let client_secret = state
-        .secrets
-        .google_client_secret
-        .clone()
-        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string()))?;
+    let client_secret = state.secrets.google_client_secret.clone().ok_or_else(|| {
+        ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
+    })?;
 
     let redirect_url = format!("{}/auth/google/callback", get_backend_url());
 
@@ -146,7 +143,11 @@ pub async fn google_callback(
         .path("/")
         .http_only(true)
         .secure(is_production)
-        .same_site(if is_production { SameSite::None } else { SameSite::Lax })
+        .same_site(if is_production {
+            SameSite::None
+        } else {
+            SameSite::Lax
+        })
         .max_age(time::Duration::days(7))
         .build();
 
@@ -231,10 +232,7 @@ pub async fn get_current_user(
 }
 
 /// ログアウト処理
-pub async fn logout(
-    State(state): State<AppState>,
-    jar: CookieJar,
-) -> impl IntoResponse {
+pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
     // セッションをデータベースから削除
     if let Some(session_token) = jar.get(SESSION_COOKIE_NAME).map(|c| c.value().to_string()) {
         if let Ok(session_id) = session_token.parse::<uuid::Uuid>() {
@@ -250,13 +248,78 @@ pub async fn logout(
         .path("/")
         .http_only(true)
         .secure(is_production)
-        .same_site(if is_production { SameSite::None } else { SameSite::Lax })
+        .same_site(if is_production {
+            SameSite::None
+        } else {
+            SameSite::Lax
+        })
         .max_age(time::Duration::seconds(0))
         .build();
 
     let jar = jar.remove(cookie);
 
-    (jar, Json(serde_json::json!({"message": "ログアウトしました"})))
+    (
+        jar,
+        Json(serde_json::json!({"message": "ログアウトしました"})),
+    )
+}
+
+/// アカウント削除処理
+/// ユーザーとすべての関連データ（sessions, dividends, domestic_stocks, mutualfunds, asset_balances）を削除
+pub async fn delete_account(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, ApiError> {
+    let session_token = jar
+        .get(SESSION_COOKIE_NAME)
+        .map(|c| c.value().to_string())
+        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
+
+    let session_id: uuid::Uuid = session_token
+        .parse()
+        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
+
+    // セッションからユーザーIDを取得
+    let user_id: Option<(uuid::Uuid,)> = sqlx::query_as(
+        r#"
+        SELECT user_id FROM sessions
+        WHERE id = $1 AND expires_at > NOW()
+        "#,
+    )
+    .bind(session_id)
+    .fetch_optional(&state.pool)
+    .await?;
+
+    let user_id = user_id
+        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?
+        .0;
+
+    // ユーザーを削除（CASCADE により関連データも削除）
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
+        .execute(&state.pool)
+        .await?;
+
+    // セッションCookieを削除
+    let is_production = std::env::var("BACKEND_URL").is_ok();
+    let cookie = Cookie::build((SESSION_COOKIE_NAME, ""))
+        .path("/")
+        .http_only(true)
+        .secure(is_production)
+        .same_site(if is_production {
+            SameSite::None
+        } else {
+            SameSite::Lax
+        })
+        .max_age(time::Duration::seconds(0))
+        .build();
+
+    let jar = jar.remove(cookie);
+
+    Ok((
+        jar,
+        Json(serde_json::json!({"message": "アカウントを削除しました"})),
+    ))
 }
 
 #[cfg(test)]

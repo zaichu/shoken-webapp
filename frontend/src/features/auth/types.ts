@@ -16,6 +16,7 @@ export interface AuthContextType {
   setUser: (user: UserInfo | null) => void;
   login: (credentials?: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }

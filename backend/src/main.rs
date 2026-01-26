@@ -78,6 +78,10 @@ async fn main() {
         )
         .route("/auth/me", get(handlers::auth::get_current_user))
         .route("/auth/logout", post(handlers::auth::logout))
+        .route(
+            "/auth/delete-account",
+            delete(handlers::auth::delete_account),
+        )
         // 配当金エンドポイント
         .route("/dividends", get(handlers::dividend::list))
         .route("/dividends/bulk", post(handlers::dividend::bulk_create))
