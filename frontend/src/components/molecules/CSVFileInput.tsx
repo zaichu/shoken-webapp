@@ -39,7 +39,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '' }: CSVFileInp
         type="text"
         className="form-control form-control-sm"
         readOnly
-        placeholder="CSVファイルを選択してください。"
+        placeholder="ファイル未選択"
         value={selectedFileName}
       />
     </div>
