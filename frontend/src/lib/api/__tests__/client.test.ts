@@ -242,7 +242,7 @@ describe('ApiClient', () => {
 
       expect(mockedAxios.create).toHaveBeenCalledWith({
         baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-        timeout: 10000,
+        timeout: 30000,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

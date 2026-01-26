@@ -29,7 +29,7 @@ class ApiClient {
   constructor(config: ApiClientConfig = {}) {
     const {
       baseURL = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-      timeout = 10000,
+      timeout = 30000, // fly.ioの起動待ち時間を考慮して30秒に設定
       retry = {},
       headers = {},
     } = config;
