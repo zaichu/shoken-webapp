@@ -6,6 +6,7 @@ use crate::{
     state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use std::time::Instant;
 use tracing::info;
 
 /// 認証ユーザーの配当金一覧を取得
@@ -37,44 +38,75 @@ pub async fn bulk_create(
     auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<BulkCreateDividendRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    info!("[dividend.bulk_create] リクエスト受信: {}件", data.items.len());
-    let user_id = auth_user.id();
-    let mut inserted = 0;
-    let mut skipped = 0;
+    let total = data.items.len();
+    info!("[dividend.bulk_create] リクエスト受信: {}件", total);
+    let start = Instant::now();
 
-    for item in data.items {
-        let result = sqlx::query(
-            r#"
-            INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
-                                   security_name, unit_price, shares, dividends_before_tax,
-                                   taxes, net_amount_received)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (user_id, settlement_date, security_code, shares, dividends_before_tax)
-            DO NOTHING
-            "#,
-        )
-        .bind(user_id)
-        .bind(item.settlement_date)
-        .bind(&item.product)
-        .bind(&item.account)
-        .bind(&item.security_code)
-        .bind(&item.security_name)
-        .bind(item.unit_price)
-        .bind(item.shares)
-        .bind(item.dividends_before_tax)
-        .bind(item.taxes)
-        .bind(item.net_amount_received)
-        .execute(&state.pool)
-        .await?;
-
-        if result.rows_affected() > 0 {
-            inserted += 1;
-        } else {
-            skipped += 1;
-        }
+    if data.items.is_empty() {
+        return Ok((
+            StatusCode::CREATED,
+            Json(BulkCreateResponse {
+                inserted: 0,
+                skipped: 0,
+            }),
+        ));
     }
 
-    info!("[dividend.bulk_create] 完了: inserted={}, skipped={}", inserted, skipped);
+    let user_id = auth_user.id();
+
+    // 各フィールドを配列に変換
+    let user_ids: Vec<uuid::Uuid> = vec![user_id; total];
+    let settlement_dates: Vec<chrono::NaiveDate> =
+        data.items.iter().map(|i| i.settlement_date).collect();
+    let products: Vec<&str> = data.items.iter().map(|i| i.product.as_str()).collect();
+    let accounts: Vec<&str> = data.items.iter().map(|i| i.account.as_str()).collect();
+    let security_codes: Vec<&str> = data.items.iter().map(|i| i.security_code.as_str()).collect();
+    let security_names: Vec<&str> = data.items.iter().map(|i| i.security_name.as_str()).collect();
+    let unit_prices: Vec<f64> = data.items.iter().map(|i| i.unit_price).collect();
+    let shares: Vec<f64> = data.items.iter().map(|i| i.shares).collect();
+    let dividends_before_taxes: Vec<f64> = data.items.iter().map(|i| i.dividends_before_tax).collect();
+    let taxes: Vec<f64> = data.items.iter().map(|i| i.taxes).collect();
+    let net_amounts: Vec<f64> = data.items.iter().map(|i| i.net_amount_received).collect();
+
+    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
+    let result = sqlx::query(
+        r#"
+        INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
+                               security_name, unit_price, shares, dividends_before_tax,
+                               taxes, net_amount_received)
+        SELECT * FROM UNNEST(
+            $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
+            $6::text[], $7::float8[], $8::float8[], $9::float8[],
+            $10::float8[], $11::float8[]
+        )
+        ON CONFLICT (user_id, settlement_date, security_code, shares, dividends_before_tax)
+        DO NOTHING
+        "#,
+    )
+    .bind(&user_ids)
+    .bind(&settlement_dates)
+    .bind(&products)
+    .bind(&accounts)
+    .bind(&security_codes)
+    .bind(&security_names)
+    .bind(&unit_prices)
+    .bind(&shares)
+    .bind(&dividends_before_taxes)
+    .bind(&taxes)
+    .bind(&net_amounts)
+    .execute(&state.pool)
+    .await?;
+
+    let inserted = result.rows_affected() as usize;
+    let skipped = total - inserted;
+    let elapsed = start.elapsed();
+
+    info!(
+        "[dividend.bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
+        inserted,
+        skipped,
+        elapsed.as_secs_f64() * 1000.0
+    );
     Ok((
         StatusCode::CREATED,
         Json(BulkCreateResponse { inserted, skipped }),
