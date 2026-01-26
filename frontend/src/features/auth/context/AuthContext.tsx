@@ -1,7 +1,11 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { UserInfo } from '../types';
 import { AuthContext } from './context';
 import { apiClient } from '@/lib/api/client';
+import { useIdleTimer } from '../hooks/useIdleTimer';
+
+// アイドルタイムアウト: 30分
+const IDLE_TIMEOUT = 30 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -41,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `${apiBaseUrl}/auth/google`;
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiClient.post('/auth/logout', {}, {
         withCredentials: true,
@@ -51,7 +55,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
     }
-  };
+  }, []);
+
+  // 自動ログアウト処理
+  const handleIdle = useCallback(() => {
+    if (user) {
+      console.log('アイドルタイムアウトにより自動ログアウトします');
+      logout();
+    }
+  }, [user, logout]);
+
+  // アイドルタイマーを設定（ログイン中のみ有効）
+  useIdleTimer({
+    timeout: IDLE_TIMEOUT,
+    onIdle: handleIdle,
+    enabled: !!user,
+  });
 
   return (
     <AuthContext.Provider value={{
