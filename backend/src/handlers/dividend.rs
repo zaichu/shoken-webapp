@@ -60,11 +60,20 @@ pub async fn bulk_create(
         data.items.iter().map(|i| i.settlement_date).collect();
     let products: Vec<&str> = data.items.iter().map(|i| i.product.as_str()).collect();
     let accounts: Vec<&str> = data.items.iter().map(|i| i.account.as_str()).collect();
-    let security_codes: Vec<&str> = data.items.iter().map(|i| i.security_code.as_str()).collect();
-    let security_names: Vec<&str> = data.items.iter().map(|i| i.security_name.as_str()).collect();
+    let security_codes: Vec<&str> = data
+        .items
+        .iter()
+        .map(|i| i.security_code.as_str())
+        .collect();
+    let security_names: Vec<&str> = data
+        .items
+        .iter()
+        .map(|i| i.security_name.as_str())
+        .collect();
     let unit_prices: Vec<f64> = data.items.iter().map(|i| i.unit_price).collect();
     let shares: Vec<f64> = data.items.iter().map(|i| i.shares).collect();
-    let dividends_before_taxes: Vec<f64> = data.items.iter().map(|i| i.dividends_before_tax).collect();
+    let dividends_before_taxes: Vec<f64> =
+        data.items.iter().map(|i| i.dividends_before_tax).collect();
     let taxes: Vec<f64> = data.items.iter().map(|i| i.taxes).collect();
     let net_amounts: Vec<f64> = data.items.iter().map(|i| i.net_amount_received).collect();
 
@@ -124,7 +133,10 @@ pub async fn delete_all(
         .execute(&state.pool)
         .await?;
 
-    info!("[dividend.delete_all] 完了: {}件削除", result.rows_affected());
+    info!(
+        "[dividend.delete_all] 完了: {}件削除",
+        result.rows_affected()
+    );
     Ok((
         StatusCode::OK,
         Json(serde_json::json!({"message": "全ての配当金データを削除しました"})),

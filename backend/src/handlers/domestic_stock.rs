@@ -61,14 +61,26 @@ pub async fn bulk_create(
     let trade_dates: Vec<chrono::NaiveDate> = data.items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         data.items.iter().map(|i| i.settlement_date).collect();
-    let security_codes: Vec<&str> = data.items.iter().map(|i| i.security_code.as_str()).collect();
-    let security_names: Vec<&str> = data.items.iter().map(|i| i.security_name.as_str()).collect();
+    let security_codes: Vec<&str> = data
+        .items
+        .iter()
+        .map(|i| i.security_code.as_str())
+        .collect();
+    let security_names: Vec<&str> = data
+        .items
+        .iter()
+        .map(|i| i.security_name.as_str())
+        .collect();
     let accounts: Vec<&str> = data.items.iter().map(|i| i.account.as_str()).collect();
     let shares: Vec<f64> = data.items.iter().map(|i| i.shares).collect();
     let asked_prices: Vec<f64> = data.items.iter().map(|i| i.asked_price).collect();
     let proceeds: Vec<f64> = data.items.iter().map(|i| i.proceeds).collect();
     let purchase_prices: Vec<f64> = data.items.iter().map(|i| i.purchase_price).collect();
-    let realized_pls: Vec<f64> = data.items.iter().map(|i| i.realized_profit_and_loss).collect();
+    let realized_pls: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.realized_profit_and_loss)
+        .collect();
     let taxes: Vec<f64> = data.items.iter().map(|i| i.taxes).collect();
     let realized_pls_after_tax: Vec<f64> = data
         .items
@@ -135,7 +147,10 @@ pub async fn delete_all(
         .execute(&state.pool)
         .await?;
 
-    info!("[domestic_stock.delete_all] 完了: {}件削除", result.rows_affected());
+    info!(
+        "[domestic_stock.delete_all] 完了: {}件削除",
+        result.rows_affected()
+    );
     Ok((
         StatusCode::OK,
         Json(serde_json::json!({"message": "全ての国内株式取引データを削除しました"})),

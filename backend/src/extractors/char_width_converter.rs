@@ -1,11 +1,7 @@
 pub fn halfwidth_to_fullwidth(c: char) -> char {
     match c {
-        'A'..='Z' => {
-            char_from_u32_with_default(c as u32 - 0x0041 + 0xFF21, c)
-        }
-        'a'..='z' => {
-            char_from_u32_with_default(c as u32 - 0x0061 + 0xFF41, c)
-        }
+        'A'..='Z' => char_from_u32_with_default(c as u32 - 0x0041 + 0xFF21, c),
+        'a'..='z' => char_from_u32_with_default(c as u32 - 0x0061 + 0xFF41, c),
         _ => c,
     }
 }

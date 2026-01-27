@@ -14,11 +14,13 @@ export interface LoginCredentials {
 export interface AuthContextType {
   user: UserInfo | null;
   setUser: (user: UserInfo | null) => void;
-  login: (credentials?: LoginCredentials) => Promise<void>;
+  login: (credentials?: LoginCredentials) => void;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
+  // ログアウト時のコールバック登録
+  onLogout: (callback: () => void) => () => void;
 }
 
 /// Google OAuth認証URL取得のレスポンス

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { UserInfo } from '../types';
 import { AuthContext } from './context';
 import { apiClient } from '@/lib/api/client';
@@ -10,6 +10,8 @@ const IDLE_TIMEOUT = 30 * 60 * 1000;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // ログアウト時に呼び出されるコールバックのリスト
+  const logoutCallbacksRef = useRef<Set<() => void>>(new Set());
 
   // 初期化時にバックエンドからセッションを確認
   useEffect(() => {
@@ -46,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = useCallback(async () => {
+    // 登録されたコールバックを先に実行（状態クリア用）
+    logoutCallbacksRef.current.forEach(callback => callback());
     try {
       await apiClient.post('/auth/logout', {}, {
         withCredentials: true,
@@ -57,7 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ログアウト時のコールバック登録
+  const onLogout = useCallback((callback: () => void) => {
+    logoutCallbacksRef.current.add(callback);
+    // クリーンアップ関数を返す
+    return () => {
+      logoutCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   const deleteAccount = useCallback(async () => {
+    // 登録されたコールバックを先に実行（状態クリア用）
+    logoutCallbacksRef.current.forEach(callback => callback());
     try {
       await apiClient.delete('/auth/delete-account', {
         withCredentials: true,
@@ -94,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       isAuthenticated: !!user,
       isLoading,
+      onLogout,
     }}>
       {children}
     </AuthContext.Provider>

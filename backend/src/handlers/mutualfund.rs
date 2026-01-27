@@ -62,11 +62,7 @@ pub async fn bulk_create(
     let settlement_dates: Vec<chrono::NaiveDate> =
         data.items.iter().map(|i| i.settlement_date).collect();
     let fund_names: Vec<&str> = data.items.iter().map(|i| i.fund_name.as_str()).collect();
-    let dividends: Vec<Option<&str>> = data
-        .items
-        .iter()
-        .map(|i| i.dividends.as_deref())
-        .collect();
+    let dividends: Vec<Option<&str>> = data.items.iter().map(|i| i.dividends.as_deref()).collect();
     let accounts: Vec<&str> = data.items.iter().map(|i| i.account.as_str()).collect();
     let shares: Vec<f64> = data.items.iter().map(|i| i.shares).collect();
     let exchange_rates: Vec<f64> = data.items.iter().map(|i| i.exchange_rate).collect();
@@ -85,7 +81,11 @@ pub async fn bulk_create(
         .iter()
         .map(|i| i.average_acquisition_price_yen)
         .collect();
-    let realized_pls: Vec<f64> = data.items.iter().map(|i| i.realized_profit_and_loss).collect();
+    let realized_pls: Vec<f64> = data
+        .items
+        .iter()
+        .map(|i| i.realized_profit_and_loss)
+        .collect();
     let taxes: Vec<f64> = data.items.iter().map(|i| i.taxes).collect();
     let realized_pls_after_tax: Vec<f64> = data
         .items
@@ -153,7 +153,10 @@ pub async fn delete_all(
         .execute(&state.pool)
         .await?;
 
-    info!("[mutualfund.delete_all] 完了: {}件削除", result.rows_affected());
+    info!(
+        "[mutualfund.delete_all] 完了: {}件削除",
+        result.rows_affected()
+    );
     Ok((
         StatusCode::OK,
         Json(serde_json::json!({"message": "全ての投資信託データを削除しました"})),

@@ -26,7 +26,7 @@ type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
  * ログイン時はDBからデータを取得、未ログイン時はCSVから取得
  */
 export function ReceiptsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
   const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
 
   // CSVから読み込んだデータ
@@ -89,6 +89,24 @@ export function ReceiptsPage() {
       fetchFromDB();
     }
   }, [authLoading, fetchFromDB]);
+
+  // ログアウト時に全データをクリア
+  useEffect(() => {
+    return onLogout(() => {
+      // DBデータをクリア
+      setDividendDBData([]);
+      setDomesticStockDBData([]);
+      setMutualfundDBData([]);
+      // CSVデータをクリア
+      setDividendCsvData([]);
+      setDomesticStockCsvData([]);
+      setMutualfundCsvData([]);
+      // エラー状態をクリア
+      setDbError(null);
+      // フェッチフラグをリセット
+      hasFetched.current = false;
+    });
+  }, [onLogout]);
 
   /**
    * 現在選択中のタブに応じてCSV処理を切り替える
@@ -257,18 +275,23 @@ export function ReceiptsPage() {
           </li>
         </ul>
       </nav>
-      <div className="receipt-page mt-2">
+      <div className="receipt-page mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <div style={{ width: '400px' }}>
-            <CSVFileInput onFileSelect={handleFileSelect} selectedFileName={fileName} />
+            <CSVFileInput
+              onFileSelect={handleFileSelect}
+              selectedFileName={fileName}
+              disabled={dbLoading || saving || deleting || authLoading}
+            />
           </div>
           {isAuthenticated && (
-            <div className="btn-group">
+            <div className="btn-group" role="group" aria-label="データ操作">
               {hasCsvData && (
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={handleSaveToDB}
                   disabled={saving || deleting}
+                  aria-disabled={saving || deleting}
                 >
                   {saving ? '保存中...' : '保存'}
                 </button>
@@ -278,6 +301,7 @@ export function ReceiptsPage() {
                   className="btn btn-outline-danger btn-sm"
                   onClick={handleDeleteAll}
                   disabled={saving || deleting}
+                  aria-disabled={saving || deleting}
                 >
                   {deleting ? '削除中...' : '削除'}
                 </button>
@@ -287,18 +311,23 @@ export function ReceiptsPage() {
         </div>
 
         {(error || dbError) && (
-          <div className="alert alert-danger my-3" role="alert">
+          <div className="alert alert-danger my-3" role="alert" aria-live="assertive">
             <strong>エラー:</strong> {error || dbError}
           </div>
         )}
 
-        {(isLoading || dbLoading || authLoading) && (
-          <div className="text-center my-4">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
+        <div aria-live="polite" aria-atomic="true">
+          {(isLoading || dbLoading || authLoading) && (
+            <div className="text-center my-4" role="status">
+              <div className="spinner-border text-primary" aria-hidden="true" />
+              <p className="mt-2 text-muted">
+                {authLoading && '認証状態を確認しています...'}
+                {dbLoading && 'データを読み込んでいます...'}
+                {isLoading && 'CSVファイルを処理しています...'}
+              </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {receiptsType === 'dividend' && <Dividend csvData={getDividendData() as Record<string, unknown>[]} />}
         {receiptsType === 'domesticstock' && <DomesticStock csvData={getDomesticStockData() as Record<string, unknown>[]} />}

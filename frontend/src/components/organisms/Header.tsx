@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { useAuth } from '../../features/auth/hooks/useAuth';
@@ -7,6 +7,35 @@ export function Header() {
   const { user, login, logout, deleteAccount, isAuthenticated, isLoading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
+  // キーボード操作対応（Escapeで閉じる）
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDropdown]);
 
   const handleLogout = async () => {
     setShowDropdown(false);
@@ -60,30 +89,48 @@ export function Header() {
                     />
                   )}
                   <span className="text-light me-3">{user.name || user.email}</span>
-                  <div className="dropdown">
+                  <div className="dropdown" ref={dropdownRef}>
                     <Button
                       variant="outline-light"
                       size="sm"
                       onClick={() => setShowDropdown(!showDropdown)}
+                      aria-haspopup="menu"
+                      aria-expanded={showDropdown}
+                      aria-controls="user-menu"
                     >
                       メニュー
                     </Button>
                     {showDropdown && (
                       <ul
+                        id="user-menu"
                         className="dropdown-menu dropdown-menu-end show"
                         style={{ position: 'absolute', right: 0, top: '100%' }}
+                        role="menu"
+                        aria-label="ユーザーメニュー"
                       >
-                        <li>
-                          <button className="dropdown-item" onClick={handleLogout}>
+                        <li role="none">
+                          <button
+                            className="dropdown-item"
+                            onClick={handleLogout}
+                            role="menuitem"
+                          >
                             ログアウト
                           </button>
                         </li>
-                        <li><hr className="dropdown-divider" /></li>
-                        <li>
+                        <li role="none"><hr className="dropdown-divider" /></li>
+                        <li role="none" className="dropdown-header small text-muted">
+                          危険な操作
+                        </li>
+                        <li role="none">
                           <button
                             className="dropdown-item text-danger"
                             onClick={() => setShowDeleteConfirm(true)}
+                            role="menuitem"
+                            aria-describedby="delete-warning"
                           >
+                            <span id="delete-warning" className="visually-hidden">
+                              警告: この操作は取り消せません
+                            </span>
                             アカウント削除
                           </button>
                         </li>
@@ -92,7 +139,7 @@ export function Header() {
                   </div>
                 </div>
               ) : (
-                <Button variant="outline-light" size="sm" onClick={login}>
+                <Button variant="outline-light" size="sm" onClick={() => login()}>
                   ログイン
                 </Button>
               )}
@@ -107,6 +154,10 @@ export function Header() {
           className="modal show d-block"
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
           onClick={() => setShowDeleteConfirm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+          aria-describedby="delete-modal-description"
         >
           <div
             className="modal-dialog modal-dialog-centered"
@@ -114,14 +165,17 @@ export function Header() {
           >
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title text-danger">アカウント削除の確認</h5>
+                <h5 id="delete-modal-title" className="modal-title text-danger">
+                  アカウント削除の確認
+                </h5>
                 <button
                   type="button"
                   className="btn-close"
                   onClick={() => setShowDeleteConfirm(false)}
+                  aria-label="閉じる"
                 />
               </div>
-              <div className="modal-body">
+              <div id="delete-modal-description" className="modal-body">
                 <p>本当にアカウントを削除しますか？</p>
                 <p className="text-danger mb-0">
                   <strong>警告:</strong> この操作は取り消せません。
