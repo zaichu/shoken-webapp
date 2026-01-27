@@ -3,7 +3,7 @@ import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { formatCurrency, parseNumber } from '@/lib/utils/formatters';
 import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
-import { useAssetBalanceStorage } from '@/hooks/common/useAssetBalanceStorage';
+import { useAssetBalance } from '@/hooks/common/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
 import { DividendData } from '@/lib/interfaces/dividend';
 
@@ -18,7 +18,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, summary
   const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
   // 保有銘柄データを取得
-  const { getAssetBalanceByCode } = useAssetBalanceStorage();
+  const { getAssetBalanceByCode } = useAssetBalance();
 
   // J-Quants APIから配当情報を取得
   const {

@@ -1,3 +1,4 @@
+pub mod asset_balance;
 pub mod auth;
 pub mod dividend;
 pub mod domestic_stock;

@@ -57,6 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      await apiClient.delete('/auth/delete-account', {
+        withCredentials: true,
+      });
+    } catch (error) {
+      console.error('アカウント削除APIエラー:', error);
+      throw error;
+    } finally {
+      setUser(null);
+    }
+  }, []);
+
   // 自動ログアウト処理
   const handleIdle = useCallback(() => {
     if (user) {
@@ -78,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser,
       login,
       logout,
+      deleteAccount,
       isAuthenticated: !!user,
       isLoading,
     }}>
