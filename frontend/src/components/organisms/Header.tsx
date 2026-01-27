@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { useAuth } from '../../features/auth/hooks/useAuth';
@@ -7,6 +7,21 @@ export function Header() {
   const { user, login, logout, deleteAccount, isAuthenticated, isLoading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
 
   const handleLogout = async () => {
     setShowDropdown(false);
@@ -60,7 +75,7 @@ export function Header() {
                     />
                   )}
                   <span className="text-light me-3">{user.name || user.email}</span>
-                  <div className="dropdown">
+                  <div className="dropdown" ref={dropdownRef}>
                     <Button
                       variant="outline-light"
                       size="sm"
@@ -92,7 +107,7 @@ export function Header() {
                   </div>
                 </div>
               ) : (
-                <Button variant="outline-light" size="sm" onClick={login}>
+                <Button variant="outline-light" size="sm" onClick={() => login()}>
                   ログイン
                 </Button>
               )}
