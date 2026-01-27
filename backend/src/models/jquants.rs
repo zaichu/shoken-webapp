@@ -10,6 +10,9 @@ pub struct StatementsQuery {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StatementsResponse {
     pub statements: Vec<StatementsData>,
+    /// ページネーションキー（データが大量の場合に設定される）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination_key: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
