@@ -50,7 +50,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let record = result?;
 
         let date_str = &record[0];
-        let date = format!("{}-{}-{}", &date_str[0..4], &date_str[4..6], &date_str[6..8]);
+        let date = format!(
+            "{}-{}-{}",
+            &date_str[0..4],
+            &date_str[4..6],
+            &date_str[6..8]
+        );
 
         records.push(StockRecord {
             date,

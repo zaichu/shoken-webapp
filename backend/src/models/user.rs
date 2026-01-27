@@ -38,7 +38,7 @@ impl From<User> for UserResponse {
 /// Google OAuthから取得するユーザー情報
 #[derive(Debug, Clone, Deserialize)]
 pub struct GoogleUserInfo {
-    pub sub: String,        // Google ID
+    pub sub: String, // Google ID
     pub email: String,
     pub name: Option<String>,
     pub picture: Option<String>,

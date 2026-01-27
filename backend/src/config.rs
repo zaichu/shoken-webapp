@@ -39,17 +39,19 @@ impl Config {
         ];
 
         let cors_origins = self.cors_origins.clone();
-        
+
         CorsLayer::new()
-            .allow_origin(tower_http::cors::AllowOrigin::predicate(move |origin, _| {
-                cors_origins.iter().any(|allowed_origin| {
-                    if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
-                        origin.eq(&header_value)
-                    } else {
-                        false
-                    }
-                })
-            }))
+            .allow_origin(tower_http::cors::AllowOrigin::predicate(
+                move |origin, _| {
+                    cors_origins.iter().any(|allowed_origin| {
+                        if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
+                            origin.eq(&header_value)
+                        } else {
+                            false
+                        }
+                    })
+                },
+            ))
             .allow_methods(allowed_methods)
             .allow_headers(allowed_headers)
             .allow_credentials(true)
@@ -64,8 +66,12 @@ mod tests {
     fn test_config_default() {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
-        assert!(config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()));
-        assert!(config.cors_origins.contains(&"http://localhost:8080".to_string()));
+        assert!(config
+            .cors_origins
+            .contains(&"https://shoken-webapp.vercel.app".to_string()));
+        assert!(config
+            .cors_origins
+            .contains(&"http://localhost:8080".to_string()));
     }
 
     #[test]

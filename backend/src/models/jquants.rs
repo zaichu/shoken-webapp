@@ -391,11 +391,17 @@ mod tests {
         });
 
         let statements_data: StatementsData = serde_json::from_value(json_data).unwrap();
-        
+
         assert_eq!(statements_data.disclosed_date, "2023-11-14");
         assert_eq!(statements_data.local_code, "72030");
-        assert_eq!(statements_data.net_sales, Some("18733067000000".to_string()));
-        assert_eq!(statements_data.next_year_forecast_dividend_per_share_annual, Some("50.00".to_string()));
+        assert_eq!(
+            statements_data.net_sales,
+            Some("18733067000000".to_string())
+        );
+        assert_eq!(
+            statements_data.next_year_forecast_dividend_per_share_annual,
+            Some("50.00".to_string())
+        );
     }
 
     #[test]
@@ -416,7 +422,7 @@ mod tests {
         });
 
         let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
-        
+
         assert_eq!(response.statements.len(), 1);
         assert_eq!(response.statements[0].disclosed_date, "2023-11-14");
         assert_eq!(response.statements[0].local_code, "72030");
@@ -426,7 +432,7 @@ mod tests {
     fn test_statements_response_empty() {
         let json_data = json!({ "statements": [] });
         let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
-        
+
         assert_eq!(response.statements.len(), 0);
     }
 }

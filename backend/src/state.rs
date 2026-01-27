@@ -102,5 +102,4 @@ mod tests {
         let _ = &cloned_state.secrets;
         let _ = &cloned_state.client;
     }
-
 }
