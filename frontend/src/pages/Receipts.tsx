@@ -26,7 +26,7 @@ type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
  * ログイン時はDBからデータを取得、未ログイン時はCSVから取得
  */
 export function ReceiptsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
   const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
 
   // CSVから読み込んだデータ
@@ -89,6 +89,24 @@ export function ReceiptsPage() {
       fetchFromDB();
     }
   }, [authLoading, fetchFromDB]);
+
+  // ログアウト時に全データをクリア
+  useEffect(() => {
+    return onLogout(() => {
+      // DBデータをクリア
+      setDividendDBData([]);
+      setDomesticStockDBData([]);
+      setMutualfundDBData([]);
+      // CSVデータをクリア
+      setDividendCsvData([]);
+      setDomesticStockCsvData([]);
+      setMutualfundCsvData([]);
+      // エラー状態をクリア
+      setDbError(null);
+      // フェッチフラグをリセット
+      hasFetched.current = false;
+    });
+  }, [onLogout]);
 
   /**
    * 現在選択中のタブに応じてCSV処理を切り替える

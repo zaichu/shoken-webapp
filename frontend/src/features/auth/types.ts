@@ -19,6 +19,8 @@ export interface AuthContextType {
   deleteAccount: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
+  // ログアウト時のコールバック登録
+  onLogout: (callback: () => void) => () => void;
 }
 
 /// Google OAuth認証URL取得のレスポンス
