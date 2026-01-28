@@ -23,7 +23,7 @@ export function getErrorMessage(error: unknown): string {
  */
 export function logError(context: string, error: unknown): void {
   const message = getErrorMessage(error);
-  console.error(`[${context}] ${message}`, error);
+  console.error(`[${context}] ${message}`);
 }
 
 /**
