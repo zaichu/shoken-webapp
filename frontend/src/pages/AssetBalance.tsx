@@ -119,6 +119,7 @@ export function AssetBalancePage() {
   const assetBalanceCSV = useCSVReader(options);
   // フェッチ済みフラグ（多重実行防止）
   const hasFetched = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // DBから保有銘柄データを取得
   const fetchAssetBalances = useCallback(async (force = false) => {
@@ -129,6 +130,8 @@ export function AssetBalancePage() {
     // 既にフェッチ済みで強制更新でない場合はスキップ
     if (hasFetched.current && !force) return;
 
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setDbLoading(true);
     setDbError(null);
     try {
@@ -141,6 +144,7 @@ export function AssetBalancePage() {
       setDbError(message);
     } finally {
       setDbLoading(false);
+      isFetchingRef.current = false;
     }
   }, [isAuthenticated, authLoading]);
 

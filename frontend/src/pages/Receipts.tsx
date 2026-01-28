@@ -52,6 +52,7 @@ export function ReceiptsPage() {
 
   // フェッチ済みフラグ（多重実行防止）
   const hasFetched = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // DBからデータを取得
   const fetchFromDB = useCallback(async (force = false) => {
@@ -62,6 +63,8 @@ export function ReceiptsPage() {
     // 既にフェッチ済みで強制更新でない場合はスキップ
     if (hasFetched.current && !force) return;
 
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setDbLoading(true);
     setDbError(null);
 
@@ -80,6 +83,7 @@ export function ReceiptsPage() {
       setDbError(err instanceof Error ? err.message : 'データ取得に失敗しました');
     } finally {
       setDbLoading(false);
+      isFetchingRef.current = false;
     }
   }, [isAuthenticated, authLoading]);
 
