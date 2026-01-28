@@ -106,8 +106,11 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         return labels[key] || key;
     };
 
+    const summaryGroupKeys = new Set(data.map(item => getGroupKey(item)));
+    const summaryToRender = summary.filter(summaryItem => summaryGroupKeys.has(summaryItem.filter));
+
     const renderGroupedRows = () =>
-        summary.map((summaryItem, summaryIndex) => {
+        summaryToRender.map((summaryItem, summaryIndex) => {
             const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
             const headerText = formatGroupHeader(summaryItem.filter);
             const itemCount = groupItems.length;
@@ -192,7 +195,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {summary.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
+                {summaryToRender.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
             </TableBody>
         </Table>
     );
