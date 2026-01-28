@@ -114,9 +114,14 @@ export interface JQuantsStatementData {
   NextYearForecastNonConsolidatedEarningsPerShare: string;
 }
 
+/**
+ * J-Quants API V2 決算サマリーレスポンス
+ * V2では fins/statements → fins/summary に変更され、
+ * レスポンスフィールド名も statements → fin_summary に変更
+ */
 export interface JQuantsStatementsResponse {
-  statements: JQuantsStatementData[];
-  pagination_key: string;
+  fin_summary: JQuantsStatementData[];
+  pagination_key?: string;
 }
 
 export interface JQuantsDividendResponse {

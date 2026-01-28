@@ -38,16 +38,17 @@ describe('useJQuantsDividend', () => {
     expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
   });
 
-  it('配当情報を正常に取得できる', async () => {
-    const mockStatements = {
-      statements: [
+  it('配当情報を正常に取得できる（来期予想）', async () => {
+    // V2 API では fin_summary フィールドを使用
+    const mockResponse = {
+      fin_summary: [
         { NextYearForecastDividendPerShareAnnual: '' },
         { NextYearForecastDividendPerShareAnnual: '50.00' },
         { NextYearForecastDividendPerShareAnnual: '60.00' },
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(60);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -64,15 +65,62 @@ describe('useJQuantsDividend', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('来期予想がない場合、今期予想を使用する', async () => {
+    const mockResponse = {
+      fin_summary: [
+        {
+          NextYearForecastDividendPerShareAnnual: '',
+          ForecastDividendPerShareAnnual: '45.00',
+        },
+      ],
+    };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (parseNumber as Mock).mockReturnValue(45);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.dividendPerShare).toBe(45);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('予想がない場合、実績を使用する', async () => {
+    const mockResponse = {
+      fin_summary: [
+        {
+          NextYearForecastDividendPerShareAnnual: '',
+          ForecastDividendPerShareAnnual: '',
+          ResultDividendPerShareAnnual: '40.00',
+        },
+      ],
+    };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (parseNumber as Mock).mockReturnValue(40);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.dividendPerShare).toBe(40);
+    expect(result.current.error).toBeNull();
+  });
+
   it('空の配当情報の場合、0を返す', async () => {
-    const mockStatements = {
-      statements: [
+    const mockResponse = {
+      fin_summary: [
         { NextYearForecastDividendPerShareAnnual: '' },
         { NextYearForecastDividendPerShareAnnual: '' },
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(0);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -114,11 +162,11 @@ describe('useJQuantsDividend', () => {
   });
 
   it('securityCodeが変更された場合、再取得する', async () => {
-    const mockStatements = {
-      statements: [{ NextYearForecastDividendPerShareAnnual: '50.00' }],
+    const mockResponse = {
+      fin_summary: [{ NextYearForecastDividendPerShareAnnual: '50.00' }],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockStatements);
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(50);
 
     const { result, rerender } = renderHook(
