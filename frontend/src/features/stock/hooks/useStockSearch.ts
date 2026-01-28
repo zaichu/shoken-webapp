@@ -16,6 +16,7 @@ export function useStockSearch(initialCode?: string) {
     queryKey: ['stock', searchQuery],
     queryFn: () => fetchStockData(searchQuery),
     enabled: !!searchQuery,
+    refetchOnWindowFocus: false,
   });
 
   const handleSearch = useCallback((e: React.FormEvent) => {
