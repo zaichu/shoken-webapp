@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { logError } from '@/lib/utils/errorHandler';
+import { normalizeSecurityCode } from '@/lib/utils/formatters';
 
 export interface UseAssetBalanceReturn {
   assetBalanceData: AssetBalanceData[];
@@ -66,7 +67,11 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   // 銘柄コードで資産を取得
   const getAssetBalanceByCode = useCallback(
     (code: string): AssetBalanceData | undefined => {
-      return assetBalanceData.find(balance => balance && balance.security_code === code);
+      const normalizedCode = normalizeSecurityCode(code);
+      if (!normalizedCode) return undefined;
+      return assetBalanceData.find(balance =>
+        balance && normalizeSecurityCode(balance.security_code) === normalizedCode
+      );
     },
     [assetBalanceData]
   );

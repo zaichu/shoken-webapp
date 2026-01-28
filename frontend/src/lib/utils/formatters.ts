@@ -39,6 +39,20 @@ const escapeHtml = (str: string): string => {
  */
 export const SECURITY_CODE_REGEX = /^[0-9A-Za-z]+$/;
 
+/**
+ * 銘柄コードの正規化
+ * - 前後の空白を除去
+ * - ラベル形式("1234: 銘柄名")はコード部分のみ抽出
+ * - 比較用に大文字化
+ */
+export function normalizeSecurityCode(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  const token = raw.split(/[:：]/)[0];
+  return token.replace(/\s+/g, '').toUpperCase();
+}
+
 export function createSecurityCodeLink(value: unknown): string {
   const code = typeof value === 'string' ? value.trim() : '';
   if (!code) return '';

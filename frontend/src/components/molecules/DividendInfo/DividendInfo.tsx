@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
-import { formatCurrency, parseNumber } from '@/lib/utils/formatters';
+import { formatCurrency, parseNumber, normalizeSecurityCode } from '@/lib/utils/formatters';
 import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
 import { useAssetBalance } from '@/hooks/common/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
@@ -18,9 +18,9 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
   const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
   const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
   const effectiveSecurityCode = React.useMemo(() => {
-    if (securityCode) return securityCode;
+    if (securityCode) return normalizeSecurityCode(securityCode);
     const match = searchQuery.match(/^\\s*([0-9A-Za-z]+)\\s*[:：]/);
-    return match?.[1] || searchQuery;
+    return normalizeSecurityCode(match?.[1] || searchQuery);
   }, [securityCode, searchQuery]);
 
   // 保有銘柄データを取得
