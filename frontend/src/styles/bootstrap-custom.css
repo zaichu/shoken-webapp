@@ -82,6 +82,11 @@ main {
   width: 400px;
 }
 
+/* CSVファイル入力（非表示） */
+.csv-file-input-hidden {
+  display: none;
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;

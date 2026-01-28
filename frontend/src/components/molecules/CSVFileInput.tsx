@@ -38,7 +38,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
         ref={ref}
         type="file"
         accept=".csv"
-        style={{ display: 'none' }}
+        className="csv-file-input-hidden"
         onChange={handleFileChange}
         disabled={disabled}
       />
