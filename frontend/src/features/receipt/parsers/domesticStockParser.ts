@@ -1,6 +1,5 @@
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { parseNumber, TAX_RATE } from '@/lib/utils/formatters';
-import { createSecurityCodeLink } from './securityLink';
 
 /**
  * データがDB形式かどうかを判定
@@ -25,7 +24,6 @@ export const parseDomesticStockCsvItem = (item: Record<string, unknown>): Domest
                 : new Date(item.settlement_date as string),
             security_code: securityCode,
             security_name: String(item.security_name || ''),
-            security_info: item.security_info || createSecurityCodeLink(securityCode),
             account: String(item.account || ''),
             shares: Number(item.shares) || 0,
             asked_price: Number(item.asked_price) || 0,
@@ -53,7 +51,6 @@ export const parseDomesticStockCsvItem = (item: Record<string, unknown>): Domest
         settlement_date: new Date(item['受渡日'] as string),
         security_code: securityCode,
         security_name: securityName,
-        security_info: createSecurityCodeLink(securityCode),
         account,
         shares: parseNumber(item['数量[株]']),
         asked_price: parseNumber(item['売却/決済単価[円]']),
@@ -86,7 +83,6 @@ export const transformDBDomesticStock = (item: Record<string, unknown>): Domesti
         settlement_date: new Date(item.settlement_date as string),
         security_code: securityCode,
         security_name: securityName,
-        security_info: createSecurityCodeLink(securityCode),
         account: String(item.account || ''),
         shares: Number(item.shares) || 0,
         asked_price: Number(item.asked_price) || 0,
