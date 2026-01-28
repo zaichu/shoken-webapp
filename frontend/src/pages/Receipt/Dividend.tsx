@@ -150,6 +150,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         ['dividends_before_tax', 'taxes', 'net_amount_received']
     ), [filteredData, getGroupKey]);
 
+    // 銘柄名検索時に銘柄コードを補完
+    const searchSecurityCode = useMemo(() => {
+        if (!searchQuery) return '';
+        const normalizedQuery = searchQuery.toLowerCase();
+        const matchedItem = filteredData.find(item =>
+            item.security_code.toLowerCase() === normalizedQuery ||
+            item.security_name.toLowerCase() === normalizedQuery
+        );
+        return matchedItem?.security_code || '';
+    }, [filteredData, searchQuery]);
+
     // ヘッダー項目の定義
     const headerItems = [
         {
@@ -217,7 +228,11 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         <ReceiptTemplate
             title="配当金"
             header={searchQuery ? (
-                <DividendInfo searchQuery={searchQuery} summary={summary} />
+                <DividendInfo
+                    searchQuery={searchQuery}
+                    securityCode={searchSecurityCode}
+                    summary={summary}
+                />
             ) : (
                 <ReceiptHeader items={headerItems} />
             )}
