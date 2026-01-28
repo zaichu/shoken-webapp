@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { logError } from '@/lib/utils/errorHandler';
@@ -22,9 +22,12 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { enabled = true } = options;
+  const isFetchingRef = useRef(false);
 
   // DBから保有銘柄データを取得
   const fetchAssetBalances = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setIsLoading(true);
     try {
       const data = await assetBalanceApi.list();
@@ -34,6 +37,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
       setAssetBalanceData([]);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
