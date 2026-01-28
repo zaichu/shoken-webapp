@@ -161,6 +161,36 @@ describe('useJQuantsDividend', () => {
     expect(result.current.error).toBe('配当情報の取得に失敗しました');
   });
 
+  it('response.dataがundefinedの場合、undefinedを返す', async () => {
+    const mockResponse = { data: undefined };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.dividendPerShare).toBeUndefined();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('response.dataが配列でない場合、undefinedを返す', async () => {
+    const mockResponse = { data: { some: 'object' } };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.dividendPerShare).toBeUndefined();
+    expect(result.current.error).toBeNull();
+  });
+
   it('securityCodeが変更された場合、再取得する', async () => {
     const mockResponse = {
       data: [{ NxFDivAnn: '50.00' }],

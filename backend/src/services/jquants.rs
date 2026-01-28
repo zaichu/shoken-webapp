@@ -123,4 +123,47 @@ mod tests {
             }
         }
     }
+
+    /// 任天堂（7974）の配当情報取得テスト
+    /// 実行には環境変数 JQUANTS_API_KEY が必要
+    /// cargo test test_get_nintendo_dividend -- --ignored --nocapture
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_nintendo_dividend() {
+        let api_key = std::env::var("JQUANTS_API_KEY")
+            .expect("JQUANTS_API_KEY 環境変数が設定されていません");
+
+        let client = Client::new();
+        let params = FinSummaryQuery {
+            code: "7974".to_string(), // 任天堂
+            from: None,
+            to: None,
+        };
+
+        let result = JQuantsService::get_fin_summary(&client, params, &api_key).await;
+
+        match result {
+            Ok(response) => {
+                println!("取得件数: {}", response.data.len());
+                for summary in &response.data {
+                    println!("---");
+                    println!("開示日: {}", summary.disclosed_date);
+                    println!("書類種別: {}", summary.type_of_document);
+                    println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual);
+                    println!(
+                        "年間配当予想(FDivAnn): {:?}",
+                        summary.forecast_dividend_per_share_annual
+                    );
+                    println!(
+                        "年間配当来期予想(NxFDivAnn): {:?}",
+                        summary.next_year_forecast_dividend_per_share_annual
+                    );
+                }
+                assert!(!response.data.is_empty(), "データが取得できること");
+            }
+            Err(e) => {
+                panic!("API呼び出しエラー: {:?}", e);
+            }
+        }
+    }
 }
