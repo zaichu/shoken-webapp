@@ -44,24 +44,24 @@ pub struct FinSummaryData {
     pub type_of_document: String,
 
     /// 当期種別
-    #[serde(rename = "CurPeriod")]
-    pub type_of_current_period: String,
+    #[serde(rename = "CurPeriod", default)]
+    pub type_of_current_period: Option<String>,
 
     /// 当期開始日
-    #[serde(rename = "CurStartDate")]
-    pub current_period_start_date: String,
+    #[serde(rename = "CurStartDate", default)]
+    pub current_period_start_date: Option<String>,
 
     /// 当期終了日
-    #[serde(rename = "CurEndDate")]
-    pub current_period_end_date: String,
+    #[serde(rename = "CurEndDate", default)]
+    pub current_period_end_date: Option<String>,
 
     /// 当会計年度開始日
-    #[serde(rename = "CurFYStartDate")]
-    pub current_fiscal_year_start_date: String,
+    #[serde(rename = "CurFYStartDate", default)]
+    pub current_fiscal_year_start_date: Option<String>,
 
     /// 当会計年度終了日
-    #[serde(rename = "CurFYEndDate")]
-    pub current_fiscal_year_end_date: String,
+    #[serde(rename = "CurFYEndDate", default)]
+    pub current_fiscal_year_end_date: Option<String>,
 
     /// 翌会計年度開始日
     #[serde(rename = "NxFYStartDate", default)]
