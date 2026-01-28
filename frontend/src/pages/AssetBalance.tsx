@@ -172,7 +172,6 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
       if (assetBalanceCSV.error) assetBalanceCSV.resetError();
     } catch (error) {
-      console.error('AssetBalance CSV処理エラー:', error);
     }
   };
 

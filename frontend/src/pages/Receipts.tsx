@@ -132,7 +132,6 @@ export function ReceiptsPage() {
           break;
       }
     } catch (e) {
-      console.error('CSV処理エラー:', e);
     }
   };
 
@@ -183,8 +182,6 @@ export function ReceiptsPage() {
 
     setDeleting(true);
     setDbError(null);
-    console.log(`[handleDeleteAll] 開始: ${receiptsType}`);
-
     try {
       switch (receiptsType) {
         case 'dividend':
@@ -200,9 +197,7 @@ export function ReceiptsPage() {
           setMutualfundDBData([]);
           break;
       }
-      console.log(`[handleDeleteAll] 成功: ${receiptsType}`);
     } catch (err) {
-      console.error(`[handleDeleteAll] 失敗: ${receiptsType}`, err);
       setDbError(err instanceof Error ? err.message : '削除に失敗しました');
     } finally {
       setDeleting(false);
