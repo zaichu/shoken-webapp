@@ -1,9 +1,28 @@
 import { useState, useEffect } from 'react';
 import { jquantsApiClient } from '../api/client';
+import { JQuantsStatementData } from '../api/types';
 import { parseNumber } from '@/lib/utils/formatters';
 
 /**
+ * 決算データから配当情報を抽出する
+ * 優先順位: 来期予想 > 今期予想 > 実績
+ */
+const extractDividendFromSummary = (summary: JQuantsStatementData): string | null => {
+  if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
+    return summary.NxFDivAnn;
+  }
+  if (summary.FDivAnn && summary.FDivAnn !== '') {
+    return summary.FDivAnn;
+  }
+  if (summary.DivAnn && summary.DivAnn !== '') {
+    return summary.DivAnn;
+  }
+  return null;
+};
+
+/**
  * J-Quants APIを使用して配当情報を取得するフック
+ * 最新の決算データから配当情報を優先的に取得する
  */
 export const useJQuantsDividend = (
   securityCode: string,
@@ -26,7 +45,6 @@ export const useJQuantsDividend = (
       try {
         // V2 API では data フィールドを使用
         const response = await jquantsApiClient.getStatements(securityCode);
-        let dividendValue = '';
 
         // レスポンスの data フィールドが配列でない場合はスキップ
         if (!response?.data || !Array.isArray(response.data)) {
@@ -34,22 +52,23 @@ export const useJQuantsDividend = (
           return;
         }
 
-        // 配当予想を取得（優先順位: 来期予想 > 今期予想 > 実績）
-        for (const summary of response.data) {
-          // 来期予想年間配当金 (NxFDivAnn)
-          if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
-            dividendValue = summary.NxFDivAnn;
-          }
-          // 今期予想年間配当金 (FDivAnn)（来期予想がない場合のフォールバック）
-          else if (!dividendValue && summary.FDivAnn && summary.FDivAnn !== '') {
-            dividendValue = summary.FDivAnn;
-          }
-          // 実績年間配当金 (DivAnn)（予想がない場合のフォールバック）
-          else if (!dividendValue && summary.DivAnn && summary.DivAnn !== '') {
-            dividendValue = summary.DivAnn;
+        // 開示日で降順ソート（最新データを優先）
+        const sortedData = [...response.data].sort((a, b) => {
+          const dateA = a.DiscDate || '';
+          const dateB = b.DiscDate || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        // 最新の決算データから順に配当情報を検索
+        let dividendValue: string | null = null;
+        for (const summary of sortedData) {
+          dividendValue = extractDividendFromSummary(summary);
+          if (dividendValue) {
+            break;
           }
         }
-        setDividendPerShare(parseNumber(dividendValue));
+
+        setDividendPerShare(parseNumber(dividendValue || ''));
       } catch (err) {
         console.error('配当取得エラー:', err);
         setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
