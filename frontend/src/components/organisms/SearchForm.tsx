@@ -27,7 +27,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4">
+    <form onSubmit={handleSubmit} className="search-form mb-4">
       <div className="input-group">
         <InputField
           type="text"
