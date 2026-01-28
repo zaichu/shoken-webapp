@@ -11,12 +11,17 @@ export interface UseAssetBalanceReturn {
   refetch: () => Promise<void>;
 }
 
+interface UseAssetBalanceOptions {
+  enabled?: boolean;
+}
+
 /**
  * 保有銘柄データをDBから取得するフック
  */
-export function useAssetBalance(): UseAssetBalanceReturn {
+export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetBalanceReturn {
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { enabled = true } = options;
 
   // DBから保有銘柄データを取得
   const fetchAssetBalances = useCallback(async () => {
@@ -34,8 +39,10 @@ export function useAssetBalance(): UseAssetBalanceReturn {
 
   // 初回読み込み
   useEffect(() => {
-    fetchAssetBalances();
-  }, [fetchAssetBalances]);
+    if (enabled) {
+      fetchAssetBalances();
+    }
+  }, [fetchAssetBalances, enabled]);
 
   // 銘柄コードで資産を取得
   const getAssetBalanceByCode = useCallback(

@@ -18,7 +18,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, summary
   const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
 
   // 保有銘柄データを取得
-  const { getAssetBalanceByCode } = useAssetBalance();
+  const { getAssetBalanceByCode } = useAssetBalance({ enabled: !!searchQuery });
 
   // J-Quants APIから配当情報を取得
   const {
