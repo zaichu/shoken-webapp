@@ -78,9 +78,49 @@ impl JQuantsService {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::models::jquants::FinSummaryQuery;
+
     #[test]
     fn test_module_compilation() {
         // モジュールが正常にコンパイルされることを確認
         assert!(true);
+    }
+
+    /// 実際のJ-Quants APIを呼び出すテスト
+    /// 実行には環境変数 JQUANTS_API_KEY が必要
+    /// cargo test test_get_fin_summary_real_api -- --ignored
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_fin_summary_real_api() {
+        let api_key = std::env::var("JQUANTS_API_KEY")
+            .expect("JQUANTS_API_KEY 環境変数が設定されていません");
+
+        let client = Client::new();
+        let params = FinSummaryQuery {
+            code: "7203".to_string(), // トヨタ自動車
+            from: None,
+            to: None,
+        };
+
+        let result = JQuantsService::get_fin_summary(&client, params, &api_key).await;
+
+        match result {
+            Ok(response) => {
+                println!("取得件数: {}", response.data.len());
+                if let Some(first) = response.data.first() {
+                    println!("銘柄コード: {}", first.local_code);
+                    println!("開示日: {}", first.disclosed_date);
+                    println!("書類種別: {}", first.type_of_document);
+                    println!("当期種別: {:?}", first.type_of_current_period);
+                    println!("当期開始日: {:?}", first.current_period_start_date);
+                    println!("当期終了日: {:?}", first.current_period_end_date);
+                }
+                assert!(!response.data.is_empty(), "データが取得できること");
+            }
+            Err(e) => {
+                panic!("API呼び出しエラー: {:?}", e);
+            }
+        }
     }
 }
