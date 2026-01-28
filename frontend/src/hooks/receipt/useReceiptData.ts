@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 /**
  * 受取データ用の共通カスタムフック
  * CSVデータの変換とソートを行う
@@ -7,8 +9,8 @@ export function useReceiptData<T>(
   parseItem: (item: Record<string, unknown>) => T,
   sortFunction: (data: T[]) => T[]
 ): T[] {
-  const parsedData = csvData.map(parseItem);
-  return sortFunction(parsedData);
+  const parsedData = useMemo(() => csvData.map(parseItem), [csvData, parseItem]);
+  return useMemo(() => sortFunction(parsedData), [parsedData, sortFunction]);
 }
 
 /**
@@ -18,5 +20,5 @@ export function useReceiptCalculations<T, C>(
   data: T[],
   calculateFunction: (data: T[]) => C
 ): C {
-  return calculateFunction(data);
+  return useMemo(() => calculateFunction(data), [data, calculateFunction]);
 }
