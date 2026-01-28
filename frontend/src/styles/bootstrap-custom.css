@@ -51,11 +51,6 @@ main {
   flex: 1;
 }
 
-/* アプリのメイン領域 */
-.app-main {
-  max-width: 1600px;
-}
-
 /* アプリのコンテナ幅 */
 .app-container-wide {
   max-width: 1600px;
