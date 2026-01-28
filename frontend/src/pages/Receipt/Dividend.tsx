@@ -154,6 +154,10 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     const searchSecurityCode = useMemo(() => {
         if (!searchQuery) return '';
         const normalizedQuery = searchQuery.toLowerCase();
+        const labelMatch = searchQuery.match(/^\\s*([0-9A-Za-z]+)\\s*[:：]/);
+        if (labelMatch) {
+            return labelMatch[1];
+        }
         const matchedItem = filteredData.find(item =>
             item.security_code.toLowerCase() === normalizedQuery ||
             item.security_name.toLowerCase() === normalizedQuery
