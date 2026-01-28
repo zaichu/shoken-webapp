@@ -138,8 +138,7 @@ Jane,25,Osaka`;
     });
 
     it('大きすぎるファイルを拒否する', async () => {
-      const largeContent = 'a'.repeat(60 * 1024 * 1024); // 60MB
-      const file = createMockFile(largeContent);
+      const file = createMockFile('a');
       // sizeプロパティをオーバーライド
       Object.defineProperty(file, 'size', {
         value: 60 * 1024 * 1024,
