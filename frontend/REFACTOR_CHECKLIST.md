@@ -42,3 +42,9 @@
   - 仕様差分: UIのみ（style → class）
   - セキュリティ: 影響なし
   - テスト: `npm test`（失敗: Button.test.tsx / StatItem.test.tsx / ErrorBoundary.test.tsx / validation.test.ts / SearchCard.test.tsx）
+- refactor: 検索フォーム入力クラスの整理
+  - 主要画面の遷移・表示: 未確認
+  - 検索/登録/ログイン: 未確認
+  - 仕様差分: UIのみ（className整理）
+  - セキュリティ: 影響なし
+  - テスト: 未実行

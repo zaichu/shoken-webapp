@@ -31,8 +31,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
       <div className="input-group">
         <InputField
           type="text"
-          className="form-control"
-          inputClassName="search-form-input"
+          className="search-form-input"
           placeholder="銘柄コードを入力"
           value={stockCode}
           onChange={handleInputChange}
