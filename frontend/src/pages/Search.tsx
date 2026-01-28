@@ -4,6 +4,7 @@ import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
+import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
 export function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -11,7 +12,7 @@ export function SearchPage() {
   const normalizedCodeParam = useMemo(() => {
     if (!codeParam) return '';
     const trimmed = codeParam.trim();
-    return /^[0-9A-Za-z]+$/.test(trimmed) ? trimmed : '';
+    return SECURITY_CODE_REGEX.test(trimmed) ? trimmed : '';
   }, [codeParam]);
   const hasInvalidCodeParam = !!codeParam && !normalizedCodeParam;
 

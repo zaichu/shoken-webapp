@@ -37,12 +37,14 @@ const escapeHtml = (str: string): string => {
  * 銘柄コードのリンクHTML生成
  * 銘柄検索ページへ遷移するリンクを生成
  */
+export const SECURITY_CODE_REGEX = /^[0-9A-Za-z]+$/;
+
 export function createSecurityCodeLink(value: unknown): string {
   const code = typeof value === 'string' ? value.trim() : '';
   if (!code) return '';
 
   // 想定外の文字列はリンク化せず表示のみ（URLパラメータの安全性確保）
-  if (!/^[0-9A-Za-z]+$/.test(code)) {
+  if (!SECURITY_CODE_REGEX.test(code)) {
     return escapeHtml(code);
   }
 
