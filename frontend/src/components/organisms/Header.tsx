@@ -59,7 +59,7 @@ export function Header() {
   return (
     <>
       <header className="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div className="container" style={{ maxWidth: '1600px' }}>
+        <div className="container app-container-wide">
           <Link className="navbar-brand" to="/">証券Web</Link>
 
           <div className="collapse navbar-collapse" id="navbarNav">
