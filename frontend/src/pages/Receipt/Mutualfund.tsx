@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useState } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
     MutualfundData,
     MutualfundCalculations
@@ -30,36 +30,37 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     /**
      * CSVまたはDBデータをMutualfundData形式に変換
      */
-    const mutualfundData: MutualfundData[] = sortMutualfundByTradeDate(
+    const mutualfundData: MutualfundData[] = useMemo(() => sortMutualfundByTradeDate(
         csvData.map(parseMutualfundCsvItem)
-    );
+    ), [csvData]);
 
     /**
      * 全体の集計
      */
-    const calculations: MutualfundCalculations = mutualfundData.reduce((acc, item) => ({
+    const calculations: MutualfundCalculations = useMemo(() => mutualfundData.reduce((acc, item) => ({
         total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
         total_taxes: acc.total_taxes + item.taxes,
         total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
-
     }), {
         total_realized_profit_and_loss: 0,
         total_taxes: 0,
         total_realized_profit_and_loss_after_tax: 0,
-    });
+    }), [mutualfundData]);
 
     /**
      * 検索オプションの生成
      */
-    const searchCategories = {
+    const searchCategories = useMemo(() => ({
         securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
         years: createYearOptions(mutualfundData, item => item.trade_date)
-    };
+    }), [mutualfundData]);
 
     /**
      * 検索クエリに基づくフィルタリング
      */
-    const filteredData = !searchQuery ? mutualfundData : (() => {
+    const filteredData = useMemo(() => {
+        if (!searchQuery) return mutualfundData;
+
         const query = searchQuery.toLowerCase();
         return mutualfundData.filter(item => {
             // 銘柄コード・銘柄名での検索
@@ -75,26 +76,26 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             // 年度での検索（YYYY形式）
             return matchesYear(item.trade_date, query);
         });
-    })();
+    }, [mutualfundData, searchQuery]);
 
     /**
      * グループキーの取得（日付文字列：年月）
      */
-    const getGroupKey = (item: MutualfundData): string => {
+    const getGroupKey = useCallback((item: MutualfundData): string => {
         if (searchQuery) {
             return searchQuery.toLowerCase();
         }
         return createYearMonthKey(item.trade_date);
-    };
+    }, [searchQuery]);
 
     /**
      * サマリーデータの集計
      */
-    const summary = groupAndSummarizeData(
+    const summary = useMemo(() => groupAndSummarizeData(
         filteredData,
         getGroupKey,
         ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
-    );
+    ), [filteredData, getGroupKey]);
 
     /**
      * ヘッダー項目の定義
@@ -120,7 +121,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     /**
      * テーブルカラムの定義
      */
-    const columns: TableColumnConfig[] = [
+    const columns: TableColumnConfig[] = useMemo(() => ([
         { key: 'trade_date', header: '約定日', format: formatJPDate },
         { key: 'settlement_date', header: '受渡日', format: formatJPDate },
         { key: 'fund_name', header: 'ファンド名', width: '250px' },
@@ -133,7 +134,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
         { key: 'taxes', header: '税額', textAlign: 'right', format: formatCurrency },
         { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrency },
-    ];
+    ]), []);
 
     return (
         <ReceiptTemplate
