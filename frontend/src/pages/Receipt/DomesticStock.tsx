@@ -9,9 +9,9 @@ import {
     formatJPDate,
     formatCurrency,
     formatNumber,
-    createISODateKey,
-    createSecurityCodeLink
+    createISODateKey
 } from '@/lib/utils/formatters';
+import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
@@ -117,7 +117,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     // サマリーと一致するよう、最後の3カラムは「実現損益」「税額」「税引後」にする
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
         { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
-        { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: createSecurityCodeLink },
+        { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: renderSecurityCode },
         { key: 'security_name', header: '銘柄名', width: '180px' },
         { key: 'account', header: '口座', width: '70px' },
         { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },

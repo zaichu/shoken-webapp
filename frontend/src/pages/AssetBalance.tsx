@@ -15,9 +15,9 @@ import {
 } from '@/lib/utils/dataTransformer';
 import {
   formatCurrency,
-  formatNumber,
-  createSecurityCodeLink
+  formatNumber
 } from '@/lib/utils/formatters';
+import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 
@@ -71,7 +71,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
       header: '銘柄コード',
       width: '90px',
       textAlign: 'center',
-      format: createSecurityCodeLink
+      format: renderSecurityCode
     },
     { key: 'security_name', header: '銘柄名', width: '200px' },
     { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
