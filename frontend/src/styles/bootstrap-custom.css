@@ -87,6 +87,16 @@ main {
   display: none;
 }
 
+.csv-file-input-label {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.csv-file-input-label-disabled {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
 /* 銘柄情報テーブル */
 .stock-info-label {
   width: 10%;

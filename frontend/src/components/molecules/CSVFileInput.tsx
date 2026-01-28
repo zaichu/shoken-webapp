@@ -27,9 +27,8 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
   return (
     <div className="input-group">
       <label
-        className={`input-group-btn ${disabled ? 'disabled' : ''}`}
+        className={`input-group-btn csv-file-input-label${disabled ? ' csv-file-input-label-disabled' : ''}`}
         htmlFor="csv-file-input"
-        style={disabled ? { pointerEvents: 'none', opacity: 0.65 } : undefined}
       >
         <span className="btn bg-primary text-white">CSVファイル選択</span>
       </label>
