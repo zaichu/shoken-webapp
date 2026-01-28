@@ -1,13 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
+import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
 export function SearchPage() {
   const [searchParams] = useSearchParams();
   const codeParam = searchParams.get('code');
+  const normalizedCodeParam = useMemo(() => {
+    if (!codeParam) return '';
+    const trimmed = codeParam.trim();
+    return SECURITY_CODE_REGEX.test(trimmed) ? trimmed : '';
+  }, [codeParam]);
+  const hasInvalidCodeParam = !!codeParam && !normalizedCodeParam;
 
   const {
     stockCode,
@@ -18,14 +25,14 @@ export function SearchPage() {
     isError,
     handleSearch,
     searchByCode
-  } = useStockSearch(codeParam || undefined);
+  } = useStockSearch(normalizedCodeParam || undefined);
 
   // URLパラメータが変更された場合に検索を実行
   useEffect(() => {
-    if (codeParam && codeParam !== stockCode) {
-      searchByCode(codeParam);
+    if (normalizedCodeParam && normalizedCodeParam !== stockCode) {
+      searchByCode(normalizedCodeParam);
     }
-  }, [codeParam]);
+  }, [normalizedCodeParam, stockCode, searchByCode]);
 
   return (
     <Layout>
@@ -36,6 +43,12 @@ export function SearchPage() {
           onSubmit={handleSearch}
           isLoading={isLoading}
         />
+
+        {hasInvalidCodeParam && (
+          <div className="alert alert-warning" role="alert">
+            不正な銘柄コードが指定されています。
+          </div>
+        )}
 
         {isError && (
           <div className="alert alert-danger" role="alert">

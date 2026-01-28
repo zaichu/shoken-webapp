@@ -33,18 +33,25 @@ export const useJQuantsDividend = (
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isActive = true;
+
     const fetchDividend = async () => {
       if (!enabled || !securityCode) {
-        setDividendPerShare(undefined);
+        if (isActive) {
+          setDividendPerShare(undefined);
+        }
         return;
       }
 
-      setLoading(true);
-      setError(null);
+      if (isActive) {
+        setLoading(true);
+        setError(null);
+      }
 
       try {
         // V2 API では data フィールドを使用
         const response = await jquantsApiClient.getStatements(securityCode);
+        if (!isActive) return;
 
         // レスポンスの data フィールドが配列でない場合はスキップ
         if (!response?.data || !Array.isArray(response.data)) {
@@ -68,17 +75,25 @@ export const useJQuantsDividend = (
           }
         }
 
-        setDividendPerShare(parseNumber(dividendValue || ''));
+        if (isActive) {
+          setDividendPerShare(parseNumber(dividendValue || ''));
+        }
       } catch (err) {
-        console.error('配当取得エラー:', err);
-        setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
-        setDividendPerShare(undefined);
+        if (isActive) {
+          setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
+          setDividendPerShare(undefined);
+        }
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
     fetchDividend();
+    return () => {
+      isActive = false;
+    };
   }, [securityCode, enabled]);
 
   return { dividendPerShare, loading, error };

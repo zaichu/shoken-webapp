@@ -51,24 +51,96 @@ main {
   flex: 1;
 }
 
-/* カスタムユーティリティクラス */
-.text-small {
-  font-size: 0.85rem;
+/* アプリのコンテナ幅 */
+.app-container-wide {
+  max-width: 1600px;
 }
 
-.p-responsive {
-  padding: 1rem;
+/* ヘッダー */
+.header-avatar {
+  width: 32px;
+  height: 32px;
 }
 
-@media (min-width: 768px) {
-  .p-responsive {
-    padding: 2rem;
-  }
+.header-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
 }
 
-/* トランジション効果 */
-.fade-transition {
-  transition: opacity 0.3s ease-in-out;
+.header-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ページ内の操作パネル幅 */
+.page-control-panel {
+  width: 400px;
+}
+
+/* CSVファイル入力（非表示） */
+.csv-file-input-hidden {
+  display: none;
+}
+
+.csv-file-input-label {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.csv-file-input-label-disabled {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+/* 銘柄情報テーブル */
+.stock-info-label {
+  width: 10%;
+}
+
+/* 受取金テーブル */
+.receipt-summary-title {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.receipt-summary-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.table .receipt-summary-left-cell {
+  padding: 10px 16px;
+  background-color: #0d6efd;
+  border-left: 4px solid #0a58ca;
+}
+
+.table .receipt-summary-value-cell {
+  padding: 10px 16px;
+  background-color: #0d6efd;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1.05em;
+  color: #ffffff;
+}
+
+.receipt-summary-border-top {
+  border-top: 2px solid #3d8bfd;
+}
+
+.receipt-table-header-row {
+  text-align: center;
+}
+
+.receipt-table-header-cell {
+  text-align: center;
 }
 
 /* スクロールバーのスタイリング */
@@ -217,41 +289,35 @@ main {
   border-bottom-left-radius: 0;
 }
 
-/* プリローダー */
-.loading-spinner {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
+.search-form-input {
+  max-width: 200px;
 }
 
-/* エラー状態 */
-.error-message {
-  color: var(--danger-color);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+/* 検索カード */
+.search-card-header {
+  cursor: pointer;
 }
 
-/* 成功状態 */
-.success-message {
-  color: var(--success-color);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-}
-
-/* ファイルアップロード */
-.file-upload-area {
-  border: 2px dashed #dee2e6;
-  border-radius: 0.5rem;
-  padding: 2rem;
-  text-align: center;
+.search-card-chevron {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #ffffff;
   transition: all 0.3s ease;
 }
 
-.file-upload-area:hover,
-.file-upload-area.dragover {
-  border-color: var(--primary-color);
-  background-color: rgba(13, 110, 253, 0.05);
+.search-card-chevron.is-expanded {
+  border-top: none;
+  border-bottom: 8px solid #ffffff;
+}
+
+.search-card-section {
+  width: 500px;
+}
+
+.search-card-label {
+  width: 200px;
 }
 
 /* モバイル対応 */
@@ -269,9 +335,6 @@ main {
     padding: 1rem;
   }
   
-  .p-responsive {
-    padding: 0.5rem;
-  }
 }
 
 /* 印刷対応 */

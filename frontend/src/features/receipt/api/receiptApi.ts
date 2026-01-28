@@ -30,7 +30,6 @@ export const dividendApi = {
     apiClient.get<DividendData[]>('/dividends', { withCredentials: true }),
 
   bulkCreate: async (items: DividendData[]) => {
-    console.log('[dividendApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
       settlement_date: formatDate(item.settlement_date as Date),
       product: item.product,
@@ -43,27 +42,11 @@ export const dividendApi = {
       taxes: safeNumber(item.taxes),
       net_amount_received: safeNumber(item.net_amount_received),
     }));
-    try {
-      const response = await apiClient.post<BulkCreateResponse>('/dividends/bulk', { items: payload }, { withCredentials: true });
-      console.log('[dividendApi.bulkCreate] 成功');
-      return response;
-    } catch (error) {
-      console.error('[dividendApi.bulkCreate] 失敗:', error);
-      throw error;
-    }
+    return apiClient.post<BulkCreateResponse>('/dividends/bulk', { items: payload }, { withCredentials: true });
   },
 
-  deleteAll: async () => {
-    console.log('[dividendApi.deleteAll] 開始');
-    try {
-      const response = await apiClient.delete('/dividends/all', { withCredentials: true });
-      console.log('[dividendApi.deleteAll] 成功');
-      return response;
-    } catch (error) {
-      console.error('[dividendApi.deleteAll] 失敗:', error);
-      throw error;
-    }
-  },
+  deleteAll: async () =>
+    apiClient.delete('/dividends/all', { withCredentials: true }),
 };
 
 // 国内株式API
@@ -72,7 +55,6 @@ export const domesticStockApi = {
     apiClient.get<DomesticStockData[]>('/domestic-stocks', { withCredentials: true }),
 
   bulkCreate: async (items: DomesticStockData[]) => {
-    console.log('[domesticStockApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
       trade_date: formatDate(item.trade_date as Date),
       settlement_date: formatDate(item.settlement_date as Date),
@@ -87,27 +69,11 @@ export const domesticStockApi = {
       taxes: safeNumber(item.taxes),
       realized_profit_and_loss_after_tax: safeNumber(item.realized_profit_and_loss_after_tax),
     }));
-    try {
-      const response = await apiClient.post<BulkCreateResponse>('/domestic-stocks/bulk', { items: payload }, { withCredentials: true });
-      console.log('[domesticStockApi.bulkCreate] 成功');
-      return response;
-    } catch (error) {
-      console.error('[domesticStockApi.bulkCreate] 失敗:', error);
-      throw error;
-    }
+    return apiClient.post<BulkCreateResponse>('/domestic-stocks/bulk', { items: payload }, { withCredentials: true });
   },
 
-  deleteAll: async () => {
-    console.log('[domesticStockApi.deleteAll] 開始');
-    try {
-      const response = await apiClient.delete('/domestic-stocks/all', { withCredentials: true });
-      console.log('[domesticStockApi.deleteAll] 成功');
-      return response;
-    } catch (error) {
-      console.error('[domesticStockApi.deleteAll] 失敗:', error);
-      throw error;
-    }
-  },
+  deleteAll: async () =>
+    apiClient.delete('/domestic-stocks/all', { withCredentials: true }),
 };
 
 // 投資信託API
@@ -116,7 +82,6 @@ export const mutualfundApi = {
     apiClient.get<MutualfundData[]>('/mutualfunds', { withCredentials: true }),
 
   bulkCreate: async (items: MutualfundData[]) => {
-    console.log('[mutualfundApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
       trade_date: formatDate(item.trade_date as Date),
       settlement_date: formatDate(item.settlement_date as Date),
@@ -132,27 +97,11 @@ export const mutualfundApi = {
       taxes: safeNumber(item.taxes),
       realized_profit_and_loss_after_tax: safeNumber(item.realized_profit_and_loss_after_tax),
     }));
-    try {
-      const response = await apiClient.post<BulkCreateResponse>('/mutualfunds/bulk', { items: payload }, { withCredentials: true });
-      console.log('[mutualfundApi.bulkCreate] 成功');
-      return response;
-    } catch (error) {
-      console.error('[mutualfundApi.bulkCreate] 失敗:', error);
-      throw error;
-    }
+    return apiClient.post<BulkCreateResponse>('/mutualfunds/bulk', { items: payload }, { withCredentials: true });
   },
 
-  deleteAll: async () => {
-    console.log('[mutualfundApi.deleteAll] 開始');
-    try {
-      const response = await apiClient.delete('/mutualfunds/all', { withCredentials: true });
-      console.log('[mutualfundApi.deleteAll] 成功');
-      return response;
-    } catch (error) {
-      console.error('[mutualfundApi.deleteAll] 失敗:', error);
-      throw error;
-    }
-  },
+  deleteAll: async () =>
+    apiClient.delete('/mutualfunds/all', { withCredentials: true }),
 };
 
 // 保有銘柄API
@@ -161,7 +110,6 @@ export const assetBalanceApi = {
     apiClient.get<AssetBalanceData[]>('/asset-balances', { withCredentials: true }),
 
   bulkCreate: async (items: AssetBalanceData[]) => {
-    console.log('[assetBalanceApi.bulkCreate] 開始:', items.length, '件');
     const payload = items.map(item => ({
       security_code: item.security_code,
       security_name: item.security_name,
@@ -174,25 +122,9 @@ export const assetBalanceApi = {
       market_value: safeNumber(item.market_value),
       profit_loss_rate: safeNumber(item.profit_loss_rate),
     }));
-    try {
-      const response = await apiClient.post<BulkCreateResponse>('/asset-balances/bulk', { items: payload }, { withCredentials: true });
-      console.log('[assetBalanceApi.bulkCreate] 成功');
-      return response;
-    } catch (error) {
-      console.error('[assetBalanceApi.bulkCreate] 失敗:', error);
-      throw error;
-    }
+    return apiClient.post<BulkCreateResponse>('/asset-balances/bulk', { items: payload }, { withCredentials: true });
   },
 
-  deleteAll: async () => {
-    console.log('[assetBalanceApi.deleteAll] 開始');
-    try {
-      const response = await apiClient.delete('/asset-balances/all', { withCredentials: true });
-      console.log('[assetBalanceApi.deleteAll] 成功');
-      return response;
-    } catch (error) {
-      console.error('[assetBalanceApi.deleteAll] 失敗:', error);
-      throw error;
-    }
-  },
+  deleteAll: async () =>
+    apiClient.delete('/asset-balances/all', { withCredentials: true }),
 };

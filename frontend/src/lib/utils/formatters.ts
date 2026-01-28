@@ -37,12 +37,28 @@ const escapeHtml = (str: string): string => {
  * 銘柄コードのリンクHTML生成
  * 銘柄検索ページへ遷移するリンクを生成
  */
+export const SECURITY_CODE_REGEX = /^[0-9A-Za-z.]+$/;
+
+/**
+ * 銘柄コードの正規化
+ * - 前後の空白を除去
+ * - ラベル形式("1234: 銘柄名")はコード部分のみ抽出
+ * - 比較用に大文字化
+ */
+export function normalizeSecurityCode(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  const token = raw.split(/[:：]/)[0];
+  return token.replace(/\s+/g, '').toUpperCase();
+}
+
 export function createSecurityCodeLink(value: unknown): string {
   const code = typeof value === 'string' ? value.trim() : '';
   if (!code) return '';
 
   // 想定外の文字列はリンク化せず表示のみ（URLパラメータの安全性確保）
-  if (!/^[0-9A-Za-z]+$/.test(code)) {
+  if (!SECURITY_CODE_REGEX.test(code)) {
     return escapeHtml(code);
   }
 

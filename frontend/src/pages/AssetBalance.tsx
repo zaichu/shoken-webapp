@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -19,6 +19,7 @@ import {
   createSecurityCodeLink
 } from '@/lib/utils/formatters';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -52,16 +53,16 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
   const [searchQuery, setSearchQuery] = useState('');
 
   // 検索オプションの生成
-  const searchCategories = {
+  const searchCategories = useMemo(() => ({
     securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
-  };
+  }), [assetBalanceData]);
 
   // 検索クエリに基づくフィルタリング
-  const filteredData = filterDataBySearchQuery(
+  const filteredData = useMemo(() => filterDataBySearchQuery(
     assetBalanceData,
     searchQuery,
     ['security_code', 'security_name']
-  );
+  ), [assetBalanceData, searchQuery]);
 
   // テーブルカラムの定義
   const columns: TableColumnConfig[] = [
@@ -119,6 +120,7 @@ export function AssetBalancePage() {
   const assetBalanceCSV = useCSVReader(options);
   // フェッチ済みフラグ（多重実行防止）
   const hasFetched = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // DBから保有銘柄データを取得
   const fetchAssetBalances = useCallback(async (force = false) => {
@@ -129,6 +131,8 @@ export function AssetBalancePage() {
     // 既にフェッチ済みで強制更新でない場合はスキップ
     if (hasFetched.current && !force) return;
 
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setDbLoading(true);
     setDbError(null);
     try {
@@ -137,10 +141,10 @@ export function AssetBalancePage() {
       setAssetBalanceData(data || []);
       hasFetched.current = true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'データ取得に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, 'データ取得に失敗しました'));
     } finally {
       setDbLoading(false);
+      isFetchingRef.current = false;
     }
   }, [isAuthenticated, authLoading]);
 
@@ -168,7 +172,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
       if (assetBalanceCSV.error) assetBalanceCSV.resetError();
     } catch (error) {
-      console.error('AssetBalance CSV処理エラー:', error);
+      setDbError(getDisplayErrorMessage(error, 'CSVファイルの読み込みに失敗しました'));
     }
   };
 
@@ -188,8 +192,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData([]);
       await fetchAssetBalances(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '保存に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, '保存に失敗しました'));
     } finally {
       setSaving(false);
     }
@@ -207,8 +210,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData([]);
       assetBalanceCSV.reset();
     } catch (error) {
-      const message = error instanceof Error ? error.message : '削除に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, '削除に失敗しました'));
     } finally {
       setDeleting(false);
     }
@@ -248,7 +250,7 @@ export function AssetBalancePage() {
         {!authLoading && isAuthenticated && (
           <>
             <div className="d-flex align-items-center gap-2 flex-wrap">
-              <div style={{ width: '400px' }}>
+              <div className="page-control-panel">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
                   selectedFileName={assetBalanceCSV.fileName || ''}

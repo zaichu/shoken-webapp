@@ -28,10 +28,14 @@ describe('useCSVReader', () => {
     const mockData = [{ name: 'John', age: 30 }];
     const mockFile = new File(['name,age\nJohn,30'], 'test.csv', { type: 'text/csv' });
 
-    mockParseCSVFile.mockImplementation((_, callbacks) => {
+    mockParseCSVFile.mockImplementation((_, __, callbacks) => {
       callbacks?.onStart?.();
       callbacks?.onComplete?.();
-      return Promise.resolve(mockData);
+      return Promise.resolve({
+        data: mockData,
+        errors: [],
+        meta: { encoding: 'utf-8', encodingConfidence: 1 }
+      });
     });
 
     const { result } = renderHook(() => useCSVReader());
@@ -41,25 +45,27 @@ describe('useCSVReader', () => {
       parsedData = await result.current.parseCSV(mockFile);
     });
 
-    setTimeout(() => {
-      expect(parsedData).toEqual(mockData);
-      expect(result.current.fileName).toBe('test.csv');
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBeNull();
-      expect(mockParseCSVFile).toHaveBeenCalledWith(mockFile, expect.any(Object));
-    }, 100);
+    expect(parsedData).toEqual(mockData);
+    expect(result.current.fileName).toBe('test.csv');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(mockParseCSVFile).toHaveBeenCalledWith(
+      mockFile,
+      undefined,
+      expect.any(Object)
+    );
   });
 
   it('CSVパース中にローディング状態が正しく管理される', async () => {
     const mockFile = new File(['test'], 'test.csv', { type: 'text/csv' });
-    let resolvePromise: (value: Record<string, unknown>[]) => void;
+    let resolvePromise: (value: { data: Record<string, unknown>[]; errors: []; meta: { encoding: string; encodingConfidence: number } }) => void;
     let callbacks: {
       onStart?: () => void;
       onComplete?: () => void;
       onError?: (error: string) => void;
     };
 
-    mockParseCSVFile.mockImplementation((_, cb) => {
+    mockParseCSVFile.mockImplementation((_, __, cb) => {
       callbacks = cb!;
       callbacks?.onStart?.();
       return new Promise((resolve) => {
@@ -81,20 +87,22 @@ describe('useCSVReader', () => {
     // パース完了
     await act(async () => {
       callbacks?.onComplete?.();
-      resolvePromise([]);
+      resolvePromise({
+        data: [],
+        errors: [],
+        meta: { encoding: 'utf-8', encodingConfidence: 1 }
+      });
       await parsePromise;
     });
 
-    setTimeout(() => {
-      expect(result.current.isLoading).toBe(false);
-    }, 100);
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('CSVパースエラーが正しく処理される', async () => {
     const mockFile = new File(['invalid'], 'test.csv', { type: 'text/csv' });
     const errorMessage = 'パースエラー';
 
-    mockParseCSVFile.mockImplementation((_, callbacks) => {
+    mockParseCSVFile.mockImplementation((_, __, callbacks) => {
       callbacks?.onStart?.();
       callbacks?.onError?.(errorMessage);
       return Promise.reject(new Error(errorMessage));
@@ -110,10 +118,8 @@ describe('useCSVReader', () => {
       }
     });
 
-    setTimeout(() => {
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBe(errorMessage);
-    }, 100);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(errorMessage);
   });
 
   it('エラーをリセットできる', () => {
@@ -172,9 +178,13 @@ describe('useCSVReader', () => {
       onError?: (error: string) => void;
     };
 
-    mockParseCSVFile.mockImplementation((_, cb) => {
+    mockParseCSVFile.mockImplementation((_, __, cb) => {
       callbacks = cb!;
-      return Promise.resolve([]);
+      return Promise.resolve({
+        data: [],
+        errors: [],
+        meta: { encoding: 'utf-8', encodingConfidence: 1 }
+      });
     });
 
     const { result } = renderHook(() => useCSVReader());
@@ -183,12 +193,10 @@ describe('useCSVReader', () => {
       await result.current.parseCSV(mockFile);
     });
 
-    setTimeout(() => {
-      expect(callbacks).toBeDefined();
-      expect(typeof callbacks.onStart).toBe('function');
-      expect(typeof callbacks.onError).toBe('function');
-      expect(typeof callbacks.onComplete).toBe('function');
-    }, 100);
+    expect(callbacks).toBeDefined();
+    expect(typeof callbacks.onStart).toBe('function');
+    expect(typeof callbacks.onError).toBe('function');
+    expect(typeof callbacks.onComplete).toBe('function');
   });
 
   it('例外が発生した場合にisLoadingがfalseになる', async () => {

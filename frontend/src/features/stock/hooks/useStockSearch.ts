@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchStockData } from '../api';
 import { StockData } from '../types';
@@ -16,23 +16,24 @@ export function useStockSearch(initialCode?: string) {
     queryKey: ['stock', searchQuery],
     queryFn: () => fetchStockData(searchQuery),
     enabled: !!searchQuery,
+    refetchOnWindowFocus: false,
   });
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(stockCode);
-  };
+  }, [stockCode]);
 
   // 検索を直接実行（URLパラメータからの自動検索用）
-  const searchByCode = (code: string) => {
+  const searchByCode = useCallback((code: string) => {
     setStockCode(code);
     setSearchQuery(code);
-  };
+  }, []);
 
-  const resetSearch = () => {
+  const resetSearch = useCallback(() => {
     setStockCode('');
     setSearchQuery('');
-  };
+  }, []);
 
   return {
     stockCode,

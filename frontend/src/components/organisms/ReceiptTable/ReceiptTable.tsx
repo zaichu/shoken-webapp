@@ -35,19 +35,6 @@ const defaultFormatGroupHeader = (key: string): string => {
     return key;
 };
 
-// 件数バッジのスタイル
-const badgeStyle: React.CSSProperties = {
-    display: 'inline-block',
-    background: 'rgba(255, 255, 255, 0.2)',
-    color: 'white',
-    padding: '3px 10px',
-    borderRadius: '4px',
-    fontSize: '0.85em',
-    fontWeight: '600',
-    marginLeft: '12px',
-    verticalAlign: 'middle',
-};
-
 export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     data,
     summary,
@@ -81,15 +68,14 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         };
 
         const props = {
-            key,
             style: cellStyle,
             colSpan: 'colSpan' in column ? column.colSpan : undefined
         };
 
         return isHtml ? (
-            <TableCell {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
+            <TableCell key={key} {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
         ) : (
-            <TableCell {...props}>{String(formattedValue ?? '')}</TableCell>
+            <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>
         );
     };
 
@@ -120,8 +106,11 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         return labels[key] || key;
     };
 
+    const summaryGroupKeys = new Set(data.map(item => getGroupKey(item)));
+    const summaryToRender = summary.filter(summaryItem => summaryGroupKeys.has(summaryItem.filter));
+
     const renderGroupedRows = () =>
-        summary.map((summaryItem, summaryIndex) => {
+        summaryToRender.map((summaryItem, summaryIndex) => {
             const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
             const headerText = formatGroupHeader(summaryItem.filter);
             const itemCount = groupItems.length;
@@ -133,24 +122,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 value: formatSummaryValue(summaryItem[column.key], column)
             }));
 
-            // 左側セルのスタイル（年月＋件数）- 検索オプションと同じ青
-            const summaryLeftCellStyle: React.CSSProperties = {
-                padding: '10px 16px',
-                backgroundColor: '#0d6efd',
-                borderLeft: '4px solid #0a58ca',
-                borderTop: summaryIndex > 0 ? '2px solid #3d8bfd' : undefined,
-            };
-
-            // 右側セルのスタイル（サマリー値）
-            const summaryValueCellStyle: React.CSSProperties = {
-                padding: '10px 16px',
-                backgroundColor: '#0d6efd',
-                borderTop: summaryIndex > 0 ? '2px solid #3d8bfd' : undefined,
-                textAlign: 'right',
-                fontWeight: '700',
-                fontSize: '1.05em',
-                color: '#ffffff',
-            };
+            const summaryBorderClass = summaryIndex > 0 ? 'receipt-summary-border-top' : '';
 
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>
@@ -159,17 +131,20 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                         <TableRow>
                             <TableCell
                                 colSpan={columns.length - summaryColumns.length}
-                                style={summaryLeftCellStyle}
+                                className={`receipt-summary-left-cell ${summaryBorderClass}`.trim()}
                             >
-                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                <span className="receipt-summary-title">
                                     {headerText}
                                 </span>
-                                <span style={badgeStyle}>
+                                <span className="receipt-summary-badge">
                                     {itemCount}件
                                 </span>
                             </TableCell>
                             {summaryValues.map((sv, idx) => (
-                                <TableCell key={idx} style={summaryValueCellStyle}>
+                                <TableCell
+                                    key={idx}
+                                    className={`receipt-summary-value-cell ${summaryBorderClass}`.trim()}
+                                >
                                     {String(sv.value)}
                                 </TableCell>
                             ))}
@@ -180,12 +155,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                         <TableRow>
                             <TableCell
                                 colSpan={columns.length}
-                                style={summaryLeftCellStyle}
+                                className={`receipt-summary-left-cell ${summaryBorderClass}`.trim()}
                             >
-                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                <span className="receipt-summary-title">
                                     {headerText}
                                 </span>
-                                <span style={badgeStyle}>
+                                <span className="receipt-summary-badge">
                                     {itemCount}件
                                 </span>
                             </TableCell>
@@ -206,11 +181,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     return (
         <Table className="mb-0" bordered small responsive forceResize={forceResize} onClick={handleTableClick}>
             <TableHeader>
-                <TableRow className="table-warning">
+                <TableRow className="table-warning receipt-table-header-row">
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
-                            style={{ textAlign: 'center', width: column.width }}
+                            className="receipt-table-header-cell"
+                            style={{ width: column.width }}
                             key={index}
                         >
                             {column.header}
@@ -219,7 +195,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {summary.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
+                {summaryToRender.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
             </TableBody>
         </Table>
     );

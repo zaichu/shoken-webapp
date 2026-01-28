@@ -39,7 +39,7 @@ export function StockInfo({ stockData }: StockInfoProps) {
             <tbody>
               {items.map(item => (
                 <tr key={item.label}>
-                  <th style={{ width: '10%' }}>{item.label}</th>
+                  <th className="stock-info-label">{item.label}</th>
                   <td>{item.value}</td>
                 </tr>
               ))}

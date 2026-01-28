@@ -10,7 +10,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="app-container">
       <Header />
 
-      <main className="container mt-2" style={{ maxWidth: '1600px' }}>
+      <main className="container mt-2 app-container-wide">
         {children}
       </main>
 

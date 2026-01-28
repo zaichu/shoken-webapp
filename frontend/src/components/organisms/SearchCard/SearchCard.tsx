@@ -86,23 +86,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     return (
         <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center" style={{ cursor: 'pointer' }} onClick={handleToggleExpanded}>
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center search-card-header" onClick={handleToggleExpanded}>
                 <h5 className="mb-0 text-white">検索オプション</h5>
-                <div style={{
-                    width: '0',
-                    height: '0',
-                    borderLeft: '6px solid transparent',
-                    borderRight: '6px solid transparent',
-                    borderTop: isExpanded ? 'none' : '8px solid white',
-                    borderBottom: isExpanded ? '8px solid white' : 'none',
-                    transition: 'all 0.3s ease'
-                }}></div>
+                <div className={`search-card-chevron${isExpanded ? ' is-expanded' : ''}`} />
             </div>
             {isExpanded && categories && (
                 <div className="card-body">
                     {/* 銘柄検索 */}
                     {hasData(categories.securities) && (
-                        <div style={{ width: '500px' }}>
+                        <div className="search-card-section">
                             <div className="d-flex align-items-center">銘柄</div>
                             <div>{renderQuickSearchDropdown(categories.securities!, 'securities-search')}</div>
                         </div>
@@ -112,7 +104,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {/* 年度検索 */}
                         {hasData(categories.years) && (
                             <div>
-                                <div className="d-flex align-items-center" style={{ width: '200px' }}>年度</div>
+                                <div className="d-flex align-items-center search-card-label">年度</div>
                                 <div>{renderQuickSearchDropdown(categories.years!, 'years-search')}</div>
                             </div>
                         )}
@@ -120,7 +112,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {/* 年月検索 */}
                         {/* {hasData(categories.yearMonths) && (
                             <div>
-                                <div className="d-flex align-items-center" style={{ width: '200px' }}>年月</div>
+                                <div className="d-flex align-items-center search-card-label">年月</div>
                                 <div>{renderQuickSearchDropdown(categories.yearMonths!, 'year-months-search')}</div>
                             </div>
                         )} */}

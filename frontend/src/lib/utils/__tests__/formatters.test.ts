@@ -15,7 +15,8 @@ import {
   safeMultiply,
   safeDivide,
   calculatePercentage,
-  TAX_RATE
+  TAX_RATE,
+  normalizeSecurityCode
 } from '../formatters';
 
 describe('日付関連のフォーマット関数', () => {
@@ -102,6 +103,19 @@ describe('日付関連のフォーマット関数', () => {
 });
 
 describe('数値関連のフォーマット関数', () => {
+  describe('normalizeSecurityCode', () => {
+    it('銘柄コードの空白を除去して正規化する', () => {
+      expect(normalizeSecurityCode(' 7974 ')).toBe('7974');
+    });
+
+    it('ラベル形式から銘柄コードを抽出する', () => {
+      expect(normalizeSecurityCode('7974: 任天堂')).toBe('7974');
+    });
+
+    it('英字コードを大文字化する', () => {
+      expect(normalizeSecurityCode('brk.b')).toBe('BRK.B');
+    });
+  });
   describe('parseNumberString', () => {
     it('数値文字列を解析する', () => {
       expect(parseNumberString('123')).toBe(123);
