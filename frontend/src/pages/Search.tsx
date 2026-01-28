@@ -25,7 +25,7 @@ export function SearchPage() {
     if (codeParam && codeParam !== stockCode) {
       searchByCode(codeParam);
     }
-  }, [codeParam]);
+  }, [codeParam, stockCode, searchByCode]);
 
   return (
     <Layout>
