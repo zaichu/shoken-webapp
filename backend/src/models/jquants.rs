@@ -1,341 +1,455 @@
 use serde::{Deserialize, Serialize};
 
+/// 決算サマリー取得パラメータ（J-Quants API V2）
 #[derive(Debug, Deserialize)]
-pub struct StatementsQuery {
+pub struct FinSummaryQuery {
     pub code: String,
     pub from: Option<String>,
     pub to: Option<String>,
 }
 
+/// 決算サマリーレスポンス（J-Quants API V2）
+/// V2では fins/summary を使用し、ルートフィールドは "data"
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StatementsResponse {
-    pub statements: Vec<StatementsData>,
+pub struct FinSummaryResponse {
+    /// 決算サマリーデータの配列（V2では "data" フィールド）
+    pub data: Vec<FinSummaryData>,
+    /// ページネーションキー（データが大量の場合に設定される）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination_key: Option<String>,
 }
 
+/// 決算サマリーデータ（J-Quants API V2）
+/// V2では省略形フィールド名を使用
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StatementsData {
-    #[serde(rename = "DisclosedDate")]
+pub struct FinSummaryData {
+    /// 開示日（DisclosedDate → DiscDate）
+    #[serde(rename = "DiscDate")]
     pub disclosed_date: String,
 
-    #[serde(rename = "DisclosedTime")]
+    /// 開示時刻
+    #[serde(rename = "DiscTime", default)]
     pub disclosed_time: Option<String>,
 
-    #[serde(rename = "LocalCode")]
+    /// 銘柄コード（LocalCode → Code）
+    #[serde(rename = "Code")]
     pub local_code: String,
 
-    #[serde(rename = "DisclosureNumber")]
+    /// 開示番号
+    #[serde(rename = "DiscNum", default)]
     pub disclosure_number: Option<String>,
 
-    #[serde(rename = "TypeOfDocument")]
+    /// 書類種別
+    #[serde(rename = "DocType")]
     pub type_of_document: String,
 
-    #[serde(rename = "TypeOfCurrentPeriod")]
+    /// 当期種別
+    #[serde(rename = "CurPeriod")]
     pub type_of_current_period: String,
 
-    #[serde(rename = "CurrentPeriodStartDate")]
+    /// 当期開始日
+    #[serde(rename = "CurStartDate")]
     pub current_period_start_date: String,
 
-    #[serde(rename = "CurrentPeriodEndDate")]
+    /// 当期終了日
+    #[serde(rename = "CurEndDate")]
     pub current_period_end_date: String,
 
-    #[serde(rename = "CurrentFiscalYearStartDate")]
+    /// 当会計年度開始日
+    #[serde(rename = "CurFYStartDate")]
     pub current_fiscal_year_start_date: String,
 
-    #[serde(rename = "CurrentFiscalYearEndDate")]
+    /// 当会計年度終了日
+    #[serde(rename = "CurFYEndDate")]
     pub current_fiscal_year_end_date: String,
 
-    #[serde(rename = "NextFiscalYearStartDate")]
+    /// 翌会計年度開始日
+    #[serde(rename = "NxFYStartDate", default)]
     pub next_fiscal_year_start_date: Option<String>,
 
-    #[serde(rename = "NextFiscalYearEndDate")]
+    /// 翌会計年度終了日
+    #[serde(rename = "NxFYEndDate", default)]
     pub next_fiscal_year_end_date: Option<String>,
 
-    #[serde(rename = "NetSales")]
+    /// 売上高
+    #[serde(rename = "Sales", default)]
     pub net_sales: Option<String>,
 
-    #[serde(rename = "OperatingProfit")]
+    /// 営業利益
+    #[serde(rename = "OpProfit", default)]
     pub operating_profit: Option<String>,
 
-    #[serde(rename = "OrdinaryProfit")]
+    /// 経常利益
+    #[serde(rename = "OrdProfit", default)]
     pub ordinary_profit: Option<String>,
 
-    #[serde(rename = "Profit")]
+    /// 当期純利益
+    #[serde(rename = "Profit", default)]
     pub profit: Option<String>,
 
-    #[serde(rename = "EarningsPerShare")]
+    /// 1株当たり当期純利益
+    #[serde(rename = "EPS", default)]
     pub earnings_per_share: Option<String>,
 
-    #[serde(rename = "DilutedEarningsPerShare")]
+    /// 希薄化後1株当たり当期純利益
+    #[serde(rename = "DilutedEPS", default)]
     pub diluted_earnings_per_share: Option<String>,
 
-    #[serde(rename = "TotalAssets")]
+    /// 総資産
+    #[serde(rename = "TotalAssets", default)]
     pub total_assets: Option<String>,
 
-    #[serde(rename = "Equity")]
+    /// 純資産
+    #[serde(rename = "Equity", default)]
     pub equity: Option<String>,
 
-    #[serde(rename = "EquityToAssetRatio")]
+    /// 自己資本比率
+    #[serde(rename = "EquityRatio", default)]
     pub equity_to_asset_ratio: Option<String>,
 
-    #[serde(rename = "BookValuePerShare")]
+    /// 1株当たり純資産
+    #[serde(rename = "BPS", default)]
     pub book_value_per_share: Option<String>,
 
-    #[serde(rename = "CashFlowsFromOperatingActivities")]
+    /// 営業活動によるキャッシュフロー
+    #[serde(rename = "CashFlowOp", default)]
     pub cash_flows_from_operating_activities: Option<String>,
 
-    #[serde(rename = "CashFlowsFromInvestingActivities")]
+    /// 投資活動によるキャッシュフロー
+    #[serde(rename = "CashFlowInv", default)]
     pub cash_flows_from_investing_activities: Option<String>,
 
-    #[serde(rename = "CashFlowsFromFinancingActivities")]
+    /// 財務活動によるキャッシュフロー
+    #[serde(rename = "CashFlowFin", default)]
     pub cash_flows_from_financing_activities: Option<String>,
 
-    #[serde(rename = "CashAndEquivalents")]
+    /// 現金及び現金同等物の期末残高
+    #[serde(rename = "CashEq", default)]
     pub cash_and_equivalents: Option<String>,
 
-    #[serde(rename = "ResultDividendPerShare1stQuarter")]
+    /// 1株当たり配当金（第1四半期末）実績
+    #[serde(rename = "Div1Q", default)]
     pub result_dividend_per_share_1st_quarter: Option<String>,
 
-    #[serde(rename = "ResultDividendPerShare2ndQuarter")]
+    /// 1株当たり配当金（第2四半期末）実績
+    #[serde(rename = "Div2Q", default)]
     pub result_dividend_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ResultDividendPerShare3rdQuarter")]
+    /// 1株当たり配当金（第3四半期末）実績
+    #[serde(rename = "Div3Q", default)]
     pub result_dividend_per_share_3rd_quarter: Option<String>,
 
-    #[serde(rename = "ResultDividendPerShareFiscalYearEnd")]
+    /// 1株当たり配当金（期末）実績
+    #[serde(rename = "DivYrEnd", default)]
     pub result_dividend_per_share_fiscal_year_end: Option<String>,
 
-    #[serde(rename = "ResultDividendPerShareAnnual")]
+    /// 1株当たり年間配当金実績
+    #[serde(rename = "DivAnn", default)]
     pub result_dividend_per_share_annual: Option<String>,
 
-    #[serde(rename = "DistributionsPerUnit(REIT)")]
+    /// 1口当たり分配金（REIT）
+    #[serde(rename = "DistREIT", default)]
     pub distributions_per_unit_reit: Option<String>,
 
-    #[serde(rename = "ResultTotalDividendPaidAnnual")]
+    /// 年間配当支払総額実績
+    #[serde(rename = "TotalDivPaidAnn", default)]
     pub result_total_dividend_paid_annual: Option<String>,
 
-    #[serde(rename = "ResultPayoutRatioAnnual")]
+    /// 配当性向実績
+    #[serde(rename = "PayoutRatioAnn", default)]
     pub result_payout_ratio_annual: Option<String>,
 
-    #[serde(rename = "ForecastDividendPerShare1stQuarter")]
+    /// 1株当たり配当金（第1四半期末）予想
+    #[serde(rename = "FDiv1Q", default)]
     pub forecast_dividend_per_share_1st_quarter: Option<String>,
 
-    #[serde(rename = "ForecastDividendPerShare2ndQuarter")]
+    /// 1株当たり配当金（第2四半期末）予想
+    #[serde(rename = "FDiv2Q", default)]
     pub forecast_dividend_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastDividendPerShare3rdQuarter")]
+    /// 1株当たり配当金（第3四半期末）予想
+    #[serde(rename = "FDiv3Q", default)]
     pub forecast_dividend_per_share_3rd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastDividendPerShareFiscalYearEnd")]
+    /// 1株当たり配当金（期末）予想
+    #[serde(rename = "FDivYrEnd", default)]
     pub forecast_dividend_per_share_fiscal_year_end: Option<String>,
 
-    #[serde(rename = "ForecastDividendPerShareAnnual")]
+    /// 1株当たり年間配当金予想（今期）
+    #[serde(rename = "FDivAnn", default)]
     pub forecast_dividend_per_share_annual: Option<String>,
 
-    #[serde(rename = "ForecastDistributionsPerUnit(REIT)")]
+    /// 1口当たり分配金（REIT）予想
+    #[serde(rename = "FDistREIT", default)]
     pub forecast_distributions_per_unit_reit: Option<String>,
 
-    #[serde(rename = "ForecastTotalDividendPaidAnnual")]
+    /// 年間配当支払総額予想
+    #[serde(rename = "FTotalDivPaidAnn", default)]
     pub forecast_total_dividend_paid_annual: Option<String>,
 
-    #[serde(rename = "ForecastPayoutRatioAnnual")]
+    /// 配当性向予想
+    #[serde(rename = "FPayoutRatioAnn", default)]
     pub forecast_payout_ratio_annual: Option<String>,
 
-    #[serde(rename = "NextYearForecastDividendPerShare1stQuarter")]
+    /// 1株当たり配当金（第1四半期末）来期予想
+    #[serde(rename = "NxFDiv1Q", default)]
     pub next_year_forecast_dividend_per_share_1st_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastDividendPerShare2ndQuarter")]
+    /// 1株当たり配当金（第2四半期末）来期予想
+    #[serde(rename = "NxFDiv2Q", default)]
     pub next_year_forecast_dividend_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastDividendPerShare3rdQuarter")]
+    /// 1株当たり配当金（第3四半期末）来期予想
+    #[serde(rename = "NxFDiv3Q", default)]
     pub next_year_forecast_dividend_per_share_3rd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastDividendPerShareFiscalYearEnd")]
+    /// 1株当たり配当金（期末）来期予想
+    #[serde(rename = "NxFDivYrEnd", default)]
     pub next_year_forecast_dividend_per_share_fiscal_year_end: Option<String>,
 
-    #[serde(rename = "NextYearForecastDividendPerShareAnnual")]
+    /// 1株当たり年間配当金来期予想
+    #[serde(rename = "NxFDivAnn", default)]
     pub next_year_forecast_dividend_per_share_annual: Option<String>,
 
-    #[serde(rename = "NextYearForecastDistributionsPerUnit(REIT)")]
+    /// 1口当たり分配金（REIT）来期予想
+    #[serde(rename = "NxFDistREIT", default)]
     pub next_year_forecast_distributions_per_unit_reit: Option<String>,
 
-    #[serde(rename = "NextYearForecastPayoutRatioAnnual")]
+    /// 配当性向来期予想
+    #[serde(rename = "NxFPayoutRatioAnn", default)]
     pub next_year_forecast_payout_ratio_annual: Option<String>,
 
-    #[serde(rename = "ForecastNetSales2ndQuarter")]
+    /// 売上高予想（第2四半期）
+    #[serde(rename = "FSales2Q", default)]
     pub forecast_net_sales_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastOperatingProfit2ndQuarter")]
+    /// 営業利益予想（第2四半期）
+    #[serde(rename = "FOpProfit2Q", default)]
     pub forecast_operating_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastOrdinaryProfit2ndQuarter")]
+    /// 経常利益予想（第2四半期）
+    #[serde(rename = "FOrdProfit2Q", default)]
     pub forecast_ordinary_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastProfit2ndQuarter")]
+    /// 当期純利益予想（第2四半期）
+    #[serde(rename = "FProfit2Q", default)]
     pub forecast_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastEarningsPerShare2ndQuarter")]
+    /// 1株当たり当期純利益予想（第2四半期）
+    #[serde(rename = "FEPS2Q", default)]
     pub forecast_earnings_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNetSales2ndQuarter")]
+    /// 売上高来期予想（第2四半期）
+    #[serde(rename = "NxFSales2Q", default)]
     pub next_year_forecast_net_sales_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastOperatingProfit2ndQuarter")]
+    /// 営業利益来期予想（第2四半期）
+    #[serde(rename = "NxFOpProfit2Q", default)]
     pub next_year_forecast_operating_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastOrdinaryProfit2ndQuarter")]
+    /// 経常利益来期予想（第2四半期）
+    #[serde(rename = "NxFOrdProfit2Q", default)]
     pub next_year_forecast_ordinary_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastProfit2ndQuarter")]
+    /// 当期純利益来期予想（第2四半期）
+    #[serde(rename = "NxFProfit2Q", default)]
     pub next_year_forecast_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastEarningsPerShare2ndQuarter")]
+    /// 1株当たり当期純利益来期予想（第2四半期）
+    #[serde(rename = "NxFEPS2Q", default)]
     pub next_year_forecast_earnings_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNetSales")]
+    /// 売上高予想（通期）
+    #[serde(rename = "FSales", default)]
     pub forecast_net_sales: Option<String>,
 
-    #[serde(rename = "ForecastOperatingProfit")]
+    /// 営業利益予想（通期）
+    #[serde(rename = "FOpProfit", default)]
     pub forecast_operating_profit: Option<String>,
 
-    #[serde(rename = "ForecastOrdinaryProfit")]
+    /// 経常利益予想（通期）
+    #[serde(rename = "FOrdProfit", default)]
     pub forecast_ordinary_profit: Option<String>,
 
-    #[serde(rename = "ForecastProfit")]
+    /// 当期純利益予想（通期）
+    #[serde(rename = "FProfit", default)]
     pub forecast_profit: Option<String>,
 
-    #[serde(rename = "ForecastEarningsPerShare")]
+    /// 1株当たり当期純利益予想（通期）
+    #[serde(rename = "FEPS", default)]
     pub forecast_earnings_per_share: Option<String>,
 
-    #[serde(rename = "NextYearForecastNetSales")]
+    /// 売上高来期予想（通期）
+    #[serde(rename = "NxFSales", default)]
     pub next_year_forecast_net_sales: Option<String>,
 
-    #[serde(rename = "NextYearForecastOperatingProfit")]
+    /// 営業利益来期予想（通期）
+    #[serde(rename = "NxFOpProfit", default)]
     pub next_year_forecast_operating_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastOrdinaryProfit")]
+    /// 経常利益来期予想（通期）
+    #[serde(rename = "NxFOrdProfit", default)]
     pub next_year_forecast_ordinary_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastProfit")]
+    /// 当期純利益来期予想（通期）
+    #[serde(rename = "NxFProfit", default)]
     pub next_year_forecast_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastEarningsPerShare")]
+    /// 1株当たり当期純利益来期予想（通期）
+    #[serde(rename = "NxFEPS", default)]
     pub next_year_forecast_earnings_per_share: Option<String>,
 
-    #[serde(rename = "MaterialChangesInSubsidiaries")]
+    /// 重要な子会社の異動
+    #[serde(rename = "MatChgSub", default)]
     pub material_changes_in_subsidiaries: Option<String>,
 
-    #[serde(rename = "SignificantChangesInTheScopeOfConsolidation")]
+    /// 連結範囲の重要な変更
+    #[serde(rename = "SigChgScope", default)]
     pub significant_changes_in_the_scope_of_consolidation: Option<String>,
 
-    #[serde(rename = "ChangesBasedOnRevisionsOfAccountingStandard")]
+    /// 会計基準の改正に伴う変更
+    #[serde(rename = "ChgAccStd", default)]
     pub changes_based_on_revisions_of_accounting_standard: Option<String>,
 
-    #[serde(rename = "ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard")]
+    /// 会計基準の改正以外の変更
+    #[serde(rename = "ChgOther", default)]
     pub changes_other_than_ones_based_on_revisions_of_accounting_standard: Option<String>,
 
-    #[serde(rename = "ChangesInAccountingEstimates")]
+    /// 会計上の見積りの変更
+    #[serde(rename = "ChgEstimate", default)]
     pub changes_in_accounting_estimates: Option<String>,
 
-    #[serde(rename = "RetrospectiveRestatement")]
+    /// 修正再表示
+    #[serde(rename = "Restatement", default)]
     pub retrospective_restatement: Option<String>,
 
-    #[serde(
-        rename = "NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock"
-    )]
+    /// 発行済株式数（期末・自己株式を含む）
+    #[serde(rename = "SharesOutstanding", default)]
     pub number_of_issued_and_outstanding_shares_at_the_end_of_fiscal_year_including_treasury_stock:
         Option<String>,
 
-    #[serde(rename = "NumberOfTreasuryStockAtTheEndOfFiscalYear")]
+    /// 自己株式数（期末）
+    #[serde(rename = "TreasuryStock", default)]
     pub number_of_treasury_stock_at_the_end_of_fiscal_year: Option<String>,
 
-    #[serde(rename = "AverageNumberOfShares")]
+    /// 期中平均株式数
+    #[serde(rename = "AvgShares", default)]
     pub average_number_of_shares: Option<String>,
 
-    #[serde(rename = "NonConsolidatedNetSales")]
+    /// 売上高（個別）
+    #[serde(rename = "NonConSales", default)]
     pub non_consolidated_net_sales: Option<String>,
 
-    #[serde(rename = "NonConsolidatedOperatingProfit")]
+    /// 営業利益（個別）
+    #[serde(rename = "NonConOpProfit", default)]
     pub non_consolidated_operating_profit: Option<String>,
 
-    #[serde(rename = "NonConsolidatedOrdinaryProfit")]
+    /// 経常利益（個別）
+    #[serde(rename = "NonConOrdProfit", default)]
     pub non_consolidated_ordinary_profit: Option<String>,
 
-    #[serde(rename = "NonConsolidatedProfit")]
+    /// 当期純利益（個別）
+    #[serde(rename = "NonConProfit", default)]
     pub non_consolidated_profit: Option<String>,
 
-    #[serde(rename = "NonConsolidatedEarningsPerShare")]
+    /// 1株当たり当期純利益（個別）
+    #[serde(rename = "NonConEPS", default)]
     pub non_consolidated_earnings_per_share: Option<String>,
 
-    #[serde(rename = "NonConsolidatedTotalAssets")]
+    /// 総資産（個別）
+    #[serde(rename = "NonConTotalAssets", default)]
     pub non_consolidated_total_assets: Option<String>,
 
-    #[serde(rename = "NonConsolidatedEquity")]
+    /// 純資産（個別）
+    #[serde(rename = "NonConEquity", default)]
     pub non_consolidated_equity: Option<String>,
 
-    #[serde(rename = "NonConsolidatedEquityToAssetRatio")]
+    /// 自己資本比率（個別）
+    #[serde(rename = "NonConEquityRatio", default)]
     pub non_consolidated_equity_to_asset_ratio: Option<String>,
 
-    #[serde(rename = "NonConsolidatedBookValuePerShare")]
+    /// 1株当たり純資産（個別）
+    #[serde(rename = "NonConBPS", default)]
     pub non_consolidated_book_value_per_share: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedNetSales2ndQuarter")]
+    /// 売上高予想（第2四半期・個別）
+    #[serde(rename = "FNonConSales2Q", default)]
     pub forecast_non_consolidated_net_sales_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedOperatingProfit2ndQuarter")]
+    /// 営業利益予想（第2四半期・個別）
+    #[serde(rename = "FNonConOpProfit2Q", default)]
     pub forecast_non_consolidated_operating_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedOrdinaryProfit2ndQuarter")]
+    /// 経常利益予想（第2四半期・個別）
+    #[serde(rename = "FNonConOrdProfit2Q", default)]
     pub forecast_non_consolidated_ordinary_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedProfit2ndQuarter")]
+    /// 当期純利益予想（第2四半期・個別）
+    #[serde(rename = "FNonConProfit2Q", default)]
     pub forecast_non_consolidated_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedEarningsPerShare2ndQuarter")]
+    /// 1株当たり当期純利益予想（第2四半期・個別）
+    #[serde(rename = "FNonConEPS2Q", default)]
     pub forecast_non_consolidated_earnings_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedNetSales2ndQuarter")]
+    /// 売上高来期予想（第2四半期・個別）
+    #[serde(rename = "NxFNonConSales2Q", default)]
     pub next_year_forecast_non_consolidated_net_sales_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedOperatingProfit2ndQuarter")]
+    /// 営業利益来期予想（第2四半期・個別）
+    #[serde(rename = "NxFNonConOpProfit2Q", default)]
     pub next_year_forecast_non_consolidated_operating_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedOrdinaryProfit2ndQuarter")]
+    /// 経常利益来期予想（第2四半期・個別）
+    #[serde(rename = "NxFNonConOrdProfit2Q", default)]
     pub next_year_forecast_non_consolidated_ordinary_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedProfit2ndQuarter")]
+    /// 当期純利益来期予想（第2四半期・個別）
+    #[serde(rename = "NxFNonConProfit2Q", default)]
     pub next_year_forecast_non_consolidated_profit_2nd_quarter: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedEarningsPerShare2ndQuarter")]
+    /// 1株当たり当期純利益来期予想（第2四半期・個別）
+    #[serde(rename = "NxFNonConEPS2Q", default)]
     pub next_year_forecast_non_consolidated_earnings_per_share_2nd_quarter: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedNetSales")]
+    /// 売上高予想（通期・個別）
+    #[serde(rename = "FNonConSales", default)]
     pub forecast_non_consolidated_net_sales: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedOperatingProfit")]
+    /// 営業利益予想（通期・個別）
+    #[serde(rename = "FNonConOpProfit", default)]
     pub forecast_non_consolidated_operating_profit: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedOrdinaryProfit")]
+    /// 経常利益予想（通期・個別）
+    #[serde(rename = "FNonConOrdProfit", default)]
     pub forecast_non_consolidated_ordinary_profit: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedProfit")]
+    /// 当期純利益予想（通期・個別）
+    #[serde(rename = "FNonConProfit", default)]
     pub forecast_non_consolidated_profit: Option<String>,
 
-    #[serde(rename = "ForecastNonConsolidatedEarningsPerShare")]
+    /// 1株当たり当期純利益予想（通期・個別）
+    #[serde(rename = "FNonConEPS", default)]
     pub forecast_non_consolidated_earnings_per_share: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedNetSales")]
+    /// 売上高来期予想（通期・個別）
+    #[serde(rename = "NxFNonConSales", default)]
     pub next_year_forecast_non_consolidated_net_sales: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedOperatingProfit")]
+    /// 営業利益来期予想（通期・個別）
+    #[serde(rename = "NxFNonConOpProfit", default)]
     pub next_year_forecast_non_consolidated_operating_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedOrdinaryProfit")]
+    /// 経常利益来期予想（通期・個別）
+    #[serde(rename = "NxFNonConOrdProfit", default)]
     pub next_year_forecast_non_consolidated_ordinary_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedProfit")]
+    /// 当期純利益来期予想（通期・個別）
+    #[serde(rename = "NxFNonConProfit", default)]
     pub next_year_forecast_non_consolidated_profit: Option<String>,
 
-    #[serde(rename = "NextYearForecastNonConsolidatedEarningsPerShare")]
+    /// 1株当たり当期純利益来期予想（通期・個別）
+    #[serde(rename = "NxFNonConEPS", default)]
     pub next_year_forecast_non_consolidated_earnings_per_share: Option<String>,
 }
 
@@ -345,8 +459,8 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_statements_query_deserialize() {
-        let query = StatementsQuery {
+    fn test_fin_summary_query_deserialize() {
+        let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: Some("2023-01-01".to_string()),
             to: Some("2023-12-31".to_string()),
@@ -358,8 +472,8 @@ mod tests {
     }
 
     #[test]
-    fn test_statements_query_optional_params() {
-        let query = StatementsQuery {
+    fn test_fin_summary_query_optional_params() {
+        let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: None,
             to: None,
@@ -371,68 +485,80 @@ mod tests {
     }
 
     #[test]
-    fn test_statements_data_deserialize() {
+    fn test_fin_summary_data_deserialize_v2_format() {
+        // V2 API の省略形フィールド名でテスト
         let json_data = json!({
-            "DisclosedDate": "2023-11-14",
-            "DisclosedTime": "15:00:00",
-            "LocalCode": "72030",
-            "DisclosureNumber": "20231114502171",
-            "TypeOfDocument": "決算短信",
-            "TypeOfCurrentPeriod": "2Q",
-            "CurrentPeriodStartDate": "2023-04-01",
-            "CurrentPeriodEndDate": "2023-09-30",
-            "CurrentFiscalYearStartDate": "2023-04-01",
-            "CurrentFiscalYearEndDate": "2024-03-31",
-            "NextFiscalYearStartDate": "2024-04-01",
-            "NextFiscalYearEndDate": "2025-03-31",
-            "NetSales": "18733067000000",
-            "OperatingProfit": "1686297000000",
-            "NextYearForecastDividendPerShareAnnual": "50.00"
+            "DiscDate": "2023-11-14",
+            "DiscTime": "15:00:00",
+            "Code": "72030",
+            "DiscNum": "20231114502171",
+            "DocType": "決算短信",
+            "CurPeriod": "2Q",
+            "CurStartDate": "2023-04-01",
+            "CurEndDate": "2023-09-30",
+            "CurFYStartDate": "2023-04-01",
+            "CurFYEndDate": "2024-03-31",
+            "NxFYStartDate": "2024-04-01",
+            "NxFYEndDate": "2025-03-31",
+            "Sales": "18733067000000",
+            "OpProfit": "1686297000000",
+            "NxFDivAnn": "50.00",
+            "FDivAnn": "45.00",
+            "DivAnn": "40.00"
         });
 
-        let statements_data: StatementsData = serde_json::from_value(json_data).unwrap();
+        let fin_summary_data: FinSummaryData = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(statements_data.disclosed_date, "2023-11-14");
-        assert_eq!(statements_data.local_code, "72030");
+        assert_eq!(fin_summary_data.disclosed_date, "2023-11-14");
+        assert_eq!(fin_summary_data.local_code, "72030");
         assert_eq!(
-            statements_data.net_sales,
+            fin_summary_data.net_sales,
             Some("18733067000000".to_string())
         );
         assert_eq!(
-            statements_data.next_year_forecast_dividend_per_share_annual,
+            fin_summary_data.next_year_forecast_dividend_per_share_annual,
             Some("50.00".to_string())
+        );
+        assert_eq!(
+            fin_summary_data.forecast_dividend_per_share_annual,
+            Some("45.00".to_string())
+        );
+        assert_eq!(
+            fin_summary_data.result_dividend_per_share_annual,
+            Some("40.00".to_string())
         );
     }
 
     #[test]
-    fn test_statements_response_deserialize() {
+    fn test_fin_summary_response_deserialize_v2_format() {
+        // V2 API では "data" フィールド名を使用
         let json_data = json!({
-            "statements": [
+            "data": [
                 {
-                    "DisclosedDate": "2023-11-14",
-                    "LocalCode": "72030",
-                    "TypeOfDocument": "決算短信",
-                    "TypeOfCurrentPeriod": "2Q",
-                    "CurrentPeriodStartDate": "2023-04-01",
-                    "CurrentPeriodEndDate": "2023-09-30",
-                    "CurrentFiscalYearStartDate": "2023-04-01",
-                    "CurrentFiscalYearEndDate": "2024-03-31"
+                    "DiscDate": "2023-11-14",
+                    "Code": "72030",
+                    "DocType": "決算短信",
+                    "CurPeriod": "2Q",
+                    "CurStartDate": "2023-04-01",
+                    "CurEndDate": "2023-09-30",
+                    "CurFYStartDate": "2023-04-01",
+                    "CurFYEndDate": "2024-03-31"
                 }
             ]
         });
 
-        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(response.statements.len(), 1);
-        assert_eq!(response.statements[0].disclosed_date, "2023-11-14");
-        assert_eq!(response.statements[0].local_code, "72030");
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].disclosed_date, "2023-11-14");
+        assert_eq!(response.data[0].local_code, "72030");
     }
 
     #[test]
-    fn test_statements_response_empty() {
-        let json_data = json!({ "statements": [] });
-        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+    fn test_fin_summary_response_empty() {
+        let json_data = json!({ "data": [] });
+        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(response.statements.len(), 0);
+        assert_eq!(response.data.len(), 0);
     }
 }

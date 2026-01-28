@@ -1,18 +1,19 @@
 use crate::errors::ApiError;
-use crate::models::jquants::{StatementsQuery, StatementsResponse};
+use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use reqwest::Client;
 
 pub struct JQuantsService;
 
 impl JQuantsService {
-    /// 財務諸表を取得（J-Quants API V2）
-    pub async fn get_statements(
+    /// 決算サマリーを取得（J-Quants API V2）
+    /// V2では fins/statements → fins/summary に変更
+    pub async fn get_fin_summary(
         client: &Client,
-        params: StatementsQuery,
+        params: FinSummaryQuery,
         api_key: &str,
-    ) -> Result<StatementsResponse, ApiError> {
+    ) -> Result<FinSummaryResponse, ApiError> {
         let mut url = format!(
-            "https://api.jquants.com/v2/fins/statements?code={}",
+            "https://api.jquants.com/v2/fins/summary?code={}",
             params.code
         );
 
@@ -31,22 +32,47 @@ impl JQuantsService {
             .header("x-api-key", api_key)
             .send()
             .await
-            .map_err(|e| ApiError::NetworkError(format!("財務諸表取得エラー: {}", e)))?;
+            .map_err(|e| {
+                tracing::error!("決算サマリー取得ネットワークエラー: {}", e);
+                ApiError::NetworkError(format!("決算サマリー取得エラー: {}", e))
+            })?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        tracing::info!("JQuants API レスポンスステータス: {}", status);
+
+        if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(
+                "JQuants API エラー - ステータス: {}, 本文: {}",
+                status,
+                error_text
+            );
             return Err(ApiError::ApiError(format!(
-                "JQuants財務諸表取得エラー: {}",
+                "JQuants決算サマリー取得エラー ({}): {}",
+                status,
                 error_text
             )));
         }
 
-        let statements_response = response
-            .json::<StatementsResponse>()
-            .await
-            .map_err(|e| ApiError::NetworkError(format!("財務諸表レスポンス解析エラー: {}", e)))?;
+        // デシリアライズ前にレスポンス本文を取得（デバッグ用）
+        let response_text = response.text().await.map_err(|e| {
+            tracing::error!("レスポンス本文取得エラー: {}", e);
+            ApiError::NetworkError(format!("レスポンス読み取りエラー: {}", e))
+        })?;
 
-        Ok(statements_response)
+        tracing::debug!("JQuants API レスポンス本文: {}", response_text);
+
+        let fin_summary_response: FinSummaryResponse =
+            serde_json::from_str(&response_text).map_err(|e| {
+                tracing::error!(
+                    "決算サマリーレスポンス解析エラー: {} - 本文: {}",
+                    e,
+                    response_text
+                );
+                ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {}", e))
+            })?;
+
+        Ok(fin_summary_response)
     }
 }
 

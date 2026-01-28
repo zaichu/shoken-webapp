@@ -24,15 +24,26 @@ export const useJQuantsDividend = (
       setError(null);
 
       try {
-        const statements = await jquantsApiClient.getStatements(securityCode);
-        let nextYearForecastDividendPerShareAnnual = '';
-        for (const statement of statements.statements) {
-          if (statement.NextYearForecastDividendPerShareAnnual === '') {
-            continue;
+        // V2 API では data フィールドを使用
+        const response = await jquantsApiClient.getStatements(securityCode);
+        let dividendValue = '';
+
+        // 配当予想を取得（優先順位: 来期予想 > 今期予想 > 実績）
+        for (const summary of response.data) {
+          // 来期予想年間配当金 (NxFDivAnn)
+          if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
+            dividendValue = summary.NxFDivAnn;
           }
-          nextYearForecastDividendPerShareAnnual = statement.NextYearForecastDividendPerShareAnnual;
+          // 今期予想年間配当金 (FDivAnn)（来期予想がない場合のフォールバック）
+          else if (!dividendValue && summary.FDivAnn && summary.FDivAnn !== '') {
+            dividendValue = summary.FDivAnn;
+          }
+          // 実績年間配当金 (DivAnn)（予想がない場合のフォールバック）
+          else if (!dividendValue && summary.DivAnn && summary.DivAnn !== '') {
+            dividendValue = summary.DivAnn;
+          }
         }
-        setDividendPerShare(parseNumber(nextYearForecastDividendPerShareAnnual));
+        setDividendPerShare(parseNumber(dividendValue));
       } catch (err) {
         console.error('配当取得エラー:', err);
         setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');

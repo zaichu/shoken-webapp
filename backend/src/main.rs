@@ -66,9 +66,11 @@ async fn main() {
         .route("/stock", post(handlers::stock::add_stock_info))
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
         // JQuantsのエンドポイント（V2 APIキー認証）
+        // V2では fins/statements → fins/summary に変更されたが、
+        // フロントエンド互換性のためURLパスは維持
         .route(
             "/jquants/fins/statements",
-            get(handlers::jquants::get_statements),
+            get(handlers::jquants::get_fin_summary),
         )
         // 認証エンドポイント
         .route("/auth/google", get(handlers::auth::google_auth))
@@ -163,7 +165,7 @@ mod tests {
             .route("/stock/{query}", get(handlers::stock::select_stock_info))
             .route(
                 "/jquants/fins/statements",
-                get(handlers::jquants::get_statements),
+                get(handlers::jquants::get_fin_summary),
             )
             .with_state(state)
     }
