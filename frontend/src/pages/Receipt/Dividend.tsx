@@ -25,8 +25,8 @@ import {
     getUniqueValues,
     matchesYear,
     matchesYearMonth,
-    matchesDate,
-    matchesAmounts
+    filterByConfig,
+    FilterConfig
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
@@ -57,53 +57,32 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         yearMonths: createYearMonthOptions(dividendData, item => item.settlement_date)
     }), [dividendData]);
 
-    // 検索クエリに基づくフィルタリング（複数フィールドに対応）
-    const filteredData = useMemo(() => {
-        if (!searchQuery) return dividendData;
+    // フィルタ設定
+    const filterConfig: FilterConfig<DividendData> = useMemo(() => ({
+        stringFields: [
+            item => item.security_code,
+            item => item.security_name,
+            item => item.product,
+            item => item.account,
+        ],
+        dateField: item => item.settlement_date,
+        yearSearch: true,
+        yearMonthSearch: true,
+        dateSearch: true,
+        amountFields: [
+            item => item.unit_price,
+            item => item.shares,
+            item => item.dividends_before_tax,
+            item => item.taxes,
+            item => item.net_amount_received,
+        ],
+    }), []);
 
-        const query = searchQuery.toLowerCase();
-        return dividendData.filter(item => {
-            // 銘柄コード・銘柄名での検索
-            if (item.security_code.toLowerCase() === query ||
-                item.security_name.toLowerCase() === query) {
-                return true;
-            }
-
-            // 商品での検索
-            if (item.product.toLowerCase() === query) {
-                return true;
-            }
-
-            // 口座での検索
-            if (item.account.toLowerCase() === query) {
-                return true;
-            }
-
-            // 年度での検索（YYYY形式）
-            if (matchesYear(item.settlement_date, query)) {
-                return true;
-            }
-
-            // 年月での検索（YYYY-MM形式）
-            if (matchesYearMonth(item.settlement_date, query)) {
-                return true;
-            }
-
-            // 日付での検索（YYYY-MM-DD形式）
-            if (matchesDate(item.settlement_date, query)) {
-                return true;
-            }
-
-            // 金額での検索（部分一致）
-            return matchesAmounts([
-                item.unit_price,
-                item.shares,
-                item.dividends_before_tax,
-                item.taxes,
-                item.net_amount_received
-            ], query);
-        });
-    }, [dividendData, searchQuery]);
+    // 検索クエリに基づくフィルタリング
+    const filteredData = useMemo(
+        () => filterByConfig(dividendData, searchQuery, filterConfig),
+        [dividendData, searchQuery, filterConfig]
+    );
 
     // グループキーの取得（検索タイプに応じて動的に変更）
     const getGroupKey = useCallback((item: DividendData): string => {

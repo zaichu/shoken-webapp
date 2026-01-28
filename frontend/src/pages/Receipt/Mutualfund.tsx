@@ -14,7 +14,7 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { createYearOptions, matchesYear } from '@/lib/utils/searchUtils';
+import { createYearOptions, filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 
 interface MutualfundProps {
@@ -55,28 +55,21 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         years: createYearOptions(mutualfundData, item => item.trade_date)
     }), [mutualfundData]);
 
-    /**
-     * 検索クエリに基づくフィルタリング
-     */
-    const filteredData = useMemo(() => {
-        if (!searchQuery) return mutualfundData;
+    // フィルタ設定
+    const filterConfig: FilterConfig<MutualfundData> = useMemo(() => ({
+        stringFields: [
+            item => item.fund_name,
+            item => item.account,
+        ],
+        dateField: item => item.trade_date,
+        yearSearch: true,
+    }), []);
 
-        const query = searchQuery.toLowerCase();
-        return mutualfundData.filter(item => {
-            // 銘柄コード・銘柄名での検索
-            if (item.fund_name.toLowerCase() === query) {
-                return true;
-            }
-
-            // 口座での検索
-            if (item.account.toLowerCase() === query) {
-                return true;
-            }
-
-            // 年度での検索（YYYY形式）
-            return matchesYear(item.trade_date, query);
-        });
-    }, [mutualfundData, searchQuery]);
+    // 検索クエリに基づくフィルタリング
+    const filteredData = useMemo(
+        () => filterByConfig(mutualfundData, searchQuery, filterConfig),
+        [mutualfundData, searchQuery, filterConfig]
+    );
 
     /**
      * グループキーの取得（日付文字列：年月）

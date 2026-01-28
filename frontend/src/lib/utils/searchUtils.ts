@@ -79,3 +79,81 @@ export function matchesDate(date: Date, query: string): boolean {
 export function matchesAmounts(amounts: number[], query: string): boolean {
   return amounts.some(amount => amount.toString().includes(query));
 }
+
+// ==================== 汎用フィルタ設定 ====================
+
+/**
+ * フィルタ設定
+ */
+export interface FilterConfig<T> {
+  /** 文字列完全一致検索対象フィールド */
+  stringFields?: ((item: T) => string)[];
+  /** 日付フィールド（年/年月/日付検索用） */
+  dateField?: (item: T) => Date;
+  /** 年度検索を有効にするか */
+  yearSearch?: boolean;
+  /** 年月検索を有効にするか */
+  yearMonthSearch?: boolean;
+  /** 日付検索を有効にするか */
+  dateSearch?: boolean;
+  /** 金額フィールド（部分一致検索用） */
+  amountFields?: ((item: T) => number)[];
+}
+
+/**
+ * 設定ベースの汎用フィルタ関数
+ * @param data フィルタ対象データ
+ * @param query 検索クエリ
+ * @param config フィルタ設定
+ * @returns フィルタ結果
+ */
+export function filterByConfig<T>(
+  data: T[],
+  query: string,
+  config: FilterConfig<T>
+): T[] {
+  if (!query) return data;
+
+  const normalizedQuery = query.toLowerCase();
+
+  return data.filter(item => {
+    // 文字列フィールドの完全一致検索
+    if (config.stringFields) {
+      for (const getter of config.stringFields) {
+        if (getter(item).toLowerCase() === normalizedQuery) {
+          return true;
+        }
+      }
+    }
+
+    // 日付関連の検索
+    if (config.dateField) {
+      const date = config.dateField(item);
+
+      // 年度検索
+      if (config.yearSearch && matchesYear(date, normalizedQuery)) {
+        return true;
+      }
+
+      // 年月検索
+      if (config.yearMonthSearch && matchesYearMonth(date, normalizedQuery)) {
+        return true;
+      }
+
+      // 日付検索
+      if (config.dateSearch && matchesDate(date, normalizedQuery)) {
+        return true;
+      }
+    }
+
+    // 金額の部分一致検索
+    if (config.amountFields) {
+      const amounts = config.amountFields.map(getter => getter(item));
+      if (matchesAmounts(amounts, normalizedQuery)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
