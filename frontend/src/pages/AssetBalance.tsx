@@ -15,10 +15,10 @@ import {
 } from '@/lib/utils/dataTransformer';
 import {
   formatCurrency,
-  formatNumber
+  formatNumber,
+  createSecurityCodeLink
 } from '@/lib/utils/formatters';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
-import { createSecurityCodeLink } from '@/features/receipt/parsers/securityLink';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -70,11 +70,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
       header: '銘柄コード',
       width: '90px',
       textAlign: 'center',
-      format: (value: unknown) => {
-        const code = typeof value === 'string' ? value.trim() : '';
-        if (!code) return '';
-        return createSecurityCodeLink(code);
-      }
+      format: createSecurityCodeLink
     },
     { key: 'security_name', header: '銘柄名', width: '200px' },
     { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
