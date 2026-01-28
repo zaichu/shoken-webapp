@@ -132,6 +132,8 @@ export function ReceiptsPage() {
           break;
       }
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'CSVファイルの読み込みに失敗しました';
+      setDbError(message);
     }
   };
 

@@ -172,6 +172,8 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
       if (assetBalanceCSV.error) assetBalanceCSV.resetError();
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'CSVファイルの読み込みに失敗しました';
+      setDbError(message);
     }
   };
 
