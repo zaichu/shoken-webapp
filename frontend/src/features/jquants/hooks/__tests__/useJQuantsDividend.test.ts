@@ -38,18 +38,18 @@ describe('useJQuantsDividend', () => {
     expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
   });
 
-  it('配当情報を正常に取得できる（来期予想）', async () => {
-    // V2 API では data フィールドを使用、省略形フィールド名
+  it('最新の決算データから配当情報を取得する（開示日でソート）', async () => {
+    // 開示日が異なる複数のデータ（古い順）
     const mockResponse = {
       data: [
-        { NxFDivAnn: '' },
-        { NxFDivAnn: '50.00' },
-        { NxFDivAnn: '60.00' },
+        { DiscDate: '2024-01-15', NxFDivAnn: '50.00' },
+        { DiscDate: '2024-04-15', NxFDivAnn: '60.00' },
+        { DiscDate: '2024-07-15', NxFDivAnn: '70.00' },
       ],
     };
 
     (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
-    (parseNumber as Mock).mockReturnValue(60);
+    (parseNumber as Mock).mockReturnValue(70);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -61,7 +61,9 @@ describe('useJQuantsDividend', () => {
     });
 
     expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('1234');
-    expect(result.current.dividendPerShare).toBe(60);
+    // 最新データ（2024-07-15）の70.00が取得されること
+    expect(parseNumber).toHaveBeenCalledWith('70.00');
+    expect(result.current.dividendPerShare).toBe(70);
     expect(result.current.error).toBeNull();
   });
 
@@ -69,6 +71,7 @@ describe('useJQuantsDividend', () => {
     const mockResponse = {
       data: [
         {
+          DiscDate: '2024-04-15',
           NxFDivAnn: '',
           FDivAnn: '45.00',
         },
@@ -92,6 +95,7 @@ describe('useJQuantsDividend', () => {
     const mockResponse = {
       data: [
         {
+          DiscDate: '2024-04-15',
           NxFDivAnn: '',
           FDivAnn: '',
           DivAnn: '40.00',
@@ -112,11 +116,34 @@ describe('useJQuantsDividend', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('最新データに配当情報がない場合、次のデータから取得する', async () => {
+    const mockResponse = {
+      data: [
+        { DiscDate: '2024-01-15', NxFDivAnn: '50.00' },
+        { DiscDate: '2024-04-15', NxFDivAnn: '' }, // 最新だが配当情報なし
+      ],
+    };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (parseNumber as Mock).mockReturnValue(50);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // 2番目に新しいデータ（2024-01-15）の50.00が取得されること
+    expect(parseNumber).toHaveBeenCalledWith('50.00');
+    expect(result.current.dividendPerShare).toBe(50);
+    expect(result.current.error).toBeNull();
+  });
+
   it('空の配当情報の場合、0を返す', async () => {
     const mockResponse = {
       data: [
-        { NxFDivAnn: '' },
-        { NxFDivAnn: '' },
+        { DiscDate: '2024-01-15', NxFDivAnn: '' },
+        { DiscDate: '2024-04-15', NxFDivAnn: '' },
       ],
     };
 
