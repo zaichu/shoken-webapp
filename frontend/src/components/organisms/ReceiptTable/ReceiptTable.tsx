@@ -68,15 +68,14 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         };
 
         const props = {
-            key,
             style: cellStyle,
             colSpan: 'colSpan' in column ? column.colSpan : undefined
         };
 
         return isHtml ? (
-            <TableCell {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
+            <TableCell key={key} {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
         ) : (
-            <TableCell {...props}>{String(formattedValue ?? '')}</TableCell>
+            <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>
         );
     };
 
