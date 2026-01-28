@@ -23,8 +23,8 @@ describe('JQuantsApiClient', () => {
   describe('getStatements', () => {
     it('財務諸表を正常に取得できる', async () => {
       const mockResponse = {
-        statements: [
-          { NextYearForecastDividendPerShareAnnual: '100' },
+        data: [
+          { NxFDivAnn: '100' },
         ],
       };
       (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
@@ -38,7 +38,7 @@ describe('JQuantsApiClient', () => {
     });
 
     it('オプションパラメータを含めて取得できる', async () => {
-      const mockResponse = { statements: [] };
+      const mockResponse = { data: [] };
       (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
       await client.getStatements('1234', '2024-01-01', '2024-12-31');
