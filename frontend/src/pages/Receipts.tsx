@@ -18,6 +18,7 @@ import {
 import { DividendData } from '@/lib/interfaces/dividend';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
+import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 
 type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
@@ -80,7 +81,7 @@ export function ReceiptsPage() {
       setMutualfundDBData(funds.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>)));
       hasFetched.current = true;
     } catch (err) {
-      setDbError(err instanceof Error ? err.message : 'データ取得に失敗しました');
+      setDbError(getDisplayErrorMessage(err, 'データ取得に失敗しました'));
     } finally {
       setDbLoading(false);
       isFetchingRef.current = false;
@@ -132,8 +133,7 @@ export function ReceiptsPage() {
           break;
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'CSVファイルの読み込みに失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました'));
     }
   };
 
@@ -169,7 +169,7 @@ export function ReceiptsPage() {
       }
       await fetchFromDB(true);
     } catch (err) {
-      setDbError(err instanceof Error ? err.message : '保存に失敗しました');
+      setDbError(getDisplayErrorMessage(err, '保存に失敗しました'));
     } finally {
       setSaving(false);
     }
@@ -200,7 +200,7 @@ export function ReceiptsPage() {
           break;
       }
     } catch (err) {
-      setDbError(err instanceof Error ? err.message : '削除に失敗しました');
+      setDbError(getDisplayErrorMessage(err, '削除に失敗しました'));
     } finally {
       setDeleting(false);
     }

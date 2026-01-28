@@ -19,6 +19,14 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * 表示用のエラーメッセージを生成
+ */
+export function getDisplayErrorMessage(error: unknown, fallbackMessage: string): string {
+  const message = getErrorMessage(error);
+  return message === '不明なエラーが発生しました' ? fallbackMessage : message;
+}
+
+/**
  * エラーをコンソールに記録
  */
 export function logError(context: string, error: unknown): void {

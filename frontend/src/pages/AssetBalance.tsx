@@ -19,6 +19,7 @@ import {
   createSecurityCodeLink
 } from '@/lib/utils/formatters';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -140,8 +141,7 @@ export function AssetBalancePage() {
       setAssetBalanceData(data || []);
       hasFetched.current = true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'データ取得に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, 'データ取得に失敗しました'));
     } finally {
       setDbLoading(false);
       isFetchingRef.current = false;
@@ -172,8 +172,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
       if (assetBalanceCSV.error) assetBalanceCSV.resetError();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'CSVファイルの読み込みに失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, 'CSVファイルの読み込みに失敗しました'));
     }
   };
 
@@ -193,8 +192,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData([]);
       await fetchAssetBalances(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '保存に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, '保存に失敗しました'));
     } finally {
       setSaving(false);
     }
@@ -212,8 +210,7 @@ export function AssetBalancePage() {
       setAssetBalanceCsvData([]);
       assetBalanceCSV.reset();
     } catch (error) {
-      const message = error instanceof Error ? error.message : '削除に失敗しました';
-      setDbError(message);
+      setDbError(getDisplayErrorMessage(error, '削除に失敗しました'));
     } finally {
       setDeleting(false);
     }
