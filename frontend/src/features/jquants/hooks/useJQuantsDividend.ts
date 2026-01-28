@@ -70,7 +70,6 @@ export const useJQuantsDividend = (
 
         setDividendPerShare(parseNumber(dividendValue || ''));
       } catch (err) {
-        console.error('配当取得エラー:', err);
         setError(err instanceof Error ? err.message : '配当情報の取得に失敗しました');
         setDividendPerShare(undefined);
       } finally {
