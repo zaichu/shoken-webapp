@@ -23,20 +23,29 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   const [isLoading, setIsLoading] = useState(false);
   const { enabled = true } = options;
   const isFetchingRef = useRef(false);
+  const isActiveRef = useRef(true);
 
   // DBから保有銘柄データを取得
   const fetchAssetBalances = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setIsLoading(true);
+    if (isActiveRef.current) {
+      setIsLoading(true);
+    }
     try {
       const data = await assetBalanceApi.list();
-      setAssetBalanceData(data || []);
+      if (isActiveRef.current) {
+        setAssetBalanceData(data || []);
+      }
     } catch (error) {
       logError('保有銘柄データ取得', error);
-      setAssetBalanceData([]);
+      if (isActiveRef.current) {
+        setAssetBalanceData([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (isActiveRef.current) {
+        setIsLoading(false);
+      }
       isFetchingRef.current = false;
     }
   }, []);
@@ -47,6 +56,12 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
       fetchAssetBalances();
     }
   }, [fetchAssetBalances, enabled]);
+
+  useEffect(() => {
+    return () => {
+      isActiveRef.current = false;
+    };
+  }, []);
 
   // 銘柄コードで資産を取得
   const getAssetBalanceByCode = useCallback(
