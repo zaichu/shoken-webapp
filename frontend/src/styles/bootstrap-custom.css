@@ -51,6 +51,11 @@ main {
   flex: 1;
 }
 
+/* アプリのメイン領域 */
+.app-main {
+  max-width: 1600px;
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;
