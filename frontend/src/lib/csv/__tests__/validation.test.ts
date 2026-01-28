@@ -87,14 +87,14 @@ describe('validation utilities', () => {
 
     it('大きすぎるファイルはエラーとする', () => {
       // 10MBのファイルを5MB制限で検証
-      const largeContent = new Array(10 * 1024 * 1024).fill('a').join('');
+      const largeContent = new Uint8Array(10 * 1024 * 1024);
       const file = new File([largeContent], 'test.csv', { type: 'text/csv' });
       
       expect(() => validateFileSize(file, 5)).toThrow('ファイルサイズが大きすぎます');
     });
 
     it('カスタム最大サイズが適用される', () => {
-      const content = new Array(2 * 1024 * 1024).fill('a').join(''); // 2MB
+      const content = new Uint8Array(2 * 1024 * 1024); // 2MB
       const file = new File([content], 'test.csv', { type: 'text/csv' });
       
       expect(() => validateFileSize(file, 1)).toThrow(); // 1MB制限
