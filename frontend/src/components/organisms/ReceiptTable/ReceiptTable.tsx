@@ -206,11 +206,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     return (
         <Table className="mb-0" bordered small responsive forceResize={forceResize} onClick={handleTableClick}>
             <TableHeader>
-                <TableRow className="table-warning">
+                <TableRow className="table-warning receipt-table-header-row">
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
-                            style={{ textAlign: 'center', width: column.width }}
+                            className="receipt-table-header-cell"
+                            style={{ width: column.width }}
                             key={index}
                         >
                             {column.header}

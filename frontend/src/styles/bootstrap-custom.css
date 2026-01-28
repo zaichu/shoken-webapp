@@ -99,6 +99,14 @@ main {
   color: #ffffff;
 }
 
+.receipt-table-header-row {
+  text-align: center;
+}
+
+.receipt-table-header-cell {
+  text-align: center;
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;
