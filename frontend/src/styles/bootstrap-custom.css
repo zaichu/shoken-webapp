@@ -92,6 +92,13 @@ main {
   width: 10%;
 }
 
+/* 受取金テーブル */
+.receipt-summary-title {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #ffffff;
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;

@@ -161,7 +161,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 colSpan={columns.length - summaryColumns.length}
                                 style={summaryLeftCellStyle}
                             >
-                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                <span className="receipt-summary-title">
                                     {headerText}
                                 </span>
                                 <span style={badgeStyle}>
@@ -182,7 +182,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 colSpan={columns.length}
                                 style={summaryLeftCellStyle}
                             >
-                                <span style={{ fontSize: '1.05em', fontWeight: '700', color: '#ffffff' }}>
+                                <span className="receipt-summary-title">
                                     {headerText}
                                 </span>
                                 <span style={badgeStyle}>
