@@ -13,6 +13,7 @@ export function SearchPage() {
     const trimmed = codeParam.trim();
     return /^[0-9A-Za-z]+$/.test(trimmed) ? trimmed : '';
   }, [codeParam]);
+  const hasInvalidCodeParam = !!codeParam && !normalizedCodeParam;
 
   const {
     stockCode,
@@ -41,6 +42,12 @@ export function SearchPage() {
           onSubmit={handleSearch}
           isLoading={isLoading}
         />
+
+        {hasInvalidCodeParam && (
+          <div className="alert alert-warning" role="alert">
+            不正な銘柄コードが指定されています。英数字で入力してください。
+          </div>
+        )}
 
         {isError && (
           <div className="alert alert-danger" role="alert">
