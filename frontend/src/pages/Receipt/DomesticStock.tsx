@@ -37,7 +37,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
 
     // 日次データの集計
-    const dailyData = calculateDailyData(domesticStockData);
+    const dailyData = useMemo(() => calculateDailyData(domesticStockData), [domesticStockData]);
 
     // 全体の集計
     const calculations = useReceiptCalculations(dailyData, calculateDomesticStock);
@@ -82,6 +82,12 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
             ], query);
         });
     }, [domesticStockData, searchQuery]);
+
+    // フィルタ後の日次集計（サマリーの0件表示を防止）
+    const filteredDailyData = useMemo(
+        () => (searchQuery ? calculateDailyData(filteredData) : dailyData),
+        [dailyData, filteredData, searchQuery]
+    );
 
     // グループキーの取得
     const getGroupKey = useCallback((item: DomesticStockData): string => {
@@ -155,7 +161,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         >
             <ReceiptTable
                 data={filteredData}
-                summary={dailyData}
+                summary={filteredDailyData}
                 columns={columns}
                 summaryColumns={searchQuery ? [] : summaryColumns}
                 getGroupKey={getGroupKey}
