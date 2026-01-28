@@ -18,7 +18,6 @@ export function LoginPage() {
     try {
       await login();
     } catch (error) {
-      console.error('ログイン開始エラー:', error);
     }
   };
 

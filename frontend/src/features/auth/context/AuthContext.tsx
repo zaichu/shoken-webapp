@@ -54,8 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiClient.post('/auth/logout', {}, {
         withCredentials: true,
       });
-    } catch (error) {
-      console.error('ログアウトAPIエラー:', error);
     } finally {
       setUser(null);
     }
@@ -78,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         withCredentials: true,
       });
     } catch (error) {
-      console.error('アカウント削除APIエラー:', error);
       throw error;
     } finally {
       setUser(null);
@@ -88,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 自動ログアウト処理
   const handleIdle = useCallback(() => {
     if (user) {
-      console.log('アイドルタイムアウトにより自動ログアウトします');
       logout();
     }
   }, [user, logout]);

@@ -41,8 +41,6 @@ export function Header() {
     setShowDropdown(false);
     try {
       await logout();
-    } catch (error) {
-      console.error('ログアウトエラー:', error);
     }
   };
 
@@ -51,8 +49,6 @@ export function Header() {
       await deleteAccount();
       setShowDeleteConfirm(false);
       setShowDropdown(false);
-    } catch (error) {
-      console.error('アカウント削除エラー:', error);
     }
   };
 
