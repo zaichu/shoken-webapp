@@ -23,8 +23,8 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
     return normalizeSecurityCode(match?.[1] || searchQuery);
   }, [securityCode, searchQuery]);
 
-  // 保有銘柄データを取得
-  const { getAssetBalanceByCode } = useAssetBalance({ enabled: !!effectiveSecurityCode });
+  // 保有銘柄データを取得（常にフェッチ）
+  const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance();
 
   // J-Quants APIから配当情報を取得
   const {
@@ -47,7 +47,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
       setAverageUnitPrice(undefined);
       setHoldingQuantity(undefined);
     }
-  }, [effectiveSecurityCode, getAssetBalanceByCode]);
+  }, [effectiveSecurityCode, getAssetBalanceByCode, assetBalances]);
 
   // APIからデータが取得されたら自動設定
   React.useEffect(() => {

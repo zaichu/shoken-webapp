@@ -53,16 +53,14 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
 
   // 初回読み込み
   useEffect(() => {
+    isActiveRef.current = true;
     if (enabled) {
       fetchAssetBalances();
     }
-  }, [fetchAssetBalances, enabled]);
-
-  useEffect(() => {
     return () => {
       isActiveRef.current = false;
     };
-  }, []);
+  }, [fetchAssetBalances, enabled]);
 
   // 銘柄コードで資産を取得
   const getAssetBalanceByCode = useCallback(
