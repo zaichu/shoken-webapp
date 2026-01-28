@@ -46,8 +46,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorCount: prevState.errorCount + 1
     }));
 
-    // エラーログを出力
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // エラーログを出力（機微情報の露出を避ける）
+    const errorMessage = error.message || 'Unknown error';
+    console.error('ErrorBoundary caught an error:', errorMessage);
 
     // カスタムエラーハンドラーを実行
     if (onError) {
@@ -57,8 +58,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // 開発環境でのみ詳細なエラー情報を表示
     if (import.meta.env.DEV) {
       console.group('Error Details');
-      console.error('Error:', error);
-      console.error('Error Info:', errorInfo);
+      console.error('Error:', errorMessage);
       console.error('Component Stack:', errorInfo.componentStack);
       console.groupEnd();
     }

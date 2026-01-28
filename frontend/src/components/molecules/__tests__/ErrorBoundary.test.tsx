@@ -100,8 +100,7 @@ describe('ErrorBoundary', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         'ErrorBoundary caught an error:',
-        expect.any(Error),
-        expect.any(Object)
+        'Test error'
       );
     });
   });
