@@ -116,13 +116,13 @@ main {
   vertical-align: middle;
 }
 
-.receipt-summary-left-cell {
+.table .receipt-summary-left-cell {
   padding: 10px 16px;
   background-color: #0d6efd;
   border-left: 4px solid #0a58ca;
 }
 
-.receipt-summary-value-cell {
+.table .receipt-summary-value-cell {
   padding: 10px 16px;
   background-color: #0d6efd;
   text-align: right;
