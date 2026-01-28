@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -52,16 +52,16 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
   const [searchQuery, setSearchQuery] = useState('');
 
   // 検索オプションの生成
-  const searchCategories = {
+  const searchCategories = useMemo(() => ({
     securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
-  };
+  }), [assetBalanceData]);
 
   // 検索クエリに基づくフィルタリング
-  const filteredData = filterDataBySearchQuery(
+  const filteredData = useMemo(() => filterDataBySearchQuery(
     assetBalanceData,
     searchQuery,
     ['security_code', 'security_name']
-  );
+  ), [assetBalanceData, searchQuery]);
 
   // テーブルカラムの定義
   const columns: TableColumnConfig[] = [
