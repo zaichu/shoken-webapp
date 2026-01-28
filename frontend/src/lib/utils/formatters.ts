@@ -18,6 +18,38 @@ export const JP_DATE_FORMAT_OPTIONS = {
  */
 export const TAX_RATE = 0.20315;
 
+/**
+ * HTMLエスケープ処理
+ * XSS攻撃を防ぐため、特殊文字をエスケープ
+ */
+const escapeHtml = (str: string): string => {
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return str.replace(/[&<>"']/g, char => htmlEscapes[char]);
+};
+
+/**
+ * 銘柄コードのリンクHTML生成
+ * 銘柄検索ページへ遷移するリンクを生成
+ */
+export function createSecurityCodeLink(value: unknown): string {
+  const code = typeof value === 'string' ? value.trim() : '';
+  if (!code) return '';
+
+  // 想定外の文字列はリンク化せず表示のみ（URLパラメータの安全性確保）
+  if (!/^[0-9A-Za-z]+$/.test(code)) {
+    return escapeHtml(code);
+  }
+
+  const escapedCode = escapeHtml(code);
+  return `<a href="/search?code=${encodeURIComponent(code)}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${escapedCode}</a>`;
+}
+
 // ==================== 日付関連 ====================
 
 /**

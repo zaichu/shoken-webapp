@@ -15,7 +15,8 @@ import {
     formatJPDate,
     createYearMonthKey,
     formatCurrency,
-    formatNumber
+    formatNumber,
+    createSecurityCodeLink
 } from '@/lib/utils/formatters';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import {
@@ -171,7 +172,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         { key: 'settlement_date', header: '入金日', width: '90px', format: formatJPDate },
         { key: 'product', header: '商品', width: '80px' },
         { key: 'account', header: '口座', width: '70px' },
-        { key: 'security_info', header: '銘柄コード', width: '80px', textAlign: 'center' },
+        { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: createSecurityCodeLink },
         { key: 'security_name', header: '銘柄名', width: '200px' },
         { key: 'unit_price', header: '単価', width: '70px', textAlign: 'right', format: formatCurrency },
         { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },

@@ -4,7 +4,6 @@ export interface DomesticStockData extends ReceiptBase {
     trade_date: Date;
     security_code: string;
     security_name: string;
-    security_info: string; // 銘柄コード + 銘柄名の表示用HTML
     account: string;
     shares: number;
     asked_price: number;

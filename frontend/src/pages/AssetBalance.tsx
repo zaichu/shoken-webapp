@@ -15,7 +15,8 @@ import {
 } from '@/lib/utils/dataTransformer';
 import {
   formatCurrency,
-  formatNumber
+  formatNumber,
+  createSecurityCodeLink
 } from '@/lib/utils/formatters';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 
@@ -64,7 +65,13 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
 
   // テーブルカラムの定義
   const columns: TableColumnConfig[] = [
-    { key: 'security_code', header: '銘柄コード', width: '90px' },
+    {
+      key: 'security_code',
+      header: '銘柄コード',
+      width: '90px',
+      textAlign: 'center',
+      format: createSecurityCodeLink
+    },
     { key: 'security_name', header: '銘柄名', width: '200px' },
     { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
     // { key: 'executing_shares', header: '執行中', width: '60px', textAlign: 'right', format: formatNumber },

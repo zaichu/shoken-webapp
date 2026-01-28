@@ -75,6 +75,7 @@ vi.mock('@/lib/utils/dataTransformer', () => ({
 vi.mock('@/lib/utils/formatters', () => ({
   formatCurrency: vi.fn().mockImplementation((value: number) => `¥${value.toLocaleString()}`),
   formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
+  createSecurityCodeLink: vi.fn().mockImplementation((value: unknown) => String(value ?? '')),
 }));
 
 const mockAssetBalanceData: AssetBalanceData[] = [

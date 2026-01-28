@@ -1,6 +1,5 @@
 import { DividendData } from '@/lib/interfaces/dividend';
 import { parseNumber } from '@/lib/utils/formatters';
-import { createSecurityCodeLink } from './securityLink';
 
 /**
  * データがDB形式かどうかを判定
@@ -24,7 +23,6 @@ export const parseDividendCsvItem = (item: Record<string, unknown>): DividendDat
             account: String(item.account || ''),
             security_code: securityCode,
             security_name: String(item.security_name || ''),
-            security_info: item.security_info || createSecurityCodeLink(securityCode),
             unit_price: Number(item.unit_price) || 0,
             shares: Number(item.shares) || 0,
             dividends_before_tax: Number(item.dividends_before_tax) || 0,
@@ -43,7 +41,6 @@ export const parseDividendCsvItem = (item: Record<string, unknown>): DividendDat
         account: String(item['口座'] || ''),
         security_code: securityCode,
         security_name: securityName,
-        security_info: createSecurityCodeLink(securityCode),
         unit_price: parseNumber(item['単価[円/現地通貨]']),
         shares: parseNumber(item['数量[株/口]']),
         dividends_before_tax: parseNumber(item['配当・分配金合計（税引前）[円/現地通貨]']),
@@ -74,7 +71,6 @@ export const transformDBDividend = (item: Record<string, unknown>): DividendData
         account: String(item.account || ''),
         security_code: securityCode,
         security_name: securityName,
-        security_info: createSecurityCodeLink(securityCode),
         unit_price: Number(item.unit_price) || 0,
         shares: Number(item.shares) || 0,
         dividends_before_tax: Number(item.dividends_before_tax) || 0,
