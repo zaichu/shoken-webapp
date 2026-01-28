@@ -87,6 +87,11 @@ main {
   display: none;
 }
 
+/* 銘柄情報テーブル */
+.stock-info-label {
+  width: 10%;
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;
