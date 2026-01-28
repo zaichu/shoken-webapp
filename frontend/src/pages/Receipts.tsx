@@ -277,7 +277,7 @@ export function ReceiptsPage() {
       </nav>
       <div className="receipt-page mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <div style={{ width: '400px' }}>
+          <div className="page-control-panel">
             <CSVFileInput
               onFileSelect={handleFileSelect}
               selectedFileName={fileName}

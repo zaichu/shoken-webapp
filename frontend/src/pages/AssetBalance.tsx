@@ -248,7 +248,7 @@ export function AssetBalancePage() {
         {!authLoading && isAuthenticated && (
           <>
             <div className="d-flex align-items-center gap-2 flex-wrap">
-              <div style={{ width: '400px' }}>
+              <div className="page-control-panel">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
                   selectedFileName={assetBalanceCSV.fileName || ''}
