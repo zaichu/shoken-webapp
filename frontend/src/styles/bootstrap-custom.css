@@ -61,6 +61,22 @@ main {
   max-width: 1600px;
 }
 
+/* ヘッダー */
+.header-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.header-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+}
+
+.header-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
 /* スクロールバーのスタイリング */
 ::-webkit-scrollbar {
   width: 8px;

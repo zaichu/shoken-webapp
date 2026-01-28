@@ -84,8 +84,7 @@ export function Header() {
                     <img
                       src={user.picture_url}
                       alt={user.name || 'ユーザー'}
-                      className="rounded-circle me-2"
-                      style={{ width: '32px', height: '32px' }}
+                      className="rounded-circle me-2 header-avatar"
                     />
                   )}
                   <span className="text-light me-3">{user.name || user.email}</span>
@@ -103,8 +102,7 @@ export function Header() {
                     {showDropdown && (
                       <ul
                         id="user-menu"
-                        className="dropdown-menu dropdown-menu-end show"
-                        style={{ position: 'absolute', right: 0, top: '100%' }}
+                        className="dropdown-menu dropdown-menu-end show header-dropdown-menu"
                         role="menu"
                         aria-label="ユーザーメニュー"
                       >
@@ -151,8 +149,7 @@ export function Header() {
       {/* アカウント削除確認モーダル */}
       {showDeleteConfirm && (
         <div
-          className="modal show d-block"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          className="modal show d-block header-modal-backdrop"
           onClick={() => setShowDeleteConfirm(false)}
           role="dialog"
           aria-modal="true"
