@@ -39,17 +39,13 @@ export function Header() {
 
   const handleLogout = async () => {
     setShowDropdown(false);
-    try {
-      await logout();
-    }
+    await logout();
   };
 
   const handleDeleteAccount = async () => {
-    try {
-      await deleteAccount();
-      setShowDeleteConfirm(false);
-      setShowDropdown(false);
-    }
+    await deleteAccount();
+    setShowDeleteConfirm(false);
+    setShowDropdown(false);
   };
 
   return (
