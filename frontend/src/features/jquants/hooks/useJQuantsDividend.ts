@@ -24,23 +24,23 @@ export const useJQuantsDividend = (
       setError(null);
 
       try {
-        // V2 API では fin_summary フィールドを使用
+        // V2 API では data フィールドを使用
         const response = await jquantsApiClient.getStatements(securityCode);
         let dividendValue = '';
 
         // 配当予想を取得（優先順位: 来期予想 > 今期予想 > 実績）
-        for (const summary of response.fin_summary) {
-          // 来期予想年間配当金
-          if (summary.NextYearForecastDividendPerShareAnnual && summary.NextYearForecastDividendPerShareAnnual !== '') {
-            dividendValue = summary.NextYearForecastDividendPerShareAnnual;
+        for (const summary of response.data) {
+          // 来期予想年間配当金 (NxFDivAnn)
+          if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
+            dividendValue = summary.NxFDivAnn;
           }
-          // 今期予想年間配当金（来期予想がない場合のフォールバック）
-          else if (!dividendValue && summary.ForecastDividendPerShareAnnual && summary.ForecastDividendPerShareAnnual !== '') {
-            dividendValue = summary.ForecastDividendPerShareAnnual;
+          // 今期予想年間配当金 (FDivAnn)（来期予想がない場合のフォールバック）
+          else if (!dividendValue && summary.FDivAnn && summary.FDivAnn !== '') {
+            dividendValue = summary.FDivAnn;
           }
-          // 実績年間配当金（予想がない場合のフォールバック）
-          else if (!dividendValue && summary.ResultDividendPerShareAnnual && summary.ResultDividendPerShareAnnual !== '') {
-            dividendValue = summary.ResultDividendPerShareAnnual;
+          // 実績年間配当金 (DivAnn)（予想がない場合のフォールバック）
+          else if (!dividendValue && summary.DivAnn && summary.DivAnn !== '') {
+            dividendValue = summary.DivAnn;
           }
         }
         setDividendPerShare(parseNumber(dividendValue));

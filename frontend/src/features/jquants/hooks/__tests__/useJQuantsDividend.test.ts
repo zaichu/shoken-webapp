@@ -39,12 +39,12 @@ describe('useJQuantsDividend', () => {
   });
 
   it('配当情報を正常に取得できる（来期予想）', async () => {
-    // V2 API では fin_summary フィールドを使用
+    // V2 API では data フィールドを使用、省略形フィールド名
     const mockResponse = {
-      fin_summary: [
-        { NextYearForecastDividendPerShareAnnual: '' },
-        { NextYearForecastDividendPerShareAnnual: '50.00' },
-        { NextYearForecastDividendPerShareAnnual: '60.00' },
+      data: [
+        { NxFDivAnn: '' },
+        { NxFDivAnn: '50.00' },
+        { NxFDivAnn: '60.00' },
       ],
     };
 
@@ -67,10 +67,10 @@ describe('useJQuantsDividend', () => {
 
   it('来期予想がない場合、今期予想を使用する', async () => {
     const mockResponse = {
-      fin_summary: [
+      data: [
         {
-          NextYearForecastDividendPerShareAnnual: '',
-          ForecastDividendPerShareAnnual: '45.00',
+          NxFDivAnn: '',
+          FDivAnn: '45.00',
         },
       ],
     };
@@ -90,11 +90,11 @@ describe('useJQuantsDividend', () => {
 
   it('予想がない場合、実績を使用する', async () => {
     const mockResponse = {
-      fin_summary: [
+      data: [
         {
-          NextYearForecastDividendPerShareAnnual: '',
-          ForecastDividendPerShareAnnual: '',
-          ResultDividendPerShareAnnual: '40.00',
+          NxFDivAnn: '',
+          FDivAnn: '',
+          DivAnn: '40.00',
         },
       ],
     };
@@ -114,9 +114,9 @@ describe('useJQuantsDividend', () => {
 
   it('空の配当情報の場合、0を返す', async () => {
     const mockResponse = {
-      fin_summary: [
-        { NextYearForecastDividendPerShareAnnual: '' },
-        { NextYearForecastDividendPerShareAnnual: '' },
+      data: [
+        { NxFDivAnn: '' },
+        { NxFDivAnn: '' },
       ],
     };
 
@@ -163,7 +163,7 @@ describe('useJQuantsDividend', () => {
 
   it('securityCodeが変更された場合、再取得する', async () => {
     const mockResponse = {
-      fin_summary: [{ NextYearForecastDividendPerShareAnnual: '50.00' }],
+      data: [{ NxFDivAnn: '50.00' }],
     };
 
     (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
