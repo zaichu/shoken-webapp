@@ -28,6 +28,12 @@ export const useJQuantsDividend = (
         const response = await jquantsApiClient.getStatements(securityCode);
         let dividendValue = '';
 
+        // レスポンスの data フィールドが配列でない場合はスキップ
+        if (!response?.data || !Array.isArray(response.data)) {
+          setDividendPerShare(undefined);
+          return;
+        }
+
         // 配当予想を取得（優先順位: 来期予想 > 今期予想 > 実績）
         for (const summary of response.data) {
           // 来期予想年間配当金 (NxFDivAnn)
