@@ -1,22 +1,28 @@
 use serde::{Deserialize, Serialize};
 
+/// 決算サマリー取得パラメータ（J-Quants API V2）
 #[derive(Debug, Deserialize)]
-pub struct StatementsQuery {
+pub struct FinSummaryQuery {
     pub code: String,
     pub from: Option<String>,
     pub to: Option<String>,
 }
 
+/// 決算サマリーレスポンス（J-Quants API V2）
+/// V1の fins/statements → V2の fins/summary に対応
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StatementsResponse {
-    pub statements: Vec<StatementsData>,
+pub struct FinSummaryResponse {
+    /// 決算サマリーデータの配列
+    #[serde(rename = "fin_summary")]
+    pub fin_summary: Vec<FinSummaryData>,
     /// ページネーションキー（データが大量の場合に設定される）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pagination_key: Option<String>,
 }
 
+/// 決算サマリーデータ（J-Quants API V2）
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StatementsData {
+pub struct FinSummaryData {
     #[serde(rename = "DisclosedDate")]
     pub disclosed_date: String,
 
@@ -348,8 +354,8 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_statements_query_deserialize() {
-        let query = StatementsQuery {
+    fn test_fin_summary_query_deserialize() {
+        let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: Some("2023-01-01".to_string()),
             to: Some("2023-12-31".to_string()),
@@ -361,8 +367,8 @@ mod tests {
     }
 
     #[test]
-    fn test_statements_query_optional_params() {
-        let query = StatementsQuery {
+    fn test_fin_summary_query_optional_params() {
+        let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: None,
             to: None,
@@ -374,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn test_statements_data_deserialize() {
+    fn test_fin_summary_data_deserialize() {
         let json_data = json!({
             "DisclosedDate": "2023-11-14",
             "DisclosedTime": "15:00:00",
@@ -393,24 +399,25 @@ mod tests {
             "NextYearForecastDividendPerShareAnnual": "50.00"
         });
 
-        let statements_data: StatementsData = serde_json::from_value(json_data).unwrap();
+        let fin_summary_data: FinSummaryData = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(statements_data.disclosed_date, "2023-11-14");
-        assert_eq!(statements_data.local_code, "72030");
+        assert_eq!(fin_summary_data.disclosed_date, "2023-11-14");
+        assert_eq!(fin_summary_data.local_code, "72030");
         assert_eq!(
-            statements_data.net_sales,
+            fin_summary_data.net_sales,
             Some("18733067000000".to_string())
         );
         assert_eq!(
-            statements_data.next_year_forecast_dividend_per_share_annual,
+            fin_summary_data.next_year_forecast_dividend_per_share_annual,
             Some("50.00".to_string())
         );
     }
 
     #[test]
-    fn test_statements_response_deserialize() {
+    fn test_fin_summary_response_deserialize() {
+        // V2 API では "fin_summary" フィールド名を使用
         let json_data = json!({
-            "statements": [
+            "fin_summary": [
                 {
                     "DisclosedDate": "2023-11-14",
                     "LocalCode": "72030",
@@ -424,18 +431,18 @@ mod tests {
             ]
         });
 
-        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(response.statements.len(), 1);
-        assert_eq!(response.statements[0].disclosed_date, "2023-11-14");
-        assert_eq!(response.statements[0].local_code, "72030");
+        assert_eq!(response.fin_summary.len(), 1);
+        assert_eq!(response.fin_summary[0].disclosed_date, "2023-11-14");
+        assert_eq!(response.fin_summary[0].local_code, "72030");
     }
 
     #[test]
-    fn test_statements_response_empty() {
-        let json_data = json!({ "statements": [] });
-        let response: StatementsResponse = serde_json::from_value(json_data).unwrap();
+    fn test_fin_summary_response_empty() {
+        let json_data = json!({ "fin_summary": [] });
+        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
 
-        assert_eq!(response.statements.len(), 0);
+        assert_eq!(response.fin_summary.len(), 0);
     }
 }

@@ -1,18 +1,19 @@
 use crate::errors::ApiError;
-use crate::models::jquants::{StatementsQuery, StatementsResponse};
+use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use reqwest::Client;
 
 pub struct JQuantsService;
 
 impl JQuantsService {
-    /// 財務諸表を取得（J-Quants API V2）
-    pub async fn get_statements(
+    /// 決算サマリーを取得（J-Quants API V2）
+    /// V2では fins/statements → fins/summary に変更
+    pub async fn get_fin_summary(
         client: &Client,
-        params: StatementsQuery,
+        params: FinSummaryQuery,
         api_key: &str,
-    ) -> Result<StatementsResponse, ApiError> {
+    ) -> Result<FinSummaryResponse, ApiError> {
         let mut url = format!(
-            "https://api.jquants.com/v2/fins/statements?code={}",
+            "https://api.jquants.com/v2/fins/summary?code={}",
             params.code
         );
 
@@ -32,8 +33,8 @@ impl JQuantsService {
             .send()
             .await
             .map_err(|e| {
-                tracing::error!("財務諸表取得ネットワークエラー: {}", e);
-                ApiError::NetworkError(format!("財務諸表取得エラー: {}", e))
+                tracing::error!("決算サマリー取得ネットワークエラー: {}", e);
+                ApiError::NetworkError(format!("決算サマリー取得エラー: {}", e))
             })?;
 
         let status = response.status();
@@ -47,7 +48,7 @@ impl JQuantsService {
                 error_text
             );
             return Err(ApiError::ApiError(format!(
-                "JQuants財務諸表取得エラー ({}): {}",
+                "JQuants決算サマリー取得エラー ({}): {}",
                 status,
                 error_text
             )));
@@ -61,17 +62,17 @@ impl JQuantsService {
 
         tracing::debug!("JQuants API レスポンス本文: {}", response_text);
 
-        let statements_response: StatementsResponse =
+        let fin_summary_response: FinSummaryResponse =
             serde_json::from_str(&response_text).map_err(|e| {
                 tracing::error!(
-                    "財務諸表レスポンス解析エラー: {} - 本文: {}",
+                    "決算サマリーレスポンス解析エラー: {} - 本文: {}",
                     e,
                     response_text
                 );
-                ApiError::NetworkError(format!("財務諸表レスポンス解析エラー: {}", e))
+                ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {}", e))
             })?;
 
-        Ok(statements_response)
+        Ok(fin_summary_response)
     }
 }
 
