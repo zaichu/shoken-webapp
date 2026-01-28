@@ -39,13 +39,21 @@ export function Header() {
 
   const handleLogout = async () => {
     setShowDropdown(false);
-    await logout();
+    try {
+      await logout();
+    } catch {
+      // ログアウト失敗時は何もしない（useAuthで処理）
+    }
   };
 
   const handleDeleteAccount = async () => {
-    await deleteAccount();
-    setShowDeleteConfirm(false);
-    setShowDropdown(false);
+    try {
+      await deleteAccount();
+      setShowDeleteConfirm(false);
+      setShowDropdown(false);
+    } catch {
+      // 削除失敗時はモーダルを閉じない
+    }
   };
 
   return (

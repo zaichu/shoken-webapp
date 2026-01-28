@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
-import { formatCurrency, parseNumber, normalizeSecurityCode } from '@/lib/utils/formatters';
+import { formatCurrency, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
 import { useAssetBalance } from '@/hooks/common/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
@@ -23,18 +23,23 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
     return normalizeSecurityCode(match?.[1] || searchQuery);
   }, [securityCode, searchQuery]);
 
+  // 銘柄コード形式かどうかを判定（商品/口座/年月検索では不要なAPI呼び出しを防ぐ）
+  const isValidSecurityCode = React.useMemo(() => {
+    return !!effectiveSecurityCode && SECURITY_CODE_REGEX.test(effectiveSecurityCode);
+  }, [effectiveSecurityCode]);
+
   // 保有銘柄データを取得（常にフェッチ）
   const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance();
 
-  // J-Quants APIから配当情報を取得
+  // J-Quants APIから配当情報を取得（銘柄コード形式の場合のみ）
   const {
     dividendPerShare: apiDividendPerShare,
     loading: apiLoading,
-  } = useJQuantsDividend(effectiveSecurityCode, !!effectiveSecurityCode);
+  } = useJQuantsDividend(effectiveSecurityCode, isValidSecurityCode);
 
   // searchQueryが変更されたときにstateを初期化し、保有銘柄データがあれば自動入力
   React.useEffect(() => {
-    if (effectiveSecurityCode) {
+    if (isValidSecurityCode) {
       const assetBalanceData = getAssetBalanceByCode(effectiveSecurityCode);
       if (assetBalanceData) {
         setAverageUnitPrice(assetBalanceData.average_purchase_price);
@@ -47,15 +52,15 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
       setAverageUnitPrice(undefined);
       setHoldingQuantity(undefined);
     }
-  }, [effectiveSecurityCode, getAssetBalanceByCode, assetBalances]);
+  }, [effectiveSecurityCode, isValidSecurityCode, getAssetBalanceByCode, assetBalances]);
 
   // APIからデータが取得されたら自動設定
   React.useEffect(() => {
     setDividendPerShare(undefined);
-    if (effectiveSecurityCode && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
+    if (isValidSecurityCode && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
       setDividendPerShare(apiDividendPerShare);
     }
-  }, [apiDividendPerShare, effectiveSecurityCode]);
+  }, [apiDividendPerShare, isValidSecurityCode]);
 
   // 各種計算値
   const dividendYield = (() => {
@@ -80,7 +85,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
     return null;
   }
 
-  const assetBalanceData = effectiveSecurityCode
+  const assetBalanceData = isValidSecurityCode
     ? getAssetBalanceByCode(effectiveSecurityCode)
     : undefined;
 

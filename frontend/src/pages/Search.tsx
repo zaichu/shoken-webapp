@@ -46,7 +46,7 @@ export function SearchPage() {
 
         {hasInvalidCodeParam && (
           <div className="alert alert-warning" role="alert">
-            不正な銘柄コードが指定されています。英数字で入力してください。
+            不正な銘柄コードが指定されています。
           </div>
         )}
 

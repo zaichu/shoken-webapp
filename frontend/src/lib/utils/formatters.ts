@@ -37,7 +37,7 @@ const escapeHtml = (str: string): string => {
  * 銘柄コードのリンクHTML生成
  * 銘柄検索ページへ遷移するリンクを生成
  */
-export const SECURITY_CODE_REGEX = /^[0-9A-Za-z]+$/;
+export const SECURITY_CODE_REGEX = /^[0-9A-Za-z.]+$/;
 
 /**
  * 銘柄コードの正規化
