@@ -202,6 +202,10 @@ main {
   border-bottom-left-radius: 0;
 }
 
+.search-form-input {
+  max-width: 200px;
+}
+
 /* 検索カード */
 .search-card-header {
   cursor: pointer;
