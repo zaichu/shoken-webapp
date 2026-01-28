@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { useCSVReader } from '../hooks/useCSVReader';
@@ -212,7 +212,7 @@ export function ReceiptsPage() {
   /**
    * 現在選択中のタブに対応するエラーとローディング状態を取得
    */
-  const getCurrentCSVState = () => {
+  const currentCSVState = useMemo(() => {
     switch (receiptsType) {
       case 'dividend':
         return { isLoading: dividendCSV.isLoading, error: dividendCSV.error, fileName: dividendCSV.fileName, csvData: dividendCsvData };
@@ -221,33 +221,47 @@ export function ReceiptsPage() {
       case 'mutualfund':
         return { isLoading: mutualfundCSV.isLoading, error: mutualfundCSV.error, fileName: mutualfundCSV.fileName, csvData: mutualfundCsvData };
     }
-  };
+  }, [
+    receiptsType,
+    dividendCSV.isLoading,
+    dividendCSV.error,
+    dividendCSV.fileName,
+    dividendCsvData,
+    domesticStockCSV.isLoading,
+    domesticStockCSV.error,
+    domesticStockCSV.fileName,
+    domesticStockCsvData,
+    mutualfundCSV.isLoading,
+    mutualfundCSV.error,
+    mutualfundCSV.fileName,
+    mutualfundCsvData
+  ]);
 
-  const { isLoading, error, fileName, csvData } = getCurrentCSVState();
+  const { isLoading, error, fileName, csvData } = currentCSVState;
   const hasCsvData = csvData.length > 0;
 
   // 現在のタブのDBデータがあるか判定
-  const hasDbData = (() => {
+  const hasDbData = useMemo(() => {
     switch (receiptsType) {
       case 'dividend': return dividendDBData.length > 0;
       case 'domesticstock': return domesticStockDBData.length > 0;
       case 'mutualfund': return mutualfundDBData.length > 0;
     }
-  })();
+  }, [receiptsType, dividendDBData.length, domesticStockDBData.length, mutualfundDBData.length]);
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
-  const getDividendData = () => {
-    if (isAuthenticated && dividendDBData.length > 0) return dividendDBData;
-    return dividendCsvData;
-  };
-  const getDomesticStockData = () => {
-    if (isAuthenticated && domesticStockDBData.length > 0) return domesticStockDBData;
-    return domesticStockCsvData;
-  };
-  const getMutualfundData = () => {
-    if (isAuthenticated && mutualfundDBData.length > 0) return mutualfundDBData;
-    return mutualfundCsvData;
-  };
+  const dividendData = useMemo(
+    () => (isAuthenticated && dividendDBData.length > 0 ? dividendDBData : dividendCsvData),
+    [isAuthenticated, dividendDBData, dividendCsvData]
+  );
+  const domesticStockData = useMemo(
+    () => (isAuthenticated && domesticStockDBData.length > 0 ? domesticStockDBData : domesticStockCsvData),
+    [isAuthenticated, domesticStockDBData, domesticStockCsvData]
+  );
+  const mutualfundData = useMemo(
+    () => (isAuthenticated && mutualfundDBData.length > 0 ? mutualfundDBData : mutualfundCsvData),
+    [isAuthenticated, mutualfundDBData, mutualfundCsvData]
+  );
 
   return (
     <Layout>
@@ -333,9 +347,9 @@ export function ReceiptsPage() {
           )}
         </div>
 
-        {receiptsType === 'dividend' && <Dividend csvData={getDividendData() as Record<string, unknown>[]} />}
-        {receiptsType === 'domesticstock' && <DomesticStock csvData={getDomesticStockData() as Record<string, unknown>[]} />}
-        {receiptsType === 'mutualfund' && <Mutualfund csvData={getMutualfundData() as Record<string, unknown>[]} />}
+        {receiptsType === 'dividend' && <Dividend csvData={dividendData as Record<string, unknown>[]} />}
+        {receiptsType === 'domesticstock' && <DomesticStock csvData={domesticStockData as Record<string, unknown>[]} />}
+        {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundData as Record<string, unknown>[]} />}
       </div>
     </Layout>
   );
