@@ -102,3 +102,50 @@ pub async fn bulk_create(
     }))
 }
 ```
+
+## J-Quants API V2 連携
+
+### フィールド名の注意点
+
+J-Quants API V2 は省略形フィールド名を使用。`serde(rename)` で正確に指定する必要がある。
+
+| 項目 | API V2 フィールド名 |
+|------|-------------------|
+| 営業利益 | `OP` |
+| 経常利益 | `OdP` |
+| 当期純利益 | `NP` |
+| 当期種別 | `CurPerType` |
+| 当期開始日 | `CurPerSt` |
+| 期末配当 | `DivFY` |
+| 年間配当実績 | `DivAnn` |
+| 年間配当予想 | `FDivAnn` |
+| 年間配当来期予想 | `NxFDivAnn` |
+
+### 型定義例
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FinSummaryData {
+    #[serde(rename = "DiscDate")]
+    pub disclosed_date: String,
+
+    #[serde(rename = "OP", default)]
+    pub operating_profit: Option<String>,
+
+    #[serde(rename = "NxFDivAnn", default)]
+    pub next_year_forecast_dividend_per_share_annual: Option<String>,
+}
+```
+
+### フロントエンドでの防御的コーディング
+
+APIレスポンスの `data` フィールドが配列でない場合に備える：
+
+```typescript
+if (!response?.data || !Array.isArray(response.data)) {
+  return;
+}
+for (const item of response.data) {
+  // 処理
+}
+```
