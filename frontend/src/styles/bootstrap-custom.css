@@ -202,6 +202,33 @@ main {
   border-bottom-left-radius: 0;
 }
 
+/* 検索カード */
+.search-card-header {
+  cursor: pointer;
+}
+
+.search-card-chevron {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #ffffff;
+  transition: all 0.3s ease;
+}
+
+.search-card-chevron.is-expanded {
+  border-top: none;
+  border-bottom: 8px solid #ffffff;
+}
+
+.search-card-section {
+  width: 500px;
+}
+
+.search-card-label {
+  width: 200px;
+}
+
 /* モバイル対応 */
 @media (max-width: 767.98px) {
   .table-responsive {
