@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
@@ -8,6 +8,11 @@ import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 export function SearchPage() {
   const [searchParams] = useSearchParams();
   const codeParam = searchParams.get('code');
+  const normalizedCodeParam = useMemo(() => {
+    if (!codeParam) return '';
+    const trimmed = codeParam.trim();
+    return /^[0-9A-Za-z]+$/.test(trimmed) ? trimmed : '';
+  }, [codeParam]);
 
   const {
     stockCode,
@@ -18,14 +23,14 @@ export function SearchPage() {
     isError,
     handleSearch,
     searchByCode
-  } = useStockSearch(codeParam || undefined);
+  } = useStockSearch(normalizedCodeParam || undefined);
 
   // URLパラメータが変更された場合に検索を実行
   useEffect(() => {
-    if (codeParam && codeParam !== stockCode) {
-      searchByCode(codeParam);
+    if (normalizedCodeParam && normalizedCodeParam !== stockCode) {
+      searchByCode(normalizedCodeParam);
     }
-  }, [codeParam, stockCode, searchByCode]);
+  }, [normalizedCodeParam, stockCode, searchByCode]);
 
   return (
     <Layout>
