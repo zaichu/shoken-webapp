@@ -99,6 +99,37 @@ main {
   color: #ffffff;
 }
 
+.receipt-summary-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.receipt-summary-left-cell {
+  padding: 10px 16px;
+  background-color: #0d6efd;
+  border-left: 4px solid #0a58ca;
+}
+
+.receipt-summary-value-cell {
+  padding: 10px 16px;
+  background-color: #0d6efd;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1.05em;
+  color: #ffffff;
+}
+
+.receipt-summary-border-top {
+  border-top: 2px solid #3d8bfd;
+}
+
 .receipt-table-header-row {
   text-align: center;
 }
