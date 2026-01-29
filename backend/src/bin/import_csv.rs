@@ -100,8 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             r#"
             INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category)
             VALUES {}
-            ON CONFLICT (code) DO UPDATE SET
-                date = EXCLUDED.date,
+            ON CONFLICT (date, code) DO UPDATE SET
                 name = EXCLUDED.name,
                 market_category = EXCLUDED.market_category,
                 industry_code_33 = EXCLUDED.industry_code_33,
