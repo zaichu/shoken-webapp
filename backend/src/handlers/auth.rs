@@ -16,6 +16,7 @@ const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
 const SESSION_COOKIE_NAME: &str = "session_token";
+const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 
 /// OAuth認証開始時のレスポンス
 #[derive(Debug, Serialize)]
@@ -27,8 +28,7 @@ pub struct AuthUrlResponse {
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
     pub code: String,
-    #[allow(dead_code)]
-    pub state: Option<String>,
+    pub state: String,
 }
 
 /// OAuthクライアントの型エイリアス（oauth2 5.0.0 の新しい型システム対応）
@@ -85,18 +85,50 @@ fn get_backend_url() -> String {
     })
 }
 
+/// 本番環境（HTTPS）かどうかを判定
+/// BACKEND_URL が https:// で始まる場合、または SECURE_COOKIE=true の場合に true
+fn is_secure_environment() -> bool {
+    // 明示的なフラグが設定されている場合はそれを優先
+    if let Ok(secure) = std::env::var("SECURE_COOKIE") {
+        return secure == "true" || secure == "1";
+    }
+    // BACKEND_URL のスキームで判定
+    std::env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
+        .unwrap_or(false)
+}
+
 /// Google OAuth認証を開始（直接リダイレクト）
-pub async fn google_auth(State(state): State<AppState>) -> Result<Redirect, ApiError> {
+pub async fn google_auth(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> Result<(CookieJar, Redirect), ApiError> {
     let client = create_oauth_client(&state)?;
 
-    let (auth_url, _csrf_token) = client
+    let (auth_url, csrf_token) = client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("openid".to_string()))
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("profile".to_string()))
         .url();
 
-    Ok(Redirect::to(auth_url.as_str()))
+    // CSRF トークンを Cookie に保存（10分間有効）
+    let is_secure = is_secure_environment();
+    let state_cookie = Cookie::build((OAUTH_STATE_COOKIE_NAME, csrf_token.secret().to_string()))
+        .path("/")
+        .http_only(true)
+        .secure(is_secure)
+        .same_site(if is_secure {
+            SameSite::None
+        } else {
+            SameSite::Lax
+        })
+        .max_age(time::Duration::minutes(10))
+        .build();
+
+    let jar = jar.add(state_cookie);
+
+    Ok((jar, Redirect::to(auth_url.as_str())))
 }
 
 /// Google OAuthコールバックを処理
@@ -105,6 +137,33 @@ pub async fn google_callback(
     Query(query): Query<AuthCallbackQuery>,
     jar: CookieJar,
 ) -> Result<Response, ApiError> {
+    // CSRF トークンを検証
+    let stored_state = jar
+        .get(OAUTH_STATE_COOKIE_NAME)
+        .map(|c| c.value().to_string())
+        .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません".to_string()))?;
+
+    if query.state != stored_state {
+        return Err(ApiError::Unauthorized(
+            "OAuth state が一致しません".to_string(),
+        ));
+    }
+
+    // state Cookie を削除
+    let is_secure = is_secure_environment();
+    let remove_state_cookie = Cookie::build((OAUTH_STATE_COOKIE_NAME, ""))
+        .path("/")
+        .http_only(true)
+        .secure(is_secure)
+        .same_site(if is_secure {
+            SameSite::None
+        } else {
+            SameSite::Lax
+        })
+        .max_age(time::Duration::seconds(0))
+        .build();
+    let jar = jar.remove(remove_state_cookie);
+
     let client = create_oauth_client(&state)?;
 
     // 認証コードをトークンに交換（oauth2 5.0.0 の新しい HTTP クライアント API）
@@ -138,12 +197,12 @@ pub async fn google_callback(
     // Cookieを設定
     // クロスオリジン（フロントエンド: GitHub Pages, バックエンド: Fly.io）で
     // Cookieを送受信するには SameSite=None + Secure が必要
-    let is_production = std::env::var("BACKEND_URL").is_ok();
+    let is_secure = is_secure_environment();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, session_token))
         .path("/")
         .http_only(true)
-        .secure(is_production)
-        .same_site(if is_production {
+        .secure(is_secure)
+        .same_site(if is_secure {
             SameSite::None
         } else {
             SameSite::Lax
@@ -243,12 +302,12 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
         }
     }
 
-    let is_production = std::env::var("BACKEND_URL").is_ok();
+    let is_secure = is_secure_environment();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, ""))
         .path("/")
         .http_only(true)
-        .secure(is_production)
-        .same_site(if is_production {
+        .secure(is_secure)
+        .same_site(if is_secure {
             SameSite::None
         } else {
             SameSite::Lax
@@ -301,12 +360,12 @@ pub async fn delete_account(
         .await?;
 
     // セッションCookieを削除
-    let is_production = std::env::var("BACKEND_URL").is_ok();
+    let is_secure = is_secure_environment();
     let cookie = Cookie::build((SESSION_COOKIE_NAME, ""))
         .path("/")
         .http_only(true)
-        .secure(is_production)
-        .same_site(if is_production {
+        .secure(is_secure)
+        .same_site(if is_secure {
             SameSite::None
         } else {
             SameSite::Lax
