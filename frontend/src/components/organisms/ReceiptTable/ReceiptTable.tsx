@@ -60,7 +60,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
 
-        // カラム幅は minWidth として適用（レスポンシブ対応）
         const cellStyle: React.CSSProperties = {
             minWidth: 'width' in column ? column.width : undefined,
             textAlign: column.textAlign,
@@ -191,12 +190,11 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 
     return (
         <Table
-            className="mb-0 table-fixed"
+            className="mb-0"
             bordered
             small
             responsive
             forceResize={forceResize}
-            maxHeight={520}
             onClick={handleTableClick}
         >
             <TableHeader>
