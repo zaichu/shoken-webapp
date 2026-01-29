@@ -5,7 +5,7 @@
 - **React**: 19.x (React Compiler 有効)
 - **TypeScript**: 5.x (strict mode)
 - **Vite**: 7.x
-- **Bootstrap**: 5.x
+- **Tailwind CSS**: 4.x
 - **TanStack Query**: サーバー状態管理
 - **Axios**: HTTPクライアント
 - **Vitest**: テストフレームワーク
@@ -77,9 +77,65 @@ React 19 + React Compiler が有効:
 
 ## スタイリング
 
-- Bootstrap 5 をベースに使用
-- グローバルスタイルは `src/styles/` に配置
-- コンポーネント固有スタイルは CSS Modules を検討
+### 基本方針
+
+- **Tailwind CSS** をベースに使用
+- グローバルスタイルは `src/styles/tailwind.css` に配置
+
+### クラス結合
+
+`cn()` ユーティリティを使用して統一:
+
+```typescript
+import { cn } from '@/lib/utils/classNames';
+
+// 基本パターン
+const classes = cn(baseClasses, conditionalClass && 'active', className);
+```
+
+### 配置ルール
+
+| 種類 | 配置場所 | 例 |
+|------|----------|-----|
+| テーマ変数 | `tailwind.css` の `@theme` | `--color-primary` |
+| 再利用クラス | `tailwind.css` の `@layer components` | `.panel-card`, `.stat-grid` |
+| コンポーネント固有 | 各 `.tsx` ファイル内 | `variantStyles` オブジェクト |
+| 動的スタイル | `style` 属性 | 計算された高さ・幅のみ |
+
+### 共通クラス
+
+| クラス名 | 用途 |
+|---------|------|
+| `.form-input-container` | フォーム入力コンテナ（`w-full max-w-[400px]`） |
+| `.stat-grid` | 統計情報グリッド（3カラム） |
+| `.action-toolbar` | アクションボタン群 |
+| `.status-message` | ローディング・空状態メッセージ |
+| `.panel-card` | パネルカード |
+
+### className の順序
+
+外部からの `className` は最後に配置（オーバーライド可能にするため）:
+
+```typescript
+const classes = cn(
+  baseClasses,      // 1. ベーススタイル
+  variantClass,     // 2. バリアント
+  sizeClass,        // 3. サイズ
+  className         // 4. 外部からの上書き（最後）
+);
+```
+
+### インラインスタイルの使用
+
+動的計算値のみ許可:
+
+```typescript
+// OK: 動的に計算される高さ
+style={{ maxHeight: calculatedHeight }}
+
+// NG: 静的な値は Tailwind クラスを使う
+style={{ padding: '16px' }} // → className="p-4"
+```
 
 ## テスト
 
