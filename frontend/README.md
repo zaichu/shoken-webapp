@@ -43,7 +43,7 @@
 - **React Compiler 19.1.0**: 自動メモ化による最適化（babel-plugin-react-compiler）
 - **TanStack React Query 5.90.16**: サーバー状態管理
 - **React Router DOM 7.11.0**: クライアントサイドルーティング
-- **Bootstrap 5.3.8**: レスポンシブデザインを簡素化するためのCSSフレームワーク
+- **Tailwind CSS 4.1.18**: ユーティリティファーストのCSSフレームワーク
 - **Vite 7.3.0**: 高速な開発環境とビルドツール
 - **Vitest 4.0.16 + Testing Library 16.3.1**: ユニットテストとコンポーネントテスト
 

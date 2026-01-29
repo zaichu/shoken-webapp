@@ -33,7 +33,6 @@
 - **Vite**: 高速な開発環境とビルドツール
 - **React Router**: SPAのルーティング
 - **React Query**: データフェッチングとキャッシュ管理
-- **Bootstrap**: UIコンポーネント
 - **TailwindCSS**: ユーティリティファーストCSSフレームワーク
 - **Axios**: HTTPクライアント
 
