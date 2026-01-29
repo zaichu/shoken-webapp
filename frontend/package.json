@@ -12,13 +12,14 @@
     "test:watch": "NODE_OPTIONS='--max-old-space-size=8192' vitest --watch"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "5.90.19",
     "axios": "1.13.2",
-    "bootstrap": "5.3.8",
     "papaparse": "5.5.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-router-dom": "7.12.0"
+    "react-router-dom": "7.12.0",
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
