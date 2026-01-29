@@ -78,7 +78,7 @@
 ```bash
 # 必須
 DATABASE_URL=postgresql://user:pass@host/db
-FRONTEND_URL=http://localhost:8080
+FRONTEND_URL=http://localhost:5173
 
 # Google OAuth（認証機能を使う場合）
 GOOGLE_CLIENT_ID=your-client-id

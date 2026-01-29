@@ -115,8 +115,8 @@ cp .env.example .env.development.local  # .env.exampleがある場合
 
 `.env.development.local`ファイルに以下の変数を設定:
 
-```
-VITE_API_URL=http://localhost:8000
+```bash
+VITE_SHOKEN_WEBAPI_API_URL=http://localhost:3001
 ```
 
 ## ビルドと実行
