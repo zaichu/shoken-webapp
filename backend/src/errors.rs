@@ -7,12 +7,20 @@ use std::env;
 use thiserror::Error;
 
 /// 本番環境かどうかを判定
-/// BACKEND_URL が設定されている、または RUST_ENV=production の場合に true
+/// RUST_ENV=production または APP_ENV=production の場合に true
+/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
 fn is_production() -> bool {
-    env::var("RUST_ENV")
-        .map(|v| v == "production")
+    // 明示的な環境フラグを優先
+    if let Ok(v) = env::var("RUST_ENV") {
+        return v == "production";
+    }
+    if let Ok(v) = env::var("APP_ENV") {
+        return v == "production";
+    }
+    // フォールバック: BACKEND_URL が https:// で始まる場合のみ本番と判定
+    env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
         .unwrap_or(false)
-        || env::var("BACKEND_URL").is_ok()
 }
 
 #[derive(Error, Debug)]
@@ -87,9 +95,13 @@ impl IntoResponse for ApiError {
                     }
                     _ => ("DATABASE_ERROR", "Database error occurred"),
                 };
-                // ログにエラー詳細を出力（本番・開発両方）
-                // 注: 個人情報やトークンは含まれないことを確認済み
-                tracing::error!("Database error [{}]: {}", code, e);
+                // ログにエラー詳細を出力
+                // 本番環境ではエラーコードのみ（個人情報漏洩防止）
+                if is_production() {
+                    tracing::error!("Database error [{}]", code);
+                } else {
+                    tracing::error!("Database error [{}]: {}", code, e);
+                }
                 (
                     if code == "NOT_FOUND" {
                         StatusCode::NOT_FOUND
