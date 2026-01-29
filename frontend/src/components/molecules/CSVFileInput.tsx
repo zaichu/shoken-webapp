@@ -25,25 +25,27 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
   };
 
   return (
-    <div className="input-group">
+    <div className="flex">
       <label
-        className={`input-group-btn csv-file-input-label${disabled ? ' csv-file-input-label-disabled' : ''}`}
+        className={`cursor-pointer ${disabled ? 'pointer-events-none opacity-65' : ''}`}
         htmlFor="csv-file-input"
       >
-        <span className="btn bg-primary text-white">CSVファイル選択</span>
+        <span className="inline-flex items-center px-3 py-1.5 bg-primary text-sm text-white rounded-l font-medium hover:bg-primary-hover transition-colors">
+          CSVファイル選択
+        </span>
       </label>
       <input
         id="csv-file-input"
         ref={ref}
         type="file"
         accept=".csv"
-        className="csv-file-input-hidden"
+        className="hidden"
         onChange={handleFileChange}
         disabled={disabled}
       />
       <input
         type="text"
-        className="form-control form-control-sm"
+        className="flex-1 px-3 py-1.5 text-sm border border-l-0 border-gray-300 rounded-r bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
         readOnly
         placeholder="ファイル未選択"
         value={selectedFileName}

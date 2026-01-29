@@ -90,24 +90,24 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
     : undefined;
 
   return (
-    <div className="card shadow-sm mt-1">
-      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h5 className="mb-0">配当情報</h5>
+    <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
+      <div className="bg-primary text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
+        <h5 className="font-semibold">配当情報</h5>
         {assetBalanceData && (
-          <small className="text-light">
+          <small className="text-white/80">
             保有銘柄データから自動入力
           </small>
         )}
       </div>
-      <div className="card-body">
-        <div className="row">
-          <div className='col'>
+      <div className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
             <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
           </div>
-          <div className='col'>
+          <div>
             <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
           </div>
-          <div className='col'>
+          <div>
             <NumberInputField
               label="一株配当"
               value={dividendPerShare}
@@ -118,7 +118,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
           </div>
         </div>
 
-        <div className="row mt-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
           <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
           <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
