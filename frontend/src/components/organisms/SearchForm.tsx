@@ -27,24 +27,28 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="search-form mb-4">
-      <div className="input-group">
-        <InputField
-          type="text"
-          className="search-form-input"
-          placeholder="銘柄コードを入力"
-          value={stockCode}
-          onChange={handleInputChange}
-          aria-label="銘柄コード"
-          autoComplete="off"
-          disabled={isLoading}
-        />
+    <form onSubmit={handleSubmit} className="mb-4">
+      <div className="flex w-full max-w-xl items-stretch">
+        <div className="flex-1 min-w-0">
+          <InputField
+            type="text"
+            className="rounded-r-none border-r-0"
+            placeholder="銘柄コードを入力"
+            value={stockCode}
+            onChange={handleInputChange}
+            aria-label="銘柄コード"
+            autoComplete="off"
+            disabled={isLoading}
+            fullWidth
+          />
+        </div>
         <Button
           type="submit"
           variant="primary"
           disabled={isLoading || !stockCode}
           loading={isLoading}
           aria-label={isLoading ? '検索中' : '銘柄を検索'}
+          className="rounded-l-none shrink-0 whitespace-nowrap"
         >
           {isLoading ? '検索中...' : '検索'}
         </Button>

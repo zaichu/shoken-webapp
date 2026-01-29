@@ -4,46 +4,46 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-light py-3 mt-5">
-      <div className="container">
-        <div className="row">
-          <div className="col-md-4">
-            <h5>証券Webapp</h5>
-            <p className="text-muted">
+    <footer className="mt-10 bg-light py-6 text-dark">
+      <div className="mx-auto w-full max-w-[1600px] px-4">
+        <div className="grid gap-6 md:grid-cols-3">
+          <div>
+            <h5 className="text-base font-semibold">証券Webapp</h5>
+            <p className="mt-2 text-sm text-secondary">
               投資情報と受取金管理のためのプラットフォーム
             </p>
           </div>
 
-          <div className="col-md-4">
-            <h5>リンク</h5>
-            <ul className="list-unstyled">
+          <div>
+            <h5 className="text-base font-semibold">リンク</h5>
+            <ul className="mt-2 space-y-2 text-sm">
               <li>
-                <Link className="text-decoration-none" to="/">ホーム</Link>
+                <Link className="text-primary hover:underline" to="/">ホーム</Link>
               </li>
               <li>
-                <Link className="text-decoration-none" to="/search">銘柄検索</Link>
+                <Link className="text-primary hover:underline" to="/search">銘柄検索</Link>
               </li>
               <li>
-                <Link className="text-decoration-none" to="/receipts">受取金管理</Link>
+                <Link className="text-primary hover:underline" to="/receipts">受取金管理</Link>
               </li>
             </ul>
           </div>
 
-          <div className="col-md-4">
-            <h5>お問い合わせ</h5>
-            <p className="text-muted">
+          <div>
+            <h5 className="text-base font-semibold">お問い合わせ</h5>
+            <p className="mt-2 text-sm text-secondary">
               ご質問やご意見がありましたら、お気軽にお問い合わせください。
             </p>
-            <a href="mailto:contact@shoken-webapp.example.com" className="text-decoration-none">
+            <a href="mailto:contact@shoken-webapp.example.com" className="text-sm text-primary hover:underline">
               contact@shoken-webapp.example.com
             </a>
           </div>
         </div>
 
-        <hr className="my-3" />
+        <hr className="my-6 border-border" />
 
-        <div className="text-center text-muted">
-          <small>&copy; {currentYear} 証券Webapp All Rights Reserved.</small>
+        <div className="text-center text-xs text-secondary">
+          &copy; {currentYear} 証券Webapp All Rights Reserved.
         </div>
       </div>
     </footer>
