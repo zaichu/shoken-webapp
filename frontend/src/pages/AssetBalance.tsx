@@ -118,6 +118,7 @@ export function AssetBalancePage() {
   } = useReceiptDataSource<AssetBalanceData>({
     api: assetBalanceApi,
     parseCsvItem,
+    filterCsvItem: (item) => item.security_code !== '',
     csvReaderOptions: { skipHeaderRows: 6 },
     deleteConfirmMessage: '保存された保有銘柄データを削除しますか？',
   });

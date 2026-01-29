@@ -23,6 +23,8 @@ export interface UseReceiptDataSourceOptions<T, D = T> {
   transformDB?: (item: T) => D;
   /** CSVデータをAPI送信用データ型に変換する関数 */
   parseCsvItem?: (item: Record<string, unknown>) => T;
+  /** 保存前にCSVデータをフィルタする関数（空行除外など） */
+  filterCsvItem?: (item: T) => boolean;
   /** CSVリーダーオプション */
   csvReaderOptions?: CSVParseOptions;
   /** 削除確認メッセージ（undefinedの場合は確認なし） */
@@ -64,7 +66,7 @@ export interface UseReceiptDataSourceResult<T, D = T> {
 export function useReceiptDataSource<T, D = T>(
   options: UseReceiptDataSourceOptions<T, D>
 ): UseReceiptDataSourceResult<T, D> {
-  const { api, transformDB, parseCsvItem, csvReaderOptions, deleteConfirmMessage } = options;
+  const { api, transformDB, parseCsvItem, filterCsvItem, csvReaderOptions, deleteConfirmMessage } = options;
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
 
   // CSVデータ
@@ -163,7 +165,11 @@ export function useReceiptDataSource<T, D = T>(
     setError(null);
 
     try {
-      const items = csvData.map(parseCsvItem);
+      let items = csvData.map(parseCsvItem);
+      // フィルタ関数が指定されている場合は空行等を除外
+      if (filterCsvItem) {
+        items = items.filter(filterCsvItem);
+      }
       await api.bulkCreate(items);
       setCsvData([]);
       csvReader.reset();
@@ -173,7 +179,7 @@ export function useReceiptDataSource<T, D = T>(
     } finally {
       setSaving(false);
     }
-  }, [api, csvData, csvReader, isAuthenticated, parseCsvItem, refetch]);
+  }, [api, csvData, csvReader, filterCsvItem, isAuthenticated, parseCsvItem, refetch]);
 
   /**
    * DBデータを全削除
