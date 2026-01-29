@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
+import { Alert } from '@/components/atoms/Alert';
+import { Button } from '@/components/atoms/Button';
+import { Spinner } from '@/components/atoms/Spinner';
 import { useCSVReader } from '../hooks/useCSVReader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Dividend } from './Receipt/Dividend';
@@ -269,37 +272,29 @@ export function ReceiptsPage() {
 
   return (
     <Layout>
-      <nav className="nav nav-tabs">
-        <ul className="nav nav-tabs">
-          <li className="nav-item">
-            <button
-              className={receiptsType === 'dividend' ? 'nav-link active' : 'nav-link'}
-              onClick={() => setReceiptsType('dividend')}
-            >
-              配当金
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={receiptsType === 'domesticstock' ? 'nav-link active' : 'nav-link'}
-              onClick={() => setReceiptsType('domesticstock')}
-            >
-              国内株式
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={receiptsType === 'mutualfund' ? 'nav-link active' : 'nav-link'}
-              onClick={() => setReceiptsType('mutualfund')}
-            >
-              投資信託
-            </button>
-          </li>
-        </ul>
+      <nav className="border-b border-border no-print">
+        <div className="flex flex-wrap gap-2">
+          {(['dividend', 'domesticstock', 'mutualfund'] as const).map((tab) => {
+            const isActive = receiptsType === tab;
+            const label = tab === 'dividend' ? '配当金' : tab === 'domesticstock' ? '国内株式' : '投資信託';
+            return (
+              <button
+                key={tab}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${isActive ? 'border-primary text-primary' : 'border-transparent text-secondary hover:text-primary'}`}
+                onClick={() => setReceiptsType(tab)}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
-      <div className="receipt-page mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <div className="page-control-panel">
+      <div className="mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-full max-w-[400px]">
             <CSVFileInput
               onFileSelect={handleFileSelect}
               selectedFileName={fileName}
@@ -307,42 +302,44 @@ export function ReceiptsPage() {
             />
           </div>
           {isAuthenticated && (
-            <div className="btn-group" role="group" aria-label="データ操作">
+            <div className="flex items-center gap-2" role="group" aria-label="データ操作">
               {hasCsvData && (
-                <button
-                  className="btn btn-primary btn-sm"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={handleSaveToDB}
                   disabled={saving || deleting}
                   aria-disabled={saving || deleting}
                 >
                   {saving ? '保存中...' : '保存'}
-                </button>
+                </Button>
               )}
               {hasDbData && (
-                <button
-                  className="btn btn-outline-danger btn-sm"
+                <Button
+                  variant="outline-danger"
+                  size="sm"
                   onClick={handleDeleteAll}
                   disabled={saving || deleting}
                   aria-disabled={saving || deleting}
                 >
                   {deleting ? '削除中...' : '削除'}
-                </button>
+                </Button>
               )}
             </div>
           )}
         </div>
 
         {(error || dbError) && (
-          <div className="alert alert-danger my-3" role="alert" aria-live="assertive">
+          <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
             <strong>エラー:</strong> {error || dbError}
-          </div>
+          </Alert>
         )}
 
         <div aria-live="polite" aria-atomic="true">
           {(isLoading || dbLoading || authLoading) && (
-            <div className="text-center my-4" role="status">
-              <div className="spinner-border text-primary" aria-hidden="true" />
-              <p className="mt-2 text-muted">
+            <div className="my-4 flex flex-col items-center gap-2" role="status">
+              <Spinner size="md" className="text-primary" />
+              <p className="text-sm text-secondary">
                 {authLoading && '認証状態を確認しています...'}
                 {dbLoading && 'データを読み込んでいます...'}
                 {isLoading && 'CSVファイルを処理しています...'}

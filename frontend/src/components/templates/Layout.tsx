@@ -7,10 +7,10 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="app-container">
+    <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="container mt-2 app-container-wide">
+      <main className="mx-auto w-full max-w-[1600px] px-4 py-4 flex-1">
         {children}
       </main>
 

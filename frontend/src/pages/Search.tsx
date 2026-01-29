@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
+import { Alert } from '../components/atoms/Alert';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
@@ -36,7 +37,7 @@ export function SearchPage() {
 
   return (
     <Layout>
-      <div className="search-page">
+      <div>
         <SearchForm
           stockCode={stockCode}
           onStockCodeChange={setStockCode}
@@ -45,15 +46,15 @@ export function SearchPage() {
         />
 
         {hasInvalidCodeParam && (
-          <div className="alert alert-warning" role="alert">
+          <Alert variant="warning">
             不正な銘柄コードが指定されています。
-          </div>
+          </Alert>
         )}
 
         {isError && (
-          <div className="alert alert-danger" role="alert">
+          <Alert variant="danger">
             <strong>エラー:</strong> {error?.message || '銘柄情報の取得に失敗しました。'}
-          </div>
+          </Alert>
         )}
 
         {stockData && !isError && (
@@ -61,8 +62,8 @@ export function SearchPage() {
         )}
 
         {!stockData && !isError && !isLoading && (
-          <div className="text-center my-5">
-            <p className="text-muted">銘柄コードを入力して検索してください。</p>
+          <div className="py-10 text-center">
+            <p className="text-sm text-secondary">銘柄コードを入力して検索してください。</p>
           </div>
         )}
       </div>

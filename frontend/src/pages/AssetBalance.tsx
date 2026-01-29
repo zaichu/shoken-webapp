@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
+import { Alert } from '@/components/atoms/Alert';
+import { Button } from '@/components/atoms/Button';
+import { Spinner } from '@/components/atoms/Spinner';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
@@ -142,75 +145,78 @@ export function AssetBalancePage() {
 
   return (
     <Layout>
-      <div className="asset-balance-page mt-2" aria-busy={isProcessing}>
+      <div className="mt-2" aria-busy={isProcessing}>
         {/* 認証確認中 */}
         {authLoading && (
-          <div className="text-center my-4" role="status" aria-live="polite">
-            <div className="spinner-border text-primary" aria-hidden="true" />
-            <p className="mt-2 text-muted">認証状態を確認しています...</p>
+          <div className="my-4 flex flex-col items-center gap-2" role="status" aria-live="polite">
+            <Spinner size="md" className="text-primary" />
+            <p className="text-sm text-secondary">認証状態を確認しています...</p>
           </div>
         )}
 
         {/* 未ログイン時のログイン誘導 */}
         {!authLoading && !isAuthenticated && (
-          <div className="alert alert-info my-3" role="status" aria-live="polite">
-            <p className="mb-2">保有銘柄データを管理するにはログインが必要です。</p>
-            <button
-              className="btn btn-primary btn-sm"
+          <Alert variant="info" className="my-3" role="status" aria-live="polite">
+            <p className="mb-2 text-sm">保有銘柄データを管理するにはログインが必要です。</p>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => login()}
               aria-label="Googleアカウントでログイン"
             >
               ログイン
-            </button>
-          </div>
+            </Button>
+          </Alert>
         )}
 
         {/* ログイン済みの場合のメインコンテンツ */}
         {!authLoading && isAuthenticated && (
           <>
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <div className="page-control-panel">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="w-full max-w-[400px]">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
                   selectedFileName={csvReader.fileName || ''}
                   disabled={loading || saving || deleting}
                 />
               </div>
-              <div className="btn-group" role="group" aria-label="データ操作">
+              <div className="flex items-center gap-2" role="group" aria-label="データ操作">
                 {hasCsvData && (
-                  <button
-                    className="btn btn-primary btn-sm"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleSaveToDB}
                     disabled={saving || deleting}
                     aria-disabled={saving || deleting}
                   >
                     {saving ? '保存中...' : '保存'}
-                  </button>
+                  </Button>
                 )}
                 {hasDbData && (
-                  <button
-                    className="btn btn-outline-danger btn-sm"
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
                     onClick={handleDeleteAll}
                     disabled={saving || deleting}
                     aria-disabled={saving || deleting}
                   >
                     {deleting ? '削除中...' : '削除'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
 
             {(csvReader.error || error) && (
-              <div className="alert alert-danger my-3" role="alert" aria-live="assertive">
+              <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
                 <strong>エラー:</strong> {csvReader.error || error}
-              </div>
+              </Alert>
             )}
 
             <div aria-live="polite" aria-atomic="true">
               {(loading || saving || deleting || csvReader.isLoading) && (
-                <div className="text-center my-4" role="status">
-                  <div className="spinner-border text-primary" aria-hidden="true" />
-                  <p className="mt-2 text-muted">
+                <div className="my-4 flex flex-col items-center gap-2" role="status">
+                  <Spinner size="md" className="text-primary" />
+                  <p className="text-sm text-secondary">
                     {loading && 'データを読み込んでいます...'}
                     {saving && 'データを保存しています...'}
                     {deleting && 'データを削除しています...'}

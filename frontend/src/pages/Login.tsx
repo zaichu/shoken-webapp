@@ -2,6 +2,8 @@ import { Layout } from '../components/templates/Layout';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { Card, CardBody } from '../components/atoms/Card';
+import { Spinner } from '../components/atoms/Spinner';
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
@@ -24,12 +26,8 @@ export function LoginPage() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="container py-5">
-          <div className="text-center">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">読み込み中...</span>
-            </div>
-          </div>
+        <div className="flex items-center justify-center py-12">
+          <Spinner size="lg" className="text-primary" />
         </div>
       </Layout>
     );
@@ -37,37 +35,30 @@ export function LoginPage() {
 
   return (
     <Layout>
-      <div className="container py-5">
-        <div className="row justify-content-center">
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow">
-              <div className="card-body p-4">
-                <h2 className="card-title text-center mb-4">ログイン</h2>
+      <div className="mx-auto flex max-w-md flex-col items-center py-12">
+        <Card className="w-full shadow-md">
+          <CardBody className="space-y-6 p-6 text-center">
+            <h2 className="text-xl font-semibold">ログイン</h2>
 
-                <p className="text-muted text-center mb-4">
-                  Googleアカウントでログインしてください
-                </p>
+            <p className="text-sm text-secondary">
+              Googleアカウントでログインしてください
+            </p>
 
-                <div className="d-grid gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-outline-dark btn-lg"
-                    onClick={handleGoogleLogin}
-                  >
-                    <img
-                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                      alt="Google"
-                      width="20"
-                      height="20"
-                      className="me-2"
-                    />
-                    Googleでログイン
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-dark px-4 py-2 text-sm font-semibold text-dark transition-colors hover:bg-dark hover:text-white"
+              onClick={handleGoogleLogin}
+            >
+              <img
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+                width="20"
+                height="20"
+              />
+              Googleでログイン
+            </button>
+          </CardBody>
+        </Card>
       </div>
     </Layout>
   );
