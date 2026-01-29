@@ -264,26 +264,48 @@ shoken-webapp/
 
 ### 認証
 
-- `POST /auth/login`: ログイン
-- `POST /auth/logout`: ログアウト
 - `GET /auth/google`: Google OAuth認証の開始
 - `GET /auth/google/callback`: Google OAuth認証のコールバック
+- `GET /auth/me`: 現在のユーザー情報を取得
+- `POST /auth/logout`: ログアウト
+- `DELETE /auth/delete-account`: アカウント削除
 
 ### 証券情報
 
-- `GET /api/stocks`: 証券情報のリスト取得
-- `GET /api/stocks/{id}`: 指定した証券の詳細情報取得
-- `POST /api/stocks/search`: 証券情報の検索
+- `GET /stock/{query}`: 銘柄コードまたは名前で検索
+- `POST /stock`: 銘柄情報を追加（**認証必須**）
 
-### 取引データ
+### 配当金（認証必須）
 
-- `GET /api/transactions`: 取引データのリスト取得
-- `POST /api/transactions`: 新しい取引データの登録
-- `POST /api/transactions/import`: CSVからの取引データインポート
+- `GET /dividends`: 配当金一覧を取得
+- `POST /dividends/bulk`: 配当金を一括追加
+- `DELETE /dividends/all`: 配当金を全削除
 
-### 分析
+### 国内株式（認証必須）
 
-- `GET /api/analysis/profit-loss`: 実現損益の計算結果を取得
+- `GET /domestic-stocks`: 国内株式一覧を取得
+- `POST /domestic-stocks/bulk`: 国内株式を一括追加
+- `DELETE /domestic-stocks/all`: 国内株式を全削除
+
+### 投資信託（認証必須）
+
+- `GET /mutualfunds`: 投資信託一覧を取得
+- `POST /mutualfunds/bulk`: 投資信託を一括追加
+- `DELETE /mutualfunds/all`: 投資信託を全削除
+
+### 保有銘柄（認証必須）
+
+- `GET /asset-balances`: 保有銘柄一覧を取得
+- `POST /asset-balances/bulk`: 保有銘柄を一括追加（既存は更新）
+- `DELETE /asset-balances/all`: 保有銘柄を全削除
+
+### J-Quants API
+
+- `GET /jquants/fins/statements`: 決算サマリーを取得
+
+### ヘルスチェック
+
+- `GET /health`: サーバー状態を確認
 
 ## テスト
 
