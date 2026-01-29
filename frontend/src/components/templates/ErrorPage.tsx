@@ -13,17 +13,15 @@ export function ErrorPage({
   showHomeButton = true
 }: ErrorPageProps) {
   return (
-    <div className="container py-5">
-      <div className="text-center">
-        <h1 className="display-1 fw-bold text-danger">⚠️</h1>
-        <h2 className="mt-4">{title}</h2>
-        <p className="lead my-4">{message}</p>
+    <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="text-6xl font-bold text-danger">⚠️</div>
+      <h2 className="mt-4 text-2xl font-semibold">{title}</h2>
+      <p className="mt-4 text-base text-secondary">{message}</p>
         {showHomeButton && (
-          <Link to="/">
-            <Button variant="primary">ホームに戻る</Button>
-          </Link>
+        <Link to="/" className="mt-6">
+          <Button variant="primary">ホームに戻る</Button>
+        </Link>
         )}
-      </div>
     </div>
   );
 }

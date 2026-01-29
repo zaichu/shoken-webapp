@@ -117,7 +117,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
 
     // SearchCardを展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // タイマーを進める
@@ -150,7 +150,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     );
 
     // SearchCardを展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 商品ボタンをクリック
@@ -178,7 +178,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
 
     // 複数回展開・折りたたみを実行
     for (let i = 0; i < 3; i++) {
@@ -250,7 +250,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     );
 
     // SearchCardを展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 銘柄ドロップダウンを操作（IDで指定）
@@ -290,7 +290,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(tables).toHaveLength(2);
 
     // SearchCardを展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     vi.advanceTimersByTime(100);
@@ -321,7 +321,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     );
 
     // SearchCardを展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     
     // 例外が発生してもアプリケーションが正常に動作することを確認
     expect(() => {

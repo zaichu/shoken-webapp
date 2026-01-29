@@ -157,11 +157,11 @@ describe('DomesticStock', () => {
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
         
         // レスポンシブテーブルのクラスが適用されていることを確認
-        const responsiveTable = container.querySelector('.table-responsive');
+        const responsiveTable = container.querySelector('div.overflow-x-auto');
         expect(responsiveTable).toBeInTheDocument();
         
-        const table = container.querySelector('table');
+        const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
-        expect(table).toHaveClass('table', 'table-bordered', 'table-sm');
+        expect(table).toHaveClass('w-full', 'border-collapse');
     });
 });

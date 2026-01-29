@@ -58,37 +58,33 @@ export function Header() {
 
   return (
     <>
-      <header className="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div className="container app-container-wide">
-          <Link className="navbar-brand" to="/">証券Web</Link>
+      <header className="bg-primary text-white no-print">
+        <div className="mx-auto w-full max-w-[1600px] px-4 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex items-center justify-between">
+              <Link className="text-lg font-semibold tracking-wide text-white" to="/">証券Web</Link>
+            </div>
 
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav">
-              <li className="nav-item">
-                <Link className="nav-link" to="/search">銘柄検索</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/assetbalance">保有銘柄</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/receipts">受取金</Link>
-              </li>
-            </ul>
+            <nav className="flex flex-wrap items-center gap-4 text-base md:text-lg" aria-label="主要ナビゲーション">
+              <Link className="text-white/90 hover:text-white transition-colors" to="/search">銘柄検索</Link>
+              <Link className="text-white/90 hover:text-white transition-colors" to="/assetbalance">保有銘柄</Link>
+              <Link className="text-white/90 hover:text-white transition-colors" to="/receipts">受取金</Link>
+            </nav>
 
-            <div className="d-flex align-items-center ms-auto">
+            <div className="flex items-center gap-3 md:ml-auto">
               {isLoading ? (
-                <span className="text-light">読み込み中...</span>
+                <span className="text-white/80 text-base">読み込み中...</span>
               ) : isAuthenticated && user ? (
-                <div className="d-flex align-items-center position-relative">
+                <div className="flex items-center gap-3">
                   {user.picture_url && (
                     <img
                       src={user.picture_url}
                       alt={user.name || 'ユーザー'}
-                      className="rounded-circle me-2 header-avatar"
+                      className="h-8 w-8 rounded-full object-cover"
                     />
                   )}
-                  <span className="text-light me-3">{user.name || user.email}</span>
-                  <div className="dropdown" ref={dropdownRef}>
+                  <span className="text-base text-white/90">{user.name || user.email}</span>
+                  <div className="relative" ref={dropdownRef}>
                     <Button
                       variant="outline-light"
                       size="sm"
@@ -102,31 +98,31 @@ export function Header() {
                     {showDropdown && (
                       <ul
                         id="user-menu"
-                        className="dropdown-menu dropdown-menu-end show header-dropdown-menu"
+                        className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-white text-dark shadow-lg"
                         role="menu"
                         aria-label="ユーザーメニュー"
                       >
                         <li role="none">
                           <button
-                            className="dropdown-item"
+                            className="w-full px-3 py-2 text-left text-base hover:bg-gray-100"
                             onClick={handleLogout}
                             role="menuitem"
                           >
                             ログアウト
                           </button>
                         </li>
-                        <li role="none"><hr className="dropdown-divider" /></li>
-                        <li role="none" className="dropdown-header small text-muted">
+                        <li role="none"><hr className="my-1 border-border" /></li>
+                        <li role="none" className="px-3 py-1 text-xs text-secondary">
                           危険な操作
                         </li>
                         <li role="none">
                           <button
-                            className="dropdown-item text-danger"
+                            className="w-full px-3 py-2 text-left text-base text-danger hover:bg-danger/10"
                             onClick={() => setShowDeleteConfirm(true)}
                             role="menuitem"
                             aria-describedby="delete-warning"
                           >
-                            <span id="delete-warning" className="visually-hidden">
+                            <span id="delete-warning" className="sr-only">
                               警告: この操作は取り消せません
                             </span>
                             アカウント削除
@@ -149,7 +145,7 @@ export function Header() {
       {/* アカウント削除確認モーダル */}
       {showDeleteConfirm && (
         <div
-          className="modal show d-block header-modal-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setShowDeleteConfirm(false)}
           role="dialog"
           aria-modal="true"
@@ -157,29 +153,31 @@ export function Header() {
           aria-describedby="delete-modal-description"
         >
           <div
-            className="modal-dialog modal-dialog-centered"
+            className="w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 id="delete-modal-title" className="modal-title text-danger">
+            <div className="rounded-lg bg-white shadow-lg">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <h5 id="delete-modal-title" className="text-danger font-semibold">
                   アカウント削除の確認
                 </h5>
                 <button
                   type="button"
-                  className="btn-close"
+                  className="text-gray-500 hover:text-gray-700"
                   onClick={() => setShowDeleteConfirm(false)}
                   aria-label="閉じる"
-                />
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
               </div>
-              <div id="delete-modal-description" className="modal-body">
+              <div id="delete-modal-description" className="px-4 py-4 text-base text-dark">
                 <p>本当にアカウントを削除しますか？</p>
-                <p className="text-danger mb-0">
+                <p className="mt-2 text-danger">
                   <strong>警告:</strong> この操作は取り消せません。
                   保有銘柄、配当金、取引履歴などすべてのデータが削除されます。
                 </p>
               </div>
-              <div className="modal-footer">
+              <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
                 <Button
                   variant="secondary"
                   onClick={() => setShowDeleteConfirm(false)}

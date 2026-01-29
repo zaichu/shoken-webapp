@@ -13,14 +13,14 @@ describe('InputField', () => {
     render(<InputField label="テスト項目" error="必須項目です" />);
     
     expect(screen.getByText('必須項目です')).toBeInTheDocument();
-    expect(screen.getByText('必須項目です')).toHaveClass('invalid-feedback');
+    expect(screen.getByText('必須項目です')).toHaveClass('text-danger');
   });
 
   it('ヘルプテキストを表示する', () => {
     render(<InputField label="テスト項目" helpText="数値を入力してください" />);
     
     expect(screen.getByText('数値を入力してください')).toBeInTheDocument();
-    expect(screen.getByText('数値を入力してください')).toHaveClass('form-text', 'text-muted');
+    expect(screen.getByText('数値を入力してください')).toHaveClass('text-secondary');
   });
 
   it('ヘルプテキストとしてReactコンポーネントを表示する', () => {
@@ -47,7 +47,7 @@ describe('InputField', () => {
   it('フルワイドオプションが動作する', () => {
     const { container } = render(<InputField label="テスト項目" fullWidth />);
     
-    const wrapper = container.querySelector('div.w-100');
+    const wrapper = container.querySelector('div.w-full');
     expect(wrapper).toBeInTheDocument();
   });
 
@@ -55,7 +55,7 @@ describe('InputField', () => {
     render(<InputField label="テスト項目" className="custom-class" />);
     
     const input = screen.getByLabelText('テスト項目');
-    expect(input).toHaveClass('form-control', 'custom-class');
+    expect(input).toHaveClass('custom-class');
   });
 
   it('disabledプロパティが動作する', () => {

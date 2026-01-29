@@ -27,7 +27,7 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
       allowDecimal = true,
       allowNegative = true,
       precision = 2,
-      className = 'form-control-plaintext border',
+      className = 'bg-transparent border border-gray-300',
       ...rest
     },
     ref
@@ -85,7 +85,7 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
       if (!isNaN(numberValue)) {
         // 入力フィールドの値を適切な形式で更新
         e.target.value = allowDecimal
-          ? numberValue.toFixed(precision).replace(/\\.?0+$/, '')
+          ? numberValue.toFixed(precision).replace(/\.?0+$/, '')
           : numberValue.toString();
       }
 

@@ -28,23 +28,35 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
     const generatedId = useId();
     const inputId = id || generatedId;
 
-    const baseClasses = 'form-control';
-    const errorClass = error ? 'is-invalid' : '';
-    const widthClass = fullWidth ? 'w-100' : '';
-    const variantClass = variant !== 'outlined' ? `form-control-${variant}` : '';
+    // ベーススタイル
+    const baseInputClasses = 'block px-3 py-1.5 text-base text-dark bg-white border rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary/25';
 
-    const combinedClasses = [
-      baseClasses,
-      variantClass,
-      errorClass,
+    // バリアント別スタイル
+    const variantClasses = {
+      outlined: 'border-gray-300 focus:border-primary',
+      filled: 'border-gray-300 bg-gray-100 focus:border-primary focus:bg-white',
+      standard: 'border-0 border-b border-gray-300 rounded-none focus:border-primary',
+    };
+
+    // エラー時のスタイル
+    const errorClasses = error
+      ? 'border-danger focus:border-danger focus:ring-danger/25'
+      : '';
+
+    const widthClass = fullWidth ? 'w-full' : '';
+
+    const combinedInputClasses = [
+      baseInputClasses,
+      variantClasses[variant],
+      errorClasses,
       widthClass,
       className
     ].filter(Boolean).join(' ');
 
     const labelElement = label && (
-      <label htmlFor={inputId} className="form-label">
+      <label htmlFor={inputId} className="block mb-1 text-sm font-medium text-dark">
         {label}
-        {required && <span className="text-danger ms-1">*</span>}
+        {required && <span className="text-danger ml-1">*</span>}
       </label>
     );
 
@@ -54,7 +66,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
         <input
           ref={ref}
           id={inputId}
-          className={combinedClasses}
+          className={combinedInputClasses}
           placeholder={placeholder}
           required={required}
           aria-invalid={error ? 'true' : 'false'}
@@ -67,12 +79,12 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
           {...rest}
         />
         {error && (
-          <div id={`${inputId}-error`} className="invalid-feedback" role="alert">
+          <div id={`${inputId}-error`} className="mt-1 text-sm text-danger" role="alert">
             {error}
           </div>
         )}
         {helpText && (
-          <div id={`${inputId}-help`} className="form-text text-muted">
+          <div id={`${inputId}-help`} className="mt-1 text-sm text-secondary">
             {helpText}
           </div>
         )}

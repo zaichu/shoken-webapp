@@ -57,7 +57,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     expect(screen.getByText('銘柄')).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     expect(mockOnExpandToggle).toHaveBeenCalledWith(true);
@@ -93,7 +93,7 @@ describe('SearchCard', () => {
     );
 
     // 展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 銘柄選択（IDで指定）
@@ -112,7 +112,7 @@ describe('SearchCard', () => {
     );
 
     // 展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 商品ボタンクリック
@@ -131,7 +131,7 @@ describe('SearchCard', () => {
     );
 
     // 展開
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 口座ボタンクリック
@@ -184,7 +184,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     expect(screen.getByText('年度')).toBeInTheDocument();
@@ -224,7 +224,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // 11番目、21番目の商品ボタンの後に改行要素があることを確認
@@ -240,7 +240,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByText('検索オプション').closest('.card-header');
+    const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // IDで指定して選択

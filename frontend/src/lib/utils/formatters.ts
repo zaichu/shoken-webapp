@@ -66,7 +66,7 @@ export function createSecurityCodeLink(value: unknown): string {
   }
 
   const escapedCode = escapeHtml(code);
-  return `<a href="/search?code=${encodeURIComponent(code)}" class="security-code-link" style="color: #0d6efd; font-weight: 600;">${escapedCode}</a>`;
+  return `<a href="/search?code=${encodeURIComponent(code)}" class="security-code-link text-primary font-semibold hover:underline" data-search="${escapedCode}">${escapedCode}</a>`;
 }
 
 // ==================== 日付関連 ====================

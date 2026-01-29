@@ -12,42 +12,42 @@ describe('Button', () => {
     
     const button = screen.getByRole('button', { name: 'テストボタン' });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('btn', 'btn-primary');
+    expect(button).toHaveClass('bg-primary');
   });
 
   it('指定されたvariantのクラスが適用される', () => {
     render(<Button {...defaultProps} variant="success" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('btn-success');
+    expect(button).toHaveClass('bg-success');
   });
 
   it('outline variantが正しく適用される', () => {
     render(<Button {...defaultProps} variant="outline-danger" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('btn-outline-danger');
+    expect(button).toHaveClass('border-danger');
   });
 
   it('指定されたsizeのクラスが適用される', () => {
     render(<Button {...defaultProps} size="lg" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('btn-lg');
+    expect(button).toHaveClass('text-lg');
   });
 
   it('デフォルトサイズ(md)の場合はサイズクラスが追加されない', () => {
     render(<Button {...defaultProps} size="md" />);
     
     const button = screen.getByRole('button');
-    expect(button).not.toHaveClass('btn-md');
+    expect(button).toHaveClass('text-base');
   });
 
   it('fullWidthプロパティが動作する', () => {
     render(<Button {...defaultProps} fullWidth />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('w-100');
+    expect(button).toHaveClass('w-full');
   });
 
   it('loadingの場合は読み込み中表示になる', () => {
@@ -56,19 +56,17 @@ describe('Button', () => {
     const button = screen.getByRole('button');
     expect(button).toBeDisabled();
     
-    // スピナー要素を探す（aria-hiddenがtrueでもrole=statusがあるため見つかる）
-    const spinner = button.querySelector('.spinner-border');
+    const spinner = screen.getByLabelText('読み込み中...');
     expect(spinner).toBeInTheDocument();
-    expect(spinner).toHaveAttribute('role', 'status');
     
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
   });
 
-  it('loadingの場合はbtn-loadingクラスが追加される', () => {
+  it('loadingの場合はdata-loading属性が付与される', () => {
     render(<Button {...defaultProps} loading />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('btn-loading');
+    expect(button).toHaveAttribute('data-loading', 'true');
   });
 
   it('アイコンが左側に表示される', () => {
@@ -77,7 +75,7 @@ describe('Button', () => {
     
     expect(screen.getByTestId('icon')).toBeInTheDocument();
     const iconElement = screen.getByTestId('icon').parentElement;
-    expect(iconElement).toHaveClass('btn-icon', 'me-2');
+    expect(iconElement).toHaveClass('mr-2');
   });
 
   it('アイコンが右側に表示される', () => {
@@ -86,7 +84,7 @@ describe('Button', () => {
     
     expect(screen.getByTestId('icon')).toBeInTheDocument();
     const iconElement = screen.getByTestId('icon').parentElement;
-    expect(iconElement).toHaveClass('btn-icon', 'ms-2');
+    expect(iconElement).toHaveClass('ml-2');
   });
 
   it('disabledプロパティが動作する', () => {

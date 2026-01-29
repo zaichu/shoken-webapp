@@ -13,7 +13,7 @@ export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   minHeight?: number;
   maxHeight?: number | string;
   bottomMargin?: number;
-  forceResize?: number; // 外部からの強制リサイズトリガー
+  forceResize?: number;
 }
 
 export interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
@@ -37,6 +37,18 @@ export interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   dangerouslySetInnerHTML?: { __html: string };
 }
 
+// バリアント別の背景色
+const variantBgColors: Record<string, string> = {
+  primary: 'bg-primary/10',
+  secondary: 'bg-secondary/10',
+  success: 'bg-success/10',
+  danger: 'bg-danger/10',
+  warning: 'bg-warning/10',
+  info: 'bg-info/10',
+  light: 'bg-light',
+  dark: 'bg-dark text-white',
+};
+
 const Table = forwardRef<HTMLTableElement, TableProps>(
   (
     {
@@ -57,7 +69,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
     },
     ref
   ) => {
-    // 自動リサイズ機能
     const { containerRef, height } = useTableAutoResize({
       enabled: autoHeight,
       minHeight,
@@ -68,36 +79,29 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
 
     // CSSクラスの構築
     const buildTableClasses = () => {
-      const classes = ['table'];
-      
-      if (striped) classes.push('table-striped');
-      if (bordered) classes.push('table-bordered');
-      if (hover) classes.push('table-hover');
-      if (small) classes.push('table-sm');
-      if (variant) classes.push(`table-${variant}`);
+      const classes = ['w-full text-left border-collapse'];
+
+      if (bordered) classes.push('[&_th]:border [&_th]:border-gray-200 [&_td]:border [&_td]:border-gray-200 print:[&_th]:border-black print:[&_td]:border-black');
+      if (small) classes.push('text-sm [&_th]:py-1 [&_th]:px-2 [&_td]:py-1 [&_td]:px-2');
+      else classes.push('[&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3');
+      if (variant) classes.push(variantBgColors[variant] || '');
       if (className) classes.push(className);
-      
+
       return classes.join(' ');
     };
 
-    // レスポンシブクラスの構築
-    const buildResponsiveClass = () => {
-      if (responsive === true) return 'table-responsive';
-      if (typeof responsive === 'string') return `table-responsive-${responsive}`;
-      if (autoHeight) return 'table-responsive';
-      return '';
-    };
+    // striped と hover は tbody に適用
+    const stripedClass = striped ? '[&_tbody_tr:nth-child(even)]:bg-gray-50' : '';
+    const hoverClass = hover ? '[&_tbody_tr:hover]:bg-gray-100' : '';
 
     const table = (
-      <table ref={ref} className={buildTableClasses()} {...rest}>
+      <table ref={ref} className={`${buildTableClasses()} ${stripedClass} ${hoverClass}`} {...rest}>
         {children}
       </table>
     );
 
     // レスポンシブまたは自動高さが有効な場合はラッパーで包む
     if (responsive || autoHeight) {
-      const responsiveClass = buildResponsiveClass();
-      
       const containerStyle = autoHeight
         ? {
             position: 'relative' as const,
@@ -109,7 +113,7 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       return (
         <div
           ref={containerRef}
-          className={responsiveClass}
+          className="w-full overflow-x-auto rounded-md"
           style={containerStyle}
         >
           {table}
@@ -127,11 +131,12 @@ const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
   ({ children, variant, stickyTop = true, className = '', ...rest }, ref) => {
     const buildHeaderClasses = () => {
       const classes = [];
-      
-      if (variant) classes.push(`table-${variant}`);
-      if (stickyTop) classes.push('sticky-top');
+
+      if (variant === 'light') classes.push('bg-gray-100');
+      if (variant === 'dark') classes.push('bg-gray-800 text-white');
+      if (stickyTop) classes.push('sticky top-0 z-10 bg-white');
       if (className) classes.push(className);
-      
+
       return classes.join(' ');
     };
 
@@ -160,12 +165,12 @@ TableBody.displayName = 'TableBody';
 const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
   ({ children, active = false, variant, className = '', ...rest }, ref) => {
     const buildRowClasses = () => {
-      const classes = [];
-      
-      if (active) classes.push('table-active');
-      if (variant) classes.push(`table-${variant}`);
+      const classes = ['[&_th]:align-middle [&_td]:align-middle'];
+
+      if (active) classes.push('bg-primary/10');
+      if (variant) classes.push(variantBgColors[variant] || '');
       if (className) classes.push(className);
-      
+
       return classes.join(' ');
     };
 
@@ -194,12 +199,13 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ) => {
     const Cell = as;
     const scopeAttr = as === 'th' ? { scope } : {};
+    const thClasses = as === 'th' ? 'font-semibold text-gray-700' : '';
 
     if (dangerouslySetInnerHTML) {
       return (
         <Cell
           ref={ref}
-          className={className}
+          className={`${thClasses} ${className}`}
           {...scopeAttr}
           {...rest}
           colSpan={colSpan}
@@ -209,7 +215,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
     }
 
     return (
-      <Cell ref={ref} className={className} {...scopeAttr} {...rest} colSpan={colSpan}>
+      <Cell ref={ref} className={`${thClasses} ${className}`} {...scopeAttr} {...rest} colSpan={colSpan}>
         {children}
       </Cell>
     );

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
+import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 import { ResizeProvider } from '@/contexts/ResizeContext';
 import { useTriggerResize } from '@/hooks/common/useResize';
 import { SearchCategories } from '@/types/common';
@@ -35,7 +36,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   };
 
   return (
-    <div className="receipt-container">
+    <div className="space-y-3" data-testid="receipt-container">
       {/* 検索カード */}
       {onSearch && (
         <SearchCard
@@ -49,17 +50,15 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       {header && <div>{header}</div>}
 
       {/* メインコンテンツ */}
-      <div className="card shadow-sm mt-1">
-        <div className="card-header bg-primary text-white py-2">
-          <h5 className="mb-0 lh-base">{title}</h5>
-        </div>
-
-        <div className="card-body p-0">{children}</div>
-      </div>
+      <Card className="mt-1" data-testid="receipt-card">
+        <CardBody data-testid="receipt-card-body">
+          {children}
+        </CardBody>
+      </Card>
 
       {/* フッター */}
       {footer && <div>{footer}</div>}
-    </div>
+    </div >
   );
 };
 

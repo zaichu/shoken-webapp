@@ -229,25 +229,21 @@ describe('ReceiptTemplate', () => {
     render(<ReceiptTemplate {...defaultProps} />);
 
     // メインカードの存在確認
-    const mainCard = screen.getByText('テストタイトル').closest('.card');
+    const mainCard = screen.getByTestId('receipt-card');
     expect(mainCard).toBeInTheDocument();
-    expect(mainCard).toHaveClass('shadow-sm', 'mt-1');
 
     // ヘッダーの存在確認
-    const cardHeader = screen.getByText('テストタイトル').closest('.card-header');
+    const cardHeader = screen.getByTestId('receipt-card-header');
     expect(cardHeader).toBeInTheDocument();
-    expect(cardHeader).toHaveClass('bg-primary', 'text-white');
 
     // ボディの存在確認
-    const cardBody = screen.getByTestId('mock-receipt-table').closest('.card-body');
+    const cardBody = screen.getByTestId('receipt-card-body');
     expect(cardBody).toBeInTheDocument();
-    expect(cardBody).toHaveClass('p-0');
   });
 
   test('receipt-containerクラスが適用される', () => {
-    const { container } = render(<ReceiptTemplate {...defaultProps} />);
-    
-    const receiptContainer = container.querySelector('.receipt-container');
+    render(<ReceiptTemplate {...defaultProps} />);
+    const receiptContainer = screen.getByTestId('receipt-container');
     expect(receiptContainer).toBeInTheDocument();
   });
 });

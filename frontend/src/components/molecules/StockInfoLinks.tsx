@@ -26,11 +26,11 @@ export const StockInfoLinks = ({ code }: StockInfoLinksProps) => {
   if (!code) return null;
 
   return (
-    <div className='d-flex flex-wrap'>
+    <div className="flex flex-wrap items-center text-sm">
       {STOCK_INFO_LINKS_OBJECTS.map((item, index) => (
         <Fragment key={index}>
           <a
-            className='fw-bold'
+            className="font-semibold text-primary hover:underline"
             href={item.url.replace('{}', code)}
             target='_blank'
             rel="noopener noreferrer"

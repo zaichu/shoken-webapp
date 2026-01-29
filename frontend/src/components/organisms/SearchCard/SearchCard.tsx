@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { SearchCategories } from '@/types/common';
+import { Button, ButtonVariant } from '@/components/atoms/Button';
+import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
 interface SearchCardProps {
     onSearch: (query: string) => void;
@@ -57,10 +59,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
         return items.map((item, index) => (
             <React.Fragment key={index}>
-                <button type="button" className={`btn btn-${variant} me-2`} onClick={() => handleQuickSearch(item)}>
+                <Button type="button" variant={variant as ButtonVariant} size="sm" onClick={() => handleQuickSearch(item)}>
                     {item}
-                </button>
-                {index % 10 === 9 && <div className="mt-1"></div>}
+                </Button>
+                {index % 10 === 9 && <div className="mt-1" />}
             </React.Fragment>
         ));
     };
@@ -69,7 +71,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return (
             <select
                 id={id}
-                className="form-select form-select-sm"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={searchQuery}
                 onChange={(e) => handleQuickSearch(e.target.value)}
                 aria-label="検索フィルター"
@@ -85,58 +87,61 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     return (
-        <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center search-card-header" onClick={handleToggleExpanded}>
-                <h5 className="mb-0 text-white">検索オプション</h5>
-                <div className={`search-card-chevron${isExpanded ? ' is-expanded' : ''}`} />
-            </div>
+        <Card className="mt-1">
+            <CardHeader
+                variant="primary"
+                className="flex cursor-pointer items-center justify-between"
+                onClick={handleToggleExpanded}
+                role="button"
+                aria-expanded={isExpanded}
+                aria-controls="search-options-body"
+                data-testid="search-card-header"
+            >
+                <h5>検索オプション</h5>
+                <div
+                    className={`h-0 w-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                />
+            </CardHeader>
             {isExpanded && categories && (
-                <div className="card-body">
+                <CardBody id="search-options-body" className="space-y-4 p-3">
                     {/* 銘柄検索 */}
                     {hasData(categories.securities) && (
-                        <div className="search-card-section">
-                            <div className="d-flex align-items-center">銘柄</div>
+                        <div className="w-full max-w-[500px] space-y-2">
+                            <div className="text-sm font-medium text-dark">銘柄</div>
                             <div>{renderQuickSearchDropdown(categories.securities!, 'securities-search')}</div>
                         </div>
                     )}
 
-                    <div className="d-flex mt-3">
+                    <div className="flex flex-wrap gap-6">
                         {/* 年度検索 */}
                         {hasData(categories.years) && (
                             <div>
-                                <div className="d-flex align-items-center search-card-label">年度</div>
+                                <div className="mb-2 w-[200px] text-sm font-medium text-dark">西暦</div>
                                 <div>{renderQuickSearchDropdown(categories.years!, 'years-search')}</div>
                             </div>
                         )}
-                        <div className="me-2" />
                         {/* 年月検索 */}
-                        {/* {hasData(categories.yearMonths) && (
-                            <div>
-                                <div className="d-flex align-items-center search-card-label">年月</div>
-                                <div>{renderQuickSearchDropdown(categories.yearMonths!, 'year-months-search')}</div>
-                            </div>
-                        )} */}
+                        {/* 年月検索は現状非表示 */}
                     </div>
 
-                    <div className="d-flex mt-3">
+                    <div className="flex flex-wrap gap-6">
                         {/* 商品検索 */}
                         {hasData(categories.products) && (
-                            <div>
-                                <div className="d-flex align-items-center">商品</div>
-                                <div>{renderQuickSearchButtons(categories.products!, "outline-success")}</div>
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium text-dark">商品</div>
+                                <div className="flex flex-wrap gap-2">{renderQuickSearchButtons(categories.products!, "outline-success")}</div>
                             </div>
                         )}
-                        <div className="me-2" />
                         {/* 口座検索 */}
                         {hasData(categories.accounts) && (
-                            <div>
-                                <div className="d-flex align-items-center">口座</div>
-                                <div>{renderQuickSearchButtons(categories.accounts!, "outline-warning")}</div>
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium text-dark">口座</div>
+                                <div className="flex flex-wrap gap-2">{renderQuickSearchButtons(categories.accounts!, "outline-warning")}</div>
                             </div>
                         )}
                     </div>
-                </div>
+                </CardBody>
             )}
-        </div>
+        </Card>
     );
 };

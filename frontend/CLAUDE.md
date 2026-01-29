@@ -26,7 +26,7 @@
 - **React Compiler 19.1.0** 自動メモ化による最適化（babel-plugin-react-compiler）
 - **TanStack React Query 5.90.16** サーバー状態管理
 - **React Router DOM 7.11.0** ルーティング
-- **Bootstrap 5.3.8** スタイリング
+- **Tailwind CSS 4.1.18** スタイリング
 - **Vitest 4.0.16 + Testing Library 16.3.1** テスト
 
 ### プロジェクト構造

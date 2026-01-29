@@ -111,12 +111,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // エラーが頻発している場合は自動リトライを停止
       if (errorCount > 3) {
         return (
-          <div className="error-boundary-fallback p-4">
-            <div className="alert alert-danger">
-              <h4 className="alert-heading">エラーが頻発しています</h4>
-              <p>アプリケーションで問題が発生しています。ページを再読み込みしてください。</p>
+          <div className="p-4">
+            <div className="bg-danger/10 border-l-4 border-danger text-danger rounded-lg p-4" role="alert">
+              <h4 className="font-bold text-lg mb-2">エラーが頻発しています</h4>
+              <p className="mb-4">アプリケーションで問題が発生しています。ページを再読み込みしてください。</p>
               <button
-                className="btn btn-outline-danger"
+                className="px-4 py-2 border border-danger text-danger rounded hover:bg-danger hover:text-white transition-colors"
                 onClick={() => window.location.reload()}
               >
                 ページを再読み込み
@@ -138,21 +138,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // デフォルトフォールバック
       return (
-        <div className={`error-boundary-fallback ${isolate ? 'isolated' : ''} p-4`}>
-          <div className="alert alert-danger" role="alert">
-            <h4 className="alert-heading">エラーが発生しました</h4>
-            <p className="mb-0">申し訳ございません。予期しないエラーが発生しました。</p>
+        <div className={`p-4 ${isolate ? 'isolated' : ''}`}>
+          <div className="bg-danger/10 border-l-4 border-danger text-danger rounded-lg p-4" role="alert">
+            <h4 className="font-bold text-lg mb-2">エラーが発生しました</h4>
+            <p>申し訳ございません。予期しないエラーが発生しました。</p>
             {import.meta.env.DEV && (
               <details className="mt-3">
-                <summary>エラー詳細（開発環境のみ）</summary>
-                <pre className="mt-2 p-2 bg-light">
+                <summary className="cursor-pointer">エラー詳細（開発環境のみ）</summary>
+                <pre className="mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto">
                   <code>{error.stack}</code>
                 </pre>
               </details>
             )}
-            <hr />
+            <hr className="my-4 border-danger/30" />
             <button
-              className="btn btn-primary"
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors"
               onClick={this.resetErrorBoundary}
             >
               再試行

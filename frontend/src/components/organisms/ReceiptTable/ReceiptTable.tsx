@@ -61,7 +61,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         const formattedValue = column.format ? column.format(value) : value;
 
         const cellStyle: React.CSSProperties = {
-            width: 'width' in column ? column.width : undefined,
+            minWidth: 'width' in column ? column.width : undefined,
             textAlign: column.textAlign,
             ...style
         };
@@ -130,7 +130,9 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 value: formatSummaryValue(summaryItem[column.key], column)
             }));
 
-            const summaryBorderClass = summaryIndex > 0 ? 'receipt-summary-border-top' : '';
+            const summaryBorderClass = summaryIndex > 0 ? 'border-t-2 border-primary-hover' : '';
+            const summaryLeftClass = `bg-primary text-white font-semibold ${summaryBorderClass} border-l-4 border-primary-dark`.trim();
+            const summaryValueClass = `bg-primary text-white text-right font-bold ${summaryBorderClass}`.trim();
 
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>
@@ -139,19 +141,19 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                         <TableRow>
                             <TableCell
                                 colSpan={columns.length - summaryColumns.length}
-                                className={`receipt-summary-left-cell ${summaryBorderClass}`.trim()}
+                                className={summaryLeftClass}
                             >
-                                <span className="receipt-summary-title">
+                                <span className="text-base font-bold">
                                     {headerText}
                                 </span>
-                                <span className="receipt-summary-badge">
+                                <span className="ml-3 inline-flex items-center rounded bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
                             {summaryValues.map((sv, idx) => (
                                 <TableCell
                                     key={idx}
-                                    className={`receipt-summary-value-cell ${summaryBorderClass}`.trim()}
+                                    className={summaryValueClass}
                                 >
                                     {String(sv.value)}
                                 </TableCell>
@@ -163,12 +165,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                         <TableRow>
                             <TableCell
                                 colSpan={columns.length}
-                                className={`receipt-summary-left-cell ${summaryBorderClass}`.trim()}
+                                className={summaryLeftClass}
                             >
-                                <span className="receipt-summary-title">
+                                <span className="text-base font-bold">
                                     {headerText}
                                 </span>
-                                <span className="receipt-summary-badge">
+                                <span className="ml-3 inline-flex items-center rounded bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
@@ -187,14 +189,21 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         });
 
     return (
-        <Table className="mb-0" bordered small responsive forceResize={forceResize} onClick={handleTableClick}>
+        <Table
+            className="mb-0"
+            bordered
+            small
+            responsive
+            forceResize={forceResize}
+            onClick={handleTableClick}
+        >
             <TableHeader>
-                <TableRow className="table-warning receipt-table-header-row">
+                <TableRow className="bg-warning/20 text-center">
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
-                            className="receipt-table-header-cell"
-                            style={{ width: column.width }}
+                            className="text-center"
+                            style={{ minWidth: column.width }}
                             key={index}
                         >
                             {column.header}

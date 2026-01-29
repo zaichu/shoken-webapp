@@ -211,12 +211,12 @@ describe('Dividend', () => {
         const { container } = render(<Dividend csvData={mockCsvData} />);
 
         // レスポンシブテーブルのクラスが適用されていることを確認
-        const responsiveTable = container.querySelector('.table-responsive');
+        const responsiveTable = container.querySelector('div.overflow-x-auto');
         expect(responsiveTable).toBeInTheDocument();
 
-        const table = container.querySelector('table');
+        const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
-        expect(table).toHaveClass('table', 'table-bordered', 'table-sm');
+        expect(table).toHaveClass('w-full', 'border-collapse');
     });
 
     // TODO: 配当情報フォームの数値計算テストを修正する必要あり

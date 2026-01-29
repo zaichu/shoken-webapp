@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatItem } from '@/components/atoms/StatItem';
+import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
 interface HeaderItem {
     title: string;
@@ -13,17 +14,17 @@ interface ReceiptHeaderProps {
 
 export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({ items }) => {
     return (
-        <div className="card shadow-sm mt-1">
-            <div className="card-header bg-primary text-white py-2">
-                <h5 className="mb-0 lh-base">集計情報</h5>
-            </div>
-            <div className="card-body">
-                <div className="row">
+        <Card>
+            <CardHeader variant="primary">
+                <h5>集計情報</h5>
+            </CardHeader>
+            <CardBody className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3">
                     {items.map((item, index) => (
                         <StatItem key={index} title={item.title} value={item.format(item.value)} />
                     ))}
                 </div>
-            </div>
-        </div>
+            </CardBody>
+        </Card >
     );
 };
