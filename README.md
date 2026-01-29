@@ -88,11 +88,22 @@ cp .env.example .env  # .env.exampleがある場合
 
 `.env`ファイルに以下の変数を設定:
 
-```
+```bash
+# 必須
 DATABASE_URL=postgres://username:password@localhost:5432/shoken_db
+FRONTEND_URL=http://localhost:5173
+
+# Google OAuth
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
-FRONTEND_URL=http://localhost:5173
+
+# J-Quants API（決算サマリー取得に必要）
+JQUANTS_API_KEY=your_api_key
+
+# オプション（本番環境用）
+# BACKEND_URL=https://your-backend.fly.dev
+# RUST_ENV=production  # または APP_ENV=production
+# SECURE_COOKIE=true   # Cookie の Secure 属性を明示的に制御
 ```
 
 フロントエンドの`.env.development.local`ファイルを作成:

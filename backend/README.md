@@ -19,17 +19,50 @@
 
 ## APIエンドポイント
 
+### 認証
+
 | メソッド | パス | 説明 |
 |---------|------|------|
-| POST | `/stock` | 株式情報を追加 |
-| GET | `/stock/{query}` | 株式情報を検索 |
-| POST | `/jquants/auth` | J-Quants認証 |
-| POST | `/jquants/refresh` | J-Quantsトークン更新 |
-| GET | `/jquants/fins/statements` | 財務諸表を取得 |
 | GET | `/auth/google` | Google OAuth開始 |
 | GET | `/auth/google/callback` | OAuthコールバック |
 | GET | `/auth/me` | 現在のユーザー情報 |
 | POST | `/auth/logout` | ログアウト |
+| DELETE | `/auth/delete-account` | アカウント削除 |
+
+### 証券情報
+
+| メソッド | パス | 説明 | 認証 |
+|---------|------|------|------|
+| GET | `/stock/{query}` | 株式情報を検索 | 不要 |
+| POST | `/stock` | 株式情報を追加 | **必須** |
+
+### データ管理（すべて認証必須）
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/dividends` | 配当金一覧を取得 |
+| POST | `/dividends/bulk` | 配当金を一括追加 |
+| DELETE | `/dividends/all` | 配当金を全削除 |
+| GET | `/domestic-stocks` | 国内株式一覧を取得 |
+| POST | `/domestic-stocks/bulk` | 国内株式を一括追加 |
+| DELETE | `/domestic-stocks/all` | 国内株式を全削除 |
+| GET | `/mutualfunds` | 投資信託一覧を取得 |
+| POST | `/mutualfunds/bulk` | 投資信託を一括追加 |
+| DELETE | `/mutualfunds/all` | 投資信託を全削除 |
+| GET | `/asset-balances` | 保有銘柄一覧を取得 |
+| POST | `/asset-balances/bulk` | 保有銘柄を一括追加（UPSERT） |
+| DELETE | `/asset-balances/all` | 保有銘柄を全削除 |
+
+### J-Quants API
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/jquants/fins/statements` | 決算サマリーを取得 |
+
+### その他
+
+| メソッド | パス | 説明 |
+|---------|------|------|
 | GET | `/health` | ヘルスチェック |
 
 ## 開発
@@ -43,14 +76,24 @@
 ### 環境変数
 
 ```bash
+# 必須
 DATABASE_URL=postgresql://user:pass@host/db
-JQUANTS_EMAIL=your-email
-JQUANTS_PASSWORD=your-password
+FRONTEND_URL=http://localhost:8080
+
+# Google OAuth（認証機能を使う場合）
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
-FRONTEND_URL=http://localhost:8080
-BACKEND_URL=http://localhost:3001  # 本番環境のみ
-PORT=3001
+
+# J-Quants API（決算サマリー取得に必要）
+JQUANTS_API_KEY=your-api-key
+
+# オプション
+PORT=3001                          # デフォルト: 3001
+BACKEND_URL=https://example.com    # 本番環境のURL（https://で始まる場合Secure Cookie有効）
+
+# 本番環境判定（いずれかを設定）
+RUST_ENV=production                # または APP_ENV=production
+SECURE_COOKIE=true                 # Cookie の Secure 属性を明示的に制御
 ```
 
 ### コマンド
