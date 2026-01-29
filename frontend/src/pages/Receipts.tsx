@@ -293,8 +293,8 @@ export function ReceiptsPage() {
         </div>
       </nav>
       <div className="mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-full max-w-[400px]">
+        <div className="action-toolbar">
+          <div className="form-input-container">
             <CSVFileInput
               onFileSelect={handleFileSelect}
               selectedFileName={fileName}
@@ -302,7 +302,7 @@ export function ReceiptsPage() {
             />
           </div>
           {isAuthenticated && (
-            <div className="flex items-center gap-2" role="group" aria-label="データ操作">
+            <div className="action-toolbar" role="group" aria-label="データ操作">
               {hasCsvData && (
                 <Button
                   variant="primary"
@@ -337,7 +337,7 @@ export function ReceiptsPage() {
 
         <div aria-live="polite" aria-atomic="true">
           {(isLoading || dbLoading || authLoading) && (
-            <div className="my-4 flex flex-col items-center gap-2" role="status">
+            <div className="status-message" role="status">
               <Spinner size="md" className="text-primary" />
               <p className="text-sm text-secondary">
                 {authLoading && '認証状態を確認しています...'}
