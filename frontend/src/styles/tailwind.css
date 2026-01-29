@@ -95,6 +95,44 @@
   }
 }
 
+@layer components {
+  .panel-card {
+    @apply bg-white border border-border rounded-lg shadow-sm;
+  }
+
+  .panel-card-header {
+    @apply bg-primary text-white px-4 py-2 text-sm font-semibold;
+  }
+
+  .panel-card-body {
+    @apply px-4 py-3;
+  }
+
+  .panel-section-title {
+    @apply text-sm font-semibold text-primary flex items-center gap-1;
+  }
+
+  .panel-toolbar {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .muted-text {
+    @apply text-sm text-secondary;
+  }
+
+  .table-heading {
+    @apply bg-warning/20 text-center text-xs font-semibold uppercase tracking-wide text-dark;
+  }
+
+  .table-chip {
+    @apply inline-flex items-center rounded bg-white/30 px-2 py-0.5 text-[11px] font-semibold text-white;
+  }
+
+  .button-set > *:not(:last-child) {
+    @apply mr-2;
+  }
+}
+
 /* 印刷対応 */
 @media print {
   .no-print {
