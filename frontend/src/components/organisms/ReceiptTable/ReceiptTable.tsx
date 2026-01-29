@@ -191,7 +191,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 
     return (
         <Table
-            className="mb-0"
+            className="mb-0 table-fixed"
             bordered
             small
             responsive
