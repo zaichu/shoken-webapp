@@ -1,6 +1,9 @@
 use crate::{
     errors::ApiError,
-    extractors::{char_width_converter::halfwidth_to_fullwidth, validated_json::ValidatedJson},
+    extractors::{
+        auth::AuthenticatedUser, char_width_converter::halfwidth_to_fullwidth,
+        validated_json::ValidatedJson,
+    },
     models::stock::Stock,
     AppState,
 };
@@ -31,8 +34,10 @@ pub async fn select_stock_info(
     Ok((StatusCode::OK, Json(stock)))
 }
 
+/// 銘柄情報を追加（認証必須）
 pub async fn add_stock_info(
     State(state): State<AppState>,
+    _auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<Stock>,
 ) -> Result<impl IntoResponse, ApiError> {
     let stock = sqlx::query_as::<_, Stock>(
