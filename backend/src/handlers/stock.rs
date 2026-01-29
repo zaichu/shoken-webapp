@@ -293,4 +293,40 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
+
+    /// 未認証時に POST /stock が 401 を返すことを確認
+    #[tokio::test]
+    #[ignore]
+    async fn test_add_stock_info_unauthorized() {
+        let pool = setup_test_db().await;
+        let app = setup_test_app(pool);
+
+        let stock_data = json!({
+            "date": "2025-03-25",
+            "code": "9999",
+            "name": "未認証テスト",
+            "market_category": "プライム",
+            "industry_code_33": null,
+            "industry_category_33": null,
+            "industry_code_17": null,
+            "industry_category_17": null,
+            "size_code": null,
+            "size_category": null
+        });
+
+        // セッション Cookie なしでリクエスト
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/stock")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(stock_data.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
 }
