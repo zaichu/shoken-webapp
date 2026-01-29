@@ -67,7 +67,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('table-striped');
+    expect(table).toHaveClass('[&_tbody_tr:nth-child(even)]:bg-gray-50');
   });
 
   test('borderedプロパティが正しく適用される', () => {
@@ -82,7 +82,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('table-bordered');
+    expect(table).toHaveClass('[&_th]:border');
   });
 
   test('hoverプロパティが正しく適用される', () => {
@@ -97,7 +97,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('table-hover');
+    expect(table).toHaveClass('[&_tbody_tr:hover]:bg-gray-100');
   });
 
   test('smallプロパティが正しく適用される', () => {
@@ -112,7 +112,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('table-sm');
+    expect(table).toHaveClass('text-sm');
   });
 
   test('responsiveプロパティが正しく適用される', () => {
@@ -127,7 +127,7 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('table-responsive');
+    expect(container).toHaveClass('overflow-x-auto');
   });
 
   test('responsive="md"プロパティが正しく適用される', () => {
@@ -142,7 +142,7 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('table-responsive-md');
+    expect(container).toHaveClass('overflow-x-auto');
   });
 
   test('variantプロパティが正しく適用される', () => {
@@ -157,7 +157,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('table-primary');
+    expect(table).toHaveClass('bg-primary/10');
   });
 
   test('forceResizeプロパティが変更されたとき再計算がトリガーされる', async () => {
@@ -244,7 +244,7 @@ describe('Table', () => {
     );
 
     const row = screen.getByRole('row');
-    expect(row).toHaveClass('table-active');
+    expect(row).toHaveClass('bg-primary/10');
   });
 
   test('TableRowのvariantプロパティが正しく適用される', () => {
@@ -259,7 +259,7 @@ describe('Table', () => {
     );
 
     const row = screen.getByRole('row');
-    expect(row).toHaveClass('table-success');
+    expect(row).toHaveClass('bg-success/10');
   });
 
   test('TableHeaderのstickyTopプロパティが正しく適用される', () => {
@@ -274,7 +274,7 @@ describe('Table', () => {
     );
 
     const thead = screen.getByRole('rowgroup');
-    expect(thead).toHaveClass('sticky-top');
+    expect(thead).toHaveClass('sticky', 'top-0');
   });
 
   test('TableHeaderのvariantプロパティが正しく適用される', () => {
@@ -289,7 +289,7 @@ describe('Table', () => {
     );
 
     const thead = screen.getByRole('rowgroup');
-    expect(thead).toHaveClass('table-dark');
+    expect(thead).toHaveClass('bg-gray-800', 'text-white');
   });
 
   test('TableCellのscopeプロパティがthの場合に正しく適用される', () => {

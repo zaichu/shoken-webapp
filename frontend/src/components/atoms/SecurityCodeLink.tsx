@@ -22,11 +22,14 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
     return <span>{code}</span>;
   }
 
+  const baseClassName = 'security-code-link text-primary font-semibold hover:underline';
+  const combinedClassName = className ? `${baseClassName} ${className}` : baseClassName;
+
   return (
     <a
       href={`/search?code=${encodeURIComponent(code)}`}
-      className={className ?? 'security-code-link'}
-      style={{ color: '#0d6efd', fontWeight: 600 }}
+      className={combinedClassName}
+      data-search={code}
     >
       {code}
     </a>

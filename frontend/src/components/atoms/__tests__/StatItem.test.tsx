@@ -23,34 +23,34 @@ describe('StatItem', () => {
     const titleElement = screen.getByText('タイトル');
     const valueElement = screen.getByText('値');
 
-    expect(titleElement).toHaveClass('h6');
-    expect(titleElement).toHaveClass('mb-0');
-    expect(valueElement).toHaveClass('h4');
-    expect(valueElement).toHaveClass('mb-0');
+    expect(titleElement).toHaveClass('text-base', 'font-semibold');
+    expect(valueElement).toHaveClass('text-xl', 'font-bold');
   });
 
   it('カードバリアントが適用される', () => {
     const { container } = render(<StatItem title="タイトル" value="値" variant="card" />);
 
-    const containerElement = container.querySelector('.card.p-3');
+    const containerElement = container.firstChild as HTMLElement;
     const titleElement = screen.getByText('タイトル');
     const valueElement = screen.getByText('値');
 
     expect(containerElement).toBeInTheDocument();
-    expect(titleElement).toHaveClass('card-title', 'h6');
-    expect(valueElement).toHaveClass('card-text', 'h4');
+    expect(containerElement).toHaveClass('bg-white', 'rounded-lg', 'p-3');
+    expect(titleElement).toHaveClass('text-base', 'font-semibold', 'text-secondary');
+    expect(valueElement).toHaveClass('text-xl', 'font-bold');
   });
 
   it('インラインバリアントが適用される', () => {
     const { container } = render(<StatItem title="タイトル" value="値" variant="inline" />);
 
-    const containerElement = container.querySelector('.d-flex.justify-content-between.align-items-center');
+    const containerElement = container.firstChild as HTMLElement;
     const titleElement = screen.getByText('タイトル');
     const valueElement = screen.getByText('値');
 
     expect(containerElement).toBeInTheDocument();
-    expect(titleElement).toHaveClass('mb-0', 'text-muted');
-    expect(valueElement).toHaveClass('mb-0', 'fw-bold');
+    expect(containerElement).toHaveClass('flex', 'justify-between', 'items-center');
+    expect(titleElement).toHaveClass('text-secondary');
+    expect(valueElement).toHaveClass('font-bold');
   });
 
   it('カスタムクラス名が適用される', () => {
@@ -112,8 +112,9 @@ describe('StatItemWithRate', () => {
       <StatItemWithRate title="売上高" value={1000} rate={10} variant="card" />
     );
 
-    const cardElement = container.querySelector('.card.p-3');
+    const cardElement = container.firstChild as HTMLElement;
     expect(cardElement).toBeInTheDocument();
+    expect(cardElement).toHaveClass('bg-white', 'rounded-lg', 'p-3');
   });
 
   it('カスタムクラス名が適用される', () => {

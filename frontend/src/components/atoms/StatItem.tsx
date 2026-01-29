@@ -16,30 +16,30 @@ export interface StatItemProps {
 export const StatItem: React.FC<StatItemProps> = ({
   title,
   value,
-  className = 'col',
-  titleClassName = 'mb-0',
-  valueClassName = 'mb-0',
+  className = '',
+  titleClassName = '',
+  valueClassName = '',
   variant = 'default'
 }) => {
   const getVariantClasses = () => {
     switch (variant) {
       case 'card':
         return {
-          container: 'card p-3 stat-item-card',
-          title: 'card-title h6',
-          value: 'card-text h4'
+          container: 'bg-white rounded-lg shadow-sm border border-border p-3 transition-transform hover:-translate-y-0.5',
+          title: 'text-base font-semibold text-secondary',
+          value: 'text-xl font-bold'
         };
       case 'inline':
         return {
-          container: 'd-flex justify-content-between align-items-center stat-item-inline',
-          title: 'mb-0 text-muted',
-          value: 'mb-0 fw-bold'
+          container: 'flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0',
+          title: 'text-secondary',
+          value: 'font-bold'
         };
       default:
         return {
           container: '',
-          title: 'h6',
-          value: 'h4'
+          title: 'text-base font-semibold',
+          value: 'text-xl font-bold'
         };
     }
   };
@@ -47,7 +47,7 @@ export const StatItem: React.FC<StatItemProps> = ({
   const variantClasses = getVariantClasses();
 
   return (
-    <div className={`${className} ${variantClasses.container}`.trim()}>
+    <div className={`${variantClasses.container} ${className}`.trim()}>
       <div className={`${variantClasses.title} ${titleClassName}`.trim()}>
         {title}
       </div>
@@ -80,7 +80,7 @@ export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
   rate,
   format = (v) => v.toLocaleString('ja-JP'),
   rateFormat = (r) => `${r.toFixed(2)}%`,
-  className = 'col',
+  className = '',
   showRate = true,
   variant = 'default'
 }) => {

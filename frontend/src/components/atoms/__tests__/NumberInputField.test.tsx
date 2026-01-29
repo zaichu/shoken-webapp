@@ -143,7 +143,7 @@ describe('NumberInputField', () => {
     render(<NumberInputField {...defaultProps} error="必須項目です" />);
     
     expect(screen.getByText('必須項目です')).toBeInTheDocument();
-    expect(screen.getByText('必須項目です')).toHaveClass('invalid-feedback');
+    expect(screen.getByText('必須項目です')).toHaveClass('text-danger');
   });
 
   it('ヘルプテキストが表示される', () => {
