@@ -1,4 +1,5 @@
 import { HTMLAttributes, ReactNode } from 'react';
+import { cn } from '../../lib/utils/classNames';
 
 export type CardVariant = 'default' | 'primary';
 
@@ -19,10 +20,13 @@ export interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-export function Card({ children, className = '', ...rest }: CardProps) {
+export function Card({ children, className, ...rest }: CardProps) {
   return (
     <div
-      className={`rounded-lg border border-border bg-white shadow-sm print:border-black print:shadow-none ${className}`.trim()}
+      className={cn(
+        'rounded-lg border border-border bg-white shadow-sm print:border-black print:shadow-none',
+        className
+      )}
       {...rest}
     >
       {children}
@@ -30,14 +34,14 @@ export function Card({ children, className = '', ...rest }: CardProps) {
   );
 }
 
-export function CardHeader({ children, variant = 'default', className = '', ...rest }: CardHeaderProps) {
+export function CardHeader({ children, variant = 'default', className, ...rest }: CardHeaderProps) {
   const variantClass = variant === 'primary'
     ? 'bg-primary text-white'
     : 'border-b border-border bg-white text-dark';
 
   return (
     <div
-      className={`px-4 py-2 ${variantClass} ${className}`.trim()}
+      className={cn('px-4 py-2', variantClass, className)}
       {...rest}
     >
       {children}
@@ -45,18 +49,18 @@ export function CardHeader({ children, variant = 'default', className = '', ...r
   );
 }
 
-export function CardBody({ children, className = '', ...rest }: CardBodyProps) {
+export function CardBody({ children, className, ...rest }: CardBodyProps) {
   return (
-    <div className={`${className}`.trim()} {...rest}>
+    <div className={cn(className)} {...rest}>
       {children}
     </div>
   );
 }
 
-export function CardFooter({ children, className = '', ...rest }: CardFooterProps) {
+export function CardFooter({ children, className, ...rest }: CardFooterProps) {
   return (
     <div
-      className={`border-t border-border px-4 py-3 ${className}`.trim()}
+      className={cn('border-t border-border px-4 py-3', className)}
       {...rest}
     >
       {children}

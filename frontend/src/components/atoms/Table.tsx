@@ -1,5 +1,6 @@
 import { ReactNode, HTMLAttributes, TableHTMLAttributes, forwardRef } from 'react';
 import { useTableAutoResize } from '../../hooks/common/useTableAutoResize';
+import { cn } from '../../lib/utils/classNames';
 
 export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
@@ -64,7 +65,7 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       maxHeight,
       bottomMargin = 20,
       forceResize,
-      className = '',
+      className,
       ...rest
     },
     ref
@@ -78,24 +79,20 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
     });
 
     // CSSクラスの構築
-    const buildTableClasses = () => {
-      const classes = ['w-full text-left border-collapse'];
-
-      if (bordered) classes.push('[&_th]:border [&_th]:border-gray-200 [&_td]:border [&_td]:border-gray-200 print:[&_th]:border-black print:[&_td]:border-black');
-      if (small) classes.push('text-sm [&_th]:py-1 [&_th]:px-2 [&_td]:py-1 [&_td]:px-2');
-      else classes.push('[&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3');
-      if (variant) classes.push(variantBgColors[variant] || '');
-      if (className) classes.push(className);
-
-      return classes.join(' ');
-    };
-
-    // striped と hover は tbody に適用
-    const stripedClass = striped ? '[&_tbody_tr:nth-child(even)]:bg-gray-50' : '';
-    const hoverClass = hover ? '[&_tbody_tr:hover]:bg-gray-100' : '';
+    const tableClasses = cn(
+      'w-full text-left border-collapse',
+      bordered && '[&_th]:border [&_th]:border-gray-200 [&_td]:border [&_td]:border-gray-200 print:[&_th]:border-black print:[&_td]:border-black',
+      small
+        ? 'text-sm [&_th]:py-1 [&_th]:px-2 [&_td]:py-1 [&_td]:px-2'
+        : '[&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3',
+      variant && variantBgColors[variant],
+      striped && '[&_tbody_tr:nth-child(even)]:bg-gray-50',
+      hover && '[&_tbody_tr:hover]:bg-gray-100',
+      className
+    );
 
     const table = (
-      <table ref={ref} className={`${buildTableClasses()} ${stripedClass} ${hoverClass}`} {...rest}>
+      <table ref={ref} className={tableClasses} {...rest}>
         {children}
       </table>
     );
@@ -128,20 +125,16 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
 Table.displayName = 'Table';
 
 const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
-  ({ children, variant, stickyTop = true, className = '', ...rest }, ref) => {
-    const buildHeaderClasses = () => {
-      const classes = [];
-
-      if (variant === 'light') classes.push('bg-gray-100');
-      if (variant === 'dark') classes.push('bg-gray-800 text-white');
-      if (stickyTop) classes.push('sticky top-0 z-10 bg-white');
-      if (className) classes.push(className);
-
-      return classes.join(' ');
-    };
+  ({ children, variant, stickyTop = true, className, ...rest }, ref) => {
+    const headerClasses = cn(
+      variant === 'light' && 'bg-gray-100',
+      variant === 'dark' && 'bg-gray-800 text-white',
+      stickyTop && 'sticky top-0 z-10 bg-white',
+      className
+    );
 
     return (
-      <thead ref={ref} className={buildHeaderClasses()} {...rest}>
+      <thead ref={ref} className={headerClasses} {...rest}>
         {children}
       </thead>
     );
@@ -151,9 +144,9 @@ const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
 TableHeader.displayName = 'TableHeader';
 
 const TableBody = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTableSectionElement>>(
-  ({ children, className = '', ...rest }, ref) => {
+  ({ children, className, ...rest }, ref) => {
     return (
-      <tbody ref={ref} className={className} {...rest}>
+      <tbody ref={ref} className={cn(className)} {...rest}>
         {children}
       </tbody>
     );
@@ -163,19 +156,16 @@ const TableBody = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTableSe
 TableBody.displayName = 'TableBody';
 
 const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
-  ({ children, active = false, variant, className = '', ...rest }, ref) => {
-    const buildRowClasses = () => {
-      const classes = ['[&_th]:align-middle [&_td]:align-middle'];
-
-      if (active) classes.push('bg-primary/10');
-      if (variant) classes.push(variantBgColors[variant] || '');
-      if (className) classes.push(className);
-
-      return classes.join(' ');
-    };
+  ({ children, active = false, variant, className, ...rest }, ref) => {
+    const rowClasses = cn(
+      '[&_th]:align-middle [&_td]:align-middle',
+      active && 'bg-primary/10',
+      variant && variantBgColors[variant],
+      className
+    );
 
     return (
-      <tr ref={ref} className={buildRowClasses()} {...rest}>
+      <tr ref={ref} className={rowClasses} {...rest}>
         {children}
       </tr>
     );
@@ -191,7 +181,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
       as = 'td',
       scope = 'col',
       colSpan = 1,
-      className = '',
+      className,
       dangerouslySetInnerHTML,
       ...rest
     },
@@ -199,13 +189,13 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ) => {
     const Cell = as;
     const scopeAttr = as === 'th' ? { scope } : {};
-    const thClasses = as === 'th' ? 'font-semibold text-gray-700' : '';
+    const cellClasses = cn(as === 'th' && 'font-semibold text-gray-700', className);
 
     if (dangerouslySetInnerHTML) {
       return (
         <Cell
           ref={ref}
-          className={`${thClasses} ${className}`}
+          className={cellClasses}
           {...scopeAttr}
           {...rest}
           colSpan={colSpan}
@@ -215,7 +205,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
     }
 
     return (
-      <Cell ref={ref} className={`${thClasses} ${className}`} {...scopeAttr} {...rest} colSpan={colSpan}>
+      <Cell ref={ref} className={cellClasses} {...scopeAttr} {...rest} colSpan={colSpan}>
         {children}
       </Cell>
     );

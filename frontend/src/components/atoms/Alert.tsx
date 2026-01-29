@@ -1,4 +1,5 @@
 import { HTMLAttributes, ReactNode } from 'react';
+import { cn } from '../../lib/utils/classNames';
 
 export type AlertVariant = 'info' | 'warning' | 'danger' | 'success';
 
@@ -14,10 +15,10 @@ const variantClasses: Record<AlertVariant, string> = {
   success: 'bg-success/10 text-success border-success/30',
 };
 
-export function Alert({ children, variant = 'info', className = '', ...rest }: AlertProps) {
+export function Alert({ children, variant = 'info', className, ...rest }: AlertProps) {
   return (
     <div
-      className={`rounded-md border px-4 py-3 text-sm ${variantClasses[variant]} ${className}`.trim()}
+      className={cn('rounded-md border px-4 py-3 text-sm', variantClasses[variant], className)}
       role="alert"
       {...rest}
     >
