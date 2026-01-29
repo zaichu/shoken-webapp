@@ -59,7 +59,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
-        const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
 
         const cellStyle: React.CSSProperties = {
             width: 'width' in column ? column.width : undefined,
@@ -72,11 +71,20 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             colSpan: 'colSpan' in column ? column.colSpan : undefined
         };
 
-        return isHtml ? (
-            <TableCell key={key} {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
-        ) : (
-            <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>
-        );
+        // ReactElementの場合はそのまま描画
+        if (React.isValidElement(formattedValue)) {
+            return <TableCell key={key} {...props}>{formattedValue}</TableCell>;
+        }
+
+        // 文字列でHTMLを含む場合（後方互換性のため残す）
+        const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
+        if (isHtml) {
+            return (
+                <TableCell key={key} {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
+            );
+        }
+
+        return <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>;
     };
 
     const renderDataRows = (items: T[], keyPrefix: string) =>

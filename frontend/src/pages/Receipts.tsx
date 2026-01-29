@@ -22,6 +22,36 @@ import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 
 type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
+// 明細種類ごとの静的設定
+interface ReceiptTypeStaticConfig {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  api: {
+    list: () => Promise<any[]>;
+    bulkCreate: (items: any[]) => Promise<any>;
+    deleteAll: () => Promise<any>;
+  };
+  parser: (item: Record<string, unknown>) => unknown;
+  transformer: (item: Record<string, unknown>) => unknown;
+}
+
+const RECEIPT_TYPE_CONFIG: Record<ReceiptsType, ReceiptTypeStaticConfig> = {
+  dividend: {
+    api: dividendApi,
+    parser: parseDividendCsvItem,
+    transformer: transformDBDividend,
+  },
+  domesticstock: {
+    api: domesticStockApi,
+    parser: parseDomesticStockCsvItem,
+    transformer: transformDBDomesticStock,
+  },
+  mutualfund: {
+    api: mutualfundApi,
+    parser: parseMutualfundCsvItem,
+    transformer: transformDBMutualfund,
+  },
+};
+
 /**
  * 明細種類ごとにCSVデータを管理するページコンポーネント
  * ログイン時はDBからデータを取得、未ログイン時はCSVから取得
@@ -50,6 +80,35 @@ export function ReceiptsPage() {
   const dividendCSV = useCSVReader();
   const domesticStockCSV = useCSVReader();
   const mutualfundCSV = useCSVReader();
+
+  // ランタイムデータマッピング（switch削減用）
+  const runtimeDataMap = useMemo(() => ({
+    dividend: {
+      csvReader: dividendCSV,
+      csvData: dividendCsvData,
+      setCsvData: setDividendCsvData,
+      dbData: dividendDBData,
+      setDbData: setDividendDBData,
+    },
+    domesticstock: {
+      csvReader: domesticStockCSV,
+      csvData: domesticStockCsvData,
+      setCsvData: setDomesticStockCsvData,
+      dbData: domesticStockDBData,
+      setDbData: setDomesticStockDBData,
+    },
+    mutualfund: {
+      csvReader: mutualfundCSV,
+      csvData: mutualfundCsvData,
+      setCsvData: setMutualfundCsvData,
+      dbData: mutualfundDBData,
+      setDbData: setMutualfundDBData,
+    },
+  }), [
+    dividendCSV, dividendCsvData, dividendDBData,
+    domesticStockCSV, domesticStockCsvData, domesticStockDBData,
+    mutualfundCSV, mutualfundCsvData, mutualfundDBData,
+  ]);
 
   // フェッチ済みフラグ（多重実行防止）
   const hasFetched = useRef(false);
@@ -117,21 +176,10 @@ export function ReceiptsPage() {
    * 現在選択中のタブに応じてCSV処理を切り替える
    */
   const handleFileSelect = async (file: File) => {
+    const { csvReader, setCsvData } = runtimeDataMap[receiptsType];
     try {
-      switch (receiptsType) {
-        case 'dividend':
-          setDividendCsvData(await dividendCSV.parseCSV(file));
-          if (dividendCSV.error) dividendCSV.resetError();
-          break;
-        case 'domesticstock':
-          setDomesticStockCsvData(await domesticStockCSV.parseCSV(file));
-          if (domesticStockCSV.error) domesticStockCSV.resetError();
-          break;
-        case 'mutualfund':
-          setMutualfundCsvData(await mutualfundCSV.parseCSV(file));
-          if (mutualfundCSV.error) mutualfundCSV.resetError();
-          break;
-      }
+      setCsvData(await csvReader.parseCSV(file));
+      if (csvReader.error) csvReader.resetError();
     } catch (e) {
       setDbError(getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました'));
     }
@@ -146,27 +194,13 @@ export function ReceiptsPage() {
     setSaving(true);
     setDbError(null);
 
+    const config = RECEIPT_TYPE_CONFIG[receiptsType];
+    const { csvData, setCsvData } = runtimeDataMap[receiptsType];
+
     try {
-      switch (receiptsType) {
-        case 'dividend': {
-          const items = dividendCsvData.map(parseDividendCsvItem);
-          await dividendApi.bulkCreate(items);
-          setDividendCsvData([]);
-          break;
-        }
-        case 'domesticstock': {
-          const items = domesticStockCsvData.map(parseDomesticStockCsvItem);
-          await domesticStockApi.bulkCreate(items);
-          setDomesticStockCsvData([]);
-          break;
-        }
-        case 'mutualfund': {
-          const items = mutualfundCsvData.map(parseMutualfundCsvItem);
-          await mutualfundApi.bulkCreate(items);
-          setMutualfundCsvData([]);
-          break;
-        }
-      }
+      const items = csvData.map(config.parser);
+      await config.api.bulkCreate(items);
+      setCsvData([]);
       await fetchFromDB(true);
     } catch (err) {
       setDbError(getDisplayErrorMessage(err, '保存に失敗しました'));
@@ -184,21 +218,13 @@ export function ReceiptsPage() {
 
     setDeleting(true);
     setDbError(null);
+
+    const config = RECEIPT_TYPE_CONFIG[receiptsType];
+    const { setDbData } = runtimeDataMap[receiptsType];
+
     try {
-      switch (receiptsType) {
-        case 'dividend':
-          await dividendApi.deleteAll();
-          setDividendDBData([]);
-          break;
-        case 'domesticstock':
-          await domesticStockApi.deleteAll();
-          setDomesticStockDBData([]);
-          break;
-        case 'mutualfund':
-          await mutualfundApi.deleteAll();
-          setMutualfundDBData([]);
-          break;
-      }
+      await config.api.deleteAll();
+      setDbData([]);
     } catch (err) {
       setDbError(getDisplayErrorMessage(err, '削除に失敗しました'));
     } finally {
@@ -210,41 +236,22 @@ export function ReceiptsPage() {
    * 現在選択中のタブに対応するエラーとローディング状態を取得
    */
   const currentCSVState = useMemo(() => {
-    switch (receiptsType) {
-      case 'dividend':
-        return { isLoading: dividendCSV.isLoading, error: dividendCSV.error, fileName: dividendCSV.fileName, csvData: dividendCsvData };
-      case 'domesticstock':
-        return { isLoading: domesticStockCSV.isLoading, error: domesticStockCSV.error, fileName: domesticStockCSV.fileName, csvData: domesticStockCsvData };
-      case 'mutualfund':
-        return { isLoading: mutualfundCSV.isLoading, error: mutualfundCSV.error, fileName: mutualfundCSV.fileName, csvData: mutualfundCsvData };
-    }
-  }, [
-    receiptsType,
-    dividendCSV.isLoading,
-    dividendCSV.error,
-    dividendCSV.fileName,
-    dividendCsvData,
-    domesticStockCSV.isLoading,
-    domesticStockCSV.error,
-    domesticStockCSV.fileName,
-    domesticStockCsvData,
-    mutualfundCSV.isLoading,
-    mutualfundCSV.error,
-    mutualfundCSV.fileName,
-    mutualfundCsvData
-  ]);
+    const { csvReader, csvData } = runtimeDataMap[receiptsType];
+    return {
+      isLoading: csvReader.isLoading,
+      error: csvReader.error,
+      fileName: csvReader.fileName,
+      csvData,
+    };
+  }, [runtimeDataMap, receiptsType]);
 
   const { isLoading, error, fileName, csvData } = currentCSVState;
   const hasCsvData = csvData.length > 0;
 
   // 現在のタブのDBデータがあるか判定
   const hasDbData = useMemo(() => {
-    switch (receiptsType) {
-      case 'dividend': return dividendDBData.length > 0;
-      case 'domesticstock': return domesticStockDBData.length > 0;
-      case 'mutualfund': return mutualfundDBData.length > 0;
-    }
-  }, [receiptsType, dividendDBData.length, domesticStockDBData.length, mutualfundDBData.length]);
+    return runtimeDataMap[receiptsType].dbData.length > 0;
+  }, [runtimeDataMap, receiptsType]);
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
   const dividendData = useMemo(

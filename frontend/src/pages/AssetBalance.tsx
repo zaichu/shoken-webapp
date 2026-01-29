@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
-import { useCSVReader } from '../hooks/useCSVReader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
@@ -15,11 +14,11 @@ import {
 } from '@/lib/utils/dataTransformer';
 import {
   formatCurrency,
-  formatNumber,
-  createSecurityCodeLink
+  formatNumber
 } from '@/lib/utils/formatters';
+import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
-import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -71,17 +70,12 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
       header: '銘柄コード',
       width: '90px',
       textAlign: 'center',
-      format: createSecurityCodeLink
+      format: renderSecurityCode
     },
     { key: 'security_name', header: '銘柄名', width: '200px' },
     { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
-    // { key: 'executing_shares', header: '執行中', width: '60px', textAlign: 'right', format: formatNumber },
     { key: 'average_purchase_price', header: '平均取得価額', width: '100px', textAlign: 'right', format: formatCurrency },
     { key: 'total_purchase_amount', header: '取得総額', width: '100px', textAlign: 'right', format: formatCurrency },
-    // { key: 'current_price', header: '現在値', width: '80px', textAlign: 'right', format: formatCurrency },
-    // { key: 'daily_change', header: '前日比', width: '80px', textAlign: 'right', format: formatCurrency },
-    // { key: 'market_value', header: '時価評価額', width: '100px', textAlign: 'right', format: formatCurrency },
-    // { key: 'profit_loss_rate', header: '評価損益率', width: '90px', textAlign: 'right', format: (value: number) => `${formatNumber(value)}%` },
   ];
 
   return (
@@ -105,121 +99,46 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
  * 保有銘柄管理ページコンポーネント
  */
 export function AssetBalancePage() {
-  const { isAuthenticated, isLoading: authLoading, login, onLogout } = useAuth();
-  const [assetBalanceCsvData, setAssetBalanceCsvData] = useState<Record<string, unknown>[]>([]);
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+
+  // 共通フック
+  const {
+    dbData,
+    csvData,
+    loading,
+    error,
+    saving,
+    deleting,
+    csvReader,
+    hasCsvData,
+    hasDbData,
+    handleFileSelect,
+    handleSaveToDB,
+    handleDeleteAll,
+  } = useReceiptDataSource<AssetBalanceData>({
+    api: assetBalanceApi,
+    parseCsvItem,
+    filterCsvItem: (item) => item.security_code !== '',
+    csvReaderOptions: { skipHeaderRows: 6 },
+    deleteConfirmMessage: '保存された保有銘柄データを削除しますか？',
+  });
+
+  // CSVデータの変換（空の銘柄コードをフィルタ）
+  const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
-  const [savedData, setSavedData] = useState<AssetBalanceData[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
-  const [dbError, setDbError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const tmpAssetBalanceData = useReceiptData(assetBalanceCsvData, parseCsvItem, sortBySecurityCode);
-  const options = {
-    skipHeaderRows: 6,
-  };
-  const assetBalanceCSV = useCSVReader(options);
-  // フェッチ済みフラグ（多重実行防止）
-  const hasFetched = useRef(false);
-  const isFetchingRef = useRef(false);
 
-  // DBから保有銘柄データを取得
-  const fetchAssetBalances = useCallback(async (force = false) => {
-    // 認証状態が確定していない場合は待機
-    if (authLoading) return;
-    // 未認証の場合はスキップ
-    if (!isAuthenticated) return;
-    // 既にフェッチ済みで強制更新でない場合はスキップ
-    if (hasFetched.current && !force) return;
-
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    setDbLoading(true);
-    setDbError(null);
-    try {
-      const data = await assetBalanceApi.list();
-      setSavedData(data || []);
-      setAssetBalanceData(data || []);
-      hasFetched.current = true;
-    } catch (error) {
-      setDbError(getDisplayErrorMessage(error, 'データ取得に失敗しました'));
-    } finally {
-      setDbLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [isAuthenticated, authLoading]);
-
-  // 認証状態が確定したらDBからデータを取得
+  // CSVデータが読み込まれたらフィルタして設定
   useEffect(() => {
-    if (!authLoading) {
-      fetchAssetBalances();
-    }
-  }, [authLoading, fetchAssetBalances]);
-
-  // ログアウト時に全データをクリア
-  useEffect(() => {
-    return onLogout(() => {
-      setSavedData([]);
-      setAssetBalanceData([]);
-      setAssetBalanceCsvData([]);
-      setDbError(null);
-      hasFetched.current = false;
-      assetBalanceCSV.reset();
-    });
-  }, [onLogout, assetBalanceCSV]);
-
-  const handleFileSelect = async (file: File) => {
-    try {
-      setAssetBalanceCsvData(await assetBalanceCSV.parseCSV(file));
-      if (assetBalanceCSV.error) assetBalanceCSV.resetError();
-    } catch (error) {
-      setDbError(getDisplayErrorMessage(error, 'CSVファイルの読み込みに失敗しました'));
-    }
-  };
-
-  useEffect(() => {
-    if (assetBalanceCsvData.length > 0) {
+    if (csvData.length > 0) {
       setAssetBalanceData(tmpAssetBalanceData.filter(item => item.security_code !== ''));
-    }
-  }, [tmpAssetBalanceData, assetBalanceCsvData]);
-
-  const handleSaveToDb = async () => {
-    if (!isAuthenticated) return;
-    if (assetBalanceCsvData.length === 0) return;
-    setSaving(true);
-    setDbError(null);
-    try {
-      await assetBalanceApi.bulkCreate(assetBalanceData);
-      setAssetBalanceCsvData([]);
-      await fetchAssetBalances(true);
-    } catch (error) {
-      setDbError(getDisplayErrorMessage(error, '保存に失敗しました'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteAll = async () => {
-    if (!isAuthenticated) return;
-    if (!window.confirm('保存された保有銘柄データを削除しますか？')) return;
-    setDeleting(true);
-    setDbError(null);
-    try {
-      await assetBalanceApi.deleteAll();
-      setSavedData([]);
+    } else if (dbData.length > 0) {
+      setAssetBalanceData(dbData);
+    } else {
       setAssetBalanceData([]);
-      setAssetBalanceCsvData([]);
-      assetBalanceCSV.reset();
-    } catch (error) {
-      setDbError(getDisplayErrorMessage(error, '削除に失敗しました'));
-    } finally {
-      setDeleting(false);
     }
-  };
+  }, [csvData, tmpAssetBalanceData, dbData]);
 
-  const hasCsvData = assetBalanceCsvData.length > 0;
-  const hasDbData = savedData.length > 0;
-
-  const isProcessing = dbLoading || saving || deleting || assetBalanceCSV.isLoading || authLoading;
+  const isProcessing = loading || saving || deleting || csvReader.isLoading || authLoading;
 
   return (
     <Layout>
@@ -253,15 +172,15 @@ export function AssetBalancePage() {
               <div className="page-control-panel">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
-                  selectedFileName={assetBalanceCSV.fileName || ''}
-                  disabled={dbLoading || saving || deleting}
+                  selectedFileName={csvReader.fileName || ''}
+                  disabled={loading || saving || deleting}
                 />
               </div>
               <div className="btn-group" role="group" aria-label="データ操作">
                 {hasCsvData && (
                   <button
                     className="btn btn-primary btn-sm"
-                    onClick={handleSaveToDb}
+                    onClick={handleSaveToDB}
                     disabled={saving || deleting}
                     aria-disabled={saving || deleting}
                   >
@@ -281,21 +200,21 @@ export function AssetBalancePage() {
               </div>
             </div>
 
-            {(assetBalanceCSV.error || dbError) && (
+            {(csvReader.error || error) && (
               <div className="alert alert-danger my-3" role="alert" aria-live="assertive">
-                <strong>エラー:</strong> {assetBalanceCSV.error || dbError}
+                <strong>エラー:</strong> {csvReader.error || error}
               </div>
             )}
 
             <div aria-live="polite" aria-atomic="true">
-              {(dbLoading || saving || deleting || assetBalanceCSV.isLoading) && (
+              {(loading || saving || deleting || csvReader.isLoading) && (
                 <div className="text-center my-4" role="status">
                   <div className="spinner-border text-primary" aria-hidden="true" />
                   <p className="mt-2 text-muted">
-                    {dbLoading && 'データを読み込んでいます...'}
+                    {loading && 'データを読み込んでいます...'}
                     {saving && 'データを保存しています...'}
                     {deleting && 'データを削除しています...'}
-                    {assetBalanceCSV.isLoading && 'CSVファイルを処理しています...'}
+                    {csvReader.isLoading && 'CSVファイルを処理しています...'}
                   </p>
                 </div>
               )}

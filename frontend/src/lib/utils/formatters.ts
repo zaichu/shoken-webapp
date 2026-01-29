@@ -53,6 +53,9 @@ export function normalizeSecurityCode(value: unknown): string {
   return token.replace(/\s+/g, '').toUpperCase();
 }
 
+/**
+ * @deprecated SecurityCodeLinkコンポーネントまたはrenderSecurityCodeを使用してください
+ */
 export function createSecurityCodeLink(value: unknown): string {
   const code = typeof value === 'string' ? value.trim() : '';
   if (!code) return '';

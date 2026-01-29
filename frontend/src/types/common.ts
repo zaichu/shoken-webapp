@@ -1,5 +1,7 @@
+import React from 'react';
+
 // 共通の型定義
-export type FormatFunction<T = unknown> = (value: T) => string | number;
+export type FormatFunction<T = unknown> = (value: T) => string | number | React.ReactNode;
 
 export interface HeaderItem {
   title: string;
