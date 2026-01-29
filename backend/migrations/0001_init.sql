@@ -1,3 +1,6 @@
+-- pgcrypto 拡張を有効化（gen_random_uuid() のため、PostgreSQL 12 以前で必要）
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- CITEXT 拡張を有効化（大文字小文字を区別しない検索用）
 CREATE EXTENSION IF NOT EXISTS citext;
 

@@ -12,23 +12,28 @@ impl JQuantsService {
         params: FinSummaryQuery,
         api_key: &str,
     ) -> Result<FinSummaryResponse, ApiError> {
-        let mut url = format!(
-            "https://api.jquants.com/v2/fins/summary?code={}",
-            params.code
-        );
+        let base_url = "https://api.jquants.com/v2/fins/summary";
 
-        if let Some(from) = params.from {
-            url.push_str(&format!("&from={}", from));
+        // クエリパラメータを構築（reqwest が自動でエンコード）
+        let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
+        let from_str;
+        let to_str;
+
+        if let Some(ref from) = params.from {
+            from_str = from.clone();
+            query_params.push(("from", &from_str));
         }
 
-        if let Some(to) = params.to {
-            url.push_str(&format!("&to={}", to));
+        if let Some(ref to) = params.to {
+            to_str = to.clone();
+            query_params.push(("to", &to_str));
         }
 
-        tracing::info!("JQuants API V2 URL: {}", url);
+        tracing::info!("JQuants API V2 リクエスト: code={}", params.code);
 
         let response = client
-            .get(&url)
+            .get(base_url)
+            .query(&query_params)
             .header("x-api-key", api_key)
             .send()
             .await

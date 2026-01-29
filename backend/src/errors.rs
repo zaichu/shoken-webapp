@@ -1,11 +1,27 @@
-use std::env;
-
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use oauth2::{
     basic::BasicErrorResponseType, url::ParseError, RequestTokenError, StandardErrorResponse,
 };
 use serde::{Deserialize, Serialize};
+use std::env;
 use thiserror::Error;
+
+/// 本番環境かどうかを判定
+/// RUST_ENV=production または APP_ENV=production の場合に true
+/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
+fn is_production() -> bool {
+    // 明示的な環境フラグを優先
+    if let Ok(v) = env::var("RUST_ENV") {
+        return v == "production";
+    }
+    if let Ok(v) = env::var("APP_ENV") {
+        return v == "production";
+    }
+    // フォールバック: BACKEND_URL が https:// で始まる場合のみ本番と判定
+    env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
+        .unwrap_or(false)
+}
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -79,6 +95,13 @@ impl IntoResponse for ApiError {
                     }
                     _ => ("DATABASE_ERROR", "Database error occurred"),
                 };
+                // ログにエラー詳細を出力
+                // 本番環境ではエラーコードのみ（個人情報漏洩防止）
+                if is_production() {
+                    tracing::error!("Database error [{}]", code);
+                } else {
+                    tracing::error!("Database error [{}]: {}", code, e);
+                }
                 (
                     if code == "NOT_FOUND" {
                         StatusCode::NOT_FOUND
@@ -88,7 +111,12 @@ impl IntoResponse for ApiError {
                     ErrorDetails {
                         code: code.to_string(),
                         message: message.to_string(),
-                        details: Some(e.to_string()),
+                        // 本番環境では詳細を含めない
+                        details: if is_production() {
+                            None
+                        } else {
+                            Some(e.to_string())
+                        },
                     },
                 )
             }
@@ -148,14 +176,22 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
-            ApiError::SerdeJsonError(ref e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorDetails {
-                    code: "JSON_ERROR".to_string(),
-                    message: "JSON processing error".to_string(),
-                    details: Some(e.to_string()),
-                },
-            ),
+            ApiError::SerdeJsonError(ref e) => {
+                tracing::error!("JSON processing error: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorDetails {
+                        code: "JSON_ERROR".to_string(),
+                        message: "JSON processing error".to_string(),
+                        // 本番環境では詳細を含めない
+                        details: if is_production() {
+                            None
+                        } else {
+                            Some(e.to_string())
+                        },
+                    },
+                )
+            }
         };
 
         (
