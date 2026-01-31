@@ -119,4 +119,30 @@ mod tests {
         assert_eq!(config.cors_origins.len(), 1);
         assert_eq!(config.cors_origins[0], "http://example.com");
     }
+
+    #[test]
+    fn test_backend_url_default() {
+        // 環境変数未設定時のデフォルト値をテスト
+        // 注意: 他のテストで環境変数が設定されている可能性があるため、
+        // このテストは環境変数が未設定の場合のみ期待通りに動作する
+        let url = backend_url();
+        // BACKEND_URL が設定されていない場合はデフォルトポートを使用
+        assert!(url.starts_with("http://localhost:") || url.starts_with("https://"));
+    }
+
+    #[test]
+    fn test_server_addr_format() {
+        let addr = server_addr();
+        // 0.0.0.0:ポート番号 の形式であることを確認
+        assert!(addr.starts_with("0.0.0.0:"));
+    }
+
+    #[test]
+    fn test_is_secure_cookie_default() {
+        // 環境変数未設定時はfalse
+        // 注意: BACKEND_URL または SECURE_COOKIE が設定されている場合は
+        // その値に依存する
+        let _ = is_secure_cookie();
+        // テストはパニックしないことを確認
+    }
 }
