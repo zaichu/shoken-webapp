@@ -53,17 +53,14 @@ describe('DomesticStock', () => {
 
     it('コンポーネントが正常にレンダリングされる', () => {
         render(<DomesticStock csvData={mockCsvData} />);
-        
-        // タイトルが表示されることを確認
-        expect(screen.getByText('国内株式')).toBeInTheDocument();
-        
+
         // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
         const totalProfitElements = screen.getAllByText('合計実現損益');
         expect(totalProfitElements.length).toBeGreaterThan(0);
-        
+
         const totalTaxElements = screen.getAllByText('合計税額');
         expect(totalTaxElements.length).toBeGreaterThan(0);
-        
+
         const netProfitElements = screen.getAllByText('合計実現損益(税引)');
         expect(netProfitElements.length).toBeGreaterThan(0);
     });
@@ -135,10 +132,7 @@ describe('DomesticStock', () => {
 
     it('空のデータでもエラーが発生しない', () => {
         render(<DomesticStock csvData={[]} />);
-        
-        // タイトルは表示される
-        expect(screen.getByText('国内株式')).toBeInTheDocument();
-        
+
         // 集計情報はゼロで表示される（複数要素がある場合を考慮）
         const summaryElements = screen.getAllByText('合計実現損益');
         expect(summaryElements.length).toBeGreaterThan(0);

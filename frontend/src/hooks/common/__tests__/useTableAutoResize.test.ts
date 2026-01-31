@@ -4,10 +4,9 @@ import { useTableAutoResize } from '../useTableAutoResize';
 
 // ResizeObserverのモック
 class MockResizeObserver {
-  private callback: ResizeObserverCallback;
-  
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_callback: ResizeObserverCallback) {
+    // callback は保持するが、テストでは使用しない
   }
   
   observe = vi.fn();

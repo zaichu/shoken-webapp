@@ -43,7 +43,7 @@ describe('ReceiptHeader', () => {
 
     const { container } = render(<ReceiptHeader items={items} />);
     
-    const columns = container.querySelectorAll('.grid > div');
+    const columns = container.querySelectorAll('.stat-grid > div');
     expect(columns).toHaveLength(3);
   });
 

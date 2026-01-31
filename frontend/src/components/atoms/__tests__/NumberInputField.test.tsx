@@ -1,10 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NumberInputField, NumberInputFieldProps } from '../NumberInputField';
+import { NumberInputField } from '../NumberInputField';
 
-const defaultProps: Partial<NumberInputFieldProps> = {
+const defaultProps = {
   label: '数値入力',
-  value: undefined,
+  value: undefined as number | undefined,
   onChange: vi.fn(),
 };
 
