@@ -15,9 +15,10 @@ pub async fn get_fin_summary(
 ) -> Result<Json<FinSummaryResponse>, ApiError> {
     tracing::info!("決算サマリー取得パラメータ: {:?}", params);
 
-    let api_key = state.secrets.jquants_api_key.as_ref().ok_or_else(|| {
-        ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string())
-    })?;
+    let api_key =
+        state.secrets.jquants_api_key.as_ref().ok_or_else(|| {
+            ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string())
+        })?;
 
     let response = JQuantsService::get_fin_summary(&state.client, params, api_key).await?;
     Ok(Json(response))

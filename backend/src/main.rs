@@ -1,23 +1,25 @@
 mod config;
+mod db;
 mod errors;
 mod extractors;
 mod handlers;
+mod logging;
 mod models;
+mod routes;
 mod services;
 mod state;
 
-use axum::{
-    routing::{delete, get, post},
-    Router,
-};
 use config::Config;
+use db::{connect_pool, run_migrations};
 use dotenvy::dotenv;
 use reqwest::Client;
-use sqlx::postgres::PgPoolOptions;
+use routes::app_router;
 use state::{AppState, Secrets};
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+#[cfg(test)]
+use db::connect_pool_lazy;
 
 #[tokio::main]
 async fn main() {
@@ -25,13 +27,7 @@ async fn main() {
     dotenv().ok();
 
     // ロギングの初期化
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "backend=info,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    logging::init_tracing();
 
     // シークレットの読み込み
     let secrets = Secrets::from_env().expect("シークレットの読み込みに失敗しました");
@@ -40,20 +36,15 @@ async fn main() {
     let config = Config::default();
 
     tracing::info!("データベースに接続中...");
-    let pool = PgPoolOptions::new()
-        .max_connections(config.database_max_connections)
-        .connect(&secrets.database_url)
+    let pool = connect_pool(&secrets.database_url, config.database_max_connections)
         .await
         .expect("データベースへの接続に失敗しました");
 
     // マイグレーションの実行
     tracing::info!("マイグレーションを実行中...");
-    sqlx::migrate!()
-        .run(&pool)
+    run_migrations(&pool)
         .await
         .expect("マイグレーションの実行に失敗しました");
-
-    let cors = config.build_cors_layer();
 
     let client = Client::new();
     let state = AppState {
@@ -62,63 +53,9 @@ async fn main() {
         client,
     };
 
-    let router = Router::new()
-        .route("/stock", post(handlers::stock::add_stock_info))
-        .route("/stock/{query}", get(handlers::stock::select_stock_info))
-        // JQuantsのエンドポイント（V2 APIキー認証）
-        // V2では fins/statements → fins/summary に変更されたが、
-        // フロントエンド互換性のためURLパスは維持
-        .route(
-            "/jquants/fins/statements",
-            get(handlers::jquants::get_fin_summary),
-        )
-        // 認証エンドポイント
-        .route("/auth/google", get(handlers::auth::google_auth))
-        .route(
-            "/auth/google/callback",
-            get(handlers::auth::google_callback),
-        )
-        .route("/auth/me", get(handlers::auth::get_current_user))
-        .route("/auth/logout", post(handlers::auth::logout))
-        .route(
-            "/auth/delete-account",
-            delete(handlers::auth::delete_account),
-        )
-        // 配当金エンドポイント
-        .route("/dividends", get(handlers::dividend::list))
-        .route("/dividends/bulk", post(handlers::dividend::bulk_create))
-        .route("/dividends/all", delete(handlers::dividend::delete_all))
-        // 国内株式エンドポイント
-        .route("/domestic-stocks", get(handlers::domestic_stock::list))
-        .route(
-            "/domestic-stocks/bulk",
-            post(handlers::domestic_stock::bulk_create),
-        )
-        .route(
-            "/domestic-stocks/all",
-            delete(handlers::domestic_stock::delete_all),
-        )
-        // 投資信託エンドポイント
-        .route("/mutualfunds", get(handlers::mutualfund::list))
-        .route("/mutualfunds/bulk", post(handlers::mutualfund::bulk_create))
-        .route("/mutualfunds/all", delete(handlers::mutualfund::delete_all))
-        // 保有銘柄エンドポイント
-        .route("/asset-balances", get(handlers::asset_balance::list))
-        .route(
-            "/asset-balances/bulk",
-            post(handlers::asset_balance::bulk_create),
-        )
-        .route(
-            "/asset-balances/all",
-            delete(handlers::asset_balance::delete_all),
-        )
-        // ヘルスチェック
-        .route("/health", get(|| async { "OK" }))
-        .layer(cors)
-        .with_state(state);
+    let router = app_router(state, &config);
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3001".to_string());
-    let addr = format!("0.0.0.0:{}", port);
+    let addr = config::server_addr();
 
     tracing::info!("サーバーを {} で起動します", addr);
 
@@ -135,15 +72,12 @@ async fn main() {
 mod tests {
     use super::*;
     use axum::http::Method;
-    use sqlx::postgres::PgPoolOptions;
+    use axum::Router;
 
     /// テスト用のアプリケーションルーターを作成する
     pub fn create_test_router() -> Router {
         let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
+        let pool = connect_pool_lazy(database_url, 1).expect("Failed to create connection pool");
 
         let secrets = Arc::new(Secrets {
             database_url: database_url.to_string(),
@@ -160,14 +94,8 @@ mod tests {
             client,
         };
 
-        Router::new()
-            .route("/stock", post(handlers::stock::add_stock_info))
-            .route("/stock/{query}", get(handlers::stock::select_stock_info))
-            .route(
-                "/jquants/fins/statements",
-                get(handlers::jquants::get_fin_summary),
-            )
-            .with_state(state)
+        let config = Config::default();
+        app_router(state, &config)
     }
 
     #[tokio::test]
@@ -204,10 +132,7 @@ mod tests {
     #[tokio::test]
     async fn test_app_state_creation_from_config() {
         let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
+        let pool = connect_pool_lazy(database_url, 5).expect("Failed to create connection pool");
 
         let secrets = Arc::new(Secrets {
             database_url: database_url.to_string(),

@@ -1,8 +1,11 @@
 pub mod config;
+pub mod db;
 pub mod errors;
 pub mod extractors;
 pub mod handlers;
+pub mod logging;
 pub mod models;
+pub mod routes;
 pub mod services;
 pub mod state;
 

@@ -75,8 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiClient.delete('/auth/delete-account', {
         withCredentials: true,
       });
-    } catch (error) {
-      throw error;
     } finally {
       setUser(null);
     }

@@ -1,4 +1,5 @@
 use axum::http::{HeaderValue, Method};
+use std::env;
 use tower_http::cors::CorsLayer;
 
 pub struct Config {
@@ -56,6 +57,32 @@ impl Config {
             .allow_headers(allowed_headers)
             .allow_credentials(true)
     }
+}
+
+/// バックエンドのベースURLを取得
+pub fn backend_url() -> String {
+    env::var("BACKEND_URL").unwrap_or_else(|_| {
+        let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
+        format!("http://localhost:{}", port)
+    })
+}
+
+/// サーバーのバインドアドレスを取得
+pub fn server_addr() -> String {
+    let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
+    format!("0.0.0.0:{}", port)
+}
+
+/// CookieをSecureで発行するか判定
+/// BACKEND_URL が https:// で始まる場合、または SECURE_COOKIE=true の場合に true
+pub fn is_secure_cookie() -> bool {
+    if let Ok(secure) = env::var("SECURE_COOKIE") {
+        return secure == "true" || secure == "1";
+    }
+
+    env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

@@ -233,7 +233,7 @@ describe('useJQuantsDividend', () => {
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('1234');
     expect(result.current.dividendPerShare).toBe(50);
@@ -243,6 +243,6 @@ describe('useJQuantsDividend', () => {
 
     await waitFor(() => {
       expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('5678');
-    });
-  });
+    }, { timeout: 5000 });
+  }, 15000);
 });

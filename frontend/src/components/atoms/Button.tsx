@@ -1,4 +1,4 @@
-import React, { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
+import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
 import { Spinner } from './Spinner';
 
 export type ButtonVariant =

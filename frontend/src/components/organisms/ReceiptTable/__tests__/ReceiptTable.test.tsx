@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import { vi } from 'vitest';
 import { ReceiptTable } from '../ReceiptTable';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 
@@ -15,12 +14,12 @@ describe('ReceiptTable', () => {
   const mockColumns: TableColumnConfig[] = [
     { header: '日付', key: 'date', width: '100px', textAlign: 'center' },
     { header: '銘柄', key: 'name', width: '200px', textAlign: 'left' },
-    { header: '金額', key: 'amount', width: '120px', textAlign: 'right', format: (value) => `¥${value.toLocaleString()}` },
+    { header: '金額', key: 'amount', width: '120px', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
   ];
 
   const mockSummaryColumns: SummaryColumnConfig[] = [
     { key: 'name', colSpan: 2, textAlign: 'right', format: () => '合計:' },
-    { key: 'amount', colSpan: 1, textAlign: 'right', format: (value) => `¥${value.toLocaleString()}` },
+    { key: 'amount', colSpan: 1, textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
   ];
 
   const mockData = [

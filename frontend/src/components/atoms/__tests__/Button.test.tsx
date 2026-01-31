@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
-import { Button, ButtonProps } from '../Button';
+import { Button } from '../Button';
 
-const defaultProps: Partial<ButtonProps> = {
+const defaultProps = {
   children: 'テストボタン',
 };
 

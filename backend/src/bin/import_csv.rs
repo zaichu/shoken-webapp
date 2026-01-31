@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // バルクインサート（100件ずつ）
     let batch_size = 100;
-    let total_batches = (records.len() + batch_size - 1) / batch_size;
+    let total_batches = records.len().div_ceil(batch_size);
 
     for (batch_num, chunk) in records.chunks(batch_size).enumerate() {
         // VALUES句を動的に構築

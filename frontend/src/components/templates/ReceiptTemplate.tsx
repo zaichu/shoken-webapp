@@ -1,12 +1,12 @@
 import React, { ReactNode } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
-import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
+import { Card, CardBody } from '@/components/atoms/Card';
 import { ResizeProvider } from '@/contexts/ResizeContext';
 import { useTriggerResize } from '@/hooks/common/useResize';
 import { SearchCategories } from '@/types/common';
 
 interface ReceiptTemplateProps {
-  title: string;
+  title?: string;
   header?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
@@ -17,7 +17,6 @@ interface ReceiptTemplateProps {
 
 // 内部コンポーネント（Context内で動作）
 const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
-  title,
   header,
   children,
   footer,

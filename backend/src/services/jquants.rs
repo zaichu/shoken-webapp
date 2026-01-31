@@ -54,8 +54,7 @@ impl JQuantsService {
             );
             return Err(ApiError::ApiError(format!(
                 "JQuants決算サマリー取得エラー ({}): {}",
-                status,
-                error_text
+                status, error_text
             )));
         }
 
@@ -67,8 +66,8 @@ impl JQuantsService {
 
         tracing::debug!("JQuants API レスポンス本文: {}", response_text);
 
-        let fin_summary_response: FinSummaryResponse =
-            serde_json::from_str(&response_text).map_err(|e| {
+        let fin_summary_response: FinSummaryResponse = serde_json::from_str(&response_text)
+            .map_err(|e| {
                 tracing::error!(
                     "決算サマリーレスポンス解析エラー: {} - 本文: {}",
                     e,
@@ -98,8 +97,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_fin_summary_real_api() {
-        let api_key = std::env::var("JQUANTS_API_KEY")
-            .expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let api_key =
+            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
 
         let client = Client::new();
         let params = FinSummaryQuery {
@@ -135,8 +134,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_nintendo_dividend() {
-        let api_key = std::env::var("JQUANTS_API_KEY")
-            .expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let api_key =
+            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
 
         let client = Client::new();
         let params = FinSummaryQuery {
@@ -154,7 +153,10 @@ mod tests {
                     println!("---");
                     println!("開示日: {}", summary.disclosed_date);
                     println!("書類種別: {}", summary.type_of_document);
-                    println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual);
+                    println!(
+                        "年間配当実績(DivAnn): {:?}",
+                        summary.result_dividend_per_share_annual
+                    );
                     println!(
                         "年間配当予想(FDivAnn): {:?}",
                         summary.forecast_dividend_per_share_annual

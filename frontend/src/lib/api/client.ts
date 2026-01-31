@@ -1,6 +1,13 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ApiError, ApiErrorType } from '../types/api';
 
+// Axiosの型拡張
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: { startTime: number };
+  }
+}
+
 interface RetryConfig {
   maxRetries: number;
   retryDelay: number;
@@ -165,7 +172,7 @@ class ApiClient {
     }
   ): Promise<T> {
     const promises = requests.map(requestFn => requestFn());
-    return Promise.all(promises) as Promise<T>;
+    return Promise.all(promises) as unknown as Promise<T>;
   }
 
   // キャンセル可能なリクエスト
@@ -207,13 +214,13 @@ export function getApiClient(): ApiClient {
 
 // 後方互換性のため
 export const apiClient = {
-  get: <T>(...args: Parameters<ApiClient['get']>) => getApiClient().get<T>(...args),
-  post: <T>(...args: Parameters<ApiClient['post']>) => getApiClient().post<T>(...args),
-  put: <T>(...args: Parameters<ApiClient['put']>) => getApiClient().put<T>(...args),
-  patch: <T>(...args: Parameters<ApiClient['patch']>) => getApiClient().patch<T>(...args),
-  delete: <T>(...args: Parameters<ApiClient['delete']>) => getApiClient().delete<T>(...args),
-  batch: <T extends readonly unknown[]>(...args: Parameters<ApiClient['batch']>) => getApiClient().batch<T>(...args),
-  createCancelableRequest: <T>(...args: Parameters<ApiClient['createCancelableRequest']>) => getApiClient().createCancelableRequest<T>(...args),
+  get: <T>(url: string, config?: AxiosRequestConfig) => getApiClient().get<T>(url, config),
+  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().post<T>(url, data, config),
+  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().put<T>(url, data, config),
+  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().patch<T>(url, data, config),
+  delete: <T>(url: string, config?: AxiosRequestConfig) => getApiClient().delete<T>(url, config),
+  batch: <T extends readonly unknown[]>(requests: { [K in keyof T]: () => Promise<T[K]> }) => getApiClient().batch<T>(requests),
+  createCancelableRequest: <T>(requestFn: (signal: AbortSignal) => Promise<T>) => getApiClient().createCancelableRequest<T>(requestFn),
 };
 
 // 型付きAPIクライアントのファクトリー関数

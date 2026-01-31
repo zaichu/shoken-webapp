@@ -17,10 +17,7 @@ export function LoginPage() {
   }, [isAuthenticated, isLoading, navigate]);
 
   const handleGoogleLogin = async () => {
-    try {
-      await login();
-    } catch (error) {
-    }
+    await login();
   };
 
   if (isLoading) {

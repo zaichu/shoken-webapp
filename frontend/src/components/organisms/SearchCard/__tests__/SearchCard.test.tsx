@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
@@ -45,7 +44,7 @@ describe('SearchCard', () => {
     );
 
     expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
-    expect(screen.queryByText('年度')).not.toBeInTheDocument();
+    expect(screen.queryByText('西暦')).not.toBeInTheDocument();
     expect(screen.queryByText('商品')).not.toBeInTheDocument();
   });
 
@@ -61,7 +60,7 @@ describe('SearchCard', () => {
     fireEvent.click(header!);
 
     expect(screen.getByText('銘柄')).toBeInTheDocument();
-    expect(screen.getByText('年度')).toBeInTheDocument();
+    expect(screen.getByText('西暦')).toBeInTheDocument();
     expect(screen.getByText('商品')).toBeInTheDocument();
     expect(screen.getByText('口座')).toBeInTheDocument();
   });
@@ -187,7 +186,7 @@ describe('SearchCard', () => {
     const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
-    expect(screen.getByText('年度')).toBeInTheDocument();
+    expect(screen.getByText('西暦')).toBeInTheDocument();
     expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
     expect(screen.queryByText('商品')).not.toBeInTheDocument();
     expect(screen.queryByText('口座')).not.toBeInTheDocument();
