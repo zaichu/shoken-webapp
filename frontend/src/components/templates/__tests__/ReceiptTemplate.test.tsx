@@ -38,7 +38,6 @@ describe('ReceiptTemplate', () => {
   const mockOnSearchExpandToggle = vi.fn();
 
   const defaultProps = {
-    title: 'テストタイトル',
     children: <MockReceiptTable />
   };
 
@@ -49,7 +48,7 @@ describe('ReceiptTemplate', () => {
   test('基本的なレイアウトが正しくレンダリングされる', () => {
     render(<ReceiptTemplate {...defaultProps} />);
 
-    expect(screen.getByText('テストタイトル')).toBeInTheDocument();
+    expect(screen.getByTestId('receipt-container')).toBeInTheDocument();
     expect(screen.getByTestId('mock-receipt-table')).toBeInTheDocument();
   });
 
@@ -62,7 +61,7 @@ describe('ReceiptTemplate', () => {
           securities: [{ value: 'AAPL', label: 'Apple' }],
           products: ['株式'],
           accounts: ['一般口座'],
-          years: ['2024'],
+          years: [{ value: '2024', label: '2024年' }],
           yearMonths: [{ value: '2024-01', label: '2024年1月' }]
         }}
       />
@@ -231,10 +230,6 @@ describe('ReceiptTemplate', () => {
     // メインカードの存在確認
     const mainCard = screen.getByTestId('receipt-card');
     expect(mainCard).toBeInTheDocument();
-
-    // ヘッダーの存在確認
-    const cardHeader = screen.getByTestId('receipt-card-header');
-    expect(cardHeader).toBeInTheDocument();
 
     // ボディの存在確認
     const cardBody = screen.getByTestId('receipt-card-body');

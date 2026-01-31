@@ -1,9 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import axios, { AxiosInstance } from 'axios';
 import { createApiClient } from '../client';
 
 // Axiosのモック
-vi.mock('axios');
+vi.mock('axios', () => ({
+  default: {
+    create: vi.fn(),
+    isAxiosError: vi.fn(),
+  },
+}));
 
 interface MockAxiosInstance {
   get: ReturnType<typeof vi.fn>;
@@ -18,7 +23,8 @@ interface MockAxiosInstance {
   request: ReturnType<typeof vi.fn>;
 }
 
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxiosCreate = axios.create as Mock;
+const mockedIsAxiosError = axios.isAxiosError as unknown as Mock;
 
 describe('ApiClient', () => {
   let mockAxiosInstance: MockAxiosInstance;
@@ -39,8 +45,8 @@ describe('ApiClient', () => {
       request: vi.fn(),
     };
     
-    mockedAxios.create.mockReturnValue(mockAxiosInstance as unknown as AxiosInstance);
-    mockedAxios.isAxiosError = vi.fn();
+    mockedAxiosCreate.mockReturnValue(mockAxiosInstance as unknown as AxiosInstance);
+    mockedIsAxiosError.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -119,7 +125,7 @@ describe('ApiClient', () => {
       mockAxiosInstance.get.mockImplementation(() => {
         throw axiosError;
       });
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       const client = createApiClient({ retry: { maxRetries: 0 } });
 
@@ -141,7 +147,7 @@ describe('ApiClient', () => {
       mockAxiosInstance.get.mockImplementation(() => {
         throw axiosError;
       });
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       // エラーがスローされることを確認
       await expect(client.get('/test')).rejects.toThrow();
@@ -157,7 +163,7 @@ describe('ApiClient', () => {
       mockAxiosInstance.get.mockImplementation(() => {
         throw axiosError;
       });
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       const client = createApiClient({ retry: { maxRetries: 0 } });
 
@@ -226,7 +232,7 @@ describe('ApiClient', () => {
 
       createApiClient(customConfig);
 
-      expect(mockedAxios.create).toHaveBeenCalledWith({
+      expect(mockedAxiosCreate).toHaveBeenCalledWith({
         baseURL: customConfig.baseURL,
         timeout: customConfig.timeout,
         headers: {
@@ -240,7 +246,7 @@ describe('ApiClient', () => {
     it('デフォルト設定を使用できる', () => {
       createApiClient();
 
-      expect(mockedAxios.create).toHaveBeenCalledWith({
+      expect(mockedAxiosCreate).toHaveBeenCalledWith({
         baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
         timeout: 30000,
         headers: {

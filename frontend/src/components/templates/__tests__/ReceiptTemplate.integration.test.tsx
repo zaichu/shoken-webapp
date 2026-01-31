@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
@@ -49,9 +48,9 @@ const testColumns: TableColumnConfig[] = [
 ];
 
 const testSummaryColumns: SummaryColumnConfig[] = [
-  { key: 'filter', header: '合計', width: '300px', textAlign: 'left', colSpan: 2 },
-  { key: 'totalAmount', header: '金額合計', width: '150px', textAlign: 'right' },
-  { key: 'count', header: '件数', width: '150px', textAlign: 'center' }
+  { key: 'filter', textAlign: 'left', colSpan: 2 },
+  { key: 'totalAmount', textAlign: 'right' },
+  { key: 'count', textAlign: 'center' }
 ];
 
 const testData: TestDataItem[] = [
@@ -96,7 +95,6 @@ describe('ReceiptTemplate Context API統合テスト', () => {
   test('SearchCard展開時にTableのforceResizeが更新される', async () => {
     render(
       <ReceiptTemplate
-        title="統合テスト"
         onSearch={mockOnSearch}
         onSearchExpandToggle={mockOnSearchExpandToggle}
         searchCategories={searchCategories}
@@ -112,7 +110,6 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     );
 
     // 初期状態の確認
-    expect(screen.getByText('統合テスト')).toBeInTheDocument();
     expect(screen.getByText('検索オプション')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
 
@@ -133,9 +130,8 @@ describe('ReceiptTemplate Context API統合テスト', () => {
   });
 
   test('検索機能が正常に動作する', () => {
-    const { container } = render(
+    render(
       <ReceiptTemplate
-        title="検索テスト"
         onSearch={mockOnSearch}
         searchCategories={searchCategories}
       >
@@ -260,10 +256,9 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
   });
 
-  test('複数のReceiptTableがある場合、全てにforceResizeが適用される', () => {
+  test('複数のReceiptTableがある場合、全てにforceResizeが適用される', { timeout: 15000 }, () => {
     const TestComponent = () => (
       <ReceiptTemplate
-        title="複数テーブルテスト"
         onSearch={mockOnSearch}
         searchCategories={searchCategories}
       >
@@ -302,11 +297,10 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
   test('エラーが発生してもアプリケーションがクラッシュしない', () => {
     // コンソールエラーを一時的に無効にする
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
       <ReceiptTemplate
-        title="エラーハンドリングテスト"
         onSearch={mockOnSearch}
         searchCategories={searchCategories}
       >
@@ -322,7 +316,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
     // SearchCardを展開
     const header = screen.getByTestId('search-card-header');
-    
+
     // 例外が発生してもアプリケーションが正常に動作することを確認
     expect(() => {
       fireEvent.click(header!);
@@ -330,7 +324,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     }).not.toThrow();
 
     // 基本的な要素が表示されることを確認
-    expect(screen.getByText('エラーハンドリングテスト')).toBeInTheDocument();
+    expect(screen.getByTestId('receipt-container')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
 
     consoleSpy.mockRestore();

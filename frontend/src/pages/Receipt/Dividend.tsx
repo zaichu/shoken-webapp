@@ -2,10 +2,7 @@ import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import React, { useMemo, useCallback, useState } from 'react';
-import {
-    DividendData,
-    DividendCalculations
-} from '@/lib/interfaces/dividend';
+import { DividendData } from '@/lib/interfaces/dividend';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import {
     createSearchOptions,

@@ -39,6 +39,7 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
 /**
  * カラムのformat用レンダラー（ReactNodeを返す）
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function renderSecurityCode(value: unknown): React.ReactNode {
   return <SecurityCodeLink value={value} />;
 }

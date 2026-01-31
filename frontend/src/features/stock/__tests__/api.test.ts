@@ -20,11 +20,11 @@ describe('Stock API', () => {
   describe('fetchStockData', () => {
     it('Axiosエラーの場合、ApiErrorを投げる', async () => {
       const axiosError = new Error('Network Error');
-      (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
       // Mock ApiError.fromAxiosError
-      const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
+      const mockApiError = new ApiError(ApiErrorType.NETWORK_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
 
       await expect(fetchStockData('1234')).rejects.toThrow(ApiError);
@@ -33,7 +33,7 @@ describe('Stock API', () => {
 
     it('その他のエラーの場合、デフォルトのApiErrorを投げる', async () => {
       const error = new Error('Unknown Error');
-      (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      vi.mocked(axios.isAxiosError).mockReturnValue(false);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(error);
 
       await expect(fetchStockData('1234')).rejects.toThrow('株式データの処理に失敗しました');
@@ -63,10 +63,10 @@ describe('Stock API', () => {
 
     it('Axiosエラーの場合、ApiErrorに変換してerrorを返す', async () => {
       const axiosError = new Error('Network Error');
-      (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
 
       // Mock ApiError.fromAxiosError
-      const mockApiError = new ApiError(ApiErrorType.CONNECTION_ERROR, 'Network Error');
+      const mockApiError = new ApiError(ApiErrorType.NETWORK_ERROR, 'Network Error');
       vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
 
       const requestFn = vi.fn().mockRejectedValue(axiosError);
@@ -79,7 +79,7 @@ describe('Stock API', () => {
 
     it('その他のErrorの場合、メッセージを含むApiErrorを返す', async () => {
       const error = new Error('Custom error message');
-      (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      vi.mocked(axios.isAxiosError).mockReturnValue(false);
       const requestFn = vi.fn().mockRejectedValue(error);
 
       const result = await apiRequest(requestFn);
@@ -91,7 +91,7 @@ describe('Stock API', () => {
 
     it('非Errorオブジェクトの場合、デフォルトメッセージのApiErrorを返す', async () => {
       const error = 'string error';
-      (axios.isAxiosError as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      vi.mocked(axios.isAxiosError).mockReturnValue(false);
       const requestFn = vi.fn().mockRejectedValue(error);
 
       const result = await apiRequest(requestFn);

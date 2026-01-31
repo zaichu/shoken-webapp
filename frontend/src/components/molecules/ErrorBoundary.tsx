@@ -18,7 +18,6 @@ interface ErrorBoundaryState {
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   private resetTimeoutId: number | null = null;
-  private previousResetKeys: Array<string | number> = [];
 
   constructor(props: ErrorBoundaryProps) {
     super(props);

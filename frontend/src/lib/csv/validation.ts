@@ -74,7 +74,7 @@ export const validateFileSize = (file: File, maxSizeInMB: number = 50): void => 
 
 interface ParseError {
   type: string;
-  row: number;
+  row?: number;
   message: string;
 }
 

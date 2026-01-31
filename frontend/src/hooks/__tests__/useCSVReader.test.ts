@@ -2,13 +2,28 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useCSVReader } from '../useCSVReader';
 import { parseCSVFile } from '../../lib/csv/parser';
+import { CSVParseResult } from '../../lib/types/csv';
 
-// parseCSVFileをモック化  
+// parseCSVFileをモック化
 vi.mock('../../lib/csv/parser', () => ({
   parseCSVFile: vi.fn(),
 }));
 
 const mockParseCSVFile = vi.mocked(parseCSVFile);
+
+// テスト用のモックCSVParseResult生成ヘルパー
+const createMockResult = (data: Record<string, unknown>[] = []): CSVParseResult => ({
+  data,
+  errors: [],
+  meta: {
+    encoding: 'utf-8',
+    encodingConfidence: 1,
+    delimiter: ',',
+    linebreak: '\n',
+    aborted: false,
+    truncated: false
+  }
+});
 
 describe('useCSVReader', () => {
   beforeEach(() => {
@@ -31,11 +46,7 @@ describe('useCSVReader', () => {
     mockParseCSVFile.mockImplementation((_, __, callbacks) => {
       callbacks?.onStart?.();
       callbacks?.onComplete?.();
-      return Promise.resolve({
-        data: mockData,
-        errors: [],
-        meta: { encoding: 'utf-8', encodingConfidence: 1 }
-      });
+      return Promise.resolve(createMockResult(mockData));
     });
 
     const { result } = renderHook(() => useCSVReader());
@@ -58,12 +69,12 @@ describe('useCSVReader', () => {
 
   it('CSVパース中にローディング状態が正しく管理される', async () => {
     const mockFile = new File(['test'], 'test.csv', { type: 'text/csv' });
-    let resolvePromise: (value: { data: Record<string, unknown>[]; errors: []; meta: { encoding: string; encodingConfidence: number } }) => void;
+    let resolvePromise: (value: CSVParseResult) => void;
     let callbacks: {
       onStart?: () => void;
       onComplete?: () => void;
       onError?: (error: string) => void;
-    };
+    } | undefined;
 
     mockParseCSVFile.mockImplementation((_, __, cb) => {
       callbacks = cb!;
@@ -87,11 +98,7 @@ describe('useCSVReader', () => {
     // パース完了
     await act(async () => {
       callbacks?.onComplete?.();
-      resolvePromise({
-        data: [],
-        errors: [],
-        meta: { encoding: 'utf-8', encodingConfidence: 1 }
-      });
+      resolvePromise(createMockResult());
       await parsePromise;
     });
 
@@ -176,15 +183,11 @@ describe('useCSVReader', () => {
       onStart?: () => void;
       onComplete?: () => void;
       onError?: (error: string) => void;
-    };
+    } | undefined;
 
     mockParseCSVFile.mockImplementation((_, __, cb) => {
       callbacks = cb!;
-      return Promise.resolve({
-        data: [],
-        errors: [],
-        meta: { encoding: 'utf-8', encodingConfidence: 1 }
-      });
+      return Promise.resolve(createMockResult());
     });
 
     const { result } = renderHook(() => useCSVReader());
@@ -194,9 +197,9 @@ describe('useCSVReader', () => {
     });
 
     expect(callbacks).toBeDefined();
-    expect(typeof callbacks.onStart).toBe('function');
-    expect(typeof callbacks.onError).toBe('function');
-    expect(typeof callbacks.onComplete).toBe('function');
+    expect(typeof callbacks!.onStart).toBe('function');
+    expect(typeof callbacks!.onError).toBe('function');
+    expect(typeof callbacks!.onComplete).toBe('function');
   });
 
   it('例外が発生した場合にisLoadingがfalseになる', async () => {
