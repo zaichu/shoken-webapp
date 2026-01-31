@@ -19,8 +19,8 @@ export function useDebounce<T>(
   const { leading = false, trailing = true, maxWait } = options;
 
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
-  const maxTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const maxTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastCallTimeRef = useRef<number>(0);
   const leadingCallRef = useRef<boolean>(true);
 

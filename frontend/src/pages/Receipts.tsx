@@ -27,11 +27,12 @@ type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
 // 明細種類ごとの静的設定
 interface ReceiptTypeStaticConfig {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api: {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     list: () => Promise<any[]>;
     bulkCreate: (items: any[]) => Promise<any>;
     deleteAll: () => Promise<any>;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   };
   parser: (item: Record<string, unknown>) => unknown;
   transformer: (item: Record<string, unknown>) => unknown;
