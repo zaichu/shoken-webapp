@@ -24,6 +24,7 @@ fn is_production() -> bool {
 }
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum ApiError {
     #[error("Validation error: {0}")]
     ValidationError(String),

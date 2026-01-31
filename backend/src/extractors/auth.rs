@@ -1,10 +1,9 @@
 use crate::errors::ApiError;
 use crate::models::user::User;
+use crate::services::auth as auth_service;
 use crate::state::AppState;
 use axum::extract::FromRef;
 use axum_extra::extract::CookieJar;
-
-const SESSION_COOKIE_NAME: &str = "session_token";
 
 /// 認証済みユーザーを表すエクストラクター
 /// ハンドラーの引数に指定することで、認証チェックを自動的に行う
@@ -37,30 +36,15 @@ where
             .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました".to_string()))?;
 
         // セッショントークンを取得
-        let session_token = jar
-            .get(SESSION_COOKIE_NAME)
-            .map(|c| c.value().to_string())
-            .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
-
-        // セッションIDをパース
-        let session_id: uuid::Uuid = session_token
-            .parse()
-            .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
+        let session_id = auth_service::get_session_id_from_jar(&jar)?;
 
         // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
-        let user = sqlx::query_as::<_, User>(
-            r#"
-            SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
-            FROM users u
-            INNER JOIN sessions s ON u.id = s.user_id
-            WHERE s.id = $1 AND s.expires_at > NOW()
-            "#,
-        )
-        .bind(session_id)
-        .fetch_optional(&app_state.pool)
-        .await
-        .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました".to_string()))?
-        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
+        let user = auth_service::select_user_by_session(&app_state.pool, session_id)
+            .await
+            .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました".to_string()))?
+            .ok_or_else(|| {
+                ApiError::Unauthorized("セッションが無効または期限切れです".to_string())
+            })?;
 
         Ok(AuthenticatedUser(user))
     }
