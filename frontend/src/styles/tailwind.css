@@ -131,6 +131,26 @@
   .button-set > *:not(:last-child) {
     @apply mr-2;
   }
+
+  /* フォーム入力コンテナ（CSV入力等） */
+  .form-input-container {
+    @apply w-full max-w-[400px];
+  }
+
+  /* 統計情報グリッド（3カラム） */
+  .stat-grid {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-3;
+  }
+
+  /* アクションツールバー */
+  .action-toolbar {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  /* ステータスメッセージ（ローディング・空状態） */
+  .status-message {
+    @apply my-4 flex flex-col items-center gap-2;
+  }
 }
 
 /* 印刷対応 */

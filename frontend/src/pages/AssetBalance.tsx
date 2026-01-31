@@ -148,7 +148,7 @@ export function AssetBalancePage() {
       <div className="mt-2" aria-busy={isProcessing}>
         {/* 認証確認中 */}
         {authLoading && (
-          <div className="my-4 flex flex-col items-center gap-2" role="status" aria-live="polite">
+          <div className="status-message" role="status" aria-live="polite">
             <Spinner size="md" className="text-primary" />
             <p className="text-sm text-secondary">認証状態を確認しています...</p>
           </div>
@@ -172,15 +172,15 @@ export function AssetBalancePage() {
         {/* ログイン済みの場合のメインコンテンツ */}
         {!authLoading && isAuthenticated && (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="w-full max-w-[400px]">
+            <div className="action-toolbar">
+              <div className="form-input-container">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
                   selectedFileName={csvReader.fileName || ''}
                   disabled={loading || saving || deleting}
                 />
               </div>
-              <div className="flex items-center gap-2" role="group" aria-label="データ操作">
+              <div className="action-toolbar" role="group" aria-label="データ操作">
                 {hasCsvData && (
                   <Button
                     variant="primary"
@@ -214,7 +214,7 @@ export function AssetBalancePage() {
 
             <div aria-live="polite" aria-atomic="true">
               {(loading || saving || deleting || csvReader.isLoading) && (
-                <div className="my-4 flex flex-col items-center gap-2" role="status">
+                <div className="status-message" role="status">
                   <Spinner size="md" className="text-primary" />
                   <p className="text-sm text-secondary">
                     {loading && 'データを読み込んでいます...'}

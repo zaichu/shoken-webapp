@@ -1,4 +1,5 @@
 import { HTMLAttributes, ReactNode } from 'react';
+import { cn } from '../../lib/utils/classNames';
 
 export type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'light' | 'dark';
 export type BadgeTone = 'solid' | 'soft' | 'outline';
@@ -42,7 +43,7 @@ const outlineStyles: Record<BadgeVariant, string> = {
   dark: 'border border-dark text-dark',
 };
 
-export function Badge({ children, variant = 'primary', tone = 'soft', className = '', ...rest }: BadgeProps) {
+export function Badge({ children, variant = 'primary', tone = 'soft', className, ...rest }: BadgeProps) {
   const toneClass = tone === 'solid'
     ? solidStyles[variant]
     : tone === 'outline'
@@ -51,7 +52,7 @@ export function Badge({ children, variant = 'primary', tone = 'soft', className 
 
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${toneClass} ${className}`.trim()}
+      className={cn('inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold', toneClass, className)}
       {...rest}
     >
       {children}

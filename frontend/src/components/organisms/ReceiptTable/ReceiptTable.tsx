@@ -2,6 +2,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { useForceResize } from '@/hooks/common/useResize';
+import { cn } from '@/lib/utils/classNames';
 
 type DataItem = Record<string, unknown>;
 type SummaryItem = Record<string, unknown> & { filter: string };
@@ -130,9 +131,9 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 value: formatSummaryValue(summaryItem[column.key], column)
             }));
 
-            const summaryBorderClass = summaryIndex > 0 ? 'border-t-2 border-primary-hover' : '';
-            const summaryLeftClass = `bg-primary text-white font-semibold ${summaryBorderClass} border-l-4 border-primary-dark`.trim();
-            const summaryValueClass = `bg-primary text-white text-right font-bold ${summaryBorderClass}`.trim();
+            const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-primary-hover';
+            const summaryLeftClass = cn('bg-primary text-white font-semibold border-l-4 border-primary-dark', summaryBorderClass);
+            const summaryValueClass = cn('bg-primary text-white text-right font-bold', summaryBorderClass);
 
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>

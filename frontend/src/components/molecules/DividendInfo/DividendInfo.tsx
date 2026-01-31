@@ -100,7 +100,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
         )}
       </div>
       <div className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="stat-grid">
           <div>
             <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
           </div>
@@ -118,7 +118,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div className="stat-grid mt-4">
           <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
           <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
           <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />

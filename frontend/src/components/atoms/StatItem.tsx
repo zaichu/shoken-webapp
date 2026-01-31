@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '../../lib/utils/classNames';
 
 export interface StatItemProps {
   title: string;
@@ -16,9 +17,9 @@ export interface StatItemProps {
 export const StatItem: React.FC<StatItemProps> = ({
   title,
   value,
-  className = '',
-  titleClassName = '',
-  valueClassName = '',
+  className,
+  titleClassName,
+  valueClassName,
   variant = 'default'
 }) => {
   const getVariantClasses = () => {
@@ -47,11 +48,11 @@ export const StatItem: React.FC<StatItemProps> = ({
   const variantClasses = getVariantClasses();
 
   return (
-    <div className={`${variantClasses.container} ${className}`.trim()}>
-      <div className={`${variantClasses.title} ${titleClassName}`.trim()}>
+    <div className={cn(variantClasses.container, className)}>
+      <div className={cn(variantClasses.title, titleClassName)}>
         {title}
       </div>
-      <div className={`${variantClasses.value} ${valueClassName}`.trim()}>
+      <div className={cn(variantClasses.value, valueClassName)}>
         {value}
       </div>
     </div>

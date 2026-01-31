@@ -46,7 +46,7 @@ export function StockInfo({ stockData }: StockInfoProps) {
               ))}
             </tbody>
           </table>
-          <div className="mt-3">
+          <div className="mt-3 p-3">
             <StockInfoLinks code={code} />
           </div>
         </CardBody>

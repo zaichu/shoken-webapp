@@ -1,4 +1,5 @@
 import { HTMLAttributes } from 'react';
+import { cn } from '../../lib/utils/classNames';
 
 export type SpinnerSize = 'sm' | 'md' | 'lg';
 
@@ -13,11 +14,11 @@ const sizeClasses: Record<SpinnerSize, string> = {
   lg: 'h-8 w-8',
 };
 
-export function Spinner({ size = 'md', label = '読み込み中...', className = '', ...rest }: SpinnerProps) {
+export function Spinner({ size = 'md', label = '読み込み中...', className, ...rest }: SpinnerProps) {
   return (
-    <span className={`inline-flex items-center ${className}`.trim()} {...rest}>
+    <span className={cn('inline-flex items-center', className)} {...rest}>
       <svg
-        className={`animate-spin ${sizeClasses[size]}`}
+        className={cn('animate-spin', sizeClasses[size])}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
