@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { useAuth } from '../../features/auth/hooks/useAuth';
+import { cn } from '../../lib/utils/classNames';
+
+// ナビゲーションリンクの設定
+const NAV_LINKS = [
+  { to: '/search', label: '銘柄検索' },
+  { to: '/assetbalance', label: '保有銘柄' },
+  { to: '/receipts', label: '受取金' },
+] as const;
 
 export function Header() {
   const { user, login, logout, deleteAccount, isAuthenticated, isLoading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
@@ -58,17 +67,32 @@ export function Header() {
 
   return (
     <>
-      <header className="bg-primary text-white no-print">
-        <div className="mx-auto w-full max-w-[1600px] px-4 py-3">
+      <header className="bg-slate-800 text-white no-print">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <div className="flex items-center justify-between">
-              <Link className="text-lg font-semibold tracking-wide text-white" to="/">証券Web</Link>
+              <Link className="text-xl font-bold tracking-wide text-white hover:text-slate-200 transition-colors" to="/">証券Web</Link>
             </div>
 
-            <nav className="flex flex-wrap items-center gap-4 text-base md:text-lg" aria-label="主要ナビゲーション">
-              <Link className="text-white/90 hover:text-white transition-colors" to="/search">銘柄検索</Link>
-              <Link className="text-white/90 hover:text-white transition-colors" to="/assetbalance">保有銘柄</Link>
-              <Link className="text-white/90 hover:text-white transition-colors" to="/receipts">受取金</Link>
+            <nav className="flex flex-wrap items-center gap-1 md:gap-2" aria-label="主要ナビゲーション">
+              {NAV_LINKS.map(({ to, label }) => {
+                const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
+                return (
+                  <Link
+                    key={to}
+                    to={to}
+                    className={cn(
+                      'px-3 py-2 rounded-md text-base font-medium transition-colors',
+                      isActive
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                    )}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </nav>
 
             <div className="flex items-center gap-3 md:ml-auto">
