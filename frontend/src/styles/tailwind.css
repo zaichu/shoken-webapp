@@ -101,7 +101,7 @@
   }
 
   .panel-card-header {
-    @apply bg-primary text-white px-4 py-2 text-sm font-semibold;
+    @apply bg-slate-100 text-slate-800 px-4 py-3 text-base font-semibold border-b border-slate-200;
   }
 
   .panel-card-body {
