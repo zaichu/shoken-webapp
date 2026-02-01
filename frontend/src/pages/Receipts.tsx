@@ -273,15 +273,19 @@ export function ReceiptsPage() {
 
   return (
     <Layout>
-      <nav className="border-b border-border no-print">
-        <div className="flex flex-wrap gap-2">
+      <nav className="border-b border-slate-200 no-print">
+        <div className="flex flex-wrap gap-1">
           {(['dividend', 'domesticstock', 'mutualfund'] as const).map((tab) => {
             const isActive = receiptsType === tab;
             const label = tab === 'dividend' ? '配当金' : tab === 'domesticstock' ? '国内株式' : '投資信託';
             return (
               <button
                 key={tab}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${isActive ? 'border-primary text-primary' : 'border-transparent text-secondary hover:text-primary'}`}
+                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  isActive
+                    ? 'border-primary text-primary bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                }`}
                 onClick={() => setReceiptsType(tab)}
                 type="button"
                 role="tab"
