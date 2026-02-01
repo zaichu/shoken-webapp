@@ -3,3 +3,4 @@ frontend/src/env.rs
 .shuttle*
 Secrets*.toml
 *.log
+.playwright-mcp
