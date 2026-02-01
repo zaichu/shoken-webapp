@@ -121,13 +121,19 @@ mod tests {
     }
 
     #[test]
-    fn test_backend_url_default() {
-        // 環境変数未設定時のデフォルト値をテスト
-        // 注意: 他のテストで環境変数が設定されている可能性があるため、
-        // このテストは環境変数が未設定の場合のみ期待通りに動作する
+    fn test_backend_url_returns_valid_url() {
         let url = backend_url();
-        // BACKEND_URL が設定されていない場合はデフォルトポートを使用
-        assert!(url.starts_with("http://localhost:") || url.starts_with("https://"));
+        // 環境変数の設定状況に応じて期待値を決定
+        if let Ok(expected) = env::var("BACKEND_URL") {
+            // BACKEND_URL が設定されている場合はその値を返す
+            assert_eq!(url, expected);
+        } else if let Ok(port) = env::var("PORT") {
+            // PORT のみ設定されている場合はローカルホストURLを返す
+            assert_eq!(url, format!("http://localhost:{}", port));
+        } else {
+            // 何も設定されていない場合はデフォルトポート3001を使用
+            assert_eq!(url, "http://localhost:3001");
+        }
     }
 
     #[test]
