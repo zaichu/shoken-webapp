@@ -5,6 +5,7 @@ import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
 import { Alert } from '../components/atoms/Alert';
 import { EmptyState } from '../components/atoms/EmptyState';
+import { PageHeader } from '../components/atoms/PageHeader';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
@@ -39,6 +40,10 @@ export function SearchPage() {
   return (
     <Layout>
       <div>
+        <PageHeader
+          title="銘柄検索"
+          description="銘柄コードを入力して株式情報を検索できます。"
+        />
         <SearchForm
           stockCode={stockCode}
           onStockCodeChange={setStockCode}

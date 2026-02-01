@@ -131,9 +131,9 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 value: formatSummaryValue(summaryItem[column.key], column)
             }));
 
-            const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-primary-hover';
-            const summaryLeftClass = cn('bg-primary text-white font-semibold border-l-4 border-primary-dark', summaryBorderClass);
-            const summaryValueClass = cn('bg-primary text-white text-right font-bold', summaryBorderClass);
+            const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-slate-300';
+            const summaryLeftClass = cn('bg-slate-700 text-white font-semibold border-l-4 border-slate-900', summaryBorderClass);
+            const summaryValueClass = cn('bg-slate-700 text-white text-right font-bold', summaryBorderClass);
 
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>

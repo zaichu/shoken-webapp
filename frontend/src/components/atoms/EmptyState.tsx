@@ -1,13 +1,23 @@
 import { ReactNode } from 'react';
 import { cn } from '../../lib/utils/classNames';
 
+type HeadingLevel = 'h1' | 'h2' | 'h3';
+
 interface EmptyStateProps {
   icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
   className?: string;
+  /** 見出しレベル（デフォルト: h3） */
+  headingLevel?: HeadingLevel;
 }
+
+const headingStyles: Record<HeadingLevel, string> = {
+  h1: 'text-2xl font-bold text-slate-900',
+  h2: 'text-xl font-bold text-slate-900',
+  h3: 'text-base font-semibold text-slate-900',
+};
 
 /**
  * 空状態を表示するコンポーネント
@@ -19,7 +29,10 @@ export function EmptyState({
   description,
   action,
   className,
+  headingLevel = 'h3',
 }: EmptyStateProps) {
+  const Heading = headingLevel;
+
   return (
     <div
       className={cn(
@@ -32,7 +45,7 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      <Heading className={headingStyles[headingLevel]}>{title}</Heading>
       {description && (
         <p className="mt-1.5 max-w-md text-sm text-slate-600">{description}</p>
       )}
