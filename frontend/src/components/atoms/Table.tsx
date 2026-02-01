@@ -80,14 +80,14 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
 
     // CSSクラスの構築
     const tableClasses = cn(
-      'w-full text-left border-collapse',
-      bordered && '[&_th]:border [&_th]:border-gray-200 [&_td]:border [&_td]:border-gray-200 print:[&_th]:border-black print:[&_td]:border-black',
+      'w-full text-left border-collapse text-sm',
+      bordered && '[&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black',
       small
-        ? 'text-sm [&_th]:py-1 [&_th]:px-2 [&_td]:py-1 [&_td]:px-2'
-        : '[&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3',
+        ? '[&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3'
+        : '[&_th]:py-3 [&_th]:px-4 [&_td]:py-3 [&_td]:px-4',
       variant && variantBgColors[variant],
-      striped && '[&_tbody_tr:nth-child(even)]:bg-gray-50',
-      hover && '[&_tbody_tr:hover]:bg-gray-100',
+      striped && '[&_tbody_tr:nth-child(even)]:bg-slate-50',
+      hover && '[&_tbody_tr:hover]:bg-slate-100',
       className
     );
 
@@ -127,9 +127,10 @@ Table.displayName = 'Table';
 const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
   ({ children, variant, stickyTop = true, className, ...rest }, ref) => {
     const headerClasses = cn(
-      variant === 'light' && 'bg-gray-100',
-      variant === 'dark' && 'bg-gray-800 text-white',
-      stickyTop && 'sticky top-0 z-10 bg-white',
+      'bg-slate-50',
+      variant === 'light' && 'bg-slate-100',
+      variant === 'dark' && 'bg-slate-800 text-white',
+      stickyTop && 'sticky top-0 z-10',
       className
     );
 
@@ -189,7 +190,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ) => {
     const Cell = as;
     const scopeAttr = as === 'th' ? { scope } : {};
-    const cellClasses = cn(as === 'th' && 'font-semibold text-gray-700', className);
+    const cellClasses = cn(as === 'th' && 'font-semibold text-slate-700', className);
 
     if (dangerouslySetInnerHTML) {
       return (
