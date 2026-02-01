@@ -119,4 +119,36 @@ mod tests {
         assert_eq!(config.cors_origins.len(), 1);
         assert_eq!(config.cors_origins[0], "http://example.com");
     }
+
+    #[test]
+    fn test_backend_url_returns_valid_url() {
+        let url = backend_url();
+        // 環境変数の設定状況に応じて期待値を決定
+        if let Ok(expected) = env::var("BACKEND_URL") {
+            // BACKEND_URL が設定されている場合はその値を返す
+            assert_eq!(url, expected);
+        } else if let Ok(port) = env::var("PORT") {
+            // PORT のみ設定されている場合はローカルホストURLを返す
+            assert_eq!(url, format!("http://localhost:{}", port));
+        } else {
+            // 何も設定されていない場合はデフォルトポート3001を使用
+            assert_eq!(url, "http://localhost:3001");
+        }
+    }
+
+    #[test]
+    fn test_server_addr_format() {
+        let addr = server_addr();
+        // 0.0.0.0:ポート番号 の形式であることを確認
+        assert!(addr.starts_with("0.0.0.0:"));
+    }
+
+    #[test]
+    fn test_is_secure_cookie_default() {
+        // 環境変数未設定時はfalse
+        // 注意: BACKEND_URL または SECURE_COOKIE が設定されている場合は
+        // その値に依存する
+        let _ = is_secure_cookie();
+        // テストはパニックしないことを確認
+    }
 }

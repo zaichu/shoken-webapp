@@ -86,3 +86,43 @@ fn asset_balance_routes() -> Router<AppState> {
             delete(handlers::asset_balance::delete_all),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stock_routes_creation() {
+        let _router = stock_routes();
+    }
+
+    #[test]
+    fn test_jquants_routes_creation() {
+        let _router = jquants_routes();
+    }
+
+    #[test]
+    fn test_auth_routes_creation() {
+        let _router = auth_routes();
+    }
+
+    #[test]
+    fn test_dividend_routes_creation() {
+        let _router = dividend_routes();
+    }
+
+    #[test]
+    fn test_domestic_stock_routes_creation() {
+        let _router = domestic_stock_routes();
+    }
+
+    #[test]
+    fn test_mutualfund_routes_creation() {
+        let _router = mutualfund_routes();
+    }
+
+    #[test]
+    fn test_asset_balance_routes_creation() {
+        let _router = asset_balance_routes();
+    }
+}
