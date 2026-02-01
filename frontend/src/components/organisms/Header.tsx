@@ -68,13 +68,13 @@ export function Header() {
   return (
     <>
       <header className="bg-slate-800 text-white no-print">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-6 py-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="flex items-center justify-between">
-              <Link className="text-xl font-bold tracking-wide text-white hover:text-slate-200 transition-colors" to="/">証券Web</Link>
+              <Link className="text-2xl font-bold tracking-wide text-white hover:text-slate-200 transition-colors" to="/">証券Web</Link>
             </div>
 
-            <nav className="flex flex-wrap items-center gap-1 md:gap-2" aria-label="主要ナビゲーション">
+            <nav className="flex flex-wrap items-center gap-1" aria-label="主要ナビゲーション">
               {NAV_LINKS.map(({ to, label }) => {
                 const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
                 return (
@@ -82,10 +82,10 @@ export function Header() {
                     key={to}
                     to={to}
                     className={cn(
-                      'px-3 py-2 rounded-md text-base font-medium transition-colors',
+                      'px-4 py-2 text-base font-medium transition-colors border-b-2',
                       isActive
-                        ? 'bg-slate-700 text-white'
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        ? 'border-white text-white font-semibold'
+                        : 'border-transparent text-slate-300 hover:text-white hover:border-slate-500'
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >

@@ -14,12 +14,12 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn('mb-6', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className={cn('mb-4', className)}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+          <h1 className="text-xl font-bold text-slate-900">{title}</h1>
           {description && (
-            <p className="mt-1 text-base text-slate-600">{description}</p>
+            <p className="mt-0.5 text-sm text-slate-600">{description}</p>
           )}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}

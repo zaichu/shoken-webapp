@@ -121,7 +121,7 @@
   }
 
   .table-heading {
-    @apply bg-warning/20 text-center text-xs font-semibold uppercase tracking-wide text-dark;
+    @apply bg-slate-100 text-center text-xs font-semibold uppercase tracking-wide text-slate-700 border-b border-slate-200;
   }
 
   .table-chip {
