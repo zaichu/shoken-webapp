@@ -64,11 +64,9 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             <StatItem
               title="合計取得総額"
               value={
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: formatCurrency(totalPurchaseAmount),
-                  }}
-                />
+                <span data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+                  {formatCurrency(totalPurchaseAmount)}
+                </span>
               }
               variant="default"
               titleClassName="text-secondary"

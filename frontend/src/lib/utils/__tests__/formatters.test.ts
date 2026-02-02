@@ -149,11 +149,7 @@ describe('数値関連のフォーマット関数', () => {
     });
 
     it('負の数値をフォーマットする', () => {
-      expect(formatNumber(-12345)).toBe('<span data-negative="true">-12,345</span>');
-    });
-
-    it('負の数値をスパンなしでフォーマットする', () => {
-      expect(formatNumber(-12345, { showNegativeSpan: false })).toBe('-12,345');
+      expect(formatNumber(-12345)).toBe('-12,345');
     });
 
     it('小数点オプションが動作する', () => {
@@ -177,7 +173,7 @@ describe('数値関連のフォーマット関数', () => {
     });
 
     it('負の金額をフォーマットする', () => {
-      expect(formatCurrency(-12345)).toBe('<span data-negative="true">¥ -12,345</span>');
+      expect(formatCurrency(-12345)).toBe('¥ -12,345');
     });
 
     it('カスタム通貨記号が動作する', () => {

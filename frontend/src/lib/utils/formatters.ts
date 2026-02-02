@@ -186,14 +186,12 @@ export function formatNumber(
     minimumFractionDigits?: number;
     maximumFractionDigits?: number;
     useGrouping?: boolean;
-    showNegativeSpan?: boolean;
   } = {}
 ): string {
   const {
     minimumFractionDigits = 0,
     maximumFractionDigits = 2,
-    useGrouping = true,
-    showNegativeSpan = true
+    useGrouping = true
   } = options;
 
   try {
@@ -221,9 +219,7 @@ export function formatNumber(
       maximumFractionDigits
     }).format(absNum);
 
-    if (isNegative && showNegativeSpan) {
-      return `<span data-negative="true">-${formattedNumber}</span>`;
-    } else if (isNegative) {
+    if (isNegative) {
       return `-${formattedNumber}`;
     } else {
       return formattedNumber;
@@ -246,14 +242,12 @@ export function formatCurrency(
     currency?: string;
     minimumFractionDigits?: number;
     maximumFractionDigits?: number;
-    showNegativeSpan?: boolean;
   } = {}
 ): string {
   const {
     currency = '¥',
     minimumFractionDigits = 0,
-    maximumFractionDigits = 15,
-    showNegativeSpan = true
+    maximumFractionDigits = 15
   } = options;
 
   try {
@@ -281,9 +275,7 @@ export function formatCurrency(
       maximumFractionDigits
     }).format(absNum);
 
-    if (isNegative && showNegativeSpan) {
-      return `<span data-negative="true">${currency} -${formattedNumber}</span>`;
-    } else if (isNegative) {
+    if (isNegative) {
       return `${currency} -${formattedNumber}`;
     } else {
       return `${currency} ${formattedNumber}`;
