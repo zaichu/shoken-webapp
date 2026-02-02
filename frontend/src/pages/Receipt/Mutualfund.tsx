@@ -6,7 +6,7 @@ import {
     MutualfundData,
     MutualfundCalculations
 } from '@/lib/interfaces/mutualfund';
-import { TableColumnConfig } from '@/lib/interfaces/receipt';
+import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
@@ -129,6 +129,15 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrency },
     ]), []);
 
+    /**
+     * サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）
+     */
+    const summaryColumns: SummaryColumnConfig[] = [
+        { key: 'realized_profit_and_loss', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
+    ];
+
     return (
         <ReceiptTemplate
             title="投資信託"
@@ -140,7 +149,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
                 data={filteredData}
                 summary={summary}
                 columns={columns}
-                summaryColumns={[]}
+                summaryColumns={summaryColumns}
                 getGroupKey={getGroupKey}
             />
         </ReceiptTemplate>
