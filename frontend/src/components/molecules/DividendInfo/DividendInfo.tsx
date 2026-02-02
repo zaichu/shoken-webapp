@@ -91,7 +91,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
-      <div className="bg-primary text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
+      <div className="bg-slate-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
         <h5 className="font-semibold">配当情報</h5>
         {assetBalanceData && (
           <small className="text-white/80">
