@@ -74,9 +74,14 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
 
   const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
 
+  // 全グループの合計受取金額を計算
+  const totalNetAmountReceived = React.useMemo(() => {
+    return summary.reduce((sum, item) => sum + (item.net_amount_received || 0), 0);
+  }, [summary]);
+
   const dividendReturnRate = (() => {
-    if (totalInvestment > 0 && summary[0]) {
-      return (summary[0].net_amount_received / totalInvestment) * 100;
+    if (totalInvestment > 0 && totalNetAmountReceived > 0) {
+      return (totalNetAmountReceived / totalInvestment) * 100;
     }
     return 0;
   })();
@@ -120,7 +125,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
 
         <div className="stat-grid mt-4">
           <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
-          <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
+          <StatItemWithRate title="合計受取金額 (累積利回り)" value={totalNetAmountReceived} rate={dividendReturnRate} format={formatCurrency} />
           <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
         </div>
       </div>
