@@ -100,6 +100,31 @@ describe('ReceiptTable', () => {
     expect(screen.getAllByText('<a href="https://example.com">リンク</a>')).toHaveLength(3);
   });
 
+  it('負の値のセルにはdata-negative属性が付与される', () => {
+    const dataWithNegative = [
+      { date: '2024-01-01', name: '銘柄A', amount: -1200, group: 'A' },
+    ];
+    const summaryWithNegative = [
+      { filter: 'A', amount: -1200, name: 'グループA' },
+    ];
+
+    render(
+      <ReceiptTable
+        data={dataWithNegative}
+        summary={summaryWithNegative}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+      />
+    );
+
+    const negativeCells = screen.getAllByText('¥-1,200').map((element) => element.closest('td'));
+    expect(negativeCells).toHaveLength(2); // 明細行 + サマリー行
+    negativeCells.forEach((cell) => {
+      expect(cell).toHaveAttribute('data-negative', 'true');
+    });
+  });
+
   it('空のデータでも正しくレンダリングされる', () => {
     render(
       <ReceiptTable

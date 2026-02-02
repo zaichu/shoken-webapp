@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { AssetBalanceInfo } from '../AssetBalance';
@@ -9,16 +9,19 @@ vi.mock('@/components/templates/ReceiptTemplate', () => ({
   ReceiptTemplate: ({
     children,
     title,
+    header,
     onSearch,
     searchCategories
   }: {
     children: React.ReactNode;
     title: string;
+    header?: React.ReactNode;
     onSearch?: (query: string) => void;
     searchCategories?: Record<string, Array<{ value: string; label: string }>>;
   }) => (
     <div data-testid="receipt-template">
       <h1>{title}</h1>
+      {header && <div data-testid="receipt-header">{header}</div>}
       {onSearch && searchCategories && (
         <div data-testid="search-area">
           <input
@@ -32,6 +35,16 @@ vi.mock('@/components/templates/ReceiptTemplate', () => ({
         </div>
       )}
       {children}
+    </div>
+  ),
+}));
+
+// AssetPortfolioSummaryのモック（遅延読み込み対応）
+vi.mock('@/components/organisms/AssetPortfolioSummary', () => ({
+  AssetPortfolioSummary: ({ assetBalanceData }: { assetBalanceData: AssetBalanceData[] }) => (
+    <div data-testid="asset-portfolio-summary">
+      <div data-testid="total-amount">合計取得総額: {assetBalanceData.reduce((sum, item) => sum + (item.total_purchase_amount || 0), 0)}</div>
+      <div data-testid="chart-items">銘柄数: {assetBalanceData.length}</div>
     </div>
   ),
 }));
@@ -189,5 +202,34 @@ describe('AssetBalance', () => {
     // 空のデータの場合でもサマリーが表示される
     const tableProps = screen.getByTestId('table-props');
     expect(tableProps).toHaveTextContent('summary: 0');
+  });
+
+  it('ポートフォリオサマリーがヘッダーとして表示される', async () => {
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+
+    // ヘッダー部分が表示されていることを確認
+    expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
+    // 遅延読み込みコンポーネントの表示を待機
+    await waitFor(() => {
+      expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
+    });
+  });
+
+  it('ポートフォリオサマリーに正しいデータが渡される', async () => {
+    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+
+    // 遅延読み込みコンポーネントの表示を待機
+    await waitFor(() => {
+      // 合計取得総額が正しく計算されていることを確認（250000 + 600000 = 850000）
+      expect(screen.getByTestId('total-amount')).toHaveTextContent('850000');
+      expect(screen.getByTestId('chart-items')).toHaveTextContent('銘柄数: 2');
+    });
+  });
+
+  it('空データの場合でもヘッダー領域が存在する', () => {
+    render(<AssetBalanceInfo assetBalanceData={[]} />);
+
+    // ヘッダー領域自体は存在する（中身はSuspenseのfallbackか空状態）
+    expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
   });
 });

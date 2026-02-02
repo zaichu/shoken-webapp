@@ -21,7 +21,15 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({ items }) => {
             <CardBody className="p-4">
                 <div className="stat-grid">
                     {items.map((item, index) => (
-                        <StatItem key={index} title={item.title} value={item.format(item.value)} />
+                        <StatItem
+                            key={index}
+                            title={item.title}
+                            value={
+                                <span data-negative={item.value < 0 ? 'true' : undefined}>
+                                    {item.format(item.value)}
+                                </span>
+                            }
+                        />
                     ))}
                 </div>
             </CardBody>

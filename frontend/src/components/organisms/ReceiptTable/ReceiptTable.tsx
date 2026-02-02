@@ -47,6 +47,37 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 }: ReceiptTableProps<T, S>) {
     const forceResize = useForceResize();
 
+    const renderTextValue = (value: unknown): string | number => {
+        if (typeof value === 'string' || typeof value === 'number') {
+            return value;
+        }
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value);
+    };
+
+    const isNegativeValue = (value: unknown): boolean => {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) && value < 0;
+        }
+        if (typeof value !== 'string') {
+            return false;
+        }
+
+        const normalized = value
+            .trim()
+            .replace(/[¥￥$€£]/g, '')
+            .replace(/,/g, '')
+            .replace(/\s+/g, '');
+
+        if (!normalized || !/^[-+]?\d+(\.\d+)?$/.test(normalized)) {
+            return false;
+        }
+
+        return Number(normalized) < 0;
+    };
+
     // テーブル内のクリックイベントをハンドル（銘柄コードリンク用）
     const handleTableClick = (e: React.MouseEvent<HTMLTableElement>) => {
         const target = e.target as HTMLElement;
@@ -60,6 +91,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 
     const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
         const formattedValue = column.format ? column.format(value) : value;
+        const isNegative = !React.isValidElement(formattedValue) && isNegativeValue(value);
 
         const cellStyle: React.CSSProperties = {
             minWidth: 'width' in column ? column.width : undefined,
@@ -77,8 +109,11 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             return <TableCell key={key} {...props}>{formattedValue}</TableCell>;
         }
 
-        // 文字列はそのままテキストとして描画（XSS対策）
-        return <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>;
+        return (
+            <TableCell key={key} {...props} data-negative={isNegative ? 'true' : undefined}>
+                {renderTextValue(formattedValue)}
+            </TableCell>
+        );
     };
 
     const renderDataRows = (items: T[], keyPrefix: string) =>
@@ -95,19 +130,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         return column.format ? column.format(value) : value;
     };
 
-    // サマリーのラベルを取得
-    const getSummaryLabel = (key: string): string => {
-        const labels: Record<string, string> = {
-            'total_realized_profit_and_loss': '損益',
-            'dividends_before_tax': '配当',
-            'total_taxes': '税額',
-            'taxes': '税額',
-            'total_realized_profit_and_loss_after_tax': '税引後',
-            'net_amount_received': '受取額',
-        };
-        return labels[key] || key;
-    };
-
     const summaryGroupKeys = new Set(data.map(item => getGroupKey(item)));
     const summaryToRender = summary.filter(summaryItem => summaryGroupKeys.has(summaryItem.filter));
 
@@ -120,8 +142,8 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             // サマリー値の取得
             const summaryValues = summaryColumns.map(column => ({
                 key: column.key,
-                label: getSummaryLabel(column.key),
-                value: formatSummaryValue(summaryItem[column.key], column)
+                value: formatSummaryValue(summaryItem[column.key], column),
+                rawValue: summaryItem[column.key]
             }));
 
             const summaryBorderClass = summaryIndex > 0 && 'border-t border-slate-200';
@@ -144,12 +166,13 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                     {itemCount}件
                                 </span>
                             </TableCell>
-                            {summaryValues.map((sv, idx) => (
+                            {summaryValues.map((sv) => (
                                 <TableCell
-                                    key={idx}
+                                    key={sv.key}
                                     className={summaryValueClass}
+                                    data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
                                 >
-                                    {String(sv.value)}
+                                    {React.isValidElement(sv.value) ? sv.value : renderTextValue(sv.value)}
                                 </TableCell>
                             ))}
                         </TableRow>
