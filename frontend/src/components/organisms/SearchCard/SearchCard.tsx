@@ -44,6 +44,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         onExpandToggle?.(newExpandedState);
     };
 
+    // キーボードイベントハンドラ
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleToggleExpanded();
+        }
+    };
+
     const handleQuickSearch = (value: string) => {
         setSearchQuery(value);
         onSearch(value);
@@ -92,7 +100,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 variant="primary"
                 className="flex cursor-pointer items-center justify-between"
                 onClick={handleToggleExpanded}
+                onKeyDown={handleKeyDown}
                 role="button"
+                tabIndex={0}
                 aria-expanded={isExpanded}
                 aria-controls="search-options-body"
                 data-testid="search-card-header"

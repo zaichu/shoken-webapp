@@ -77,14 +77,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             return <TableCell key={key} {...props}>{formattedValue}</TableCell>;
         }
 
-        // 文字列でHTMLを含む場合（後方互換性のため残す）
-        const isHtml = typeof formattedValue === 'string' && /<[^>]*>/.test(formattedValue);
-        if (isHtml) {
-            return (
-                <TableCell key={key} {...props} dangerouslySetInnerHTML={{ __html: formattedValue as string }} />
-            );
-        }
-
+        // 文字列はそのままテキストとして描画（XSS対策）
         return <TableCell key={key} {...props}>{String(formattedValue ?? '')}</TableCell>;
     };
 
