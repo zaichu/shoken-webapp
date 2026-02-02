@@ -147,9 +147,9 @@
     @apply flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm;
   }
 
-  /* ネストされたaction-toolbarはカード装飾を解除 */
-  .action-toolbar .action-toolbar {
-    @apply border-0 bg-transparent p-0 shadow-none rounded-none;
+  /* ボタングループ（カード装飾なし、横並びのみ） */
+  .action-button-group {
+    @apply flex flex-wrap items-center gap-3;
   }
 
   /* ステータスメッセージ（ローディング・空状態） */

@@ -312,7 +312,7 @@ export function ReceiptsPage() {
             />
           </div>
           {isAuthenticated && (
-            <div className="action-toolbar" role="group" aria-label="データ操作">
+            <div className="action-button-group" role="group" aria-label="データ操作">
               {hasCsvData && (
                 <Button
                   variant="primary"
