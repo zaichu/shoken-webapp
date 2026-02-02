@@ -144,7 +144,7 @@
 
   /* アクションツールバー */
   .action-toolbar {
-    @apply flex flex-wrap items-center gap-2;
+    @apply flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm;
   }
 
   /* ステータスメッセージ（ローディング・空状態） */

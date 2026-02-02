@@ -19,7 +19,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     onExpandToggle
 }) => {
 
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
     // データが存在するかチェックするヘルパー関数

@@ -124,9 +124,9 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 value: formatSummaryValue(summaryItem[column.key], column)
             }));
 
-            const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-slate-300';
-            const summaryLeftClass = cn('bg-slate-700 text-white font-semibold border-l-4 border-slate-900', summaryBorderClass);
-            const summaryValueClass = cn('bg-slate-700 text-white text-right font-bold', summaryBorderClass);
+            const summaryBorderClass = summaryIndex > 0 && 'border-t border-slate-200';
+            const summaryLeftClass = cn('bg-slate-100 text-slate-800 font-semibold border-l-4 border-slate-600', summaryBorderClass);
+            const summaryValueClass = cn('bg-slate-100 text-slate-800 text-right font-semibold', summaryBorderClass);
 
             return (
                 <React.Fragment key={`group-${summaryIndex}`}>
@@ -140,7 +140,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 <span className="text-base font-bold">
                                     {headerText}
                                 </span>
-                                <span className="ml-3 inline-flex items-center rounded bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
+                                <span className="ml-3 inline-flex items-center rounded bg-slate-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
@@ -164,7 +164,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 <span className="text-base font-bold">
                                     {headerText}
                                 </span>
-                                <span className="ml-3 inline-flex items-center rounded bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
+                                <span className="ml-3 inline-flex items-center rounded bg-slate-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
@@ -192,7 +192,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             onClick={handleTableClick}
         >
             <TableHeader>
-                <TableRow className="bg-warning/20 text-center">
+                <TableRow className="bg-slate-50 text-center">
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
