@@ -23,6 +23,7 @@ import {
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
+import { AssetPortfolioSummary } from '@/components/organisms/AssetPortfolioSummary';
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -87,6 +88,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
       title="保有銘柄"
       onSearch={(query: string) => setSearchQuery(query)}
       searchCategories={searchCategories}
+      header={<AssetPortfolioSummary assetBalanceData={assetBalanceData} />}
     >
       <ReceiptTable
         data={filteredData}
