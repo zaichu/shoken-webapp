@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
+import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
@@ -145,6 +146,10 @@ export function AssetBalancePage() {
 
   return (
     <Layout>
+      <PageHeader
+        title="保有銘柄"
+        description="保有している銘柄の一覧と評価額を確認できます。"
+      />
       <div className="mt-2" aria-busy={isProcessing}>
         {/* 認証確認中 */}
         {authLoading && (
@@ -180,7 +185,7 @@ export function AssetBalancePage() {
                   disabled={loading || saving || deleting}
                 />
               </div>
-              <div className="action-toolbar" role="group" aria-label="データ操作">
+              <div className="action-button-group" role="group" aria-label="データ操作">
                 {hasCsvData && (
                   <Button
                     variant="primary"

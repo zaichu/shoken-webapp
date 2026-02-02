@@ -69,10 +69,11 @@ describe('DomesticStock', () => {
         render(<DomesticStock csvData={mockCsvData} />);
 
         // テーブルヘッダーの確認（実際のカラム定義に合わせる）
+        // 「口座」は検索オプション内にも表示されるためgetAllByTextを使用
         expect(screen.getByText('約定日')).toBeInTheDocument();
         expect(screen.getByText('銘柄コード')).toBeInTheDocument();
         expect(screen.getByText('銘柄名')).toBeInTheDocument();
-        expect(screen.getByText('口座')).toBeInTheDocument();
+        expect(screen.getAllByText('口座').length).toBeGreaterThan(0);
         expect(screen.getByText('数量')).toBeInTheDocument();
         expect(screen.getByText('売却単価')).toBeInTheDocument();
         expect(screen.getByText('売却額')).toBeInTheDocument();
@@ -93,13 +94,11 @@ describe('DomesticStock', () => {
     });
 
     it('検索オプションが正しく生成される', async () => {
-        const user = userEvent.setup();
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
 
-        // 検索オプションのヘッダーをクリックして展開
+        // 検索オプションは初期状態で展開済み
         const searchOptionsHeader = screen.getByText('検索オプション');
         expect(searchOptionsHeader).toBeInTheDocument();
-        await user.click(searchOptionsHeader);
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -117,11 +116,11 @@ describe('DomesticStock', () => {
         const user = userEvent.setup();
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
 
-        const searchOptionsHeader = screen.getByText('検索オプション');
-        await user.click(searchOptionsHeader);
-
+        // 検索オプションは初期状態で展開済み
+        await waitFor(() => {
+            expect(container.querySelector('#securities-search')).toBeInTheDocument();
+        });
         const securitiesSelect = container.querySelector('#securities-search') as HTMLSelectElement;
-        expect(securitiesSelect).toBeInTheDocument();
 
         await user.selectOptions(securitiesSelect, '1234');
 

@@ -82,9 +82,10 @@ describe('Dividend', () => {
         render(<Dividend csvData={mockCsvData} />);
 
         // テーブルヘッダーの確認（実際のカラム定義に合わせる）
+        // 「商品」「口座」は検索オプション内にも表示されるためgetAllByTextを使用
         expect(screen.getByText('入金日')).toBeInTheDocument();
-        expect(screen.getByText('商品')).toBeInTheDocument();
-        expect(screen.getByText('口座')).toBeInTheDocument();
+        expect(screen.getAllByText('商品').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('口座').length).toBeGreaterThan(0);
         expect(screen.getByText('銘柄コード')).toBeInTheDocument();
         expect(screen.getByText('銘柄名')).toBeInTheDocument();
         expect(screen.getByText('単価')).toBeInTheDocument();
@@ -107,13 +108,11 @@ describe('Dividend', () => {
     });
 
     it('検索オプションが正しく生成される', async () => {
-        const user = userEvent.setup();
         const { container } = render(<Dividend csvData={mockCsvData} />);
 
-        // 検索オプションのヘッダーをクリックして展開
+        // 検索オプションは初期状態で展開済み
         const searchOptionsHeader = screen.getByText('検索オプション');
         expect(searchOptionsHeader).toBeInTheDocument();
-        await user.click(searchOptionsHeader);
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -131,11 +130,7 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend csvData={mockCsvData} />);
 
-        // 検索オプションのヘッダーをクリックして展開
-        const searchOptionsHeader = screen.getByText('検索オプション');
-        await user.click(searchOptionsHeader);
-
-        // 銘柄検索セレクトボックスで銘柄を選択（IDで指定）
+        // 検索オプションは初期状態で展開済み - 銘柄検索セレクトボックスで銘柄を選択（IDで指定）
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -160,11 +155,7 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend csvData={mockCsvData} />);
 
-        // 検索オプションのヘッダーをクリックして展開
-        const searchOptionsHeader = screen.getByText('検索オプション');
-        await user.click(searchOptionsHeader);
-
-        // 最初に銘柄を選択（IDで指定）
+        // 検索オプションは初期状態で展開済み - 最初に銘柄を選択（IDで指定）
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -224,11 +215,7 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend csvData={mockCsvData} />);
 
-        // 検索オプションのヘッダーをクリックして展開
-        const searchOptionsHeader = screen.getByText('検索オプション');
-        await user.click(searchOptionsHeader);
-
-        // 銘柄を選択して配当情報フォームを表示（IDで指定）
+        // 検索オプションは初期状態で展開済み - 銘柄を選択して配当情報フォームを表示（IDで指定）
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });

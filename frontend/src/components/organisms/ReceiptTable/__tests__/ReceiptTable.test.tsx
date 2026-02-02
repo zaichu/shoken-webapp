@@ -66,13 +66,13 @@ describe('ReceiptTable', () => {
     expect(screen.getAllByText('合計:')).toHaveLength(2);
   });
 
-  it('HTMLタグが含まれる値が正しくレンダリングされる', () => {
+  it('HTMLタグが含まれる文字列はエスケープされてテキストとして表示される（XSS対策）', () => {
     const columnsWithHtml: TableColumnConfig[] = [
       ...mockColumns,
-      { 
-        header: 'リンク', 
-        key: 'link', 
-        width: '100px', 
+      {
+        header: 'リンク',
+        key: 'link',
+        width: '100px',
         textAlign: 'center',
         format: (value) => `<a href="${value}">リンク</a>`
       },
@@ -90,16 +90,14 @@ describe('ReceiptTable', () => {
       />
     );
 
-    // ヘッダーの「リンク」を確認
-    expect(screen.getAllByText('リンク')).toHaveLength(4); // ヘッダー1つ + データ3つ
+    // ヘッダーの「リンク」のみ表示
+    expect(screen.getByText('リンク')).toBeInTheDocument();
 
-    // リンク要素だけを取得
-    const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(3);
-    links.forEach(link => {
-      expect(link).toHaveAttribute('href', 'https://example.com');
-      expect(link).toHaveTextContent('リンク');
-    });
+    // HTML文字列はリンクとしてレンダリングされず、テキストとして表示される
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+
+    // エスケープされたHTML文字列がテキストとして表示される
+    expect(screen.getAllByText('<a href="https://example.com">リンク</a>')).toHaveLength(3);
   });
 
   it('空のデータでも正しくレンダリングされる', () => {

@@ -109,19 +109,19 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // 初期状態の確認
+    // 初期状態の確認（SearchCardは展開済み）
     expect(screen.getByText('検索オプション')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
 
-    // SearchCardを展開
+    // SearchCardを折りたたむ
     const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
     // タイマーを進める
     vi.advanceTimersByTime(100);
 
-    // コールバックが呼ばれることを確認
-    expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+    // コールバックが呼ばれることを確認（折りたたみ）
+    expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
 
     // テーブルが正常に表示されることを確認
     expect(screen.getByText('商品A')).toBeInTheDocument();
@@ -145,11 +145,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // SearchCardを展開
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 商品ボタンをクリック
+    // 初期状態で展開済み - 商品ボタンをクリック
     const productButton = screen.getByText('株式');
     fireEvent.click(productButton);
 
@@ -176,17 +172,17 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
     const header = screen.getByTestId('search-card-header');
 
-    // 複数回展開・折りたたみを実行
+    // 初期状態は展開済み - 複数回折りたたみ・展開を実行
     for (let i = 0; i < 3; i++) {
-      // 展開
-      fireEvent.click(header!);
-      vi.advanceTimersByTime(100);
-      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
-
       // 折りたたみ
       fireEvent.click(header!);
       vi.advanceTimersByTime(100);
       expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
+
+      // 展開
+      fireEvent.click(header!);
+      vi.advanceTimersByTime(100);
+      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
     }
 
     // 各操作で適切にコールバックが呼ばれることを確認
@@ -245,11 +241,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // SearchCardを展開
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 銘柄ドロップダウンを操作（IDで指定）
+    // 初期状態で展開済み - 銘柄ドロップダウンを操作（IDで指定）
     const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'AAPL' } });
 

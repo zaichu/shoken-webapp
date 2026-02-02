@@ -2,7 +2,7 @@
 description: "開発サーバーに対してUIレビューを自動実行し、スクリーンショットとAI分析レポートを生成します。"
 ---
 # UI Review
-Claude Code で完結するUIレビューシステム
+Claude Code で完結するUIレビューシステム（Playwright MCP版）
 
 ## Usage
 ```
@@ -14,26 +14,28 @@ Claude Code で完結するUIレビューシステム
 ## 対象画面
 以下の画面をレビュー対象とする:
 - `/` - ホーム画面
-- `/stocks` - 株式一覧
-- `/dividends` - 配当金一覧
-- `/domestic-stocks` - 国内株式
-- `/mutualfunds` - 投資信託
-- `/asset-balances` - 資産残高
+- `/search` - 銘柄検索
+- `/assetbalance` - 保有銘柄
+- `/receipts` - 受取金
+- `/404` - エラーページ
 
 ## Implementation Steps
 
 ### 1. 環境チェック
 1. 開発サーバー `http://localhost:8080` の起動確認
-   - 起動していない場合: `cd frontend && npm run dev` をバックグラウンド実行
-2. ToolSearch で `chrome-devtools` ツールをロード
+   - 起動していない場合: ユーザーに起動を促す
+2. ToolSearch で `playwright` ツールをロード
+   - `ToolSearch` に `playwright screenshot navigate` でツールを検索
 
 ### 2. スクリーンショット取得
-1. `mcp__chrome-devtools__new_page` で新規ページを開く
+1. `mcp__playwright__browser_navigate` で対象URLに遷移
 2. 各対象画面について:
-   - `mcp__chrome-devtools__navigate_page` でURLに遷移
-   - `mcp__chrome-devtools__take_screenshot` でキャプチャ
-   - スクリーンショットは scratchpad ディレクトリに保存
-3. デスクトップ (1920x1080) とモバイル (375x667) の両方で取得
+   - `mcp__playwright__browser_navigate` でURLに遷移（例: `http://localhost:8080/search`）
+   - `mcp__playwright__browser_take_screenshot` でキャプチャ
+     - `filename`: ページ名.png（例: `home.png`, `search.png`）
+     - `fullPage`: true（全ページキャプチャ）
+     - `type`: png
+   - スクリーンショットは `.playwright-mcp/` ディレクトリに自動保存される
 
 ### 3. UI分析
 Read ツールで各スクリーンショットを読み込み、以下の観点で分析:
@@ -57,16 +59,33 @@ Read ツールで各スクリーンショットを読み込み、以下の観点
 - ...
 
 ### 改善提案
-| 優先度 | 画面 | 問題 | 改善案 | 実装例 |
-|--------|------|------|--------|--------|
-| 高 | ... | ... | ... | `className="..."` |
+| 優先度 | 画面 | 問題 | 改善案 |
+|--------|------|------|--------|
+| 高 | ... | ... | ... |
 
 ### 推奨アクション
 1. ...
 2. ...
 ```
 
+## Playwright MCP ツール使用例
+
+```
+# ツールのロード
+ToolSearch: query="playwright screenshot navigate"
+
+# ページ遷移
+mcp__playwright__browser_navigate: url="http://localhost:8080"
+
+# スクリーンショット取得
+mcp__playwright__browser_take_screenshot:
+  type="png"
+  filename="home.png"
+  fullPage=true
+```
+
 ## 注意事項
 - 開発サーバーが起動していない場合は起動を促す
 - スクリーンショット取得に失敗した画面はスキップして続行
 - レポートは日本語で出力
+- 認証が必要なページはユーザーにログインを依頼する

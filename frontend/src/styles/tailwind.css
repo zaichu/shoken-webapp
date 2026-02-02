@@ -101,7 +101,7 @@
   }
 
   .panel-card-header {
-    @apply bg-primary text-white px-4 py-2 text-sm font-semibold;
+    @apply bg-slate-100 text-slate-800 px-4 py-3 text-base font-semibold border-b border-slate-200;
   }
 
   .panel-card-body {
@@ -121,7 +121,7 @@
   }
 
   .table-heading {
-    @apply bg-warning/20 text-center text-xs font-semibold uppercase tracking-wide text-dark;
+    @apply bg-slate-100 text-center text-xs font-semibold uppercase tracking-wide text-slate-700 border-b border-slate-200;
   }
 
   .table-chip {
@@ -144,7 +144,12 @@
 
   /* アクションツールバー */
   .action-toolbar {
-    @apply flex flex-wrap items-center gap-2;
+    @apply flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm;
+  }
+
+  /* ボタングループ（カード装飾なし、横並びのみ） */
+  .action-button-group {
+    @apply flex flex-wrap items-center gap-3;
   }
 
   /* ステータスメッセージ（ローディング・空状態） */

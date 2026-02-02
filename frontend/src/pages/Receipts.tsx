@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
+import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
@@ -273,15 +274,23 @@ export function ReceiptsPage() {
 
   return (
     <Layout>
-      <nav className="border-b border-border no-print">
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title="受取金"
+        description="配当金・国内株式・投資信託の受取金を管理します。"
+      />
+      <nav className="border-b border-slate-200 no-print">
+        <div className="flex flex-wrap gap-1">
           {(['dividend', 'domesticstock', 'mutualfund'] as const).map((tab) => {
             const isActive = receiptsType === tab;
             const label = tab === 'dividend' ? '配当金' : tab === 'domesticstock' ? '国内株式' : '投資信託';
             return (
               <button
                 key={tab}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${isActive ? 'border-primary text-primary' : 'border-transparent text-secondary hover:text-primary'}`}
+                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  isActive
+                    ? 'border-primary text-primary bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                }`}
                 onClick={() => setReceiptsType(tab)}
                 type="button"
                 role="tab"
@@ -303,7 +312,7 @@ export function ReceiptsPage() {
             />
           </div>
           {isAuthenticated && (
-            <div className="action-toolbar" role="group" aria-label="データ操作">
+            <div className="action-button-group" role="group" aria-label="データ操作">
               {hasCsvData && (
                 <Button
                   variant="primary"

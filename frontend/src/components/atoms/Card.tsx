@@ -36,7 +36,7 @@ export function Card({ children, className, ...rest }: CardProps) {
 
 export function CardHeader({ children, variant = 'default', className, ...rest }: CardHeaderProps) {
   const variantClass = variant === 'primary'
-    ? 'bg-primary text-white'
+    ? 'bg-slate-700 text-white'
     : 'border-b border-border bg-white text-dark';
 
   return (

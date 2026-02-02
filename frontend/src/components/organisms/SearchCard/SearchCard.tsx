@@ -19,7 +19,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     onExpandToggle
 }) => {
 
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
     // データが存在するかチェックするヘルパー関数
@@ -42,6 +42,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         const newExpandedState = !isExpanded;
         setIsExpanded(newExpandedState);
         onExpandToggle?.(newExpandedState);
+    };
+
+    // キーボードイベントハンドラ
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleToggleExpanded();
+        }
     };
 
     const handleQuickSearch = (value: string) => {
@@ -92,7 +100,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 variant="primary"
                 className="flex cursor-pointer items-center justify-between"
                 onClick={handleToggleExpanded}
+                onKeyDown={handleKeyDown}
                 role="button"
+                tabIndex={0}
                 aria-expanded={isExpanded}
                 aria-controls="search-options-body"
                 data-testid="search-card-header"

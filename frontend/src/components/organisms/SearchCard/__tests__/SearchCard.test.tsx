@@ -35,7 +35,7 @@ describe('SearchCard', () => {
     expect(screen.getByText('検索オプション')).toBeInTheDocument();
   });
 
-  test('初期状態では検索オプションが折りたたまれている', () => {
+  test('初期状態では検索オプションが展開されている', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -43,12 +43,13 @@ describe('SearchCard', () => {
       />
     );
 
-    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
-    expect(screen.queryByText('西暦')).not.toBeInTheDocument();
-    expect(screen.queryByText('商品')).not.toBeInTheDocument();
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+    expect(screen.getByText('西暦')).toBeInTheDocument();
+    expect(screen.getByText('商品')).toBeInTheDocument();
+    expect(screen.getByText('口座')).toBeInTheDocument();
   });
 
-  test('ヘッダーをクリックすると検索オプションが展開される', () => {
+  test('ヘッダーをクリックすると検索オプションが折りたたまれる', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -59,10 +60,9 @@ describe('SearchCard', () => {
     const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
-    expect(screen.getByText('銘柄')).toBeInTheDocument();
-    expect(screen.getByText('西暦')).toBeInTheDocument();
-    expect(screen.getByText('商品')).toBeInTheDocument();
-    expect(screen.getByText('口座')).toBeInTheDocument();
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+    expect(screen.queryByText('西暦')).not.toBeInTheDocument();
+    expect(screen.queryByText('商品')).not.toBeInTheDocument();
   });
 
   test('onExpandToggleコールバックが呼ばれる', () => {
@@ -77,10 +77,10 @@ describe('SearchCard', () => {
     const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
-    expect(mockOnExpandToggle).toHaveBeenCalledWith(true);
+    expect(mockOnExpandToggle).toHaveBeenCalledWith(false);
 
     fireEvent.click(header!);
-    expect(mockOnExpandToggle).toHaveBeenCalledWith(false);
+    expect(mockOnExpandToggle).toHaveBeenCalledWith(true);
   });
 
   test('銘柄ドロップダウンから選択すると検索が実行される', () => {
@@ -91,11 +91,7 @@ describe('SearchCard', () => {
       />
     );
 
-    // 展開
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 銘柄選択（IDで指定）
+    // 初期状態で展開済み - 銘柄選択（IDで指定）
     const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'AAPL' } });
 
@@ -110,11 +106,7 @@ describe('SearchCard', () => {
       />
     );
 
-    // 展開
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 商品ボタンクリック
+    // 初期状態で展開済み - 商品ボタンクリック
     const productButton = screen.getByText('株式');
     fireEvent.click(productButton);
 
@@ -129,11 +121,7 @@ describe('SearchCard', () => {
       />
     );
 
-    // 展開
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 口座ボタンクリック
+    // 初期状態で展開済み - 口座ボタンクリック
     const accountButton = screen.getByText('一般口座');
     fireEvent.click(accountButton);
 
@@ -183,9 +171,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
+    // 初期状態で展開済み
     expect(screen.getByText('西暦')).toBeInTheDocument();
     expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
     expect(screen.queryByText('商品')).not.toBeInTheDocument();
@@ -223,10 +209,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // 11番目、21番目の商品ボタンの後に改行要素があることを確認
+    // 初期状態で展開済み - 11番目、21番目の商品ボタンの後に改行要素があることを確認
     expect(screen.getByText('商品11')).toBeInTheDocument();
     expect(screen.getByText('商品21')).toBeInTheDocument();
   });
@@ -239,10 +222,7 @@ describe('SearchCard', () => {
       />
     );
 
-    const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
-
-    // IDで指定して選択
+    // 初期状態で展開済み - IDで指定して選択
     const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: '' } });
 

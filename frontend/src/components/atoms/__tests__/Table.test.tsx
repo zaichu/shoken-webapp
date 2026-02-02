@@ -66,7 +66,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('[&_tbody_tr:nth-child(even)]:bg-gray-50');
+    expect(table).toHaveClass('[&_tbody_tr:nth-child(even)]:bg-slate-50');
   });
 
   test('borderedプロパティが正しく適用される', () => {
@@ -96,7 +96,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('[&_tbody_tr:hover]:bg-gray-100');
+    expect(table).toHaveClass('[&_tbody_tr:hover]:bg-slate-100');
   });
 
   test('smallプロパティが正しく適用される', () => {
@@ -288,7 +288,7 @@ describe('Table', () => {
     );
 
     const thead = screen.getByRole('rowgroup');
-    expect(thead).toHaveClass('bg-gray-800', 'text-white');
+    expect(thead).toHaveClass('bg-slate-800', 'text-white');
   });
 
   test('TableCellのscopeプロパティがthの場合に正しく適用される', () => {

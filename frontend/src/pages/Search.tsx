@@ -4,6 +4,8 @@ import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
 import { StockInfo } from '../components/organisms/StockInfo';
 import { Alert } from '../components/atoms/Alert';
+import { EmptyState } from '../components/atoms/EmptyState';
+import { PageHeader } from '../components/atoms/PageHeader';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
@@ -38,6 +40,10 @@ export function SearchPage() {
   return (
     <Layout>
       <div>
+        <PageHeader
+          title="銘柄検索"
+          description="銘柄コードを入力して株式情報を検索できます。"
+        />
         <SearchForm
           stockCode={stockCode}
           onStockCodeChange={setStockCode}
@@ -62,9 +68,16 @@ export function SearchPage() {
         )}
 
         {!stockData && !isError && !isLoading && (
-          <div className="py-10 text-center">
-            <p className="text-sm text-secondary">銘柄コードを入力して検索してください。</p>
-          </div>
+          <EmptyState
+            icon={
+              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+            title="銘柄を検索"
+            description="銘柄コード（例：7203）を入力して検索してください。"
+            className="py-10"
+          />
         )}
       </div>
     </Layout>
