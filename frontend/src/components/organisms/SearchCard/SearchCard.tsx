@@ -113,40 +113,38 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 />
             </CardHeader>
             {isExpanded && categories && (
-                <CardBody id="search-options-body" className="space-y-4 p-3">
-                    {/* 銘柄検索 */}
-                    {hasData(categories.securities) && (
-                        <div className="w-full max-w-[500px] space-y-2">
-                            <div className="text-sm font-medium text-dark">銘柄</div>
-                            <div>{renderQuickSearchDropdown(categories.securities!, 'securities-search')}</div>
-                        </div>
-                    )}
+                <CardBody id="search-options-body" className="p-3">
+                    {/* グリッドレイアウト: モバイル1列、sm2列、lg4列 */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {/* 銘柄検索 */}
+                        {hasData(categories.securities) && (
+                            <div className="space-y-1">
+                                <label htmlFor="securities-search" className="text-sm font-medium text-dark">銘柄</label>
+                                {renderQuickSearchDropdown(categories.securities!, 'securities-search')}
+                            </div>
+                        )}
 
-                    <div className="flex flex-wrap gap-6">
                         {/* 年度検索 */}
                         {hasData(categories.years) && (
-                            <div>
-                                <div className="mb-2 w-[200px] text-sm font-medium text-dark">西暦</div>
-                                <div>{renderQuickSearchDropdown(categories.years!, 'years-search')}</div>
+                            <div className="space-y-1">
+                                <label htmlFor="years-search" className="text-sm font-medium text-dark">西暦</label>
+                                {renderQuickSearchDropdown(categories.years!, 'years-search')}
                             </div>
                         )}
-                        {/* 年月検索 */}
-                        {/* 年月検索は現状非表示 */}
-                    </div>
 
-                    <div className="flex flex-wrap gap-6">
                         {/* 商品検索 */}
                         {hasData(categories.products) && (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">商品</div>
-                                <div className="flex flex-wrap gap-2">{renderQuickSearchButtons(categories.products!, "outline-success")}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, "outline-success")}</div>
                             </div>
                         )}
+
                         {/* 口座検索 */}
                         {hasData(categories.accounts) && (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">口座</div>
-                                <div className="flex flex-wrap gap-2">{renderQuickSearchButtons(categories.accounts!, "outline-warning")}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, "outline-warning")}</div>
                             </div>
                         )}
                     </div>
