@@ -42,9 +42,6 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     // CSVデータを配当データ形式に変換
     const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
 
-    // 全体の集計
-    const calculations = useReceiptCalculations(dividendData, calculateDividends);
-
     // 検索カテゴリーの生成
     const searchCategories = useMemo(() => ({
         securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
@@ -80,6 +77,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         () => filterByConfig(dividendData, searchQuery, filterConfig),
         [dividendData, searchQuery, filterConfig]
     );
+
+    // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
+    const calculations = useReceiptCalculations(filteredData, calculateDividends);
 
     // グループキーの取得（検索タイプに応じて動的に変更）
     const getGroupKey = useCallback((item: DividendData): string => {
@@ -207,15 +207,18 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     return (
         <ReceiptTemplate
             title="配当金"
-            header={searchQuery ? (
-                <DividendInfo
-                    searchQuery={searchQuery}
-                    securityCode={searchSecurityCode}
-                    summary={summary}
-                />
-            ) : (
-                <ReceiptHeader items={headerItems} />
-            )}
+            header={
+                <>
+                    <ReceiptHeader items={headerItems} />
+                    {searchQuery && (
+                        <DividendInfo
+                            searchQuery={searchQuery}
+                            securityCode={searchSecurityCode}
+                            summary={summary}
+                        />
+                    )}
+                </>
+            }
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >

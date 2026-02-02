@@ -35,19 +35,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     ), [csvData]);
 
     /**
-     * 全体の集計
-     */
-    const calculations: MutualfundCalculations = useMemo(() => mutualfundData.reduce((acc, item) => ({
-        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
-        total_taxes: acc.total_taxes + item.taxes,
-        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
-    }), {
-        total_realized_profit_and_loss: 0,
-        total_taxes: 0,
-        total_realized_profit_and_loss_after_tax: 0,
-    }), [mutualfundData]);
-
-    /**
      * 検索オプションの生成
      */
     const searchCategories = useMemo(() => ({
@@ -70,6 +57,19 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         () => filterByConfig(mutualfundData, searchQuery, filterConfig),
         [mutualfundData, searchQuery, filterConfig]
     );
+
+    /**
+     * 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
+     */
+    const calculations: MutualfundCalculations = useMemo(() => filteredData.reduce((acc, item) => ({
+        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
+        total_taxes: acc.total_taxes + item.taxes,
+        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
+    }), {
+        total_realized_profit_and_loss: 0,
+        total_taxes: 0,
+        total_realized_profit_and_loss_after_tax: 0,
+    }), [filteredData]);
 
     /**
      * グループキーの取得（日付文字列：年月）
