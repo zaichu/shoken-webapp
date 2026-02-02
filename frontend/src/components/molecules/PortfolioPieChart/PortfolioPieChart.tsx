@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 // 円グラフ用の配色（視認性を考慮した10色）
@@ -20,6 +20,10 @@ export interface PortfolioItem {
   value: number;
 }
 
+interface ChartDataItem extends PortfolioItem {
+  percentage: number;
+}
+
 interface PortfolioPieChartProps {
   data: PortfolioItem[];
   className?: string;
@@ -28,11 +32,7 @@ interface PortfolioPieChartProps {
 interface TooltipPayloadItem {
   name: string;
   value: number;
-  payload: {
-    name: string;
-    value: number;
-    percentage: number;
-  };
+  payload: ChartDataItem;
 }
 
 // ツールチップの金額・パーセンテージ表示
@@ -58,6 +58,20 @@ const CustomTooltip = ({
   return null;
 };
 
+// 画面幅を監視するフック
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+};
+
 /**
  * ポートフォリオ構成比を表示する円グラフコンポーネント
  */
@@ -65,6 +79,8 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   data,
   className = '',
 }) => {
+  const isMobile = useIsMobile();
+
   // パーセンテージを計算してデータに追加
   const chartData = useMemo(() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -76,20 +92,35 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
     }));
   }, [data]);
 
+  // 凡例のカスタムフォーマッター（銘柄名 + パーセンテージを表示）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const legendFormatter = (value: string, entry: any) => {
+    const percentage = entry.payload?.percentage as number | undefined;
+    if (percentage === undefined) {
+      return <span className="text-sm text-secondary">{value}</span>;
+    }
+
+    return (
+      <span className="text-sm text-secondary">
+        {value} ({percentage.toFixed(1)}%)
+      </span>
+    );
+  };
+
   if (chartData.length === 0) {
     return null;
   }
 
   return (
     <div className={className} data-testid="portfolio-pie-chart">
-      <ResponsiveContainer width="100%" height={250}>
+      <ResponsiveContainer width="100%" height={isMobile ? 350 : 250}>
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
-            cy="50%"
-            innerRadius={50}
-            outerRadius={80}
+            cy={isMobile ? '30%' : '50%'}
+            innerRadius={isMobile ? 40 : 50}
+            outerRadius={isMobile ? 65 : 80}
             paddingAngle={2}
             dataKey="value"
             nameKey="name"
@@ -103,12 +134,11 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
           </Pie>
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            layout="vertical"
-            align="right"
-            verticalAlign="middle"
-            formatter={(value: string) => (
-              <span className="text-sm text-secondary">{value}</span>
-            )}
+            layout={isMobile ? 'horizontal' : 'vertical'}
+            align={isMobile ? 'center' : 'right'}
+            verticalAlign={isMobile ? 'bottom' : 'middle'}
+            wrapperStyle={isMobile ? { paddingTop: 16 } : undefined}
+            formatter={legendFormatter}
           />
         </PieChart>
       </ResponsiveContainer>

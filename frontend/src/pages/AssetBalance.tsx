@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
@@ -23,7 +23,13 @@ import {
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
-import { AssetPortfolioSummary } from '@/components/organisms/AssetPortfolioSummary';
+
+// rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
+const AssetPortfolioSummary = lazy(() =>
+  import('@/components/organisms/AssetPortfolioSummary').then(module => ({
+    default: module.AssetPortfolioSummary
+  }))
+);
 
 
 // CSVアイテムをAssetBalanceDataに変換
@@ -88,7 +94,11 @@ export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData
       title="保有銘柄"
       onSearch={(query: string) => setSearchQuery(query)}
       searchCategories={searchCategories}
-      header={<AssetPortfolioSummary assetBalanceData={assetBalanceData} />}
+      header={
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner size="md" /></div>}>
+          <AssetPortfolioSummary assetBalanceData={assetBalanceData} />
+        </Suspense>
+      }
     >
       <ReceiptTable
         data={filteredData}
