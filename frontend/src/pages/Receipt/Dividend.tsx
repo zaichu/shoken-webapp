@@ -105,14 +105,14 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             return item.account;
         }
 
-        // 年度での検索の場合
+        // 年度での検索の場合も月単位でグループ化（検索なし時と同一ルール）
         if (matchesYear(item.settlement_date, query)) {
-            return item.settlement_date.getFullYear().toString();
+            return createYearMonthKey(item.settlement_date);
         }
 
-        // 年月での検索の場合
+        // 年月での検索の場合も月単位でグループ化（検索なし時と同一ルール）
         if (matchesYearMonth(item.settlement_date, query)) {
-            return query;
+            return createYearMonthKey(item.settlement_date);
         }
 
         // デフォルトは年月でグループ化
