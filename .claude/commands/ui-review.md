@@ -89,3 +89,64 @@ mcp__playwright__browser_take_screenshot:
 - スクリーンショット取得に失敗した画面はスキップして続行
 - レポートは日本語で出力
 - 認証が必要なページはユーザーにログインを依頼する
+
+---
+
+## 受取金ページ詳細スクリーンショット（npm コマンド版）
+
+上記の `/ui-review` コマンドとは別に、受取金ページの詳細なスクリーンショットを npm コマンドで取得できます。
+
+### 違い
+| 項目 | /ui-review (MCP版) | npm run (E2E版) |
+|------|-------------------|-----------------|
+| 実行方法 | Claude Code から `/ui-review` | ターミナルで `npm run ui:screenshot` |
+| 保存先 | `.playwright-mcp/` | `frontend/screenshots/` |
+| 対象 | 全ページの概要 | 受取金ページの詳細（タブ・検索） |
+| 認証 | 手動ログイン依頼 | storageState で保持可能 |
+
+### 保存先
+`frontend/screenshots/` ディレクトリに保存されます（コミット可能）。
+
+### 取得するスクリーンショット
+| ファイル名 | 内容 |
+|-----------|------|
+| `receipts-dividend-initial.png` | 配当金タブの初期表示 |
+| `receipts-domestic-stock-initial.png` | 国内株式タブの初期表示 |
+| `receipts-mutualfund-initial.png` | 投資信託タブの初期表示 |
+| `receipts-dividend-search-year.png` | 配当金 - 西暦検索結果 |
+| `receipts-dividend-search-security.png` | 配当金 - 銘柄検索結果 |
+| `receipts-domestic-stock-search-year.png` | 国内株式 - 西暦検索結果 |
+| `receipts-domestic-stock-search-account.png` | 国内株式 - 口座検索結果 |
+| `receipts-mutualfund-search-year.png` | 投資信託 - 西暦検索結果 |
+| `receipts-mutualfund-search-fund.png` | 投資信託 - ファンド検索結果 |
+
+### 実行コマンド
+
+```bash
+cd frontend
+
+# 1. 開発サーバーを起動（別ターミナル）
+npm run dev
+
+# 2. スクリーンショット取得（ログイン不要の場合）
+npm run ui:screenshot
+
+# 3. ログインが必要な場合
+#    3-1. ログイン状態を保存
+npm run ui:save-auth
+#    ブラウザが開くので手動でログイン後、ターミナルでEnterを押す
+
+#    3-2. 保存した認証情報を使ってスクショ取得
+npm run ui:screenshot:auth
+```
+
+### ファイル構成
+```
+frontend/
+├── e2e/
+│   ├── ui-screenshots.spec.ts  # スクショ取得スクリプト
+│   └── save-auth.spec.ts       # ログイン状態保存スクリプト
+├── screenshots/                # スクショ保存先（コミット可能）
+├── .auth/                      # 認証情報（.gitignore対象）
+└── playwright.config.ts        # Playwright設定
+```
