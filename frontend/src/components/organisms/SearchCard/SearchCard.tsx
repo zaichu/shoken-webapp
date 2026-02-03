@@ -141,8 +141,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     return (
         <Card className="mt-1">
             <CardHeader
-                variant="primary"
-                className="flex cursor-pointer items-center justify-between select-none hover:bg-primary/90 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset"
+                variant="secondary"
+                className="flex cursor-pointer items-center justify-between select-none hover:bg-slate-600 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset"
                 onClick={handleToggleExpanded}
                 onKeyDown={handleKeyDown}
                 role="button"
