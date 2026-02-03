@@ -90,10 +90,10 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
         const query = searchQuery.toLowerCase();
 
-        // 銘柄での検索の場合
+        // 銘柄での検索の場合（銘柄名でグループ化、年と誤判定を防ぐ）
         if (item.security_code.toLowerCase() === query ||
             item.security_name.toLowerCase() === query) {
-            return item.security_code;
+            return item.security_name;
         }
 
         // 商品での検索の場合

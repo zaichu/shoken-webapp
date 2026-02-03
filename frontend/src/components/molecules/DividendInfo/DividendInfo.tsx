@@ -170,15 +170,15 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
-      <div className="bg-slate-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
-        <h5 className="font-semibold">配当シミュレーション</h5>
+      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg flex justify-between items-center">
+        <h5 className="text-sm font-medium">配当シミュレーション</h5>
         {assetBalanceData && (
-          <small className="text-white/80">
-            保有銘柄データから自動入力
+          <small className="text-xs text-white/70">
+            自動入力
           </small>
         )}
       </div>
-      <div className="p-4">
+      <div className="p-3">
         {content}
       </div>
     </div>
