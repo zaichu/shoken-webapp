@@ -11,17 +11,6 @@ Claude Code で完結するUIレビューシステム（Playwright MCP版）
 /ui-review --review-only      # 既存画像の分析のみ
 ```
 
-## 取得するスクリーンショット
-
-受取金ページの各タブと検索結果を取得する（MCP版・E2E版共通）:
-
-| ファイル名 | 内容 |
-|-----------|------|
-| `receipts-dividend.png` | 配当金タブの初期表示 |
-| `receipts-dividend-search.png` | 配当金 - 銘柄検索結果（配当シミュレーション表示） |
-| `receipts-domestic-stock.png` | 国内株式タブの初期表示 |
-| `receipts-mutualfund.png` | 投資信託タブの初期表示 |
-
 ### 保存先
 `.playwright-mcp/` ディレクトリに保存される。
 
@@ -40,10 +29,17 @@ Claude Code で完結するUIレビューシステム（Playwright MCP版）
    ```
 2. `mcp__playwright__browser_navigate` で `http://localhost:8080/receipts` に遷移
 3. 各タブについてスクリーンショットを取得:
-   - 配当金タブ: `receipts-dividend.png`
-   - 配当金タブで銘柄検索: `receipts-dividend-search.png`
-   - 国内株式タブ: `receipts-domestic-stock.png`
-   - 投資信託タブ: `receipts-mutualfund.png`
+| ファイル名 | 内容 |
+|-----------|------|
+| `receipts-dividend-initial.png` | 配当金タブの初期表示 |
+| `receipts-domestic-stock-initial.png` | 国内株式タブの初期表示 |
+| `receipts-mutualfund-initial.png` | 投資信託タブの初期表示 |
+| `receipts-dividend-search-year.png` | 配当金 - 西暦検索結果 |
+| `receipts-dividend-search-security.png` | 配当金 - 銘柄検索結果 |
+| `receipts-domestic-stock-search-year.png` | 国内株式 - 西暦検索結果 |
+| `receipts-domestic-stock-search-account.png` | 国内株式 - 口座検索結果 |
+| `receipts-mutualfund-search-year.png` | 投資信託 - 西暦検索結果 |
+| `receipts-mutualfund-search-fund.png` | 投資信託 - ファンド検索結果 |
 4. スクリーンショット取得時の設定:
    - `fullPage`: true（全ページキャプチャ）
    - `type`: png
