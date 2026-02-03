@@ -155,7 +155,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
 
   if (embedded) {
     return (
-      <div className="mt-4 border-t border-border pt-4">
+      <div className="mt-4 pt-4">
         {assetBalanceData && (
           <div className="mb-4 flex justify-end">
             <small className="text-gray-500">

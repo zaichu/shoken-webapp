@@ -12,7 +12,8 @@ import {
     formatJPDate,
     createYearMonthKey,
     formatCurrency,
-    formatNumber
+    formatNumber,
+    SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
@@ -141,6 +142,11 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         return matchedItem?.security_code || '';
     }, [filteredData, searchQuery]);
 
+    // 銘柄コード検索かどうかを判定（配当シミュレーション表示の条件）
+    const isSecurityCodeSearch = useMemo(() => {
+        return !!searchSecurityCode && SECURITY_CODE_REGEX.test(searchSecurityCode);
+    }, [searchSecurityCode]);
+
     // ヘッダー項目の定義
     const allHeaderItems = [
         {
@@ -160,8 +166,8 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         }
     ];
 
-    // 配当情報表示時は配当情報内に3指標を表示するため、上段の集計は非表示
-    const headerItems = searchQuery ? [] : allHeaderItems;
+    // 配当シミュレーション表示時は内部に3指標を表示するため、上段の集計は非表示
+    const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
@@ -213,10 +219,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             header={
                 <ReceiptHeader
                     items={headerItems}
-                    title={searchQuery ? '配当情報' : '集計情報'}
-                    collapsible={!!searchQuery}
+                    title="集計情報"
                 >
-                    {searchQuery && (
+                    {isSecurityCodeSearch && (
                         <DividendInfo
                             searchQuery={searchQuery}
                             securityCode={searchSecurityCode}
