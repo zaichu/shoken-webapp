@@ -32,7 +32,7 @@ async function main() {
   });
 
   const page = context.pages()[0] || await context.newPage();
-  await page.goto('http://localhost:8081/');
+  await page.goto('http://localhost:8080/');
 
   console.log('ブラウザでログインしてください。');
   console.log('ログイン完了後、このターミナルでEnterを押してください。');
