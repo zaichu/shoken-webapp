@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.join(__dirname, '../screenshots');
+const SCREENSHOT_DIR = path.join(__dirname, '../../.playwright-mcp');
 const TABS = [
   { name: 'dividend', label: '配当金', index: 0 },
   { name: 'domestic-stock', label: '国内株式', index: 1 },

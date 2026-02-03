@@ -100,12 +100,11 @@ mcp__playwright__browser_take_screenshot:
 | 項目 | /ui-review (MCP版) | npm run (E2E版) |
 |------|-------------------|-----------------|
 | 実行方法 | Claude Code から `/ui-review` | ターミナルで `npm run ui:screenshot` |
-| 保存先 | `.playwright-mcp/` | `frontend/screenshots/` |
 | 対象 | 全ページの概要 | 受取金ページの詳細（タブ・検索） |
 | 認証 | 手動ログイン依頼 | storageState で保持可能 |
 
 ### 保存先
-`frontend/screenshots/` ディレクトリに保存されます（コミット可能）。
+`.playwright-mcp/` ディレクトリに保存されます（両方式で共通）。
 
 ### 取得するスクリーンショット
 | ファイル名 | 内容 |
@@ -142,11 +141,12 @@ npm run ui:screenshot:auth
 
 ### ファイル構成
 ```
-frontend/
-├── e2e/
-│   ├── ui-screenshots.spec.ts  # スクショ取得スクリプト
-│   └── save-auth.spec.ts       # ログイン状態保存スクリプト
-├── screenshots/                # スクショ保存先（コミット可能）
-├── .auth/                      # 認証情報（.gitignore対象）
-└── playwright.config.ts        # Playwright設定
+shoken-webapp/
+├── .playwright-mcp/              # スクショ保存先（共通）
+└── frontend/
+    ├── e2e/
+    │   ├── ui-screenshots.spec.ts  # スクショ取得スクリプト
+    │   └── save-auth.spec.ts       # ログイン状態保存スクリプト
+    ├── .auth/                      # 認証情報（.gitignore対象）
+    └── playwright.config.ts        # Playwright設定
 ```
