@@ -21,6 +21,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     const [isExpanded, setIsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
+    const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
 
     // データが存在するかチェックするヘルパー関数
     const hasData = (data: unknown[] | undefined): boolean => {
@@ -52,8 +54,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         }
     };
 
-    const handleQuickSearch = (value: string) => {
+    const handleQuickSearch = (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => {
         setSearchQuery(value);
+        setActiveSearchType(value ? searchType : null);
         onSearch(value);
     };
 
@@ -62,12 +65,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
-    const renderQuickSearchButtons = (items: string[], variant: string) => {
+    const renderQuickSearchButtons = (items: string[], variant: string, searchType: 'products' | 'accounts') => {
         if (!items || items.length === 0) return null;
 
         return items.map((item, index) => (
             <React.Fragment key={index}>
-                <Button type="button" variant={variant as ButtonVariant} size="sm" onClick={() => handleQuickSearch(item)}>
+                <Button type="button" variant={variant as ButtonVariant} size="sm" onClick={() => handleQuickSearch(item, searchType)}>
                     {item}
                 </Button>
                 {index % 10 === 9 && <div className="mt-1" />}
@@ -75,13 +78,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         ));
     };
 
-    const renderQuickSearchDropdown = (items: { value: string, label: string }[], id: string = 'search-dropdown') => {
+    const renderQuickSearchDropdown = (items: { value: string, label: string }[], id: string, searchType: 'securities' | 'years') => {
+        // このドロップダウンがアクティブな検索タイプの場合のみ値を表示
+        const displayValue = activeSearchType === searchType ? searchQuery : '';
         return (
             <select
                 id={id}
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                value={searchQuery}
-                onChange={(e) => handleQuickSearch(e.target.value)}
+                value={displayValue}
+                onChange={(e) => handleQuickSearch(e.target.value, searchType)}
                 aria-label="検索フィルター"
             >
                 <option value="">全て表示</option>
@@ -120,7 +125,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.securities) && (
                             <div className="space-y-1">
                                 <label htmlFor="securities-search" className="text-sm font-medium text-dark">銘柄</label>
-                                {renderQuickSearchDropdown(categories.securities!, 'securities-search')}
+                                {renderQuickSearchDropdown(categories.securities!, 'securities-search', 'securities')}
                             </div>
                         )}
 
@@ -128,7 +133,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.years) && (
                             <div className="space-y-1">
                                 <label htmlFor="years-search" className="text-sm font-medium text-dark">西暦</label>
-                                {renderQuickSearchDropdown(categories.years!, 'years-search')}
+                                {renderQuickSearchDropdown(categories.years!, 'years-search', 'years')}
                             </div>
                         )}
 
@@ -136,7 +141,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.products) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">商品</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, "outline-success")}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, "outline-success", 'products')}</div>
                             </div>
                         )}
 
@@ -144,7 +149,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.accounts) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">口座</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, "outline-warning")}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, "outline-warning", 'accounts')}</div>
                             </div>
                         )}
                     </div>
