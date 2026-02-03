@@ -142,13 +142,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1">
             <CardHeader
                 variant="primary"
-                className="flex cursor-pointer items-center justify-between select-none hover:bg-primary/90 transition-colors"
+                className="flex cursor-pointer items-center justify-between select-none hover:bg-primary/90 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset"
                 onClick={handleToggleExpanded}
                 onKeyDown={handleKeyDown}
                 role="button"
                 tabIndex={0}
                 aria-expanded={isExpanded}
                 aria-controls="search-options-body"
+                aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
                 data-testid="search-card-header"
             >
                 <div className="flex items-center gap-2">
@@ -159,8 +160,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
-                    <span className="text-xs opacity-75 hidden sm:inline">
+                {/* 開閉ボタン: ヒットエリア拡大、視覚的に押しやすく */}
+                <span
+                    className="flex items-center gap-1.5 px-3 py-1.5 -mr-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-hidden="true"
+                >
+                    <span className="text-xs font-medium hidden sm:inline">
                         {isExpanded ? '閉じる' : '開く'}
                     </span>
                     <svg
@@ -171,7 +176,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                </div>
+                </span>
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
