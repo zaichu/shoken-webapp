@@ -11,13 +11,19 @@ Claude Code で完結するUIレビューシステム（Playwright MCP版）
 /ui-review --review-only      # 既存画像の分析のみ
 ```
 
-## 対象画面
-以下の画面をレビュー対象とする:
-- `/` - ホーム画面
-- `/search` - 銘柄検索
-- `/assetbalance` - 保有銘柄
-- `/receipts` - 受取金
-- `/404` - エラーページ
+## 取得するスクリーンショット
+
+受取金ページの各タブと検索結果を取得する（MCP版・E2E版共通）:
+
+| ファイル名 | 内容 |
+|-----------|------|
+| `receipts-dividend.png` | 配当金タブの初期表示 |
+| `receipts-dividend-search.png` | 配当金 - 銘柄検索結果（配当シミュレーション表示） |
+| `receipts-domestic-stock.png` | 国内株式タブの初期表示 |
+| `receipts-mutualfund.png` | 投資信託タブの初期表示 |
+
+### 保存先
+`.playwright-mcp/` ディレクトリに保存される。
 
 ## Implementation Steps
 
@@ -28,14 +34,19 @@ Claude Code で完結するUIレビューシステム（Playwright MCP版）
    - `ToolSearch` に `playwright screenshot navigate` でツールを検索
 
 ### 2. スクリーンショット取得
-1. `mcp__playwright__browser_navigate` で対象URLに遷移
-2. 各対象画面について:
-   - `mcp__playwright__browser_navigate` でURLに遷移（例: `http://localhost:8080/search`）
-   - `mcp__playwright__browser_take_screenshot` でキャプチャ
-     - `filename`: ページ名.png（例: `home.png`, `search.png`）
-     - `fullPage`: true（全ページキャプチャ）
-     - `type`: png
-   - スクリーンショットは `.playwright-mcp/` ディレクトリに自動保存される
+1. `.playwright-mcp/` ディレクトリ内の既存画像を削除
+   ```bash
+   rm -f .playwright-mcp/*.png
+   ```
+2. `mcp__playwright__browser_navigate` で `http://localhost:8080/receipts` に遷移
+3. 各タブについてスクリーンショットを取得:
+   - 配当金タブ: `receipts-dividend.png`
+   - 配当金タブで銘柄検索: `receipts-dividend-search.png`
+   - 国内株式タブ: `receipts-domestic-stock.png`
+   - 投資信託タブ: `receipts-mutualfund.png`
+4. スクリーンショット取得時の設定:
+   - `fullPage`: true（全ページキャプチャ）
+   - `type`: png
 
 ### 3. UI分析
 Read ツールで各スクリーンショットを読み込み、以下の観点で分析:
@@ -75,12 +86,12 @@ Read ツールで各スクリーンショットを読み込み、以下の観点
 ToolSearch: query="playwright screenshot navigate"
 
 # ページ遷移
-mcp__playwright__browser_navigate: url="http://localhost:8080"
+mcp__playwright__browser_navigate: url="http://localhost:8080/receipts"
 
 # スクリーンショット取得
 mcp__playwright__browser_take_screenshot:
   type="png"
-  filename="home.png"
+  filename="receipts-dividend.png"
   fullPage=true
 ```
 
@@ -92,32 +103,9 @@ mcp__playwright__browser_take_screenshot:
 
 ---
 
-## 受取金ページ詳細スクリーンショット（npm コマンド版）
+## E2E版（npm コマンド）
 
-上記の `/ui-review` コマンドとは別に、受取金ページの詳細なスクリーンショットを npm コマンドで取得できます。
-
-### 違い
-| 項目 | /ui-review (MCP版) | npm run (E2E版) |
-|------|-------------------|-----------------|
-| 実行方法 | Claude Code から `/ui-review` | ターミナルで `npm run ui:screenshot` |
-| 対象 | 全ページの概要 | 受取金ページの詳細（タブ・検索） |
-| 認証 | 手動ログイン依頼 | storageState で保持可能 |
-
-### 保存先
-`.playwright-mcp/` ディレクトリに保存されます（両方式で共通）。
-
-### 取得するスクリーンショット
-| ファイル名 | 内容 |
-|-----------|------|
-| `receipts-dividend-initial.png` | 配当金タブの初期表示 |
-| `receipts-domestic-stock-initial.png` | 国内株式タブの初期表示 |
-| `receipts-mutualfund-initial.png` | 投資信託タブの初期表示 |
-| `receipts-dividend-search-year.png` | 配当金 - 西暦検索結果 |
-| `receipts-dividend-search-security.png` | 配当金 - 銘柄検索結果 |
-| `receipts-domestic-stock-search-year.png` | 国内株式 - 西暦検索結果 |
-| `receipts-domestic-stock-search-account.png` | 国内株式 - 口座検索結果 |
-| `receipts-mutualfund-search-year.png` | 投資信託 - 西暦検索結果 |
-| `receipts-mutualfund-search-fund.png` | 投資信託 - ファンド検索結果 |
+MCP版と同じスクリーンショットを npm コマンドでも取得できる。
 
 ### 実行コマンド
 
