@@ -155,9 +155,9 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
 
   if (embedded) {
     return (
-      <div className="mt-4 pt-4">
+      <div>
         {assetBalanceData && (
-          <div className="mb-4 flex justify-end">
+          <div className="mb-3 flex justify-end">
             <small className="text-gray-500">
               保有銘柄データから自動入力
             </small>
