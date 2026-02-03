@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ReceiptHeader } from '../ReceiptHeader';
 
 describe('ReceiptHeader', () => {
@@ -67,9 +67,33 @@ describe('ReceiptHeader', () => {
     ];
 
     render(<ReceiptHeader items={items} />);
-    
+
     expect(screen.getByText('¥1500')).toBeInTheDocument();
     expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByText('10個')).toBeInTheDocument();
+  });
+
+  it('タイトルと追加コンテンツを表示できる', () => {
+    render(
+      <ReceiptHeader items={defaultItems} title="集計・配当情報">
+        <div>配当情報</div>
+      </ReceiptHeader>
+    );
+
+    expect(screen.getByText('集計・配当情報')).toBeInTheDocument();
+    expect(screen.getByText('配当情報')).toBeInTheDocument();
+  });
+
+  it('collapsibleがtrueのときヘッダークリックで開閉できる', () => {
+    render(<ReceiptHeader items={defaultItems} title="配当情報" collapsible />);
+
+    const header = screen.getByTestId('receipt-header');
+    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.queryByText('テスト項目1')).not.toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
   });
 });

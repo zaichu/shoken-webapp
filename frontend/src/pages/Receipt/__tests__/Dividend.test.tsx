@@ -145,10 +145,36 @@ describe('Dividend', () => {
             expect(screen.getByText('一株配当')).toBeInTheDocument();
         });
 
-        // 統計項目が表示されることを確認
-        expect(screen.getByText('取得総額')).toBeInTheDocument();
-        expect(screen.getByText('合計受取金額 (累積利回り)')).toBeInTheDocument();
-        expect(screen.getByText('年間配当金額 (配当利回り)')).toBeInTheDocument();
+        // 統計項目が重複せず表示されることを確認
+        expect(screen.queryByText('取得総額')).not.toBeInTheDocument();
+        expect(screen.queryByText('合計配当金')).not.toBeInTheDocument();
+        expect(screen.queryByText('合計税額')).not.toBeInTheDocument();
+        expect(screen.queryByText('合計受取金額')).not.toBeInTheDocument();
+        expect(screen.getByText('配当金額 (配当利回り)')).toBeInTheDocument();
+        expect(screen.getAllByText('税額').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('受取金額 (累積利回り)')).toBeInTheDocument();
+    });
+
+    it('配当情報ヘッダーをクリックすると開閉できる', async () => {
+        const user = userEvent.setup();
+        const { container } = render(<Dividend csvData={mockCsvData} />);
+
+        await waitFor(() => {
+            expect(container.querySelector('#securities-search')).toBeInTheDocument();
+        });
+        const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
+        await user.selectOptions(selectElement, '1234');
+
+        await waitFor(() => {
+            expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+        });
+
+        const header = screen.getByTestId('receipt-header');
+        await user.click(header);
+        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+
+        await user.click(header);
+        expect(screen.getByText('平均取得価格')).toBeInTheDocument();
     });
 
     it('検索をクリアすると通常のヘッダーに戻る', async () => {

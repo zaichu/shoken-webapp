@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode, useEffect, useId, useState } from 'react';
 import { StatItem } from '@/components/atoms/StatItem';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
@@ -10,29 +10,78 @@ interface HeaderItem {
 
 interface ReceiptHeaderProps {
     items: HeaderItem[];
+    title?: string;
+    children?: ReactNode;
+    collapsible?: boolean;
 }
 
-export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({ items }) => {
+export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
+    items,
+    title = '集計情報',
+    children,
+    collapsible = false
+}) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const bodyId = useId();
+
+    // 折りたたみを無効化したら展開状態に戻す
+    useEffect(() => {
+        if (!collapsible) {
+            setIsExpanded(true);
+        }
+    }, [collapsible]);
+
+    const handleToggleExpanded = () => {
+        if (!collapsible) return;
+        setIsExpanded(prev => !prev);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (!collapsible) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleToggleExpanded();
+        }
+    };
+
     return (
         <Card>
-            <CardHeader variant="primary">
-                <h5>集計情報</h5>
+            <CardHeader
+                variant="primary"
+                className={collapsible ? 'flex cursor-pointer items-center justify-between' : undefined}
+                onClick={collapsible ? handleToggleExpanded : undefined}
+                onKeyDown={collapsible ? handleKeyDown : undefined}
+                role={collapsible ? 'button' : undefined}
+                tabIndex={collapsible ? 0 : undefined}
+                aria-expanded={collapsible ? isExpanded : undefined}
+                aria-controls={collapsible ? bodyId : undefined}
+                data-testid="receipt-header"
+            >
+                <h5>{title}</h5>
+                {collapsible && (
+                    <div
+                        className={`h-0 w-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                )}
             </CardHeader>
-            <CardBody className="p-4">
-                <div className="stat-grid">
-                    {items.map((item, index) => (
-                        <StatItem
-                            key={index}
-                            title={item.title}
-                            value={
-                                <span data-negative={item.value < 0 ? 'true' : undefined}>
-                                    {item.format(item.value)}
-                                </span>
-                            }
-                        />
-                    ))}
-                </div>
-            </CardBody>
+            {(!collapsible || isExpanded) && (
+                <CardBody id={bodyId} className="p-4">
+                    <div className="stat-grid">
+                        {items.map((item, index) => (
+                            <StatItem
+                                key={index}
+                                title={item.title}
+                                value={
+                                    <span data-negative={item.value < 0 ? 'true' : undefined}>
+                                        {item.format(item.value)}
+                                    </span>
+                                }
+                            />
+                        ))}
+                    </div>
+                    {children}
+                </CardBody>
+            )}
         </Card >
     );
 };

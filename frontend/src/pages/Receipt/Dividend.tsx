@@ -142,7 +142,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     }, [filteredData, searchQuery]);
 
     // ヘッダー項目の定義
-    const headerItems = [
+    const allHeaderItems = [
         {
             title: '合計配当金',
             value: calculations.total_dividends_before_tax,
@@ -159,6 +159,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             format: formatCurrency
         }
     ];
+
+    // 配当情報表示時は配当情報内に3指標を表示するため、上段の集計は非表示
+    const headerItems = searchQuery ? [] : allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
@@ -208,16 +211,20 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         <ReceiptTemplate
             title="配当金"
             header={
-                <>
-                    <ReceiptHeader items={headerItems} />
+                <ReceiptHeader
+                    items={headerItems}
+                    title={searchQuery ? '配当情報' : '集計情報'}
+                    collapsible={!!searchQuery}
+                >
                     {searchQuery && (
                         <DividendInfo
                             searchQuery={searchQuery}
                             securityCode={searchSecurityCode}
                             summary={summary}
+                            embedded
                         />
                     )}
-                </>
+                </ReceiptHeader>
             }
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
