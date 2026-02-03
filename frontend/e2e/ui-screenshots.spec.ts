@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
  * ログインが必要な場合:
  * 1. 手動でブラウザを開きログイン
  * 2. npm run ui:save-auth でログイン状態を保存
- * 3. npm run ui:screenshot で実行
+ * 3. npm run ui:screenshot:auth で実行
  */
 
 const __filename = fileURLToPath(import.meta.url);
