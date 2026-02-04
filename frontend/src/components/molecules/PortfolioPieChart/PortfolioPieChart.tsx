@@ -1,9 +1,8 @@
-import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import React, { useMemo, useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
 
-// 円グラフ用の配色（視認性を考慮した10色）
+// 横棒グラフ用の配色（視認性を考慮した10色）
 const COLORS = [
   '#3b82f6', // blue-500
   '#10b981', // emerald-500
@@ -17,6 +16,8 @@ const COLORS = [
   '#6366f1', // indigo-500
 ];
 
+const TOP_N = 5; // デフォルト表示件数
+
 export interface PortfolioItem {
   name: string;
   value: number;
@@ -26,8 +27,6 @@ export interface PortfolioItem {
 
 interface ChartDataItem extends PortfolioItem {
   percentage: number;
-  securityCode?: string;
-  shares?: number;
 }
 
 interface PortfolioPieChartProps {
@@ -35,151 +34,137 @@ interface PortfolioPieChartProps {
   className?: string;
 }
 
-interface TooltipPayloadItem {
-  name: string;
-  value: number;
-  payload: ChartDataItem;
-}
-
-// ツールチップの金額・パーセンテージ表示
-const CustomTooltip = ({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-}) => {
-  if (active && payload && payload.length > 0) {
-    const item = payload[0].payload;
-    return (
-      <div className="rounded border border-border bg-white px-3 py-2 shadow-sm">
-        <p className="text-sm font-medium text-dark">{item.name}</p>
-        {item.securityCode && (
-          <p className="text-xs text-slate-500">{item.securityCode}</p>
-        )}
-        <p className="text-sm text-secondary">
-          {formatCurrency(item.value)}
-        </p>
-        {item.shares !== undefined && (
-          <p className="text-sm text-secondary">{formatNumber(item.shares)}株</p>
-        )}
-        <p className="text-sm text-secondary">{item.percentage.toFixed(1)}%</p>
-      </div>
-    );
-  }
-  return null;
-};
-
 /**
- * ポートフォリオ構成比を表示する円グラフコンポーネント
+ * ポートフォリオ構成比を表示する横棒グラフコンポーネント
  */
 export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   data,
   className = '',
 }) => {
-  // パーセンテージを計算してデータに追加
-  const chartData = useMemo(() => {
+  const [showAll, setShowAll] = useState(false);
+
+  // パーセンテージを計算してデータに追加（降順ソート済み）
+  const chartData: ChartDataItem[] = useMemo(() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     if (total === 0) return [];
 
-    return data.map((item) => ({
-      ...item,
-      percentage: (item.value / total) * 100,
-    }));
+    return data
+      .map((item) => ({
+        ...item,
+        percentage: (item.value / total) * 100,
+      }))
+      .sort((a, b) => b.percentage - a.percentage);
   }, [data]);
+
+  // 表示データ（Top N または全件）
+  const displayData = useMemo(() => {
+    if (showAll || chartData.length <= TOP_N) {
+      return chartData;
+    }
+    return chartData.slice(0, TOP_N);
+  }, [chartData, showAll]);
+
+  // その他の合計（Top N以外）
+  const othersPercentage = useMemo(() => {
+    if (showAll || chartData.length <= TOP_N) return 0;
+    return chartData.slice(TOP_N).reduce((sum, item) => sum + item.percentage, 0);
+  }, [chartData, showAll]);
 
   if (chartData.length === 0) {
     return null;
   }
 
-  // カスタム凡例コンポーネント（詳細情報付き・2-3列グリッド）
-  const CustomLegend = () => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {chartData.map((item, index) => (
-        <div
-          key={item.securityCode || item.name}
-          className="rounded-lg border border-slate-200 bg-slate-50 p-3"
-        >
-          {/* ヘッダー: 色マーカー + 銘柄名 + 構成比 */}
-          <div className="flex items-center gap-2">
-            <span
-              className="h-3 w-3 shrink-0 rounded-sm"
-              style={{ backgroundColor: COLORS[index % COLORS.length] }}
-            />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700" title={item.name}>
-              {item.name}
-            </span>
-            <span className="shrink-0 text-sm font-bold text-slate-600">
-              {item.percentage.toFixed(1)}%
-            </span>
-          </div>
-          {/* 詳細情報: 銘柄コード(リンク)、取得総額、保有数量 */}
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <div className="flex items-center gap-1">
-              <span className="text-slate-500">コード:</span>
-              {item.securityCode ? (
-                <SecurityCodeLink value={item.securityCode} className="text-xs" />
-              ) : (
-                <span className="text-slate-400">-</span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-slate-500">取得総額:</span>
-              <span className="font-medium text-slate-700">{formatCurrency(item.value)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-slate-500">数量:</span>
-              <span className="font-medium text-slate-700">
-                {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
-              </span>
-            </div>
-          </div>
-          {/* パーセンテージバー */}
-          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(item.percentage, 100)}%`,
-                backgroundColor: COLORS[index % COLORS.length],
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const remainingCount = chartData.length - TOP_N;
 
   return (
     <div className={className} data-testid="portfolio-pie-chart">
-      {/* ドーナツチャート（中央配置） */}
-      <div className="mx-auto w-48 sm:w-56">
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={2}
-              dataKey="value"
-              nameKey="name"
-            >
-              {chartData.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
+      {/* 横棒グラフリスト（2-3列グリッド） */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {displayData.map((item, index) => (
+          <div
+            key={item.securityCode || item.name}
+            className="rounded-lg border border-slate-200 bg-white p-3"
+          >
+            {/* 上段: 銘柄名 + 構成比 */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
+                <span className="truncate text-sm font-medium text-slate-700" title={item.name}>
+                  {item.name}
+                </span>
+              </div>
+              <span className="shrink-0 text-lg font-bold text-slate-800">
+                {item.percentage.toFixed(1)}%
+              </span>
+            </div>
+            {/* 横棒グラフ */}
+            <div className="h-2.5 w-full rounded-full bg-slate-100 mb-2">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(item.percentage, 100)}%`,
+                  backgroundColor: COLORS[index % COLORS.length],
+                }}
+              />
+            </div>
+            {/* 下段: 詳細情報 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">コード:</span>
+                {item.securityCode ? (
+                  <SecurityCodeLink value={item.securityCode} className="text-xs" />
+                ) : (
+                  <span className="text-slate-400">-</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">取得総額:</span>
+                <span className="font-medium">{formatCurrency(item.value)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">数量:</span>
+                <span className="font-medium">
+                  {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* その他（折りたたみ時） */}
+        {!showAll && othersPercentage > 0 && (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-sm text-slate-500">
+                その他 {chartData.length - TOP_N}銘柄
+              </span>
+              <span className="text-lg font-bold text-slate-500">
+                {othersPercentage.toFixed(1)}%
+              </span>
+            </div>
+            <div className="h-2.5 w-full rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-slate-400 transition-all duration-300"
+                style={{ width: `${Math.min(othersPercentage, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
-      {/* 銘柄カードリスト（ドーナツの下） */}
-      <div className="mt-4">
-        <CustomLegend />
-      </div>
+
+      {/* 全件表示トグル */}
+      {chartData.length > TOP_N && (
+        <button
+          type="button"
+          onClick={() => setShowAll(!showAll)}
+          className="mt-3 w-full rounded-md border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          {showAll ? `上位${TOP_N}件のみ表示` : `残り${remainingCount}銘柄を表示（全${chartData.length}）`}
+        </button>
+      )}
     </div>
   );
 };
