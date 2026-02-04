@@ -329,10 +329,10 @@ export function ReceiptsPage() {
                   variant="outline-danger"
                   size="sm"
                   onClick={handleDeleteAll}
-                  disabled={saving || deleting}
-                  aria-disabled={saving || deleting}
+                  disabled={saving || deleting || dbLoading}
+                  aria-disabled={saving || deleting || dbLoading}
                 >
-                  {deleting ? '削除中...' : '削除'}
+                  {deleting ? '削除中...' : '全件削除'}
                 </Button>
               )}
             </div>

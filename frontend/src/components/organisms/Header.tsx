@@ -11,10 +11,26 @@ const NAV_LINKS = [
   { to: '/receipts', label: '受取金' },
 ] as const;
 
+// ユーザー名からイニシャルを取得
+const getInitials = (name: string | null | undefined, email: string | null | undefined): string => {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  return 'U';
+};
+
 export function Header() {
   const { user, login, logout, deleteAccount, isAuthenticated, isLoading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
@@ -100,12 +116,21 @@ export function Header() {
                 <span className="text-white/80 text-base">読み込み中...</span>
               ) : isAuthenticated && user ? (
                 <div className="flex items-center gap-3">
-                  {user.picture_url && (
+                  {/* ユーザーアバター（フォールバック付き） */}
+                  {user.picture_url && !imageError ? (
                     <img
                       src={user.picture_url}
                       alt={user.name || 'ユーザー'}
-                      className="h-8 w-8 rounded-full object-cover"
+                      className="h-8 w-8 rounded-full object-cover bg-slate-600"
+                      onError={() => setImageError(true)}
                     />
+                  ) : (
+                    <div
+                      className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-white text-sm font-medium"
+                      aria-label={user.name || 'ユーザー'}
+                    >
+                      {getInitials(user.name, user.email)}
+                    </div>
                   )}
                   <span className="text-base text-white/90">{user.name || user.email}</span>
                   <div className="relative" ref={dropdownRef}>

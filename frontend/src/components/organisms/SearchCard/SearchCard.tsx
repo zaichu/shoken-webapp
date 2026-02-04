@@ -71,7 +71,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return items.map((item, index) => {
             // 選択中のボタンを判定
             const isSelected = activeSearchType === searchType && searchQuery === item;
-            // 選択中はprimaryバリアント、そうでなければ元のvariant
+            // 選択中はprimaryバリアント（塗りつぶし）、未選択はアウトライン
             const buttonVariant = isSelected ? 'primary' : variant;
 
             return (
@@ -82,14 +82,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         size="sm"
                         onClick={() => handleQuickSearch(item, searchType)}
                         className={isSelected
-                            ? 'ring-2 ring-primary ring-offset-1 font-bold'
-                            : 'hover:ring-1 hover:ring-slate-300 focus:ring-2 focus:ring-primary/50 focus:outline-none'
+                            ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-sm'
+                            : 'opacity-80 hover:opacity-100 hover:ring-1 hover:ring-slate-300 focus:ring-2 focus:ring-primary/50 focus:outline-none'
                         }
                         aria-pressed={isSelected}
+                        aria-label={isSelected ? `${item}（選択中）` : item}
                     >
                         {/* 選択時はチェックアイコンを表示 */}
                         {isSelected && (
-                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                         )}

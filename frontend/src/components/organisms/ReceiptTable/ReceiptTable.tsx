@@ -219,7 +219,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                     {columns.map((column, index) => (
                         <TableCell
                             as="th"
-                            className="text-center"
+                            className="text-center whitespace-nowrap"
                             style={{ minWidth: column.width }}
                             key={index}
                         >
