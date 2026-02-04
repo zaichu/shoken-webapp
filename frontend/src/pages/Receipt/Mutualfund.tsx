@@ -73,10 +73,17 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
 
     /**
      * グループキーの取得（日付文字列：年月）
+     * ファンド名検索時は元データの正式表記を使用
      */
     const getGroupKey = useCallback((item: MutualfundData): string => {
         if (searchQuery) {
-            return searchQuery.toLowerCase();
+            // ファンド名検索の場合は元データの表記を使用（小文字化しない）
+            const query = searchQuery.toLowerCase();
+            if (item.fund_name.toLowerCase().includes(query)) {
+                return item.fund_name;
+            }
+            // 年検索など他の場合は年月でグループ化
+            return createYearMonthKey(item.trade_date);
         }
         return createYearMonthKey(item.trade_date);
     }, [searchQuery]);
