@@ -162,7 +162,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 <span className="text-sm font-medium">
                                     {headerText}
                                 </span>
-                                <span className="ml-2 inline-flex items-center rounded bg-slate-400 px-2 py-0.5 text-xs font-medium text-white">
+                                <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
@@ -187,7 +187,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                                 <span className="text-sm font-medium">
                                     {headerText}
                                 </span>
-                                <span className="ml-2 inline-flex items-center rounded bg-slate-400 px-2 py-0.5 text-xs font-medium text-white">
+                                <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
                                     {itemCount}件
                                 </span>
                             </TableCell>
