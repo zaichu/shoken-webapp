@@ -36,9 +36,13 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 ## 実施手順（共通）
 
 ### 1) 事前確認
-- `http://localhost:8080` が利用可能であること（本レビューは **8080固定**）
+- 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
 - **ログインは必須**。必ず認証状態を準備する
 - このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
+- 開発サーバー運用は以下を厳守する
+  - 8080が既に起動中なら **再利用**（新規起動しない）
+  - 新規起動時は `--strictPort` を必須化（8081/8082への自動フォールバック禁止）
+  - 新規起動したプロセスは `trap` で必ず停止する（残留防止）
 
 ### 2) 既存スクショを削除
 ```bash
@@ -55,16 +59,34 @@ rm -f .playwright-mcp/*.png
 
 #### B. E2Eで取得する場合
 ```bash
+set -euo pipefail
 cd frontend
 
-# ログイン状態を保存（必須）
-npm run ui:save-auth
+# ログイン状態を保存（初回のみ/期限切れ時）
+# npm run ui:save-auth
+
+STARTED=0
+if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
+  echo "reuse existing server on :8080"
+else
+  npm run dev -- --host 127.0.0.1 --port 8080 --strictPort >/tmp/shoken-dev.log 2>&1 &
+  DEV_PID=$!
+  STARTED=1
+fi
+
+cleanup() {
+  if [ "$STARTED" -eq 1 ]; then
+    kill "$DEV_PID" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
 # 保存した認証情報を使ってスクショ取得
 npm run ui:screenshot:auth
 ```
 
 ※ `npm run ui:screenshot` は認証情報を読み込まないため、本レビューでは使用しない。
+※ `npm run dev` を単独でバックグラウンド起動して放置しないこと（プロセス残留の原因）。
 
 ### 4) UIレビュー（画像分析）
 以下の観点で評価する:
@@ -99,3 +121,4 @@ npm run ui:screenshot:auth
 - スクショ取得に一部失敗しても、取得できた分でレビューを継続
 - 失敗ファイルは「未取得」と明記
 - レポートは必ず日本語で出力
+- 作業終了時に `8080/8081/8082` の不要プロセスが残っていないことを確認する
