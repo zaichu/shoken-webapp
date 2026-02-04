@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Card, CardBody } from '@/components/atoms/Card';
-import { StatItem } from '@/components/atoms/StatItem';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
@@ -58,34 +57,26 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   }
 
   return (
-    <div className="mb-3 space-y-3" data-testid="asset-portfolio-summary">
-      {/* KPI: 合計取得総額（独立カード） */}
-      <Card>
-        <CardBody className="p-4">
-          <StatItem
-            title="合計取得総額"
-            value={
-              <span data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
-                {formatCurrency(totalPurchaseAmount)}
-              </span>
-            }
-            variant="default"
-            titleClassName="text-secondary"
-            valueClassName="text-3xl font-bold text-primary"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            {assetBalanceData.length}銘柄を保有
-          </p>
-        </CardBody>
-      </Card>
-
-      {/* 構成比エリア */}
+    <div className="mb-3" data-testid="asset-portfolio-summary">
+      {/* 構成比セクション（KPIをヘッダーに統合） */}
       {chartData.length > 0 && (
         <Card>
           <CardBody className="p-4">
-            <h3 className="mb-3 text-sm font-semibold text-slate-700">
-              銘柄別構成比
-            </h3>
+            {/* セクションヘッダー: KPI + 補助情報 */}
+            <div className="mb-4 border-b border-slate-200 pb-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <p className="text-sm text-slate-500">合計取得総額</p>
+                  <p className="text-3xl font-bold text-primary" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+                    {formatCurrency(totalPurchaseAmount)}
+                  </p>
+                </div>
+                <p className="text-sm text-slate-500">
+                  {assetBalanceData.length}銘柄を保有
+                </p>
+              </div>
+            </div>
+            {/* ドーナツ + 銘柄カード */}
             <PortfolioPieChart data={chartData} />
           </CardBody>
         </Card>

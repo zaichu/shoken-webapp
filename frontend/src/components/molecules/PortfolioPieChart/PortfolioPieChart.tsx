@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
@@ -70,20 +70,6 @@ const CustomTooltip = ({
   return null;
 };
 
-// 画面幅を監視するフック
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
-};
-
 /**
  * ポートフォリオ構成比を表示する円グラフコンポーネント
  */
@@ -91,8 +77,6 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   data,
   className = '',
 }) => {
-  const isMobile = useIsMobile();
-
   // パーセンテージを計算してデータに追加
   const chartData = useMemo(() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -108,9 +92,9 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
     return null;
   }
 
-  // カスタム凡例コンポーネント（詳細情報付き）
+  // カスタム凡例コンポーネント（詳細情報付き・2-3列グリッド）
   const CustomLegend = () => (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {chartData.map((item, index) => (
         <div
           key={item.securityCode || item.name}
@@ -122,7 +106,7 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
               className="h-3 w-3 shrink-0 rounded-sm"
               style={{ backgroundColor: COLORS[index % COLORS.length] }}
             />
-            <span className="min-w-0 flex-1 truncate font-medium text-slate-700" title={item.name}>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700" title={item.name}>
               {item.name}
             </span>
             <span className="shrink-0 text-sm font-bold text-slate-600">
@@ -130,28 +114,24 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
             </span>
           </div>
           {/* 詳細情報: 銘柄コード(リンク)、取得総額、保有数量 */}
-          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-            <div>
-              <span className="text-slate-500">コード</span>
-              <div className="mt-0.5">
-                {item.securityCode ? (
-                  <SecurityCodeLink value={item.securityCode} className="text-xs" />
-                ) : (
-                  <span className="text-slate-400">-</span>
-                )}
-              </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <div className="flex items-center gap-1">
+              <span className="text-slate-500">コード:</span>
+              {item.securityCode ? (
+                <SecurityCodeLink value={item.securityCode} className="text-xs" />
+              ) : (
+                <span className="text-slate-400">-</span>
+              )}
             </div>
-            <div>
-              <span className="text-slate-500">取得総額</span>
-              <div className="mt-0.5 font-medium text-slate-700">
-                {formatCurrency(item.value)}
-              </div>
+            <div className="flex items-center gap-1">
+              <span className="text-slate-500">取得総額:</span>
+              <span className="font-medium text-slate-700">{formatCurrency(item.value)}</span>
             </div>
-            <div>
-              <span className="text-slate-500">保有数量</span>
-              <div className="mt-0.5 font-medium text-slate-700">
+            <div className="flex items-center gap-1">
+              <span className="text-slate-500">数量:</span>
+              <span className="font-medium text-slate-700">
                 {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
-              </div>
+              </span>
             </div>
           </div>
           {/* パーセンテージバー */}
@@ -171,36 +151,34 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
 
   return (
     <div className={className} data-testid="portfolio-pie-chart">
-      <div className={isMobile ? 'flex flex-col gap-4' : 'flex items-start gap-6'}>
-        {/* 円グラフ */}
-        <div className={isMobile ? 'mx-auto w-48' : 'w-44 shrink-0'}>
-          <ResponsiveContainer width="100%" height={isMobile ? 160 : 180}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={isMobile ? 35 : 45}
-                outerRadius={isMobile ? 60 : 75}
-                paddingAngle={2}
-                dataKey="value"
-                nameKey="name"
-              >
-                {chartData.map((_, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        {/* 凡例リスト */}
-        <div className="min-w-0 flex-1">
-          <CustomLegend />
-        </div>
+      {/* ドーナツチャート（中央配置） */}
+      <div className="mx-auto w-48 sm:w-56">
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={80}
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="name"
+            >
+              {chartData.map((_, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      {/* 銘柄カードリスト（ドーナツの下） */}
+      <div className="mt-4">
+        <CustomLegend />
       </div>
     </div>
   );
