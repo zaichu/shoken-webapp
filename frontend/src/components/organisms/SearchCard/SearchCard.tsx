@@ -112,7 +112,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     id={id}
                     className={`w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${
                         isSelected
-                            ? 'border-primary bg-primary/10 text-primary font-bold ring-2 ring-primary/40'
+                            ? 'border-primary bg-primary/20 text-blue-800 font-bold ring-2 ring-primary/50'
                             : 'border-gray-300 bg-white text-dark hover:border-slate-400 focus:border-primary focus:ring-primary/25'
                     }`}
                     value={displayValue}
@@ -128,7 +128,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 </select>
                 {/* 選択時はチェックアイコンを表示 */}
                 {isSelected && (
-                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-primary pointer-events-none">
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-blue-700 pointer-events-none">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
