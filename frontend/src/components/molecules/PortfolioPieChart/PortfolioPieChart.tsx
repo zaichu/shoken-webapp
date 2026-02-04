@@ -16,7 +16,7 @@ const COLORS = [
   '#6366f1', // indigo-500
 ];
 
-const TOP_N = 5; // デフォルト表示件数
+const TOP_N = 20; // デフォルト表示件数
 
 export interface PortfolioItem {
   name: string;
