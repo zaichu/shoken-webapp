@@ -1,16 +1,21 @@
-import React, { useEffect, useState, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
+import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
+import {
+  createSearchOptions,
+  filterDataBySearchQuery,
+} from '@/lib/utils/dataTransformer';
 
 // rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
 const AssetPortfolioSummary = lazy(() =>
@@ -40,17 +45,32 @@ const sortBySecurityCode = (data: AssetBalanceData[]): AssetBalanceData[] => {
 };
 
 
-interface AssetBalanceProps {
+interface AssetBalanceInfoProps {
   assetBalanceData: AssetBalanceData[];
+  filteredData: AssetBalanceData[];
+  searchQuery: string;
+  onClearFilter: () => void;
 }
 
 /**
  * 保有銘柄データを表示するコンポーネント（概要重視）
  */
-export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData }) => {
+export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
+  assetBalanceData,
+  filteredData,
+  searchQuery,
+  onClearFilter,
+}) => {
+  const isFiltered = searchQuery !== '';
+
   return (
     <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner size="md" /></div>}>
-      <AssetPortfolioSummary assetBalanceData={assetBalanceData} />
+      <AssetPortfolioSummary
+        assetBalanceData={filteredData}
+        totalCount={assetBalanceData.length}
+        isFiltered={isFiltered}
+        onClearFilter={isFiltered ? onClearFilter : undefined}
+      />
     </Suspense>
   );
 };
@@ -86,6 +106,7 @@ export function AssetBalancePage() {
   // CSVデータの変換（空の銘柄コードをフィルタ）
   const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // CSVデータが読み込まれたらフィルタして設定
   useEffect(() => {
@@ -97,6 +118,26 @@ export function AssetBalancePage() {
       setAssetBalanceData([]);
     }
   }, [csvData, tmpAssetBalanceData, dbData]);
+
+  // 検索オプションの生成
+  const searchCategories = useMemo(() => ({
+    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
+  }), [assetBalanceData]);
+
+  // 検索クエリに基づくフィルタリング
+  const filteredData = useMemo(() => filterDataBySearchQuery(
+    assetBalanceData,
+    searchQuery,
+    ['security_code', 'security_name']
+  ), [assetBalanceData, searchQuery]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleClearFilter = () => {
+    setSearchQuery('');
+  };
 
   const isProcessing = loading || saving || deleting || csvReader.isLoading || authLoading;
 
@@ -187,7 +228,22 @@ export function AssetBalancePage() {
               )}
             </div>
 
-            {assetBalanceData.length > 0 && <AssetBalanceInfo assetBalanceData={assetBalanceData} />}
+            {/* 検索カード（データがある場合のみ表示） */}
+            {assetBalanceData.length > 0 && (
+              <SearchCard
+                onSearch={handleSearch}
+                categories={searchCategories}
+              />
+            )}
+
+            {assetBalanceData.length > 0 && (
+              <AssetBalanceInfo
+                assetBalanceData={assetBalanceData}
+                filteredData={filteredData}
+                searchQuery={searchQuery}
+                onClearFilter={handleClearFilter}
+              />
+            )}
           </>
         )}
       </div>
