@@ -25,13 +25,15 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
     );
   }, [assetBalanceData]);
 
-  // 円グラフ用データを生成
+  // 円グラフ用データを生成（詳細情報付き）
   const chartData: PortfolioItem[] = useMemo(() => {
     return assetBalanceData
       .filter((item) => (item.total_purchase_amount || 0) > 0)
       .map((item) => ({
         name: item.security_name || item.security_code,
         value: item.total_purchase_amount || 0,
+        securityCode: item.security_code,
+        shares: item.shares,
       }))
       .sort((a, b) => b.value - a.value);
   }, [assetBalanceData]);

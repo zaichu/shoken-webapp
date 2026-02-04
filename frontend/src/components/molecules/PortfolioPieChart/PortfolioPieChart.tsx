@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
+import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
 
 // 円グラフ用の配色（視認性を考慮した10色）
 const COLORS = [
@@ -18,10 +20,14 @@ const COLORS = [
 export interface PortfolioItem {
   name: string;
   value: number;
+  securityCode?: string;
+  shares?: number;
 }
 
 interface ChartDataItem extends PortfolioItem {
   percentage: number;
+  securityCode?: string;
+  shares?: number;
 }
 
 interface PortfolioPieChartProps {
@@ -48,9 +54,15 @@ const CustomTooltip = ({
     return (
       <div className="rounded border border-border bg-white px-3 py-2 shadow-sm">
         <p className="text-sm font-medium text-dark">{item.name}</p>
+        {item.securityCode && (
+          <p className="text-xs text-slate-500">{item.securityCode}</p>
+        )}
         <p className="text-sm text-secondary">
-          ¥ {item.value.toLocaleString('ja-JP')}
+          {formatCurrency(item.value)}
         </p>
+        {item.shares !== undefined && (
+          <p className="text-sm text-secondary">{formatNumber(item.shares)}株</p>
+        )}
         <p className="text-sm text-secondary">{item.percentage.toFixed(1)}%</p>
       </div>
     );
@@ -96,36 +108,61 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
     return null;
   }
 
-  // カスタム凡例コンポーネント（パーセンテージバー付き）
+  // カスタム凡例コンポーネント（詳細情報付き）
   const CustomLegend = () => (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {chartData.map((item, index) => (
-        <div key={item.name} className="flex items-center gap-3 text-sm">
-          {/* 色マーカー */}
-          <span
-            className="h-3 w-3 shrink-0 rounded-sm"
-            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-          />
-          {/* 銘柄名とパーセンテージ */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="truncate text-slate-700" title={item.name}>
-                {item.name}
-              </span>
-              <span className="shrink-0 text-xs font-medium text-slate-500">
-                {item.percentage.toFixed(1)}%
-              </span>
+        <div
+          key={item.securityCode || item.name}
+          className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+        >
+          {/* ヘッダー: 色マーカー + 銘柄名 + 構成比 */}
+          <div className="flex items-center gap-2">
+            <span
+              className="h-3 w-3 shrink-0 rounded-sm"
+              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+            />
+            <span className="min-w-0 flex-1 truncate font-medium text-slate-700" title={item.name}>
+              {item.name}
+            </span>
+            <span className="shrink-0 text-sm font-bold text-slate-600">
+              {item.percentage.toFixed(1)}%
+            </span>
+          </div>
+          {/* 詳細情報: 銘柄コード(リンク)、取得総額、保有数量 */}
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <span className="text-slate-500">コード</span>
+              <div className="mt-0.5">
+                {item.securityCode ? (
+                  <SecurityCodeLink value={item.securityCode} className="text-xs" />
+                ) : (
+                  <span className="text-slate-400">-</span>
+                )}
+              </div>
             </div>
-            {/* パーセンテージバー */}
-            <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.min(item.percentage, 100)}%`,
-                  backgroundColor: COLORS[index % COLORS.length],
-                }}
-              />
+            <div>
+              <span className="text-slate-500">取得総額</span>
+              <div className="mt-0.5 font-medium text-slate-700">
+                {formatCurrency(item.value)}
+              </div>
             </div>
+            <div>
+              <span className="text-slate-500">保有数量</span>
+              <div className="mt-0.5 font-medium text-slate-700">
+                {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
+              </div>
+            </div>
+          </div>
+          {/* パーセンテージバー */}
+          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.min(item.percentage, 100)}%`,
+                backgroundColor: COLORS[index % COLORS.length],
+              }}
+            />
           </div>
         </div>
       ))}
