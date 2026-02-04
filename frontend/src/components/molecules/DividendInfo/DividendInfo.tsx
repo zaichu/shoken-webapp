@@ -117,10 +117,15 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
     ? getAssetBalanceByCode(effectiveSecurityCode)
     : undefined;
 
-  // 自動入力バッジ
-  const AutoBadge = () => (
+  // 自動入力バッジ（データ元を明示）
+  const AssetBadge = () => (
+    <span className="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+      保有銘柄
+    </span>
+  );
+  const JQuantsBadge = () => (
     <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
-      自動
+      J-Quants
     </span>
   );
 
@@ -129,21 +134,21 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
       <div className="stat-grid">
         <div>
           <NumberInputField
-            label={<>平均取得価格{assetBalanceData && <AutoBadge />}</>}
+            label={<>平均取得価格{assetBalanceData && <AssetBadge />}</>}
             value={averageUnitPrice}
             onChange={setAverageUnitPrice}
           />
         </div>
         <div>
           <NumberInputField
-            label={<>保有数量(株){assetBalanceData && <AutoBadge />}</>}
+            label={<>保有数量(株){assetBalanceData && <AssetBadge />}</>}
             value={holdingQuantity}
             onChange={setHoldingQuantity}
           />
         </div>
         <div>
           <NumberInputField
-            label="一株配当"
+            label={<>一株配当{dividendPerShare !== undefined && <JQuantsBadge />}</>}
             value={dividendPerShare}
             onChange={setDividendPerShare}
             disabled={apiLoading}
@@ -169,29 +174,13 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
   );
 
   if (embedded) {
-    return (
-      <div>
-        {assetBalanceData && (
-          <div className="mb-3 flex justify-end">
-            <small className="text-gray-500">
-              平均取得価格・保有数量を自動入力
-            </small>
-          </div>
-        )}
-        {content}
-      </div>
-    );
+    return <div>{content}</div>;
   }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
-      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg flex justify-between items-center">
+      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg">
         <h5 className="text-sm font-medium">配当シミュレーション</h5>
-        {assetBalanceData && (
-          <small className="text-xs text-white/70">
-            取得価格・数量を自動入力
-          </small>
-        )}
       </div>
       <div className="p-3">
         {content}
