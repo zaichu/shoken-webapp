@@ -33,10 +33,10 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           <InputField
             type="text"
             className="rounded-r-none border-r-0"
-            placeholder="銘柄コードを入力"
+            placeholder="銘柄コードまたは銘柄名"
             value={stockCode}
             onChange={handleInputChange}
-            aria-label="銘柄コード"
+            aria-label="銘柄コードまたは銘柄名"
             autoComplete="off"
             disabled={isLoading}
             fullWidth

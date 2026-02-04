@@ -143,7 +143,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1">
             <CardHeader
                 variant="secondary"
-                className="flex cursor-pointer items-center justify-between select-none hover:bg-slate-600 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset"
+                className="flex cursor-pointer items-center justify-between select-none hover:bg-slate-600 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset border-b-2 border-slate-600"
                 onClick={handleToggleExpanded}
                 onKeyDown={handleKeyDown}
                 role="button"
@@ -154,29 +154,28 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 data-testid="search-card-header"
             >
                 <div className="flex items-center gap-2">
-                    <h5 className="text-sm font-medium">検索オプション</h5>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <h5 className="text-sm font-semibold">検索オプション</h5>
                     {!isExpanded && activeSearchType && (
                         <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
                             フィルタ適用中
                         </span>
                     )}
                 </div>
-                {/* 開閉ボタン: ヒットエリア拡大、視覚的に押しやすく */}
+                {/* 開閉ボタン: 状態に応じた視覚的フィードバック */}
                 <span
-                    className="flex items-center gap-1.5 px-3 py-1.5 -mr-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 -mr-2 rounded-md transition-colors ${
+                        isExpanded
+                            ? 'bg-white/25 hover:bg-white/30'
+                            : 'bg-white/10 hover:bg-white/20'
+                    }`}
                     aria-hidden="true"
                 >
-                    <span className="text-xs font-medium hidden sm:inline">
-                        {isExpanded ? '閉じる' : '開く'}
+                    <span className="text-xs font-semibold">
+                        {isExpanded ? '▲ 閉じる' : '▼ 開く'}
                     </span>
-                    <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
                 </span>
             </CardHeader>
             {isExpanded && categories && (

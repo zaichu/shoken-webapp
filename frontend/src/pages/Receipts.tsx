@@ -219,7 +219,9 @@ export function ReceiptsPage() {
    */
   const handleDeleteAll = async () => {
     if (!isAuthenticated) return;
-    if (!window.confirm('現在のタブのデータをすべて削除しますか？')) return;
+    const count = runtimeDataMap[receiptsType].dbData.length;
+    const tabName = receiptsType === 'dividend' ? '配当金' : receiptsType === 'domesticstock' ? '国内株式' : '投資信託';
+    if (!window.confirm(`【${tabName}】${count}件のデータをすべて削除しますか？\n\nこの操作は取り消せません。`)) return;
 
     setDeleting(true);
     setDbError(null);
@@ -253,10 +255,13 @@ export function ReceiptsPage() {
   const { isLoading, error, fileName, csvData } = currentCSVState;
   const hasCsvData = csvData.length > 0;
 
-  // 現在のタブのDBデータがあるか判定
-  const hasDbData = useMemo(() => {
-    return runtimeDataMap[receiptsType].dbData.length > 0;
+  // 現在のタブのDBデータ件数を取得
+  const dbDataCount = useMemo(() => {
+    return runtimeDataMap[receiptsType].dbData.length;
   }, [runtimeDataMap, receiptsType]);
+
+  // 現在のタブのDBデータがあるか判定
+  const hasDbData = dbDataCount > 0;
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
   const dividendData = useMemo(
@@ -332,7 +337,7 @@ export function ReceiptsPage() {
                   disabled={saving || deleting || dbLoading}
                   aria-disabled={saving || deleting || dbLoading}
                 >
-                  {deleting ? '削除中...' : '全件削除'}
+                  {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
                 </Button>
               )}
             </div>

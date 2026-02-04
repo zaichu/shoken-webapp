@@ -59,9 +59,9 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
             >
                 <h5>{title}</h5>
                 {collapsible && (
-                    <div
-                        className={`h-0 w-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    />
+                    <span className="flex items-center gap-1 text-xs font-medium bg-white/20 px-2 py-1 rounded">
+                        {isExpanded ? '▲ 閉じる' : '▼ 開く'}
+                    </span>
                 )}
             </CardHeader>
             {(!collapsible || isExpanded) && (

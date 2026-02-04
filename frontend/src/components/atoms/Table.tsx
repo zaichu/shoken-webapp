@@ -113,9 +113,9 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
           ref={containerRef}
           className={cn(
             'w-full overflow-x-auto rounded-md',
-            // モバイル時のスクロールヒント（右端に影）
-            'sm:shadow-none',
-            '[&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded'
+            // スクロールヒント（右端にフェード効果）
+            'relative',
+            '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500'
           )}
           style={containerStyle}
         >

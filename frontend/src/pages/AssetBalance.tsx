@@ -214,10 +214,10 @@ export function AssetBalancePage() {
                     variant="outline-danger"
                     size="sm"
                     onClick={handleDeleteAll}
-                    disabled={saving || deleting}
-                    aria-disabled={saving || deleting}
+                    disabled={saving || deleting || loading}
+                    aria-disabled={saving || deleting || loading}
                   >
-                    {deleting ? '削除中...' : '削除'}
+                    {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
                   </Button>
                 )}
               </div>
