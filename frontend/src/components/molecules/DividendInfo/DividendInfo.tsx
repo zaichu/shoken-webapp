@@ -117,14 +117,29 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
     ? getAssetBalanceByCode(effectiveSecurityCode)
     : undefined;
 
+  // 自動入力バッジ
+  const AutoBadge = () => (
+    <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+      自動
+    </span>
+  );
+
   const content = (
     <>
       <div className="stat-grid">
         <div>
-          <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
+          <NumberInputField
+            label={<>平均取得価格{assetBalanceData && <AutoBadge />}</>}
+            value={averageUnitPrice}
+            onChange={setAverageUnitPrice}
+          />
         </div>
         <div>
-          <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
+          <NumberInputField
+            label={<>保有数量(株){assetBalanceData && <AutoBadge />}</>}
+            value={holdingQuantity}
+            onChange={setHoldingQuantity}
+          />
         </div>
         <div>
           <NumberInputField
@@ -159,7 +174,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
         {assetBalanceData && (
           <div className="mb-3 flex justify-end">
             <small className="text-gray-500">
-              保有銘柄データから自動入力
+              平均取得価格・保有数量を自動入力
             </small>
           </div>
         )}
@@ -174,7 +189,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
         <h5 className="text-sm font-medium">配当シミュレーション</h5>
         {assetBalanceData && (
           <small className="text-xs text-white/70">
-            自動入力
+            取得価格・数量を自動入力
           </small>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { InputHTMLAttributes, ReactNode, forwardRef, useId } from 'react';
 
 export interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   fullWidth?: boolean;
   helpText?: ReactNode;
