@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 // 円グラフ用の配色（視認性を考慮した10色）
 const COLORS = [
@@ -92,56 +92,79 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
     }));
   }, [data]);
 
-  // 凡例のカスタムフォーマッター（銘柄名 + パーセンテージを表示）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const legendFormatter = (value: string, entry: any) => {
-    const percentage = entry.payload?.percentage as number | undefined;
-    if (percentage === undefined) {
-      return <span className="text-sm text-secondary">{value}</span>;
-    }
-
-    return (
-      <span className="text-sm text-secondary">
-        {value} ({percentage.toFixed(1)}%)
-      </span>
-    );
-  };
-
   if (chartData.length === 0) {
     return null;
   }
 
+  // カスタム凡例コンポーネント（パーセンテージバー付き）
+  const CustomLegend = () => (
+    <div className="space-y-2">
+      {chartData.map((item, index) => (
+        <div key={item.name} className="flex items-center gap-3 text-sm">
+          {/* 色マーカー */}
+          <span
+            className="h-3 w-3 shrink-0 rounded-sm"
+            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+          />
+          {/* 銘柄名とパーセンテージ */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-slate-700" title={item.name}>
+                {item.name}
+              </span>
+              <span className="shrink-0 text-xs font-medium text-slate-500">
+                {item.percentage.toFixed(1)}%
+              </span>
+            </div>
+            {/* パーセンテージバー */}
+            <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(item.percentage, 100)}%`,
+                  backgroundColor: COLORS[index % COLORS.length],
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className={className} data-testid="portfolio-pie-chart">
-      <ResponsiveContainer width="100%" height={isMobile ? 350 : 250}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy={isMobile ? '30%' : '50%'}
-            innerRadius={isMobile ? 40 : 50}
-            outerRadius={isMobile ? 65 : 80}
-            paddingAngle={2}
-            dataKey="value"
-            nameKey="name"
-          >
-            {chartData.map((_, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            layout={isMobile ? 'horizontal' : 'vertical'}
-            align={isMobile ? 'center' : 'right'}
-            verticalAlign={isMobile ? 'bottom' : 'middle'}
-            wrapperStyle={isMobile ? { paddingTop: 16 } : undefined}
-            formatter={legendFormatter}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      <div className={isMobile ? 'flex flex-col gap-4' : 'flex items-start gap-6'}>
+        {/* 円グラフ */}
+        <div className={isMobile ? 'mx-auto w-48' : 'w-44 shrink-0'}>
+          <ResponsiveContainer width="100%" height={isMobile ? 160 : 180}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={isMobile ? 35 : 45}
+                outerRadius={isMobile ? 60 : 75}
+                paddingAngle={2}
+                dataKey="value"
+                nameKey="name"
+              >
+                {chartData.map((_, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        {/* 凡例リスト */}
+        <div className="min-w-0 flex-1">
+          <CustomLegend />
+        </div>
+      </div>
     </div>
   );
 };

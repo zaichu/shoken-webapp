@@ -45,3 +45,8 @@ coverage
 # TypeScript
 *.tsbuildinfo
 .vercel
+
+# Playwright
+.auth/
+playwright-report/
+test-results/

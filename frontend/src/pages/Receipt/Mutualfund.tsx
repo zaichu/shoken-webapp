@@ -6,7 +6,7 @@ import {
     MutualfundData,
     MutualfundCalculations
 } from '@/lib/interfaces/mutualfund';
-import { TableColumnConfig } from '@/lib/interfaces/receipt';
+import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
@@ -35,19 +35,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     ), [csvData]);
 
     /**
-     * 全体の集計
-     */
-    const calculations: MutualfundCalculations = useMemo(() => mutualfundData.reduce((acc, item) => ({
-        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
-        total_taxes: acc.total_taxes + item.taxes,
-        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
-    }), {
-        total_realized_profit_and_loss: 0,
-        total_taxes: 0,
-        total_realized_profit_and_loss_after_tax: 0,
-    }), [mutualfundData]);
-
-    /**
      * 検索オプションの生成
      */
     const searchCategories = useMemo(() => ({
@@ -72,11 +59,31 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     );
 
     /**
+     * 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
+     */
+    const calculations: MutualfundCalculations = useMemo(() => filteredData.reduce((acc, item) => ({
+        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
+        total_taxes: acc.total_taxes + item.taxes,
+        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
+    }), {
+        total_realized_profit_and_loss: 0,
+        total_taxes: 0,
+        total_realized_profit_and_loss_after_tax: 0,
+    }), [filteredData]);
+
+    /**
      * グループキーの取得（日付文字列：年月）
+     * ファンド名検索時は元データの正式表記を使用
      */
     const getGroupKey = useCallback((item: MutualfundData): string => {
         if (searchQuery) {
-            return searchQuery.toLowerCase();
+            // ファンド名検索の場合は元データの表記を使用（小文字化しない）
+            const query = searchQuery.toLowerCase();
+            if (item.fund_name.toLowerCase().includes(query)) {
+                return item.fund_name;
+            }
+            // 年検索など他の場合は年月でグループ化
+            return createYearMonthKey(item.trade_date);
         }
         return createYearMonthKey(item.trade_date);
     }, [searchQuery]);
@@ -112,22 +119,31 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     ];
 
     /**
-     * テーブルカラムの定義
+     * テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
      */
     const columns: TableColumnConfig[] = useMemo(() => ([
-        { key: 'trade_date', header: '約定日', format: formatJPDate },
-        { key: 'settlement_date', header: '受渡日', format: formatJPDate },
-        { key: 'fund_name', header: 'ファンド名', width: '250px' },
-        { key: 'account', header: '口座', width: '80px' },
-        { key: 'shares', header: '数量[株]', textAlign: 'right', format: formatNumber },
-        { key: 'exchange_rate', header: '為替レート', textAlign: 'right', format: formatCurrency },
-        { key: 'cancellation_unit_price_yen', header: '解約単価', textAlign: 'right', format: formatCurrency },
-        { key: 'cancellation_amount_yen', header: '解約額', textAlign: 'right', format: formatCurrency },
-        { key: 'average_acquisition_price_yen', header: '平均取得価額', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss', header: '実現損益', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss_after_tax', header: '実現損益(税引)', textAlign: 'right', format: formatCurrency },
+        { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
+        { key: 'settlement_date', header: '受渡日', width: '90px', format: formatJPDate },
+        { key: 'fund_name', header: 'ファンド名', width: '200px' },
+        { key: 'account', header: '口座', width: '70px' },
+        { key: 'shares', header: '数量', width: '70px', textAlign: 'right', format: formatNumber },
+        { key: 'exchange_rate', header: '為替', width: '70px', textAlign: 'right', format: formatCurrency },
+        { key: 'cancellation_unit_price_yen', header: '解約単価', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'cancellation_amount_yen', header: '解約額', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'average_acquisition_price_yen', header: '取得価額', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '90px', textAlign: 'right', format: formatCurrency },
     ]), []);
+
+    /**
+     * サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）
+     */
+    const summaryColumns: SummaryColumnConfig[] = [
+        { key: 'realized_profit_and_loss', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
+    ];
 
     return (
         <ReceiptTemplate
@@ -140,7 +156,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
                 data={filteredData}
                 summary={summary}
                 columns={columns}
-                summaryColumns={[]}
+                summaryColumns={summaryColumns}
                 getGroupKey={getGroupKey}
             />
         </ReceiptTemplate>

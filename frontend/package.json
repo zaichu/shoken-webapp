@@ -9,7 +9,10 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest",
-    "test:watch": "NODE_OPTIONS='--max-old-space-size=8192' vitest --watch"
+    "test:watch": "NODE_OPTIONS='--max-old-space-size=8192' vitest --watch",
+    "ui:screenshot": "npx playwright test e2e/ui-screenshots.spec.ts",
+    "ui:screenshot:auth": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/ui-screenshots.spec.ts",
+    "ui:save-auth": "npx tsx e2e/save-auth.spec.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
+    "@playwright/test": "^1.58.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
@@ -42,6 +46,7 @@
     "globals": "17.0.0",
     "jsdom": "27.4.0",
     "terser": "5.46.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "8.53.1",
     "vite": "7.3.1",

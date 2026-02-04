@@ -42,7 +42,7 @@ export function SearchPage() {
       <div>
         <PageHeader
           title="銘柄検索"
-          description="銘柄コードを入力して株式情報を検索できます。"
+          description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
         />
         <SearchForm
           stockCode={stockCode}
@@ -75,7 +75,7 @@ export function SearchPage() {
               </svg>
             }
             title="銘柄を検索"
-            description="銘柄コード（例：7203）を入力して検索してください。"
+            description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
             className="py-10"
           />
         )}

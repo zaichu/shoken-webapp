@@ -1,7 +1,7 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../../lib/utils/classNames';
 
-export type CardVariant = 'default' | 'primary';
+export type CardVariant = 'default' | 'primary' | 'secondary';
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -35,13 +35,15 @@ export function Card({ children, className, ...rest }: CardProps) {
 }
 
 export function CardHeader({ children, variant = 'default', className, ...rest }: CardHeaderProps) {
-  const variantClass = variant === 'primary'
-    ? 'bg-slate-700 text-white'
-    : 'border-b border-border bg-white text-dark';
+  const variantClasses: Record<CardVariant, string> = {
+    primary: 'bg-slate-700 text-white',
+    secondary: 'bg-slate-500 text-white',
+    default: 'border-b border-border bg-white text-dark',
+  };
 
   return (
     <div
-      className={cn('px-4 py-2', variantClass, className)}
+      className={cn('px-4 py-2', variantClasses[variant], className)}
       {...rest}
     >
       {children}

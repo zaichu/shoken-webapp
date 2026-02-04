@@ -56,35 +56,38 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   }
 
   return (
-    <Card className="mb-3" data-testid="asset-portfolio-summary">
-      <CardBody className="p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
-          {/* 合計取得総額 */}
-          <div className="shrink-0">
-            <StatItem
-              title="合計取得総額"
-              value={
-                <span data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
-                  {formatCurrency(totalPurchaseAmount)}
-                </span>
-              }
-              variant="default"
-              titleClassName="text-secondary"
-              valueClassName="text-2xl text-primary"
-            />
-          </div>
+    <div className="mb-3 space-y-3" data-testid="asset-portfolio-summary">
+      {/* KPI: 合計取得総額（独立カード） */}
+      <Card>
+        <CardBody className="p-4">
+          <StatItem
+            title="合計取得総額"
+            value={
+              <span data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+                {formatCurrency(totalPurchaseAmount)}
+              </span>
+            }
+            variant="default"
+            titleClassName="text-secondary"
+            valueClassName="text-3xl font-bold text-primary"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            {assetBalanceData.length}銘柄を保有
+          </p>
+        </CardBody>
+      </Card>
 
-          {/* 構成比円グラフ */}
-          {chartData.length > 0 && (
-            <div className="min-w-0 flex-1">
-              <h3 className="mb-2 text-sm font-semibold text-secondary">
-                銘柄別構成比
-              </h3>
-              <PortfolioPieChart data={chartData} />
-            </div>
-          )}
-        </div>
-      </CardBody>
-    </Card>
+      {/* 構成比エリア */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardBody className="p-4">
+            <h3 className="mb-3 text-sm font-semibold text-slate-700">
+              銘柄別構成比
+            </h3>
+            <PortfolioPieChart data={chartData} />
+          </CardBody>
+        </Card>
+      )}
+    </div>
   );
 };

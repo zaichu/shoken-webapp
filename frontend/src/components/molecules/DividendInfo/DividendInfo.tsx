@@ -11,9 +11,15 @@ interface DividendInfoProps {
   searchQuery: string;
   securityCode?: string;
   summary: SummaryResult<keyof Pick<DividendData, 'dividends_before_tax' | 'taxes' | 'net_amount_received'>>[];
+  embedded?: boolean;
 }
 
-export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securityCode, summary }) => {
+export const DividendInfo: React.FC<DividendInfoProps> = ({
+  searchQuery,
+  securityCode,
+  summary,
+  embedded = false
+}) => {
   const [averageUnitPrice, setAverageUnitPrice] = useState<number | undefined>(undefined);
   const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
   const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
@@ -74,9 +80,31 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
 
   const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
 
+  // 全グループの合計受取金額を計算
+  const totalNetAmountReceived = React.useMemo(() => {
+    return summary.reduce((sum, item) => sum + (item.net_amount_received || 0), 0);
+  }, [summary]);
+
+  // 全グループの合計配当金（税引前）を計算
+  const totalDividendsBeforeTax = React.useMemo(() => {
+    return summary.reduce((sum, item) => sum + (item.dividends_before_tax || 0), 0);
+  }, [summary]);
+
+  // 全グループの合計税額を計算
+  const totalTaxes = React.useMemo(() => {
+    return summary.reduce((sum, item) => sum + (item.taxes || 0), 0);
+  }, [summary]);
+
+  const grossDividendReturnRate = (() => {
+    if (totalInvestment > 0 && totalDividendsBeforeTax > 0) {
+      return (totalDividendsBeforeTax / totalInvestment) * 100;
+    }
+    return 0;
+  })();
+
   const dividendReturnRate = (() => {
-    if (totalInvestment > 0 && summary[0]) {
-      return (summary[0].net_amount_received / totalInvestment) * 100;
+    if (totalInvestment > 0 && totalNetAmountReceived > 0) {
+      return (totalNetAmountReceived / totalInvestment) * 100;
     }
     return 0;
   })();
@@ -89,40 +117,73 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({ searchQuery, securit
     ? getAssetBalanceByCode(effectiveSecurityCode)
     : undefined;
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
-      <div className="bg-slate-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
-        <h5 className="font-semibold">配当情報</h5>
-        {assetBalanceData && (
-          <small className="text-white/80">
-            保有銘柄データから自動入力
-          </small>
-        )}
-      </div>
-      <div className="p-4">
-        <div className="stat-grid">
-          <div>
-            <NumberInputField label="平均取得価格" value={averageUnitPrice} onChange={setAverageUnitPrice} />
-          </div>
-          <div>
-            <NumberInputField label="保有数量(株)" value={holdingQuantity} onChange={setHoldingQuantity} />
-          </div>
-          <div>
-            <NumberInputField
-              label="一株配当"
-              value={dividendPerShare}
-              onChange={setDividendPerShare}
-              disabled={apiLoading}
-              placeholder={apiLoading ? "データ取得中..." : ""}
-            />
-          </div>
-        </div>
+  // 自動入力バッジ（データ元を明示）
+  const AssetBadge = () => (
+    <span className="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+      保有銘柄
+    </span>
+  );
+  const JQuantsBadge = () => (
+    <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+      J-Quants
+    </span>
+  );
 
+  const content = (
+    <>
+      <div className="stat-grid">
+        <div>
+          <NumberInputField
+            label={<>平均取得価格{assetBalanceData && <AssetBadge />}</>}
+            value={averageUnitPrice}
+            onChange={setAverageUnitPrice}
+          />
+        </div>
+        <div>
+          <NumberInputField
+            label={<>保有数量(株){assetBalanceData && <AssetBadge />}</>}
+            value={holdingQuantity}
+            onChange={setHoldingQuantity}
+          />
+        </div>
+        <div>
+          <NumberInputField
+            label={<>一株配当{dividendPerShare !== undefined && <JQuantsBadge />}</>}
+            value={dividendPerShare}
+            onChange={setDividendPerShare}
+            disabled={apiLoading}
+            placeholder={apiLoading ? "データ取得中..." : ""}
+          />
+        </div>
+      </div>
+
+      {embedded ? (
+        <div className="stat-grid mt-4">
+          <StatItemWithRate title="配当金額 (配当利回り)" value={totalDividendsBeforeTax} rate={grossDividendReturnRate} format={formatCurrency} />
+          <StatItem title="税額" value={formatCurrency(totalTaxes)} />
+          <StatItemWithRate title="受取金額 (累積利回り)" value={totalNetAmountReceived} rate={dividendReturnRate} format={formatCurrency} />
+        </div>
+      ) : (
         <div className="stat-grid mt-4">
           <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
-          <StatItemWithRate title="合計受取金額 (累積利回り)" value={summary[0]?.net_amount_received || 0} rate={dividendReturnRate} format={formatCurrency} />
+          <StatItemWithRate title="合計受取金額 (累積利回り)" value={totalNetAmountReceived} rate={dividendReturnRate} format={formatCurrency} />
           <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
         </div>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
+      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg">
+        <h5 className="text-sm font-medium">配当シミュレーション</h5>
+      </div>
+      <div className="p-3">
+        {content}
       </div>
     </div>
   );

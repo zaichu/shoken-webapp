@@ -3,6 +3,13 @@ import { Layout } from '../components/templates/Layout';
 import { Card, CardBody } from '../components/atoms/Card';
 import { PageHeader } from '../components/atoms/PageHeader';
 
+// クイックアクション（ショートカット）
+const QUICK_ACTIONS = [
+  { label: '配当金を確認', to: '/receipts', icon: '💰' },
+  { label: '保有銘柄を確認', to: '/assetbalance', icon: '📊' },
+  { label: '銘柄を検索', to: '/search', icon: '🔍' },
+] as const;
+
 const FEATURES = [
   {
     title: '銘柄検索',
@@ -61,6 +68,23 @@ export function HomePage() {
               </Card>
             </Link>
           ))}
+        </div>
+
+        {/* クイックアクション */}
+        <div className="mt-6 pt-4 border-t border-slate-200">
+          <h2 className="text-sm font-medium text-slate-500 mb-3">クイックアクション</h2>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map(({ label, to, icon }) => (
+              <Link
+                key={to}
+                to={to}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors"
+              >
+                <span aria-hidden="true">{icon}</span>
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </Layout>

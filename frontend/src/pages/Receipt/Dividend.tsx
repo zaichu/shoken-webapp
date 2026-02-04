@@ -12,7 +12,8 @@ import {
     formatJPDate,
     createYearMonthKey,
     formatCurrency,
-    formatNumber
+    formatNumber,
+    SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
@@ -41,9 +42,6 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
     // CSVデータを配当データ形式に変換
     const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
-
-    // 全体の集計
-    const calculations = useReceiptCalculations(dividendData, calculateDividends);
 
     // 検索カテゴリーの生成
     const searchCategories = useMemo(() => ({
@@ -81,6 +79,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         [dividendData, searchQuery, filterConfig]
     );
 
+    // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
+    const calculations = useReceiptCalculations(filteredData, calculateDividends);
+
     // グループキーの取得（検索タイプに応じて動的に変更）
     const getGroupKey = useCallback((item: DividendData): string => {
         if (!searchQuery) {
@@ -89,10 +90,10 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
 
         const query = searchQuery.toLowerCase();
 
-        // 銘柄での検索の場合
+        // 銘柄での検索の場合（銘柄名でグループ化、年と誤判定を防ぐ）
         if (item.security_code.toLowerCase() === query ||
             item.security_name.toLowerCase() === query) {
-            return item.security_code;
+            return item.security_name;
         }
 
         // 商品での検索の場合
@@ -105,14 +106,14 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             return item.account;
         }
 
-        // 年度での検索の場合
+        // 年度での検索の場合も月単位でグループ化（検索なし時と同一ルール）
         if (matchesYear(item.settlement_date, query)) {
-            return item.settlement_date.getFullYear().toString();
+            return createYearMonthKey(item.settlement_date);
         }
 
-        // 年月での検索の場合
+        // 年月での検索の場合も月単位でグループ化（検索なし時と同一ルール）
         if (matchesYearMonth(item.settlement_date, query)) {
-            return query;
+            return createYearMonthKey(item.settlement_date);
         }
 
         // デフォルトは年月でグループ化
@@ -141,8 +142,13 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         return matchedItem?.security_code || '';
     }, [filteredData, searchQuery]);
 
+    // 銘柄コード検索かどうかを判定（配当シミュレーション表示の条件）
+    const isSecurityCodeSearch = useMemo(() => {
+        return !!searchSecurityCode && SECURITY_CODE_REGEX.test(searchSecurityCode);
+    }, [searchSecurityCode]);
+
     // ヘッダー項目の定義
-    const headerItems = [
+    const allHeaderItems = [
         {
             title: '合計配当金',
             value: calculations.total_dividends_before_tax,
@@ -159,6 +165,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             format: formatCurrency
         }
     ];
+
+    // 配当シミュレーション表示時は内部に3指標を表示するため、上段の集計は非表示
+    const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
@@ -207,15 +216,21 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     return (
         <ReceiptTemplate
             title="配当金"
-            header={searchQuery ? (
-                <DividendInfo
-                    searchQuery={searchQuery}
-                    securityCode={searchSecurityCode}
-                    summary={summary}
-                />
-            ) : (
-                <ReceiptHeader items={headerItems} />
-            )}
+            header={
+                <ReceiptHeader
+                    items={headerItems}
+                    title={isSecurityCodeSearch ? "銘柄詳細" : "集計情報"}
+                >
+                    {isSecurityCodeSearch && (
+                        <DividendInfo
+                            searchQuery={searchQuery}
+                            securityCode={searchSecurityCode}
+                            summary={summary}
+                            embedded
+                        />
+                    )}
+                </ReceiptHeader>
+            }
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >

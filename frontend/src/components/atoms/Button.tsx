@@ -32,7 +32,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   'outline-secondary': 'border border-secondary text-secondary hover:bg-secondary hover:text-white',
   'outline-success': 'border border-success text-success hover:bg-success hover:text-white',
   'outline-danger': 'border border-danger text-danger hover:bg-danger hover:text-white',
-  'outline-warning': 'border border-warning text-warning hover:bg-warning hover:text-dark',
+  'outline-warning': 'border border-amber-600 text-amber-700 hover:bg-warning hover:text-dark',
   'outline-info': 'border border-info text-info hover:bg-info hover:text-dark',
   'outline-light': 'border border-light text-light hover:bg-light hover:text-dark',
   'outline-dark': 'border border-dark text-dark hover:bg-dark hover:text-white',

@@ -35,7 +35,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   };
 
   return (
-    <div className="space-y-3" data-testid="receipt-container">
+    <div className="space-y-2" data-testid="receipt-container">
       {/* 検索カード */}
       {onSearch && (
         <SearchCard
@@ -46,7 +46,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       )}
 
       {/* ヘッダー情報 */}
-      {header && <div>{header}</div>}
+      {header && <div className="mt-1">{header}</div>}
 
       {/* メインコンテンツ */}
       <Card className="mt-1" data-testid="receipt-card">
