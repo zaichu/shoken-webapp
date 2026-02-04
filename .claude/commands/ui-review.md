@@ -3,7 +3,7 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 ---
 # UI Review
 
-受取金ページのUIレビューを実施し、スクリーンショットと改善提案を作成する。  
+主要ページ（ホーム・銘柄検索・保有銘柄・受取金）のUIレビューを実施し、スクリーンショットと改善提案を作成する。  
 **MCPでもE2Eでも、やることと成果物は同じ。**
 
 ## Usage
@@ -23,6 +23,10 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 
 | ファイル名 | 内容 |
 |---|---|
+| `home-initial.png` | ホームページの初期表示 |
+| `search-nintendo-result.png` | 銘柄検索で「任天堂」を検索した結果 |
+| `assetbalance-initial.png` | 保有銘柄ページの初期表示 |
+| `assetbalance-search-security.png` | 保有銘柄ページの銘柄検索結果 |
 | `receipts-dividend-initial.png` | 配当金タブの初期表示 |
 | `receipts-domestic-stock-initial.png` | 国内株式タブの初期表示 |
 | `receipts-mutualfund-initial.png` | 投資信託タブの初期表示 |
@@ -53,8 +57,11 @@ rm -f .playwright-mcp/*.png
 
 #### A. MCPで取得する場合
 - 先にログインを完了してから開始する
-- `http://localhost:8080/receipts` に遷移
-- 各タブ/検索状態を操作し、上表と同名で `png` 保存
+- `http://localhost:8080/` に遷移して `home-initial.png` を保存
+- `http://localhost:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
+- `http://localhost:8080/assetbalance` に遷移し、初期表示を `assetbalance-initial.png` として保存
+- 保有銘柄の検索オプション（銘柄）を1つ選択し、`assetbalance-search-security.png` を保存
+- `http://localhost:8080/receipts` に遷移し、各タブ/検索状態を操作して受取金の9枚を保存
 - 設定は `fullPage: true`
 
 #### B. E2Eで取得する場合

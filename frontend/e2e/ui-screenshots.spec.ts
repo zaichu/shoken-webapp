@@ -1,10 +1,10 @@
-import { test } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 /**
- * 受取金ページのUIレビュー用スクリーンショット取得
+ * UIレビュー用スクリーンショット取得
  *
  * 使用方法:
  * 1. 開発サーバーを起動: npm run dev
@@ -25,6 +25,30 @@ const TABS = [
   { name: 'mutualfund', label: '投資信託', index: 2 },
 ] as const;
 
+async function waitForPageReady(page: Page) {
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1000);
+}
+
+async function selectFirstNonDefaultOption(
+  page: Page,
+  selector: string
+) {
+  const select = page.locator(selector);
+  if (!(await select.isVisible())) {
+    return;
+  }
+
+  const options = await select.locator('option').allTextContents();
+  const option = options.find(opt => opt !== '全て表示' && opt !== '');
+  if (!option) {
+    return;
+  }
+
+  await select.selectOption({ label: option });
+  await page.waitForTimeout(1500);
+}
+
 // スクショ保存ディレクトリを作成
 test.beforeAll(async () => {
   if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -32,22 +56,87 @@ test.beforeAll(async () => {
   }
 });
 
+test.describe('主要ページ', () => {
+  test('ホームページ - 初期表示', async ({ page }) => {
+    await page.goto('/');
+    await waitForPageReady(page);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'home-initial.png'),
+      fullPage: true,
+    });
+  });
+
+  test('銘柄検索 - 任天堂検索', async ({ page }) => {
+    await page.goto('/search');
+    await waitForPageReady(page);
+
+    const codeInput = page.getByLabel('銘柄コード');
+    await codeInput.fill('任天堂');
+    await page.getByRole('button', { name: '検索' }).click();
+    await waitForPageReady(page);
+
+    const hasNintendoResult = await page
+      .locator('text=任天堂')
+      .first()
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+
+    // API側が銘柄名検索に対応していない環境でも、任天堂の検索結果を取得するために銘柄コードで再検索
+    if (!hasNintendoResult) {
+      await codeInput.fill('7974');
+      await page.getByRole('button', { name: '検索' }).click();
+      await waitForPageReady(page);
+      await page.waitForTimeout(1000);
+    }
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'search-nintendo-result.png'),
+      fullPage: true,
+    });
+  });
+
+  test('保有銘柄 - 初期表示', async ({ page }) => {
+    await page.goto('/assetbalance');
+    await waitForPageReady(page);
+    await page.waitForTimeout(2000);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'assetbalance-initial.png'),
+      fullPage: true,
+    });
+  });
+
+  test('保有銘柄 - 銘柄検索', async ({ page }) => {
+    await page.goto('/assetbalance');
+    await waitForPageReady(page);
+    await page.waitForTimeout(2000);
+
+    await selectFirstNonDefaultOption(page, '#securities-search');
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'assetbalance-search-security.png'),
+      fullPage: true,
+    });
+  });
+});
+
 // 各タブの初期表示をスクショ
 test.describe('受取金ページ - タブ初期表示', () => {
   for (const tab of TABS) {
     test(`${tab.label}タブの初期表示`, async ({ page }) => {
       await page.goto('/receipts');
-      await page.waitForLoadState('networkidle');
+      await waitForPageReady(page);
 
       // タブをクリック
       if (tab.index > 0) {
         const tabButton = page.getByRole('tab', { name: tab.label });
         await tabButton.click();
-        await page.waitForLoadState('networkidle');
+        await waitForPageReady(page);
       }
 
       // データ読み込み待機（最大5秒）
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1000);
 
       // スクショ取得
       await page.screenshot({
@@ -62,8 +151,7 @@ test.describe('受取金ページ - タブ初期表示', () => {
 test.describe('受取金ページ - 検索結果', () => {
   test('配当金 - 西暦検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // 検索オプションが表示されるまで待機
     const yearSelect = page.locator('#years-search');
@@ -85,20 +173,10 @@ test.describe('受取金ページ - 検索結果', () => {
 
   test('配当金 - 銘柄検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // 銘柄セレクトが表示されていれば選択
-    const securitySelect = page.locator('#securities-search');
-    if (await securitySelect.isVisible()) {
-      const options = await securitySelect.locator('option').allTextContents();
-      // 「全て表示」以外の最初のオプションを選択
-      const securityOption = options.find(opt => opt !== '全て表示' && opt !== '');
-      if (securityOption) {
-        await securitySelect.selectOption({ label: securityOption });
-        await page.waitForTimeout(1500);
-      }
-    }
+    await selectFirstNonDefaultOption(page, '#securities-search');
 
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'receipts-dividend-search-security.png'),
@@ -108,12 +186,11 @@ test.describe('受取金ページ - 検索結果', () => {
 
   test('国内株式 - 西暦検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
+    await waitForPageReady(page);
 
     // 国内株式タブをクリック
     await page.getByRole('tab', { name: '国内株式' }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // 西暦検索
     const yearSelect = page.locator('#years-search');
@@ -134,12 +211,11 @@ test.describe('受取金ページ - 検索結果', () => {
 
   test('国内株式 - 口座検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
+    await waitForPageReady(page);
 
     // 国内株式タブをクリック
     await page.getByRole('tab', { name: '国内株式' }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // 口座ボタンが表示されていればクリック
     const accountButtons = page.locator('button:has-text("特定")');
@@ -156,12 +232,11 @@ test.describe('受取金ページ - 検索結果', () => {
 
   test('投資信託 - 西暦検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
+    await waitForPageReady(page);
 
     // 投資信託タブをクリック
     await page.getByRole('tab', { name: '投資信託' }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // 西暦検索
     const yearSelect = page.locator('#years-search');
@@ -182,23 +257,14 @@ test.describe('受取金ページ - 検索結果', () => {
 
   test('投資信託 - ファンド検索', async ({ page }) => {
     await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
+    await waitForPageReady(page);
 
     // 投資信託タブをクリック
     await page.getByRole('tab', { name: '投資信託' }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await waitForPageReady(page);
 
     // ファンドセレクトが表示されていれば選択
-    const securitySelect = page.locator('#securities-search');
-    if (await securitySelect.isVisible()) {
-      const options = await securitySelect.locator('option').allTextContents();
-      const fundOption = options.find(opt => opt !== '全て表示' && opt !== '');
-      if (fundOption) {
-        await securitySelect.selectOption({ label: fundOption });
-        await page.waitForTimeout(1500);
-      }
-    }
+    await selectFirstNonDefaultOption(page, '#securities-search');
 
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'receipts-mutualfund-search-fund.png'),
