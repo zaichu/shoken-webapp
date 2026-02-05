@@ -29,6 +29,7 @@ import {
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
 import { calculateDividends } from '@/features/receipt/calculations';
+import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
 
 interface DividendProps {
     csvData: Record<string, unknown>[];
@@ -179,28 +180,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         { key: 'net_amount_received', header: '受取額', width: '90px', textAlign: 'right', format: formatCurrency },
     ]), []);
 
+    // 列の前面配置ルール（商品 > 口座の優先順）
+    const columnRules: ColumnReorderRule<DividendData>[] = useMemo(() => [
+        { columnKey: 'product', match: (item, q) => item.product.toLowerCase().includes(q) },
+        { columnKey: 'account', match: (item, q) => item.account.toLowerCase().includes(q) },
+    ], []);
+
     // 検索タイプに応じて重要なカラムを前面に配置
-    const columns = useMemo(() => {
-        if (!searchQuery) return baseColumns;
-
-        const query = searchQuery.toLowerCase();
-
-        // 商品検索の場合、商品カラムを前面に
-        if (filteredData.some(item => item.product.toLowerCase().includes(query))) {
-            const productCol = baseColumns.find(col => col.key === 'product')!;
-            const otherCols = baseColumns.filter(col => col.key !== 'product');
-            return [baseColumns[0], productCol, ...otherCols.slice(1)];
-        }
-
-        // 口座検索の場合、口座カラムを前面に
-        if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
-            const accountCol = baseColumns.find(col => col.key === 'account')!;
-            const otherCols = baseColumns.filter(col => col.key !== 'account');
-            return [baseColumns[0], accountCol, ...otherCols.slice(1)];
-        }
-
-        return baseColumns;
-    }, [baseColumns, filteredData, searchQuery]);
+    const columns = useMemo(
+        () => reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 1),
+        [baseColumns, filteredData, searchQuery, columnRules]
+    );
 
     // サマリーカラムの定義
     const summaryColumns: SummaryColumnConfig[] = [
