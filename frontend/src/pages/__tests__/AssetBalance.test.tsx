@@ -1,94 +1,19 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { AssetBalanceInfo } from '../AssetBalance';
 
-// その他の依存関係のモック
-vi.mock('@/components/templates/ReceiptTemplate', () => ({
-  ReceiptTemplate: ({
-    children,
-    title,
-    header,
-    onSearch,
-    searchCategories
-  }: {
-    children: React.ReactNode;
-    title: string;
-    header?: React.ReactNode;
-    onSearch?: (query: string) => void;
-    searchCategories?: Record<string, Array<{ value: string; label: string }>>;
-  }) => (
-    <div data-testid="receipt-template">
-      <h1>{title}</h1>
-      {header && <div data-testid="receipt-header">{header}</div>}
-      {onSearch && searchCategories && (
-        <div data-testid="search-area">
-          <input
-            data-testid="search-input"
-            onChange={(e) => onSearch(e.target.value)}
-            placeholder="検索"
-          />
-          <div data-testid="search-options">
-            オプション数: {Object.values(searchCategories).flat().length}
-          </div>
-        </div>
-      )}
-      {children}
-    </div>
-  ),
-}));
-
-// AssetPortfolioSummaryのモック（遅延読み込み対応）
-vi.mock('@/components/organisms/AssetPortfolioSummary', () => ({
-  AssetPortfolioSummary: ({ assetBalanceData }: { assetBalanceData: AssetBalanceData[] }) => (
-    <div data-testid="asset-portfolio-summary">
-      <div data-testid="total-amount">合計取得総額: {assetBalanceData.reduce((sum, item) => sum + (item.total_purchase_amount || 0), 0)}</div>
-      <div data-testid="chart-items">銘柄数: {assetBalanceData.length}</div>
-    </div>
-  ),
-}));
-
-vi.mock('@/components/organisms/ReceiptTable/ReceiptTable', () => ({
-  ReceiptTable: ({ data, columns, summary, summaryColumns, getGroupKey }: {
-    data: Array<unknown>;
-    columns: Array<{ key: string; header: string; width?: string; textAlign?: string; format?: (v: number) => string }>;
-    summary: Array<unknown>;
-    summaryColumns: Array<unknown>;
-    getGroupKey: () => string;
-  }) => (
-    <div data-testid="receipt-table">
-      <div data-testid="table-headers">
-        {columns.map((col, index) => (
-          <span key={index} data-testid={`header-${col.key}`}>{col.header}</span>
-        ))}
-      </div>
-      <div data-testid="table-data">データ数: {data.length}</div>
-      <div data-testid="table-props">
-        summary: {summary.length}, summaryColumns: {summaryColumns.length}, groupKey: {getGroupKey()}
-      </div>
-    </div>
-  ),
+// SecurityCodeLinkのモック
+vi.mock('@/components/atoms/SecurityCodeLink', () => ({
+  SecurityCodeLink: ({ value }: { value: string }) => <span>{value}</span>,
 }));
 
 // ユーティリティ関数のモック
-vi.mock('@/lib/utils/dataTransformer', () => ({
-  createSearchOptions: vi.fn().mockReturnValue([
-    { value: '7203', label: '7203 - トヨタ自動車' },
-    { value: '6758', label: '6758 - ソニーグループ' },
-  ]),
-  filterDataBySearchQuery: vi.fn().mockImplementation((data, query) => {
-    if (!query) return data;
-    return data.filter((item: AssetBalanceData) =>
-      item.security_code.includes(query) || item.security_name.includes(query)
-    );
-  }),
-}));
-
 vi.mock('@/lib/utils/formatters', () => ({
   formatCurrency: vi.fn().mockImplementation((value: number) => `¥${value.toLocaleString()}`),
   formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
-  createSecurityCodeLink: vi.fn().mockImplementation((value: unknown) => String(value ?? '')),
+  safeAdd: vi.fn().mockImplementation((a: number, b: number) => a + b),
 }));
 
 const mockAssetBalanceData: AssetBalanceData[] = [
@@ -118,118 +43,97 @@ const mockAssetBalanceData: AssetBalanceData[] = [
   },
 ];
 
-describe('AssetBalance', () => {
+describe('AssetBalanceInfo', () => {
+  const defaultProps = {
+    assetBalanceData: mockAssetBalanceData,
+    filteredData: mockAssetBalanceData,
+    searchQuery: '',
+    onClearFilter: vi.fn(),
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('保有銘柄データを正しく表示する', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+  it('ポートフォリオサマリーが表示される', async () => {
+    render(<AssetBalanceInfo {...defaultProps} />);
 
-    expect(screen.getByText('保有銘柄')).toBeInTheDocument();
-    expect(screen.getByTestId('receipt-table')).toBeInTheDocument();
-    expect(screen.getByText('データ数: 2')).toBeInTheDocument();
-  });
-
-  it('空のデータの場合でも正しく表示される', () => {
-    render(<AssetBalanceInfo assetBalanceData={[]} />);
-
-    expect(screen.getByText('保有銘柄')).toBeInTheDocument();
-    expect(screen.getByText('データ数: 0')).toBeInTheDocument();
-  });
-
-  it('テーブルのヘッダーが正しく表示される', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    // 実際に表示されるカラムのみテスト
-    expect(screen.getByTestId('header-security_code')).toHaveTextContent('銘柄コード');
-    expect(screen.getByTestId('header-security_name')).toHaveTextContent('銘柄名');
-    expect(screen.getByTestId('header-shares')).toHaveTextContent('保有数量');
-    expect(screen.getByTestId('header-average_purchase_price')).toHaveTextContent('平均取得価額');
-    expect(screen.getByTestId('header-total_purchase_amount')).toHaveTextContent('取得総額');
-  });
-
-  it('テーブルのプロパティが正しく渡される', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    // summaryとsummaryColumnsが正しくセットされていることを確認
-    const tableProps = screen.getByTestId('table-props');
-    expect(tableProps).toHaveTextContent('summary: 0');
-    expect(tableProps).toHaveTextContent('summaryColumns: 0');
-    expect(tableProps).toHaveTextContent('groupKey:');
-  });
-
-  it('検索機能が正しく動作する', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    const searchInput = screen.getByTestId('search-input');
-
-    // 検索入力前は全データが表示されている
-    expect(screen.getByText('データ数: 2')).toBeInTheDocument();
-
-    // 検索クエリを入力
-    fireEvent.change(searchInput, { target: { value: '7203' } });
-
-    // 検索後のデータ表示を確認（filterDataBySearchQueryのモックが動作する）
-    expect(searchInput).toHaveValue('7203');
-  });
-
-  it('検索オプションが正しく表示される', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    expect(screen.getByTestId('search-options')).toHaveTextContent('オプション数: 2');
-  });
-
-  it('カラム設定が正しく定義される', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    // テーブルのヘッダーが5個表示されることを確認
-    const headers = screen.getByTestId('table-headers');
-    expect(headers.children).toHaveLength(5);
-  });
-
-  it('合計情報が正しく表示される', () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    // サマリーデータが正しく計算されていることを確認
-    const tableProps = screen.getByTestId('table-props');
-    expect(tableProps).toHaveTextContent('summary: 0');
-  });
-
-  it('空のデータでも合計情報が正しく表示される', () => {
-    render(<AssetBalanceInfo assetBalanceData={[]} />);
-
-    // 空のデータの場合でもサマリーが表示される
-    const tableProps = screen.getByTestId('table-props');
-    expect(tableProps).toHaveTextContent('summary: 0');
-  });
-
-  it('ポートフォリオサマリーがヘッダーとして表示される', async () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
-
-    // ヘッダー部分が表示されていることを確認
-    expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
-    // 遅延読み込みコンポーネントの表示を待機
     await waitFor(() => {
       expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
     });
   });
 
-  it('ポートフォリオサマリーに正しいデータが渡される', async () => {
-    render(<AssetBalanceInfo assetBalanceData={mockAssetBalanceData} />);
+  it('合計取得総額が正しく計算される', async () => {
+    render(<AssetBalanceInfo {...defaultProps} />);
 
-    // 遅延読み込みコンポーネントの表示を待機
     await waitFor(() => {
-      // 合計取得総額が正しく計算されていることを確認（250000 + 600000 = 850000）
-      expect(screen.getByTestId('total-amount')).toHaveTextContent('850000');
-      expect(screen.getByTestId('chart-items')).toHaveTextContent('銘柄数: 2');
+      // 250,000 + 600,000 = 850,000
+      expect(screen.getByText(/850,000/)).toBeInTheDocument();
     });
   });
 
-  it('空データの場合でもヘッダー領域が存在する', () => {
-    render(<AssetBalanceInfo assetBalanceData={[]} />);
+  it('銘柄名が表示される', async () => {
+    render(<AssetBalanceInfo {...defaultProps} />);
 
-    // ヘッダー領域自体は存在する（中身はSuspenseのfallbackか空状態）
-    expect(screen.getByTestId('receipt-header')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('トヨタ自動車')).toBeInTheDocument();
+      expect(screen.getByText('ソニーグループ')).toBeInTheDocument();
+    });
+  });
+
+  it('空のデータの場合は空状態が表示される', async () => {
+    render(
+      <AssetBalanceInfo
+        assetBalanceData={[]}
+        filteredData={[]}
+        searchQuery=""
+        onClearFilter={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('保有銘柄がありません')).toBeInTheDocument();
+    });
+  });
+
+  it('絞り込み中はフィルタデータのみ表示される', async () => {
+    const filteredData = [mockAssetBalanceData[0]];
+    render(
+      <AssetBalanceInfo
+        assetBalanceData={mockAssetBalanceData}
+        filteredData={filteredData}
+        searchQuery="7203"
+        onClearFilter={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
+      // 絞り込み中の表示
+      expect(screen.getByText(/絞り込み中/)).toBeInTheDocument();
+    });
+  });
+
+  it('絞り込みで該当なしの場合は適切なメッセージが表示される', async () => {
+    render(
+      <AssetBalanceInfo
+        assetBalanceData={mockAssetBalanceData}
+        filteredData={[]}
+        searchQuery="9999"
+        onClearFilter={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('該当する銘柄がありません')).toBeInTheDocument();
+    });
+  });
+
+  it('銘柄別構成比が表示される', async () => {
+    render(<AssetBalanceInfo {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('銘柄別構成比')).toBeInTheDocument();
+    });
   });
 });

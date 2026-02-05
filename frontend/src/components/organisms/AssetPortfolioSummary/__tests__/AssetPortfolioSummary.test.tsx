@@ -3,18 +3,9 @@ import { vi, describe, it, expect } from 'vitest';
 import { AssetPortfolioSummary } from '../AssetPortfolioSummary';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 
-// rechartsのモック（ResponsiveContainerの問題を回避）
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="responsive-container">{children}</div>
-  ),
-  PieChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pie-chart">{children}</div>
-  ),
-  Pie: () => <div data-testid="pie" />,
-  Cell: () => null,
-  Tooltip: () => null,
-  Legend: () => <div data-testid="legend" />,
+// SecurityCodeLinkのモック
+vi.mock('@/components/atoms/SecurityCodeLink', () => ({
+  SecurityCodeLink: ({ value }: { value: string }) => <span>{value}</span>,
 }));
 
 const createMockData = (overrides: Partial<AssetBalanceData>[] = []): AssetBalanceData[] => {
@@ -120,7 +111,9 @@ describe('AssetPortfolioSummary', () => {
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
     // undefinedは0として扱われるので、600,000のみが合計される
-    expect(screen.getByText(/600,000/)).toBeInTheDocument();
+    // KPIとグラフカードの両方に表示されるためgetAllByTextを使用
+    const matches = screen.getAllByText(/600,000/);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('data-testidが設定される', () => {
