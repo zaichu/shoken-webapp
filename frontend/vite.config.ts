@@ -49,6 +49,7 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     testTimeout: 10000,
     hookTimeout: 10000,
+    exclude: ['node_modules', 'dist', 'e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
