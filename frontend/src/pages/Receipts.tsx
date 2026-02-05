@@ -363,9 +363,14 @@ export function ReceiptsPage() {
           )}
         </div>
 
-        {receiptsType === 'dividend' && <Dividend csvData={dividendData as Record<string, unknown>[]} />}
-        {receiptsType === 'domesticstock' && <DomesticStock csvData={domesticStockData as Record<string, unknown>[]} />}
-        {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundData as Record<string, unknown>[]} />}
+        {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
+        {!authLoading && !dbLoading && !isLoading && (
+          <>
+            {receiptsType === 'dividend' && <Dividend csvData={dividendData as Record<string, unknown>[]} />}
+            {receiptsType === 'domesticstock' && <DomesticStock csvData={domesticStockData as Record<string, unknown>[]} />}
+            {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundData as Record<string, unknown>[]} />}
+          </>
+        )}
       </div>
     </Layout>
   );
