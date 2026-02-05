@@ -236,7 +236,8 @@ export function AssetBalancePage() {
               />
             )}
 
-            {assetBalanceData.length > 0 && (
+            {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
+            {!loading && !csvReader.isLoading && (
               <AssetBalanceInfo
                 assetBalanceData={assetBalanceData}
                 filteredData={filteredData}
