@@ -34,8 +34,8 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
     return !!effectiveSecurityCode && SECURITY_CODE_REGEX.test(effectiveSecurityCode);
   }, [effectiveSecurityCode]);
 
-  // 保有銘柄データを取得（常にフェッチ）
-  const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance();
+  // 保有銘柄データを取得（銘柄コード形式の場合のみフェッチ）
+  const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance({ enabled: isValidSecurityCode });
 
   // J-Quants APIから配当情報を取得（銘柄コード形式の場合のみ）
   const {

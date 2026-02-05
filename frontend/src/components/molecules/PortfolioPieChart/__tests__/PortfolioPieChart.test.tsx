@@ -2,32 +2,34 @@ import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import { PortfolioPieChart, PortfolioItem } from '../PortfolioPieChart';
 
-// rechartsのモック（ResponsiveContainerの問題を回避）
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="responsive-container">{children}</div>
-  ),
-  PieChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pie-chart">{children}</div>
-  ),
-  Pie: () => <div data-testid="pie" />,
-  Cell: () => null,
-  Tooltip: () => null,
-  Legend: () => <div data-testid="legend" />,
+// SecurityCodeLinkのモック
+vi.mock('@/components/atoms/SecurityCodeLink', () => ({
+  SecurityCodeLink: ({ value }: { value: string }) => <span data-testid="security-code-link">{value}</span>,
 }));
 
 describe('PortfolioPieChart', () => {
   const mockData: PortfolioItem[] = [
-    { name: 'トヨタ自動車', value: 250000 },
-    { name: 'ソニーグループ', value: 600000 },
-    { name: '任天堂', value: 150000 },
+    { name: 'トヨタ自動車', value: 250000, securityCode: '7203', shares: 100 },
+    { name: 'ソニーグループ', value: 600000, securityCode: '6758', shares: 50 },
+    { name: '任天堂', value: 150000, securityCode: '7974', shares: 30 },
   ];
 
-  it('円グラフが表示される', () => {
+  it('横棒グラフが表示される', () => {
     render(<PortfolioPieChart data={mockData} />);
 
     expect(screen.getByTestId('portfolio-pie-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
+  });
+
+  it('銘柄名とパーセンテージが表示される', () => {
+    render(<PortfolioPieChart data={mockData} />);
+
+    expect(screen.getByText('トヨタ自動車')).toBeInTheDocument();
+    expect(screen.getByText('ソニーグループ')).toBeInTheDocument();
+    expect(screen.getByText('任天堂')).toBeInTheDocument();
+    // パーセンテージが表示される
+    expect(screen.getByText('60.0%')).toBeInTheDocument();
+    expect(screen.getByText('25.0%')).toBeInTheDocument();
+    expect(screen.getByText('15.0%')).toBeInTheDocument();
   });
 
   it('data-testidが設定される', () => {
@@ -57,11 +59,5 @@ describe('PortfolioPieChart', () => {
 
     const chartContainer = screen.getByTestId('portfolio-pie-chart');
     expect(chartContainer).toHaveClass('custom-chart');
-  });
-
-  it('Legendコンポーネントがレンダリングされる', () => {
-    render(<PortfolioPieChart data={mockData} />);
-
-    expect(screen.getByTestId('legend')).toBeInTheDocument();
   });
 });

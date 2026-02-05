@@ -29,14 +29,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return Boolean(data && data.length > 0);
     };
 
-    // 全ての検索カテゴリが空かチェック
+    // 全ての検索カテゴリが空かチェック（UIで描画するカテゴリのみ判定）
     const hasAnyCategories = () => {
         if (!categories) return false;
         return hasData(categories.securities) ||
             hasData(categories.products) ||
             hasData(categories.accounts) ||
-            hasData(categories.years) ||
-            hasData(categories.yearMonths);
+            hasData(categories.years);
     };
 
     // 展開状態の切り替え処理

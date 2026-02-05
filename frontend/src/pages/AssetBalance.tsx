@@ -5,24 +5,17 @@ import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
+import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
-import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
-import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import { TableColumnConfig } from '@/lib/interfaces/receipt';
+import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 import {
   createSearchOptions,
   filterDataBySearchQuery,
 } from '@/lib/utils/dataTransformer';
-import {
-  formatCurrency,
-  formatNumber
-} from '@/lib/utils/formatters';
-import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
-import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 
 // rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
 const AssetPortfolioSummary = lazy(() =>
@@ -52,62 +45,33 @@ const sortBySecurityCode = (data: AssetBalanceData[]): AssetBalanceData[] => {
 };
 
 
-interface AssetBalanceProps {
+interface AssetBalanceInfoProps {
   assetBalanceData: AssetBalanceData[];
+  filteredData: AssetBalanceData[];
+  searchQuery: string;
+  onClearFilter: () => void;
 }
 
 /**
- * 保有銘柄データを表示するコンポーネント
+ * 保有銘柄データを表示するコンポーネント（概要重視）
  */
-export const AssetBalanceInfo: React.FC<AssetBalanceProps> = ({ assetBalanceData }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // 検索オプションの生成
-  const searchCategories = useMemo(() => ({
-    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
-  }), [assetBalanceData]);
-
-  // 検索クエリに基づくフィルタリング
-  const filteredData = useMemo(() => filterDataBySearchQuery(
-    assetBalanceData,
-    searchQuery,
-    ['security_code', 'security_name']
-  ), [assetBalanceData, searchQuery]);
-
-  // テーブルカラムの定義
-  const columns: TableColumnConfig[] = [
-    {
-      key: 'security_code',
-      header: '銘柄コード',
-      width: '90px',
-      textAlign: 'center',
-      format: renderSecurityCode
-    },
-    { key: 'security_name', header: '銘柄名', width: '200px' },
-    { key: 'shares', header: '保有数量', width: '80px', textAlign: 'right', format: formatNumber },
-    { key: 'average_purchase_price', header: '平均取得価額', width: '100px', textAlign: 'right', format: formatCurrency },
-    { key: 'total_purchase_amount', header: '取得総額', width: '100px', textAlign: 'right', format: formatCurrency },
-  ];
+export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
+  assetBalanceData,
+  filteredData,
+  searchQuery,
+  onClearFilter,
+}) => {
+  const isFiltered = searchQuery !== '';
 
   return (
-    <ReceiptTemplate
-      title="保有銘柄"
-      onSearch={(query: string) => setSearchQuery(query)}
-      searchCategories={searchCategories}
-      header={
-        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner size="md" /></div>}>
-          <AssetPortfolioSummary assetBalanceData={assetBalanceData} />
-        </Suspense>
-      }
-    >
-      <ReceiptTable
-        data={filteredData}
-        summary={[]}
-        columns={columns}
-        summaryColumns={[]}
-        getGroupKey={() => ''}
+    <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner size="md" /></div>}>
+      <AssetPortfolioSummary
+        assetBalanceData={filteredData}
+        totalCount={assetBalanceData.length}
+        isFiltered={isFiltered}
+        onClearFilter={isFiltered ? onClearFilter : undefined}
       />
-    </ReceiptTemplate>
+    </Suspense>
   );
 };
 
@@ -142,6 +106,7 @@ export function AssetBalancePage() {
   // CSVデータの変換（空の銘柄コードをフィルタ）
   const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // CSVデータが読み込まれたらフィルタして設定
   useEffect(() => {
@@ -153,6 +118,26 @@ export function AssetBalancePage() {
       setAssetBalanceData([]);
     }
   }, [csvData, tmpAssetBalanceData, dbData]);
+
+  // 検索オプションの生成
+  const searchCategories = useMemo(() => ({
+    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
+  }), [assetBalanceData]);
+
+  // 検索クエリに基づくフィルタリング
+  const filteredData = useMemo(() => filterDataBySearchQuery(
+    assetBalanceData,
+    searchQuery,
+    ['security_code', 'security_name']
+  ), [assetBalanceData, searchQuery]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleClearFilter = () => {
+    setSearchQuery('');
+  };
 
   const isProcessing = loading || saving || deleting || csvReader.isLoading || authLoading;
 
@@ -243,7 +228,23 @@ export function AssetBalancePage() {
               )}
             </div>
 
-            {assetBalanceData.length > 0 && <AssetBalanceInfo assetBalanceData={assetBalanceData} />}
+            {/* 検索カード（データがある場合のみ表示） */}
+            {assetBalanceData.length > 0 && (
+              <SearchCard
+                onSearch={handleSearch}
+                categories={searchCategories}
+              />
+            )}
+
+            {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
+            {!loading && !csvReader.isLoading && (
+              <AssetBalanceInfo
+                assetBalanceData={assetBalanceData}
+                filteredData={filteredData}
+                searchQuery={searchQuery}
+                onClearFilter={handleClearFilter}
+              />
+            )}
           </>
         )}
       </div>
