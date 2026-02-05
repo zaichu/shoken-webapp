@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { DividendData } from '@/lib/interfaces/dividend';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import {
@@ -17,13 +17,13 @@ import {
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import {
     createYearOptions,
     createYearMonthOptions,
     getUniqueValues,
     matchesYear,
     matchesYearMonth,
-    filterByConfig,
     FilterConfig
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
@@ -38,7 +38,6 @@ interface DividendProps {
  * 配当金データを表示するコンポーネント
  */
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
-    const [searchQuery, setSearchQuery] = useState('');
 
     // CSVデータを配当データ形式に変換
     const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
@@ -74,10 +73,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     }), []);
 
     // 検索クエリに基づくフィルタリング
-    const filteredData = useMemo(
-        () => filterByConfig(dividendData, searchQuery, filterConfig),
-        [dividendData, searchQuery, filterConfig]
-    );
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(dividendData, filterConfig);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateDividends);
