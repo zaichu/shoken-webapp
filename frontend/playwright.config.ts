@@ -14,6 +14,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'http://localhost:8080',
     trace: 'off',
     screenshot: 'off',
+    viewport: { width: 1920, height: 1080 },
     // ログイン状態を保持するためのstorageState
     storageState: process.env.STORAGE_STATE || undefined,
   },
