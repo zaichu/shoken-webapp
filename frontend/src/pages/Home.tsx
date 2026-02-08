@@ -86,6 +86,25 @@ export function HomePage() {
             ))}
           </div>
         </div>
+
+        {/* はじめかた */}
+        <div className="mt-6 pt-4 border-t border-slate-200">
+          <h2 className="text-sm font-medium text-slate-500 mb-3">はじめかた</h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1">STEP 1</p>
+              <p className="text-sm text-slate-700">証券会社からCSVをダウンロード</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1">STEP 2</p>
+              <p className="text-sm text-slate-700">各ページでCSVファイルを取り込み</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1">STEP 3</p>
+              <p className="text-sm text-slate-700">配当金や保有銘柄の情報を確認</p>
+            </div>
+          </div>
+        </div>
       </div>
     </Layout>
   );
