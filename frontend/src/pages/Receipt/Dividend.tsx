@@ -163,8 +163,8 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         }
     ];
 
-    // 銘柄検索時も集計情報は常に表示（詳細は折りたたみ内で確認）
-    const headerItems = allHeaderItems;
+    // 銘柄検索時は内部に同等の指標があるため上段の集計は非表示
+    const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
