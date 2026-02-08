@@ -1,4 +1,4 @@
-import { createSearchOptions, filterDataBySearchQuery, groupAndSummarizeData } from '../dataTransformer';
+import { createSearchOptions, groupAndSummarizeData } from '../dataTransformer';
 
 interface TestItemWithCode {
     code: string;
@@ -57,34 +57,6 @@ describe('createSearchOptions', () => {
             { value: '1234', label: '1234: テスト1' },
             { value: '5678', label: '5678: テスト2' }
         ]);
-    });
-});
-
-describe('filterDataBySearchQuery', () => {
-    const testData: TestItemWithCode[] = [
-        { code: '1234', name: 'テスト1', value: 100 },
-        { code: '5678', name: 'サンプル', value: 200 },
-        { code: '9012', name: 'テスト2', value: 300 }
-    ];
-
-    it('検索クエリが空の場合はすべてのデータを返す', () => {
-        const result = filterDataBySearchQuery(testData, '', ['code', 'name']);
-        expect(result).toEqual(testData);
-    });
-
-    it('codeフィールドでフィルタリングする', () => {
-        const result = filterDataBySearchQuery(testData, '123', ['code', 'name']);
-        expect(result).toEqual([testData[0]]);
-    });
-
-    it('nameフィールドでフィルタリングする', () => {
-        const result = filterDataBySearchQuery(testData, 'テスト', ['code', 'name']);
-        expect(result).toEqual([testData[0], testData[2]]);
-    });
-
-    it('検索クエリに一致するデータがない場合は空の配列を返す', () => {
-        const result = filterDataBySearchQuery(testData, 'ないデータ', ['code', 'name']);
-        expect(result).toEqual([]);
     });
 });
 

@@ -5,8 +5,8 @@ export type FormatFunction<T = unknown> = (value: T) => string | number | React.
 
 export interface HeaderItem {
   title: string;
-  value: number | string;
-  format?: FormatFunction;
+  value: number;
+  format: (value: number) => string;
 }
 
 export interface SelectOption {

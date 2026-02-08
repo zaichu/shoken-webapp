@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { DividendData } from '@/lib/interfaces/dividend';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import {
@@ -17,18 +17,19 @@ import {
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import {
     createYearOptions,
     createYearMonthOptions,
     getUniqueValues,
     matchesYear,
     matchesYearMonth,
-    filterByConfig,
     FilterConfig
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
 import { calculateDividends } from '@/features/receipt/calculations';
+import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
 
 interface DividendProps {
     csvData: Record<string, unknown>[];
@@ -38,7 +39,6 @@ interface DividendProps {
  * 配当金データを表示するコンポーネント
  */
 export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
-    const [searchQuery, setSearchQuery] = useState('');
 
     // CSVデータを配当データ形式に変換
     const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
@@ -74,10 +74,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     }), []);
 
     // 検索クエリに基づくフィルタリング
-    const filteredData = useMemo(
-        () => filterByConfig(dividendData, searchQuery, filterConfig),
-        [dividendData, searchQuery, filterConfig]
-    );
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(dividendData, filterConfig);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateDividends);
@@ -183,28 +180,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         { key: 'net_amount_received', header: '受取額', width: '90px', textAlign: 'right', format: formatCurrency },
     ]), []);
 
+    // 列の前面配置ルール（商品 > 口座の優先順）
+    const columnRules: ColumnReorderRule<DividendData>[] = useMemo(() => [
+        { columnKey: 'product', match: (item, q) => item.product.toLowerCase().includes(q) },
+        { columnKey: 'account', match: (item, q) => item.account.toLowerCase().includes(q) },
+    ], []);
+
     // 検索タイプに応じて重要なカラムを前面に配置
-    const columns = useMemo(() => {
-        if (!searchQuery) return baseColumns;
-
-        const query = searchQuery.toLowerCase();
-
-        // 商品検索の場合、商品カラムを前面に
-        if (filteredData.some(item => item.product.toLowerCase().includes(query))) {
-            const productCol = baseColumns.find(col => col.key === 'product')!;
-            const otherCols = baseColumns.filter(col => col.key !== 'product');
-            return [baseColumns[0], productCol, ...otherCols.slice(1)];
-        }
-
-        // 口座検索の場合、口座カラムを前面に
-        if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
-            const accountCol = baseColumns.find(col => col.key === 'account')!;
-            const otherCols = baseColumns.filter(col => col.key !== 'account');
-            return [baseColumns[0], accountCol, ...otherCols.slice(1)];
-        }
-
-        return baseColumns;
-    }, [baseColumns, filteredData, searchQuery]);
+    const columns = useMemo(
+        () => reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 1),
+        [baseColumns, filteredData, searchQuery, columnRules]
+    );
 
     // サマリーカラムの定義
     const summaryColumns: SummaryColumnConfig[] = [

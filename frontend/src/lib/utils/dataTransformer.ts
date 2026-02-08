@@ -17,24 +17,6 @@ export function createSearchOptions<T>(
         .sort((a, b) => a.value.localeCompare(b.value));
 }
 
-export function filterDataBySearchQuery<T>(
-    data: T[],
-    searchQuery: string,
-    searchFields: (keyof T)[]
-): T[] {
-    const query = searchQuery.toLowerCase();
-
-    if (!query) {
-        return data;
-    }
-
-    return data.filter(item =>
-        searchFields.some(field =>
-            String(item[field]).toLowerCase().includes(query)
-        )
-    );
-}
-
 export type SummaryResult<K extends string | number | symbol> = {
     filter: string;
     [key: string]: unknown;

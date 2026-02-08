@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
     MutualfundData,
     MutualfundCalculations
@@ -14,7 +14,8 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { createYearOptions, filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
+import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
+import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 
 interface MutualfundProps {
@@ -25,7 +26,6 @@ interface MutualfundProps {
  * 投資信託データを表示するコンポーネント
  */
 export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
-    const [searchQuery, setSearchQuery] = useState('');
 
     /**
      * CSVまたはDBデータをMutualfundData形式に変換
@@ -53,10 +53,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     }), []);
 
     // 検索クエリに基づくフィルタリング
-    const filteredData = useMemo(
-        () => filterByConfig(mutualfundData, searchQuery, filterConfig),
-        [mutualfundData, searchQuery, filterConfig]
-    );
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, filterConfig);
 
     /**
      * 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）

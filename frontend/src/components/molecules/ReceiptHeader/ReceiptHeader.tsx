@@ -1,12 +1,7 @@
 import React, { ReactNode, useEffect, useId, useState } from 'react';
 import { StatItem } from '@/components/atoms/StatItem';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
-
-interface HeaderItem {
-    title: string;
-    value: number;
-    format: (value: number) => string;
-}
+import { HeaderItem } from '@/types/common';
 
 interface ReceiptHeaderProps {
     items: HeaderItem[];

@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
@@ -13,15 +13,16 @@ import {
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import {
     createYearOptions,
     createYearMonthOptions,
     getUniqueValues,
-    filterByConfig,
     FilterConfig
 } from '@/lib/utils/searchUtils';
 import { parseDomesticStockCsvItem, sortDomesticStockByTradeDate } from '@/features/receipt/parsers';
 import { calculateDailyData, calculateDomesticStock } from '@/features/receipt/calculations';
+import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
 
 interface DomesticStockProps {
     csvData: Record<string, unknown>[];
@@ -31,7 +32,6 @@ interface DomesticStockProps {
  * 国内株式取引データを表示するコンポーネント
  */
 export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
-    const [searchQuery, setSearchQuery] = useState('');
 
     // CSVデータを国内株式データ形式に変換
     const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
@@ -66,10 +66,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     }), []);
 
     // 検索クエリに基づくフィルタリング
-    const filteredData = useMemo(
-        () => filterByConfig(domesticStockData, searchQuery, filterConfig),
-        [domesticStockData, searchQuery, filterConfig]
-    );
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(domesticStockData, filterConfig);
 
     // フィルタ後の日次集計
     const filteredDailyData = useMemo(
@@ -120,21 +117,16 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss_after_tax', header: '税引後', width: '90px', textAlign: 'right', format: formatCurrency },
     ]), []);
 
-    // 検索タイプに応じて重要なカラムを前面に配置
-    const columns = useMemo(() => {
-        if (!searchQuery) return baseColumns;
+    // 列の前面配置ルール（口座のみ）
+    const columnRules: ColumnReorderRule<DomesticStockData>[] = useMemo(() => [
+        { columnKey: 'account', match: (item, q) => item.account.toLowerCase().includes(q) },
+    ], []);
 
-        const query = searchQuery.toLowerCase();
-
-        // 口座検索の場合、口座カラムを前面に
-        if (filteredData.some(item => item.account.toLowerCase().includes(query))) {
-            const accountCol = baseColumns.find(col => col.key === 'account')!;
-            const otherCols = baseColumns.filter(col => col.key !== 'account');
-            return [baseColumns[0], baseColumns[1], accountCol, ...otherCols.slice(2)];
-        }
-
-        return baseColumns;
-    }, [baseColumns, filteredData, searchQuery]);
+    // 検索タイプに応じて重要なカラムを前面に配置（日付・コードの2列固定）
+    const columns = useMemo(
+        () => reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 2),
+        [baseColumns, filteredData, searchQuery, columnRules]
+    );
 
     // サマリーカラムの定義（最後の3カラムと一致）
     const summaryColumns: SummaryColumnConfig[] = [

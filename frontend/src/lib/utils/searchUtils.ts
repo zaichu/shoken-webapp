@@ -88,6 +88,8 @@ export function matchesAmounts(amounts: number[], query: string): boolean {
 export interface FilterConfig<T> {
   /** 文字列完全一致検索対象フィールド */
   stringFields?: ((item: T) => string)[];
+  /** 文字列部分一致検索対象フィールド */
+  partialStringFields?: ((item: T) => string)[];
   /** 日付フィールド（年/年月/日付検索用） */
   dateField?: (item: T) => Date;
   /** 年度検索を有効にするか */
@@ -121,6 +123,15 @@ export function filterByConfig<T>(
     if (config.stringFields) {
       for (const getter of config.stringFields) {
         if (getter(item).toLowerCase() === normalizedQuery) {
+          return true;
+        }
+      }
+    }
+
+    // 文字列フィールドの部分一致検索
+    if (config.partialStringFields) {
+      for (const getter of config.partialStringFields) {
+        if (getter(item).toLowerCase().includes(normalizedQuery)) {
           return true;
         }
       }

@@ -12,10 +12,8 @@ import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
-import {
-  createSearchOptions,
-  filterDataBySearchQuery,
-} from '@/lib/utils/dataTransformer';
+import { createSearchOptions } from '@/lib/utils/dataTransformer';
+import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 
 // rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
 const AssetPortfolioSummary = lazy(() =>
@@ -124,12 +122,19 @@ export function AssetBalancePage() {
     securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
   }), [assetBalanceData]);
 
+  // フィルタ設定（部分一致検索）
+  const filterConfig: FilterConfig<AssetBalanceData> = useMemo(() => ({
+    partialStringFields: [
+      item => item.security_code,
+      item => item.security_name,
+    ],
+  }), []);
+
   // 検索クエリに基づくフィルタリング
-  const filteredData = useMemo(() => filterDataBySearchQuery(
-    assetBalanceData,
-    searchQuery,
-    ['security_code', 'security_name']
-  ), [assetBalanceData, searchQuery]);
+  const filteredData = useMemo(
+    () => filterByConfig(assetBalanceData, searchQuery, filterConfig),
+    [assetBalanceData, searchQuery, filterConfig]
+  );
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
