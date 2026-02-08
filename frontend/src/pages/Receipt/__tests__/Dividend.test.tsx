@@ -78,14 +78,14 @@ describe('Dividend', () => {
         const titleElements = screen.getAllByText('配当金');
         expect(titleElements.length).toBeGreaterThan(0);
 
-        // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
-        const combinedDividendElements = screen.getAllByText('合計配当金');
-        expect(combinedDividendElements.length).toBeGreaterThan(0);
+        // 集計情報が表示されることを確認（テーブルヘッダーにも同名があるためgetAllByText）
+        const combinedDividendElements = screen.getAllByText('配当金');
+        expect(combinedDividendElements.length).toBeGreaterThan(1);
 
-        const totalTaxElements = screen.getAllByText('合計税額');
-        expect(totalTaxElements.length).toBeGreaterThan(0);
+        const totalTaxElements = screen.getAllByText('税額');
+        expect(totalTaxElements.length).toBeGreaterThan(1);
 
-        const totalReceiptElements = screen.getAllByText('合計受取金額');
+        const totalReceiptElements = screen.getAllByText('受取金額');
         expect(totalReceiptElements.length).toBeGreaterThan(0);
     });
 
@@ -104,7 +104,8 @@ describe('Dividend', () => {
         // 「配当金」はページタイトルとしても表示されるためgetAllByTextを使用
         const dividendElements = screen.getAllByText('配当金');
         expect(dividendElements.length).toBeGreaterThan(0);
-        expect(screen.getByText('税額')).toBeInTheDocument();
+        // 「税額」「受取金額」は集計情報にも表示されるためgetAllByTextを使用
+        expect(screen.getAllByText('税額').length).toBeGreaterThan(0);
         expect(screen.getByText('受取額')).toBeInTheDocument();
     });
 
@@ -231,7 +232,7 @@ describe('Dividend', () => {
         expect(titleElements.length).toBeGreaterThan(0);
 
         // 集計情報はゼロで表示される
-        const summaryElements = screen.getAllByText('合計配当金');
+        const summaryElements = screen.getAllByText('配当金');
         expect(summaryElements.length).toBeGreaterThan(0);
     });
 

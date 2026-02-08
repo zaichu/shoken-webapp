@@ -147,17 +147,17 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     // ヘッダー項目の定義
     const allHeaderItems = [
         {
-            title: '合計配当金',
+            title: '配当金',
             value: calculations.total_dividends_before_tax,
             format: formatCurrency
         },
         {
-            title: '合計税額',
+            title: '税額',
             value: calculations.total_taxes,
             format: formatCurrency
         },
         {
-            title: '合計受取金額',
+            title: '受取金額',
             value: calculations.total_net_amount_received,
             format: formatCurrency
         }

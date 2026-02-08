@@ -99,17 +99,17 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
      */
     const headerItems = [
         {
-            title: '合計実現損益',
+            title: '実現損益',
             value: calculations.total_realized_profit_and_loss,
             format: formatCurrency
         },
         {
-            title: '合計税額',
+            title: '税額',
             value: calculations.total_taxes,
             format: formatCurrency
         },
         {
-            title: '合計実現損益(税引)',
+            title: '実現損益(税引)',
             value: calculations.total_realized_profit_and_loss_after_tax,
             format: formatCurrency
         }
