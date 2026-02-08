@@ -37,12 +37,25 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 | `receipts-mutualfund-search-year.png` | 投資信託 - 西暦検索結果 |
 | `receipts-mutualfund-search-fund.png` | 投資信託 - ファンド検索結果 |
 
+## 追加であると安心なスクショ（任意）
+| ファイル名 | 内容 |
+|---|---|
+| `login-initial.png` | ログインページの初期表示（**未ログイン時**） |
+| `notfound-404.png` | 404ページ（関連リンク表示） |
+| `header-user-menu.png` | ヘッダーのユーザーメニュー展開（**ログイン時**） |
+| `header-delete-account-modal.png` | アカウント削除の確認モーダル（**ログイン時**） |
+| `search-empty.png` | 銘柄検索の初期状態（EmptyState表示） |
+| `search-invalid-code-param.png` | `?code=` が不正な場合の警告表示 |
+| `assetbalance-empty.png` | 保有銘柄が0件のEmptyState（**ログイン時**） |
+| `assetbalance-filter-empty.png` | 絞り込み0件のEmptyState（解除リンク表示） |
+
 ## 実施手順（共通）
 
 ### 1) 事前確認
 - 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
 - **ログインは必須**。必ず認証状態を準備する
 - このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
+- スクショは **FHD（1920x1080）** を基準に取得する
 - 開発サーバー運用は以下を厳守する
   - 8080が既に起動中なら **再利用**（新規起動しない）
   - 新規起動時は `--strictPort` を必須化（8081/8082への自動フォールバック禁止）
