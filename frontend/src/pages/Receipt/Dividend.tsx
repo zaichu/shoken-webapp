@@ -163,8 +163,8 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         }
     ];
 
-    // 配当シミュレーション表示時は内部に3指標を表示するため、上段の集計は非表示
-    const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
+    // 銘柄検索時も集計情報は常に表示（詳細は折りたたみ内で確認）
+    const headerItems = allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = useMemo(() => ([
@@ -205,8 +205,9 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             header={
                 <ReceiptHeader
                     items={headerItems}
-                    title={isSecurityCodeSearch ? "銘柄詳細" : "集計情報"}
+                    title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
                     collapsible={isSecurityCodeSearch}
+                    defaultExpanded={!isSecurityCodeSearch}
                 >
                     {isSecurityCodeSearch && (
                         <DividendInfo

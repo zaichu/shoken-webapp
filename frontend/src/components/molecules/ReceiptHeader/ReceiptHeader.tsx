@@ -8,23 +8,27 @@ interface ReceiptHeaderProps {
     title?: string;
     children?: ReactNode;
     collapsible?: boolean;
+    defaultExpanded?: boolean;
 }
 
 export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     items,
     title = '集計情報',
     children,
-    collapsible = false
+    collapsible = false,
+    defaultExpanded = true
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const bodyId = useId();
 
-    // 折りたたみを無効化したら展開状態に戻す
+    // 折りたたみ状態が変わったら展開状態をリセット
     useEffect(() => {
-        if (!collapsible) {
+        if (collapsible) {
+            setIsExpanded(defaultExpanded);
+        } else {
             setIsExpanded(true);
         }
-    }, [collapsible]);
+    }, [collapsible, defaultExpanded]);
 
     const handleToggleExpanded = () => {
         if (!collapsible) return;

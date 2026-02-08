@@ -148,15 +148,24 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
-        // 銘柄詳細ヘッダーが表示されることを確認
+        // 銘柄詳細ヘッダーが表示されることを確認（初期状態は折りたたみ）
         await waitFor(() => {
-            expect(screen.getByText('銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
+        });
+
+        // 折りたたみ状態では詳細入力は非表示
+        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+
+        // ヘッダーをクリックして展開
+        const header = screen.getByTestId('receipt-header');
+        await user.click(header);
+
+        // 展開後はembeddedモードの入力とStatItemが表示される
+        await waitFor(() => {
             expect(screen.getByText('平均取得価格')).toBeInTheDocument();
             expect(screen.getByText('保有数量(株)')).toBeInTheDocument();
             expect(screen.getByText('一株配当')).toBeInTheDocument();
         });
-
-        // embeddedモードのStatItemが表示される
         expect(screen.getByText('配当金額 (配当利回り)')).toBeInTheDocument();
         expect(screen.getAllByText('税額').length).toBeGreaterThanOrEqual(2);
         expect(screen.getByText('受取金額 (累積利回り)')).toBeInTheDocument();
@@ -172,16 +181,20 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
+        // 初期状態は折りたたみ
         await waitFor(() => {
-            expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
-
-        const header = screen.getByTestId('receipt-header');
-        await user.click(header);
         expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
 
+        // クリックで展開
+        const header = screen.getByTestId('receipt-header');
         await user.click(header);
         expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+
+        // 再クリックで折りたたみ
+        await user.click(header);
+        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
     });
 
     it('検索をクリアすると通常のヘッダーに戻る', async () => {
@@ -195,9 +208,9 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
-        // 銘柄詳細が表示されることを確認
+        // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
 
         // 検索をクリア
@@ -206,7 +219,7 @@ describe('Dividend', () => {
         // 通常の集計情報ヘッダーに戻ることを確認
         await waitFor(() => {
             expect(screen.getByText('集計情報')).toBeInTheDocument();
-            expect(screen.queryByText('銘柄詳細')).not.toBeInTheDocument();
+            expect(screen.queryByText('集計情報 / 銘柄詳細')).not.toBeInTheDocument();
         });
     });
 
