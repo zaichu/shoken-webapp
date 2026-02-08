@@ -63,32 +63,31 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                     </span>
                 )}
             </CardHeader>
-            {(!collapsible || isExpanded) && (
-                <CardBody id={bodyId} className="p-4">
-                    {/* stat-gridはitemsがある場合のみ表示 */}
-                    {items.length > 0 && (
-                        <div className="stat-grid">
-                            {items.map((item, index) => (
-                                <StatItem
-                                    key={index}
-                                    title={item.title}
-                                    value={
-                                        <span data-negative={item.value < 0 ? 'true' : undefined}>
-                                            {item.format(item.value)}
-                                        </span>
-                                    }
-                                />
-                            ))}
-                        </div>
-                    )}
-                    {/* childrenはitemsがある場合のみ上余白を設ける */}
-                    {children && (
-                        <div className={items.length > 0 ? 'mt-4 pt-4 border-t border-slate-200' : ''}>
-                            {children}
-                        </div>
-                    )}
-                </CardBody>
-            )}
+            {/* 折りたたみ時はhiddenで非表示（children内のstateを保持するため） */}
+            <CardBody id={bodyId} className="p-4" hidden={collapsible && !isExpanded}>
+                {/* stat-gridはitemsがある場合のみ表示 */}
+                {items.length > 0 && (
+                    <div className="stat-grid">
+                        {items.map((item, index) => (
+                            <StatItem
+                                key={index}
+                                title={item.title}
+                                value={
+                                    <span data-negative={item.value < 0 ? 'true' : undefined}>
+                                        {item.format(item.value)}
+                                    </span>
+                                }
+                            />
+                        ))}
+                    </div>
+                )}
+                {/* childrenはitemsがある場合のみ上余白を設ける */}
+                {children && (
+                    <div className={items.length > 0 ? 'mt-4 pt-4 border-t border-slate-200' : ''}>
+                        {children}
+                    </div>
+                )}
+            </CardBody>
         </Card >
     );
 };

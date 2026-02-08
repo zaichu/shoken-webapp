@@ -88,12 +88,12 @@ describe('ReceiptHeader', () => {
     render(<ReceiptHeader items={defaultItems} title="配当情報" collapsible />);
 
     const header = screen.getByTestId('receipt-header');
-    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
+    expect(screen.getByText('テスト項目1')).toBeVisible();
 
     fireEvent.click(header);
-    expect(screen.queryByText('テスト項目1')).not.toBeInTheDocument();
+    expect(screen.getByText('テスト項目1')).not.toBeVisible();
 
     fireEvent.click(header);
-    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
+    expect(screen.getByText('テスト項目1')).toBeVisible();
   });
 });

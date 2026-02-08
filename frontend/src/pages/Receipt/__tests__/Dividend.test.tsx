@@ -154,8 +154,8 @@ describe('Dividend', () => {
             expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
 
-        // 折りたたみ状態では詳細入力は非表示
-        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+        // 折りたたみ状態では詳細入力は非表示（hiddenで保持）
+        expect(screen.getByText('平均取得価格')).not.toBeVisible();
 
         // ヘッダーをクリックして展開
         const header = screen.getByTestId('receipt-header');
@@ -163,13 +163,13 @@ describe('Dividend', () => {
 
         // 展開後はembeddedモードの入力とStatItemが表示される
         await waitFor(() => {
-            expect(screen.getByText('平均取得価格')).toBeInTheDocument();
-            expect(screen.getByText('保有数量(株)')).toBeInTheDocument();
-            expect(screen.getByText('一株配当')).toBeInTheDocument();
+            expect(screen.getByText('平均取得価格')).toBeVisible();
+            expect(screen.getByText('保有数量(株)')).toBeVisible();
+            expect(screen.getByText('一株配当')).toBeVisible();
         });
-        expect(screen.getByText('配当金額 (配当利回り)')).toBeInTheDocument();
+        expect(screen.getByText('配当金額 (配当利回り)')).toBeVisible();
         expect(screen.getAllByText('税額').length).toBeGreaterThanOrEqual(2);
-        expect(screen.getByText('受取金額 (累積利回り)')).toBeInTheDocument();
+        expect(screen.getByText('受取金額 (累積利回り)')).toBeVisible();
     });
 
     it('銘柄詳細ヘッダーをクリックすると開閉できる', async () => {
@@ -182,20 +182,20 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
-        // 初期状態は折りたたみ
+        // 初期状態は折りたたみ（hiddenで保持）
         await waitFor(() => {
             expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
-        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+        expect(screen.getByText('平均取得価格')).not.toBeVisible();
 
         // クリックで展開
         const header = screen.getByTestId('receipt-header');
         await user.click(header);
-        expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+        expect(screen.getByText('平均取得価格')).toBeVisible();
 
         // 再クリックで折りたたみ
         await user.click(header);
-        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+        expect(screen.getByText('平均取得価格')).not.toBeVisible();
     });
 
     it('検索をクリアすると通常のヘッダーに戻る', async () => {
