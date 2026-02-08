@@ -142,7 +142,11 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1">
             <CardHeader
                 variant="secondary"
-                className="flex cursor-pointer items-center justify-between select-none hover:bg-slate-600 transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset border-b-2 border-slate-600"
+                className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                    isExpanded
+                        ? 'bg-slate-600 hover:bg-slate-700 border-b-2 border-slate-700'
+                        : 'bg-slate-400 hover:bg-slate-500'
+                }`}
                 onClick={handleToggleExpanded}
                 onKeyDown={handleKeyDown}
                 role="button"
@@ -163,18 +167,19 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                {/* 開閉ボタン: 状態に応じた視覚的フィードバック */}
-                <span
-                    className={`flex items-center gap-1.5 px-3 py-1.5 -mr-2 rounded-md transition-colors ${
-                        isExpanded
-                            ? 'bg-white/25 hover:bg-white/30'
-                            : 'bg-white/10 hover:bg-white/20'
-                    }`}
-                    aria-hidden="true"
-                >
-                    <span className="text-xs font-semibold">
-                        {isExpanded ? '▲ 閉じる' : '▼ 開く'}
+                {/* シェブロンアイコン: 回転で開閉状態を表現 */}
+                <span className="flex items-center gap-1.5 -mr-1" aria-hidden="true">
+                    <span className="text-xs font-medium opacity-80">
+                        {isExpanded ? '閉じる' : '開く'}
                     </span>
+                    <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                 </span>
             </CardHeader>
             {isExpanded && categories && (
