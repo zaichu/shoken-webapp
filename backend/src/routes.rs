@@ -1,9 +1,14 @@
 use axum::{
+    middleware,
     routing::{delete, get, post},
     Router,
 };
+use tower_http::limit::RequestBodyLimitLayer;
 
-use crate::{config::Config, handlers, state::AppState};
+use crate::{config::Config, handlers, middleware::validate_origin, state::AppState};
+
+/// リクエストボディの上限サイズ（10MB）
+const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
     Router::new()
@@ -15,6 +20,8 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
         .merge(mutualfund_routes())
         .merge(asset_balance_routes())
         .route("/health", get(|| async { "OK" }))
+        .layer(middleware::from_fn(validate_origin))
+        .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
         .with_state(state)
 }
