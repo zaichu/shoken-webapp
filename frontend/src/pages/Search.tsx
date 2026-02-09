@@ -68,16 +68,26 @@ export function SearchPage() {
         )}
 
         {!stockData && !isError && !isLoading && (
-          <EmptyState
-            icon={
-              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            }
-            title="銘柄を検索"
-            description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
-            className="py-10"
-          />
+          <>
+            <EmptyState
+              icon={
+                <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              }
+              title="銘柄を検索"
+              description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+              className="py-10"
+            />
+            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-sm font-semibold text-slate-600 mb-2">検索のヒント</h3>
+              <ul className="space-y-1 text-sm text-slate-500">
+                <li>4桁の銘柄コードで検索できます（例：7203, 9984）</li>
+                <li>会社名の一部でも検索できます（例：トヨタ）</li>
+                <li>検索結果から各種証券サイトへのリンクを確認できます</li>
+              </ul>
+            </div>
+          </>
         )}
       </div>
     </Layout>

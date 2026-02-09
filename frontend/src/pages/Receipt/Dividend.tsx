@@ -147,23 +147,23 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
     // ヘッダー項目の定義
     const allHeaderItems = [
         {
-            title: '合計配当金',
+            title: '配当金',
             value: calculations.total_dividends_before_tax,
             format: formatCurrency
         },
         {
-            title: '合計税額',
+            title: '税額',
             value: calculations.total_taxes,
             format: formatCurrency
         },
         {
-            title: '合計受取金額',
+            title: '受取金額',
             value: calculations.total_net_amount_received,
             format: formatCurrency
         }
     ];
 
-    // 配当シミュレーション表示時は内部に3指標を表示するため、上段の集計は非表示
+    // 銘柄検索時は内部に同等の指標があるため上段の集計は非表示
     const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
@@ -205,7 +205,7 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
             header={
                 <ReceiptHeader
                     items={headerItems}
-                    title={isSecurityCodeSearch ? "銘柄詳細" : "集計情報"}
+                    title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
                     collapsible={isSecurityCodeSearch}
                 >
                     {isSecurityCodeSearch && (

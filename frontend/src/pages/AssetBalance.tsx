@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
@@ -14,6 +14,7 @@ import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
+import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 
 // rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
 const AssetPortfolioSummary = lazy(() =>
@@ -98,13 +99,18 @@ export function AssetBalancePage() {
     parseCsvItem,
     filterCsvItem: (item) => item.security_code !== '',
     csvReaderOptions: { skipHeaderRows: 6 },
-    deleteConfirmMessage: '保存された保有銘柄データを削除しますか？',
   });
 
   // CSVデータの変換（空の銘柄コードをフィルタ）
   const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
   const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleConfirmDelete = useCallback(async () => {
+    setShowDeleteConfirm(false);
+    await handleDeleteAll();
+  }, [handleDeleteAll]);
 
   // CSVデータが読み込まれたらフィルタして設定
   useEffect(() => {
@@ -199,18 +205,20 @@ export function AssetBalancePage() {
                     {saving ? '保存中...' : '保存'}
                   </Button>
                 )}
-                {hasDbData && (
+              </div>
+              {hasDbData && (
+                <div className="ml-auto border-l border-slate-300 pl-3">
                   <Button
                     variant="outline-danger"
                     size="sm"
-                    onClick={handleDeleteAll}
+                    onClick={() => setShowDeleteConfirm(true)}
                     disabled={saving || deleting || loading}
                     aria-disabled={saving || deleting || loading}
                   >
                     {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {(csvReader.error || error) && (
@@ -250,6 +258,16 @@ export function AssetBalancePage() {
                 onClearFilter={handleClearFilter}
               />
             )}
+
+            <ConfirmDeleteModal
+              isOpen={showDeleteConfirm}
+              onConfirm={handleConfirmDelete}
+              onCancel={() => setShowDeleteConfirm(false)}
+              title="保有銘柄データの全件削除"
+              description="保存された保有銘柄データをすべて削除します。"
+              itemCount={dbData.length}
+              loading={deleting}
+            />
           </>
         )}
       </div>

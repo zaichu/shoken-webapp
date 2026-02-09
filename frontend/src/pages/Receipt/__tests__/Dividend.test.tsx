@@ -78,14 +78,14 @@ describe('Dividend', () => {
         const titleElements = screen.getAllByText('配当金');
         expect(titleElements.length).toBeGreaterThan(0);
 
-        // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
-        const combinedDividendElements = screen.getAllByText('合計配当金');
-        expect(combinedDividendElements.length).toBeGreaterThan(0);
+        // 集計情報が表示されることを確認（テーブルヘッダーにも同名があるためgetAllByText）
+        const combinedDividendElements = screen.getAllByText('配当金');
+        expect(combinedDividendElements.length).toBeGreaterThan(1);
 
-        const totalTaxElements = screen.getAllByText('合計税額');
-        expect(totalTaxElements.length).toBeGreaterThan(0);
+        const totalTaxElements = screen.getAllByText('税額');
+        expect(totalTaxElements.length).toBeGreaterThan(1);
 
-        const totalReceiptElements = screen.getAllByText('合計受取金額');
+        const totalReceiptElements = screen.getAllByText('受取金額');
         expect(totalReceiptElements.length).toBeGreaterThan(0);
     });
 
@@ -104,7 +104,8 @@ describe('Dividend', () => {
         // 「配当金」はページタイトルとしても表示されるためgetAllByTextを使用
         const dividendElements = screen.getAllByText('配当金');
         expect(dividendElements.length).toBeGreaterThan(0);
-        expect(screen.getByText('税額')).toBeInTheDocument();
+        // 「税額」「受取金額」は集計情報にも表示されるためgetAllByTextを使用
+        expect(screen.getAllByText('税額').length).toBeGreaterThan(0);
         expect(screen.getByText('受取額')).toBeInTheDocument();
     });
 
@@ -148,18 +149,20 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
-        // 銘柄詳細ヘッダーが表示されることを確認
+        // 銘柄詳細ヘッダーが表示されることを確認（初期状態は展開済み）
         await waitFor(() => {
-            expect(screen.getByText('銘柄詳細')).toBeInTheDocument();
-            expect(screen.getByText('平均取得価格')).toBeInTheDocument();
-            expect(screen.getByText('保有数量(株)')).toBeInTheDocument();
-            expect(screen.getByText('一株配当')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
 
-        // embeddedモードのStatItemが表示される
-        expect(screen.getByText('配当金額 (配当利回り)')).toBeInTheDocument();
+        // 展開済みなのでembeddedモードの入力とStatItemが表示される
+        await waitFor(() => {
+            expect(screen.getByText('平均取得価格')).toBeVisible();
+            expect(screen.getByText('保有数量(株)')).toBeVisible();
+            expect(screen.getByText('一株配当')).toBeVisible();
+        });
+        expect(screen.getByText('配当金額 (配当利回り)')).toBeVisible();
         expect(screen.getAllByText('税額').length).toBeGreaterThanOrEqual(2);
-        expect(screen.getByText('受取金額 (累積利回り)')).toBeInTheDocument();
+        expect(screen.getByText('受取金額 (累積利回り)')).toBeVisible();
     });
 
     it('銘柄詳細ヘッダーをクリックすると開閉できる', async () => {
@@ -172,16 +175,20 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
+        // 初期状態は展開済み
         await waitFor(() => {
-            expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
+        expect(screen.getByText('平均取得価格')).toBeVisible();
 
+        // クリックで折りたたみ
         const header = screen.getByTestId('receipt-header');
         await user.click(header);
-        expect(screen.queryByText('平均取得価格')).not.toBeInTheDocument();
+        expect(screen.getByText('平均取得価格')).not.toBeVisible();
 
+        // 再クリックで展開
         await user.click(header);
-        expect(screen.getByText('平均取得価格')).toBeInTheDocument();
+        expect(screen.getByText('平均取得価格')).toBeVisible();
     });
 
     it('検索をクリアすると通常のヘッダーに戻る', async () => {
@@ -195,9 +202,9 @@ describe('Dividend', () => {
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
-        // 銘柄詳細が表示されることを確認
+        // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
 
         // 検索をクリア
@@ -206,7 +213,7 @@ describe('Dividend', () => {
         // 通常の集計情報ヘッダーに戻ることを確認
         await waitFor(() => {
             expect(screen.getByText('集計情報')).toBeInTheDocument();
-            expect(screen.queryByText('銘柄詳細')).not.toBeInTheDocument();
+            expect(screen.queryByText('集計情報 / 銘柄詳細')).not.toBeInTheDocument();
         });
     });
 
@@ -218,7 +225,7 @@ describe('Dividend', () => {
         expect(titleElements.length).toBeGreaterThan(0);
 
         // 集計情報はゼロで表示される
-        const summaryElements = screen.getAllByText('合計配当金');
+        const summaryElements = screen.getAllByText('配当金');
         expect(summaryElements.length).toBeGreaterThan(0);
     });
 

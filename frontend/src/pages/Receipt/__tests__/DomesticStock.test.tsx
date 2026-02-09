@@ -55,13 +55,13 @@ describe('DomesticStock', () => {
         render(<DomesticStock csvData={mockCsvData} />);
 
         // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
-        const totalProfitElements = screen.getAllByText('合計実現損益');
+        const totalProfitElements = screen.getAllByText('実現損益');
         expect(totalProfitElements.length).toBeGreaterThan(0);
 
-        const totalTaxElements = screen.getAllByText('合計税額');
+        const totalTaxElements = screen.getAllByText('税額');
         expect(totalTaxElements.length).toBeGreaterThan(0);
 
-        const netProfitElements = screen.getAllByText('合計実現損益(税引)');
+        const netProfitElements = screen.getAllByText('実現損益(税引)');
         expect(netProfitElements.length).toBeGreaterThan(0);
     });
 
@@ -79,7 +79,8 @@ describe('DomesticStock', () => {
         expect(screen.getByText('売却額')).toBeInTheDocument();
         expect(screen.getByText('取得価額')).toBeInTheDocument();
         expect(screen.getByText('損益')).toBeInTheDocument();
-        expect(screen.getByText('税額')).toBeInTheDocument();
+        // 「税額」は集計情報にも表示されるためgetAllByTextを使用
+        expect(screen.getAllByText('税額').length).toBeGreaterThan(0);
         expect(screen.getByText('税引後')).toBeInTheDocument();
     });
 
@@ -133,7 +134,7 @@ describe('DomesticStock', () => {
         render(<DomesticStock csvData={[]} />);
 
         // 集計情報はゼロで表示される（複数要素がある場合を考慮）
-        const summaryElements = screen.getAllByText('合計実現損益');
+        const summaryElements = screen.getAllByText('実現損益');
         expect(summaryElements.length).toBeGreaterThan(0);
     });
 
