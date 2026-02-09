@@ -21,6 +21,7 @@ const TOP_N = 20; // デフォルト表示件数
 export interface PortfolioItem {
   name: string;
   value: number;
+  averagePrice?: number;
   securityCode?: string;
   shares?: number;
 }
@@ -121,14 +122,20 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-slate-500">取得総額:</span>
-                <span className="font-medium">{formatCurrency(item.value)}</span>
+                <span className="text-slate-500">取得単価:</span>
+                <span className="font-medium">
+                  {item.averagePrice == null ? '-' : formatCurrency(item.averagePrice)}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">数量:</span>
                 <span className="font-medium">
                   {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
                 </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">取得総額:</span>
+                <span className="font-medium">{formatCurrency(item.value)}</span>
               </div>
             </div>
           </div>
