@@ -9,6 +9,8 @@ interface ConfirmDeleteModalProps {
   description: string;
   itemCount: number;
   confirmLabel?: string;
+  /** 削除処理中フラグ（多重実行防止） */
+  loading?: boolean;
 }
 
 /**
@@ -23,6 +25,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   description,
   itemCount,
   confirmLabel = '削除する',
+  loading = false,
 }) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
@@ -90,6 +93,8 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
               variant="outline-danger"
               size="sm"
               onClick={onConfirm}
+              disabled={loading}
+              loading={loading}
             >
               {confirmLabel}
             </Button>

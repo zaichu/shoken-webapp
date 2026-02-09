@@ -64,7 +64,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
-    const renderQuickSearchButtons = (items: string[], _variant: string, searchType: 'products' | 'accounts') => {
+    const renderQuickSearchButtons = (items: string[], searchType: 'products' | 'accounts') => {
         if (!items || items.length === 0) return null;
 
         // いずれかが選択中かどうか（未選択チップをミュートするため）
@@ -205,7 +205,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.products) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">商品</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, "outline-success", 'products')}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, 'products')}</div>
                             </div>
                         )}
 
@@ -213,7 +213,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.accounts) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">口座</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, "outline-warning", 'accounts')}</div>
+                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, 'accounts')}</div>
                             </div>
                         )}
                     </div>

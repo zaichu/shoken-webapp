@@ -386,6 +386,7 @@ export function ReceiptsPage() {
           title={`${tabName}データの全件削除`}
           description={`【${tabName}】のデータをすべて削除します。`}
           itemCount={dbDataCount}
+          loading={deleting}
         />
       </div>
     </Layout>

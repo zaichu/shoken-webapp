@@ -266,6 +266,7 @@ export function AssetBalancePage() {
               title="保有銘柄データの全件削除"
               description="保存された保有銘柄データをすべて削除します。"
               itemCount={dbData.length}
+              loading={deleting}
             />
           </>
         )}
