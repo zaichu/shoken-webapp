@@ -23,6 +23,7 @@ import { DividendData } from '@/lib/interfaces/dividend';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 
 type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
@@ -80,6 +81,7 @@ export function ReceiptsPage() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // 各明細種類ごとにCSVリーダーフックを作成
   const dividendCSV = useCSVReader();
@@ -219,10 +221,8 @@ export function ReceiptsPage() {
    */
   const handleDeleteAll = async () => {
     if (!isAuthenticated) return;
-    const count = runtimeDataMap[receiptsType].dbData.length;
-    const tabName = receiptsType === 'dividend' ? '配当金' : receiptsType === 'domesticstock' ? '国内株式' : '投資信託';
-    if (!window.confirm(`【${tabName}】${count}件のデータをすべて削除しますか？\n\nこの操作は取り消せません。`)) return;
 
+    setShowDeleteConfirm(false);
     setDeleting(true);
     setDbError(null);
 
@@ -262,6 +262,9 @@ export function ReceiptsPage() {
 
   // 現在のタブのDBデータがあるか判定
   const hasDbData = dbDataCount > 0;
+
+  // タブ名の取得
+  const tabName = receiptsType === 'dividend' ? '配当金' : receiptsType === 'domesticstock' ? '国内株式' : '投資信託';
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
   const dividendData = useMemo(
@@ -317,30 +320,34 @@ export function ReceiptsPage() {
             />
           </div>
           {isAuthenticated && (
-            <div className="action-button-group" role="group" aria-label="データ操作">
-              {hasCsvData && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSaveToDB}
-                  disabled={saving || deleting}
-                  aria-disabled={saving || deleting}
-                >
-                  {saving ? '保存中...' : '保存'}
-                </Button>
-              )}
+            <>
+              <div className="action-button-group" role="group" aria-label="データ操作">
+                {hasCsvData && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleSaveToDB}
+                    disabled={saving || deleting}
+                    aria-disabled={saving || deleting}
+                  >
+                    {saving ? '保存中...' : '保存'}
+                  </Button>
+                )}
+              </div>
               {hasDbData && (
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={handleDeleteAll}
-                  disabled={saving || deleting || dbLoading}
-                  aria-disabled={saving || deleting || dbLoading}
-                >
-                  {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
-                </Button>
+                <div className="ml-auto border-l border-slate-300 pl-3">
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={saving || deleting || dbLoading}
+                    aria-disabled={saving || deleting || dbLoading}
+                  >
+                    {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
+                  </Button>
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 
@@ -371,6 +378,15 @@ export function ReceiptsPage() {
             {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundData as Record<string, unknown>[]} />}
           </>
         )}
+
+        <ConfirmDeleteModal
+          isOpen={showDeleteConfirm}
+          onConfirm={handleDeleteAll}
+          onCancel={() => setShowDeleteConfirm(false)}
+          title={`${tabName}データの全件削除`}
+          description={`【${tabName}】のデータをすべて削除します。`}
+          itemCount={dbDataCount}
+        />
       </div>
     </Layout>
   );

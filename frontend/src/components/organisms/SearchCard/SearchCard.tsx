@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SearchCategories } from '@/types/common';
-import { Button, ButtonVariant } from '@/components/atoms/Button';
+import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
 interface SearchCardProps {
@@ -64,30 +64,29 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
-    const renderQuickSearchButtons = (items: string[], variant: string, searchType: 'products' | 'accounts') => {
+    const renderQuickSearchButtons = (items: string[], _variant: string, searchType: 'products' | 'accounts') => {
         if (!items || items.length === 0) return null;
 
+        // いずれかが選択中かどうか（未選択チップをミュートするため）
+        const hasSelection = activeSearchType === searchType;
+
         return items.map((item, index) => {
-            // 選択中のボタンを判定
             const isSelected = activeSearchType === searchType && searchQuery === item;
-            // 選択中はprimaryバリアント（塗りつぶし）、未選択はアウトライン
-            const buttonVariant = isSelected ? 'primary' : variant;
 
             return (
                 <React.Fragment key={index}>
                     <Button
                         type="button"
-                        variant={buttonVariant as ButtonVariant}
+                        variant={isSelected ? 'primary' : 'outline-secondary'}
                         size="sm"
                         onClick={() => handleQuickSearch(item, searchType)}
                         className={isSelected
-                            ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-sm'
-                            : 'opacity-80 hover:opacity-100 hover:ring-1 hover:ring-slate-300 focus:ring-2 focus:ring-primary/50 focus:outline-none'
+                            ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-md'
+                            : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none`
                         }
                         aria-pressed={isSelected}
                         aria-label={isSelected ? `${item}（選択中）` : item}
                     >
-                        {/* 選択時はチェックアイコンを表示 */}
                         {isSelected && (
                             <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

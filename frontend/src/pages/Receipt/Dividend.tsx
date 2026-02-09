@@ -207,7 +207,6 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
                     items={headerItems}
                     title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
                     collapsible={isSecurityCodeSearch}
-                    defaultExpanded={!isSecurityCodeSearch}
                 >
                     {isSecurityCodeSearch && (
                         <DividendInfo
