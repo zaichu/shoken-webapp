@@ -4,6 +4,7 @@ mod errors;
 mod extractors;
 mod handlers;
 mod logging;
+mod middleware;
 mod models;
 mod routes;
 mod services;

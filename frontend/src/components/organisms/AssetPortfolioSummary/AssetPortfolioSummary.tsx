@@ -39,6 +39,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
         value: item.total_purchase_amount || 0,
         securityCode: item.security_code,
         shares: item.shares,
+        averagePrice: item.average_purchase_price,
       }))
       .sort((a, b) => b.value - a.value);
   }, [assetBalanceData]);
