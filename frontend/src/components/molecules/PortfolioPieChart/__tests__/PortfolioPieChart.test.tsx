@@ -9,9 +9,9 @@ vi.mock('@/components/atoms/SecurityCodeLink', () => ({
 
 describe('PortfolioPieChart', () => {
   const mockData: PortfolioItem[] = [
-    { name: 'トヨタ自動車', value: 250000, securityCode: '7203', shares: 100 },
-    { name: 'ソニーグループ', value: 600000, securityCode: '6758', shares: 50 },
-    { name: '任天堂', value: 150000, securityCode: '7974', shares: 30 },
+    { name: 'トヨタ自動車', value: 250000, securityCode: '7203', shares: 100, averagePrice: 2500 },
+    { name: 'ソニーグループ', value: 600000, securityCode: '6758', shares: 50, averagePrice: 12000 },
+    { name: '任天堂', value: 150000, securityCode: '7974', shares: 30, averagePrice: 5000 },
   ];
 
   it('横棒グラフが表示される', () => {
@@ -46,8 +46,8 @@ describe('PortfolioPieChart', () => {
 
   it('すべての値が0の場合は何も表示しない', () => {
     const zeroData: PortfolioItem[] = [
-      { name: '銘柄A', value: 0 },
-      { name: '銘柄B', value: 0 },
+      { name: '銘柄A', value: 0, securityCode: '0001', shares: 0, averagePrice: 0 },
+      { name: '銘柄B', value: 0, securityCode: '0002', shares: 0, averagePrice: 0 },
     ];
     const { container } = render(<PortfolioPieChart data={zeroData} />);
 

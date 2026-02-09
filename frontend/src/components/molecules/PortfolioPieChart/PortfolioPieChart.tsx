@@ -21,9 +21,9 @@ const TOP_N = 20; // デフォルト表示件数
 export interface PortfolioItem {
   name: string;
   value: number;
-  averagePrice?: number;
-  securityCode?: string;
-  shares?: number;
+  averagePrice: number;
+  securityCode: string;
+  shares: number;
 }
 
 interface ChartDataItem extends PortfolioItem {
@@ -83,7 +83,7 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {displayData.map((item, index) => (
           <div
-            key={item.securityCode || item.name}
+            key={item.securityCode}
             className="rounded-lg border border-slate-200 bg-white p-3"
           >
             {/* 上段: 銘柄名 + 構成比 */}
@@ -115,23 +115,15 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">コード:</span>
-                {item.securityCode ? (
-                  <SecurityCodeLink value={item.securityCode} className="text-xs" />
-                ) : (
-                  <span className="text-slate-400">-</span>
-                )}
+                <SecurityCodeLink value={item.securityCode} className="text-xs" />
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">取得単価:</span>
-                <span className="font-medium">
-                  {item.averagePrice == null ? '-' : formatCurrency(item.averagePrice)}
-                </span>
+                <span className="font-medium">{formatCurrency(item.averagePrice)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">数量:</span>
-                <span className="font-medium">
-                  {item.shares !== undefined ? `${formatNumber(item.shares)}株` : '-'}
-                </span>
+                <span className="font-medium">{`${formatNumber(item.shares)}株`}</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">取得総額:</span>
