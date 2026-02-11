@@ -155,7 +155,7 @@ export function AssetBalancePage() {
   return (
     <Layout>
       <PageHeader
-        title="保有銘柄"
+        title="資産管理"
         description="保有している銘柄の一覧と評価額を確認できます。"
       />
       <div className="mt-2" aria-busy={isProcessing}>
@@ -170,7 +170,7 @@ export function AssetBalancePage() {
         {/* 未ログイン時のログイン誘導 */}
         {!authLoading && !isAuthenticated && (
           <Alert variant="info" className="my-3" role="status" aria-live="polite">
-            <p className="mb-2 text-sm">保有銘柄データを管理するにはログインが必要です。</p>
+            <p className="mb-2 text-sm">資産管理データを管理するにはログインが必要です。</p>
             <Button
               variant="primary"
               size="sm"
@@ -263,8 +263,8 @@ export function AssetBalancePage() {
               isOpen={showDeleteConfirm}
               onConfirm={handleConfirmDelete}
               onCancel={() => setShowDeleteConfirm(false)}
-              title="保有銘柄データの全件削除"
-              description="保存された保有銘柄データをすべて削除します。"
+              title="資産管理データの全件削除"
+              description="保存された資産管理データをすべて削除します。"
               itemCount={dbData.length}
               loading={deleting}
             />

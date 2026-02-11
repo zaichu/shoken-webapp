@@ -283,8 +283,8 @@ export function ReceiptsPage() {
   return (
     <Layout>
       <PageHeader
-        title="受取金"
-        description="配当金・国内株式・投資信託の受取金を管理します。"
+        title="取引明細"
+        description="配当金・国内株式・投資信託の取引明細を管理します。"
       />
       <nav className="border-b border-slate-200 no-print">
         <div className="flex flex-wrap gap-1">

@@ -12,7 +12,7 @@ interface ErrorPageProps {
 const RELATED_LINKS = [
   { to: '/', label: 'ホーム' },
   { to: '/search', label: '銘柄検索' },
-  { to: '/receipts', label: '受取金' },
+  { to: '/receipts', label: '取引明細' },
 ] as const;
 
 export function ErrorPage({
