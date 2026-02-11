@@ -1,8 +1,25 @@
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { UserInfo } from '../types';
 import { AuthContext } from './context';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, createApiClient } from '@/lib/api/client';
 import { useIdleTimer } from '../hooks/useIdleTimer';
+
+// 認証確認専用クライアント設定
+// デフォルト設定(timeout=30s, retry=3回, 指数バックオフ)では
+// fly.ioコールドスタート時に最大127秒待ちになるため、専用設定で短縮
+const AUTH_CHECK_TIMEOUT_MS = 5_000;
+const AUTH_CHECK_MAX_RETRIES = 1;
+const AUTH_CHECK_RETRY_DELAY_MS = 500;
+const AUTH_CHECK_RETRY_DELAY_MULTIPLIER = 1;
+
+const authApiClient = createApiClient({
+  timeout: AUTH_CHECK_TIMEOUT_MS,
+  retry: {
+    maxRetries: AUTH_CHECK_MAX_RETRIES,
+    retryDelay: AUTH_CHECK_RETRY_DELAY_MS,
+    retryDelayMultiplier: AUTH_CHECK_RETRY_DELAY_MULTIPLIER,
+  },
+});
 
 // アイドルタイムアウト: 30分
 const IDLE_TIMEOUT = 30 * 60 * 1000;
@@ -12,13 +29,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   // ログアウト時に呼び出されるコールバックのリスト
   const logoutCallbacksRef = useRef<Set<() => void>>(new Set());
+  // 重複呼び出し防止フラグ
+  const isCheckingRef = useRef(false);
 
   // 初期化時にバックエンドからセッションを確認
   useEffect(() => {
     const checkSession = async () => {
+      // 重複呼び出し防止
+      if (isCheckingRef.current) return;
+      isCheckingRef.current = true;
+
       try {
-        // バックエンドからユーザー情報を取得（Cookieベースの認証）
-        const userInfo = await apiClient.get<UserInfo>('/auth/me', {
+        // 認証確認専用クライアントで取得（timeout/retry最小化）
+        const userInfo = await authApiClient.get<UserInfo>('/auth/me', {
           withCredentials: true,
         });
         setUser(userInfo);
@@ -27,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       } finally {
         setIsLoading(false);
+        isCheckingRef.current = false;
       }
     };
 

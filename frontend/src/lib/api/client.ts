@@ -22,10 +22,17 @@ interface ApiClientConfig {
   headers?: Record<string, string>;
 }
 
+// デフォルトタイムアウト: fly.ioの起動待ち時間を考慮
+const DEFAULT_TIMEOUT_MS = 30_000;
+// デフォルトリトライ設定
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY_MS = 1000;
+const DEFAULT_RETRY_DELAY_MULTIPLIER = 2;
+
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 3,
-  retryDelay: 1000,
-  retryDelayMultiplier: 2,
+  maxRetries: DEFAULT_MAX_RETRIES,
+  retryDelay: DEFAULT_RETRY_DELAY_MS,
+  retryDelayMultiplier: DEFAULT_RETRY_DELAY_MULTIPLIER,
   shouldRetry: (error: ApiError) => error.isRetryable(),
 };
 
@@ -36,7 +43,7 @@ class ApiClient {
   constructor(config: ApiClientConfig = {}) {
     const {
       baseURL = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-      timeout = 30000, // fly.ioの起動待ち時間を考慮して30秒に設定
+      timeout = DEFAULT_TIMEOUT_MS,
       retry = {},
       headers = {},
     } = config;
