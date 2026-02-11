@@ -23,6 +23,25 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn from_env() -> Self {
+        let mut config = Config::default();
+
+        if let Ok(origins) = env::var("CORS_ORIGINS") {
+            let parsed = parse_cors_origins(&origins);
+            if !parsed.is_empty() {
+                config.cors_origins = parsed;
+            }
+        }
+
+        if is_production_env() {
+            config
+                .cors_origins
+                .retain(|origin| !is_localhost_origin(origin));
+        }
+
+        config
+    }
+
     pub fn build_cors_layer(&self) -> CorsLayer {
         let allowed_headers = vec![
             axum::http::header::CONTENT_TYPE,
@@ -59,6 +78,49 @@ impl Config {
     }
 }
 
+fn parse_cors_origins(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|origin| origin.trim())
+        .filter(|origin| !origin.is_empty())
+        .map(|origin| origin.to_string())
+        .collect()
+}
+
+fn is_localhost_origin(origin: &str) -> bool {
+    let origin = origin.trim();
+    let origin = origin
+        .strip_prefix("http://")
+        .or_else(|| origin.strip_prefix("https://"))
+        .unwrap_or(origin);
+    let origin = origin.split('/').next().unwrap_or(origin);
+
+    if origin.starts_with('[') {
+        if let Some(end) = origin.find(']') {
+            let host = &origin[..=end];
+            return host == "[::1]" || host == "[0:0:0:0:0:0:0:1]";
+        }
+        return false;
+    }
+
+    let host = origin.split(':').next().unwrap_or(origin);
+    matches!(host, "localhost" | "localhost." | "127.0.0.1")
+}
+
+/// 本番環境かどうかを判定
+/// RUST_ENV=production または APP_ENV=production の場合に true
+/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
+fn is_production_env() -> bool {
+    if let Ok(v) = env::var("RUST_ENV") {
+        return v == "production";
+    }
+    if let Ok(v) = env::var("APP_ENV") {
+        return v == "production";
+    }
+    env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
+        .unwrap_or(false)
+}
+
 /// バックエンドのベースURLを取得
 pub fn backend_url() -> String {
     env::var("BACKEND_URL").unwrap_or_else(|_| {
@@ -88,6 +150,73 @@ pub fn is_secure_cookie() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{routes::app_router, state::AppState};
+    use axum::{
+        body::Body,
+        http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request},
+        Router,
+    };
+    use reqwest::Client;
+    use std::sync::{Arc, Mutex};
+    use tower::ServiceExt;
+
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+    struct EnvGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let previous = env::var(key).ok();
+            match value {
+                Some(value) => env::set_var(key, value),
+                None => env::remove_var(key),
+            }
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => env::set_var(self.key, value),
+                None => env::remove_var(self.key),
+            }
+        }
+    }
+
+    fn build_test_app(config: &Config) -> Router {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        let pool = crate::db::connect_pool_lazy(database_url, 1)
+            .expect("Failed to create connection pool");
+        let secrets = Arc::new(crate::state::Secrets {
+            database_url: database_url.to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+        let client = Client::new();
+        let state = AppState {
+            pool,
+            secrets,
+            client,
+        };
+        app_router(state, config)
+    }
+
+    async fn preflight(app: Router, origin: &str) -> axum::response::Response {
+        let req = Request::builder()
+            .method(Method::OPTIONS)
+            .uri("/health")
+            .header("origin", origin)
+            .header("access-control-request-method", "GET")
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap()
+    }
 
     #[test]
     fn test_config_default() {
@@ -150,5 +279,49 @@ mod tests {
         // その値に依存する
         let _ = is_secure_cookie();
         // テストはパニックしないことを確認
+    }
+
+    #[tokio::test]
+    async fn test_cors_filters_localhost_in_production() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let _app_env = EnvGuard::set("APP_ENV", Some("production"));
+        let _cors_origins = EnvGuard::set(
+            "CORS_ORIGINS",
+            Some("https://shoken-webapp.vercel.app,http://localhost:8080"),
+        );
+
+        let config = Config::from_env();
+        let app = build_test_app(&config);
+
+        let response = preflight(app.clone(), "https://shoken-webapp.vercel.app").await;
+        let allowed_origin = response
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(allowed_origin, Some("https://shoken-webapp.vercel.app"));
+
+        let response = preflight(app, "http://localhost:8080").await;
+        let allowed_origin = response
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(allowed_origin, None);
+    }
+
+    #[tokio::test]
+    async fn test_cors_allows_localhost_in_non_production() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let _app_env = EnvGuard::set("APP_ENV", None);
+        let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
+
+        let config = Config::from_env();
+        let app = build_test_app(&config);
+
+        let response = preflight(app, "http://localhost:8080").await;
+        let allowed_origin = response
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(allowed_origin, Some("http://localhost:8080"));
     }
 }

@@ -34,7 +34,7 @@ async fn main() {
     let secrets = Secrets::from_env().expect("シークレットの読み込みに失敗しました");
     let secrets = Arc::new(secrets);
 
-    let config = Config::default();
+    let config = Config::from_env();
 
     tracing::info!("データベースに接続中...");
     let pool = connect_pool(&secrets.database_url, config.database_max_connections)
