@@ -1,6 +1,10 @@
 ---
 name: varlock
-description: Secure environment variable management with Varlock. Use when handling secrets, API keys, credentials, or any sensitive configuration. Ensures secrets are never exposed in terminals, logs, traces, or Claude's context. Trigger phrases include "environment variables", "secrets", ".env", "API key", "credentials", "sensitive", "Varlock".
+description: |
+  Varlock で環境変数を安全に管理する。
+  Use when: シークレット、API キー、認証情報など機微な設定を扱う時。
+  ターミナル/ログ/トレース/Claude のコンテキストに秘密情報が露出しないよう保証する。
+  トリガー語: "environment variables", "secrets", ".env", "API key", "credentials", "sensitive", "Varlock"。
 ---
 
 # Varlock Security Skill

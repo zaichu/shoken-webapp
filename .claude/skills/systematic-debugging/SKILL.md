@@ -1,6 +1,7 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: |
+  バグ、テスト失敗、予期しない挙動に遭遇したら、修正案を出す前に使用する。
 ---
 
 # Systematic Debugging

@@ -1,6 +1,9 @@
 ---
 name: plugin-authoring
-description: Use when creating, modifying, or debugging Claude Code plugins. Triggers on .claude-plugin/, plugin.json, marketplace.json, commands/, agents/, skills/, hooks/ directories. Provides schemas, templates, validation workflows, and troubleshooting.
+description: |
+  Claude Code プラグインの作成・変更・デバッグ時に使用する。
+  .claude-plugin/、plugin.json、marketplace.json、commands/、agents/、skills/、hooks/ の変更があるときにトリガー。
+  スキーマ、テンプレート、検証フロー、トラブルシューティングを提供する。
 allowed-tools: Read, Grep, Glob
 ---
 
