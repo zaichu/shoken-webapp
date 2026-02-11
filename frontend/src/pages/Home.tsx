@@ -6,7 +6,7 @@ import { PageHeader } from '../components/atoms/PageHeader';
 // クイックアクション（ショートカット）
 const QUICK_ACTIONS = [
   { label: '配当金を確認', to: '/receipts', icon: '💰' },
-  { label: '保有銘柄を確認', to: '/assetbalance', icon: '📊' },
+  { label: '資産管理を確認', to: '/assetbalance', icon: '📊' },
   { label: '銘柄を検索', to: '/search', icon: '🔍' },
 ] as const;
 
@@ -22,7 +22,7 @@ const FEATURES = [
     ),
   },
   {
-    title: '保有銘柄',
+    title: '資産管理',
     description: '保有している銘柄の一覧と評価額を確認できます。',
     to: '/assetbalance',
     icon: (
@@ -32,7 +32,7 @@ const FEATURES = [
     ),
   },
   {
-    title: '受取金',
+    title: '取引明細',
     description: '配当金や分配金の記録を管理できます。',
     to: '/receipts',
     icon: (
@@ -49,7 +49,7 @@ export function HomePage() {
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <PageHeader
           title="証券Webへようこそ"
-          description="銘柄検索や受取金の管理ができます。"
+          description="銘柄検索や取引明細の管理ができます。"
         />
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -101,7 +101,7 @@ export function HomePage() {
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold text-slate-500 mb-1">STEP 3</p>
-              <p className="text-sm text-slate-700">配当金や保有銘柄の情報を確認</p>
+              <p className="text-sm text-slate-700">配当金や資産管理の情報を確認</p>
             </div>
           </div>
         </div>

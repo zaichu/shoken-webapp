@@ -92,7 +92,7 @@ describe('AssetBalanceInfo', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('保有銘柄がありません')).toBeInTheDocument();
+      expect(screen.getByText('資産管理データがありません')).toBeInTheDocument();
     });
   });
 

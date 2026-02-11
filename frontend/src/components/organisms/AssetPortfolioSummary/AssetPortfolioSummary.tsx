@@ -53,7 +53,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
       <Card className="mb-3">
         <CardBody>
           <EmptyState
-            title={isFiltered ? "該当する銘柄がありません" : "保有銘柄がありません"}
+            title={isFiltered ? "該当する銘柄がありません" : "資産管理データがありません"}
             description={isFiltered
               ? "検索条件を変更するか、絞り込みを解除してください。"
               : "CSVファイルをインポートするか、データを登録してください。"

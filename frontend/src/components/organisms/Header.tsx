@@ -7,8 +7,8 @@ import { cn } from '../../lib/utils/classNames';
 // ナビゲーションリンクの設定
 const NAV_LINKS = [
   { to: '/search', label: '銘柄検索' },
-  { to: '/assetbalance', label: '保有銘柄' },
-  { to: '/receipts', label: '受取金' },
+  { to: '/assetbalance', label: '資産管理' },
+  { to: '/receipts', label: '取引明細' },
 ] as const;
 
 // ユーザー名からイニシャルを取得
@@ -223,7 +223,7 @@ export function Header() {
                 <p>本当にアカウントを削除しますか？</p>
                 <p className="mt-2 text-danger">
                   <strong>警告:</strong> この操作は取り消せません。
-                  保有銘柄、配当金、取引履歴などすべてのデータが削除されます。
+                  資産管理、配当金、取引履歴などすべてのデータが削除されます。
                 </p>
               </div>
               <div className="flex justify-end gap-2 border-t border-border px-4 py-3">

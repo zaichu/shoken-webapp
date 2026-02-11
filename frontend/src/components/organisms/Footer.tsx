@@ -10,7 +10,7 @@ export function Footer() {
           <div>
             <h5 className="text-base font-semibold">証券Webapp</h5>
             <p className="mt-2 text-sm text-secondary">
-              投資情報と受取金管理のためのプラットフォーム
+              投資情報と取引明細管理のためのプラットフォーム
             </p>
           </div>
 
@@ -24,7 +24,7 @@ export function Footer() {
                 <Link className="text-primary hover:underline" to="/search">銘柄検索</Link>
               </li>
               <li>
-                <Link className="text-primary hover:underline" to="/receipts">受取金管理</Link>
+                <Link className="text-primary hover:underline" to="/receipts">取引明細管理</Link>
               </li>
             </ul>
           </div>

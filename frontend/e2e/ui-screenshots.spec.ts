@@ -96,7 +96,7 @@ test.describe('主要ページ', () => {
     });
   });
 
-  test('保有銘柄 - 初期表示', async ({ page }) => {
+  test('資産管理 - 初期表示', async ({ page }) => {
     await page.goto('/assetbalance');
     await waitForPageReady(page);
     await page.waitForTimeout(2000);
@@ -107,7 +107,7 @@ test.describe('主要ページ', () => {
     });
   });
 
-  test('保有銘柄 - 銘柄検索', async ({ page }) => {
+  test('資産管理 - 銘柄検索', async ({ page }) => {
     await page.goto('/assetbalance');
     await waitForPageReady(page);
     await page.waitForTimeout(2000);
@@ -122,7 +122,7 @@ test.describe('主要ページ', () => {
 });
 
 // 各タブの初期表示をスクショ
-test.describe('受取金ページ - タブ初期表示', () => {
+test.describe('取引明細ページ - タブ初期表示', () => {
   for (const tab of TABS) {
     test(`${tab.label}タブの初期表示`, async ({ page }) => {
       await page.goto('/receipts');
@@ -148,7 +148,7 @@ test.describe('受取金ページ - タブ初期表示', () => {
 });
 
 // 各タブの検索結果をスクショ
-test.describe('受取金ページ - 検索結果', () => {
+test.describe('取引明細ページ - 検索結果', () => {
   test('配当金 - 西暦検索', async ({ page }) => {
     await page.goto('/receipts');
     await waitForPageReady(page);

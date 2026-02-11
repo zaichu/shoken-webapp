@@ -67,7 +67,7 @@ describe('AssetPortfolioSummary', () => {
   it('データがない場合は空状態が表示される', () => {
     render(<AssetPortfolioSummary assetBalanceData={[]} />);
 
-    expect(screen.getByText('保有銘柄がありません')).toBeInTheDocument();
+    expect(screen.getByText('資産管理データがありません')).toBeInTheDocument();
     expect(screen.getByText('CSVファイルをインポートするか、データを登録してください。')).toBeInTheDocument();
   });
 
