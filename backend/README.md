@@ -90,6 +90,7 @@ JQUANTS_API_KEY=your-api-key
 # オプション
 PORT=3001                          # デフォルト: 3001
 BACKEND_URL=https://example.com    # 本番環境のURL（https://で始まる場合Secure Cookie有効）
+CORS_ORIGINS=http://localhost:8080 # 許可するフロントエンドのオリジン
 
 # 本番環境判定（いずれかを設定）
 RUST_ENV=production                # または APP_ENV=production
@@ -111,8 +112,30 @@ make check
 # マイグレーション実行
 make migrate
 
+# ローカルDocker DBにマイグレーション
+make migrate-local
+
+# PostgreSQL を Docker で起動
+make db-up
+
+# PostgreSQL を停止
+make db-down
+
 # Fly.ioへデプロイ
 make deploy
+```
+
+### Docker で PostgreSQL を起動する
+
+```bash
+cd backend
+make db-up
+```
+
+`.env` の `DATABASE_URL` は以下を想定しています。
+
+```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db
 ```
 
 ## データベーススキーマ
