@@ -3,8 +3,13 @@ import { ApiError, ApiErrorType } from '../types/api';
 
 // Axiosの型拡張
 declare module 'axios' {
+  interface AxiosRequestConfig {
+    maxRetries?: number;
+  }
+
   interface InternalAxiosRequestConfig {
     metadata?: { startTime: number };
+    maxRetries?: number;
   }
 }
 
@@ -106,28 +111,32 @@ class ApiClient {
     );
   }
 
-  private shouldRetry(config: AxiosRequestConfig & { retryCount?: number }, error: ApiError): boolean {
-    if (!config || config.retryCount === undefined) {
+  private shouldRetry(config: (AxiosRequestConfig & { retryCount?: number; maxRetries?: number }) | undefined, error: ApiError): boolean {
+    if (!config || config.maxRetries === undefined) {
+      return false;
+    }
+
+    if (config.retryCount === undefined) {
       config.retryCount = 0;
     }
 
     return (
-      config.retryCount < this.retryConfig.maxRetries &&
+      config.retryCount < config.maxRetries &&
       this.retryConfig.shouldRetry!(error)
     );
   }
 
   private async retryRequest(
-    config: AxiosRequestConfig & { retryCount?: number },
+    config: AxiosRequestConfig & { retryCount?: number; maxRetries?: number },
     error: ApiError
   ): Promise<AxiosResponse> {
     config.retryCount = (config.retryCount || 0) + 1;
-    
+
     const delay = this.calculateRetryDelay(config.retryCount);
-    console.warn(`Retrying request (${config.retryCount}/${this.retryConfig.maxRetries}) after ${delay}ms:`, error.message);
-    
+    console.warn(`Retrying request (${config.retryCount}/${config.maxRetries}) after ${delay}ms:`, error.message);
+
     await this.sleep(delay);
-    
+
     return this.client.request(config);
   }
 

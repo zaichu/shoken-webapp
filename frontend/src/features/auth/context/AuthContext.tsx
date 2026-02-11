@@ -6,6 +6,8 @@ import { useIdleTimer } from '../hooks/useIdleTimer';
 
 // アイドルタイムアウト: 30分
 const IDLE_TIMEOUT = 30 * 60 * 1000;
+// 初期表示をブロックする認証確認は長く待たずにフォールバックする
+const AUTH_SESSION_CHECK_TIMEOUT = 5000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // バックエンドからユーザー情報を取得（Cookieベースの認証）
         const userInfo = await apiClient.get<UserInfo>('/auth/me', {
           withCredentials: true,
+          timeout: AUTH_SESSION_CHECK_TIMEOUT,
         });
         setUser(userInfo);
       } catch {

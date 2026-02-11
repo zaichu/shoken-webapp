@@ -28,6 +28,7 @@ const mockedIsAxiosError = axios.isAxiosError as unknown as Mock;
 
 describe('ApiClient', () => {
   let mockAxiosInstance: MockAxiosInstance;
+  let responseErrorInterceptor: ((error: unknown) => Promise<unknown>) | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,7 +41,9 @@ describe('ApiClient', () => {
       delete: vi.fn(),
       interceptors: {
         request: { use: vi.fn() },
-        response: { use: vi.fn() },
+        response: { use: vi.fn((_, onRejected) => {
+          responseErrorInterceptor = onRejected;
+        }) },
       },
       request: vi.fn(),
     };
@@ -217,6 +220,40 @@ describe('ApiClient', () => {
 
       // キャンセルされたリクエストはエラーになるはず
       await expect(promise).rejects.toThrow();
+    });
+  });
+
+
+  describe('再試行制御', () => {
+    it('maxRetries未指定の場合は再試行しない', async () => {
+      const axiosError = {
+        response: { status: 503, data: {} },
+        config: {},
+        isAxiosError: true,
+      };
+      mockedIsAxiosError.mockReturnValue(true);
+
+      createApiClient();
+
+      expect(responseErrorInterceptor).toBeDefined();
+      await expect(responseErrorInterceptor!(axiosError)).rejects.toThrow();
+      expect(mockAxiosInstance.request).not.toHaveBeenCalled();
+    });
+
+    it('maxRetries指定時は指定回数内で再試行する', async () => {
+      const axiosError = {
+        response: { status: 503, data: {} },
+        config: { maxRetries: 1, retryCount: 0 },
+        isAxiosError: true,
+      };
+      mockedIsAxiosError.mockReturnValue(true);
+      mockAxiosInstance.request.mockResolvedValue({ data: { success: true } });
+
+      createApiClient();
+
+      expect(responseErrorInterceptor).toBeDefined();
+      await responseErrorInterceptor!(axiosError);
+      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
     });
   });
 
