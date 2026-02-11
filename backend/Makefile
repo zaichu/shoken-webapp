@@ -63,6 +63,11 @@ migrate:
 	@echo "📦 データベースマイグレーションを実行します..."
 	$(CARGO) sqlx migrate run
 
+.PHONY: migrate-local
+migrate-local:
+	@echo "📦 ローカルDocker DBにマイグレーションを実行します..."
+	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
+
 .PHONY: sqlx-prepare
 sqlx-prepare:
 	@echo "📦 SQLxクエリキャッシュを準備します..."
@@ -73,6 +78,21 @@ sqlx-prepare:
 docker-build:
 	@echo "🐳 Dockerイメージをビルドします..."
 	docker build -t shoken-backend .
+
+.PHONY: db-up
+db-up:
+	@echo "🐳 PostgreSQL を Docker で起動します..."
+	docker compose -f docker-compose.yml up -d
+
+.PHONY: db-down
+db-down:
+	@echo "🐳 PostgreSQL を停止します..."
+	docker compose -f docker-compose.yml down
+
+.PHONY: db-logs
+db-logs:
+	@echo "🐳 PostgreSQL のログを表示します..."
+	docker compose -f docker-compose.yml logs -f postgres
 
 # ヘルプ
 .PHONY: help
@@ -91,8 +111,12 @@ help:
 	@echo "  check         : コンパイルチェックのみを実行します"
 	@echo "  test          : テストを実行します"
 	@echo "  migrate       : データベースマイグレーションを実行します"
+	@echo "  migrate-local : ローカルDocker DBにマイグレーションを実行します"
 	@echo "  sqlx-prepare  : SQLxクエリキャッシュを準備します"
 	@echo "  docker-build  : Dockerイメージをビルドします"
+	@echo "  db-up         : PostgreSQL を Docker で起動します"
+	@echo "  db-down       : PostgreSQL を停止します"
+	@echo "  db-logs       : PostgreSQL のログを表示します"
 	@echo "  clean         : ビルド成果物をクリーンアップします"
 	@echo "  clean-build   : クリーンアップして再ビルドします"
 	@echo "  help          : このヘルプを表示します"
