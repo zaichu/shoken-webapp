@@ -11,10 +11,7 @@ use crate::errors::{ErrorDetails, ErrorResponse};
 /// Origin検証ミドルウェア（CSRF対策）
 /// POST/PUT/DELETE リクエストに対して Origin ヘッダーを検証し、
 /// 許可されたオリジンからのリクエストのみ通過させる
-pub async fn validate_origin(
-    request: Request<Body>,
-    next: Next,
-) -> Response {
+pub async fn validate_origin(request: Request<Body>, next: Next) -> Response {
     let method = request.method().clone();
 
     // GET/HEAD/OPTIONS はスキップ
