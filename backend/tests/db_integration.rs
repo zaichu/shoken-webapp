@@ -12,7 +12,8 @@ use chrono::NaiveDate;
 use reqwest::Client;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{env, sync::Arc, time::Duration};
-use testcontainers::{clients::Cli, images::postgres::Postgres};
+use testcontainers::clients::Cli;
+use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
 
@@ -44,8 +45,11 @@ impl Drop for EnvGuard {
 async fn connect_with_retry(database_url: &str) -> PgPool {
     let mut last_error = None;
     for _ in 0..20 {
-        let attempt =
-            timeout(Duration::from_secs(2), PgPoolOptions::new().connect(database_url)).await;
+        let attempt = timeout(
+            Duration::from_secs(2),
+            PgPoolOptions::new().connect(database_url),
+        )
+        .await;
         match attempt {
             Ok(Ok(pool)) => return pool,
             Ok(Err(err)) => last_error = Some(err),
@@ -61,8 +65,7 @@ async fn connect_with_retry(database_url: &str) -> PgPool {
 #[ignore = "requires Docker to run Postgres container"]
 async fn db_integration_with_docker_and_migrations() {
     let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-    let _cors_origins =
-        EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app"));
+    let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app"));
 
     let docker = Cli::default();
     let node = docker.run(Postgres::default());
