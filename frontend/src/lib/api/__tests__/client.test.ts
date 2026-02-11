@@ -258,7 +258,7 @@ describe('ApiClient', () => {
 
     it('認証確認用にtimeout/retryをカスタマイズできる', () => {
       createApiClient({
-        timeout: 10000,
+        timeout: 5000,
         retry: {
           maxRetries: 1,
           retryDelay: 500,
@@ -268,7 +268,7 @@ describe('ApiClient', () => {
 
       expect(mockedAxiosCreate).toHaveBeenCalledWith({
         baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-        timeout: 10000,
+        timeout: 5000,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

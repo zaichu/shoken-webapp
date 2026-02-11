@@ -4,15 +4,20 @@ import { AuthContext } from './context';
 import { apiClient, createApiClient } from '@/lib/api/client';
 import { useIdleTimer } from '../hooks/useIdleTimer';
 
-// 認証確認専用クライアント（timeout/retryを最小化）
+// 認証確認専用クライアント設定
 // デフォルト設定(timeout=30s, retry=3回, 指数バックオフ)では
 // fly.ioコールドスタート時に最大127秒待ちになるため、専用設定で短縮
+const AUTH_CHECK_TIMEOUT_MS = 5_000;
+const AUTH_CHECK_MAX_RETRIES = 1;
+const AUTH_CHECK_RETRY_DELAY_MS = 500;
+const AUTH_CHECK_RETRY_DELAY_MULTIPLIER = 1;
+
 const authApiClient = createApiClient({
-  timeout: 5000,
+  timeout: AUTH_CHECK_TIMEOUT_MS,
   retry: {
-    maxRetries: 1,
-    retryDelay: 500,
-    retryDelayMultiplier: 1,
+    maxRetries: AUTH_CHECK_MAX_RETRIES,
+    retryDelay: AUTH_CHECK_RETRY_DELAY_MS,
+    retryDelayMultiplier: AUTH_CHECK_RETRY_DELAY_MULTIPLIER,
   },
 });
 
