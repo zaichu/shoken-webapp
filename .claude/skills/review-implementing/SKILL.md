@@ -1,6 +1,9 @@
 ---
 name: review-implementing
-description: Process and implement code review feedback systematically. Use when user provides reviewer comments, PR feedback, code review notes, or asks to implement suggestions from reviews.
+description: |
+  コードレビューの指摘を体系的に整理し、実装に反映する。
+  Use when: レビュアーコメント、PR フィードバック、レビュー指摘が提示された時、
+  または指摘対応を依頼された時。
 ---
 
 # Review Feedback Implementation

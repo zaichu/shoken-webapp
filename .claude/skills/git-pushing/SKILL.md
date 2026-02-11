@@ -1,6 +1,9 @@
 ---
 name: git-pushing
-description: Stage, commit, and push git changes with conventional commit messages. Use when user wants to commit and push changes, mentions pushing to remote, or asks to save and push their work. Also activates when user says "push changes", "commit and push", "push this", "push to github", or similar git workflow requests.
+description: |
+  変更をステージングし、コミットしてリモートへ push する。
+  Use when: コミットと push を依頼された時、リモートへ push したいと明示された時、
+  または「push して」「commit and push」「push to github」などの表現がある時。
 ---
 
 # Git Push Workflow

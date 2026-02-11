@@ -1,6 +1,7 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: |
+  機能追加やバグ修正を実装する際、実装コードを書く前に使用する。
 ---
 
 # Test-Driven Development (TDD)

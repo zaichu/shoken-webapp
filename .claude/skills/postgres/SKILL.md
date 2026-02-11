@@ -1,6 +1,11 @@
 ---
 name: postgres
-description: "Execute read-only SQL queries against multiple PostgreSQL databases. Use when: (1) querying PostgreSQL databases, (2) exploring database schemas/tables, (3) running SELECT queries for data analysis, (4) checking database contents. Supports multiple database connections with descriptions for intelligent auto-selection. Blocks all write operations (INSERT, UPDATE, DELETE, DROP, etc.) for safety."
+description: |
+  複数の PostgreSQL データベースに対して読み取り専用 SQL を実行する。
+  Use when: (1) PostgreSQL の問い合わせ、(2) スキーマ/テーブルの調査、
+  (3) SELECT による分析、(4) データ内容の確認。
+  接続候補に説明を持たせて自動選択を支援する。
+  安全のため INSERT/UPDATE/DELETE/DROP などの書き込み操作はすべてブロックする。
 ---
 
 # PostgreSQL Read-Only Query Skill
