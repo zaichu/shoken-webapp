@@ -3,7 +3,7 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 ---
 # UI Review
 
-主要ページ（ホーム・銘柄検索・保有銘柄・受取金）のUIレビューを実施し、スクリーンショットと改善提案を作成する。  
+主要ページ（ホーム・銘柄検索・資産管理・取引明細）のUIレビューを実施し、スクリーンショットと改善提案を作成する。  
 **MCPでもE2Eでも、やることと成果物は同じ。**
 
 ## Usage
@@ -25,8 +25,8 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 |---|---|
 | `home-initial.png` | ホームページの初期表示 |
 | `search-nintendo-result.png` | 銘柄検索で「任天堂」を検索した結果 |
-| `assetbalance-initial.png` | 保有銘柄ページの初期表示 |
-| `assetbalance-search-security.png` | 保有銘柄ページの銘柄検索結果 |
+| `assetbalance-initial.png` | 資産管理ページの初期表示 |
+| `assetbalance-search-security.png` | 資産管理ページの銘柄検索結果 |
 | `receipts-dividend-initial.png` | 配当金タブの初期表示 |
 | `receipts-domestic-stock-initial.png` | 国内株式タブの初期表示 |
 | `receipts-mutualfund-initial.png` | 投資信託タブの初期表示 |
@@ -46,7 +46,7 @@ description: "開発サーバーに対してUIレビューを自動実行し、�
 | `header-delete-account-modal.png` | アカウント削除の確認モーダル（**ログイン時**） |
 | `search-empty.png` | 銘柄検索の初期状態（EmptyState表示） |
 | `search-invalid-code-param.png` | `?code=` が不正な場合の警告表示 |
-| `assetbalance-empty.png` | 保有銘柄が0件のEmptyState（**ログイン時**） |
+| `assetbalance-empty.png` | 資産管理が0件のEmptyState（**ログイン時**） |
 | `assetbalance-filter-empty.png` | 絞り込み0件のEmptyState（解除リンク表示） |
 
 ## 実施手順（共通）
@@ -73,8 +73,8 @@ rm -f .playwright-mcp/*.png
 - `http://localhost:8080/` に遷移して `home-initial.png` を保存
 - `http://localhost:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
 - `http://localhost:8080/assetbalance` に遷移し、初期表示を `assetbalance-initial.png` として保存
-- 保有銘柄の検索オプション（銘柄）を1つ選択し、`assetbalance-search-security.png` を保存
-- `http://localhost:8080/receipts` に遷移し、各タブ/検索状態を操作して受取金の9枚を保存
+- 資産管理の検索オプション（銘柄）を1つ選択し、`assetbalance-search-security.png` を保存
+- `http://localhost:8080/receipts` に遷移し、各タブ/検索状態を操作して取引明細の9枚を保存
 - 設定は `fullPage: true`
 
 #### B. E2Eで取得する場合
