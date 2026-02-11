@@ -11,26 +11,12 @@ description: |
 ## 基本方針
 
 - デプロイ前にローカルで確認できることは全てローカルで確認
-- fly.io/Vercel へのデプロイは main ブランチマージ時に自動実行
-- 手動デプロイは緊急時のみ
+- デプロイ方針の詳細は `deploy` スキルを参照
+- 具体的なビルド/テスト手順は `backend-build-test` / `frontend-build-test` を参照
 
 ## ローカルで確認可能な項目
 
 ### バックエンド
-
-```bash
-cd backend
-
-# フォーマット・Lint
-cargo fmt --check
-cargo clippy -- -D warnings
-
-# ユニットテスト
-cargo test
-
-# ビルド確認
-cargo build
-```
 
 | 項目 | ローカル可能 | 備考 |
 |------|-------------|------|
@@ -42,22 +28,6 @@ cargo build
 | 外部API連携 | △ | APIキー必要 |
 
 ### フロントエンド
-
-```bash
-cd frontend
-
-# Lint
-npm run lint
-
-# 型チェック
-npm run tsc
-
-# テスト
-npm test
-
-# ビルド
-npm run build
-```
 
 | 項目 | ローカル可能 | 備考 |
 |------|-------------|------|
@@ -82,17 +52,11 @@ npm run build
    - ユニットテスト作成
 
 2. **ローカル確認**
-   ```bash
-   # バックエンド
-   cd backend && cargo fmt && cargo clippy -- -D warnings && cargo test
-
-   # フロントエンド
-   cd frontend && npm run lint && npm run tsc && npm test
-   ```
+   - バックエンド: `backend-build-test` に従って実行
+   - フロントエンド: `frontend-build-test` に従って実行
 
 3. **PRマージ → 自動デプロイ**
-   - main へマージで fly.io/Vercel に自動デプロイ
-   - 手動デプロイ不要
+   - main へマージで自動デプロイ（詳細は `deploy` を参照）
 
 4. **本番確認**
    - 外部連携部分のみ本番で確認
