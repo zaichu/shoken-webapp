@@ -54,6 +54,7 @@
 - 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
 - **起動順は必ず DB → backend → frontend**（ローカルDB起動後、バックエンド `/health` 応答を確認してからフロントエンドを起動）
 - ローカルDBは `cd backend && make db-up` で起動する（`backend/.env` はローカルDB向け `DATABASE_URL` を使用）
+- まとめて起動する場合は、プロジェクトルートで `./scripts/start-local.sh` を使用する
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
   - Playwright の `storageState` オプションにこのパスを指定する
   - 初回保存 / 期限切れ時は `npm run ui:save-auth` で再取得する
