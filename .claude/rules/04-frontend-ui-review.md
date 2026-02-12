@@ -52,6 +52,7 @@
 
 ### 1) 事前確認
 - 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
+- **起動順は必ず backend → frontend**（先にバックエンドを起動し、`/health` が応答してからフロントエンドを起動）
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
   - Playwright の `storageState` オプションにこのパスを指定する
   - 初回保存 / 期限切れ時は `npm run ui:save-auth` で再取得する
@@ -81,29 +82,69 @@ rm -f .playwright-mcp/*.png
 #### B. E2Eで取得する場合
 ```bash
 set -euo pipefail
-cd frontend
+cd /path/to/shoken-webapp
 
 # ログイン状態を保存（初回のみ/期限切れ時）
-# npm run ui:save-auth
+# cd frontend && npm run ui:save-auth
 
-STARTED=0
-if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
-  echo "reuse existing server on :8080"
+BACK_STARTED=0
+if curl -sSf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+  echo "reuse existing backend on :3001"
 else
-  npm run dev -- --host 127.0.0.1 --port 8080 --strictPort >/tmp/shoken-dev.log 2>&1 &
-  DEV_PID=$!
-  STARTED=1
+  (cd backend && make run >/tmp/shoken-backend.log 2>&1) &
+  BACK_PID=$!
+  BACK_STARTED=1
 fi
 
+for i in $(seq 1 120); do
+  if curl -sSf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+  if [ "$i" -eq 120 ]; then
+    echo "backend did not start" >&2
+    tail -n 80 /tmp/shoken-backend.log >&2 || true
+    exit 1
+  fi
+done
+
+FRONT_STARTED=0
+if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
+  echo "reuse existing frontend on :8080"
+else
+  (
+    cd frontend
+    VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001 \
+      npm run dev -- --host 127.0.0.1 --port 8080 --strictPort >/tmp/shoken-frontend.log 2>&1
+  ) &
+  FRONT_PID=$!
+  FRONT_STARTED=1
+fi
+
+for i in $(seq 1 120); do
+  if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+  if [ "$i" -eq 120 ]; then
+    echo "frontend did not start" >&2
+    tail -n 80 /tmp/shoken-frontend.log >&2 || true
+    exit 1
+  fi
+done
+
 cleanup() {
-  if [ "$STARTED" -eq 1 ]; then
-    kill "$DEV_PID" >/dev/null 2>&1 || true
+  if [ "$FRONT_STARTED" -eq 1 ]; then
+    kill "$FRONT_PID" >/dev/null 2>&1 || true
+  fi
+  if [ "$BACK_STARTED" -eq 1 ]; then
+    kill "$BACK_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT INT TERM
 
 # 保存した認証情報を使ってスクショ取得
-npm run ui:screenshot:auth
+(cd frontend && npm run ui:screenshot:auth)
 ```
 
 ※ `npm run ui:screenshot` は認証情報を読み込まないため、本レビューでは使用しない。  
