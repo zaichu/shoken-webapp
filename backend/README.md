@@ -97,6 +97,18 @@ RUST_ENV=production                # または APP_ENV=production
 SECURE_COOKIE=true                 # Cookie の Secure 属性を明示的に制御
 ```
 
+`.env` ファイルの準備（既存があればそのまま使用）:
+
+```bash
+if [ -f .env ]; then
+  echo ".env already exists. reuse it."
+elif [ -f .env.example ]; then
+  cp .env.example .env
+else
+  echo ".env.example not found. create .env manually."
+fi
+```
+
 ### コマンド
 
 ```bash

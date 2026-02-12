@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider } from '../AuthContext';
@@ -62,7 +61,10 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('authenticated').textContent).toBe('true');
     expect(screen.getByTestId('user-name').textContent).toBe('テストユーザー');
     expect(mockGet).toHaveBeenCalledTimes(1);
-    expect(mockGet).toHaveBeenCalledWith('/auth/me', { withCredentials: true });
+    expect(mockGet).toHaveBeenCalledWith('/auth/me', expect.objectContaining({
+      withCredentials: true,
+      signal: expect.any(AbortSignal),
+    }));
   });
 
   it('認証失敗時(401)にuser=nullになる', async () => {
@@ -83,11 +85,15 @@ describe('AuthProvider', () => {
     expect(mockGet).toHaveBeenCalledTimes(1);
   });
 
-  it('checkSessionが重複して呼ばれない', async () => {
-    // 遅延レスポンスをシミュレート
-    mockGet.mockImplementation(() =>
-      new Promise(resolve => setTimeout(() => resolve({ id: '1', email: 'test@example.com', name: 'ユーザー' }), 50))
-    );
+  it('アンマウント時にAbortControllerでリクエストがキャンセルされる', async () => {
+    // signalのabortを検知するためのモック
+    let capturedSignal: AbortSignal | undefined;
+    mockGet.mockImplementation((_url: string, config?: { signal?: AbortSignal }) => {
+      capturedSignal = config?.signal;
+      return new Promise(resolve =>
+        setTimeout(() => resolve({ id: '1', email: 'test@example.com', name: 'ユーザー' }), 100)
+      );
+    });
 
     const { unmount } = render(
       <AuthProvider>
@@ -95,28 +101,17 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
-    unmount();
-
-    // 再マウント（StrictModeでの二重レンダリングを模倣）
-    render(
-      <React.StrictMode>
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>
-      </React.StrictMode>
-    );
-
+    // リクエスト発行を待つ
     await waitFor(() => {
-      expect(screen.getByTestId('loading').textContent).toBe('false');
+      expect(mockGet).toHaveBeenCalled();
     });
 
-    // StrictModeでも過剰な呼び出しが起きないことを確認
-    // unmount後は新インスタンスなので再マウント時に1回呼ばれる
-    expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(mockGet.mock.calls.length).toBeLessThanOrEqual(2);
+    // アンマウント時にabortされる
+    unmount();
+    expect(capturedSignal?.aborted).toBe(true);
   });
 
-  it('認証確認専用クライアントが使用される', async () => {
+  it('認証確認専用クライアントがsignal付きで呼ばれる', async () => {
     mockGet.mockResolvedValueOnce({ id: '1', email: 'test@example.com' });
 
     render(
@@ -129,7 +124,10 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
     });
 
-    // createApiClientで生成されたクライアントのgetが呼ばれていること
-    expect(mockGet).toHaveBeenCalledWith('/auth/me', { withCredentials: true });
+    // createApiClientで生成されたクライアントのgetがsignal付きで呼ばれていること
+    expect(mockGet).toHaveBeenCalledWith('/auth/me', expect.objectContaining({
+      withCredentials: true,
+      signal: expect.any(AbortSignal),
+    }));
   });
 });
