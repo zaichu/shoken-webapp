@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
@@ -7,6 +7,7 @@ interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
     onExpandToggle?: (isExpanded: boolean) => void; // 展開状態変更の通知
+    value?: string; // 親の検索状態と同期（外部クリア対応）
 }
 
 /**
@@ -16,13 +17,22 @@ interface SearchCardProps {
 export const SearchCard: React.FC<SearchCardProps> = ({
     onSearch,
     categories,
-    onExpandToggle
+    onExpandToggle,
+    value
 }) => {
 
     const [isExpanded, setIsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
+
+    // 親の検索状態と同期（外部からのクリア時に内部状態をリセット）
+    useEffect(() => {
+        if (value !== undefined && value !== searchQuery) {
+            setSearchQuery(value);
+            setActiveSearchType(value ? activeSearchType : null);
+        }
+    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // データが存在するかチェックするヘルパー関数
     const hasData = (data: unknown[] | undefined): boolean => {
@@ -194,10 +204,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
                     {/* 条件クリアボタン（上部右寄せ） */}
-                    <div className="mb-2 flex justify-end">
+                    <div className="mb-2 flex items-center justify-end gap-2">
+                        {isDefaultState && (
+                            <span className="text-xs text-slate-400" aria-hidden="true">条件を選択すると解除できます</span>
+                        )}
                         <Button
                             type="button"
-                            variant="outline-secondary"
+                            variant={isDefaultState ? 'outline-secondary' : 'outline-danger'}
                             size="sm"
                             onClick={handleClearSearch}
                             disabled={isDefaultState}
