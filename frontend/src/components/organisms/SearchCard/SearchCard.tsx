@@ -161,7 +161,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1">
             <CardHeader
                 variant="secondary"
-                className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                className={`flex min-h-[2.25rem] cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
                     isExpanded
                         ? 'bg-slate-600 hover:bg-slate-700 border-b-2 border-slate-700'
                         : 'bg-slate-400 hover:bg-slate-500'
