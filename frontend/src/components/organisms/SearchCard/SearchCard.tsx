@@ -204,7 +204,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         className={`text-xs px-2 py-0.5 transition-opacity ${
                             isDefaultState
                                 ? 'opacity-0 pointer-events-none border-transparent text-transparent'
-                                : 'opacity-100 border-white/60 text-white bg-white/10 hover:bg-white/25 hover:border-white/80'
+                                : 'opacity-100 border-white text-white bg-white/20 font-semibold hover:bg-white/30 hover:border-white'
                         }`}
                         aria-label="検索条件をクリア"
                         aria-hidden={isDefaultState}
