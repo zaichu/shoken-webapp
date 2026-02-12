@@ -52,11 +52,13 @@
 
 ### 1) 事前確認
 - 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
+- **起動順は必ず DB → backend → frontend**（ローカルDB起動後、バックエンド `/health` 応答を確認してからフロントエンドを起動）
+- ローカルDBは `cd backend && make db-up` で起動する（`backend/.env` はローカルDB向け `DATABASE_URL` を使用）
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
   - Playwright の `storageState` オプションにこのパスを指定する
   - 初回保存 / 期限切れ時は `npm run ui:save-auth` で再取得する
 - このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
-- スクショは **FHD（1920x1080）** を基準に取得する
+- スクショは **FHD（1920x1080）** をデフォルトで取得する（4Kが必要な場合は `UI_REVIEW_VIEWPORT=4k` を指定）
 - 開発サーバー運用は以下を厳守する
   - 8080が既に起動中なら **再利用**（新規起動しない）
   - 新規起動時は `--strictPort` を必須化（8081/8082への自動フォールバック禁止）
@@ -71,39 +73,93 @@ rm -f .playwright-mcp/*.png
 
 #### A. MCPで取得する場合
 - 先にログインを完了してから開始する
-- `http://localhost:8080/` に遷移して `home-initial.png` を保存
-- `http://localhost:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
-- `http://localhost:8080/assetbalance` に遷移し、初期表示を `assetbalance-initial.png` として保存
+- `http://127.0.0.1:8080/` に遷移して `home-initial.png` を保存
+- `http://127.0.0.1:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
+- `http://127.0.0.1:8080/assetbalance` に遷移し、初期表示を `assetbalance-initial.png` として保存
 - 資産管理の検索オプション（銘柄）を1つ選択し、`assetbalance-search-security.png` を保存
-- `http://localhost:8080/receipts` に遷移し、各タブ/検索状態を操作して取引明細の9枚を保存
+- `http://127.0.0.1:8080/receipts` に遷移し、各タブ/検索状態を操作して取引明細の9枚を保存
 - 設定は `fullPage: true`
 
 #### B. E2Eで取得する場合
 ```bash
 set -euo pipefail
-cd frontend
+cd /path/to/shoken-webapp
 
 # ログイン状態を保存（初回のみ/期限切れ時）
-# npm run ui:save-auth
+# cd frontend && npm run ui:save-auth
 
-STARTED=0
-if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
-  echo "reuse existing server on :8080"
+# 先にローカルDBを起動して待機
+(cd backend && make db-up >/tmp/shoken-db.log 2>&1)
+for i in $(seq 1 120); do
+  if (cd backend && docker compose -f docker-compose.yml exec -T postgres pg_isready -U user -d shoken_db >/dev/null 2>&1); then
+    break
+  fi
+  sleep 0.5
+  if [ "$i" -eq 120 ]; then
+    echo "local db did not become ready" >&2
+    tail -n 80 /tmp/shoken-db.log >&2 || true
+    exit 1
+  fi
+done
+
+BACK_STARTED=0
+if curl -sSf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+  echo "reuse existing backend on :3001"
 else
-  npm run dev -- --host 127.0.0.1 --port 8080 --strictPort >/tmp/shoken-dev.log 2>&1 &
-  DEV_PID=$!
-  STARTED=1
+  (cd backend && make run >/tmp/shoken-backend.log 2>&1) &
+  BACK_PID=$!
+  BACK_STARTED=1
 fi
 
+for i in $(seq 1 120); do
+  if curl -sSf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+  if [ "$i" -eq 120 ]; then
+    echo "backend did not start" >&2
+    tail -n 80 /tmp/shoken-backend.log >&2 || true
+    exit 1
+  fi
+done
+
+FRONT_STARTED=0
+if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
+  echo "reuse existing frontend on :8080"
+else
+  (
+    cd frontend
+    VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001 \
+      npm run dev -- --host 127.0.0.1 --port 8080 --strictPort >/tmp/shoken-frontend.log 2>&1
+  ) &
+  FRONT_PID=$!
+  FRONT_STARTED=1
+fi
+
+for i in $(seq 1 120); do
+  if curl -sSf http://127.0.0.1:8080/ >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+  if [ "$i" -eq 120 ]; then
+    echo "frontend did not start" >&2
+    tail -n 80 /tmp/shoken-frontend.log >&2 || true
+    exit 1
+  fi
+done
+
 cleanup() {
-  if [ "$STARTED" -eq 1 ]; then
-    kill "$DEV_PID" >/dev/null 2>&1 || true
+  if [ "$FRONT_STARTED" -eq 1 ]; then
+    kill "$FRONT_PID" >/dev/null 2>&1 || true
+  fi
+  if [ "$BACK_STARTED" -eq 1 ]; then
+    kill "$BACK_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT INT TERM
 
 # 保存した認証情報を使ってスクショ取得
-npm run ui:screenshot:auth
+(cd frontend && npm run ui:screenshot:auth)
 ```
 
 ※ `npm run ui:screenshot` は認証情報を読み込まないため、本レビューでは使用しない。  
