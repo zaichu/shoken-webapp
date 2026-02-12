@@ -78,11 +78,17 @@ npm install
 
 ### 環境変数の設定
 
-バックエンドの`.env`ファイルを作成:
+バックエンドの`.env`ファイルを準備（既存があればそのまま使用）:
 
 ```bash
 cd backend
-cp .env.example .env  # .env.exampleがある場合
+if [ -f .env ]; then
+  echo ".env already exists. reuse it."
+elif [ -f .env.example ]; then
+  cp .env.example .env
+else
+  echo ".env.example not found. create .env manually."
+fi
 ```
 
 `.env`ファイルに以下の変数を設定:
