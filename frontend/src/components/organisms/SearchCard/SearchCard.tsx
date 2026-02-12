@@ -59,6 +59,16 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         onSearch(value);
     };
 
+    // 検索条件が初期状態かどうか
+    const isDefaultState = searchQuery === '' && activeSearchType === null;
+
+    // 検索条件をクリア
+    const handleClearSearch = () => {
+        setSearchQuery('');
+        setActiveSearchType(null);
+        onSearch('');
+    };
+
     // カテゴリが何もない場合は SearchCard 自体を非表示
     if (!hasAnyCategories()) {
         return null;
@@ -216,6 +226,23 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, 'accounts')}</div>
                             </div>
                         )}
+                    </div>
+                    {/* 条件クリアボタン */}
+                    <div className="mt-3 flex justify-end">
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={handleClearSearch}
+                            disabled={isDefaultState}
+                            aria-label="検索条件をクリア"
+                            data-testid="search-clear-button"
+                        >
+                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            条件をクリア
+                        </Button>
                     </div>
                 </CardBody>
             )}

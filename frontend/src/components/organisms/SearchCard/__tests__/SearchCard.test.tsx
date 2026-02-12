@@ -214,6 +214,56 @@ describe('SearchCard', () => {
     expect(screen.getByText('商品21')).toBeInTheDocument();
   });
 
+  test('初期状態では「条件をクリア」ボタンが無効である', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toBeDisabled();
+  });
+
+  test('検索条件を選択すると「条件をクリア」ボタンが有効になる', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    // 商品ボタンをクリックして検索条件を設定
+    fireEvent.click(screen.getByText('株式'));
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toBeEnabled();
+  });
+
+  test('「条件をクリア」ボタンをクリックすると検索条件が初期状態に戻る', () => {
+    const { container } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    // 銘柄を選択
+    const select = container.querySelector('#securities-search') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'AAPL' } });
+    expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
+
+    // クリアボタンをクリック
+    const clearButton = screen.getByTestId('search-clear-button');
+    fireEvent.click(clearButton);
+
+    expect(mockOnSearch).toHaveBeenCalledWith('');
+    expect(clearButton).toBeDisabled();
+    // ドロップダウンが初期値に戻る
+    expect(select.value).toBe('');
+  });
+
   test('ドロップダウンの「全て表示」オプションが正しく動作する', () => {
     const { container } = render(
       <SearchCard
