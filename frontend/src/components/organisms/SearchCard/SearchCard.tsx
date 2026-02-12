@@ -161,7 +161,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1">
             <CardHeader
                 variant="secondary"
-                className={`flex min-h-[2.25rem] cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
                     isExpanded
                         ? 'bg-slate-600 hover:bg-slate-700 border-b-2 border-slate-700'
                         : 'bg-slate-400 hover:bg-slate-500'
@@ -187,31 +187,33 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* 条件クリアボタン（ヘッダー内） */}
-                    {!isDefaultState && (
-                        <Button
-                            type="button"
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={(e: React.MouseEvent) => {
+                    {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
+                    <Button
+                        type="button"
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            handleClearSearch();
+                        }}
+                        onKeyDown={(e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
                                 e.stopPropagation();
-                                handleClearSearch();
-                            }}
-                            onKeyDown={(e: React.KeyboardEvent) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.stopPropagation();
-                                }
-                            }}
-                            className="text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60"
-                            aria-label="検索条件をクリア"
-                            data-testid="search-clear-button"
-                        >
-                            <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            条件をクリア
-                        </Button>
-                    )}
+                            }
+                        }}
+                        className={`text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-opacity ${
+                            isDefaultState ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                        }`}
+                        aria-label="検索条件をクリア"
+                        aria-hidden={isDefaultState}
+                        tabIndex={isDefaultState ? -1 : 0}
+                        data-testid="search-clear-button"
+                    >
+                        <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        条件をクリア
+                    </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span className="flex items-center gap-1.5" aria-hidden="true">
                         <span className="text-xs font-medium opacity-80">

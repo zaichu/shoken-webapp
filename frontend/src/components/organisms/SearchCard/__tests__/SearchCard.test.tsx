@@ -214,7 +214,7 @@ describe('SearchCard', () => {
     expect(screen.getByText('商品21')).toBeInTheDocument();
   });
 
-  test('初期状態では「条件をクリア」ボタンが非表示である', () => {
+  test('初期状態では「条件をクリア」ボタンが操作不可である', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -222,10 +222,12 @@ describe('SearchCard', () => {
       />
     );
 
-    expect(screen.queryByTestId('search-clear-button')).not.toBeInTheDocument();
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toHaveClass('opacity-0');
+    expect(clearButton).toHaveClass('pointer-events-none');
   });
 
-  test('検索条件を選択すると「条件をクリア」ボタンが表示される', () => {
+  test('検索条件を選択すると「条件をクリア」ボタンが操作可能になる', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -237,7 +239,8 @@ describe('SearchCard', () => {
     fireEvent.click(screen.getByText('株式'));
 
     const clearButton = screen.getByTestId('search-clear-button');
-    expect(clearButton).toBeInTheDocument();
+    expect(clearButton).toHaveClass('opacity-100');
+    expect(clearButton).not.toHaveClass('pointer-events-none');
   });
 
   test('「条件をクリア」ボタンをクリックすると検索条件が初期状態に戻る', () => {
@@ -258,8 +261,8 @@ describe('SearchCard', () => {
     fireEvent.click(clearButton);
 
     expect(mockOnSearch).toHaveBeenCalledWith('');
-    // クリア後はボタンが非表示になる
-    expect(screen.queryByTestId('search-clear-button')).not.toBeInTheDocument();
+    // クリア後はボタンが操作不可になる
+    expect(clearButton).toHaveClass('opacity-0');
     // ドロップダウンが初期値に戻る
     expect(select.value).toBe('');
   });
