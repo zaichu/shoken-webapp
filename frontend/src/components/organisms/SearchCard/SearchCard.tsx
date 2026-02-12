@@ -193,6 +193,23 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
+                    {/* 条件クリアボタン（上部右寄せ） */}
+                    <div className="mb-2 flex justify-end">
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={handleClearSearch}
+                            disabled={isDefaultState}
+                            aria-label="検索条件をクリア"
+                            data-testid="search-clear-button"
+                        >
+                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            条件をクリア
+                        </Button>
+                    </div>
                     {/* グリッドレイアウト: モバイル1列、sm2列、lg4列 */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {/* 銘柄検索 */}
@@ -226,23 +243,6 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, 'accounts')}</div>
                             </div>
                         )}
-                    </div>
-                    {/* 条件クリアボタン */}
-                    <div className="mt-3 flex justify-end">
-                        <Button
-                            type="button"
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={handleClearSearch}
-                            disabled={isDefaultState}
-                            aria-label="検索条件をクリア"
-                            data-testid="search-clear-button"
-                        >
-                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            条件をクリア
-                        </Button>
                     </div>
                 </CardBody>
             )}
