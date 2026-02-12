@@ -21,6 +21,9 @@ const authApiClient = createApiClient({
   },
 });
 
+// AbortControllerのキャンセル理由（StrictMode再マウント時）
+const ABORT_REASON_CLEANUP = 'cleanup';
+
 // アイドルタイムアウト: 30分
 const IDLE_TIMEOUT = 30 * 60 * 1000;
 
@@ -29,28 +32,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   // ログアウト時に呼び出されるコールバックのリスト
   const logoutCallbacksRef = useRef<Set<() => void>>(new Set());
-  // 重複呼び出し防止フラグ
-  const isCheckingRef = useRef(false);
-
   // 初期化時にバックエンドからセッションを確認
+  // AbortControllerでStrictMode再マウント時の重複リクエストを防止
   useEffect(() => {
-    const checkSession = async () => {
-      // 重複呼び出し防止
-      if (isCheckingRef.current) return;
-      isCheckingRef.current = true;
+    const controller = new AbortController();
 
+    const checkSession = async () => {
       try {
         // 認証確認専用クライアントで取得（timeout/retry最小化）
         const userInfo = await authApiClient.get<UserInfo>('/auth/me', {
           withCredentials: true,
+          signal: controller.signal,
         });
         setUser(userInfo);
       } catch {
+        // StrictModeクリーンアップによるabortは無視
+        if (controller.signal.aborted) return;
         // セッションが無効な場合
         setUser(null);
       } finally {
-        setIsLoading(false);
-        isCheckingRef.current = false;
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -62,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     checkSession();
+
+    return () => {
+      controller.abort(ABORT_REASON_CLEANUP);
+    };
   }, []);
 
   const login = () => {
