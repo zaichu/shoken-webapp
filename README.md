@@ -152,6 +152,20 @@ make clean
 
 ### 手動ビルド手順
 
+#### ローカル一括起動（推奨）
+
+ローカルテスト時は、以下の 1 コマンドで `DB -> backend -> frontend` をまとめて起動できます。
+
+```bash
+./scripts/start-local.sh
+```
+
+起動後:
+- Frontend: `http://127.0.0.1:8080`
+- Backend: `http://127.0.0.1:3001`
+
+停止は `Ctrl+C` です（backend/frontend プロセスを停止）。
+
 #### フロントエンドの開発サーバー起動
 
 ```bash
