@@ -186,43 +186,50 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                {/* シェブロンアイコン: 回転で開閉状態を表現 */}
-                <span className="flex items-center gap-1.5 -mr-1" aria-hidden="true">
-                    <span className="text-xs font-medium opacity-80">
-                        {isExpanded ? '閉じる' : '開く'}
-                    </span>
-                    <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </span>
-            </CardHeader>
-            {isExpanded && categories && (
-                <CardBody id="search-options-body" className="p-3">
-                    {/* 条件クリアボタン（上部右寄せ） */}
-                    <div className="mb-2 flex items-center justify-end gap-2">
-                        {isDefaultState && (
-                            <span className="text-xs text-slate-400" aria-hidden="true">条件を選択すると解除できます</span>
-                        )}
+                <div className="flex items-center gap-2">
+                    {/* 条件クリアボタン（ヘッダー内） */}
+                    {!isDefaultState && (
                         <Button
                             type="button"
-                            variant={isDefaultState ? 'outline-secondary' : 'outline-danger'}
+                            variant="outline-danger"
                             size="sm"
-                            onClick={handleClearSearch}
-                            disabled={isDefaultState}
+                            onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleClearSearch();
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation();
+                                }
+                            }}
+                            className="text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60"
                             aria-label="検索条件をクリア"
                             data-testid="search-clear-button"
                         >
-                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                             条件をクリア
                         </Button>
-                    </div>
+                    )}
+                    {/* シェブロンアイコン: 回転で開閉状態を表現 */}
+                    <span className="flex items-center gap-1.5" aria-hidden="true">
+                        <span className="text-xs font-medium opacity-80">
+                            {isExpanded ? '閉じる' : '開く'}
+                        </span>
+                        <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </span>
+                </div>
+            </CardHeader>
+            {isExpanded && categories && (
+                <CardBody id="search-options-body" className="p-3">
                     {/* グリッドレイアウト: モバイル1列、sm2列、lg4列 */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {/* 銘柄検索 */}

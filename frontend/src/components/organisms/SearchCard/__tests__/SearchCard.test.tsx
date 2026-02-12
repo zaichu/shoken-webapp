@@ -214,7 +214,7 @@ describe('SearchCard', () => {
     expect(screen.getByText('商品21')).toBeInTheDocument();
   });
 
-  test('初期状態では「条件をクリア」ボタンが無効である', () => {
+  test('初期状態では「条件をクリア」ボタンが非表示である', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -222,11 +222,10 @@ describe('SearchCard', () => {
       />
     );
 
-    const clearButton = screen.getByTestId('search-clear-button');
-    expect(clearButton).toBeDisabled();
+    expect(screen.queryByTestId('search-clear-button')).not.toBeInTheDocument();
   });
 
-  test('検索条件を選択すると「条件をクリア」ボタンが有効になる', () => {
+  test('検索条件を選択すると「条件をクリア」ボタンが表示される', () => {
     render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -238,7 +237,7 @@ describe('SearchCard', () => {
     fireEvent.click(screen.getByText('株式'));
 
     const clearButton = screen.getByTestId('search-clear-button');
-    expect(clearButton).toBeEnabled();
+    expect(clearButton).toBeInTheDocument();
   });
 
   test('「条件をクリア」ボタンをクリックすると検索条件が初期状態に戻る', () => {
@@ -259,7 +258,8 @@ describe('SearchCard', () => {
     fireEvent.click(clearButton);
 
     expect(mockOnSearch).toHaveBeenCalledWith('');
-    expect(clearButton).toBeDisabled();
+    // クリア後はボタンが非表示になる
+    expect(screen.queryByTestId('search-clear-button')).not.toBeInTheDocument();
     // ドロップダウンが初期値に戻る
     expect(select.value).toBe('');
   });
