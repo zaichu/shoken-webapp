@@ -201,8 +201,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 e.stopPropagation();
                             }
                         }}
-                        className={`text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-opacity ${
-                            isDefaultState ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                        className={`text-xs px-2 py-0.5 transition-opacity ${
+                            isDefaultState
+                                ? 'opacity-0 pointer-events-none border-transparent text-transparent'
+                                : 'opacity-100 border-white/60 text-white bg-white/10 hover:bg-white/25 hover:border-white/80'
                         }`}
                         aria-label="検索条件をクリア"
                         aria-hidden={isDefaultState}
