@@ -246,6 +246,7 @@ export function AssetBalancePage() {
               <SearchCard
                 onSearch={handleSearch}
                 categories={searchCategories}
+                value={searchQuery}
               />
             )}
 

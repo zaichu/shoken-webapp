@@ -89,19 +89,10 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             {/* 絞り込み中バナー */}
             {isFiltered && (
               <div className="mb-4 pb-4 border-b border-slate-100">
-                <div className="flex items-center justify-between rounded-md bg-blue-50 px-3 py-2">
+                <div className="flex items-center rounded-md bg-blue-50 px-3 py-2">
                   <span className="text-sm font-medium text-blue-700">
                     🔍 絞り込み中: {displayCount}/{actualTotalCount}件を表示
                   </span>
-                  {onClearFilter && (
-                    <button
-                      type="button"
-                      onClick={onClearFilter}
-                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      解除
-                    </button>
-                  )}
                 </div>
               </div>
             )}

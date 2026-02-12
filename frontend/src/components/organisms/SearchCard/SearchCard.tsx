@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
@@ -7,6 +7,7 @@ interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
     onExpandToggle?: (isExpanded: boolean) => void; // 展開状態変更の通知
+    value?: string; // 親の検索状態と同期（外部クリア対応）
 }
 
 /**
@@ -16,13 +17,22 @@ interface SearchCardProps {
 export const SearchCard: React.FC<SearchCardProps> = ({
     onSearch,
     categories,
-    onExpandToggle
+    onExpandToggle,
+    value
 }) => {
 
     const [isExpanded, setIsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
+
+    // 親の検索状態と同期（外部からのクリア時に内部状態をリセット）
+    useEffect(() => {
+        if (value !== undefined && value !== searchQuery) {
+            setSearchQuery(value);
+            setActiveSearchType(value ? activeSearchType : null);
+        }
+    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // データが存在するかチェックするヘルパー関数
     const hasData = (data: unknown[] | undefined): boolean => {
@@ -57,6 +67,16 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         setSearchQuery(value);
         setActiveSearchType(value ? searchType : null);
         onSearch(value);
+    };
+
+    // 検索条件が初期状態かどうか
+    const isDefaultState = searchQuery === '' && activeSearchType === null;
+
+    // 検索条件をクリア
+    const handleClearSearch = () => {
+        setSearchQuery('');
+        setActiveSearchType(null);
+        onSearch('');
     };
 
     // カテゴリが何もない場合は SearchCard 自体を非表示
@@ -166,20 +186,49 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                {/* シェブロンアイコン: 回転で開閉状態を表現 */}
-                <span className="flex items-center gap-1.5 -mr-1" aria-hidden="true">
-                    <span className="text-xs font-medium opacity-80">
-                        {isExpanded ? '閉じる' : '開く'}
-                    </span>
-                    <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                <div className="flex items-center gap-2">
+                    {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
+                    <Button
+                        type="button"
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            handleClearSearch();
+                        }}
+                        onKeyDown={(e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                            }
+                        }}
+                        className={`text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-opacity ${
+                            isDefaultState ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                        }`}
+                        aria-label="検索条件をクリア"
+                        aria-hidden={isDefaultState}
+                        tabIndex={isDefaultState ? -1 : 0}
+                        data-testid="search-clear-button"
                     >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </span>
+                        <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        条件をクリア
+                    </Button>
+                    {/* シェブロンアイコン: 回転で開閉状態を表現 */}
+                    <span className="flex items-center gap-1.5" aria-hidden="true">
+                        <span className="text-xs font-medium opacity-80">
+                            {isExpanded ? '閉じる' : '開く'}
+                        </span>
+                        <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </span>
+                </div>
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">

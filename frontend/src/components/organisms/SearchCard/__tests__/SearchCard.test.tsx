@@ -214,6 +214,59 @@ describe('SearchCard', () => {
     expect(screen.getByText('商品21')).toBeInTheDocument();
   });
 
+  test('初期状態では「条件をクリア」ボタンが操作不可である', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toHaveClass('opacity-0');
+    expect(clearButton).toHaveClass('pointer-events-none');
+  });
+
+  test('検索条件を選択すると「条件をクリア」ボタンが操作可能になる', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    // 商品ボタンをクリックして検索条件を設定
+    fireEvent.click(screen.getByText('株式'));
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toHaveClass('opacity-100');
+    expect(clearButton).not.toHaveClass('pointer-events-none');
+  });
+
+  test('「条件をクリア」ボタンをクリックすると検索条件が初期状態に戻る', () => {
+    const { container } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    // 銘柄を選択
+    const select = container.querySelector('#securities-search') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'AAPL' } });
+    expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
+
+    // クリアボタンをクリック
+    const clearButton = screen.getByTestId('search-clear-button');
+    fireEvent.click(clearButton);
+
+    expect(mockOnSearch).toHaveBeenCalledWith('');
+    // クリア後はボタンが操作不可になる
+    expect(clearButton).toHaveClass('opacity-0');
+    // ドロップダウンが初期値に戻る
+    expect(select.value).toBe('');
+  });
+
   test('ドロップダウンの「全て表示」オプションが正しく動作する', () => {
     const { container } = render(
       <SearchCard
