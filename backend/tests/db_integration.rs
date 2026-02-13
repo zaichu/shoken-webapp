@@ -12,7 +12,7 @@ use chrono::NaiveDate;
 use reqwest::Client;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{env, sync::Arc, time::Duration};
-use testcontainers::clients::Cli;
+use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
@@ -67,9 +67,8 @@ async fn db_integration_with_docker_and_migrations() {
     let _app_env = EnvGuard::set("APP_ENV", Some("production"));
     let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app"));
 
-    let docker = Cli::default();
-    let node = docker.run(Postgres::default());
-    let port = node.get_host_port_ipv4(5432);
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
 
     let pool = connect_with_retry(&database_url).await;
