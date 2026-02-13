@@ -23,7 +23,16 @@ Stops the local dev stack used by ./scripts/start-local.sh:
 You can override ports via env vars:
   BACKEND_URL / BACKEND_PORT
   FRONTEND_URL / FRONTEND_PORT
+
+Requires one of:
+  - lsof (recommended)
+  - ss
+  - fuser
 EOF
+}
+
+have_cmd() {
+  command -v "$1" >/dev/null 2>&1
 }
 
 extract_port_from_url() {
@@ -33,9 +42,68 @@ extract_port_from_url() {
   fi
 }
 
+http_ok() {
+  local url="$1"
+  if ! have_cmd curl; then
+    return 1
+  fi
+
+  curl -sSf --connect-timeout 1 --max-time 2 "${url}" >/dev/null 2>&1
+}
+
 pids_listening_on_port() {
   local port="$1"
-  lsof -nP -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true
+
+  if have_cmd lsof; then
+    local out=""
+    if out="$(lsof -nP -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null)"; then
+      printf '%s\n' "${out}" | sed '/^$/d' | sort -u
+      return 0
+    fi
+
+    local st=$?
+    if [[ "${st}" -eq 1 ]]; then
+      # No matches.
+      return 0
+    fi
+
+    echo "WARN: lsof failed while checking port ${port} (exit ${st}); trying fallback..." >&2
+  fi
+
+  if have_cmd ss; then
+    # Example: users:(("node",pid=1234,fd=23))
+    ss -H -ltnp "sport = :${port}" 2>/dev/null \
+      | grep -oE 'pid=[0-9]+' \
+      | cut -d= -f2 \
+      | sort -u \
+      || true
+    return 0
+  fi
+
+  if have_cmd fuser; then
+    local out=""
+    if out="$(fuser -n tcp "${port}" 2>/dev/null)"; then
+      printf '%s\n' "${out}" \
+        | tr ' ' '\n' \
+        | sed '/^$/d' \
+        | grep -E '^[0-9]+$' \
+        | sort -u \
+        || true
+      return 0
+    fi
+
+    local st=$?
+    if [[ "${st}" -eq 1 ]]; then
+      # No matches.
+      return 0
+    fi
+
+    echo "WARN: fuser failed while checking port ${port} (exit ${st})." >&2
+    return "${st}"
+  fi
+
+  echo "ERROR: Cannot identify PID(s) listening on port ${port} (missing: lsof/ss/fuser)." >&2
+  return 127
 }
 
 print_pids() {
@@ -119,10 +187,30 @@ BACKEND_PORT="${BACKEND_PORT:-3001}"
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 
-mapfile -t front_pids < <(pids_listening_on_port "${FRONTEND_PORT}")
+front_out=""
+if ! front_out="$(pids_listening_on_port "${FRONTEND_PORT}")"; then
+  echo "ERROR: Failed to detect frontend PID(s) for port ${FRONTEND_PORT}." >&2
+  exit 1
+fi
+mapfile -t front_pids < <(printf '%s\n' "${front_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
+if [[ "${#front_pids[@]}" -eq 0 ]] && http_ok "${FRONTEND_URL}/"; then
+  echo "ERROR: Frontend responds at ${FRONTEND_URL} but no PID was detected for port ${FRONTEND_PORT}." >&2
+  echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
+  exit 1
+fi
 stop_pids "Frontend (port ${FRONTEND_PORT})" "${front_pids[@]}"
 
-mapfile -t back_pids < <(pids_listening_on_port "${BACKEND_PORT}")
+back_out=""
+if ! back_out="$(pids_listening_on_port "${BACKEND_PORT}")"; then
+  echo "ERROR: Failed to detect backend PID(s) for port ${BACKEND_PORT}." >&2
+  exit 1
+fi
+mapfile -t back_pids < <(printf '%s\n' "${back_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
+if [[ "${#back_pids[@]}" -eq 0 ]] && http_ok "${BACKEND_URL}/health"; then
+  echo "ERROR: Backend responds at ${BACKEND_URL} but no PID was detected for port ${BACKEND_PORT}." >&2
+  echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
+  exit 1
+fi
 stop_pids "Backend (port ${BACKEND_PORT})" "${back_pids[@]}"
 
 if [[ "${KEEP_DB}" -eq 1 ]]; then
