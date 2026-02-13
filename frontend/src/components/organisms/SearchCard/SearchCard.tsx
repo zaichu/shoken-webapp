@@ -186,7 +186,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
                         type="button"
@@ -211,10 +211,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         tabIndex={isDefaultState ? -1 : 0}
                         data-testid="search-clear-button"
                     >
-                        <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        条件をクリア
+                        絞り込み解除
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span className="flex items-center gap-1.5" aria-hidden="true">
