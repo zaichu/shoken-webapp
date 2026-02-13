@@ -1,366 +1,243 @@
 # 証券情報ウェブアプリケーション (shoken-webapp)
 
-証券情報を検索・表示し、取引データを管理するためのウェブアプリケーションです。フロントエンドはReact+TypeScript、バックエンドはRust+Axumで構築されています。
+日本株の証券情報を検索・管理するウェブアプリケーション。
+フロントエンドは React + TypeScript、バックエンドは Rust + Axum で構築。
 
 ## 機能概要
 
-- 証券情報の検索と表示
-- CSVからの取引データのインポートと分析
-- 実現損益の計算と表示
-- 各種証券情報サイトへのリンク生成
-- Google OAuth認証（開発中）
-- データの永続化と取引履歴管理（開発中）
-
-## デモ
-
-以下のリンクからデモアプリをご確認いただけます。
-
-[デモサイト](https://zaichu.github.io/shoken-webapp/)
-
-## アーキテクチャ
-
-このプロジェクトは以下のコンポーネントで構成されています：
-
-- **フロントエンド**: React + TypeScript + Vite
-- **バックエンド**: Rust + Axum + SQLx + PostgreSQL
-- **デプロイ**: Shuttle (バックエンド)、GitHub Pages (フロントエンド)
+- 銘柄コード・会社名による証券情報検索
+- CSV からの取引データインポート（配当金・国内株式・投資信託）
+- 保有銘柄の資産管理とポートフォリオ表示
+- J-Quants API 連携による決算サマリー取得
+- Google OAuth 認証
 
 ## 技術スタック
 
 ### フロントエンド
-- **React** (18.2)
-- **TypeScript** (5.4)
-- **Vite**: 高速な開発環境とビルドツール
-- **React Router**: SPAのルーティング
-- **React Query**: データフェッチングとキャッシュ管理
-- **TailwindCSS**: ユーティリティファーストCSSフレームワーク
-- **Axios**: HTTPクライアント
+
+- **React** 19.2 + **TypeScript** 5.9
+- **Vite** 7.3（ビルド）
+- **Tailwind CSS** 4.1
+- **React Router** 7.13
+- **TanStack Query** 5.90
+- **Axios**（HTTP クライアント）
+- **Recharts**（チャート）
+- **Vitest** + **React Testing Library**（テスト）
+- **Playwright**（E2E テスト）
 
 ### バックエンド
-- **Rust** (1.70以上)
-- **Axum**: 高性能なWebフレームワーク
-- **SQLx**: 非同期SQLツールキット
-- **PostgreSQL**: データベース
-- **Shuttle**: Rustアプリのデプロイプラットフォーム
-- **OAuth2**: Google認証
-- **Validator**: 入力データの検証
+
+- **Rust** 1.93 (Edition 2021)
+- **Axum** 0.8（Web フレームワーク）
+- **SQLx** 0.8 + **PostgreSQL**
+- **Tokio** 1.49（非同期ランタイム）
+- **OAuth2** 5.0（Google 認証）
+- **Reqwest**（HTTP クライアント）
+
+### インフラ
+
+- **Vercel**（フロントエンド）
+- **Fly.io**（バックエンド）
+- **PostgreSQL**（Fly.io 上）
+- **GitHub Actions**（CI/CD）
 
 ## 開発環境のセットアップ
 
 ### 必要なツール
 
-- Rust (1.70以上)
-- Node.js (18以上) と npm
-- PostgreSQL (ローカル開発用)
+- Rust（rustup 経由）
+- Node.js 20 以上 + npm
+- Docker（ローカル DB 用）
 
-### インストール手順
-
-1. Rustとツールチェーンのインストール:
+### インストール
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-cargo install cargo-shuttle  # Shuttleデプロイ用
-```
-
-2. リポジトリのクローン:
-
-```bash
-git clone https://github.com/yourusername/shoken-webapp.git
+git clone https://github.com/zaichu/shoken-webapp.git
 cd shoken-webapp
 ```
 
-3. フロントエンドの依存関係をインストール:
+### 環境変数
 
-```bash
-cd frontend
-npm install
-```
-
-### 環境変数の設定
-
-バックエンドの`.env`ファイルを準備（既存があればそのまま使用）:
+バックエンド（`backend/.env`）:
 
 ```bash
 cd backend
-if [ -f .env ]; then
-  echo ".env already exists. reuse it."
-elif [ -f .env.example ]; then
-  cp .env.example .env
-else
-  echo ".env.example not found. create .env manually."
-fi
+cp .env.example .env
+# .env を編集
 ```
-
-`.env`ファイルに以下の変数を設定:
 
 ```bash
 # 必須
-DATABASE_URL=postgres://username:password@localhost:5432/shoken_db
-FRONTEND_URL=http://localhost:5173
+DATABASE_URL=postgres://user:password@localhost:5432/shoken_db
 
-# Google OAuth
+# Google OAuth（認証機能に必要）
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
+FRONTEND_URL=http://localhost:8080
 
 # J-Quants API（決算サマリー取得に必要）
 JQUANTS_API_KEY=your_api_key
-
-# オプション（本番環境用）
-# BACKEND_URL=https://your-backend.fly.dev
-# RUST_ENV=production  # または APP_ENV=production
-# SECURE_COOKIE=true   # Cookie の Secure 属性を明示的に制御
 ```
 
-フロントエンドの`.env.development.local`ファイルを作成:
-
-```bash
-cd frontend
-cp .env.example .env.development.local  # .env.exampleがある場合
-```
-
-`.env.development.local`ファイルに以下の変数を設定:
+フロントエンド（`frontend/.env.development.local`）:
 
 ```bash
 VITE_SHOKEN_WEBAPI_API_URL=http://localhost:3001
 ```
 
-## ビルドと実行
+## ローカル起動
 
-### Makefileによる簡易ビルド
-
-プロジェクトのルートディレクトリから以下のコマンドを実行できます:
-
-```bash
-# 全体をビルド
-make build
-
-# フロントエンドのみビルド
-make build-frontend
-
-# バックエンドのみビルド
-make build-backend
-
-# バックエンドサーバーを実行
-make run-backend
-
-# フロントエンド開発サーバーを実行
-make run-frontend
-
-# ビルド成果物をクリーン
-make clean
-```
-
-### 手動ビルド手順
-
-#### ローカル一括起動（推奨）
-
-ローカルテスト時は、以下の 1 コマンドで `DB -> backend -> frontend` をまとめて起動できます。
+### 一括起動（推奨）
 
 ```bash
 ./scripts/start-local.sh
 ```
 
-起動後:
-- Frontend: `http://127.0.0.1:8080`
-- Backend: `http://127.0.0.1:3001`
+DB → バックエンド → フロントエンドを順に起動:
+- フロントエンド: http://127.0.0.1:8080
+- バックエンド: http://127.0.0.1:3001
 
-停止は `Ctrl+C` です（backend/frontend プロセスを停止）。
-
-#### フロントエンドの開発サーバー起動
+停止:
 
 ```bash
-cd frontend
-npm run dev
+./scripts/stop-local.sh
 ```
 
-開発サーバーは http://localhost:5173 で起動します。
-
-#### フロントエンドのビルド
+### 個別起動
 
 ```bash
-cd frontend
-npm run build
+# DB
+cd backend && make db-up
+
+# バックエンド
+cd backend && make run
+
+# フロントエンド
+cd frontend && npm run dev
 ```
 
-ビルド成果物は `frontend/dist` ディレクトリに生成されます。
-
-#### バックエンドの実行
+## テスト
 
 ```bash
+# フロントエンド
+cd frontend
+npm run lint        # ESLint
+npx tsc --noEmit    # 型チェック
+npm test            # Vitest
+
+# バックエンド
 cd backend
-cargo run
-```
-
-バックエンドサーバーは http://localhost:8000 で起動します。
-
-## テスト実行
-
-プロジェクト全体のテストを実行:
-
-```bash
-make test
-```
-
-個別にテストを実行:
-
-```bash
-# フロントエンドのテスト
-cd frontend
-npm test
-
-# バックエンドのテスト
-cd backend
+cargo fmt -- --check
+cargo clippy -- -D warnings
 cargo test
-```
-
-## データベースマイグレーション
-
-SQLxを使用してデータベースマイグレーションを実行:
-
-```bash
-cd backend
-cargo sqlx migrate run
-```
-
-新しいマイグレーションを作成:
-
-```bash
-cd backend
-cargo sqlx migrate add <migration_name>
 ```
 
 ## デプロイ
 
-### バックエンドのデプロイ (Shuttle)
+### バックエンド（Fly.io）
 
 ```bash
-make deploy-backend
-# または
-cd backend
-cargo shuttle deploy
+cd backend && make deploy
 ```
 
-デプロイの状態を確認:
+GitHub Actions で `main` ブランチへのマージ時に自動デプロイ。
 
-```bash
-cd backend
-cargo shuttle status
-```
+### フロントエンド（Vercel）
 
-### フロントエンドのデプロイ (GitHub Pages)
+Vercel と連携済み。`main` ブランチへのマージ時に自動デプロイ。
+https://shoken-webapp.vercel.app
 
-GitHub Actionsを使用した自動デプロイが設定されています。mainブランチにプッシュすると、フロントエンドが自動的にビルドされてGitHub Pagesにデプロイされます。
-
-手動でデプロイする場合:
-
-```bash
-cd frontend
-npm run build
-# 生成された dist ディレクトリの内容を GitHub Pages にデプロイ
-```
-
-## プロジェクト構造
+## プロジェクト構成
 
 ```
 shoken-webapp/
-├── frontend/                # Reactフロントエンド
-│   ├── src/                 # フロントエンドソースコード
-│   │   ├── api/             # APIクライアント
-│   │   ├── components/      # Reactコンポーネント
-│   │   ├── hooks/           # カスタムフック
-│   │   ├── pages/           # ページコンポーネント
-│   │   ├── types/           # TypeScript型定義
-│   │   └── utils/           # ユーティリティ関数
-│   ├── public/              # 静的アセット
-│   └── package.json         # フロントエンド依存関係
-├── backend/                 # Axumバックエンド
-│   ├── src/                 # バックエンドソースコード
-│   │   ├── api/             # APIエンドポイント
-│   │   ├── db/              # データベース操作
-│   │   ├── models/          # データモデル
-│   │   ├── services/        # ビジネスロジック
-│   │   ├── utils/           # ユーティリティ関数
-│   │   └── main.rs          # エントリーポイント
-│   ├── migrations/          # SQLxデータベースマイグレーション
-│   ├── tests/               # 統合テスト
-│   └── Cargo.toml           # バックエンド依存関係
-├── Cargo.toml               # ワークスペース設定
-└── Makefile                 # ビルド/デプロイコマンド
+├── frontend/                   # React フロントエンド
+│   ├── src/
+│   │   ├── components/         # UI コンポーネント (atoms/molecules/organisms/templates)
+│   │   ├── features/           # 機能モジュール (auth, stock, receipt, jquants)
+│   │   ├── hooks/              # カスタムフック
+│   │   ├── pages/              # ページコンポーネント
+│   │   ├── lib/                # API クライアント、ユーティリティ
+│   │   ├── contexts/           # React Context
+│   │   ├── styles/             # Tailwind CSS
+│   │   └── types/              # 型定義
+│   ├── e2e/                    # Playwright E2E テスト
+│   └── package.json
+├── backend/                    # Rust/Axum バックエンド
+│   ├── src/
+│   │   ├── handlers/           # リクエストハンドラー
+│   │   ├── models/             # データモデル
+│   │   ├── services/           # ビジネスロジック
+│   │   ├── extractors/         # カスタムエクストラクター
+│   │   ├── routes.rs           # ルーティング定義
+│   │   ├── config.rs           # 設定
+│   │   ├── db.rs               # DB 接続・マイグレーション
+│   │   ├── middleware.rs       # CORS ミドルウェア
+│   │   └── main.rs
+│   ├── migrations/             # SQLx マイグレーション
+│   ├── tests/                  # 統合テスト
+│   └── Cargo.toml
+├── scripts/                    # ローカル起動/停止スクリプト
+└── .github/workflows/          # CI/CD
 ```
 
-## API仕様
-
-バックエンドAPIは以下のエンドポイントを提供します:
+## API エンドポイント
 
 ### 認証
 
-- `GET /auth/google`: Google OAuth認証の開始
-- `GET /auth/google/callback`: Google OAuth認証のコールバック
-- `GET /auth/me`: 現在のユーザー情報を取得
-- `POST /auth/logout`: ログアウト
-- `DELETE /auth/delete-account`: アカウント削除
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/auth/google` | Google OAuth 認証開始 |
+| GET | `/auth/google/callback` | OAuth コールバック |
+| GET | `/auth/me` | ユーザー情報取得 |
+| POST | `/auth/logout` | ログアウト |
+| DELETE | `/auth/delete-account` | アカウント削除 |
 
 ### 証券情報
 
-- `GET /stock/{query}`: 銘柄コードまたは名前で検索
-- `POST /stock`: 銘柄情報を追加（**認証必須**）
+| メソッド | パス | 説明 | 認証 |
+|---------|------|------|------|
+| GET | `/stock/{query}` | 銘柄検索 | 不要 |
+| POST | `/stock` | 銘柄追加 | 必要 |
 
 ### 配当金（認証必須）
 
-- `GET /dividends`: 配当金一覧を取得
-- `POST /dividends/bulk`: 配当金を一括追加
-- `DELETE /dividends/all`: 配当金を全削除
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/dividends` | 一覧取得 |
+| POST | `/dividends/bulk` | 一括追加 |
+| DELETE | `/dividends/all` | 全削除 |
 
 ### 国内株式（認証必須）
 
-- `GET /domestic-stocks`: 国内株式一覧を取得
-- `POST /domestic-stocks/bulk`: 国内株式を一括追加
-- `DELETE /domestic-stocks/all`: 国内株式を全削除
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/domestic-stocks` | 一覧取得 |
+| POST | `/domestic-stocks/bulk` | 一括追加 |
+| DELETE | `/domestic-stocks/all` | 全削除 |
 
 ### 投資信託（認証必須）
 
-- `GET /mutualfunds`: 投資信託一覧を取得
-- `POST /mutualfunds/bulk`: 投資信託を一括追加
-- `DELETE /mutualfunds/all`: 投資信託を全削除
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/mutualfunds` | 一覧取得 |
+| POST | `/mutualfunds/bulk` | 一括追加 |
+| DELETE | `/mutualfunds/all` | 全削除 |
 
 ### 保有銘柄（認証必須）
 
-- `GET /asset-balances`: 保有銘柄一覧を取得
-- `POST /asset-balances/bulk`: 保有銘柄を一括追加（既存は更新）
-- `DELETE /asset-balances/all`: 保有銘柄を全削除
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/asset-balances` | 一覧取得 |
+| POST | `/asset-balances/bulk` | 一括追加（既存は更新） |
+| DELETE | `/asset-balances/all` | 全削除 |
 
-### J-Quants API
+### その他
 
-- `GET /jquants/fins/statements`: 決算サマリーを取得
-
-### ヘルスチェック
-
-- `GET /health`: サーバー状態を確認
-
-## テスト
-
-本プロジェクトでは以下のテストを実装しています:
-
-### バックエンドテスト
-
-- 単体テスト: 各モジュールの機能をテスト
-- 統合テスト: エンドポイントの挙動を検証
-- モックを使用したサービスレイヤーのテスト
-
-### フロントエンドテスト
-
-- コンポーネントテスト: React Testing Libraryを使用
-- ユーティリティ関数のテスト
-
-## 貢献方法
-
-プロジェクトへの貢献を歓迎します。以下の手順で貢献できます:
-
-1. このリポジトリをフォーク
-2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-4. ブランチをプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/jquants/fins/statements` | 決算サマリー取得 |
+| GET | `/health` | ヘルスチェック |
 
 ## ライセンス
 
