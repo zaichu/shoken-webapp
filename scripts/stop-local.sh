@@ -11,7 +11,9 @@ KEEP_DB=0
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/stop-local.sh [--keep-db]
+Usage:
+  ./stop-local.sh [--keep-db]
+  ./scripts/stop-local.sh [--keep-db]
 
 Stops the local dev stack used by ./scripts/start-local.sh:
 - Frontend dev server (default: port 8080)
@@ -130,4 +132,3 @@ else
   (cd "${BACKEND_DIR}" && make db-down >/dev/null 2>&1) || true
   echo "DB: stopped"
 fi
-
