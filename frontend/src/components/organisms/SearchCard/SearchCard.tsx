@@ -186,7 +186,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
                         type="button"
@@ -201,18 +201,20 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 e.stopPropagation();
                             }
                         }}
-                        className={`text-xs px-2 py-0.5 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-opacity ${
-                            isDefaultState ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                        className={`text-xs px-2 py-0.5 transition-opacity ${
+                            isDefaultState
+                                ? 'opacity-0 pointer-events-none border-transparent text-transparent'
+                                : 'opacity-100 border-white text-white bg-white/20 font-semibold hover:bg-white/30 hover:border-white'
                         }`}
                         aria-label="検索条件をクリア"
                         aria-hidden={isDefaultState}
                         tabIndex={isDefaultState ? -1 : 0}
                         data-testid="search-clear-button"
                     >
-                        <svg className="w-3 h-3 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        条件をクリア
+                        絞り込み解除
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span className="flex items-center gap-1.5" aria-hidden="true">
