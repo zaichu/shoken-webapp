@@ -1,10 +1,8 @@
 use crate::{
     errors::ApiError,
-    extractors::{
-        auth::AuthenticatedUser, char_width_converter::halfwidth_to_fullwidth,
-        validated_json::ValidatedJson,
-    },
+    extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     models::stock::Stock,
+    services::stock as stock_service,
     AppState,
 };
 use axum::{
@@ -18,19 +16,7 @@ pub async fn select_stock_info(
     Path(search_query): Path<String>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let search_query = search_query
-        .chars()
-        .map(halfwidth_to_fullwidth)
-        .collect::<String>();
-    let stock = sqlx::query_as::<_, Stock>(
-        "SELECT * FROM stock WHERE code = $1 OR name ILIKE $2 ORDER BY date DESC LIMIT 1",
-    )
-    .bind(&search_query)
-    .bind(format!("%{search_query}%"))
-    .fetch_optional(&state.pool)
-    .await?
-    .ok_or(ApiError::NotFound)?;
-
+    let stock = stock_service::search(&state.pool, &search_query).await?;
     Ok((StatusCode::OK, Json(stock)))
 }
 
@@ -40,24 +26,7 @@ pub async fn add_stock_info(
     _auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<Stock>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let stock = sqlx::query_as::<_, Stock>(
-        "INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-         RETURNING *"
-    )
-    .bind(data.date)
-    .bind(&data.code)
-    .bind(&data.name)
-    .bind(&data.market_category)
-    .bind(&data.industry_code_33)
-    .bind(&data.industry_category_33)
-    .bind(&data.industry_code_17)
-    .bind(&data.industry_category_17)
-    .bind(&data.size_code)
-    .bind(&data.size_category)
-    .fetch_one(&state.pool)
-    .await?;
-
+    let stock = stock_service::create(&state.pool, &data).await?;
     Ok((StatusCode::CREATED, Json(stock)))
 }
 
@@ -119,9 +88,9 @@ mod tests {
 
         sqlx::query(
             r#"
-            INSERT INTO stock 
+            INSERT INTO stock
             (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category)
-            VALUES 
+            VALUES
             ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
         )
