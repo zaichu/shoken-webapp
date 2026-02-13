@@ -51,13 +51,6 @@ pub struct BulkCreateDividendRequest {
     pub items: Vec<CreateDividendRequest>,
 }
 
-/// 一括作成レスポンス
-#[derive(Debug, Clone, Serialize)]
-pub struct BulkCreateResponse {
-    pub inserted: usize,
-    pub skipped: usize,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

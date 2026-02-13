@@ -49,13 +49,6 @@ pub struct BulkCreateAssetBalanceRequest {
     pub items: Vec<CreateAssetBalanceRequest>,
 }
 
-/// 一括作成レスポンス
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BulkCreateResponse {
-    pub inserted: usize,
-    pub skipped: usize,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

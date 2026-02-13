@@ -150,6 +150,16 @@ pub async fn delete_session(pool: &PgPool, session_id: uuid::Uuid) -> Result<(),
     Ok(())
 }
 
+/// ユーザーを削除（CASCADE により関連データも削除）
+pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
