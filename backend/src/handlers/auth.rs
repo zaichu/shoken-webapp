@@ -12,17 +12,11 @@ use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     EndpointNotSet, EndpointSet, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
-/// OAuth認証開始時のレスポンス
-#[derive(Debug, Serialize)]
-pub struct AuthUrlResponse {
-    pub auth_url: String,
-}
-
 /// コールバック時のクエリパラメータ
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
