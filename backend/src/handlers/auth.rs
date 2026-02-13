@@ -212,10 +212,7 @@ pub async fn delete_account(
         .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
 
     // ユーザーを削除（CASCADE により関連データも削除）
-    sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user_id)
-        .execute(&state.pool)
-        .await?;
+    auth_service::delete_account(&state.pool, user_id).await?;
 
     // セッションCookieを削除
     let is_secure = config::is_secure_cookie();
