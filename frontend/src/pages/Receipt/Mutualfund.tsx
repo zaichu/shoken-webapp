@@ -2,10 +2,7 @@ import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import React, { useMemo, useCallback } from 'react';
-import {
-    MutualfundData,
-    MutualfundCalculations
-} from '@/lib/interfaces/mutualfund';
+import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
@@ -15,8 +12,10 @@ import {
     formatNumber
 } from '@/lib/utils/formatters';
 import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
+import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
+import { calculateMutualfund } from '@/features/receipt/calculations';
 
 interface MutualfundProps {
     csvData: Record<string, unknown>[];
@@ -27,12 +26,8 @@ interface MutualfundProps {
  */
 export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
 
-    /**
-     * CSVまたはDBデータをMutualfundData形式に変換
-     */
-    const mutualfundData: MutualfundData[] = useMemo(() => sortMutualfundByTradeDate(
-        csvData.map(parseMutualfundCsvItem)
-    ), [csvData]);
+    // CSVデータを投資信託データ形式に変換
+    const mutualfundData = useReceiptData(csvData, parseMutualfundCsvItem, sortMutualfundByTradeDate);
 
     /**
      * 検索オプションの生成
@@ -55,18 +50,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     // 検索クエリに基づくフィルタリング
     const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, filterConfig);
 
-    /**
-     * 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
-     */
-    const calculations: MutualfundCalculations = useMemo(() => filteredData.reduce((acc, item) => ({
-        total_realized_profit_and_loss: acc.total_realized_profit_and_loss + item.realized_profit_and_loss,
-        total_taxes: acc.total_taxes + item.taxes,
-        total_realized_profit_and_loss_after_tax: acc.total_realized_profit_and_loss_after_tax + item.realized_profit_and_loss_after_tax,
-    }), {
-        total_realized_profit_and_loss: 0,
-        total_taxes: 0,
-        total_realized_profit_and_loss_after_tax: 0,
-    }), [filteredData]);
+    // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
+    const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
 
     /**
      * グループキーの取得（日付文字列：年月）
