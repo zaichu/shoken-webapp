@@ -7,7 +7,7 @@ import { parseNumber } from '@/lib/utils/formatters';
  * 決算データから配当情報を抽出する
  * 優先順位: 来期予想 > 今期予想 > 実績
  */
-const extractDividendFromSummary = (summary: JQuantsStatementData): string | null => {
+export const extractDividendFromSummary = (summary: JQuantsStatementData): string | null => {
   if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
     return summary.NxFDivAnn;
   }

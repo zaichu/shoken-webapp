@@ -122,4 +122,43 @@ describe('AssetPortfolioSummary', () => {
 
     expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
   });
+
+  describe('配当金額・配当利回り', () => {
+    it('ポートフォリオ全体の年間配当金額と配当利回りが正しく表示される', () => {
+      const mockData = createMockData();
+      // 1株配当マップ: 7203: 50円/株, 6758: 240円/株
+      // 年間配当: 50*100 + 240*50 = 5000 + 12000 = 17000
+      // 配当利回り: 17000 / 850000 * 100 = 2.00%
+      const dividendMap = new Map([
+        ['7203', 50],
+        ['6758', 240],
+      ]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={dividendMap} />);
+
+      // 年間配当金額ラベルが表示される
+      expect(screen.getByText('年間配当金額')).toBeInTheDocument();
+      // 50*100 + 240*50 = 17,000
+      expect(screen.getByTestId('portfolio-annual-dividends')).toHaveTextContent(/17,000/);
+      // 配当利回りラベルが表示される
+      expect(screen.getByText('配当利回り')).toBeInTheDocument();
+      // 17000 / 850000 * 100 = 2.00%
+      expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('2.00%');
+    });
+
+    it('dividendPerShareMapが未指定の場合は---が表示される', () => {
+      const mockData = createMockData();
+      render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+      expect(screen.getByTestId('portfolio-annual-dividends')).toHaveTextContent('---');
+      expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('---');
+    });
+
+    it('配当データが空の場合は---が表示される', () => {
+      const mockData = createMockData();
+      const emptyMap = new Map<string, number>();
+      render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={emptyMap} />);
+
+      expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('---');
+    });
+  });
 });

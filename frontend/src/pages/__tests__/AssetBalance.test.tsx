@@ -12,6 +12,7 @@ vi.mock('@/components/atoms/SecurityCodeLink', () => ({
 vi.mock('@/lib/utils/formatters', () => ({
   formatCurrency: vi.fn().mockImplementation((value: number) => `¥${value.toLocaleString()}`),
   formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
+  formatPercentageValue: vi.fn().mockImplementation((value: number) => `${value.toFixed(2)}%`),
   safeAdd: vi.fn().mockImplementation((a: number, b: number) => a + b),
 }));
 
@@ -48,6 +49,7 @@ describe('AssetBalanceInfo', () => {
     filteredData: mockAssetBalanceData,
     searchQuery: '',
     onClearFilter: vi.fn(),
+    dividendPerShareMap: new Map<string, number>(),
   };
 
   beforeEach(() => {
@@ -87,6 +89,7 @@ describe('AssetBalanceInfo', () => {
         filteredData={[]}
         searchQuery=""
         onClearFilter={vi.fn()}
+        dividendPerShareMap={new Map()}
       />
     );
 
@@ -103,6 +106,7 @@ describe('AssetBalanceInfo', () => {
         filteredData={filteredData}
         searchQuery="7203"
         onClearFilter={vi.fn()}
+        dividendPerShareMap={new Map()}
       />
     );
 
@@ -120,6 +124,7 @@ describe('AssetBalanceInfo', () => {
         filteredData={[]}
         searchQuery="9999"
         onClearFilter={vi.fn()}
+        dividendPerShareMap={new Map()}
       />
     );
 
