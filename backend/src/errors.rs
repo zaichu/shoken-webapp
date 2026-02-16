@@ -46,6 +46,8 @@ pub enum ApiError {
     NetworkError(String),
     #[error("API error: {0}")]
     ApiError(String),
+    #[error("Rate limit exceeded: {0}")]
+    RateLimitError(String),
     #[error("Serde JSON error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 }
@@ -177,6 +179,14 @@ impl IntoResponse for ApiError {
                     details: None,
                 },
             ),
+            ApiError::RateLimitError(msg) => (
+                StatusCode::TOO_MANY_REQUESTS,
+                ErrorDetails {
+                    code: "RATE_LIMIT_EXCEEDED".to_string(),
+                    message: msg,
+                    details: None,
+                },
+            ),
             ApiError::SerdeJsonError(ref e) => {
                 tracing::error!("JSON processing error: {}", e);
                 (
@@ -257,6 +267,13 @@ mod tests {
         let error = ApiError::EnvVarError(env_error);
         let response = error.into_response();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_rate_limit_error_into_response() {
+        let error = ApiError::RateLimitError("Rate limit exceeded".to_string());
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 
     #[test]

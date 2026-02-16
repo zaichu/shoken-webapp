@@ -3,6 +3,8 @@ import { jquantsApiClient } from '../api/client';
 import { parseNumber } from '@/lib/utils/formatters';
 import { extractDividendFromSummary } from './useJQuantsDividend';
 
+const MAX_CONCURRENT_REQUESTS = 3;
+
 /**
  * 複数銘柄の1株配当を一括取得するフック
  * J-Quants APIから最新予想配当を取得し、Map<銘柄コード, 1株配当>を返す
@@ -32,30 +34,35 @@ export const useJQuantsDividendBatch = (
     const fetchAll = async () => {
       setLoading(true);
       const map = new Map<string, number>();
+      const uniqueCodes = Array.from(new Set(securityCodes));
+      const results: PromiseSettledResult<{ code: string; value: number | null }>[] = [];
 
-      // 並列で取得
-      const results = await Promise.allSettled(
-        securityCodes.map(async (code) => {
-          const response = await jquantsApiClient.getStatements(code);
-          if (!response?.data || !Array.isArray(response.data)) return { code, value: null };
+      const fetchOneCode = async (code: string) => {
+        const response = await jquantsApiClient.getStatements(code);
+        if (!response?.data || !Array.isArray(response.data)) return { code, value: null };
 
-          // 開示日で降順ソート（最新データを優先）
-          const sortedData = [...response.data].sort((a, b) => {
-            const dateA = a.DiscDate || '';
-            const dateB = b.DiscDate || '';
-            return dateB.localeCompare(dateA);
-          });
+        // 開示日で降順ソート（最新データを優先）
+        const sortedData = [...response.data].sort((a, b) => {
+          const dateA = a.DiscDate || '';
+          const dateB = b.DiscDate || '';
+          return dateB.localeCompare(dateA);
+        });
 
-          // 最新の決算データから順に配当情報を検索
-          for (const summary of sortedData) {
-            const dividendValue = extractDividendFromSummary(summary);
-            if (dividendValue) {
-              return { code, value: parseNumber(dividendValue) };
-            }
+        // 最新の決算データから順に配当情報を検索
+        for (const summary of sortedData) {
+          const dividendValue = extractDividendFromSummary(summary);
+          if (dividendValue) {
+            return { code, value: parseNumber(dividendValue) };
           }
-          return { code, value: null };
-        })
-      );
+        }
+        return { code, value: null };
+      };
+
+      for (let i = 0; i < uniqueCodes.length; i += MAX_CONCURRENT_REQUESTS) {
+        const chunk = uniqueCodes.slice(i, i + MAX_CONCURRENT_REQUESTS);
+        const chunkResults = await Promise.allSettled(chunk.map(fetchOneCode));
+        results.push(...chunkResults);
+      }
 
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value.value !== null && result.value.value > 0) {
