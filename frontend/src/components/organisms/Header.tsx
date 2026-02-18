@@ -207,7 +207,7 @@ export function Header() {
             className="w-full max-w-md"
             role="presentation"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); else e.stopPropagation(); }}
           >
             <div className="rounded-lg bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">

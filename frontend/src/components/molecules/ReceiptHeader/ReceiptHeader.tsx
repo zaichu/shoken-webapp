@@ -1,4 +1,4 @@
-import React, { ReactNode, useId, useState } from 'react';
+import React, { ReactNode, useEffect, useId, useState } from 'react';
 import { StatItem } from '@/components/atoms/StatItem';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 import { HeaderItem } from '@/types/common';
@@ -20,6 +20,11 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
+
+    // collapsible が切り替わった際に展開状態をリセット（指摘 #1 対応）
+    useEffect(() => {
+        setIsExpanded(collapsible ? defaultExpanded : true);
+    }, [collapsible, defaultExpanded]);
     const effectiveExpanded = collapsible ? isExpanded : true;
 
     const handleToggleExpanded = () => {
