@@ -7,6 +7,18 @@ import { useAssetBalance } from '@/hooks/common/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
 import { DividendData } from '@/lib/interfaces/dividend';
 
+const AssetBadge = () => (
+  <span className="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+    保有銘柄
+  </span>
+);
+
+const JQuantsBadge = () => (
+  <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+    J-Quants
+  </span>
+);
+
 interface DividendInfoProps {
   searchQuery: string;
   securityCode?: string;
@@ -116,18 +128,6 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
   const assetBalanceData = isValidSecurityCode
     ? getAssetBalanceByCode(effectiveSecurityCode)
     : undefined;
-
-  // 自動入力バッジ（データ元を明示）
-  const AssetBadge = () => (
-    <span className="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
-      保有銘柄
-    </span>
-  );
-  const JQuantsBadge = () => (
-    <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
-      J-Quants
-    </span>
-  );
 
   const content = (
     <>

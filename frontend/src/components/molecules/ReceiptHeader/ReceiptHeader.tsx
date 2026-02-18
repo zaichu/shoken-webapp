@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useId, useState } from 'react';
+import React, { ReactNode, useId, useState } from 'react';
 import { StatItem } from '@/components/atoms/StatItem';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 import { HeaderItem } from '@/types/common';
@@ -18,17 +18,9 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     collapsible = false,
     defaultExpanded = true
 }) => {
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
-
-    // 折りたたみ状態が変わったら展開状態をリセット
-    useEffect(() => {
-        if (collapsible) {
-            setIsExpanded(defaultExpanded);
-        } else {
-            setIsExpanded(true);
-        }
-    }, [collapsible, defaultExpanded]);
+    const effectiveExpanded = collapsible ? isExpanded : true;
 
     const handleToggleExpanded = () => {
         if (!collapsible) return;
@@ -52,25 +44,25 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                 onKeyDown={collapsible ? handleKeyDown : undefined}
                 role={collapsible ? 'button' : undefined}
                 tabIndex={collapsible ? 0 : undefined}
-                aria-expanded={collapsible ? isExpanded : undefined}
+                aria-expanded={collapsible ? effectiveExpanded : undefined}
                 aria-controls={collapsible ? bodyId : undefined}
                 data-testid="receipt-header"
             >
                 <h5>{title}</h5>
                 {collapsible && (
                     <span className="flex items-center gap-1 text-xs font-medium bg-white/20 px-2 py-1 rounded">
-                        {isExpanded ? '▲ 閉じる' : '▼ 開く'}
+                        {effectiveExpanded ? '▲ 閉じる' : '▼ 開く'}
                     </span>
                 )}
             </CardHeader>
             {/* 折りたたみ時はhiddenで非表示（children内のstateを保持するため） */}
-            <CardBody id={bodyId} className="p-4" hidden={collapsible && !isExpanded}>
+            <CardBody id={bodyId} className="p-4" hidden={collapsible && !effectiveExpanded}>
                 {/* stat-gridはitemsがある場合のみ表示 */}
                 {items.length > 0 && (
                     <div className="stat-grid">
-                        {items.map((item, index) => (
+                        {items.map((item) => (
                             <StatItem
-                                key={index}
+                                key={item.title}
                                 title={item.title}
                                 value={
                                     <span data-negative={item.value < 0 ? 'true' : undefined}>

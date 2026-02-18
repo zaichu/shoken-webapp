@@ -201,12 +201,12 @@ describe('Table', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
-  test('dangerouslySetInnerHTMLが正しく適用される', () => {
+  test('childrenが正しく表示される', () => {
     render(
       <Table>
         <TableBody>
           <TableRow>
-            <TableCell dangerouslySetInnerHTML={{ __html: '<strong>HTML内容</strong>' }} />
+            <TableCell><strong>HTML内容</strong></TableCell>
           </TableRow>
         </TableBody>
       </Table>

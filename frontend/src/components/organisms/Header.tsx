@@ -196,14 +196,18 @@ export function Header() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setShowDeleteConfirm(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-modal-title"
           aria-describedby="delete-modal-description"
+          tabIndex={-1}
         >
           <div
             className="w-full max-w-md"
+            role="presentation"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="rounded-lg bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">

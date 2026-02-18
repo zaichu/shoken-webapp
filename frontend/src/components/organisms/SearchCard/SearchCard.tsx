@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
@@ -25,14 +25,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
-
-    // 親の検索状態と同期（外部からのクリア時に内部状態をリセット）
-    useEffect(() => {
-        if (value !== undefined && value !== searchQuery) {
-            setSearchQuery(value);
-            setActiveSearchType(value ? activeSearchType : null);
-        }
-    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+    const effectiveSearchQuery = value ?? searchQuery;
+    const effectiveActiveSearchType = value === '' ? null : activeSearchType;
 
     // データが存在するかチェックするヘルパー関数
     const hasData = (data: unknown[] | undefined): boolean => {
@@ -70,7 +64,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     // 検索条件が初期状態かどうか
-    const isDefaultState = searchQuery === '' && activeSearchType === null;
+    const isDefaultState = effectiveSearchQuery === '' && effectiveActiveSearchType === null;
 
     // 検索条件をクリア
     const handleClearSearch = () => {
@@ -88,13 +82,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         if (!items || items.length === 0) return null;
 
         // いずれかが選択中かどうか（未選択チップをミュートするため）
-        const hasSelection = activeSearchType === searchType;
+        const hasSelection = effectiveActiveSearchType === searchType;
 
         return items.map((item, index) => {
-            const isSelected = activeSearchType === searchType && searchQuery === item;
+            const isSelected = effectiveActiveSearchType === searchType && effectiveSearchQuery === item;
 
             return (
-                <React.Fragment key={index}>
+                <React.Fragment key={item}>
                     <Button
                         type="button"
                         variant={isSelected ? 'primary' : 'outline-secondary'}
@@ -122,8 +116,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     const renderQuickSearchDropdown = (items: { value: string, label: string }[], id: string, searchType: 'securities' | 'years') => {
         // このドロップダウンがアクティブな検索タイプの場合のみ値を表示
-        const displayValue = activeSearchType === searchType ? searchQuery : '';
-        const isSelected = activeSearchType === searchType && displayValue !== '';
+        const displayValue = effectiveActiveSearchType === searchType ? effectiveSearchQuery : '';
+        const isSelected = effectiveActiveSearchType === searchType && displayValue !== '';
 
         return (
             <div className="relative">
@@ -139,8 +133,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     aria-label="検索フィルター"
                 >
                     <option value="">全て表示</option>
-                    {items.map((option, index) => (
-                        <option key={`search-option-${option.value}-${index}`} value={option.value}>
+                    {items.map((option) => (
+                        <option key={option.value} value={option.value}>
                             {option.label}
                         </option>
                     ))}
@@ -180,7 +174,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
                     <h5 className="text-sm font-semibold">検索オプション</h5>
-                    {!isExpanded && activeSearchType && (
+                    {!isExpanded && effectiveActiveSearchType && (
                         <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
                             フィルタ適用中
                         </span>

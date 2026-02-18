@@ -28,7 +28,7 @@ export const StockInfoLinks = ({ code }: StockInfoLinksProps) => {
   return (
     <div className="flex flex-wrap items-center text-sm">
       {STOCK_INFO_LINKS_OBJECTS.map((item, index) => (
-        <Fragment key={index}>
+        <Fragment key={item.name}>
           <a
             className="font-semibold text-primary hover:underline"
             href={item.url.replace('{}', code)}

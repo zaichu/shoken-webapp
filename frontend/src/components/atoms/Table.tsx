@@ -35,7 +35,6 @@ export interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   as?: 'td' | 'th';
   scope?: 'col' | 'row' | 'colgroup' | 'rowgroup';
   colSpan?: number;
-  dangerouslySetInnerHTML?: { __html: string };
 }
 
 // バリアント別の背景色
@@ -189,7 +188,6 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
       scope = 'col',
       colSpan = 1,
       className,
-      dangerouslySetInnerHTML,
       ...rest
     },
     ref
@@ -197,19 +195,6 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
     const Cell = as;
     const scopeAttr = as === 'th' ? { scope } : {};
     const cellClasses = cn(as === 'th' && 'font-semibold text-slate-700', className);
-
-    if (dangerouslySetInnerHTML) {
-      return (
-        <Cell
-          ref={ref}
-          className={cellClasses}
-          {...scopeAttr}
-          {...rest}
-          colSpan={colSpan}
-          dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        />
-      );
-    }
 
     return (
       <Cell ref={ref} className={cellClasses} {...scopeAttr} {...rest} colSpan={colSpan}>
