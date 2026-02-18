@@ -16,7 +16,7 @@ use dotenvy::dotenv;
 use reqwest::Client;
 use routes::app_router;
 use state::{AppState, Secrets};
-use std::sync::Arc;
+use std::sync::{atomic::AtomicBool, Arc};
 use tokio::net::TcpListener;
 
 #[cfg(test)]
@@ -52,6 +52,7 @@ async fn main() {
         pool,
         secrets,
         client,
+        background_task_running: Arc::new(AtomicBool::new(false)),
     };
 
     let router = app_router(state, &config);
@@ -93,6 +94,7 @@ mod tests {
             pool,
             secrets,
             client,
+            background_task_running: Arc::new(AtomicBool::new(false)),
         };
 
         let config = Config::default();
@@ -148,6 +150,7 @@ mod tests {
             pool,
             secrets,
             client,
+            background_task_running: Arc::new(AtomicBool::new(false)),
         };
 
         // AppStateが正常に作成されることを確認

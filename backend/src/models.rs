@@ -1,6 +1,7 @@
 pub mod asset_balance;
 pub mod common;
 pub mod dividend;
+pub mod dividend_cache;
 pub mod domestic_stock;
 pub mod jquants;
 pub mod mutualfund;
