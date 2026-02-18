@@ -14,6 +14,7 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
     Router::new()
         .merge(stock_routes())
         .merge(jquants_routes())
+        .merge(dividend_per_share_routes())
         .merge(auth_routes())
         .merge(dividend_routes())
         .merge(domestic_stock_routes())
@@ -36,6 +37,13 @@ fn jquants_routes() -> Router<AppState> {
     Router::new().route(
         "/jquants/fins/statements",
         get(handlers::jquants::get_fin_summary),
+    )
+}
+
+fn dividend_per_share_routes() -> Router<AppState> {
+    Router::new().route(
+        "/dividends/per-share/batch",
+        post(handlers::dividend_per_share::batch),
     )
 }
 
