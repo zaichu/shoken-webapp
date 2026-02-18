@@ -60,6 +60,15 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
       </label>
     );
 
+    const describedByIds: string[] = [];
+    if (error) {
+      describedByIds.push(`${inputId}-error`);
+    }
+    if (helpText) {
+      describedByIds.push(`${inputId}-help`);
+    }
+    const ariaDescribedBy = describedByIds.length > 0 ? describedByIds.join(' ') : undefined;
+
     return (
       <div className={widthClass}>
         {labelElement}
@@ -70,12 +79,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
           placeholder={placeholder}
           required={required}
           aria-invalid={error ? 'true' : 'false'}
-          aria-describedby={
-            [
-              error ? `${inputId}-error` : '',
-              helpText ? `${inputId}-help` : ''
-            ].filter(Boolean).join(' ') || undefined
-          }
+          aria-describedby={ariaDescribedBy}
           {...rest}
         />
         {error && (

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/atoms/Button';
 
 interface ConfirmDeleteModalProps {
@@ -27,15 +27,6 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   confirmLabel = '削除する',
   loading = false,
 }) => {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
-  // モーダル表示時にキャンセルボタンにフォーカス（誤クリック防止）
-  useEffect(() => {
-    if (isOpen) {
-      cancelRef.current?.focus();
-    }
-  }, [isOpen]);
-
   // Escapeキーで閉じる
   useEffect(() => {
     if (!isOpen) return;
@@ -52,12 +43,19 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onCancel}
+      onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-delete-title"
       aria-describedby="confirm-delete-desc"
+      tabIndex={-1}
     >
-      <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="w-full max-w-md"
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <div className="rounded-lg bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h5 id="confirm-delete-title" className="text-danger font-semibold">
@@ -83,7 +81,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
             <Button
-              ref={cancelRef}
+              autoFocus
               variant="secondary"
               onClick={onCancel}
             >

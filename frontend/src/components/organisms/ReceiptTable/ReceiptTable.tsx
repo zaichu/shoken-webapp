@@ -216,12 +216,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         >
             <TableHeader>
                 <TableRow className="bg-slate-50 text-center">
-                    {columns.map((column, index) => (
+                    {columns.map((column) => (
                         <TableCell
                             as="th"
                             className="text-center whitespace-nowrap"
                             style={{ minWidth: column.width }}
-                            key={index}
+                            key={column.header}
                         >
                             {column.header}
                         </TableCell>

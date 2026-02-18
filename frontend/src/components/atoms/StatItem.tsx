@@ -1,6 +1,9 @@
 import React from 'react';
 import { cn } from '../../lib/utils/classNames';
 
+const defaultValueFormat = (value: number): string => value.toLocaleString('ja-JP');
+const defaultRateFormat = (rate: number): string => `${rate.toFixed(2)}%`;
+
 export interface StatItemProps {
   title: string;
   value: string | React.ReactNode;
@@ -79,8 +82,8 @@ export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
   title,
   value,
   rate,
-  format = (v) => v.toLocaleString('ja-JP'),
-  rateFormat = (r) => `${r.toFixed(2)}%`,
+  format = defaultValueFormat,
+  rateFormat = defaultRateFormat,
   className = '',
   showRate = true,
   variant = 'default'
