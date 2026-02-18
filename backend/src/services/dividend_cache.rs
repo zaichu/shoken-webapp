@@ -242,8 +242,14 @@ async fn fetch_and_cache(
 /// エラー情報をキャッシュに記録する
 async fn update_cache_error(pool: &PgPool, code: &str, error_msg: &str) -> Result<(), ApiError> {
     // エラーメッセージは最大 200 文字に切り捨て（機密情報混入を防ぐため短く保つ）
+    // char_indices で文字境界を求めてスライスし、マルチバイト文字での panic を防ぐ
     let truncated = if error_msg.len() > 200 {
-        &error_msg[..200]
+        let end = error_msg
+            .char_indices()
+            .nth(200)
+            .map(|(i, _)| i)
+            .unwrap_or(error_msg.len());
+        &error_msg[..end]
     } else {
         error_msg
     };

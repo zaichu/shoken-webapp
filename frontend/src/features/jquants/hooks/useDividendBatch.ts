@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchDividendPerShareBatch, DividendStatus } from '../api/dividendPerShareApi';
 
-const MAX_RETRIES = 3;
+const BASE_RETRIES = 3;
 const RETRY_DELAY_MS = 15_000;
+const SECS_PER_CODE = 12; // バックエンドのレート制御: 12秒/銘柄
 
 /**
  * バックエンド集約APIを使って複数銘柄の1株配当を取得するフック
@@ -35,8 +36,29 @@ export const useDividendBatch = (
 
     if (codesKey === prevCodesRef.current && retryCount === 0) return;
 
+    // コードセットが変わった場合はリトライカウントをリセット
+    if (codesKey !== prevCodesRef.current && retryCount === 0) {
+      retryCountRef.current = 0;
+    }
+
+    // バックエンドが12秒/銘柄で処理するため、銘柄数に応じて最大リトライ数を動的に計算
+    const uniqueCount = new Set(securityCodes).size;
+    const maxRetries = Math.max(BASE_RETRIES, Math.ceil(uniqueCount * SECS_PER_CODE / RETRY_DELAY_MS) + 3);
+
     let isActive = true;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleRetry = () => {
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current += 1;
+        prevCodesRef.current = '';
+        retryTimer = setTimeout(() => {
+          if (isActive) setRetryCount(c => c + 1);
+        }, RETRY_DELAY_MS);
+      } else {
+        prevCodesRef.current = codesKey;
+      }
+    };
 
     const fetchAll = async () => {
       setLoading(true);
@@ -59,7 +81,8 @@ export const useDividendBatch = (
         }
       }
 
-      const hasPending = items.some(item => item.status === 'pending' || item.status === 'error');
+      // error は自己回復しないため再試行不要。pending のみ対象
+      const hasPending = items.some(item => item.status === 'pending');
 
       if (isActive) {
         setDividendPerShareMap(perShareMap);
@@ -68,12 +91,8 @@ export const useDividendBatch = (
         prevCodesRef.current = codesKey;
         setLoading(false);
 
-        if (hasPending && retryCountRef.current < MAX_RETRIES) {
-          retryCountRef.current += 1;
-          prevCodesRef.current = '';
-          retryTimer = setTimeout(() => {
-            if (isActive) setRetryCount(c => c + 1);
-          }, RETRY_DELAY_MS);
+        if (hasPending) {
+          scheduleRetry();
         }
       }
     };
@@ -81,7 +100,8 @@ export const useDividendBatch = (
     fetchAll().catch(() => {
       if (isActive) {
         setLoading(false);
-        prevCodesRef.current = codesKey;
+        // API失敗時もリトライをスケジュール（ネットワーク瞬断・5xx対応）
+        scheduleRetry();
       }
     });
 
