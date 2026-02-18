@@ -160,5 +160,14 @@ describe('AssetPortfolioSummary', () => {
 
       expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('---');
     });
+
+    it('dividendStatusMap を渡すと pending 銘柄で取得中...が表示される', () => {
+      const mockData = createMockData();
+      const dividendMap = new Map<string, number>();
+      const statusMap = new Map([['7203', 'pending' as const]]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={dividendMap} dividendStatusMap={statusMap} />);
+
+      expect(screen.getAllByText('取得中...')).not.toHaveLength(0);
+    });
   });
 });

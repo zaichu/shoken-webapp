@@ -111,6 +111,7 @@ async fn db_integration_with_docker_and_migrations() {
         pool,
         secrets,
         client,
+        background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
     };
 
     let config = Config::from_env();

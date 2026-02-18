@@ -93,6 +93,33 @@ describe('PortfolioPieChart', () => {
       expect(dashes.length).toBeGreaterThanOrEqual(2);
     });
 
+    it('pending ステータスの銘柄は "取得中..." が表示される', () => {
+      const dividendMap = new Map<string, number>();
+      const statusMap = new Map([['7203', 'pending' as const]]);
+      render(<PortfolioPieChart data={mockData} dividendPerShareMap={dividendMap} dividendStatusMap={statusMap} />);
+
+      expect(screen.getAllByText('取得中...')).not.toHaveLength(0);
+    });
+
+    it('error ステータスの銘柄は "取得失敗" が表示される', () => {
+      const dividendMap = new Map<string, number>();
+      const statusMap = new Map([['7203', 'error' as const]]);
+      render(<PortfolioPieChart data={mockData} dividendPerShareMap={dividendMap} dividendStatusMap={statusMap} />);
+
+      expect(screen.getAllByText('取得失敗')).not.toHaveLength(0);
+    });
+
+    it('zero ステータスの銘柄は 0円 が表示される（error と区別）', () => {
+      const dividendMap = new Map<string, number>();
+      const statusMap = new Map([['7203', 'zero' as const], ['6758', 'error' as const]]);
+      render(<PortfolioPieChart data={mockData} dividendPerShareMap={dividendMap} dividendStatusMap={statusMap} />);
+
+      // zero: 0円表示（formatCurrency(0) = "¥ 0"）
+      expect(screen.getAllByText(/¥\s*0/).length).toBeGreaterThanOrEqual(1);
+      // error: 取得失敗表示
+      expect(screen.getAllByText('取得失敗').length).toBeGreaterThanOrEqual(1);
+    });
+
     it('dividendPerShareMapが未指定の場合は全銘柄---表示', () => {
       render(<PortfolioPieChart data={mockData} />);
 

@@ -1,6 +1,9 @@
 use reqwest::Client;
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::sync::{
+    atomic::AtomicBool,
+    Arc,
+};
 
 /// 環境変数から取得するシークレット情報
 #[derive(Clone, Debug)]
@@ -32,6 +35,8 @@ pub struct AppState {
     pub pool: PgPool,
     pub secrets: Arc<Secrets>,
     pub client: Client,
+    /// 配当キャッシュのバックグラウンド更新タスクが実行中かどうか（多重起動防止）
+    pub background_task_running: Arc<AtomicBool>,
 }
 
 #[cfg(test)]
@@ -65,6 +70,7 @@ mod tests {
             pool: pool.clone(),
             secrets: secrets.clone(),
             client: client.clone(),
+            background_task_running: Arc::new(AtomicBool::new(false)),
         };
 
         // AppStateが正常に作成されることを確認
@@ -94,6 +100,7 @@ mod tests {
             pool,
             secrets,
             client,
+            background_task_running: Arc::new(AtomicBool::new(false)),
         };
 
         let cloned_state = original_state.clone();

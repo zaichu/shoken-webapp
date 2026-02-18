@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber, formatPercentageValue } from '@/lib/utils/formatters';
+import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 
 // 横棒グラフ用の配色（視認性を考慮した10色）
 const COLORS = [
@@ -34,6 +35,7 @@ interface PortfolioPieChartProps {
   data: PortfolioItem[];
   className?: string;
   dividendPerShareMap?: Map<string, number>; // 銘柄別1株配当（J-Quants予想）
+  dividendStatusMap?: Map<string, DividendStatus>; // 銘柄別取得ステータス
 }
 
 /**
@@ -43,6 +45,7 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   data,
   className = '',
   dividendPerShareMap,
+  dividendStatusMap,
 }) => {
   const [showAll, setShowAll] = useState(false);
 
@@ -82,11 +85,41 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   // 銘柄別の配当情報を計算
   const getDividendInfo = (securityCode: string, shares: number, averagePrice: number) => {
     if (!dividendPerShareMap) return null;
+    const status = dividendStatusMap?.get(securityCode);
     const perShare = dividendPerShareMap.get(securityCode);
-    if (perShare === undefined) return { perShare: null, annual: null, yieldValue: null };
+
+    if (status === 'pending') return { perShare: null, annual: null, yieldValue: null, status };
+    if (status === 'error') return { perShare: null, annual: null, yieldValue: null, status };
+    if (status === 'zero') return { perShare: 0, annual: 0, yieldValue: null, status };
+    if (perShare === undefined) return { perShare: null, annual: null, yieldValue: null, status };
+
     const annual = perShare * shares;
     const yieldValue = averagePrice > 0 ? (perShare / averagePrice) * 100 : null;
-    return { perShare, annual, yieldValue };
+    return { perShare, annual, yieldValue, status };
+  };
+
+  const formatPerShare = (divInfo: ReturnType<typeof getDividendInfo>) => {
+    if (!divInfo) return '---';
+    if (divInfo.status === 'pending') return '取得中...';
+    if (divInfo.status === 'error') return '取得失敗';
+    if (divInfo.perShare === null) return '---';
+    return formatCurrency(divInfo.perShare);
+  };
+
+  const formatAnnual = (divInfo: ReturnType<typeof getDividendInfo>) => {
+    if (!divInfo) return '---';
+    if (divInfo.status === 'pending') return '取得中...';
+    if (divInfo.status === 'error') return '取得失敗';
+    if (divInfo.annual === null) return '---';
+    return formatCurrency(divInfo.annual);
+  };
+
+  const formatYield = (divInfo: ReturnType<typeof getDividendInfo>) => {
+    if (!divInfo) return '---';
+    if (divInfo.status === 'pending') return '取得中...';
+    if (divInfo.status === 'error') return '取得失敗';
+    if (divInfo.yieldValue === null) return '---';
+    return formatPercentageValue(divInfo.yieldValue);
   };
 
   return (
@@ -145,26 +178,20 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-slate-500">1株配当:</span>
-                  <span className={`font-medium ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : ''}`}>
-                    {divInfo?.perShare !== null && divInfo?.perShare !== undefined
-                      ? formatCurrency(divInfo.perShare)
-                      : '---'}
+                  <span className={`font-medium ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {formatPerShare(divInfo)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-slate-500">年間配当:</span>
-                  <span className={`font-medium ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : ''}`}>
-                    {divInfo?.annual !== null && divInfo?.annual !== undefined
-                      ? formatCurrency(divInfo.annual)
-                      : '---'}
+                  <span className={`font-medium ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {formatAnnual(divInfo)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-slate-500">配当利回り:</span>
-                  <span className={`font-medium ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : ''}`}>
-                    {divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined
-                      ? formatPercentageValue(divInfo.yieldValue)
-                      : '---'}
+                  <span className={`font-medium ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {formatYield(divInfo)}
                   </span>
                 </div>
               </div>

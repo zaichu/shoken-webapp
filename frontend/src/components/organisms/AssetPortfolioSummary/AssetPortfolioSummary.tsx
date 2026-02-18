@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { formatCurrency, formatPercentageValue, safeAdd } from '@/lib/utils/formatters';
+import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 
 interface AssetPortfolioSummaryProps {
   assetBalanceData: AssetBalanceData[];
@@ -11,6 +12,7 @@ interface AssetPortfolioSummaryProps {
   isFiltered?: boolean; // 絞り込み中かどうか
   onClearFilter?: () => void; // 絞り込み解除
   dividendPerShareMap?: Map<string, number>; // 銘柄別1株配当（J-Quants予想）
+  dividendStatusMap?: Map<string, DividendStatus>; // 銘柄別取得ステータス
 }
 
 /**
@@ -23,6 +25,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   isFiltered = false,
   onClearFilter,
   dividendPerShareMap,
+  dividendStatusMap,
 }) => {
   // 合計取得総額を計算（null/undefinedは0として扱う）
   const totalPurchaseAmount = useMemo(() => {
@@ -146,7 +149,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
           </div>
           {/* 銘柄別構成比 */}
           <h3 className="mb-3 text-sm font-semibold text-slate-700">銘柄別構成比</h3>
-          <PortfolioPieChart data={chartData} dividendPerShareMap={dividendPerShareMap} />
+          <PortfolioPieChart data={chartData} dividendPerShareMap={dividendPerShareMap} dividendStatusMap={dividendStatusMap} />
         </CardBody>
       </Card>
     </div>

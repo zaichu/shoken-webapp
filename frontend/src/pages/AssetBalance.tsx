@@ -11,7 +11,8 @@ import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
-import { useJQuantsDividendBatch } from '@/features/jquants/hooks/useJQuantsDividendBatch';
+import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
+import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
@@ -51,6 +52,7 @@ interface AssetBalanceInfoProps {
   searchQuery: string;
   onClearFilter: () => void;
   dividendPerShareMap: Map<string, number>;
+  dividendStatusMap?: Map<string, DividendStatus>;
 }
 
 /**
@@ -62,6 +64,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
   searchQuery,
   onClearFilter,
   dividendPerShareMap,
+  dividendStatusMap,
 }) => {
   const isFiltered = searchQuery !== '';
 
@@ -73,6 +76,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
         isFiltered={isFiltered}
         onClearFilter={isFiltered ? onClearFilter : undefined}
         dividendPerShareMap={dividendPerShareMap}
+        dividendStatusMap={dividendStatusMap}
       />
     </Suspense>
   );
@@ -130,7 +134,7 @@ export function AssetBalancePage() {
     () => assetBalanceData.map(item => item.security_code),
     [assetBalanceData]
   );
-  const { dividendPerShareMap } = useJQuantsDividendBatch(securityCodes, isAuthenticated);
+  const { dividendPerShareMap, dividendStatusMap, fetchedCount, totalCount: dividendTotalCount } = useDividendBatch(securityCodes, isAuthenticated);
 
   // 検索オプションの生成
   const searchCategories = useMemo(() => ({
@@ -259,6 +263,13 @@ export function AssetBalancePage() {
               />
             )}
 
+            {/* 配当取得進捗バッジ */}
+            {dividendTotalCount > 0 && fetchedCount < dividendTotalCount && (
+              <div className="mb-2 text-xs text-slate-500" role="status" aria-live="polite">
+                配当情報 {fetchedCount}/{dividendTotalCount} 件 取得済み（取得中...）
+              </div>
+            )}
+
             {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
             {!loading && !csvReader.isLoading && (
               <AssetBalanceInfo
@@ -267,6 +278,7 @@ export function AssetBalancePage() {
                 searchQuery={searchQuery}
                 onClearFilter={handleClearFilter}
                 dividendPerShareMap={dividendPerShareMap}
+                dividendStatusMap={dividendStatusMap}
               />
             )}
 

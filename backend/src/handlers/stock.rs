@@ -124,6 +124,7 @@ mod tests {
             pool: pool.clone(),
             secrets,
             client,
+            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
 
         Router::new()
