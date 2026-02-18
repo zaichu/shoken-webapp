@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { formatCurrency, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
-import { useJQuantsDividend } from '@/features/jquants/hooks/useJQuantsDividend';
+import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { useAssetBalance } from '@/hooks/common/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
 import { DividendData } from '@/lib/interfaces/dividend';
@@ -49,11 +49,13 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
   // 保有銘柄データを取得（銘柄コード形式の場合のみフェッチ）
   const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance({ enabled: isValidSecurityCode });
 
-  // J-Quants APIから配当情報を取得（銘柄コード形式の場合のみ）
-  const {
-    dividendPerShare: apiDividendPerShare,
-    loading: apiLoading,
-  } = useJQuantsDividend(effectiveSecurityCode, isValidSecurityCode);
+  // バックエンドキャッシュ経由で配当情報を取得（銘柄コード形式の場合のみ）
+  const dividendBatchCodes = React.useMemo(
+    () => (isValidSecurityCode ? [effectiveSecurityCode] : []),
+    [effectiveSecurityCode, isValidSecurityCode]
+  );
+  const { dividendPerShareMap, loading: apiLoading } = useDividendBatch(dividendBatchCodes, isValidSecurityCode);
+  const apiDividendPerShare = dividendPerShareMap.get(effectiveSecurityCode);
 
   // searchQueryが変更されたときにstateを初期化し、保有銘柄データがあれば自動入力
   React.useEffect(() => {
