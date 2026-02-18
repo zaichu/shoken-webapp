@@ -75,6 +75,8 @@
 
 ### 環境変数
 
+バックエンドは `backend/.env` の環境変数を読み込みます。
+
 ```bash
 # 必須
 DATABASE_URL=postgresql://user:pass@host/db

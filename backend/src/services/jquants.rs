@@ -52,6 +52,12 @@ impl JQuantsService {
                 status,
                 error_text
             );
+            if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                return Err(ApiError::RateLimitError(format!(
+                    "J-Quants APIのレート制限に達しました: {}",
+                    error_text
+                )));
+            }
             return Err(ApiError::ApiError(format!(
                 "JQuants決算サマリー取得エラー ({}): {}",
                 status, error_text

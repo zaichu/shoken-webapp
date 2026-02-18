@@ -60,4 +60,52 @@ describe('PortfolioPieChart', () => {
     const chartContainer = screen.getByTestId('portfolio-pie-chart');
     expect(chartContainer).toHaveClass('custom-chart');
   });
+
+  describe('配当金額・配当利回り', () => {
+    it('配当データがある銘柄は1株配当・年間配当・利回りが表示される', () => {
+      // 1株配当マップ（J-Quants予想値）
+      const dividendMap = new Map([
+        ['7203', 50],   // 1株配当50円、年間: 50*100=5000、利回り: 50/2500*100=2.00%
+        ['6758', 360],  // 1株配当360円、年間: 360*50=18000、利回り: 360/12000*100=3.00%
+      ]);
+      render(<PortfolioPieChart data={mockData} dividendPerShareMap={dividendMap} />);
+
+      // 1株配当ラベルが各カードに表示される
+      const perShareLabels = screen.getAllByText('1株配当:');
+      expect(perShareLabels.length).toBeGreaterThanOrEqual(2);
+      // 年間配当ラベルが各カードに表示される
+      const dividendLabels = screen.getAllByText('年間配当:');
+      expect(dividendLabels.length).toBeGreaterThanOrEqual(2);
+      // 利回りが表示される
+      expect(screen.getByText('2.00%')).toBeInTheDocument();
+      expect(screen.getByText('3.00%')).toBeInTheDocument();
+    });
+
+    it('配当データがない銘柄は---が表示される', () => {
+      // 7974（任天堂）の配当データなし
+      const dividendMap = new Map([
+        ['7203', 50],
+      ]);
+      render(<PortfolioPieChart data={mockData} dividendPerShareMap={dividendMap} />);
+
+      // 配当データなしの銘柄で---が表示される
+      const dashes = screen.getAllByText('---');
+      expect(dashes.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('dividendPerShareMapが未指定の場合は全銘柄---表示', () => {
+      render(<PortfolioPieChart data={mockData} />);
+
+      // 1株配当・年間配当・配当利回りラベルが各カードに表示される
+      const perShareLabels = screen.getAllByText('1株配当:');
+      expect(perShareLabels).toHaveLength(3);
+      const dividendLabels = screen.getAllByText('年間配当:');
+      expect(dividendLabels).toHaveLength(3);
+      const yieldLabels = screen.getAllByText('配当利回り:');
+      expect(yieldLabels).toHaveLength(3);
+      // 全て---表示（1株配当 + 年間配当 + 配当利回り = 9個）
+      const dashes = screen.getAllByText('---');
+      expect(dashes).toHaveLength(9);
+    });
+  });
 });

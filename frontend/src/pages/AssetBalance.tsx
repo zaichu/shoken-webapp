@@ -11,6 +11,7 @@ import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
 import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { useJQuantsDividendBatch } from '@/features/jquants/hooks/useJQuantsDividendBatch';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
@@ -49,6 +50,7 @@ interface AssetBalanceInfoProps {
   filteredData: AssetBalanceData[];
   searchQuery: string;
   onClearFilter: () => void;
+  dividendPerShareMap: Map<string, number>;
 }
 
 /**
@@ -59,6 +61,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
   filteredData,
   searchQuery,
   onClearFilter,
+  dividendPerShareMap,
 }) => {
   const isFiltered = searchQuery !== '';
 
@@ -69,6 +72,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
         totalCount={assetBalanceData.length}
         isFiltered={isFiltered}
         onClearFilter={isFiltered ? onClearFilter : undefined}
+        dividendPerShareMap={dividendPerShareMap}
       />
     </Suspense>
   );
@@ -122,6 +126,13 @@ export function AssetBalancePage() {
       setAssetBalanceData([]);
     }
   }, [csvData, tmpAssetBalanceData, dbData]);
+
+  // J-Quants APIから1株配当を一括取得
+  const securityCodes = useMemo(
+    () => assetBalanceData.map(item => item.security_code),
+    [assetBalanceData]
+  );
+  const { dividendPerShareMap } = useJQuantsDividendBatch(securityCodes, isAuthenticated);
 
   // 検索オプションの生成
   const searchCategories = useMemo(() => ({
@@ -257,6 +268,7 @@ export function AssetBalancePage() {
                 filteredData={filteredData}
                 searchQuery={searchQuery}
                 onClearFilter={handleClearFilter}
+                dividendPerShareMap={dividendPerShareMap}
               />
             )}
 
