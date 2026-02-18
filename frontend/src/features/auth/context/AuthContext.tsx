@@ -38,22 +38,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
 
     const checkSession = async () => {
-      try {
-        // 認証確認専用クライアントで取得（timeout/retry最小化）
-        const userInfo = await authApiClient.get<UserInfo>('/auth/me', {
-          withCredentials: true,
-          signal: controller.signal,
-        });
-        setUser(userInfo);
-      } catch {
-        // StrictModeクリーンアップによるabortは無視
-        if (controller.signal.aborted) return;
-        // セッションが無効な場合
-        setUser(null);
-      } finally {
+      await authApiClient.get<UserInfo>('/auth/me', {
+        withCredentials: true,
+        signal: controller.signal,
+      }).then((userInfo) => {
         if (!controller.signal.aborted) {
-          setIsLoading(false);
+          setUser(userInfo);
         }
+      }).catch(() => {
+        // StrictModeクリーンアップによるabortは無視
+        if (!controller.signal.aborted) {
+          // セッションが無効な場合
+          setUser(null);
+        }
+      });
+
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
       }
     };
 
@@ -75,18 +76,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // バックエンドの認証エンドポイントに直接リダイレクト
     // バックエンドがGoogleの認証ページにリダイレクトする
     const apiBaseUrl = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL;
-    window.location.href = `${apiBaseUrl}/auth/google`;
+    window.location.assign(`${apiBaseUrl}/auth/google`);
   };
 
   const logout = useCallback(async () => {
     // 登録されたコールバックを先に実行（状態クリア用）
     logoutCallbacksRef.current.forEach(callback => callback());
-    try {
-      await apiClient.post('/auth/logout', {}, {
-        withCredentials: true,
-      });
-    } finally {
-      setUser(null);
+    let hasError = false;
+    let caughtError: unknown;
+    await apiClient.post('/auth/logout', {}, {
+      withCredentials: true,
+    }).catch((error: unknown) => {
+      hasError = true;
+      caughtError = error;
+    });
+    setUser(null);
+    if (hasError) {
+      throw caughtError;
     }
   }, []);
 
@@ -102,12 +108,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async () => {
     // 登録されたコールバックを先に実行（状態クリア用）
     logoutCallbacksRef.current.forEach(callback => callback());
-    try {
-      await apiClient.delete('/auth/delete-account', {
-        withCredentials: true,
-      });
-    } finally {
-      setUser(null);
+    let hasError = false;
+    let caughtError: unknown;
+    await apiClient.delete('/auth/delete-account', {
+      withCredentials: true,
+    }).catch((error: unknown) => {
+      hasError = true;
+      caughtError = error;
+    });
+    setUser(null);
+    if (hasError) {
+      throw caughtError;
     }
   }, []);
 

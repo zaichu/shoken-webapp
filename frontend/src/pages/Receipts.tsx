@@ -135,30 +135,32 @@ export function ReceiptsPage() {
     setDbLoading(true);
     setDbError(null);
 
-    try {
-      const [dividends, stocks, funds] = await Promise.all([
-        dividendApi.list(),
-        domesticStockApi.list(),
-        mutualfundApi.list(),
-      ]);
-
+    await Promise.all([
+      dividendApi.list(),
+      domesticStockApi.list(),
+      mutualfundApi.list(),
+    ]).then(([dividends, stocks, funds]) => {
       setDividendDBData(dividends.map(d => transformDBDividend(d as unknown as Record<string, unknown>)));
       setDomesticStockDBData(stocks.map(d => transformDBDomesticStock(d as unknown as Record<string, unknown>)));
       setMutualfundDBData(funds.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>)));
       hasFetched.current = true;
-    } catch (err) {
+    }).catch((err) => {
       setDbError(getDisplayErrorMessage(err, 'データ取得に失敗しました'));
-    } finally {
-      setDbLoading(false);
-      isFetchingRef.current = false;
-    }
+    });
+
+    setDbLoading(false);
+    isFetchingRef.current = false;
   }, [isAuthenticated, authLoading]);
 
   // 認証状態が確定したらDBからデータを取得
   useEffect(() => {
-    if (!authLoading) {
-      fetchFromDB();
-    }
+    if (authLoading) return;
+    const timeoutId = window.setTimeout(() => {
+      void fetchFromDB();
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [authLoading, fetchFromDB]);
 
   // ログアウト時に全データをクリア
@@ -204,16 +206,15 @@ export function ReceiptsPage() {
     const config = RECEIPT_TYPE_CONFIG[receiptsType];
     const { csvData, setCsvData } = runtimeDataMap[receiptsType];
 
-    try {
-      const items = csvData.map(config.parser);
-      await config.api.bulkCreate(items);
+    const items = csvData.map(config.parser);
+    await config.api.bulkCreate(items).then(async () => {
       setCsvData([]);
       await fetchFromDB(true);
-    } catch (err) {
+    }).catch((err) => {
       setDbError(getDisplayErrorMessage(err, '保存に失敗しました'));
-    } finally {
-      setSaving(false);
-    }
+    });
+
+    setSaving(false);
   };
 
   /**
@@ -229,14 +230,13 @@ export function ReceiptsPage() {
     const config = RECEIPT_TYPE_CONFIG[receiptsType];
     const { setDbData } = runtimeDataMap[receiptsType];
 
-    try {
-      await config.api.deleteAll();
+    await config.api.deleteAll().then(() => {
       setDbData([]);
-    } catch (err) {
+    }).catch((err) => {
       setDbError(getDisplayErrorMessage(err, '削除に失敗しました'));
-    } finally {
-      setDeleting(false);
-    }
+    });
+
+    setDeleting(false);
   };
 
   /**
@@ -256,9 +256,7 @@ export function ReceiptsPage() {
   const hasCsvData = csvData.length > 0;
 
   // 現在のタブのDBデータ件数を取得
-  const dbDataCount = useMemo(() => {
-    return runtimeDataMap[receiptsType].dbData.length;
-  }, [runtimeDataMap, receiptsType]);
+  const dbDataCount = runtimeDataMap[receiptsType].dbData.length;
 
   // 現在のタブのDBデータがあるか判定
   const hasDbData = dbDataCount > 0;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
@@ -107,7 +107,6 @@ export function AssetBalancePage() {
 
   // CSVデータの変換（空の銘柄コードをフィルタ）
   const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
-  const [assetBalanceData, setAssetBalanceData] = useState<AssetBalanceData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -116,16 +115,15 @@ export function AssetBalancePage() {
     await handleDeleteAll();
   }, [handleDeleteAll]);
 
-  // CSVデータが読み込まれたらフィルタして設定
-  useEffect(() => {
+  const assetBalanceData = useMemo(() => {
     if (csvData.length > 0) {
-      setAssetBalanceData(tmpAssetBalanceData.filter(item => item.security_code !== ''));
-    } else if (dbData.length > 0) {
-      setAssetBalanceData(dbData);
-    } else {
-      setAssetBalanceData([]);
+      return tmpAssetBalanceData.filter(item => item.security_code !== '');
     }
-  }, [csvData, tmpAssetBalanceData, dbData]);
+    if (dbData.length > 0) {
+      return dbData;
+    }
+    return [];
+  }, [csvData.length, tmpAssetBalanceData, dbData]);
 
   // J-Quants APIから1株配当を一括取得
   const securityCodes = useMemo(
