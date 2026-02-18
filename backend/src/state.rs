@@ -17,7 +17,7 @@ impl Secrets {
     pub fn from_env() -> Result<Self, String> {
         Ok(Self {
             database_url: std::env::var("DATABASE_URL")
-                .map_err(|_| "DATABASE_URL が設定されていません".to_string())?,
+                .map_err(|_| "DATABASE_URL が設定されていません（backend/.env を確認してください）".to_string())?,
             jquants_api_key: std::env::var("JQUANTS_API_KEY").ok(),
             google_client_id: std::env::var("GOOGLE_CLIENT_ID").ok(),
             google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").ok(),
