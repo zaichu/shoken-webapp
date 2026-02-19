@@ -96,6 +96,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         const cellStyle: React.CSSProperties = {
             minWidth: 'width' in column ? column.width : undefined,
             textAlign: column.textAlign,
+            fontVariantNumeric: column.textAlign === 'right' ? 'tabular-nums' : undefined,
             ...style
         };
 

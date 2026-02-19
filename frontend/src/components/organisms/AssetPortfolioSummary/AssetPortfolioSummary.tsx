@@ -120,31 +120,35 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
               </div>
             )}
             {/* KPI行 */}
-            <div className="flex items-end gap-6">
-              <div>
-                <p className="text-sm text-slate-500">合計取得総額</p>
-                <p className="text-3xl font-bold text-primary" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500 mb-1">合計取得総額</p>
+                <p className="text-2xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
                   {formatCurrency(totalPurchaseAmount)}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">年間配当金額</p>
-                <p className="text-3xl font-bold text-emerald-600" data-testid="portfolio-annual-dividends">
+              <div className="rounded-lg bg-emerald-50 px-4 py-3">
+                <p className="text-xs text-slate-500 mb-1">年間配当金額</p>
+                <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
                   {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">配当利回り</p>
-                <p className="text-3xl font-bold text-emerald-600" data-testid="portfolio-dividend-yield">
+              <div className="rounded-lg bg-emerald-50 px-4 py-3">
+                <p className="text-xs text-slate-500 mb-1">配当利回り</p>
+                <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
                   {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
                 </p>
               </div>
-              <p className="pb-1 text-sm text-slate-500">
-                {isFiltered
-                  ? `${displayCount}銘柄（全${actualTotalCount}銘柄中）`
-                  : `${displayCount}銘柄を保有`
-                }
-              </p>
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500 mb-1">保有銘柄数</p>
+                <p className="text-2xl font-bold text-slate-700 tabular-nums">
+                  {isFiltered
+                    ? `${displayCount} / ${actualTotalCount}`
+                    : `${displayCount}`
+                  }
+                  <span className="text-sm font-normal text-slate-500 ml-1">銘柄</span>
+                </p>
+              </div>
             </div>
           </div>
           {/* 銘柄別構成比 */}

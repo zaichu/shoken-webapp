@@ -80,10 +80,10 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
     // CSSクラスの構築（モバイル対応: パディング縮小、フォント調整）
     const tableClasses = cn(
       'w-full text-left border-collapse',
-      small ? 'text-xs sm:text-sm' : 'text-sm sm:text-base',
+      small ? 'text-sm' : 'text-sm sm:text-base',
       bordered && '[&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black',
       small
-        ? '[&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2.5 sm:[&_th]:px-3 sm:[&_td]:py-2.5 sm:[&_td]:px-3'
+        ? '[&_th]:py-2 [&_th]:px-2 [&_td]:py-2 [&_td]:px-2 sm:[&_th]:py-2.5 sm:[&_th]:px-3 sm:[&_td]:py-2.5 sm:[&_td]:px-3'
         : '[&_th]:py-2 [&_th]:px-2 [&_td]:py-2 [&_td]:px-2 sm:[&_th]:py-3 sm:[&_th]:px-4 sm:[&_td]:py-3 sm:[&_td]:px-4',
       variant && variantBgColors[variant],
       striped && '[&_tbody_tr:nth-child(even)]:bg-slate-50',
