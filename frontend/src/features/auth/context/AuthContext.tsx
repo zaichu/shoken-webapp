@@ -44,18 +44,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).then((userInfo) => {
         if (!controller.signal.aborted) {
           setUser(userInfo);
+          setIsLoading(false);
         }
       }).catch(() => {
         // StrictModeクリーンアップによるabortは無視
         if (!controller.signal.aborted) {
           // セッションが無効な場合
           setUser(null);
+          setIsLoading(false);
         }
       });
-
-      if (!controller.signal.aborted) {
-        setIsLoading(false);
-      }
     };
 
     // URLパラメータでログイン成功を検知
