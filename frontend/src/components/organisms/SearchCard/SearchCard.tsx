@@ -211,8 +211,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         絞り込み解除
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
-                    <span className="flex items-center gap-1.5" aria-hidden="true">
-                        <span className="text-xs font-medium opacity-80">
+                    <span className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5" aria-hidden="true">
+                        <span className="text-xs font-semibold text-white">
                             {isExpanded ? '閉じる' : '開く'}
                         </span>
                         <svg
