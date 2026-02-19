@@ -111,7 +111,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('text-xs');
+    expect(table).toHaveClass('text-sm');
   });
 
   test('responsiveプロパティが正しく適用される', () => {
