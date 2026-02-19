@@ -96,22 +96,18 @@ export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
 }) => {
   const formattedValue = format(value);
 
-  const renderValue = () => {
-    if (!showRate || rate === undefined) {
-      return formattedValue;
-    }
-
-    return (
-      <div>
-        <div>{formattedValue} ({rateFormat(rate)})</div>
-      </div>
-    );
-  };
-
   return (
     <StatItem
       title={title}
-      value={renderValue()}
+      value={
+        !showRate || rate === undefined ? (
+          formattedValue
+        ) : (
+          <div>
+            <div>{formattedValue} ({rateFormat(rate)})</div>
+          </div>
+        )
+      }
       className={className}
       variant={variant}
     />

@@ -18,6 +18,12 @@ interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     onSearch?: (query: string) => void;
 }
 
+const renderTextValue = (value: unknown): string | number => {
+    if (typeof value === 'string' || typeof value === 'number') return value;
+    if (value === null || value === undefined) return '';
+    return String(value);
+};
+
 /**
  * 明細表示用テーブルコンポーネント
  */
@@ -46,16 +52,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     onSearch
 }: ReceiptTableProps<T, S>) {
     const forceResize = useForceResize();
-
-    const renderTextValue = (value: unknown): string | number => {
-        if (typeof value === 'string' || typeof value === 'number') {
-            return value;
-        }
-        if (value === null || value === undefined) {
-            return '';
-        }
-        return String(value);
-    };
 
     const isNegativeValue = (value: unknown): boolean => {
         if (typeof value === 'number') {
