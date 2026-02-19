@@ -10,7 +10,7 @@ export interface StatItemProps {
   className?: string;
   titleClassName?: string;
   valueClassName?: string;
-  variant?: 'default' | 'card' | 'inline';
+  variant?: 'default' | 'card' | 'inline' | 'flat';
 }
 
 /**
@@ -38,6 +38,12 @@ export const StatItem: React.FC<StatItemProps> = ({
           container: 'flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0',
           title: 'text-secondary',
           value: 'font-bold'
+        };
+      case 'flat':
+        return {
+          container: 'rounded-lg px-4 py-3',
+          title: 'text-xs font-medium text-slate-600 mb-1',
+          value: 'text-2xl font-bold tabular-nums'
         };
       default:
         return {

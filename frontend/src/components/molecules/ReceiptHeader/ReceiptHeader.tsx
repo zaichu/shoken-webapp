@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useId, useState } from 'react';
-import { StatItem } from '@/components/atoms/StatItem';
-import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
+import { cn } from '@/lib/utils/classNames';
+import { Card, CardHeader, CardBody } from '@/components/atoms/Card';
 import { HeaderItem } from '@/types/common';
 
 interface ReceiptHeaderProps {
@@ -21,7 +21,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
 
-    // collapsible が切り替わった際に展開状態をリセット（指摘 #1 対応）
     useEffect(() => {
         setIsExpanded(collapsible ? defaultExpanded : true);
     }, [collapsible, defaultExpanded]);
@@ -43,8 +42,13 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     return (
         <Card>
             <CardHeader
-                variant="primary"
-                className={collapsible ? 'flex cursor-pointer items-center justify-between' : undefined}
+                variant="secondary"
+                className={cn(
+                    'flex items-center justify-between',
+                    collapsible
+                        ? cn('cursor-pointer select-none transition-colors', effectiveExpanded ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-400 hover:bg-slate-500')
+                        : 'bg-slate-600'
+                )}
                 onClick={collapsible ? handleToggleExpanded : undefined}
                 onKeyDown={collapsible ? handleKeyDown : undefined}
                 role={collapsible ? 'button' : undefined}
@@ -53,38 +57,49 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                 aria-controls={collapsible ? bodyId : undefined}
                 data-testid="receipt-header"
             >
-                <h5>{title}</h5>
+                <h5 className="text-sm font-semibold text-white">{title}</h5>
                 {collapsible && (
-                    <span className="flex items-center gap-1 text-xs font-medium bg-white/20 px-2 py-1 rounded">
-                        {effectiveExpanded ? '▲ 閉じる' : '▼ 開く'}
+                    <span className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5" aria-hidden="true">
+                        <span className="text-xs font-semibold text-white">
+                            {effectiveExpanded ? '閉じる' : '開く'}
+                        </span>
+                        <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${effectiveExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                     </span>
                 )}
             </CardHeader>
             {/* 折りたたみ時はhiddenで非表示（children内のstateを保持するため） */}
-            <CardBody id={bodyId} className="p-4" hidden={collapsible && !effectiveExpanded}>
-                {/* stat-gridはitemsがある場合のみ表示 */}
+            <CardBody id={bodyId} hidden={collapsible && !effectiveExpanded} className="p-4">
                 {items.length > 0 && (
-                    <div className="stat-grid">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3" data-testid="kpi-grid">
                         {items.map((item) => (
-                            <StatItem
+                            <div
                                 key={item.title}
-                                title={item.title}
-                                value={
-                                    <span data-negative={item.value < 0 ? 'true' : undefined}>
-                                        {item.format(item.value)}
-                                    </span>
-                                }
-                            />
+                                className={cn('rounded-lg px-4 py-3', item.className ?? 'bg-slate-50')}
+                            >
+                                <p className="text-xs font-medium text-slate-600 mb-1">{item.title}</p>
+                                <p
+                                    className={cn('text-2xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                    data-negative={item.value < 0 ? 'true' : undefined}
+                                >
+                                    {item.format(item.value)}
+                                </p>
+                            </div>
                         ))}
                     </div>
                 )}
-                {/* childrenはitemsがある場合のみ上余白を設ける */}
                 {children && (
                     <div className={items.length > 0 ? 'mt-4 pt-4 border-t border-slate-200' : ''}>
                         {children}
                     </div>
                 )}
             </CardBody>
-        </Card >
+        </Card>
     );
 };

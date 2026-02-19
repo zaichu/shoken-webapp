@@ -7,6 +7,8 @@ export interface HeaderItem {
   title: string;
   value: number;
   format: (value: number) => string;
+  className?: string;
+  valueClassName?: string;
 }
 
 export interface SelectOption {
