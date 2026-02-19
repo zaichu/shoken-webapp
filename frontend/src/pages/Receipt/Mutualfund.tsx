@@ -86,17 +86,23 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         {
             title: '実現損益',
             value: calculations.total_realized_profit_and_loss,
-            format: formatCurrency
+            format: formatCurrency,
+            className: 'bg-emerald-50',
+            valueClassName: 'text-emerald-600'
         },
         {
             title: '税額',
             value: calculations.total_taxes,
-            format: formatCurrency
+            format: formatCurrency,
+            className: 'bg-red-50',
+            valueClassName: 'text-red-500'
         },
         {
             title: '実現損益(税引)',
             value: calculations.total_realized_profit_and_loss_after_tax,
-            format: formatCurrency
+            format: formatCurrency,
+            className: 'bg-emerald-50',
+            valueClassName: 'text-emerald-600'
         }
     ];
 

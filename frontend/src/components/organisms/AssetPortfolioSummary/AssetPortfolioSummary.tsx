@@ -122,25 +122,25 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             {/* KPI行 */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-xs text-slate-500 mb-1">合計取得総額</p>
+                <p className="text-xs font-medium text-slate-600 mb-1">合計取得総額</p>
                 <p className="text-2xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
                   {formatCurrency(totalPurchaseAmount)}
                 </p>
               </div>
               <div className="rounded-lg bg-emerald-50 px-4 py-3">
-                <p className="text-xs text-slate-500 mb-1">年間配当金額</p>
+                <p className="text-xs font-medium text-slate-600 mb-1">年間配当金額</p>
                 <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
                   {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
                 </p>
               </div>
               <div className="rounded-lg bg-emerald-50 px-4 py-3">
-                <p className="text-xs text-slate-500 mb-1">配当利回り</p>
+                <p className="text-xs font-medium text-slate-600 mb-1">配当利回り</p>
                 <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
                   {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
                 </p>
               </div>
               <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-xs text-slate-500 mb-1">保有銘柄数</p>
+                <p className="text-xs font-medium text-slate-600 mb-1">保有銘柄数</p>
                 <p className="text-2xl font-bold text-slate-700 tabular-nums">
                   {isFiltered
                     ? `${displayCount} / ${actualTotalCount}`
