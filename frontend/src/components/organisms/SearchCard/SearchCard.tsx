@@ -180,7 +180,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-6">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
                         type="button"

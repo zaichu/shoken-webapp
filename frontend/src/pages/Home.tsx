@@ -14,6 +14,7 @@ const FEATURES = [
   {
     title: '銘柄検索',
     description: '日本の株式銘柄情報を検索できます。',
+    detail: '銘柄コード・会社名で検索し、各証券サイトへのリンクを一覧表示。',
     to: '/search',
     icon: (
       <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -24,6 +25,7 @@ const FEATURES = [
   {
     title: '資産管理',
     description: '保有している銘柄の一覧と評価額を確認できます。',
+    detail: 'CSVをインポートして取得単価・時価・配当利回りをまとめて管理。',
     to: '/assetbalance',
     icon: (
       <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -34,6 +36,7 @@ const FEATURES = [
   {
     title: '取引明細',
     description: '配当金や分配金の記録を管理できます。',
+    detail: '配当金・国内株式・投資信託の取引履歴を年別・銘柄別で絞り込み確認。',
     to: '/receipts',
     icon: (
       <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -53,17 +56,21 @@ export function HomePage() {
         />
 
         <div className="grid gap-4 md:grid-cols-3">
-          {FEATURES.map(({ title, description, to, icon }) => (
+          {FEATURES.map(({ title, description, detail, to, icon }) => (
             <Link key={to} to={to} className="block group">
               <Card className="h-full transition-shadow hover:shadow-md">
-                <CardBody className="space-y-2 p-3">
+                <CardBody className="space-y-3 p-4">
                   <div className="flex items-center gap-2">
                     {icon}
                     <h3 className="text-base font-semibold text-slate-900 group-hover:text-primary transition-colors">
                       {title}
                     </h3>
                   </div>
-                  <p className="text-sm text-slate-600">{description}</p>
+                  <p className="text-sm text-slate-700 font-medium">{description}</p>
+                  <p className="text-xs text-slate-500">{detail}</p>
+                  <div className="pt-1 text-xs text-primary font-medium group-hover:underline">
+                    開く →
+                  </div>
                 </CardBody>
               </Card>
             </Link>
