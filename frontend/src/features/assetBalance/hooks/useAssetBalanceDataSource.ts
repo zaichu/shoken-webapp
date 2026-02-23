@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useCSVReader, CSVReaderHook } from '@/hooks/useCSVReader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { assetBalanceQueryKeys } from '../queryKeys';
 
 export interface UseAssetBalanceDataSourceResult {
   // データ
@@ -26,113 +28,87 @@ export interface UseAssetBalanceDataSourceResult {
 }
 
 /**
- * 保有銘柄データソースを管理するフック
- * 認証→DB取得→CSV→保存/削除→logout時クリアを管理
+ * 保有銘柄データソースを TanStack Query で管理するフック
  */
 export function useAssetBalanceDataSource(
   parseCsvItem: (item: Record<string, unknown>) => AssetBalanceData,
   filterCsvItem?: (item: AssetBalanceData) => boolean
 ): UseAssetBalanceDataSourceResult {
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
+  const queryClient = useQueryClient();
 
   const [csvData, setCsvData] = useState<Record<string, unknown>[]>([]);
-  const [dbData, setDbData] = useState<AssetBalanceData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
   const csvReader = useCSVReader({ skipHeaderRows: 6 });
 
-  const hasFetched = useRef(false);
-  const isFetchingRef = useRef(false);
+  const dbQuery = useQuery({
+    queryKey: assetBalanceQueryKeys.all,
+    queryFn: () => assetBalanceApi.list(),
+    enabled: isAuthenticated && !authLoading,
+  });
 
-  const refetch = useCallback(async (force = false) => {
-    if (authLoading) return;
-    if (!isAuthenticated) return;
-    if (hasFetched.current && !force) return;
-    if (isFetchingRef.current) return;
+  const bulkCreateMutation = useMutation({
+    mutationFn: (items: AssetBalanceData[]) => assetBalanceApi.bulkCreate(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all });
+    },
+  });
 
-    isFetchingRef.current = true;
-    setLoading(true);
-    setError(null);
+  const deleteAllMutation = useMutation({
+    mutationFn: () => assetBalanceApi.deleteAll(),
+    onSuccess: () => {
+      queryClient.setQueryData(assetBalanceQueryKeys.all, []);
+    },
+  });
 
-    try {
-      const data = await assetBalanceApi.list();
-      setDbData(data);
-      hasFetched.current = true;
-    } catch (err) {
-      setError(getDisplayErrorMessage(err, 'データ取得に失敗しました'));
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [authLoading, isAuthenticated]);
-
-  useEffect(() => {
-    if (!authLoading) {
-      refetch();
-    }
-  }, [authLoading, refetch]);
-
+  // ログアウト時にキャッシュと CSV をクリア
   useEffect(() => {
     return onLogout(() => {
-      setDbData([]);
       setCsvData([]);
-      setError(null);
-      hasFetched.current = false;
       csvReader.reset();
+      queryClient.setQueryData(assetBalanceQueryKeys.all, []);
     });
-  }, [onLogout, csvReader]);
+  }, [onLogout, csvReader, queryClient]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     try {
       const data = await csvReader.parseCSV(file);
       setCsvData(data);
       if (csvReader.error) csvReader.resetError();
-    } catch (e) {
-      setError(getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました'));
+    } catch {
+      // CSVパースエラーは csvReader.error に反映される
     }
   }, [csvReader]);
 
   const handleSaveToDB = useCallback(async () => {
-    if (!isAuthenticated) return;
-    if (csvData.length === 0) return;
-
-    setSaving(true);
-    setError(null);
-
+    if (!isAuthenticated || csvData.length === 0) return;
+    let items = csvData.map(parseCsvItem);
+    if (filterCsvItem) items = items.filter(filterCsvItem);
     try {
-      let items = csvData.map(parseCsvItem);
-      if (filterCsvItem) {
-        items = items.filter(filterCsvItem);
-      }
-      await assetBalanceApi.bulkCreate(items);
+      await bulkCreateMutation.mutateAsync(items);
       setCsvData([]);
       csvReader.reset();
-      await refetch(true);
-    } catch (err) {
-      setError(getDisplayErrorMessage(err, '保存に失敗しました'));
-    } finally {
-      setSaving(false);
+    } catch {
+      // エラーは bulkCreateMutation.error に反映される
     }
-  }, [csvData, csvReader, filterCsvItem, isAuthenticated, parseCsvItem, refetch]);
+  }, [bulkCreateMutation, csvData, csvReader, filterCsvItem, isAuthenticated, parseCsvItem]);
 
   const handleDeleteAll = useCallback(async () => {
     if (!isAuthenticated) return;
-
-    setDeleting(true);
-    setError(null);
-
     try {
-      await assetBalanceApi.deleteAll();
-      setDbData([]);
-    } catch (err) {
-      setError(getDisplayErrorMessage(err, '削除に失敗しました'));
-    } finally {
-      setDeleting(false);
+      await deleteAllMutation.mutateAsync();
+    } catch {
+      // エラーは deleteAllMutation.error に反映される
     }
-  }, [isAuthenticated]);
+  }, [deleteAllMutation, isAuthenticated]);
+
+  const dbData = useMemo(() => dbQuery.data ?? [], [dbQuery.data]);
+  const queryError = dbQuery.error;
+  const mutationError = bulkCreateMutation.error ?? deleteAllMutation.error;
+  const error = queryError
+    ? getDisplayErrorMessage(queryError, 'データ取得に失敗しました')
+    : mutationError
+      ? getDisplayErrorMessage(mutationError, '操作に失敗しました')
+      : null;
 
   const hasCsvData = csvData.length > 0;
   const hasDbData = useMemo(() => dbData.length > 0, [dbData]);
@@ -140,10 +116,10 @@ export function useAssetBalanceDataSource(
   return {
     dbData,
     csvData,
-    loading,
+    loading: dbQuery.isFetching,
     error,
-    saving,
-    deleting,
+    saving: bulkCreateMutation.isPending,
+    deleting: deleteAllMutation.isPending,
     csvReader,
     hasCsvData,
     hasDbData,
