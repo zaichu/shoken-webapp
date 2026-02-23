@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
-import { logError } from '@/lib/utils/errorHandler';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
 import { assetBalanceQueryKeys } from '../queryKeys';
 
@@ -27,14 +26,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
 
   const query = useQuery({
     queryKey: assetBalanceQueryKeys.all,
-    queryFn: async () => {
-      try {
-        return await assetBalanceApi.list();
-      } catch (error) {
-        logError('保有銘柄データ取得', error);
-        return [] as AssetBalanceData[];
-      }
-    },
+    queryFn: () => assetBalanceApi.list(),
     enabled,
   });
 
