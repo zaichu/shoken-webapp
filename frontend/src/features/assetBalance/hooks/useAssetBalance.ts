@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
-import { assetBalanceQueryKeys } from '../queryKeys';
+import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
 export interface UseAssetBalanceReturn {
   assetBalanceData: AssetBalanceData[];
@@ -19,18 +20,30 @@ interface UseAssetBalanceOptions {
 
 /**
  * 保有銘柄データを Query キャッシュから取得するフック
+ * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空配列を返す
  */
 export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetBalanceReturn {
   const { enabled = true } = options;
+  const { isAuthenticated, onLogout, user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? '';
 
   const query = useQuery({
-    queryKey: assetBalanceQueryKeys.all,
+    queryKey: assetBalanceQueryKeys.all(userId),
     queryFn: () => assetBalanceApi.list(),
-    enabled,
+    enabled: isAuthenticated && !!userId && enabled,
   });
 
-  const assetBalanceData = useMemo(() => query.data ?? [], [query.data]);
+  // ログアウト時：このフックがマウントされている経路でも確実にキャッシュを除去する
+  useEffect(() => {
+    return onLogout(() => clearAssetBalanceCache(queryClient));
+  }, [onLogout, queryClient]);
+
+  // 未認証時はキャッシュに残存データがあっても空を返す
+  const assetBalanceData = useMemo(
+    () => (isAuthenticated ? (query.data ?? []) : []),
+    [isAuthenticated, query.data]
+  );
 
   const getAssetBalanceByCode = useCallback(
     (code: string): AssetBalanceData | undefined => {
@@ -48,8 +61,8 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   }, [assetBalanceData]);
 
   const refetch = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all });
-  }, [queryClient]);
+    await queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(userId) });
+  }, [queryClient, userId]);
 
   return {
     assetBalanceData,

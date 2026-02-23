@@ -5,7 +5,7 @@ import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useCSVReader, CSVReaderHook } from '@/hooks/useCSVReader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
-import { assetBalanceQueryKeys } from '../queryKeys';
+import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
 export interface UseAssetBalanceDataSourceResult {
   // データ
@@ -29,43 +29,45 @@ export interface UseAssetBalanceDataSourceResult {
 
 /**
  * 保有銘柄データソースを TanStack Query で管理するフック
+ * ユーザー固有クエリキーでキャッシュを分離する
  */
 export function useAssetBalanceDataSource(
   parseCsvItem: (item: Record<string, unknown>) => AssetBalanceData,
   filterCsvItem?: (item: AssetBalanceData) => boolean
 ): UseAssetBalanceDataSourceResult {
-  const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? '';
 
   const [csvData, setCsvData] = useState<Record<string, unknown>[]>([]);
   const csvReader = useCSVReader({ skipHeaderRows: 6 });
 
   const dbQuery = useQuery({
-    queryKey: assetBalanceQueryKeys.all,
+    queryKey: assetBalanceQueryKeys.all(userId),
     queryFn: () => assetBalanceApi.list(),
-    enabled: isAuthenticated && !authLoading,
+    enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const bulkCreateMutation = useMutation({
     mutationFn: (items: AssetBalanceData[]) => assetBalanceApi.bulkCreate(items),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(userId) });
     },
   });
 
   const deleteAllMutation = useMutation({
     mutationFn: () => assetBalanceApi.deleteAll(),
     onSuccess: () => {
-      queryClient.setQueryData(assetBalanceQueryKeys.all, []);
+      queryClient.setQueryData(assetBalanceQueryKeys.all(userId), []);
     },
   });
 
-  // ログアウト時にキャッシュと CSV をクリア
+  // ログアウト時：プレフィックスマッチで全ユーザーキャッシュをクリア（他画面からのログアウトにも対応）
   useEffect(() => {
     return onLogout(() => {
+      clearAssetBalanceCache(queryClient);
       setCsvData([]);
       csvReader.reset();
-      queryClient.setQueryData(assetBalanceQueryKeys.all, []);
     });
   }, [onLogout, csvReader, queryClient]);
 
