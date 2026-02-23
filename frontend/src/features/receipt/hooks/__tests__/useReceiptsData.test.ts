@@ -1,0 +1,120 @@
+/**
+ * useReceiptsData: 認証境界・キャッシュ境界テスト
+ *
+ * ReceiptsPage を経由しない単独利用として、
+ * 未認証時のフェッチ抑止とログアウト時のキャッシュ削除を検証する
+ */
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+import { useReceiptsData } from '../useReceiptsData';
+import { receiptQueryKeys } from '../../queryKeys';
+import * as receiptApiModule from '@/features/receipt/api/receiptApi';
+import * as authHook from '@/features/auth/hooks/useAuth';
+
+// ────────────────────────────────────────────────────────
+// モック
+// ────────────────────────────────────────────────────────
+
+vi.mock('@/features/receipt/api/receiptApi', () => ({
+  dividendApi: { list: vi.fn().mockResolvedValue([]) },
+  domesticStockApi: { list: vi.fn().mockResolvedValue([]) },
+  mutualfundApi: { list: vi.fn().mockResolvedValue([]) },
+}));
+
+vi.mock('@/features/receipt/parsers', () => ({
+  transformDBDividend: vi.fn((item: unknown) => item),
+  transformDBDomesticStock: vi.fn((item: unknown) => item),
+  transformDBMutualfund: vi.fn((item: unknown) => item),
+}));
+
+vi.mock('@/features/auth/hooks/useAuth');
+
+type LogoutCallback = () => void;
+type UseAuthReturn = ReturnType<typeof authHook.useAuth>;
+
+function makeAuthMock(opts: {
+  isAuthenticated?: boolean;
+  userId?: string;
+  onLogoutCapture?: (cb: LogoutCallback) => void;
+}): UseAuthReturn {
+  const { isAuthenticated = true, userId = 'user-1', onLogoutCapture } = opts;
+  return {
+    user: isAuthenticated ? { id: userId, email: 'test@example.com' } : null,
+    setUser: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn().mockResolvedValue(undefined),
+    deleteAccount: vi.fn().mockResolvedValue(undefined),
+    isAuthenticated,
+    isLoading: false,
+    onLogout: (cb: LogoutCallback) => {
+      onLogoutCapture?.(cb);
+      return () => {};
+    },
+  };
+}
+
+function makeWrapper(qc: QueryClient) {
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: qc }, children);
+  }
+  return Wrapper;
+}
+
+// ────────────────────────────────────────────────────────
+// テスト
+// ────────────────────────────────────────────────────────
+
+describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('未認証時: API フェッチが行われない', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+
+    renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    // フェッチされないことを確認（100ms 待って呼ばれていない）
+    await new Promise((r) => setTimeout(r, 100));
+    expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalled();
+    expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalled();
+    expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalled();
+  });
+
+  it('onLogout コールバック実行で receipts キャッシュが除去される', async () => {
+    let capturedCallback: LogoutCallback | null = null;
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ onLogoutCapture: (cb) => { capturedCallback = cb; } })
+    );
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
+      { id: '1', payment_date: '2023-01-01' } as never,
+    ]);
+
+    renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    // キャッシュにデータが入るまで待つ
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeDefined();
+    });
+    await waitFor(() => expect(capturedCallback).not.toBeNull());
+
+    act(() => {
+      capturedCallback!();
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+    });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
+    });
+  });
+});

@@ -48,7 +48,7 @@ export function ReceiptsPage() {
     bulkCreate,
     deleteAll,
     clearCache,
-  } = useReceiptsData(isAuthenticated && !authLoading);
+  } = useReceiptsData();
 
   // ログアウト時に CSV データと Query キャッシュをクリア
   useEffect(() => {

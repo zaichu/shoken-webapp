@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { receiptsReducer, initialState } from '../receiptsReducer';
 import type { ReceiptsState } from '../receiptsReducer';
 import { ReceiptsPage } from '../Receipts';
+import { receiptQueryKeys } from '@/features/receipt/queryKeys';
 
 // ────────────────────────────────────────────────────────
 // モック定義
@@ -142,12 +143,13 @@ type UseAuthReturn = ReturnType<typeof authHook.useAuth>;
 
 function makeAuthMock(opts: {
   isAuthenticated?: boolean;
+  userId?: string;
   authLoading?: boolean;
   onLogoutCapture?: (cb: LogoutCallback) => void;
 }): UseAuthReturn {
-  const { isAuthenticated = false, authLoading = false, onLogoutCapture } = opts;
+  const { isAuthenticated = false, userId = 'user-1', authLoading = false, onLogoutCapture } = opts;
   return {
-    user: null,
+    user: isAuthenticated ? { id: userId, email: 'test@example.com' } : null,
     setUser: vi.fn(),
     login: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
@@ -360,8 +362,9 @@ describe('ReceiptsPage', () => {
     });
   });
 
-  it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされる', async () => {
+  it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされ Query キャッシュが除去される', async () => {
     let capturedLogoutCallback: LogoutCallback | null = null;
+    const qc = makeQueryClient();
 
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({
@@ -376,7 +379,7 @@ describe('ReceiptsPage', () => {
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
 
-    renderWithQuery(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />, qc);
 
     await waitFor(() => expect(capturedLogoutCallback).not.toBeNull());
 
@@ -388,10 +391,14 @@ describe('ReceiptsPage', () => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
     });
 
-    act(() => { capturedLogoutCallback!(); });
+    act(() => {
+      capturedLogoutCallback!();
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+    });
 
     await waitFor(() => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
     });
+    expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
   });
 });
