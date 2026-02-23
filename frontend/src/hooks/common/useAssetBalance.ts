@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
-import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { logError } from '@/lib/utils/errorHandler';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
 

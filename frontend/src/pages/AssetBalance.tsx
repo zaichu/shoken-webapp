@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
-import { assetBalanceApi } from '@/features/receipt/api/receiptApi';
+import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
