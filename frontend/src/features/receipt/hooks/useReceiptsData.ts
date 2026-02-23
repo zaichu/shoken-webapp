@@ -104,7 +104,8 @@ export function useReceiptsData(isAuthenticated: boolean): UseReceiptsDataResult
     queryClient.setQueryData(receiptQueryKeys.mutualfund, []);
   }, [queryClient]);
 
-  const firstError = dividendQuery.error ?? domesticstockQuery.error ?? mutualfundQuery.error;
+  const queryError = dividendQuery.error ?? domesticstockQuery.error ?? mutualfundQuery.error;
+  const mutationError = bulkCreateMutation.error ?? deleteAllMutation.error;
 
   return {
     dividendData: dividendQuery.data ?? [],
@@ -114,9 +115,11 @@ export function useReceiptsData(isAuthenticated: boolean): UseReceiptsDataResult
       dividendQuery.isFetching ||
       domesticstockQuery.isFetching ||
       mutualfundQuery.isFetching,
-    dbError: firstError
-      ? getDisplayErrorMessage(firstError, 'データ取得に失敗しました')
-      : null,
+    dbError: queryError
+      ? getDisplayErrorMessage(queryError, 'データ取得に失敗しました')
+      : mutationError
+        ? getDisplayErrorMessage(mutationError, '操作に失敗しました')
+        : null,
     saving: bulkCreateMutation.isPending,
     deleting: deleteAllMutation.isPending,
     bulkCreate: bulkCreateMutation.mutate,
