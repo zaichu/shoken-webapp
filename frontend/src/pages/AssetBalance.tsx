@@ -10,10 +10,9 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { parseNumber } from '@/lib/utils/formatters';
 import { useReceiptData } from '@/hooks/receipt/useReceiptData';
-import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
-import { useReceiptDataSource } from '@/hooks/common/useReceiptDataSource';
+import { useAssetBalanceDataSource } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
@@ -102,12 +101,10 @@ export function AssetBalancePage() {
     handleFileSelect,
     handleSaveToDB,
     handleDeleteAll,
-  } = useReceiptDataSource<AssetBalanceData>({
-    api: assetBalanceApi,
+  } = useAssetBalanceDataSource(
     parseCsvItem,
-    filterCsvItem: (item) => item.security_code !== '',
-    csvReaderOptions: { skipHeaderRows: 6 },
-  });
+    (item: AssetBalanceData) => item.security_code !== '',
+  );
 
   // CSVデータの変換（空の銘柄コードをフィルタ）
   const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);

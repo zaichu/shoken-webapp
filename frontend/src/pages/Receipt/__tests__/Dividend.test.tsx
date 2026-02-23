@@ -35,7 +35,7 @@ vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
 }));
 
 // useAssetBalanceのモック
-vi.mock('@/hooks/common/useAssetBalance', () => ({
+vi.mock('@/features/assetBalance/hooks/useAssetBalance', () => ({
   useAssetBalance: vi.fn(() => ({
     assetBalanceData: [],
     isLoading: false,
