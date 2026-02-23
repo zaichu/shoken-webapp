@@ -3,7 +3,7 @@ import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { formatCurrency, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
-import { useAssetBalance } from '@/hooks/common/useAssetBalance';
+import { useAssetBalance } from '@/features/assetBalance/hooks/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
 import { DividendData } from '@/lib/interfaces/dividend';
 
