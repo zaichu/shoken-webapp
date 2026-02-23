@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useId, useState } from 'react';
+import React, { ReactNode, useId, useState } from 'react';
 import { cn } from '@/lib/utils/classNames';
 import { Card, CardHeader, CardBody } from '@/components/atoms/Card';
 import { HeaderItem } from '@/types/common';
@@ -20,10 +20,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
-
-    useEffect(() => {
-        setIsExpanded(collapsible ? defaultExpanded : true);
-    }, [collapsible, defaultExpanded]);
     const effectiveExpanded = collapsible ? isExpanded : true;
 
     const handleToggleExpanded = () => {

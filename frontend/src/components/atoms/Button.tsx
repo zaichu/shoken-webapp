@@ -78,31 +78,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const isDisabled = disabled || loading;
 
-    const renderContent = () => {
-      if (loading) {
-        return (
-          <>
-            <Spinner size="sm" className="mr-2" />
-            読み込み中...
-          </>
-        );
-      }
-
-      const iconElement = icon && (
-        <span className={`inline-flex items-center ${iconPosition === 'right' ? 'ml-2' : 'mr-2'}`}>
-          {icon}
-        </span>
-      );
-
-      return (
-        <>
-          {icon && iconPosition === 'left' && iconElement}
-          {children}
-          {icon && iconPosition === 'right' && iconElement}
-        </>
-      );
-    };
-
     return (
       <button
         ref={ref}
@@ -111,7 +86,22 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         data-loading={loading ? 'true' : undefined}
         {...rest}
       >
-        {renderContent()}
+        {loading ? (
+          <>
+            <Spinner size="sm" className="mr-2" />
+            読み込み中...
+          </>
+        ) : (
+          <>
+            {icon && iconPosition === 'left' && (
+              <span className="inline-flex items-center mr-2">{icon}</span>
+            )}
+            {children}
+            {icon && iconPosition === 'right' && (
+              <span className="inline-flex items-center ml-2">{icon}</span>
+            )}
+          </>
+        )}
       </button>
     );
   }

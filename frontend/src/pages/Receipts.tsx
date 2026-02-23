@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useReducer, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
@@ -24,8 +24,7 @@ import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
-
-type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
+import { type ReceiptsType, initialState, receiptsReducer } from './receiptsReducer';
 
 // 明細種類ごとの静的設定
 interface ReceiptTypeStaticConfig {
@@ -58,30 +57,18 @@ const RECEIPT_TYPE_CONFIG: Record<ReceiptsType, ReceiptTypeStaticConfig> = {
   },
 };
 
+
 /**
  * 明細種類ごとにCSVデータを管理するページコンポーネント
  * ログイン時はDBからデータを取得、未ログイン時はCSVから取得
  */
 export function ReceiptsPage() {
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
-  const [receiptsType, setReceiptsType] = useState<ReceiptsType>('dividend');
-
-  // CSVから読み込んだデータ
-  const [dividendCsvData, setDividendCsvData] = useState<Record<string, unknown>[]>([]);
-  const [domesticStockCsvData, setDomesticStockCsvData] = useState<Record<string, unknown>[]>([]);
-  const [mutualfundCsvData, setMutualfundCsvData] = useState<Record<string, unknown>[]>([]);
-
-  // DBから読み込んだデータ
-  const [dividendDBData, setDividendDBData] = useState<DividendData[]>([]);
-  const [domesticStockDBData, setDomesticStockDBData] = useState<DomesticStockData[]>([]);
-  const [mutualfundDBData, setMutualfundDBData] = useState<MutualfundData[]>([]);
-
-  // DB読み込み状態
-  const [dbLoading, setDbLoading] = useState(false);
-  const [dbError, setDbError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [state, dispatch] = useReducer(receiptsReducer, initialState);
+  const {
+    receiptsType, csvData, dbData,
+    dbLoading, dbError, saving, deleting, showDeleteConfirm,
+  } = state;
 
   // 各明細種類ごとにCSVリーダーフックを作成
   const dividendCSV = useCSVReader();
@@ -92,30 +79,26 @@ export function ReceiptsPage() {
   const runtimeDataMap = useMemo(() => ({
     dividend: {
       csvReader: dividendCSV,
-      csvData: dividendCsvData,
-      setCsvData: setDividendCsvData,
-      dbData: dividendDBData,
-      setDbData: setDividendDBData,
+      csvData: csvData.dividend,
+      setCsvData: (data: Record<string, unknown>[]) => dispatch({ type: 'SET_CSV_DATA', receiptsType: 'dividend', payload: data }),
+      dbData: dbData.dividend,
+      setDbData: (data: DividendData[]) => dispatch({ type: 'SET_DB_DATA', receiptsType: 'dividend', payload: data }),
     },
     domesticstock: {
       csvReader: domesticStockCSV,
-      csvData: domesticStockCsvData,
-      setCsvData: setDomesticStockCsvData,
-      dbData: domesticStockDBData,
-      setDbData: setDomesticStockDBData,
+      csvData: csvData.domesticstock,
+      setCsvData: (data: Record<string, unknown>[]) => dispatch({ type: 'SET_CSV_DATA', receiptsType: 'domesticstock', payload: data }),
+      dbData: dbData.domesticstock,
+      setDbData: (data: DomesticStockData[]) => dispatch({ type: 'SET_DB_DATA', receiptsType: 'domesticstock', payload: data }),
     },
     mutualfund: {
       csvReader: mutualfundCSV,
-      csvData: mutualfundCsvData,
-      setCsvData: setMutualfundCsvData,
-      dbData: mutualfundDBData,
-      setDbData: setMutualfundDBData,
+      csvData: csvData.mutualfund,
+      setCsvData: (data: Record<string, unknown>[]) => dispatch({ type: 'SET_CSV_DATA', receiptsType: 'mutualfund', payload: data }),
+      dbData: dbData.mutualfund,
+      setDbData: (data: MutualfundData[]) => dispatch({ type: 'SET_DB_DATA', receiptsType: 'mutualfund', payload: data }),
     },
-  }), [
-    dividendCSV, dividendCsvData, dividendDBData,
-    domesticStockCSV, domesticStockCsvData, domesticStockDBData,
-    mutualfundCSV, mutualfundCsvData, mutualfundDBData,
-  ]);
+  }), [dividendCSV, domesticStockCSV, mutualfundCSV, csvData, dbData]);
 
   // フェッチ済みフラグ（多重実行防止）
   const hasFetched = useRef(false);
@@ -132,23 +115,26 @@ export function ReceiptsPage() {
 
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setDbLoading(true);
-    setDbError(null);
+    dispatch({ type: 'SET_DB_LOADING', payload: true });
+    dispatch({ type: 'SET_DB_ERROR', payload: null });
 
     await Promise.all([
       dividendApi.list(),
       domesticStockApi.list(),
       mutualfundApi.list(),
     ]).then(([dividends, stocks, funds]) => {
-      setDividendDBData(dividends.map(d => transformDBDividend(d as unknown as Record<string, unknown>)));
-      setDomesticStockDBData(stocks.map(d => transformDBDomesticStock(d as unknown as Record<string, unknown>)));
-      setMutualfundDBData(funds.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>)));
+      dispatch({
+        type: 'SET_DB_ALL',
+        dividend: dividends.map(d => transformDBDividend(d as unknown as Record<string, unknown>)),
+        domesticstock: stocks.map(d => transformDBDomesticStock(d as unknown as Record<string, unknown>)),
+        mutualfund: funds.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>)),
+      });
       hasFetched.current = true;
     }).catch((err) => {
-      setDbError(getDisplayErrorMessage(err, 'データ取得に失敗しました'));
+      dispatch({ type: 'SET_DB_ERROR', payload: getDisplayErrorMessage(err, 'データ取得に失敗しました') });
     });
 
-    setDbLoading(false);
+    dispatch({ type: 'SET_DB_LOADING', payload: false });
     isFetchingRef.current = false;
   }, [isAuthenticated, authLoading]);
 
@@ -166,17 +152,7 @@ export function ReceiptsPage() {
   // ログアウト時に全データをクリア
   useEffect(() => {
     return onLogout(() => {
-      // DBデータをクリア
-      setDividendDBData([]);
-      setDomesticStockDBData([]);
-      setMutualfundDBData([]);
-      // CSVデータをクリア
-      setDividendCsvData([]);
-      setDomesticStockCsvData([]);
-      setMutualfundCsvData([]);
-      // エラー状態をクリア
-      setDbError(null);
-      // フェッチフラグをリセット
+      dispatch({ type: 'LOGOUT' });
       hasFetched.current = false;
     });
   }, [onLogout]);
@@ -190,7 +166,7 @@ export function ReceiptsPage() {
       setCsvData(await csvReader.parseCSV(file));
       if (csvReader.error) csvReader.resetError();
     } catch (e) {
-      setDbError(getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました'));
+      dispatch({ type: 'SET_DB_ERROR', payload: getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました') });
     }
   };
 
@@ -200,21 +176,21 @@ export function ReceiptsPage() {
   const handleSaveToDB = async () => {
     if (!isAuthenticated) return;
 
-    setSaving(true);
-    setDbError(null);
+    dispatch({ type: 'SET_SAVING', payload: true });
+    dispatch({ type: 'SET_DB_ERROR', payload: null });
 
     const config = RECEIPT_TYPE_CONFIG[receiptsType];
-    const { csvData, setCsvData } = runtimeDataMap[receiptsType];
+    const { csvData: tabCsvData, setCsvData } = runtimeDataMap[receiptsType];
 
-    const items = csvData.map(config.parser);
+    const items = tabCsvData.map(config.parser);
     await config.api.bulkCreate(items).then(async () => {
       setCsvData([]);
       await fetchFromDB(true);
     }).catch((err) => {
-      setDbError(getDisplayErrorMessage(err, '保存に失敗しました'));
+      dispatch({ type: 'SET_DB_ERROR', payload: getDisplayErrorMessage(err, '保存に失敗しました') });
     });
 
-    setSaving(false);
+    dispatch({ type: 'SET_SAVING', payload: false });
   };
 
   /**
@@ -223,9 +199,9 @@ export function ReceiptsPage() {
   const handleDeleteAll = async () => {
     if (!isAuthenticated) return;
 
-    setShowDeleteConfirm(false);
-    setDeleting(true);
-    setDbError(null);
+    dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
+    dispatch({ type: 'SET_DELETING', payload: true });
+    dispatch({ type: 'SET_DB_ERROR', payload: null });
 
     const config = RECEIPT_TYPE_CONFIG[receiptsType];
     const { setDbData } = runtimeDataMap[receiptsType];
@@ -233,27 +209,27 @@ export function ReceiptsPage() {
     await config.api.deleteAll().then(() => {
       setDbData([]);
     }).catch((err) => {
-      setDbError(getDisplayErrorMessage(err, '削除に失敗しました'));
+      dispatch({ type: 'SET_DB_ERROR', payload: getDisplayErrorMessage(err, '削除に失敗しました') });
     });
 
-    setDeleting(false);
+    dispatch({ type: 'SET_DELETING', payload: false });
   };
 
   /**
    * 現在選択中のタブに対応するエラーとローディング状態を取得
    */
   const currentCSVState = useMemo(() => {
-    const { csvReader, csvData } = runtimeDataMap[receiptsType];
+    const { csvReader, csvData: tabCsvData } = runtimeDataMap[receiptsType];
     return {
       isLoading: csvReader.isLoading,
       error: csvReader.error,
       fileName: csvReader.fileName,
-      csvData,
+      tabCsvData,
     };
   }, [runtimeDataMap, receiptsType]);
 
-  const { isLoading, error, fileName, csvData } = currentCSVState;
-  const hasCsvData = csvData.length > 0;
+  const { isLoading, error, fileName, tabCsvData } = currentCSVState;
+  const hasCsvData = tabCsvData.length > 0;
 
   // 現在のタブのDBデータ件数を取得
   const dbDataCount = runtimeDataMap[receiptsType].dbData.length;
@@ -266,16 +242,16 @@ export function ReceiptsPage() {
 
   // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
   const dividendData = useMemo(
-    () => (isAuthenticated && dividendDBData.length > 0 ? dividendDBData : dividendCsvData),
-    [isAuthenticated, dividendDBData, dividendCsvData]
+    () => (isAuthenticated && dbData.dividend.length > 0 ? dbData.dividend : csvData.dividend),
+    [isAuthenticated, dbData.dividend, csvData.dividend]
   );
   const domesticStockData = useMemo(
-    () => (isAuthenticated && domesticStockDBData.length > 0 ? domesticStockDBData : domesticStockCsvData),
-    [isAuthenticated, domesticStockDBData, domesticStockCsvData]
+    () => (isAuthenticated && dbData.domesticstock.length > 0 ? dbData.domesticstock : csvData.domesticstock),
+    [isAuthenticated, dbData.domesticstock, csvData.domesticstock]
   );
   const mutualfundData = useMemo(
-    () => (isAuthenticated && mutualfundDBData.length > 0 ? mutualfundDBData : mutualfundCsvData),
-    [isAuthenticated, mutualfundDBData, mutualfundCsvData]
+    () => (isAuthenticated && dbData.mutualfund.length > 0 ? dbData.mutualfund : csvData.mutualfund),
+    [isAuthenticated, dbData.mutualfund, csvData.mutualfund]
   );
 
   return (
@@ -297,7 +273,7 @@ export function ReceiptsPage() {
                     ? 'border-primary text-primary bg-white'
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                 }`}
-                onClick={() => setReceiptsType(tab)}
+                onClick={() => dispatch({ type: 'SET_RECEIPTS_TYPE', payload: tab })}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
@@ -337,7 +313,7 @@ export function ReceiptsPage() {
                   <Button
                     variant="outline-danger"
                     size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
                     disabled={saving || deleting || dbLoading}
                     aria-disabled={saving || deleting || dbLoading}
                   >
@@ -380,7 +356,7 @@ export function ReceiptsPage() {
         <ConfirmDeleteModal
           isOpen={showDeleteConfirm}
           onConfirm={handleDeleteAll}
-          onCancel={() => setShowDeleteConfirm(false)}
+          onCancel={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false })}
           title={`${tabName}データの全件削除`}
           description={`【${tabName}】のデータをすべて削除します。`}
           itemCount={dbDataCount}

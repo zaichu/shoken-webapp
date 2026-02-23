@@ -3,6 +3,97 @@ import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
+interface QuickSearchDropdownProps {
+    items: { value: string; label: string }[];
+    id: string;
+    searchType: 'securities' | 'years';
+    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    searchQuery: string;
+    onSearch: (value: string, searchType: 'securities' | 'years') => void;
+}
+
+const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
+    items, id, searchType, activeSearchType, searchQuery, onSearch
+}) => {
+    const displayValue = activeSearchType === searchType ? searchQuery : '';
+    const isSelected = activeSearchType === searchType && displayValue !== '';
+    return (
+        <div className="relative">
+            <select
+                id={id}
+                className={`w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${
+                    isSelected
+                        ? 'border-primary bg-primary/20 text-blue-800 font-bold ring-2 ring-primary/50'
+                        : 'border-gray-300 bg-white text-dark hover:border-slate-400 focus:border-primary focus:ring-primary/25'
+                }`}
+                value={displayValue}
+                onChange={(e) => onSearch(e.target.value, searchType)}
+                aria-label="検索フィルター"
+            >
+                <option value="">全て表示</option>
+                {items.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+            {isSelected && (
+                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-blue-700 pointer-events-none">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                </span>
+            )}
+        </div>
+    );
+};
+
+interface QuickSearchButtonsProps {
+    items: string[];
+    searchType: 'products' | 'accounts';
+    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    searchQuery: string;
+    onSearch: (value: string, searchType: 'products' | 'accounts') => void;
+}
+
+const QuickSearchButtons: React.FC<QuickSearchButtonsProps> = ({
+    items, searchType, activeSearchType, searchQuery, onSearch
+}) => {
+    if (!items || items.length === 0) return null;
+    const hasSelection = activeSearchType === searchType;
+    return (
+        <>
+            {items.map((item, index) => {
+                const isSelected = activeSearchType === searchType && searchQuery === item;
+                return (
+                    <React.Fragment key={item}>
+                        <Button
+                            type="button"
+                            variant={isSelected ? 'primary' : 'outline-secondary'}
+                            size="sm"
+                            onClick={() => onSearch(item, searchType)}
+                            className={isSelected
+                                ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-md'
+                                : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none`
+                            }
+                            aria-pressed={isSelected}
+                            aria-label={isSelected ? `${item}（選択中）` : item}
+                        >
+                            {isSelected && (
+                                <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                            {item}
+                        </Button>
+                        {index % 10 === 9 && <div className="mt-1" />}
+                    </React.Fragment>
+                );
+            })}
+        </>
+    );
+};
+
 interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
@@ -77,79 +168,6 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     if (!hasAnyCategories()) {
         return null;
     }
-
-    const renderQuickSearchButtons = (items: string[], searchType: 'products' | 'accounts') => {
-        if (!items || items.length === 0) return null;
-
-        // いずれかが選択中かどうか（未選択チップをミュートするため）
-        const hasSelection = effectiveActiveSearchType === searchType;
-
-        return items.map((item, index) => {
-            const isSelected = effectiveActiveSearchType === searchType && effectiveSearchQuery === item;
-
-            return (
-                <React.Fragment key={item}>
-                    <Button
-                        type="button"
-                        variant={isSelected ? 'primary' : 'outline-secondary'}
-                        size="sm"
-                        onClick={() => handleQuickSearch(item, searchType)}
-                        className={isSelected
-                            ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-md'
-                            : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none`
-                        }
-                        aria-pressed={isSelected}
-                        aria-label={isSelected ? `${item}（選択中）` : item}
-                    >
-                        {isSelected && (
-                            <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                        )}
-                        {item}
-                    </Button>
-                    {index % 10 === 9 && <div className="mt-1" />}
-                </React.Fragment>
-            );
-        });
-    };
-
-    const renderQuickSearchDropdown = (items: { value: string, label: string }[], id: string, searchType: 'securities' | 'years') => {
-        // このドロップダウンがアクティブな検索タイプの場合のみ値を表示
-        const displayValue = effectiveActiveSearchType === searchType ? effectiveSearchQuery : '';
-        const isSelected = effectiveActiveSearchType === searchType && displayValue !== '';
-
-        return (
-            <div className="relative">
-                <select
-                    id={id}
-                    className={`w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${
-                        isSelected
-                            ? 'border-primary bg-primary/20 text-blue-800 font-bold ring-2 ring-primary/50'
-                            : 'border-gray-300 bg-white text-dark hover:border-slate-400 focus:border-primary focus:ring-primary/25'
-                    }`}
-                    value={displayValue}
-                    onChange={(e) => handleQuickSearch(e.target.value, searchType)}
-                    aria-label="検索フィルター"
-                >
-                    <option value="">全て表示</option>
-                    {items.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                {/* 選択時はチェックアイコンを表示 */}
-                {isSelected && (
-                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-blue-700 pointer-events-none">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                    </span>
-                )}
-            </div>
-        );
-    };
 
     return (
         <Card className="mt-1">
@@ -234,7 +252,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.securities) && (
                             <div className="space-y-1">
                                 <label htmlFor="securities-search" className="text-sm font-medium text-dark">銘柄</label>
-                                {renderQuickSearchDropdown(categories.securities!, 'securities-search', 'securities')}
+                                <QuickSearchDropdown
+                                    items={categories.securities!}
+                                    id="securities-search"
+                                    searchType="securities"
+                                    activeSearchType={effectiveActiveSearchType}
+                                    searchQuery={effectiveSearchQuery}
+                                    onSearch={handleQuickSearch}
+                                />
                             </div>
                         )}
 
@@ -242,7 +267,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.years) && (
                             <div className="space-y-1">
                                 <label htmlFor="years-search" className="text-sm font-medium text-dark">西暦</label>
-                                {renderQuickSearchDropdown(categories.years!, 'years-search', 'years')}
+                                <QuickSearchDropdown
+                                    items={categories.years!}
+                                    id="years-search"
+                                    searchType="years"
+                                    activeSearchType={effectiveActiveSearchType}
+                                    searchQuery={effectiveSearchQuery}
+                                    onSearch={handleQuickSearch}
+                                />
                             </div>
                         )}
 
@@ -250,7 +282,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.products) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">商品</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.products!, 'products')}</div>
+                                <div className="flex flex-wrap gap-1">
+                                    <QuickSearchButtons
+                                        items={categories.products!}
+                                        searchType="products"
+                                        activeSearchType={effectiveActiveSearchType}
+                                        searchQuery={effectiveSearchQuery}
+                                        onSearch={handleQuickSearch}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -258,7 +298,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {hasData(categories.accounts) && (
                             <div className="space-y-1">
                                 <div className="text-sm font-medium text-dark">口座</div>
-                                <div className="flex flex-wrap gap-1">{renderQuickSearchButtons(categories.accounts!, 'accounts')}</div>
+                                <div className="flex flex-wrap gap-1">
+                                    <QuickSearchButtons
+                                        items={categories.accounts!}
+                                        searchType="accounts"
+                                        activeSearchType={effectiveActiveSearchType}
+                                        searchQuery={effectiveSearchQuery}
+                                        onSearch={handleQuickSearch}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>

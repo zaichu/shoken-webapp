@@ -96,4 +96,61 @@ describe('ReceiptHeader', () => {
     fireEvent.click(header);
     expect(screen.getByText('テスト項目1')).toBeVisible();
   });
+
+  // --- 展開状態仕様（保持 vs 初期化）の明文化 ---
+
+  it('collapsible=falseのときコンテンツは常に表示され折りたたみ不可', () => {
+    // 仕様: collapsible=false の場合、effectiveExpanded は常に true
+    render(<ReceiptHeader items={defaultItems} collapsible={false} />);
+
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+    // role="button" が付与されないのでクリックしても状態変化なし
+    const header = screen.getByTestId('receipt-header');
+    expect(header).not.toHaveAttribute('role', 'button');
+  });
+
+  it('defaultExpanded=falseのとき初期状態が折りたたまれる', () => {
+    // 仕様: collapsible=true && defaultExpanded=false → 初期は閉じた状態
+    render(<ReceiptHeader items={defaultItems} collapsible defaultExpanded={false} />);
+
+    expect(screen.getByText('テスト項目1')).not.toBeVisible();
+  });
+
+  it('collapsibleがfalse→trueに切り替わっても展開状態（isExpanded）が保持される', () => {
+    // 仕様: useEffect によるリセットを廃止したため、
+    //        collapsible prop の変化ではなくユーザー操作のみが isExpanded を変える。
+    //        collapsible=false 時は effectiveExpanded=true（常時表示）、
+    //        collapsible=true に切り替わると isExpanded の前回値をそのまま使う。
+    const { rerender } = render(
+      <ReceiptHeader items={defaultItems} collapsible={false} />
+    );
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+
+    // collapsible=true に変更（初期 isExpanded は true のまま）
+    rerender(<ReceiptHeader items={defaultItems} collapsible={true} />);
+    // isExpanded=true が保持されるため引き続き表示
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+  });
+
+  it('ユーザーが折りたたんだ後、collapsibleをfalse→trueに切り替えても折りたたみ状態が保持される', () => {
+    // 仕様: ユーザーによる折りたたみ操作は isExpanded に永続される。
+    //        collapsible=false 期間は effectiveExpanded=true で表示されるが、
+    //        再び collapsible=true になると以前の isExpanded=false が復活する。
+    const { rerender } = render(
+      <ReceiptHeader items={defaultItems} collapsible={true} />
+    );
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+
+    // ユーザーが折りたたむ
+    fireEvent.click(screen.getByTestId('receipt-header'));
+    expect(screen.getByText('テスト項目1')).not.toBeVisible();
+
+    // collapsible=false に変更 → effectiveExpanded=true で強制表示
+    rerender(<ReceiptHeader items={defaultItems} collapsible={false} />);
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+
+    // collapsible=true に戻す → isExpanded=false が復活し再び折りたたまれる
+    rerender(<ReceiptHeader items={defaultItems} collapsible={true} />);
+    expect(screen.getByText('テスト項目1')).not.toBeVisible();
+  });
 });

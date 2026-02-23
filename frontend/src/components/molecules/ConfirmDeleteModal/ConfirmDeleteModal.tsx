@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/atoms/Button';
 
 interface ConfirmDeleteModalProps {
@@ -27,6 +27,8 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   confirmLabel = '削除する',
   loading = false,
 }) => {
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
   // Escapeキーで閉じる
   useEffect(() => {
     if (!isOpen) return;
@@ -36,6 +38,13 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onCancel]);
+
+  // モーダルが開いたときにキャンセルボタンにフォーカス
+  useEffect(() => {
+    if (isOpen) {
+      cancelBtnRef.current?.focus();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -81,7 +90,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
             <Button
-              autoFocus
+              ref={cancelBtnRef}
               variant="secondary"
               onClick={onCancel}
             >
