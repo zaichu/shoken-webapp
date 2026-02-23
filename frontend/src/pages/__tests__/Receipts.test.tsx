@@ -2,13 +2,14 @@
  * ReceiptsPage のテスト
  *
  * 対象:
- * - receiptsReducer: 状態遷移の単体テスト（LOGOUT, SET_DB_ALL, SET_CSV_DATA 等）
+ * - receiptsReducer: 状態遷移の単体テスト（LOGOUT, SET_CSV_DATA 等）
  * - ReceiptsPage: タブ切替・ログアウト時データクリアの統合テスト
  */
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { receiptsReducer, initialState } from '../receiptsReducer';
 import type { ReceiptsState } from '../receiptsReducer';
@@ -91,17 +92,17 @@ import * as receiptApi from '@/features/receipt/api/receiptApi';
 vi.mock('@/features/receipt/api/receiptApi', () => ({
   dividendApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({}),
+    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   domesticStockApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({}),
+    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   mutualfundApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({}),
+    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
 }));
@@ -125,6 +126,7 @@ vi.mock('@/hooks/useCSVReader', () => ({
     error: null,
     fileName: null,
     resetError: vi.fn(),
+    reset: vi.fn(),
   }),
 }));
 
@@ -159,6 +161,22 @@ function makeAuthMock(opts: {
   };
 }
 
+// テスト用 QueryClient ファクトリ（自動再フェッチなし）
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+    },
+  });
+}
+
+function renderWithQuery(ui: React.ReactElement, qc?: QueryClient) {
+  const client = qc ?? makeQueryClient();
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+  );
+}
+
 // ────────────────────────────────────────────────────────
 // receiptsReducer 単体テスト
 // ────────────────────────────────────────────────────────
@@ -167,9 +185,7 @@ describe('receiptsReducer', () => {
   it('initialState が正しく定義されている', () => {
     expect(initialState.receiptsType).toBe('dividend');
     expect(initialState.csvData.dividend).toHaveLength(0);
-    expect(initialState.dbData.dividend).toHaveLength(0);
-    expect(initialState.dbLoading).toBe(false);
-    expect(initialState.dbError).toBeNull();
+    expect(initialState.showDeleteConfirm).toBe(false);
   });
 
   it('SET_RECEIPTS_TYPE: タブを切り替える', () => {
@@ -178,23 +194,6 @@ describe('receiptsReducer', () => {
       payload: 'domesticstock',
     });
     expect(next.receiptsType).toBe('domesticstock');
-  });
-
-  it('SET_DB_ALL: 3 種類のDBデータを一括セットする', () => {
-    const mockDividend = [{ id: '1' }] as unknown as ReceiptsState['dbData']['dividend'];
-    const mockDomesticstock = [{ id: '2' }] as unknown as ReceiptsState['dbData']['domesticstock'];
-    const mockMutualfund = [{ id: '3' }] as unknown as ReceiptsState['dbData']['mutualfund'];
-
-    const next = receiptsReducer(initialState, {
-      type: 'SET_DB_ALL',
-      dividend: mockDividend,
-      domesticstock: mockDomesticstock,
-      mutualfund: mockMutualfund,
-    });
-
-    expect(next.dbData.dividend).toBe(mockDividend);
-    expect(next.dbData.domesticstock).toBe(mockDomesticstock);
-    expect(next.dbData.mutualfund).toBe(mockMutualfund);
   });
 
   it('SET_CSV_DATA: 指定タブの CSV データのみ更新する', () => {
@@ -210,7 +209,7 @@ describe('receiptsReducer', () => {
     expect(next.csvData.domesticstock).toHaveLength(0);
   });
 
-  it('LOGOUT: csvData / dbData をすべて空にし dbError をクリアする', () => {
+  it('LOGOUT: csvData をすべて空にする', () => {
     const dirtyState: ReceiptsState = {
       ...initialState,
       csvData: {
@@ -218,12 +217,6 @@ describe('receiptsReducer', () => {
         domesticstock: [{ x: 2 }],
         mutualfund: [{ x: 3 }],
       },
-      dbData: {
-        dividend: [{ id: 'a' } as unknown as ReceiptsState['dbData']['dividend'][number]],
-        domesticstock: [{ id: 'b' } as unknown as ReceiptsState['dbData']['domesticstock'][number]],
-        mutualfund: [{ id: 'c' } as unknown as ReceiptsState['dbData']['mutualfund'][number]],
-      },
-      dbError: 'なんらかのエラー',
     };
 
     const next = receiptsReducer(dirtyState, { type: 'LOGOUT' });
@@ -231,25 +224,16 @@ describe('receiptsReducer', () => {
     expect(next.csvData.dividend).toHaveLength(0);
     expect(next.csvData.domesticstock).toHaveLength(0);
     expect(next.csvData.mutualfund).toHaveLength(0);
-    expect(next.dbData.dividend).toHaveLength(0);
-    expect(next.dbData.domesticstock).toHaveLength(0);
-    expect(next.dbData.mutualfund).toHaveLength(0);
-    expect(next.dbError).toBeNull();
     // receiptsType は変更されない
     expect(next.receiptsType).toBe(dirtyState.receiptsType);
   });
 
-  it('SET_DB_ERROR / SET_DB_LOADING が正しく反映される', () => {
-    const s1 = receiptsReducer(initialState, { type: 'SET_DB_LOADING', payload: true });
-    expect(s1.dbLoading).toBe(true);
+  it('SET_SHOW_DELETE_CONFIRM が正しく反映される', () => {
+    const s1 = receiptsReducer(initialState, { type: 'SET_SHOW_DELETE_CONFIRM', payload: true });
+    expect(s1.showDeleteConfirm).toBe(true);
 
-    const s2 = receiptsReducer(s1, { type: 'SET_DB_ERROR', payload: 'エラーメッセージ' });
-    expect(s2.dbError).toBe('エラーメッセージ');
-    expect(s2.dbLoading).toBe(true); // 他フィールドは不変
-
-    const s3 = receiptsReducer(s2, { type: 'SET_DB_LOADING', payload: false });
-    expect(s3.dbLoading).toBe(false);
-    expect(s3.dbError).toBe('エラーメッセージ'); // クリアされない
+    const s2 = receiptsReducer(s1, { type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
+    expect(s2.showDeleteConfirm).toBe(false);
   });
 });
 
@@ -266,7 +250,7 @@ describe('ReceiptsPage', () => {
   it('初期表示: 配当金タブが選択されている', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
 
     // 配当金タブが aria-selected=true
     const tab = screen.getByRole('tab', { name: '配当金' });
@@ -280,7 +264,7 @@ describe('ReceiptsPage', () => {
   it('タブ切替: 国内株式タブをクリックすると DomesticStock が表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('tab', { name: '国内株式' }));
@@ -292,7 +276,7 @@ describe('ReceiptsPage', () => {
   it('タブ切替: 投資信託タブをクリックすると Mutualfund が表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('tab', { name: '投資信託' }));
@@ -302,41 +286,33 @@ describe('ReceiptsPage', () => {
   });
 
   it('CSV読込→保存: bulkCreate API が呼ばれ CSV データがクリアされる', async () => {
-    // 未認証時は保存ボタンが出ないため、認証済みとする
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
-    // 初期DBデータなし
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
-    // bulkCreate 後の再フェッチもなし
     vi.mocked(receiptApi.dividendApi.bulkCreate).mockResolvedValue({ inserted: 0, skipped: 0 });
 
-    // parseCSV が 2 件を返すように設定
     const mockRows = [{ '入金日': '2023/01/01' }, { '入金日': '2023/02/01' }];
     mockParseCSV.mockResolvedValue(mockRows);
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
 
     // DB フェッチ完了を待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    // CSV 読込ボタンをクリック
     const user = userEvent.setup();
     await user.click(screen.getByTestId('csv-file-input'));
 
-    // 保存ボタンが現れるまで待つ
     await waitFor(() => {
       expect(screen.getByText('保存')).toBeInTheDocument();
     });
 
-    // 保存ボタンをクリック
     await user.click(screen.getByText('保存'));
 
-    // bulkCreate が呼ばれたことを確認
     await waitFor(() => {
       expect(receiptApi.dividendApi.bulkCreate).toHaveBeenCalled();
     });
@@ -352,39 +328,33 @@ describe('ReceiptsPage', () => {
       makeAuthMock({ isAuthenticated: true })
     );
 
-    // 初期 DB に 1 件のデータを返す
-    const mockDbRow = { id: '1', payment_date: '2023-01-01' } as unknown as ReceiptsState['dbData']['dividend'][number];
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow]);
+    const mockDbRow = { id: '1', payment_date: '2023-01-01' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({});
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
 
-    // DB データ読み込み完了まで待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    // 「全件削除」ボタンが表示されるまで待つ
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
     });
 
-    // 削除ボタンをクリック → 確認モーダルが出る
     const user = userEvent.setup();
     await user.click(screen.getByText(/全件削除/));
     expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
 
-    // モーダルの確認ボタンをクリック
     await user.click(screen.getByTestId('confirm-delete'));
 
-    // deleteAll API が呼ばれたことを確認
     await waitFor(() => {
       expect(receiptApi.dividendApi.deleteAll).toHaveBeenCalled();
     });
 
-    // 削除後は全件削除ボタンが消える（データ 0 件）
     await waitFor(() => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
     });
@@ -400,31 +370,26 @@ describe('ReceiptsPage', () => {
       })
     );
 
-    // DB に 1 件のデータを返す
-    const mockDbRow = { id: '1', payment_date: '2023-01-01' } as unknown as ReceiptsState['dbData']['dividend'][number];
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow]);
+    const mockDbRow = { id: '1', payment_date: '2023-01-01' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
 
-    render(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />);
 
-    // ログアウトコールバックが登録されるまで待つ
     await waitFor(() => expect(capturedLogoutCallback).not.toBeNull());
 
-    // DB フェッチ完了を待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    // ログアウト前: 全件削除ボタンが存在する（DB データあり）
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
     });
 
-    // ログアウトコールバックを実行
     act(() => { capturedLogoutCallback!(); });
 
-    // ログアウト後: データがクリアされ全件削除ボタンが消える
     await waitFor(() => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
     });
