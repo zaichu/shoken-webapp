@@ -27,11 +27,37 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, Ap
     Ok(stocks)
 }
 
+/// アップロードバッチのフィンガープリントを算出する
+/// 全アイテムのフィールドを結合して MD5 を計算し、同一 CSV の再アップロードを識別する
+fn compute_batch_fingerprint(items: &[CreateDomesticStockRequest]) -> String {
+    let combined = items
+        .iter()
+        .map(|i| {
+            format!(
+                "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+                i.trade_date,
+                i.settlement_date,
+                i.security_code,
+                i.security_name,
+                i.account,
+                i.shares,
+                i.asked_price,
+                i.proceeds,
+                i.purchase_price,
+                i.realized_profit_and_loss,
+                i.taxes,
+                i.realized_profit_and_loss_after_tax,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{:x}", md5::compute(combined))
+}
+
 /// 国内株式取引を一括追加（全件挿入）
 /// 同一内容の行が複数ある場合も全件保存する。
-/// 同一CSVを再アップロードした場合は content_hash + occurrence_index の
-/// ユニーク制約により重複行がスキップされる。
-/// content_hash と occurrence_index はSQL側で算出し、Rust/SQL間の表現差異を排除する。
+/// バッチフィンガープリントにより同一 CSV の再アップロードをスキップする。
+/// 異なる CSV（増分取込）は import_batch_fingerprint が異なるため新規挿入される。
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -67,24 +93,28 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
+    // バッチフィンガープリントを算出（同一CSV再アップロード防止用）
+    let batch_fingerprint = compute_batch_fingerprint(items);
+
     // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
     // content_hash はPostgreSQL md5関数で算出（migration backfillと同一実装）
-    // occurrence_index はWITH ORDINALITYで入力順を保持しROW_NUMBERで連番付与
-    // ON CONFLICT により、同一ハッシュ・同一出現回数の行はスキップ（再アップロード防止）
+    // occurrence_index はWITH ORDINALITYで入力順を保持しROW_NUMBERで連番付与（バッチ内）
+    // ON CONFLICT により、同一バッチ・同一ハッシュ・同一出現回数の行はスキップ
     let result = sqlx::query(
         r#"
         INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
                                      security_name, account, shares, asked_price, proceeds,
                                      purchase_price, realized_profit_and_loss, taxes,
                                      realized_profit_and_loss_after_tax,
-                                     content_hash, occurrence_index)
+                                     content_hash, import_batch_fingerprint, occurrence_index)
         SELECT
             user_id, trade_date, settlement_date, security_code,
             security_name, account, shares, asked_price, proceeds,
             purchase_price, realized_profit_and_loss, taxes,
             realized_profit_and_loss_after_tax,
             content_hash,
-            ROW_NUMBER() OVER (PARTITION BY user_id, content_hash ORDER BY ordinality)::int4
+            $14::text,
+            ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
         FROM (
             SELECT
                 user_id, trade_date, settlement_date, security_code,
@@ -108,7 +138,7 @@ pub async fn bulk_create(
                    purchase_price, realized_profit_and_loss, taxes,
                    realized_profit_and_loss_after_tax, ordinality)
         ) subq
-        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
+        ON CONFLICT (user_id, import_batch_fingerprint, content_hash, occurrence_index) DO NOTHING
         "#,
     )
     .bind(&user_ids)
@@ -124,6 +154,7 @@ pub async fn bulk_create(
     .bind(&realized_pls)
     .bind(&taxes)
     .bind(&realized_pls_after_tax)
+    .bind(&batch_fingerprint)
     .execute(pool)
     .await?;
 
@@ -175,8 +206,44 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_compute_batch_fingerprint_deterministic() {
+        // 同一内容は常に同じフィンガープリントを返す
+        let items = vec![make_test_item(); 3];
+        let h1 = compute_batch_fingerprint(&items);
+        let h2 = compute_batch_fingerprint(&items);
+        assert_eq!(h1, h2);
+        assert_eq!(h1.len(), 32); // MD5 は 32 文字の hex
+    }
+
+    #[test]
+    fn test_compute_batch_fingerprint_differs_by_content() {
+        // 内容が異なれば別のフィンガープリントになる
+        let items_a = vec![make_test_item(); 3];
+        let mut item_b = make_test_item();
+        item_b.security_code = "9509".to_string();
+        let items_b = vec![item_b; 3];
+        assert_ne!(
+            compute_batch_fingerprint(&items_a),
+            compute_batch_fingerprint(&items_b)
+        );
+    }
+
+    #[test]
+    fn test_compute_batch_fingerprint_differs_by_count() {
+        // 件数が異なれば別のフィンガープリントになる（増分と全件を区別）
+        let items_3 = vec![make_test_item(); 3];
+        let items_5 = vec![make_test_item(); 5];
+        assert_ne!(
+            compute_batch_fingerprint(&items_3),
+            compute_batch_fingerprint(&items_5)
+        );
+    }
+
     /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
+    /// Docker が必要なため通常テストでは skip する（実行: cargo test -- --ignored）
     #[tokio::test]
+    #[ignore = "requires Docker"]
     async fn test_bulk_create_reupload_deduplication() {
         use testcontainers::runners::AsyncRunner;
         use testcontainers_modules::postgres::Postgres;
