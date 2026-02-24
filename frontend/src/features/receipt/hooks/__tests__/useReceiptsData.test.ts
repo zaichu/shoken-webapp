@@ -18,9 +18,9 @@ import * as authHook from '@/features/auth/hooks/useAuth';
 // ────────────────────────────────────────────────────────
 
 vi.mock('@/features/receipt/api/receiptApi', () => ({
-  dividendApi: { list: vi.fn().mockResolvedValue([]) },
-  domesticStockApi: { list: vi.fn().mockResolvedValue([]) },
-  mutualfundApi: { list: vi.fn().mockResolvedValue([]) },
+  dividendApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
+  domesticStockApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
+  mutualfundApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
 }));
 
 vi.mock('@/features/receipt/parsers', () => ({
@@ -85,6 +85,54 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalled();
     expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalled();
     expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalled();
+  });
+
+  it('deleteAll 実行中ログアウト: mutation 完了後もキャッシュが再生成されない', async () => {
+    // deleteAll の完了を手動制御するための Promise
+    let resolveDeleteAll!: () => void;
+    vi.mocked(receiptApiModule.dividendApi.deleteAll).mockReturnValue(
+      new Promise<void>((resolve) => { resolveDeleteAll = resolve; }) as never
+    );
+
+    const capturedCallbacks: LogoutCallback[] = [];
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ onLogoutCapture: (cb) => { capturedCallbacks.push(cb); } })
+    );
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
+      { id: '1', payment_date: '2023-01-01' } as never,
+    ]);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    // データがキャッシュに入り、onLogout が登録されるまで待つ
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeDefined();
+    });
+    await waitFor(() => expect(capturedCallbacks.length).toBeGreaterThan(0));
+
+    // deleteAll を開始（まだ完了しない）
+    act(() => { result.current.deleteAll('dividend'); });
+
+    // ログアウト実行（キャッシュをクリア）
+    act(() => {
+      capturedCallbacks.forEach(cb => cb());
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+    });
+
+    // キャッシュがクリアされたことを確認
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
+    });
+
+    // deleteAll を完了させる（onSuccess が setQueryData を試みる）
+    await act(async () => { resolveDeleteAll(); });
+
+    // getQueryState ガードにより キャッシュが再生成されていないことを確認
+    expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
   });
 
   it('onLogout コールバック実行で receipts キャッシュが除去される', async () => {
