@@ -2,7 +2,6 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::domestic_stock::{CreateDomesticStockRequest, DomesticStock};
 use sqlx::PgPool;
-use std::collections::HashMap;
 use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
@@ -28,31 +27,11 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, Ap
     Ok(stocks)
 }
 
-/// 取引内容から MD5 ハッシュを算出する
-/// PostgreSQL migration の md5(fields::text || ...) と同一フォーマットで連結する
-fn compute_content_hash(item: &CreateDomesticStockRequest) -> String {
-    let input = format!(
-        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
-        item.trade_date,
-        item.settlement_date,
-        item.security_code,
-        item.security_name,
-        item.account,
-        item.shares,
-        item.asked_price,
-        item.proceeds,
-        item.purchase_price,
-        item.realized_profit_and_loss,
-        item.taxes,
-        item.realized_profit_and_loss_after_tax,
-    );
-    format!("{:x}", md5::compute(input))
-}
-
 /// 国内株式取引を一括追加（全件挿入）
 /// 同一内容の行が複数ある場合も全件保存する。
 /// 同一CSVを再アップロードした場合は content_hash + occurrence_index の
 /// ユニーク制約により重複行がスキップされる。
+/// content_hash と occurrence_index はSQL側で算出し、Rust/SQL間の表現差異を排除する。
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -88,21 +67,9 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    // ハッシュ + 出現回数を計算
-    // 同一ハッシュが N 件あれば occurrence_index = 1, 2, ..., N を割り当てる
-    let mut hash_occurrences: HashMap<String, i32> = HashMap::new();
-    let mut content_hashes: Vec<String> = Vec::with_capacity(total);
-    let mut occurrence_indices: Vec<i32> = Vec::with_capacity(total);
-
-    for item in items {
-        let hash = compute_content_hash(item);
-        let count = hash_occurrences.entry(hash.clone()).or_insert(0);
-        *count += 1;
-        occurrence_indices.push(*count);
-        content_hashes.push(hash);
-    }
-
     // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
+    // content_hash はPostgreSQL md5関数で算出（migration backfillと同一実装）
+    // occurrence_index はWITH ORDINALITYで入力順を保持しROW_NUMBERで連番付与
     // ON CONFLICT により、同一ハッシュ・同一出現回数の行はスキップ（再アップロード防止）
     let result = sqlx::query(
         r#"
@@ -111,12 +78,36 @@ pub async fn bulk_create(
                                      purchase_price, realized_profit_and_loss, taxes,
                                      realized_profit_and_loss_after_tax,
                                      content_hash, occurrence_index)
-        SELECT * FROM UNNEST(
-            $1::uuid[], $2::date[], $3::date[], $4::text[],
-            $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
-            $10::float8[], $11::float8[], $12::float8[], $13::float8[],
-            $14::text[], $15::int4[]
-        )
+        SELECT
+            user_id, trade_date, settlement_date, security_code,
+            security_name, account, shares, asked_price, proceeds,
+            purchase_price, realized_profit_and_loss, taxes,
+            realized_profit_and_loss_after_tax,
+            content_hash,
+            ROW_NUMBER() OVER (PARTITION BY user_id, content_hash ORDER BY ordinality)::int4
+        FROM (
+            SELECT
+                user_id, trade_date, settlement_date, security_code,
+                security_name, account, shares, asked_price, proceeds,
+                purchase_price, realized_profit_and_loss, taxes,
+                realized_profit_and_loss_after_tax,
+                ordinality,
+                md5(
+                    trade_date::text || '|' || settlement_date::text || '|' ||
+                    security_code || '|' || security_name || '|' || account || '|' ||
+                    shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
+                    purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
+                    taxes::text || '|' || realized_profit_and_loss_after_tax::text
+                ) AS content_hash
+            FROM UNNEST(
+                $1::uuid[], $2::date[], $3::date[], $4::text[],
+                $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
+                $10::float8[], $11::float8[], $12::float8[], $13::float8[]
+            ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
+                   security_name, account, shares, asked_price, proceeds,
+                   purchase_price, realized_profit_and_loss, taxes,
+                   realized_profit_and_loss_after_tax, ordinality)
+        ) subq
         ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
         "#,
     )
@@ -133,8 +124,6 @@ pub async fn bulk_create(
     .bind(&realized_pls)
     .bind(&taxes)
     .bind(&realized_pls_after_tax)
-    .bind(&content_hashes)
-    .bind(&occurrence_indices)
     .execute(pool)
     .await?;
 
@@ -169,87 +158,58 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
-    fn make_item(
-        trade_date: NaiveDate,
-        security_code: &str,
-        shares: f64,
-        proceeds: f64,
-    ) -> CreateDomesticStockRequest {
+    fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
-            trade_date,
-            settlement_date: trade_date,
-            security_code: security_code.to_string(),
-            security_name: "テスト株式".to_string(),
+            trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
+            settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
+            security_code: "9508".to_string(),
+            security_name: "九州電力".to_string(),
             account: "特定".to_string(),
-            shares,
-            asked_price: proceeds / shares,
-            proceeds,
-            purchase_price: proceeds / shares - 10.0,
-            realized_profit_and_loss: 10.0 * shares,
-            taxes: 0.0,
-            realized_profit_and_loss_after_tax: 10.0 * shares,
+            shares: 100.0,
+            asked_price: 1880.0,
+            proceeds: 188000.0,
+            purchase_price: 1770.0,
+            realized_profit_and_loss: 11000.0,
+            taxes: 2234.0,
+            realized_profit_and_loss_after_tax: 8766.0,
         }
     }
 
-    #[test]
-    fn test_compute_content_hash_deterministic() {
-        // 同一内容は常に同じハッシュを返す
-        let item = make_item(
-            NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
-            "9508",
-            100.0,
-            188000.0,
+    /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
+    #[tokio::test]
+    async fn test_bulk_create_reupload_deduplication() {
+        use testcontainers::runners::AsyncRunner;
+        use testcontainers_modules::postgres::Postgres;
+
+        let container = Postgres::default().start().await.unwrap();
+        let url = format!(
+            "postgres://postgres:postgres@{}:{}/postgres",
+            container.get_host().await.unwrap(),
+            container.get_host_port_ipv4(5432).await.unwrap(),
         );
-        let h1 = compute_content_hash(&item);
-        let h2 = compute_content_hash(&item);
-        assert_eq!(h1, h2);
-        assert_eq!(h1.len(), 32); // MD5 は 32 文字の hex
-    }
+        let pool = sqlx::PgPool::connect(&url).await.unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
-    #[test]
-    fn test_compute_content_hash_differs_by_field() {
-        // フィールドが異なれば別のハッシュになる
-        let d = NaiveDate::from_ymd_opt(2026, 2, 12).unwrap();
-        let a = make_item(d, "9508", 100.0, 188000.0);
-        let b = make_item(d, "9509", 100.0, 188000.0); // security_code だけ違う
-        assert_ne!(compute_content_hash(&a), compute_content_hash(&b));
-    }
+        // FK制約のためユーザーを事前作成
+        let user_id = Uuid::new_v4();
+        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
+            .bind(user_id)
+            .bind(format!("test_google_{user_id}"))
+            .bind(format!("test_{user_id}@example.com"))
+            .execute(&pool)
+            .await
+            .unwrap();
 
-    #[test]
-    fn test_occurrence_index_assignment_identical_rows() {
-        // 5件の同一行 → occurrence_index = 1, 2, 3, 4, 5
-        let d = NaiveDate::from_ymd_opt(2026, 2, 12).unwrap();
-        let item = make_item(d, "9508", 100.0, 188000.0);
-        let items = vec![item.clone(), item.clone(), item.clone(), item.clone(), item];
+        let items = vec![make_test_item(); 5];
 
-        let mut hash_occurrences: HashMap<String, i32> = HashMap::new();
-        let mut occurrence_indices: Vec<i32> = Vec::new();
-        for i in &items {
-            let hash = compute_content_hash(i);
-            let count = hash_occurrences.entry(hash).or_insert(0);
-            *count += 1;
-            occurrence_indices.push(*count);
-        }
-        assert_eq!(occurrence_indices, vec![1, 2, 3, 4, 5]);
-    }
+        // 1回目: 全件挿入
+        let first = bulk_create(&pool, user_id, &items).await.unwrap();
+        assert_eq!(first.inserted, 5);
+        assert_eq!(first.skipped, 0);
 
-    #[test]
-    fn test_occurrence_index_assignment_mixed_items() {
-        // A=3件、B=2件 の場合
-        let d = NaiveDate::from_ymd_opt(2026, 2, 12).unwrap();
-        let a = make_item(d, "9508", 100.0, 188000.0);
-        let b = make_item(d, "9509", 200.0, 400000.0);
-        let items = vec![a.clone(), b.clone(), a.clone(), b.clone(), a.clone()];
-
-        let mut hash_occurrences: HashMap<String, i32> = HashMap::new();
-        let mut occurrence_indices: Vec<i32> = Vec::new();
-        for i in &items {
-            let hash = compute_content_hash(i);
-            let count = hash_occurrences.entry(hash).or_insert(0);
-            *count += 1;
-            occurrence_indices.push(*count);
-        }
-        // A:1, B:1, A:2, B:2, A:3
-        assert_eq!(occurrence_indices, vec![1, 1, 2, 2, 3]);
+        // 2回目（同一CSV再アップロード）: 全件スキップ
+        let second = bulk_create(&pool, user_id, &items).await.unwrap();
+        assert_eq!(second.inserted, 0);
+        assert_eq!(second.skipped, 5);
     }
 }
