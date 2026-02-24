@@ -108,7 +108,7 @@ make all
 
 ## 設定注意事項
 
-- **ベースパス**: GitHub Pagesデプロイ用に `/shoken-webapp/` を設定
+- **ベースパス**: `/`（Vercel ルート）
 - **パスエイリアス**: `@/*` は `src/*` にマップ
 - **API 接続先**: `VITE_SHOKEN_WEBAPI_API_URL` でバックエンドURLを指定（J-Quants APIはバックエンド経由）
 - **テスト環境**: jsdom環境での単一フォーク設定、10秒タイムアウト
