@@ -27,37 +27,18 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, Ap
     Ok(stocks)
 }
 
-/// アップロードバッチのフィンガープリントを算出する
-/// 全アイテムのフィールドを結合して MD5 を計算し、同一 CSV の再アップロードを識別する
-fn compute_batch_fingerprint(items: &[CreateDomesticStockRequest]) -> String {
-    let combined = items
-        .iter()
-        .map(|i| {
-            format!(
-                "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
-                i.trade_date,
-                i.settlement_date,
-                i.security_code,
-                i.security_name,
-                i.account,
-                i.shares,
-                i.asked_price,
-                i.proceeds,
-                i.purchase_price,
-                i.realized_profit_and_loss,
-                i.taxes,
-                i.realized_profit_and_loss_after_tax,
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("{:x}", md5::compute(combined))
-}
-
 /// 国内株式取引を一括追加（全件挿入）
 /// 同一内容の行が複数ある場合も全件保存する。
-/// バッチフィンガープリントにより同一 CSV の再アップロードをスキップする。
-/// 異なる CSV（増分取込）は import_batch_fingerprint が異なるため新規挿入される。
+///
+/// 再アップロード防止:
+///   content_hash + グローバル occurrence_index（user_id + content_hash 単位の通し番号）により
+///   DB に既存の行と同一内容・同一順序の行はスキップされる。
+///   対象: 累積CSV（既存分を含む再アップロード）および増分CSV（新規分を追加したアップロード）。
+///
+/// 注意:
+///   純増分CSV（新規分のみ）で既存行と同一ハッシュの行が含まれる場合は
+///   batch_index <= existing_count でスキップされる。
+///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -93,29 +74,14 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    // バッチフィンガープリントを算出（同一CSV再アップロード防止用）
-    let batch_fingerprint = compute_batch_fingerprint(items);
-
     // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
-    // content_hash はPostgreSQL md5関数で算出（migration backfillと同一実装）
-    // occurrence_index はWITH ORDINALITYで入力順を保持しROW_NUMBERで連番付与（バッチ内）
-    // ON CONFLICT により、同一バッチ・同一ハッシュ・同一出現回数の行はスキップ
+    // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
+    // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
+    // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
+    // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
     let result = sqlx::query(
         r#"
-        INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
-                                     security_name, account, shares, asked_price, proceeds,
-                                     purchase_price, realized_profit_and_loss, taxes,
-                                     realized_profit_and_loss_after_tax,
-                                     content_hash, import_batch_fingerprint, occurrence_index)
-        SELECT
-            user_id, trade_date, settlement_date, security_code,
-            security_name, account, shares, asked_price, proceeds,
-            purchase_price, realized_profit_and_loss, taxes,
-            realized_profit_and_loss_after_tax,
-            content_hash,
-            $14::text,
-            ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
-        FROM (
+        WITH batch_data AS (
             SELECT
                 user_id, trade_date, settlement_date, security_code,
                 security_name, account, shares, asked_price, proceeds,
@@ -137,8 +103,35 @@ pub async fn bulk_create(
                    security_name, account, shares, asked_price, proceeds,
                    purchase_price, realized_profit_and_loss, taxes,
                    realized_profit_and_loss_after_tax, ordinality)
-        ) subq
-        ON CONFLICT (user_id, import_batch_fingerprint, content_hash, occurrence_index) DO NOTHING
+        ),
+        batch_indexed AS (
+            SELECT *,
+                ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
+                    AS batch_occurrence_index
+            FROM batch_data
+        ),
+        db_counts AS (
+            SELECT content_hash, COUNT(*)::int4 AS existing_count
+            FROM domestic_stocks
+            WHERE user_id = $14::uuid
+            GROUP BY content_hash
+        )
+        INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
+                                     security_name, account, shares, asked_price, proceeds,
+                                     purchase_price, realized_profit_and_loss, taxes,
+                                     realized_profit_and_loss_after_tax,
+                                     content_hash, occurrence_index)
+        SELECT
+            b.user_id, b.trade_date, b.settlement_date, b.security_code,
+            b.security_name, b.account, b.shares, b.asked_price, b.proceeds,
+            b.purchase_price, b.realized_profit_and_loss, b.taxes,
+            b.realized_profit_and_loss_after_tax,
+            b.content_hash,
+            b.batch_occurrence_index
+        FROM batch_indexed b
+        LEFT JOIN db_counts d ON b.content_hash = d.content_hash
+        WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
+        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
         "#,
     )
     .bind(&user_ids)
@@ -154,7 +147,7 @@ pub async fn bulk_create(
     .bind(&realized_pls)
     .bind(&taxes)
     .bind(&realized_pls_after_tax)
-    .bind(&batch_fingerprint)
+    .bind(user_id) // $14: スカラーのユーザーID（db_counts WHERE 句用）
     .execute(pool)
     .await?;
 
@@ -204,40 +197,6 @@ mod tests {
             taxes: 2234.0,
             realized_profit_and_loss_after_tax: 8766.0,
         }
-    }
-
-    #[test]
-    fn test_compute_batch_fingerprint_deterministic() {
-        // 同一内容は常に同じフィンガープリントを返す
-        let items = vec![make_test_item(); 3];
-        let h1 = compute_batch_fingerprint(&items);
-        let h2 = compute_batch_fingerprint(&items);
-        assert_eq!(h1, h2);
-        assert_eq!(h1.len(), 32); // MD5 は 32 文字の hex
-    }
-
-    #[test]
-    fn test_compute_batch_fingerprint_differs_by_content() {
-        // 内容が異なれば別のフィンガープリントになる
-        let items_a = vec![make_test_item(); 3];
-        let mut item_b = make_test_item();
-        item_b.security_code = "9509".to_string();
-        let items_b = vec![item_b; 3];
-        assert_ne!(
-            compute_batch_fingerprint(&items_a),
-            compute_batch_fingerprint(&items_b)
-        );
-    }
-
-    #[test]
-    fn test_compute_batch_fingerprint_differs_by_count() {
-        // 件数が異なれば別のフィンガープリントになる（増分と全件を区別）
-        let items_3 = vec![make_test_item(); 3];
-        let items_5 = vec![make_test_item(); 5];
-        assert_ne!(
-            compute_batch_fingerprint(&items_3),
-            compute_batch_fingerprint(&items_5)
-        );
     }
 
     /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
