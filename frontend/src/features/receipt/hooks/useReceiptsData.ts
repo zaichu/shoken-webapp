@@ -107,7 +107,11 @@ export function useReceiptsData(): UseReceiptsDataResult {
     // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
     onMutate: () => ({ snapshotUserId: userId }),
     onSuccess: (_, type, context) => {
-      queryClient.setQueryData(receiptQueryKeys[type](context?.snapshotUserId ?? userId), []);
+      const key = receiptQueryKeys[type](context?.snapshotUserId ?? userId);
+      // ログアウト等で clearReceiptsCache が先行しキャッシュが消えている場合は再生成しない
+      if (queryClient.getQueryState(key) !== undefined) {
+        queryClient.setQueryData(key, []);
+      }
     },
   });
 
