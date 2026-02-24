@@ -1,8 +1,8 @@
 /**
  * useAssetBalanceDataSource: 認証競合・キャッシュ境界テスト
  *
- * deleteAll 実行中ログアウトが発生しても、mutation 完了後に
- * assetBalance キャッシュが再生成されないことを検証する
+ * - deleteAll 実行中ログアウトが発生しても、mutation 完了後にキャッシュが再生成されないことを検証
+ * - bulkCreate 実行中ユーザー変更が発生しても、snapshotUserId キーで invalidateQueries されることを検証
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -25,9 +25,14 @@ vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
   },
 }));
 
+// vi.hoisted でモジュール初期化より前に安定した参照を確保する
+const { mockParseCSV } = vi.hoisted(() => ({
+  mockParseCSV: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('@/hooks/useCSVReader', () => ({
   useCSVReader: () => ({
-    parseCSV: vi.fn().mockResolvedValue([]),
+    parseCSV: mockParseCSV,
     isLoading: false,
     error: null,
     fileName: null,
@@ -129,5 +134,49 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
 
     // getQueryState ガードにより キャッシュが再生成されていないことを確認
     expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeUndefined();
+  });
+
+  it('bulkCreate 実行中ユーザー変更: snapshotUserId キーで invalidateQueries される', async () => {
+    // bulkCreate の完了を手動制御するための Promise
+    let resolveBulkCreate!: () => void;
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.bulkCreate).mockReturnValue(
+      new Promise<void>((resolve) => { resolveBulkCreate = resolve; }) as never
+    );
+
+    // parseCSV が非空データを返すように設定して csvData を確保する
+    mockParseCSV.mockResolvedValue([{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never]);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ userId: 'user-1' }));
+
+    const { result } = renderHook(
+      () => useAssetBalanceDataSource(parseCsvItem),
+      { wrapper: makeWrapper(qc) }
+    );
+
+    // handleFileSelect で csvData を設定する
+    await act(async () => {
+      await result.current.handleFileSelect(new File([], 'test.csv'));
+    });
+
+    // bulkCreate を開始（まだ完了しない）
+    act(() => { void result.current.handleSaveToDB(); });
+
+    // ユーザーを変更（別ユーザー再ログイン相当）
+    act(() => {
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ userId: 'user-2' }));
+    });
+
+    // bulkCreate を完了させる
+    await act(async () => { resolveBulkCreate(); });
+
+    // snapshotUserId（user-1）キーで invalidateQueries が呼ばれたことを確認
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.all('user-1') });
+    // user-2 キーでは呼ばれていないことを確認
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.all('user-2') });
   });
 });
