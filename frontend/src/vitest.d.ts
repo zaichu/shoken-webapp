@@ -1,4 +1,4 @@
-/// <reference types="vitest" />
+/// <reference types="vitest/globals" />
 
 import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 
