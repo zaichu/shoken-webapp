@@ -27,7 +27,7 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, Ap
     Ok(stocks)
 }
 
-/// 国内株式取引を一括追加（重複はスキップ）
+/// 国内株式取引を一括追加（全件挿入）
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -63,7 +63,7 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
+    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入、ユニーク制約なしで重複行も全件保存）
     let result = sqlx::query(
         r#"
         INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
@@ -75,8 +75,6 @@ pub async fn bulk_create(
             $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
             $10::float8[], $11::float8[], $12::float8[], $13::float8[]
         )
-        ON CONFLICT (user_id, trade_date, security_code, shares, proceeds)
-        DO NOTHING
         "#,
     )
     .bind(&user_ids)
