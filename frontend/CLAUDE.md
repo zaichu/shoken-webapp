@@ -50,7 +50,7 @@
 - **株式検索**: 銘柄コード/名前による日本株検索
 - **取引履歴管理**: 取引分析（国内株式、投資信託、配当）
 - **税計算**: 日本の税率内蔵（20.315%）
-- **J-Quants API**: `/api/jquants` プロキシ経由の金融データ連携
+- **J-Quants API**: バックエンド経由の金融データ連携（`VITE_SHOKEN_WEBAPI_API_URL` で接続先を指定）
 
 ### 主要アーキテクチャパターン
 - **Atomic Design**: 単一責任での厳密なコンポーネント階層
@@ -63,7 +63,7 @@
 - **ベースパス**: `/` (Vercel ルート)
 - **Vercel設定**: `vercel.json`でSPAルーティング対応（すべてのルートを`index.html`にリライト）
 - **パスエイリアス**: `@/*` は `src/*` にマップ
-- **API プロキシ**: 開発サーバーがJ-Quants APIをプロキシ
+- **API 接続先**: `VITE_SHOKEN_WEBAPI_API_URL` でバックエンドURLを指定（J-Quants APIはバックエンド経由）
 - **テスト**: jsdom環境、Vitest 4の forks pool使用
 - **ビルド**: Terser圧縮でのベンダーチャンク分割
 - **React Compiler**: Vite設定で`babel-plugin-react-compiler`を使用、ESLintで`eslint-plugin-react-compiler`を有効化
@@ -84,6 +84,6 @@
 - DOMテスト用のjsdom環境使用
 
 ### API連携
-- 開発時の `/api/jquants` プロキシ経由でのJ-Quants API連携
+- J-Quants APIはバックエンド経由で連携（フロントエンドは `VITE_SHOKEN_WEBAPI_API_URL` のバックエンドに直接リクエスト）
 - リトライロジックとエラーハンドリング付きカスタムHTTPクライアント
 - バックエンドプロキシ経由での認証管理
