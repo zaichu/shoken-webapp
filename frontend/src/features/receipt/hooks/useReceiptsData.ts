@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { dividendApi, domesticStockApi, mutualfundApi } from '../api/receiptApi';
 import {
   parseDividendCsvItem,
@@ -9,9 +9,10 @@ import {
   transformDBDomesticStock,
   transformDBMutualfund,
 } from '../parsers';
-import { receiptQueryKeys } from '../queryKeys';
+import { receiptQueryKeys, clearReceiptsCache } from '../queryKeys';
 import { type ReceiptsType } from '@/pages/receiptsReducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export interface UseReceiptsDataResult {
   dividendData: ReturnType<typeof transformDBDividend>[];
@@ -34,35 +35,43 @@ interface BulkCreateArgs {
 
 /**
  * 明細データの取得・保存・削除を TanStack Query で管理するフック
+ * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空を返す
  */
-export function useReceiptsData(isAuthenticated: boolean): UseReceiptsDataResult {
+export function useReceiptsData(): UseReceiptsDataResult {
+  const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
+  const userId = user?.id ?? '';
   const queryClient = useQueryClient();
 
+  // ログアウト時：プレフィックスマッチで全ユーザーキャッシュをクリア
+  useEffect(() => {
+    return onLogout(() => clearReceiptsCache(queryClient));
+  }, [onLogout, queryClient]);
+
   const dividendQuery = useQuery({
-    queryKey: receiptQueryKeys.dividend,
+    queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
       dividendApi.list().then(items =>
         items.map(d => transformDBDividend(d as unknown as Record<string, unknown>))
       ),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const domesticstockQuery = useQuery({
-    queryKey: receiptQueryKeys.domesticstock,
+    queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
       domesticStockApi.list().then(items =>
         items.map(d => transformDBDomesticStock(d as unknown as Record<string, unknown>))
       ),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const mutualfundQuery = useQuery({
-    queryKey: receiptQueryKeys.mutualfund,
+    queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
       mutualfundApi.list().then(items =>
         items.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>))
       ),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const bulkCreateMutation = useMutation({
@@ -76,8 +85,10 @@ export function useReceiptsData(isAuthenticated: boolean): UseReceiptsDataResult
           return mutualfundApi.bulkCreate(csvData.map(parseMutualfundCsvItem));
       }
     },
-    onSuccess: (_, { type, onSuccess }) => {
-      queryClient.invalidateQueries({ queryKey: receiptQueryKeys[type] });
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, { type, onSuccess }, context) => {
+      queryClient.invalidateQueries({ queryKey: receiptQueryKeys[type](context?.snapshotUserId ?? userId) });
       onSuccess?.();
     },
   });
@@ -93,15 +104,15 @@ export function useReceiptsData(isAuthenticated: boolean): UseReceiptsDataResult
           return mutualfundApi.deleteAll();
       }
     },
-    onSuccess: (_, type) => {
-      queryClient.setQueryData(receiptQueryKeys[type], []);
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, type, context) => {
+      queryClient.setQueryData(receiptQueryKeys[type](context?.snapshotUserId ?? userId), []);
     },
   });
 
   const clearCache = useCallback(() => {
-    queryClient.setQueryData(receiptQueryKeys.dividend, []);
-    queryClient.setQueryData(receiptQueryKeys.domesticstock, []);
-    queryClient.setQueryData(receiptQueryKeys.mutualfund, []);
+    clearReceiptsCache(queryClient);
   }, [queryClient]);
 
   const queryError = dividendQuery.error ?? domesticstockQuery.error ?? mutualfundQuery.error;

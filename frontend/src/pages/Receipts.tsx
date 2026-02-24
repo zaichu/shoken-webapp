@@ -47,16 +47,14 @@ export function ReceiptsPage() {
     deleting,
     bulkCreate,
     deleteAll,
-    clearCache,
-  } = useReceiptsData(isAuthenticated && !authLoading);
+  } = useReceiptsData();
 
-  // ログアウト時に CSV データと Query キャッシュをクリア
+  // ログアウト時に CSV データをクリア（Query キャッシュは useReceiptsData が内部処理）
   useEffect(() => {
     return onLogout(() => {
       dispatch({ type: 'LOGOUT' });
-      clearCache();
     });
-  }, [onLogout, clearCache]);
+  }, [onLogout]);
 
   // ランタイムデータマッピング（switch削減用）
   const runtimeDataMap = useMemo(() => ({

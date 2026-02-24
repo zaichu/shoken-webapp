@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { receiptsReducer, initialState } from '../receiptsReducer';
 import type { ReceiptsState } from '../receiptsReducer';
 import { ReceiptsPage } from '../Receipts';
+import { receiptQueryKeys } from '@/features/receipt/queryKeys';
 
 // ────────────────────────────────────────────────────────
 // モック定義
@@ -142,12 +143,13 @@ type UseAuthReturn = ReturnType<typeof authHook.useAuth>;
 
 function makeAuthMock(opts: {
   isAuthenticated?: boolean;
+  userId?: string;
   authLoading?: boolean;
   onLogoutCapture?: (cb: LogoutCallback) => void;
 }): UseAuthReturn {
-  const { isAuthenticated = false, authLoading = false, onLogoutCapture } = opts;
+  const { isAuthenticated = false, userId = 'user-1', authLoading = false, onLogoutCapture } = opts;
   return {
-    user: null,
+    user: isAuthenticated ? { id: userId, email: 'test@example.com' } : null,
     setUser: vi.fn(),
     login: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
@@ -360,13 +362,15 @@ describe('ReceiptsPage', () => {
     });
   });
 
-  it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされる', async () => {
-    let capturedLogoutCallback: LogoutCallback | null = null;
+  it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされ Query キャッシュが除去される', async () => {
+    // AuthContext は複数コールバックをすべて発火する。配列で収集して一括発火することで実際の動作を再現する
+    const capturedCallbacks: LogoutCallback[] = [];
+    const qc = makeQueryClient();
 
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({
         isAuthenticated: true,
-        onLogoutCapture: (cb) => { capturedLogoutCallback = cb; },
+        onLogoutCapture: (cb) => { capturedCallbacks.push(cb); },
       })
     );
 
@@ -376,9 +380,9 @@ describe('ReceiptsPage', () => {
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
 
-    renderWithQuery(<ReceiptsPage />);
+    renderWithQuery(<ReceiptsPage />, qc);
 
-    await waitFor(() => expect(capturedLogoutCallback).not.toBeNull());
+    await waitFor(() => expect(capturedCallbacks.length).toBeGreaterThan(0));
 
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -388,10 +392,16 @@ describe('ReceiptsPage', () => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
     });
 
-    act(() => { capturedLogoutCallback!(); });
+    act(() => {
+      capturedCallbacks.forEach(cb => cb());
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+    });
 
     await waitFor(() => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
     });
+    expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
   });
 });
