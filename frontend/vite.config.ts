@@ -8,7 +8,8 @@ export default defineConfig({
     react({
       babel: {
         plugins: [
-          ['babel-plugin-react-compiler', {}],
+          // Vitest 実行時は React Compiler を無効化（dev/prod のみ有効）
+          ...(process.env.VITEST ? [] : [['babel-plugin-react-compiler', {}] as const]),
         ],
       },
     }),
@@ -18,13 +19,6 @@ export default defineConfig({
   server: {
     port: 8080,
     open: true,
-    proxy: {
-      '/api/jquants': {
-        target: 'https://api.jquants.com/v1',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/jquants/, ''),
-      },
-    },
   },
   build: {
     outDir: 'dist',
