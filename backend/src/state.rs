@@ -1,9 +1,6 @@
 use reqwest::Client;
 use sqlx::PgPool;
-use std::sync::{
-    atomic::AtomicBool,
-    Arc,
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
 /// 環境変数から取得するシークレット情報
 #[derive(Clone, Debug)]
@@ -19,8 +16,9 @@ impl Secrets {
     /// 環境変数からシークレット情報を読み込む
     pub fn from_env() -> Result<Self, String> {
         Ok(Self {
-            database_url: std::env::var("DATABASE_URL")
-                .map_err(|_| "DATABASE_URL が設定されていません（backend/.env を確認してください）".to_string())?,
+            database_url: std::env::var("DATABASE_URL").map_err(|_| {
+                "DATABASE_URL が設定されていません（backend/.env を確認してください）".to_string()
+            })?,
             jquants_api_key: std::env::var("JQUANTS_API_KEY").ok(),
             google_client_id: std::env::var("GOOGLE_CLIENT_ID").ok(),
             google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").ok(),

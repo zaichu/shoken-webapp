@@ -1,7 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::dividend_cache::{
-    DividendCache, DividendPerShareItem, CACHE_TTL_DAYS,
-};
+use crate::models::dividend_cache::{DividendCache, DividendPerShareItem, CACHE_TTL_DAYS};
 use crate::models::jquants::FinSummaryData;
 use crate::services::jquants::JQuantsService;
 use chrono::Utc;
@@ -39,8 +37,7 @@ pub async fn get_batch(
     .await?;
 
     let now = Utc::now();
-    let ttl_threshold =
-        now - chrono::Duration::days(CACHE_TTL_DAYS);
+    let ttl_threshold = now - chrono::Duration::days(CACHE_TTL_DAYS);
 
     // コードをキーにしてキャッシュをマップ化
     let cache_map: std::collections::HashMap<&str, &DividendCache> = cached
@@ -145,11 +142,7 @@ fn spawn_background_refresh(
 
             match fetch_and_cache(&pool, &client, &api_key, code).await {
                 Ok(status) => {
-                    tracing::info!(
-                        "配当キャッシュ更新完了: code={}, status={}",
-                        code,
-                        status
-                    );
+                    tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
                 }
                 Err(e) => {
                     tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
@@ -184,9 +177,7 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     if let Some(slot_time) = row.0 {
         let now = Utc::now();
         if slot_time > now {
-            let wait_ms = (slot_time - now)
-                .num_milliseconds()
-                .max(0) as u64;
+            let wait_ms = (slot_time - now).num_milliseconds().max(0) as u64;
             if wait_ms > 0 {
                 tracing::debug!("レート制御: {}ms 待機", wait_ms);
                 tokio::time::sleep(Duration::from_millis(wait_ms)).await;
