@@ -116,5 +116,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     await waitFor(() => {
       expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
     });
+    expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
   });
 });

@@ -363,13 +363,14 @@ describe('ReceiptsPage', () => {
   });
 
   it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされ Query キャッシュが除去される', async () => {
-    let capturedLogoutCallback: LogoutCallback | null = null;
+    // AuthContext は複数コールバックをすべて発火する。配列で収集して一括発火することで実際の動作を再現する
+    const capturedCallbacks: LogoutCallback[] = [];
     const qc = makeQueryClient();
 
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({
         isAuthenticated: true,
-        onLogoutCapture: (cb) => { capturedLogoutCallback = cb; },
+        onLogoutCapture: (cb) => { capturedCallbacks.push(cb); },
       })
     );
 
@@ -381,7 +382,7 @@ describe('ReceiptsPage', () => {
 
     renderWithQuery(<ReceiptsPage />, qc);
 
-    await waitFor(() => expect(capturedLogoutCallback).not.toBeNull());
+    await waitFor(() => expect(capturedCallbacks.length).toBeGreaterThan(0));
 
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -392,7 +393,7 @@ describe('ReceiptsPage', () => {
     });
 
     act(() => {
-      capturedLogoutCallback!();
+      capturedCallbacks.forEach(cb => cb());
       vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
     });
 
