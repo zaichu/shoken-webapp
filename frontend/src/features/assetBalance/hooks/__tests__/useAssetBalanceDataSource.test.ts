@@ -151,9 +151,11 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
     });
     const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
 
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ userId: 'user-1' }));
+    // mockImplementation で可変状態から返すことで rerender 後の userId を切り替えられる
+    let currentAuthMock = makeAuthMock({ userId: 'user-1' });
+    vi.mocked(authHook.useAuth).mockImplementation(() => currentAuthMock);
 
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       () => useAssetBalanceDataSource(parseCsvItem),
       { wrapper: makeWrapper(qc) }
     );
@@ -166,12 +168,13 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
     // bulkCreate を開始（まだ完了しない）
     act(() => { void result.current.handleSaveToDB(); });
 
-    // ユーザーを変更（別ユーザー再ログイン相当）
+    // user-2 に切り替えて rerender し、フック内の userId を更新する（再ログイン相当）
     act(() => {
-      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ userId: 'user-2' }));
+      currentAuthMock = makeAuthMock({ userId: 'user-2' });
+      rerender();
     });
 
-    // bulkCreate を完了させる
+    // bulkCreate を完了させる（onSuccess が snapshotUserId で動作するか確認）
     await act(async () => { resolveBulkCreate(); });
 
     // snapshotUserId（user-1）キーで invalidateQueries が呼ばれたことを確認
