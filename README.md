@@ -1,55 +1,57 @@
 # 証券情報ウェブアプリケーション (shoken-webapp)
 
-日本株の証券情報を検索・管理するウェブアプリケーション。
-フロントエンドは React + TypeScript、バックエンドは Rust + Axum で構築。
+日本株の証券情報を検索・管理する Web アプリケーションです。  
+フロントエンドは React + TypeScript、バックエンドは Rust + Axum で構成しています。
 
 ## 機能概要
 
 - 銘柄コード・会社名による証券情報検索
-- CSV からの取引データインポート（配当金・国内株式・投資信託）
-- 保有銘柄の資産管理とポートフォリオ表示
-- J-Quants API 連携による決算サマリー取得
+- CSV からの明細インポート（配当金・国内株式・投資信託）
+- CSV からの保有銘柄インポートとポートフォリオ表示
 - Google OAuth 認証
+- J-Quants API 連携
+  - 決算サマリー取得
+  - 配当利回り一括取得（キャッシュ付き）
 
 ## 技術スタック
 
 ### フロントエンド
 
-- **React** 19.2 + **TypeScript** 5.9
-- **Vite** 7.3（ビルド）
-- **Tailwind CSS** 4.1
-- **React Router** 7.13
-- **TanStack Query** 5.90
-- **Axios**（HTTP クライアント）
-- **Recharts**（チャート）
-- **Vitest** + **React Testing Library**（テスト）
-- **Playwright**（E2E テスト）
+- React 19 + TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Tailwind CSS
+- Axios
+- Recharts
+- Vitest + React Testing Library
+- Playwright
 
 ### バックエンド
 
-- **Rust** 1.93 (Edition 2021)
-- **Axum** 0.8（Web フレームワーク）
-- **SQLx** 0.8 + **PostgreSQL**
-- **Tokio** 1.49（非同期ランタイム）
-- **OAuth2** 5.0（Google 認証）
-- **Reqwest**（HTTP クライアント）
+- Rust (Edition 2021) + Tokio
+- Axum
+- SQLx + PostgreSQL
+- OAuth2（Google 認証）
+- Reqwest
 
 ### インフラ
 
-- **Vercel**（フロントエンド）
-- **Fly.io**（バックエンド）
-- **PostgreSQL**（Fly.io 上）
-- **GitHub Actions**（CI/CD）
+- Vercel（Frontend）
+- Fly.io（Backend）
+- PostgreSQL
+- GitHub Actions（CI/CD）
 
-## 開発環境のセットアップ
+## セットアップ
 
-### 必要なツール
+### 前提ツール
 
-- Rust（rustup 経由）
-- Node.js 20 以上 + npm
-- Docker（ローカル DB 用）
+- Node.js 20 以上
+- npm
+- Rust（stable）
+- Docker（ローカル PostgreSQL 用）
 
-### インストール
+### リポジトリ取得
 
 ```bash
 git clone https://github.com/zaichu/shoken-webapp.git
@@ -58,31 +60,32 @@ cd shoken-webapp
 
 ### 環境変数
 
-バックエンド（`backend/.env`）:
+#### Backend（`backend/.env`）
 
 ```bash
 cd backend
 cp .env.example .env
-# .env を編集
 ```
 
+主な項目:
+
+- 必須
+  - `DATABASE_URL`（例: `postgresql://user:password@localhost:5432/shoken_db`）
+- 認証を使う場合
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+- J-Quants を使う場合
+  - `JQUANTS_API_KEY`
+- 任意
+  - `PORT`（デフォルト: `3001`）
+  - `BACKEND_URL`
+  - `FRONTEND_URL`
+  - `CORS_ORIGINS`
+
+#### Frontend（`frontend/.env.development.local`）
+
 ```bash
-# 必須
-DATABASE_URL=postgres://user:password@localhost:5432/shoken_db
-
-# Google OAuth（認証機能に必要）
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
-FRONTEND_URL=http://localhost:8080
-
-# J-Quants API（決算サマリー取得に必要）
-JQUANTS_API_KEY=your_api_key
-```
-
-フロントエンド（`frontend/.env.development.local`）:
-
-```bash
-VITE_SHOKEN_WEBAPI_API_URL=http://localhost:3001
+VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001
 ```
 
 ## ローカル起動
@@ -93,13 +96,17 @@ VITE_SHOKEN_WEBAPI_API_URL=http://localhost:3001
 ./scripts/start-local.sh
 ```
 
-DB → バックエンド → フロントエンドを順に起動:
-- フロントエンド: http://127.0.0.1:8080
-- バックエンド: http://127.0.0.1:3001
+起動後:
+
+- Frontend: `http://127.0.0.1:8080`
+- Backend: `http://127.0.0.1:3001`
+- DB: `postgresql://user:password@localhost:5432/shoken_db`
 
 停止:
 
 ```bash
+./stop-local.sh
+# または
 ./scripts/stop-local.sh
 ```
 
@@ -109,135 +116,128 @@ DB → バックエンド → フロントエンドを順に起動:
 # DB
 cd backend && make db-up
 
-# バックエンド
+# Backend（起動時にマイグレーション実行）
 cd backend && make run
 
-# フロントエンド
-cd frontend && npm run dev
+# Frontend
+cd frontend && npm run dev -- --host 127.0.0.1 --port 8080
 ```
 
-## テスト
+## 検証コマンド
+
+### Frontend
 
 ```bash
-# フロントエンド
 cd frontend
-npm run lint        # ESLint
-npx tsc --noEmit    # 型チェック
-npm test            # Vitest
+npm run lint
+npx tsc --noEmit
+npm test
+npm run build
+```
 
-# バックエンド
+### Backend
+
+```bash
 cd backend
 cargo fmt -- --check
 cargo clippy -- -D warnings
 cargo test
-```
-
-## デプロイ
-
-### バックエンド（Fly.io）
-
-```bash
-cd backend && make deploy
-```
-
-GitHub Actions で `main` ブランチへのマージ時に自動デプロイ。
-
-### フロントエンド（Vercel）
-
-Vercel と連携済み。`main` ブランチへのマージ時に自動デプロイ。
-https://shoken-webapp.vercel.app
-
-## プロジェクト構成
-
-```
-shoken-webapp/
-├── frontend/                   # React フロントエンド
-│   ├── src/
-│   │   ├── components/         # UI コンポーネント (atoms/molecules/organisms/templates)
-│   │   ├── features/           # 機能モジュール (auth, stock, receipt, jquants)
-│   │   ├── hooks/              # カスタムフック
-│   │   ├── pages/              # ページコンポーネント
-│   │   ├── lib/                # API クライアント、ユーティリティ
-│   │   ├── contexts/           # React Context
-│   │   ├── styles/             # Tailwind CSS
-│   │   └── types/              # 型定義
-│   ├── e2e/                    # Playwright E2E テスト
-│   └── package.json
-├── backend/                    # Rust/Axum バックエンド
-│   ├── src/
-│   │   ├── handlers/           # リクエストハンドラー
-│   │   ├── models/             # データモデル
-│   │   ├── services/           # ビジネスロジック
-│   │   ├── extractors/         # カスタムエクストラクター
-│   │   ├── routes.rs           # ルーティング定義
-│   │   ├── config.rs           # 設定
-│   │   ├── db.rs               # DB 接続・マイグレーション
-│   │   ├── middleware.rs       # CORS ミドルウェア
-│   │   └── main.rs
-│   ├── migrations/             # SQLx マイグレーション
-│   ├── tests/                  # 統合テスト
-│   └── Cargo.toml
-├── scripts/                    # ローカル起動/停止スクリプト
-└── .github/workflows/          # CI/CD
+cargo build
 ```
 
 ## API エンドポイント
 
 ### 認証
 
-| メソッド | パス | 説明 |
-|---------|------|------|
+| Method | Path | 説明 |
+|---|---|---|
 | GET | `/auth/google` | Google OAuth 認証開始 |
 | GET | `/auth/google/callback` | OAuth コールバック |
-| GET | `/auth/me` | ユーザー情報取得 |
+| GET | `/auth/me` | 現在ユーザー取得 |
 | POST | `/auth/logout` | ログアウト |
 | DELETE | `/auth/delete-account` | アカウント削除 |
 
-### 証券情報
+### 銘柄
 
-| メソッド | パス | 説明 | 認証 |
-|---------|------|------|------|
+| Method | Path | 説明 | 認証 |
+|---|---|---|---|
 | GET | `/stock/{query}` | 銘柄検索 | 不要 |
 | POST | `/stock` | 銘柄追加 | 必要 |
 
-### 配当金（認証必須）
+### 明細データ（認証必須）
 
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/dividends` | 一覧取得 |
-| POST | `/dividends/bulk` | 一括追加 |
-| DELETE | `/dividends/all` | 全削除 |
+| Method | Path | 説明 |
+|---|---|---|
+| GET | `/dividends` | 配当金一覧取得 |
+| POST | `/dividends/bulk` | 配当金一括追加 |
+| DELETE | `/dividends/all` | 配当金全削除 |
+| GET | `/domestic-stocks` | 国内株式一覧取得 |
+| POST | `/domestic-stocks/bulk` | 国内株式一括追加 |
+| DELETE | `/domestic-stocks/all` | 国内株式全削除 |
+| GET | `/mutualfunds` | 投資信託一覧取得 |
+| POST | `/mutualfunds/bulk` | 投資信託一括追加 |
+| DELETE | `/mutualfunds/all` | 投資信託全削除 |
+| GET | `/asset-balances` | 保有銘柄一覧取得 |
+| POST | `/asset-balances/bulk` | 保有銘柄一括追加（UPSERT） |
+| DELETE | `/asset-balances/all` | 保有銘柄全削除 |
 
-### 国内株式（認証必須）
+### J-Quants / 補助 API
 
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/domestic-stocks` | 一覧取得 |
-| POST | `/domestic-stocks/bulk` | 一括追加 |
-| DELETE | `/domestic-stocks/all` | 全削除 |
+| Method | Path | 説明 | 認証 |
+|---|---|---|---|
+| GET | `/jquants/fins/statements` | 決算サマリー取得 | 不要 |
+| POST | `/dividends/per-share/batch` | 配当利回り一括取得 | 不要 |
+| GET | `/health` | ヘルスチェック | 不要 |
 
-### 投資信託（認証必須）
+## ディレクトリ構成
 
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/mutualfunds` | 一覧取得 |
-| POST | `/mutualfunds/bulk` | 一括追加 |
-| DELETE | `/mutualfunds/all` | 全削除 |
+```text
+shoken-webapp/
+├── frontend/
+│   ├── src/
+│   │   ├── components/        # Atomic Design (atoms/molecules/organisms/templates)
+│   │   ├── features/          # auth / stock / receipt / assetBalance / jquants
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── lib/
+│   │   ├── contexts/
+│   │   ├── routes/
+│   │   └── styles/
+│   ├── e2e/
+│   └── package.json
+├── backend/
+│   ├── src/
+│   │   ├── handlers/
+│   │   ├── services/
+│   │   ├── models/
+│   │   ├── extractors/
+│   │   ├── routes.rs
+│   │   ├── db.rs
+│   │   ├── config.rs
+│   │   └── main.rs
+│   ├── migrations/
+│   ├── docker-compose.yml
+│   └── Cargo.toml
+├── scripts/
+│   ├── start-local.sh
+│   └── stop-local.sh
+├── stop-local.sh              # scripts/stop-local.sh へのラッパー
+└── .github/workflows/
+```
 
-### 保有銘柄（認証必須）
+## デプロイ
 
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/asset-balances` | 一覧取得 |
-| POST | `/asset-balances/bulk` | 一括追加（既存は更新） |
-| DELETE | `/asset-balances/all` | 全削除 |
+- Frontend: Vercel
+- Backend: Fly.io
+- `main` 反映後に CI/CD で自動デプロイ
 
-### その他
+公開 URL:
+- https://shoken-webapp.vercel.app
 
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/jquants/fins/statements` | 決算サマリー取得 |
-| GET | `/health` | ヘルスチェック |
+## 補足
+
+- フロントエンド詳細: `frontend/README.md`
+- バックエンド詳細: `backend/README.md`
 
 ## ライセンス
 
