@@ -50,15 +50,23 @@ export function useAssetBalanceDataSource(
 
   const bulkCreateMutation = useMutation({
     mutationFn: (items: AssetBalanceData[]) => assetBalanceApi.bulkCreate(items),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(userId) });
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の無効化キーのぶれを防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, __, context) => {
+      queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId) });
     },
   });
 
   const deleteAllMutation = useMutation({
     mutationFn: () => assetBalanceApi.deleteAll(),
-    onSuccess: () => {
-      queryClient.setQueryData(assetBalanceQueryKeys.all(userId), []);
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, __, context) => {
+      const key = assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId);
+      // ログアウト等で clearAssetBalanceCache が先行しキャッシュが消えている場合は再生成しない
+      if (queryClient.getQueryState(key) !== undefined) {
+        queryClient.setQueryData(key, []);
+      }
     },
   });
 
