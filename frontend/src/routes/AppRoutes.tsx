@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from '../components/molecules/ErrorBoundary';
 import { ErrorPage } from '../components/templates/ErrorPage';
+import { Spinner } from '../components/atoms/Spinner';
 
 const HomePage = lazy(() => import('../pages/Home').then(m => ({ default: m.HomePage })));
 const SearchPage = lazy(() => import('../pages/Search').then(m => ({ default: m.SearchPage })));
@@ -10,31 +11,39 @@ const AssetBalancePage = lazy(() => import('../pages/AssetBalance').then(m => ({
 const NotFoundPage = lazy(() => import('../pages/NotFound').then(m => ({ default: m.NotFoundPage })));
 const LoginPage = lazy(() => import('../pages/Login').then(m => ({ default: m.LoginPage })));
 
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Spinner size="lg" />
+    </div>
+  );
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Suspense fallback={null}><HomePage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense>,
     errorElement: <ErrorPage />,
   },
   {
     path: "/search",
-    element: <Suspense fallback={null}><SearchPage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><SearchPage /></Suspense>,
   },
   {
     path: "/receipts",
-    element: <Suspense fallback={null}><ReceiptsPage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>,
   },
   {
     path: "/assetbalance",
-    element: <Suspense fallback={null}><AssetBalancePage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><AssetBalancePage /></Suspense>,
   },
   {
     path: "/login",
-    element: <Suspense fallback={null}><LoginPage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><LoginPage /></Suspense>,
   },
   {
     path: "/404",
-    element: <Suspense fallback={null}><NotFoundPage /></Suspense>,
+    element: <Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>,
   },
   {
     path: "*",
