@@ -80,8 +80,8 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
 
     renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
-    // フェッチされないことを確認（100ms 待って呼ばれていない）
-    await new Promise((r) => setTimeout(r, 100));
+    // enabled: false のため queryFn は実行されない（非同期キューを flush しても呼ばれない）
+    await act(async () => { await Promise.resolve(); });
     expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalled();
     expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalled();
     expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalled();

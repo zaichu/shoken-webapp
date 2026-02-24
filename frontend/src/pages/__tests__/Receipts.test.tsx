@@ -400,5 +400,7 @@ describe('ReceiptsPage', () => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
     });
     expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
   });
 });

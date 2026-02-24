@@ -85,8 +85,10 @@ export function useReceiptsData(): UseReceiptsDataResult {
           return mutualfundApi.bulkCreate(csvData.map(parseMutualfundCsvItem));
       }
     },
-    onSuccess: (_, { type, onSuccess }) => {
-      queryClient.invalidateQueries({ queryKey: receiptQueryKeys[type](userId) });
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, { type, onSuccess }, context) => {
+      queryClient.invalidateQueries({ queryKey: receiptQueryKeys[type](context?.snapshotUserId ?? userId) });
       onSuccess?.();
     },
   });
@@ -102,8 +104,10 @@ export function useReceiptsData(): UseReceiptsDataResult {
           return mutualfundApi.deleteAll();
       }
     },
-    onSuccess: (_, type) => {
-      queryClient.setQueryData(receiptQueryKeys[type](userId), []);
+    // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
+    onMutate: () => ({ snapshotUserId: userId }),
+    onSuccess: (_, type, context) => {
+      queryClient.setQueryData(receiptQueryKeys[type](context?.snapshotUserId ?? userId), []);
     },
   });
 
