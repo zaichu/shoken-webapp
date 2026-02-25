@@ -16,6 +16,7 @@ description: |
 - 1タスク = 1ブランチ（例: `fix/asset-balance-lock-test`）
 - PR は **feature ブランチ → `main`**
 - `develop` は既定の開発ブランチとして使わない（必要時のみ検証用に限定）
+- マージ完了後は feature ブランチをローカル/リモートとも削除する
 
 ### 禁止事項
 
@@ -23,6 +24,7 @@ description: |
 - `develop` への直接コミットを日常運用にしない
 - 長期間の `develop` 集約後に巨大な `develop -> main` PR を作らない
 - feature ブランチで `merge` を多用しない（`rebase` で履歴を保つ）
+- マージ済みブランチを放置しない
 
 ### ワークフロー
 
@@ -32,6 +34,7 @@ description: |
 3. feature ブランチで作業・コミット
 4. feature → main の PR を作成
 5. レビュー後に squash merge
+6. マージ済み feature ブランチを削除
 ```
 
 ### 開始手順（毎回）
@@ -72,6 +75,26 @@ git rebase -i origin/main
 # 5. プッシュして PR 作成（base は main）
 git push -u origin <type>/<short-topic>
 gh pr create --base main --head <type>/<short-topic>
+```
+
+### マージ後クリーンアップ（必須）
+
+```bash
+# 1. PRを squash merge し、リモートブランチを削除
+gh pr merge <PR番号 or PR URL> --squash --delete-branch
+
+# 2. main を最新化
+git checkout main
+git pull origin main
+
+# 3. ローカルの作業ブランチを削除
+git branch -d <type>/<short-topic>
+```
+
+`gh` で削除できなかった場合のみ、リモートは手動削除する。
+
+```bash
+git push origin --delete <type>/<short-topic>
 ```
 
 ## コミット分割の原則
