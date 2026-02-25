@@ -286,6 +286,8 @@ describe('ReceiptsPage', () => {
 
     renderWithQuery(<ReceiptsPage />);
 
+    const waitOpts = { timeout: 5000 };
+
     // DB フェッチ完了を待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
