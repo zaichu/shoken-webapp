@@ -27,7 +27,18 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, Ap
     Ok(stocks)
 }
 
-/// 国内株式取引を一括追加（重複はスキップ）
+/// 国内株式取引を一括追加（全件挿入）
+/// 同一内容の行が複数ある場合も全件保存する。
+///
+/// 再アップロード防止:
+///   content_hash + グローバル occurrence_index（user_id + content_hash 単位の通し番号）により
+///   DB に既存の行と同一内容・同一順序の行はスキップされる。
+///   対象: 累積CSV（既存分を含む再アップロード）および増分CSV（新規分を追加したアップロード）。
+///
+/// 注意:
+///   純増分CSV（新規分のみ）で既存行と同一ハッシュの行が含まれる場合は
+///   batch_index <= existing_count でスキップされる。
+///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -64,19 +75,63 @@ pub async fn bulk_create(
         .collect();
 
     // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
+    // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
+    // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
+    // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
+    // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
     let result = sqlx::query(
         r#"
+        WITH batch_data AS (
+            SELECT
+                user_id, trade_date, settlement_date, security_code,
+                security_name, account, shares, asked_price, proceeds,
+                purchase_price, realized_profit_and_loss, taxes,
+                realized_profit_and_loss_after_tax,
+                ordinality,
+                md5(
+                    trade_date::text || '|' || settlement_date::text || '|' ||
+                    security_code || '|' || security_name || '|' || account || '|' ||
+                    shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
+                    purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
+                    taxes::text || '|' || realized_profit_and_loss_after_tax::text
+                ) AS content_hash
+            FROM UNNEST(
+                $1::uuid[], $2::date[], $3::date[], $4::text[],
+                $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
+                $10::float8[], $11::float8[], $12::float8[], $13::float8[]
+            ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
+                   security_name, account, shares, asked_price, proceeds,
+                   purchase_price, realized_profit_and_loss, taxes,
+                   realized_profit_and_loss_after_tax, ordinality)
+        ),
+        batch_indexed AS (
+            SELECT *,
+                ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
+                    AS batch_occurrence_index
+            FROM batch_data
+        ),
+        db_counts AS (
+            SELECT content_hash, COUNT(*)::int4 AS existing_count
+            FROM domestic_stocks
+            WHERE user_id = $14::uuid
+            GROUP BY content_hash
+        )
         INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
                                      security_name, account, shares, asked_price, proceeds,
                                      purchase_price, realized_profit_and_loss, taxes,
-                                     realized_profit_and_loss_after_tax)
-        SELECT * FROM UNNEST(
-            $1::uuid[], $2::date[], $3::date[], $4::text[],
-            $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
-            $10::float8[], $11::float8[], $12::float8[], $13::float8[]
-        )
-        ON CONFLICT (user_id, trade_date, security_code, shares, proceeds)
-        DO NOTHING
+                                     realized_profit_and_loss_after_tax,
+                                     content_hash, occurrence_index)
+        SELECT
+            b.user_id, b.trade_date, b.settlement_date, b.security_code,
+            b.security_name, b.account, b.shares, b.asked_price, b.proceeds,
+            b.purchase_price, b.realized_profit_and_loss, b.taxes,
+            b.realized_profit_and_loss_after_tax,
+            b.content_hash,
+            b.batch_occurrence_index
+        FROM batch_indexed b
+        LEFT JOIN db_counts d ON b.content_hash = d.content_hash
+        WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
+        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
         "#,
     )
     .bind(&user_ids)
@@ -92,6 +147,7 @@ pub async fn bulk_create(
     .bind(&realized_pls)
     .bind(&taxes)
     .bind(&realized_pls_after_tax)
+    .bind(user_id) // $14: スカラーのユーザーID（db_counts WHERE 句用）
     .execute(pool)
     .await?;
 
@@ -119,4 +175,67 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     let deleted = result.rows_affected();
     info!("[domestic_stock.delete_all] 完了: {}件削除", deleted);
     Ok(deleted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn make_test_item() -> CreateDomesticStockRequest {
+        CreateDomesticStockRequest {
+            trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
+            settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
+            security_code: "9508".to_string(),
+            security_name: "九州電力".to_string(),
+            account: "特定".to_string(),
+            shares: 100.0,
+            asked_price: 1880.0,
+            proceeds: 188000.0,
+            purchase_price: 1770.0,
+            realized_profit_and_loss: 11000.0,
+            taxes: 2234.0,
+            realized_profit_and_loss_after_tax: 8766.0,
+        }
+    }
+
+    /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
+    /// Docker が必要なため通常テストでは skip する（実行: cargo test -- --ignored）
+    #[tokio::test]
+    #[ignore = "requires Docker"]
+    async fn test_bulk_create_reupload_deduplication() {
+        use testcontainers::runners::AsyncRunner;
+        use testcontainers_modules::postgres::Postgres;
+
+        let container = Postgres::default().start().await.unwrap();
+        let url = format!(
+            "postgres://postgres:postgres@{}:{}/postgres",
+            container.get_host().await.unwrap(),
+            container.get_host_port_ipv4(5432).await.unwrap(),
+        );
+        let pool = sqlx::PgPool::connect(&url).await.unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+
+        // FK制約のためユーザーを事前作成
+        let user_id = Uuid::new_v4();
+        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
+            .bind(user_id)
+            .bind(format!("test_google_{user_id}"))
+            .bind(format!("test_{user_id}@example.com"))
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let items = vec![make_test_item(); 5];
+
+        // 1回目: 全件挿入
+        let first = bulk_create(&pool, user_id, &items).await.unwrap();
+        assert_eq!(first.inserted, 5);
+        assert_eq!(first.skipped, 0);
+
+        // 2回目（同一CSV再アップロード）: 全件スキップ
+        let second = bulk_create(&pool, user_id, &items).await.unwrap();
+        assert_eq!(second.inserted, 0);
+        assert_eq!(second.skipped, 5);
+    }
 }

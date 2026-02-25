@@ -15,7 +15,7 @@ pub async fn list(
     Ok((StatusCode::OK, Json(stocks)))
 }
 
-/// 国内株式取引を一括追加（重複はスキップ）
+/// 国内株式取引を一括追加（全件挿入）
 pub async fn bulk_create(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
