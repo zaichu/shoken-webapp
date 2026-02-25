@@ -23,15 +23,15 @@ description: |
 - 先に `git add <path>` または `git add -p` で対象変更を絞る
 - コミットメッセージは必ず引数で明示する
 - コミットメッセージの要約・本文は日本語で書く
-- `main` / `develop` には直接コミットしない
-- 機能・タスクごとに `develop` から作業ブランチを作って実行する
+- `main` には直接コミットしない
+- 機能・タスクごとに `main` から作業ブランチを作って実行する
 
 ## Workflow
 
 ```bash
-# 0) develop から作業ブランチを作成（1タスク1ブランチ）
-git switch develop
-git pull --ff-only origin develop
+# 0) main から作業ブランチを作成（1タスク1ブランチ）
+git switch main
+git pull --ff-only origin main
 git switch -c feature/<topic>
 
 # 1) staged 内容を確認
@@ -50,8 +50,8 @@ bash .claude/skills/git-pushing/scripts/smart_commit.sh "feat: <変更内容の�
 マージ済みの作業ブランチは削除する。
 
 ```bash
-git switch develop
-git pull --ff-only origin develop
+git switch main
+git pull --ff-only origin main
 git branch -d <work-branch>
 git push origin --delete <work-branch>
 git fetch origin --prune

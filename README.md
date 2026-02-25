@@ -233,8 +233,8 @@ shoken-webapp/
 ## Git ブランチ運用
 
 - 公式ルールは [`docs/git-branch-workflow.md`](docs/git-branch-workflow.md) を参照
-- 1タスク1ブランチ（`develop` 起点）で運用する
-- `main` / `develop` への直接コミットは禁止
+- 1タスク1ブランチ（`main` 起点）で運用する
+- `main` への直接コミットは禁止
 
 ## デプロイ
 
