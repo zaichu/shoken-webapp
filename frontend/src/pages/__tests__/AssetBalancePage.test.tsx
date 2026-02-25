@@ -156,7 +156,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
   it('未認証時: ログインプロンプトが表示され API フェッチが行われない', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
 
-    renderWithQuery(<AssetBalancePage />);
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
     await waitFor(() => {
       expect(screen.getByText(/ログインが必要です/)).toBeInTheDocument();
@@ -170,7 +170,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     );
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
 
-    renderWithQuery(<AssetBalancePage />);
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
@@ -190,7 +190,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     );
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
 
-    renderWithQuery(<AssetBalancePage />, qc);
+    await act(async () => { renderWithQuery(<AssetBalancePage />, qc); });
 
     await waitFor(() => expect(capturedCallback).not.toBeNull());
     await waitFor(() => {

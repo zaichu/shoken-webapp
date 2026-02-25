@@ -286,8 +286,6 @@ describe('ReceiptsPage', () => {
 
     renderWithQuery(<ReceiptsPage />);
 
-    const waitOpts = { timeout: 5000 };
-
     // DB フェッチ完了を待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -313,7 +311,6 @@ describe('ReceiptsPage', () => {
   }, 20000);
 
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
-    const waitOpts = { timeout: 5000 };
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );

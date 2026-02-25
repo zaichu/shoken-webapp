@@ -115,7 +115,6 @@ describe('DomesticStock', () => {
     });
 
     it('銘柄検索時に0件サマリーが表示されない', async () => {
-        const waitOpts = { timeout: 5000 };
         const user = userEvent.setup();
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
 
