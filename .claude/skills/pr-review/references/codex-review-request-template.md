@@ -8,7 +8,7 @@
 
 ## 対象
 - PR: <PR URL または PR 番号>
-- 比較範囲: <例: main...develop>
+- 比較範囲: <例: main...develop または origin/develop...HEAD>
 - 対象コミット: <最新コミットSHA>
 
 ## 変更ファイル
@@ -37,4 +37,3 @@
 2. Open questions / assumptions
 3. 修正方針サマリー（短く）
 ```
-

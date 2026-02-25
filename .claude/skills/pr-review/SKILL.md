@@ -15,12 +15,14 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
 依頼文作成モードは補助機能として残し、  
 ユーザーが「依頼文を作って」と明示した場合のみ使う。
 
+ブランチ運用の基準は `docs/git-branch-workflow.md` を参照する。
+
 ## Workflow
 
 1. レビュー対象PRを自動検出する。
 - `git branch --show-current` で現在ブランチを確認する。
 - まず `gh pr list --state open --head <current-branch>` で open PR を探す。
-- 見つからない場合のみ `gh pr list --state open --base main --head develop` を試す。
+- 現在ブランチが `develop` の場合のみ `gh pr list --state open --base main --head develop` を試す。
 - それでも見つからない場合は、ユーザーに PR 番号 or URL を確認する。
 
 2. 実装完了状態を確定する。
@@ -36,7 +38,9 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
 - PR がある場合は以下も取得する。
   - `gh pr view <PR番号> --json number,title,url,body`
   - `gh pr view <PR番号> --comments`
-- PR がない場合は `main...develop` の差分を明記する。
+- PR がない場合は比較範囲を明記する。
+  - `develop` ブランチ上の確認: `main...develop`
+  - 作業ブランチ上の確認: `origin/develop...HEAD`
 
 4. 検証結果を確定する。
 - 変更範囲に応じて `lint` / `test` / `build` を実行する。
@@ -63,7 +67,7 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
 
 ## Review Request Rules
 - レビュー結果には必ず対象範囲を入れる。
-  - PR URL または比較範囲（例: `main...develop`）
+  - PR URL または比較範囲（例: `main...develop`, `origin/develop...HEAD`）
 - レビュー結果には必ず検証結果を入れる。
   - 実行したコマンドと pass/fail
 - findings first / 重大度順 / ファイルパスと行番号を必須とする。
