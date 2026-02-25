@@ -12,23 +12,66 @@ description: |
 
 ### 基本ルール
 
-- **ブランチは `develop` と `main` のみ**
-- feature ブランチは作成しない
-- 作業は `develop` に直接コミット
-- `main` への反映は **必ず `develop` → `main` の PR 経由**
+- **`main` を常に最新化し、作業は短命 feature ブランチで行う**
+- 1タスク = 1ブランチ（例: `fix/asset-balance-lock-test`）
+- PR は **feature ブランチ → `main`**
+- `develop` は既定の開発ブランチとして使わない（必要時のみ検証用に限定）
 
 ### 禁止事項
 
 - `main` に直接コミット/マージしない
-- feature ブランチを作成しない
-- `develop` を経由せずに `main` を更新しない
+- `develop` への直接コミットを日常運用にしない
+- 長期間の `develop` 集約後に巨大な `develop -> main` PR を作らない
+- feature ブランチで `merge` を多用しない（`rebase` で履歴を保つ）
 
 ### ワークフロー
 
 ```
-1. develop で作業・コミット
-2. develop → main の PR を作成
-3. レビュー・マージ
+1. main を最新化
+2. feature ブランチ作成
+3. feature ブランチで作業・コミット
+4. feature → main の PR を作成
+5. レビュー後に squash merge
+```
+
+### 開始手順（毎回）
+
+```bash
+git checkout main
+git pull origin main
+git switch -c <type>/<short-topic>
+```
+
+### PR前の整形（必須）
+
+```bash
+# feature ブランチを main に追従
+git fetch origin
+git rebase origin/main
+
+# 必要ならコミット統合（fixup/squash）
+git rebase -i origin/main
+```
+
+### 既存 `develop` からクリーンブランチへ載せ替える手順
+
+```bash
+# 1. main を最新化
+git checkout main
+git pull origin main
+
+# 2. 新しい feature ブランチを作る
+git switch -c <type>/<short-topic>
+
+# 3. develop の必要コミットだけを順に取り込む
+git cherry-pick <commit1> <commit2> <commit3>
+
+# 4. 競合解消後に履歴整形
+git rebase -i origin/main
+
+# 5. プッシュして PR 作成（base は main）
+git push -u origin <type>/<short-topic>
+gh pr create --base main --head <type>/<short-topic>
 ```
 
 ## コミット分割の原則
@@ -97,7 +140,7 @@ EOF
 
 ```bash
 # 1. プッシュ
-git push origin <branch>
+git push -u origin <branch>
 
 # 2. PR作成
 gh pr create --base main --head <branch> --title "タイトル" --body "$(cat <<'EOF'
@@ -142,3 +185,4 @@ EOF
 - ユーザーが明示的に依頼しない限りコミット・PRを作成しない
 - `git add -A` は避け、ファイルを個別に追加
 - 機密ファイル（.env等）をコミットしない
+- PRは小さく保つ（目安: 1目的、レビュー可能な差分量）
