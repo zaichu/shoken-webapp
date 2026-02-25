@@ -43,18 +43,32 @@ describe('ConfirmDeleteModal', () => {
     expect(defaultProps.onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('Tab キーでフォーカスがモーダル内を循環する', async () => {
+  it('Tab キーでフォーカスがモーダル内を循環する（末尾→先頭のラップ）', async () => {
     const user = userEvent.setup();
     render(<ConfirmDeleteModal {...defaultProps} />);
-    // autoFocus により最初のフォーカスはキャンセルボタン
-    const cancelBtn = screen.getByRole('button', { name: 'キャンセル' });
-    expect(document.activeElement).toBe(cancelBtn);
+    // 末尾の削除ボタンにフォーカスを移動
+    const confirmBtn = screen.getByRole('button', { name: '削除する' });
+    confirmBtn.focus();
+    expect(document.activeElement).toBe(confirmBtn);
 
-    // Tab でフォーカスが次のボタンへ移動
+    // Tab で先頭要素（✕閉じるボタン）へラップ
     await user.tab();
-    expect(document.activeElement).not.toBe(cancelBtn);
-    // モーダル内の要素であること
-    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+    const closeBtn = screen.getByRole('button', { name: '閉じる' });
+    expect(document.activeElement).toBe(closeBtn);
+  });
+
+  it('Shift+Tab キーで逆循環する（先頭→末尾のラップ）', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmDeleteModal {...defaultProps} />);
+    // 先頭の✕閉じるボタンにフォーカス
+    const closeBtn = screen.getByRole('button', { name: '閉じる' });
+    closeBtn.focus();
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Shift+Tab で末尾要素（削除ボタン）へラップ
+    await user.tab({ shift: true });
+    const confirmBtn = screen.getByRole('button', { name: '削除する' });
+    expect(document.activeElement).toBe(confirmBtn);
   });
 
   it('キャンセルボタンクリックで onCancel が呼ばれる', () => {
