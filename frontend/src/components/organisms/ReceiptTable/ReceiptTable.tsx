@@ -73,6 +73,102 @@ const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: R
     );
 };
 
+const formatSummaryValue = (value: unknown, column: SummaryColumnConfig) =>
+    column.format ? column.format(value) : value;
+
+function renderDataRows<T extends DataItem>(
+    items: T[],
+    columns: TableColumnConfig[],
+    keyPrefix: string
+) {
+    return items.map((item, itemIndex) => (
+        <TableRow key={`${keyPrefix}-${itemIndex}`}>
+            {columns.map((column, colIndex) =>
+                renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`)
+            )}
+        </TableRow>
+    ));
+}
+
+function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
+    summaryToRender: S[],
+    data: T[],
+    columns: TableColumnConfig[],
+    summaryColumns: SummaryColumnConfig[],
+    getGroupKey: (item: T) => string,
+    formatGroupHeader: (key: string) => string
+) {
+    return summaryToRender.map((summaryItem, summaryIndex) => {
+        const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
+        const headerText = formatGroupHeader(summaryItem.filter);
+        const itemCount = groupItems.length;
+
+        const summaryValues = summaryColumns.map(column => ({
+            key: column.key,
+            value: formatSummaryValue(summaryItem[column.key], column),
+            rawValue: summaryItem[column.key]
+        }));
+
+        const summaryBorderClass = summaryIndex > 0 && 'border-t border-slate-200';
+        const summaryLeftClass = cn('bg-slate-50 text-slate-700 font-medium border-l-2 border-slate-400', summaryBorderClass);
+        const summaryValueClass = cn('bg-slate-50 text-slate-700 text-right font-medium', summaryBorderClass);
+
+        return (
+            <React.Fragment key={`group-${summaryIndex}`}>
+                {/* グループサマリー行 */}
+                {summaryColumns.length > 0 && (
+                    <TableRow>
+                        <TableCell
+                            colSpan={columns.length - summaryColumns.length}
+                            className={summaryLeftClass}
+                        >
+                            <span className="text-sm font-medium">
+                                {headerText}
+                            </span>
+                            <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
+                                {itemCount}件
+                            </span>
+                        </TableCell>
+                        {summaryValues.map((sv) => (
+                            <TableCell
+                                key={sv.key}
+                                className={summaryValueClass}
+                                data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
+                            >
+                                {React.isValidElement(sv.value) ? sv.value : renderTextValue(sv.value)}
+                            </TableCell>
+                        ))}
+                    </TableRow>
+                )}
+                {/* サマリーがない場合のヘッダー */}
+                {summaryColumns.length === 0 && (
+                    <TableRow>
+                        <TableCell
+                            colSpan={columns.length}
+                            className={summaryLeftClass}
+                        >
+                            <span className="text-sm font-medium">
+                                {headerText}
+                            </span>
+                            <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
+                                {itemCount}件
+                            </span>
+                        </TableCell>
+                    </TableRow>
+                )}
+                {/* 明細行 */}
+                {groupItems.map((item, itemIndex) => (
+                    <TableRow key={`item-${summaryIndex}-${itemIndex}`}>
+                        {columns.map((column, colIndex) =>
+                            renderCell(item[column.key], column, `item-${summaryIndex}-${itemIndex}-${colIndex}`)
+                        )}
+                    </TableRow>
+                ))}
+            </React.Fragment>
+        );
+    });
+}
+
 /**
  * 明細表示用テーブルコンポーネント
  */
@@ -113,94 +209,8 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         }
     };
 
-    const renderDataRows = (items: T[], keyPrefix: string) =>
-        items.map((item, itemIndex) => (
-            <TableRow key={`${keyPrefix}-${itemIndex}`}>
-                {columns.map((column, colIndex) =>
-                    renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`)
-                )}
-            </TableRow>
-        ));
-
-    // サマリー値のフォーマット
-    const formatSummaryValue = (value: unknown, column: SummaryColumnConfig) => {
-        return column.format ? column.format(value) : value;
-    };
-
     const summaryGroupKeys = new Set(data.map(item => getGroupKey(item)));
     const summaryToRender = summary.filter(summaryItem => summaryGroupKeys.has(summaryItem.filter));
-
-    const renderGroupedRows = () =>
-        summaryToRender.map((summaryItem, summaryIndex) => {
-            const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
-            const headerText = formatGroupHeader(summaryItem.filter);
-            const itemCount = groupItems.length;
-
-            // サマリー値の取得
-            const summaryValues = summaryColumns.map(column => ({
-                key: column.key,
-                value: formatSummaryValue(summaryItem[column.key], column),
-                rawValue: summaryItem[column.key]
-            }));
-
-            const summaryBorderClass = summaryIndex > 0 && 'border-t border-slate-200';
-            const summaryLeftClass = cn('bg-slate-50 text-slate-700 font-medium border-l-2 border-slate-400', summaryBorderClass);
-            const summaryValueClass = cn('bg-slate-50 text-slate-700 text-right font-medium', summaryBorderClass);
-
-            return (
-                <React.Fragment key={`group-${summaryIndex}`}>
-                    {/* グループサマリー行 */}
-                    {summaryColumns.length > 0 && (
-                        <TableRow>
-                            <TableCell
-                                colSpan={columns.length - summaryColumns.length}
-                                className={summaryLeftClass}
-                            >
-                                <span className="text-sm font-medium">
-                                    {headerText}
-                                </span>
-                                <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
-                                    {itemCount}件
-                                </span>
-                            </TableCell>
-                            {summaryValues.map((sv) => (
-                                <TableCell
-                                    key={sv.key}
-                                    className={summaryValueClass}
-                                    data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
-                                >
-                                    {React.isValidElement(sv.value) ? sv.value : renderTextValue(sv.value)}
-                                </TableCell>
-                            ))}
-                        </TableRow>
-                    )}
-                    {/* サマリーがない場合のヘッダー */}
-                    {summaryColumns.length === 0 && (
-                        <TableRow>
-                            <TableCell
-                                colSpan={columns.length}
-                                className={summaryLeftClass}
-                            >
-                                <span className="text-sm font-medium">
-                                    {headerText}
-                                </span>
-                                <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
-                                    {itemCount}件
-                                </span>
-                            </TableCell>
-                        </TableRow>
-                    )}
-                    {/* 明細行 */}
-                    {groupItems.map((item, itemIndex) => (
-                        <TableRow key={`item-${summaryIndex}-${itemIndex}`}>
-                            {columns.map((column, colIndex) =>
-                                renderCell(item[column.key], column, `item-${summaryIndex}-${itemIndex}-${colIndex}`)
-                            )}
-                        </TableRow>
-                    ))}
-                </React.Fragment>
-            );
-        });
 
     return (
         <Table
@@ -226,7 +236,10 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {summaryToRender.length > 0 ? renderGroupedRows() : renderDataRows(data, 'item')}
+                {summaryToRender.length > 0
+                    ? renderGroupedRows(summaryToRender, data, columns, summaryColumns, getGroupKey, formatGroupHeader)
+                    : renderDataRows(data, columns, 'item')
+                }
             </TableBody>
         </Table>
     );
