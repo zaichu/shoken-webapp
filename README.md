@@ -178,7 +178,7 @@ cargo build
 | POST | `/mutualfunds/bulk` | 投資信託一括追加 |
 | DELETE | `/mutualfunds/all` | 投資信託全削除 |
 | GET | `/asset-balances` | 保有銘柄一覧取得 |
-| POST | `/asset-balances/bulk` | 保有銘柄一括追加（UPSERT） |
+| POST | `/asset-balances/bulk` | 保有銘柄一括登録（全削除→再挿入） |
 | DELETE | `/asset-balances/all` | 保有銘柄全削除 |
 
 ### J-Quants / 補助 API

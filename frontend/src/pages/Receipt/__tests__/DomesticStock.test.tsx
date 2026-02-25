@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { DomesticStock } from '../DomesticStock';
+import { waitOpts } from '@/test/utils';
 
 // React Router DOM のモック
 vi.mock('react-router-dom', () => ({
@@ -114,7 +115,6 @@ describe('DomesticStock', () => {
     });
 
     it('銘柄検索時に0件サマリーが表示されない', async () => {
-        const waitOpts = { timeout: 5000 };
         const user = userEvent.setup();
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
 

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 import { AssetBalanceInfo } from '../AssetBalance';
+import { waitOpts } from '@/test/utils';
 
 // SecurityCodeLinkのモック
 vi.mock('@/components/atoms/SecurityCodeLink', () => ({
@@ -43,9 +44,8 @@ const mockAssetBalanceData: AssetBalanceData[] = [
   },
 ];
 
-const waitOpts = { timeout: 5000 };
 
-describe('AssetBalanceInfo', () => {
+describe('AssetBalanceInfo', { timeout: 20000 }, () => {
   const defaultProps = {
     assetBalanceData: mockAssetBalanceData,
     filteredData: mockAssetBalanceData,

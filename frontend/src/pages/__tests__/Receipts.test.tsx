@@ -6,10 +6,10 @@
  * - ReceiptsPage: タブ切替・ログアウト時データクリアの統合テスト
  */
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { makeQueryClient, renderWithQuery, waitOpts } from '@/test/utils';
 
 import { receiptsReducer, initialState } from '../receiptsReducer';
 import type { ReceiptsState } from '../receiptsReducer';
@@ -163,21 +163,6 @@ function makeAuthMock(opts: {
   };
 }
 
-// テスト用 QueryClient ファクトリ（自動再フェッチなし）
-function makeQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Infinity },
-    },
-  });
-}
-
-function renderWithQuery(ui: React.ReactElement, qc?: QueryClient) {
-  const client = qc ?? makeQueryClient();
-  return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-  );
-}
 
 // ────────────────────────────────────────────────────────
 // receiptsReducer 単体テスト
@@ -301,8 +286,6 @@ describe('ReceiptsPage', () => {
 
     renderWithQuery(<ReceiptsPage />);
 
-    const waitOpts = { timeout: 5000 };
-
     // DB フェッチ完了を待つ
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -328,7 +311,6 @@ describe('ReceiptsPage', () => {
   }, 20000);
 
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
-    const waitOpts = { timeout: 5000 };
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
