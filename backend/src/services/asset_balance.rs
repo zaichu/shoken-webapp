@@ -26,7 +26,7 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<AssetBalance>, Api
     Ok(balances)
 }
 
-/// 保有銘柄を一括追加（既存は更新）
+/// 保有銘柄を一括登録（既存データを全削除してから挿入）
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
@@ -35,13 +35,6 @@ pub async fn bulk_create(
     let total = items.len();
     info!("[asset_balance.bulk_create] リクエスト受信: {}件", total);
     let start = Instant::now();
-
-    if items.is_empty() {
-        return Ok(BulkCreateResponse {
-            inserted: 0,
-            skipped: 0,
-        });
-    }
 
     // 各フィールドを配列に変換
     let user_ids: Vec<Uuid> = vec![user_id; total];
@@ -57,54 +50,53 @@ pub async fn bulk_create(
     let market_values: Vec<f64> = items.iter().map(|i| i.market_value).collect();
     let profit_loss_rates: Vec<f64> = items.iter().map(|i| i.profit_loss_rate).collect();
 
-    // UNNESTを使ったバルクUPSERT（1回のクエリで全件挿入/更新）
-    let result = sqlx::query(
-        r#"
-        INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
-                                    average_purchase_price, total_purchase_amount, current_price,
-                                    daily_change, market_value, profit_loss_rate)
-        SELECT * FROM UNNEST(
-            $1::uuid[], $2::text[], $3::text[], $4::float8[], $5::float8[],
-            $6::float8[], $7::float8[], $8::float8[], $9::float8[], $10::float8[], $11::float8[]
+    // トランザクション内で全削除 → 全件挿入（スナップショット置き換え）
+    let mut tx = pool.begin().await?;
+
+    sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
+    if !items.is_empty() {
+        sqlx::query(
+            r#"
+            INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
+                                        average_purchase_price, total_purchase_amount, current_price,
+                                        daily_change, market_value, profit_loss_rate)
+            SELECT * FROM UNNEST(
+                $1::uuid[], $2::text[], $3::text[], $4::float8[], $5::float8[],
+                $6::float8[], $7::float8[], $8::float8[], $9::float8[], $10::float8[], $11::float8[]
+            )
+            "#,
         )
-        ON CONFLICT (user_id, security_code)
-        DO UPDATE SET
-            security_name = EXCLUDED.security_name,
-            shares = EXCLUDED.shares,
-            executing_shares = EXCLUDED.executing_shares,
-            average_purchase_price = EXCLUDED.average_purchase_price,
-            total_purchase_amount = EXCLUDED.total_purchase_amount,
-            current_price = EXCLUDED.current_price,
-            daily_change = EXCLUDED.daily_change,
-            market_value = EXCLUDED.market_value,
-            profit_loss_rate = EXCLUDED.profit_loss_rate,
-            updated_at = NOW()
-        "#,
-    )
-    .bind(&user_ids)
-    .bind(&security_codes)
-    .bind(&security_names)
-    .bind(&shares)
-    .bind(&executing_shares)
-    .bind(&average_purchase_prices)
-    .bind(&total_purchase_amounts)
-    .bind(&current_prices)
-    .bind(&daily_changes)
-    .bind(&market_values)
-    .bind(&profit_loss_rates)
-    .execute(pool)
-    .await?;
+        .bind(&user_ids)
+        .bind(&security_codes)
+        .bind(&security_names)
+        .bind(&shares)
+        .bind(&executing_shares)
+        .bind(&average_purchase_prices)
+        .bind(&total_purchase_amounts)
+        .bind(&current_prices)
+        .bind(&daily_changes)
+        .bind(&market_values)
+        .bind(&profit_loss_rates)
+        .execute(&mut *tx)
+        .await?;
+    }
 
-    let inserted = result.rows_affected() as usize;
-    let skipped = 0; // UPSERT のため skipped は常に 0
+    tx.commit().await?;
+
     let elapsed = start.elapsed();
-
     info!(
-        "[asset_balance.bulk_create] 完了: upserted={}, 処理時間={:.2}ms",
-        inserted,
+        "[asset_balance.bulk_create] 完了: inserted={}, 処理時間={:.2}ms",
+        total,
         elapsed.as_secs_f64() * 1000.0
     );
-    Ok(BulkCreateResponse { inserted, skipped })
+    Ok(BulkCreateResponse {
+        inserted: total,
+        skipped: 0,
+    })
 }
 
 /// 認証ユーザーの保有銘柄を全削除
