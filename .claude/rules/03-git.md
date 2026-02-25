@@ -49,6 +49,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ## PR とマージ
 
 - PR は作業ブランチから `main` へ作成する
+- PR マージ前に Codex レビュー（`.claude/skills/pr-review/SKILL.md`）を実施する
 - タイトルと説明は日本語で、変更内容とテスト結果を明記する
 - マージ方式は `Squash and merge` を推奨
 - マージ後は `main` を更新して作業ブランチを削除する
