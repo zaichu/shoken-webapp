@@ -12,6 +12,7 @@ Usage:
 Notes:
 - Stage only intended files first (git add <path> or git add -p)
 - This script does not run git add automatically
+- Run on a task branch (not main)
 USAGE
 }
 
@@ -28,6 +29,8 @@ echo "Current branch: $CURRENT_BRANCH"
 
 if [ "$CURRENT_BRANCH" = "main" ]; then
     echo "ERROR: direct commits to main are not allowed"
+    echo "Create a task branch from main and run this script there."
+    echo "See docs/git-branch-workflow.md"
     exit 1
 fi
 
