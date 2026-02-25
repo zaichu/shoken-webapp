@@ -230,6 +230,15 @@ shoken-webapp/
 └── .github/workflows/
 ```
 
+## Git ブランチ運用
+
+- 長期ブランチは `main` と `develop` のみ
+- 作業は必ず `develop` から短期ブランチを切って行う（例: `feature/<topic>`, `fix/<topic>`）
+- `main` へ直接コミットしない
+- `git add .` / `git add -A` は避け、`git add <path>` または `git add -p` でコミット範囲を明示する
+- 作業ブランチの PR マージ後は、ローカル・リモートの両方からブランチを削除する
+- `develop` から `main` へは PR 経由で反映する
+
 ## デプロイ
 
 - Frontend: Vercel

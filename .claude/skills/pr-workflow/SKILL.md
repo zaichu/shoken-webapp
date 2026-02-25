@@ -1,51 +1,44 @@
 ---
 name: pr-workflow
 description: |
-  コミット分割とPR作成のワークフロー。
-  機能ごとにコミットを分け、PRを作成する。
-  Use when: コミット、PR作成、プルリクエストを依頼された時。
+  コミット履歴をきれいに保つための Git ブランチ運用と PR 作成ワークフロー。
+  `main` / `develop` / 短期作業ブランチの役割、コミット分割、PR、マージ後のブランチ削除までを定義する。
+  Use when: ブランチ運用の相談、コミット、PR作成、マージ後のブランチ削除を依頼された時。
 ---
 
 # PR ワークフロー
 
 ## ブランチ戦略
 
-### 基本ルール
-
-- **ブランチは `develop` と `main` のみ**
-- feature ブランチは作成しない
-- 作業は `develop` に直接コミット
-- `main` への反映は **必ず `develop` → `main` の PR 経由**
-
-### 禁止事項
-
-- `main` に直接コミット/マージしない
-- feature ブランチを作成しない
-- `develop` を経由せずに `main` を更新しない
-
-### ワークフロー
-
-```
-1. develop で作業・コミット
-2. develop → main の PR を作成
-3. レビュー・マージ
-```
+- 長期ブランチ
+  - `main`: 本番反映専用。直接コミット禁止。
+  - `develop`: 統合ブランチ。作業ブランチの起点。
+- 短期ブランチ（作業ごとに作成）
+  - `feature/<topic>`
+  - `fix/<topic>`
+  - `refactor/<topic>`
+  - `docs/<topic>`
+  - `chore/<topic>`
+- 短期ブランチはマージ後に必ず削除する（ローカル/リモート）。
 
 ## コミット分割の原則
 
-1. **機能単位で分割** - 1コミット = 1機能
-2. **共通基盤は最初のコミットに含める**
-3. **統合ファイルは最後のコミットに含める**
+1. 1コミット = 1目的（機能・修正・リファクタを混在させない）
+2. `git add .` / `git add -A` は使わず、`git add <path>` または `git add -p` を使う
+3. PR 前に `fixup!` + `rebase -i --autosquash` で不要コミットを整理する
+4. `WIP` のような暫定コミットは push 前に整理する
 
 ## コミットメッセージ形式
 
-```
+```bash
 <種別>: <変更内容の要約>
 
 <詳細説明（任意）>
 
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
+
+- `<変更内容の要約>` と `<詳細説明>` は日本語で記述する
 
 ### 種別
 
@@ -56,51 +49,40 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - `test`: テスト
 - `chore`: ビルド・設定変更
 
-## 分割例（複数機能追加時）
-
-```
-1. 共通基盤 + 機能A
-   - 認証エクストラクター、APIクライアント基盤
-   - 機能A固有ファイル
-
-2. 機能B
-   - 機能B固有ファイル
-
-3. 機能C + 統合
-   - 機能C固有ファイル
-   - main.rs、handlers.rs などの統合ファイル
-```
-
-## コミット手順
+## 標準フロー
 
 ```bash
-# 1. 変更状況確認
-git status
-git diff
+# 1) develop を最新化
+git switch develop
+git pull --ff-only origin develop
 
-# 2. 機能ごとにステージング・コミット
-git add <files>
-git commit -m "$(cat <<'EOF'
-feat: 機能の説明
+# 2) 短期ブランチ作成
+git switch -c feature/<topic>
 
-- 変更点1
-- 変更点2
+# 3) 変更を目的単位でコミット
+git add -p
+git commit -m "feat: <変更内容の要約>"
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
-EOF
-)"
+# 4) リモートへ push
+git push -u origin feature/<topic>
+```
 
-# 3. 繰り返し
+## 履歴整理（PR前）
+
+```bash
+# 直近コミットを fixup として積む例
+git commit --fixup <target-commit-hash>
+
+# develop 基準で自動 squash/fixup
+git rebase -i --autosquash origin/develop
 ```
 
 ## PR作成手順
 
-```bash
-# 1. プッシュ
-git push origin <branch>
+作業ブランチは `develop` 向けに PR を作成する。
 
-# 2. PR作成
-gh pr create --base main --head <branch> --title "タイトル" --body "$(cat <<'EOF'
+```bash
+gh pr create --base develop --head <work-branch> --title "タイトル" --body "$(cat <<'EOF_BODY'
 ## 概要
 変更内容の説明
 
@@ -115,30 +97,32 @@ gh pr create --base main --head <branch> --title "タイトル" --body "$(cat <<
 ## テスト
 - [x] テスト実行確認
 - [x] ビルド確認
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
+EOF_BODY
 )"
 ```
 
-## よくあるパターン
+`develop` から `main` への反映は、別 PR（`base=main`, `head=develop`）で実施する。
 
-### Skills + 機能追加
-```
-1. feat: Agent Skills を追加
-2. feat: 機能AのDB取込機能を追加
-3. feat: 機能BのDB取込機能を追加
-4. feat: 機能CのDB取込機能を追加
+## マージ方式
+
+- 作業ブランチ -> `develop`: `Squash and merge` を推奨（1タスク1コミット化）
+- `develop` -> `main`: `Rebase and merge`（または `--ff-only` マージ）で直線履歴を維持
+
+## ブランチ削除（マージ後）
+
+```bash
+# 例: feature/login-timeout-fix を削除
+git switch develop
+git pull --ff-only origin develop
+git branch -d feature/login-timeout-fix
+git push origin --delete feature/login-timeout-fix
+git fetch origin --prune
 ```
 
-### リファクタリング + 機能追加
-```
-1. refactor: 共通処理を抽出
-2. feat: 新機能を追加
-```
+## 禁止事項
 
-## 注意事項
-
-- ユーザーが明示的に依頼しない限りコミット・PRを作成しない
-- `git add -A` は避け、ファイルを個別に追加
-- 機密ファイル（.env等）をコミットしない
+- `main` への直接コミット
+- `develop` への直接コミット（緊急時の明示指示を除く）
+- `git add .` / `git add -A`
+- `git branch -D` での強制削除（未マージ削除が必要な場合はユーザー明示指示時のみ）
+- ユーザーが明示的に依頼していないコミット・PR作成
