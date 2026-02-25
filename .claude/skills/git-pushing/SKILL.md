@@ -3,7 +3,7 @@ name: git-pushing
 description: |
   変更を選択的にステージングし、コミットしてリモートへ push する。
   コミット履歴を汚さないため、`git add .` を避けて staged 差分を明示確認してから push する。
-  ブランチ運用の基準は `docs/git-branch-workflow.md` に統一し、本スキルはコミット/push 操作を担当する。
+  ブランチ運用の基準は `.claude/rules/03-git.md` に統一し、本スキルはコミット/push 操作を担当する。
   Use when: コミットと push を依頼された時、リモートへ push したいと明示された時、
   または「push して」「commit and push」「push to github」などの表現がある時。
 ---
@@ -14,7 +14,7 @@ description: |
 
 ## 基準ルール
 
-- ブランチ運用の唯一の基準は `docs/git-branch-workflow.md`
+- ブランチ運用の唯一の基準は `.claude/rules/03-git.md`
 - 本スキルは「作業ブランチ上でのコミット/push」に限定して実行する
 
 ## 必須ルール

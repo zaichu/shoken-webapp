@@ -1,20 +1,35 @@
 # Git・PR ルール
 
+このドキュメントを、Git ブランチ運用の唯一の基準（Single Source of Truth）とする。
+README や skills の記載と衝突した場合は、本ドキュメントを優先する。
+
 ## ブランチ戦略
 
-- `main`: 本番環境（保護ブランチ）
-- `develop`: 開発統合ブランチ
-- **feature/fix/hotfix ブランチは作成しない**
-- 作業は `develop` に直接コミット
-- `main` への反映は **必ず `develop` → `main` の PR 経由**
+- 長期ブランチは `main` のみ
+- `develop` は使わない
+- 作業は必ず `main` から短期ブランチを作って行う
+- `main` への直接コミット・直接 push は禁止
+- 1機能・1タスクにつき 1 ブランチ
+- マージ後は作業ブランチをローカル/リモート両方で削除する
 
-## コミットメッセージ
+### 作業ブランチ名
 
-### 形式
+- `feature/<topic>`
+- `fix/<topic>`
+- `refactor/<topic>`
+- `docs/<topic>`
+- `chore/<topic>`
+- `hotfix/<topic>`
 
-日本語で記述:
+## コミットルール
 
-```
+- `git add .` / `git add -A` は使わず、`git add <path>` または `git add -p` を使う
+- 1コミット = 1目的（機能追加とリファクタを混在させない）
+- コミットメッセージ（要約・本文）は日本語で書く
+
+### コミットメッセージ形式
+
+```text
 <種別>: <変更内容の要約>
 
 <詳細説明（任意）>
@@ -31,122 +46,42 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - `test`: テスト
 - `chore`: ビルド・設定変更
 
-### 例
+## PR とマージ
+
+- PR は作業ブランチから `main` へ作成する
+- タイトルと説明は日本語で、変更内容とテスト結果を明記する
+- マージ方式は `Squash and merge` を推奨
+- マージ後は `main` を更新して作業ブランチを削除する
+
+## 標準フロー
 
 ```bash
-feat: 株式検索機能を追加
+# 1) main を最新化
+git switch main
+git pull --ff-only origin main
 
-- 銘柄コードによる検索
-- 会社名による部分一致検索
-- J-Quants API との連携
+# 2) 1タスク1ブランチを作成
+git switch -c feature/<topic>
+
+# 3) 変更を選択してコミット
+git add -p
+git commit -m "feat: <変更内容の要約>"
+
+# 4) push と PR 作成
+git push -u origin feature/<topic>
+gh pr create --base main --head feature/<topic>
+
+# 5) マージ後の後片付け
+git switch main
+git pull --ff-only origin main
+git branch -d feature/<topic>
+git push origin --delete feature/<topic>
+git fetch origin --prune
 ```
 
-```bash
-fix: 取引履歴のCSVインポートエラーを修正
+## 禁止事項
 
-Shift-JISエンコーディングの自動検出に対応
-```
-
-## Pull Request
-
-### PRの作成
-
-- `develop` → `main` へPRを作成
-- タイトルは日本語で簡潔に
-- テンプレートに従って記述
-
-### PRテンプレート
-
-```markdown
-## 概要
-<!-- 変更内容の説明 -->
-
-## 変更種別
-- [ ] 新機能
-- [ ] バグ修正
-
-## 主な変更内容
-- 項目1
-- 項目2
-
-## テスト
-- [ ] テスト実行確認
-- [ ] ビルド確認
-```
-
-### レビュー観点
-
-- 機能要件を満たしているか
-- コーディング規約に準拠しているか
-- テストが適切に書かれているか
-- セキュリティ上の問題がないか
-
-## マージ戦略
-
-- **Squash and Merge** を基本とする
-- コミット履歴をクリーンに保つ
-- `develop` は保持する
-
-## リリースフロー
-
-1. `develop` で開発・テスト
-2. `develop` → `main` へPR作成
-3. レビュー・承認
-4. マージ後、自動デプロイ
-
-## .gitignore
-
-### 共通
-
-```
-.env
-.env.local
-*.log
-.DS_Store
-```
-
-### フロントエンド
-
-```
-node_modules/
-dist/
-.env.development.local
-```
-
-### バックエンド
-
-```
-target/
-Secrets.toml
-```
-
-## Git操作のベストプラクティス
-
-### 作業開始前
-
-```bash
-git checkout develop
-git pull origin develop
-```
-
-### コミット前
-
-```bash
-# フロントエンド
-cd frontend && npm run lint && npm test
-
-# バックエンド
-cd backend && cargo check && cargo test
-```
-
-### プッシュ
-
-```bash
-git push origin develop
-```
-
-## コンフリクト解決
-
-1. `develop` を最新化
-2. コンフリクト解決
-3. テスト実行で動作確認
+- `main` への直接コミット / 直接 push
+- 1つの作業ブランチに複数タスクを混在させること
+- 不要な `--force` push
+- ユーザーの明示指示なしでの `git branch -D`

@@ -232,7 +232,7 @@ shoken-webapp/
 
 ## Git ブランチ運用
 
-- 公式ルールは [`docs/git-branch-workflow.md`](docs/git-branch-workflow.md) を参照
+- 公式ルールは [`.claude/rules/03-git.md`](.claude/rules/03-git.md) を参照
 - 1タスク1ブランチ（`main` 起点）で運用する
 - `main` への直接コミットは禁止
 
