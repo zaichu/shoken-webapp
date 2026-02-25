@@ -30,7 +30,7 @@ echo "Current branch: $CURRENT_BRANCH"
 if [ "$CURRENT_BRANCH" = "main" ]; then
     echo "ERROR: direct commits to main are not allowed"
     echo "Create a task branch from main and run this script there."
-    echo "See docs/git-branch-workflow.md"
+    echo "See .claude/rules/03-git.md"
     exit 1
 fi
 

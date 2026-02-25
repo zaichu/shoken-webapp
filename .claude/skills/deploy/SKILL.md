@@ -12,7 +12,7 @@ description: |
 main ブランチへのマージで自動デプロイが実行されるため、
 **通常は手動デプロイ不要**。
 
-ブランチ運用の基準は `docs/git-branch-workflow.md` を参照する。
+ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 
 ## バックエンド (Fly.io)
 

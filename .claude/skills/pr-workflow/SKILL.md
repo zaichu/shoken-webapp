@@ -3,7 +3,7 @@ name: pr-workflow
 description: |
   コミット履歴をきれいに保つための Git ブランチ運用と PR 作成ワークフロー。
   `main` と短期作業ブランチの役割、コミット分割、PR、マージ後のブランチ削除までを定義する。
-  基準ルールは `docs/git-branch-workflow.md` に統一し、本スキルはその実行手順を扱う。
+  基準ルールは `.claude/rules/03-git.md` に統一し、本スキルはその実行手順を扱う。
   機能・タスクごとに `main` から 1 本ずつ作業ブランチを作成する前提で運用する。
   Use when: ブランチ運用の相談、コミット、PR作成、マージ後のブランチ削除を依頼された時。
 ---
@@ -12,8 +12,8 @@ description: |
 
 ## 基準ルール
 
-- ブランチ運用の唯一の基準は `docs/git-branch-workflow.md`
-- 本スキルと他ドキュメントで記載が衝突した場合は `docs/git-branch-workflow.md` を優先する
+- ブランチ運用の唯一の基準は `.claude/rules/03-git.md`
+- 本スキルと他ドキュメントで記載が衝突した場合は `.claude/rules/03-git.md` を優先する
 
 ## ブランチ戦略
 
