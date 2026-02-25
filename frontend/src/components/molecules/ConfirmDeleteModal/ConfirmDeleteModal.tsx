@@ -29,16 +29,6 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 }) => {
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Escapeキーで閉じる
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
-
   // モーダルが開いたときにキャンセルボタンにフォーカス
   useEffect(() => {
     if (isOpen) {

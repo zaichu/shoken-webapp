@@ -24,6 +24,55 @@ const renderTextValue = (value: unknown): string | number => {
     return String(value);
 };
 
+const isNegativeValue = (value: unknown): boolean => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) && value < 0;
+    }
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    const normalized = value
+        .trim()
+        .replace(/[¥￥$€£]/g, '')
+        .replace(/,/g, '')
+        .replace(/\s+/g, '');
+
+    if (!normalized || !/^[-+]?\d+(\.\d+)?$/.test(normalized)) {
+        return false;
+    }
+
+    return Number(normalized) < 0;
+};
+
+const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
+    const formattedValue = column.format ? column.format(value) : value;
+    const isNegative = !React.isValidElement(formattedValue) && isNegativeValue(value);
+
+    const cellStyle: React.CSSProperties = {
+        minWidth: 'width' in column ? column.width : undefined,
+        textAlign: column.textAlign,
+        fontVariantNumeric: column.textAlign === 'right' ? 'tabular-nums' : undefined,
+        ...style
+    };
+
+    const props = {
+        style: cellStyle,
+        colSpan: 'colSpan' in column ? column.colSpan : undefined
+    };
+
+    // ReactElementの場合はそのまま描画
+    if (React.isValidElement(formattedValue)) {
+        return <TableCell key={key} {...props}>{formattedValue}</TableCell>;
+    }
+
+    return (
+        <TableCell key={key} {...props} data-negative={isNegative ? 'true' : undefined}>
+            {renderTextValue(formattedValue)}
+        </TableCell>
+    );
+};
+
 /**
  * 明細表示用テーブルコンポーネント
  */
@@ -53,27 +102,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
 }: ReceiptTableProps<T, S>) {
     const forceResize = useForceResize();
 
-    const isNegativeValue = (value: unknown): boolean => {
-        if (typeof value === 'number') {
-            return Number.isFinite(value) && value < 0;
-        }
-        if (typeof value !== 'string') {
-            return false;
-        }
-
-        const normalized = value
-            .trim()
-            .replace(/[¥￥$€£]/g, '')
-            .replace(/,/g, '')
-            .replace(/\s+/g, '');
-
-        if (!normalized || !/^[-+]?\d+(\.\d+)?$/.test(normalized)) {
-            return false;
-        }
-
-        return Number(normalized) < 0;
-    };
-
     // テーブル内のクリックイベントをハンドル（銘柄コードリンク用）
     const handleTableClick = (e: React.MouseEvent<HTMLTableElement>) => {
         const target = e.target as HTMLElement;
@@ -83,34 +111,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                 onSearch(searchValue);
             }
         }
-    };
-
-    const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
-        const formattedValue = column.format ? column.format(value) : value;
-        const isNegative = !React.isValidElement(formattedValue) && isNegativeValue(value);
-
-        const cellStyle: React.CSSProperties = {
-            minWidth: 'width' in column ? column.width : undefined,
-            textAlign: column.textAlign,
-            fontVariantNumeric: column.textAlign === 'right' ? 'tabular-nums' : undefined,
-            ...style
-        };
-
-        const props = {
-            style: cellStyle,
-            colSpan: 'colSpan' in column ? column.colSpan : undefined
-        };
-
-        // ReactElementの場合はそのまま描画
-        if (React.isValidElement(formattedValue)) {
-            return <TableCell key={key} {...props}>{formattedValue}</TableCell>;
-        }
-
-        return (
-            <TableCell key={key} {...props} data-negative={isNegative ? 'true' : undefined}>
-                {renderTextValue(formattedValue)}
-            </TableCell>
-        );
     };
 
     const renderDataRows = (items: T[], keyPrefix: string) =>
