@@ -44,7 +44,23 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
         className="w-full max-w-md"
         role="presentation"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') return; // Escape はバブリングさせて外側の onCancel に届ける
+          // Tab フォーカストラップ（モーダル外へフォーカスが逃げないようにする）
+          if (e.key === 'Tab') {
+            const focusable = e.currentTarget.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+              e.preventDefault();
+              (e.shiftKey ? last : first).focus();
+            }
+          }
+          e.stopPropagation();
+        }}
       >
         <div className="rounded-lg bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
