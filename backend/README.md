@@ -44,7 +44,7 @@
 | POST | `/dividends/bulk` | 配当金を一括追加 |
 | DELETE | `/dividends/all` | 配当金を全削除 |
 | GET | `/domestic-stocks` | 国内株式一覧を取得 |
-| POST | `/domestic-stocks/bulk` | 国内株式を一括追加 |
+| POST | `/domestic-stocks/bulk` | 国内株式を一括追加（再アップロード重複抑止あり。純増分CSVの制約は下記参照） |
 | DELETE | `/domestic-stocks/all` | 国内株式を全削除 |
 | GET | `/mutualfunds` | 投資信託一覧を取得 |
 | POST | `/mutualfunds/bulk` | 投資信託を一括追加 |
@@ -52,6 +52,10 @@
 | GET | `/asset-balances` | 保有銘柄一覧を取得 |
 | POST | `/asset-balances/bulk` | 保有銘柄を一括登録（全削除→再挿入） |
 | DELETE | `/asset-balances/all` | 保有銘柄を全削除 |
+
+> **国内株式 `/domestic-stocks/bulk` の制約**
+> - 累積CSV（過去分含む再アップロード）は `content_hash + occurrence_index` による重複抑止でスキップ。
+> - 純増分CSV（新規行のみ）で既存行と同一ハッシュの行がある場合、`batch_index <= 既存件数` の行はスキップされる。外部キー（取引ID等）がない場合は全削除→再インポートで対処。
 
 ### J-Quants API
 

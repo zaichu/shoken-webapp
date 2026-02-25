@@ -5,7 +5,9 @@ use axum::{
 use backend::{
     config::Config,
     db::run_migrations,
+    models::asset_balance::CreateAssetBalanceRequest,
     routes::app_router,
+    services::asset_balance as asset_balance_svc,
     state::{AppState, Secrets},
 };
 use chrono::NaiveDate;
@@ -16,6 +18,7 @@ use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
+use uuid::Uuid;
 
 struct EnvGuard {
     key: &'static str,
@@ -142,4 +145,108 @@ async fn db_integration_with_docker_and_migrations() {
         .get(ACCESS_CONTROL_ALLOW_ORIGIN)
         .and_then(|value| value.to_str().ok());
     assert_eq!(allowed_origin, Some("https://shoken-webapp.vercel.app"));
+}
+
+/// テスト用の CreateAssetBalanceRequest を生成するヘルパー
+fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
+    CreateAssetBalanceRequest {
+        security_code: code.to_string(),
+        security_name: format!("テスト銘柄{}", code),
+        shares: 100.0,
+        executing_shares: 0.0,
+        average_purchase_price: 1000.0,
+        total_purchase_amount: 100_000.0,
+        current_price: 1100.0,
+        daily_change: 10.0,
+        market_value: 110_000.0,
+        profit_loss_rate: 10.0,
+    }
+}
+
+/// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
+async fn start_test_pool() -> (PgPool, impl Drop) {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+    (pool, node)
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_bulk_create_replaces_previous_snapshot() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = Uuid::new_v4();
+
+    // 1回目: 2銘柄を登録
+    let items_a = vec![make_asset_item("1001"), make_asset_item("1002")];
+    asset_balance_svc::bulk_create(&pool, user_id, &items_a)
+        .await
+        .expect("1回目 bulk_create 失敗");
+
+    // 2回目: 3銘柄を登録（スナップショット置き換えなので合計3件になるはず）
+    let items_b = vec![
+        make_asset_item("2001"),
+        make_asset_item("2002"),
+        make_asset_item("2003"),
+    ];
+    asset_balance_svc::bulk_create(&pool, user_id, &items_b)
+        .await
+        .expect("2回目 bulk_create 失敗");
+
+    let rows = asset_balance_svc::list(&pool, user_id)
+        .await
+        .expect("list 失敗");
+    assert_eq!(
+        rows.len(),
+        3,
+        "2回目のスナップショットが3件のはずが{}件",
+        rows.len()
+    );
+    let codes: Vec<&str> = rows.iter().map(|r| r.security_code.as_str()).collect();
+    assert!(codes.contains(&"2001"), "2001 が存在しない");
+    assert!(codes.contains(&"2002"), "2002 が存在しない");
+    assert!(codes.contains(&"2003"), "2003 が存在しない");
+    assert!(!codes.contains(&"1001"), "1001 が残存している（削除漏れ）");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = Uuid::new_v4();
+
+    let items_a = vec![make_asset_item("A001"), make_asset_item("A002")];
+    let items_b = vec![
+        make_asset_item("B001"),
+        make_asset_item("B002"),
+        make_asset_item("B003"),
+    ];
+
+    let pool_a = pool.clone();
+    let pool_b = pool.clone();
+
+    // 2タスクを同時に起動して advisory lock による直列化を確認
+    let (res_a, res_b) = tokio::join!(
+        tokio::spawn(
+            async move { asset_balance_svc::bulk_create(&pool_a, user_id, &items_a).await }
+        ),
+        tokio::spawn(
+            async move { asset_balance_svc::bulk_create(&pool_b, user_id, &items_b).await }
+        ),
+    );
+    res_a.unwrap().expect("task_a 失敗");
+    res_b.unwrap().expect("task_b 失敗");
+
+    let rows = asset_balance_svc::list(&pool, user_id)
+        .await
+        .expect("list 失敗");
+
+    // advisory lock で直列化されるため、A(2件) か B(3件) のいずれかのみ存在する
+    assert!(
+        rows.len() == 2 || rows.len() == 3,
+        "AとBのデータが混在している可能性（{}件）",
+        rows.len()
+    );
 }
