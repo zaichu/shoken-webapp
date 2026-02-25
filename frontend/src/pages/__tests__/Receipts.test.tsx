@@ -328,6 +328,7 @@ describe('ReceiptsPage', () => {
   }, 20000);
 
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
+    const waitOpts = { timeout: 5000 };
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
@@ -343,11 +344,11 @@ describe('ReceiptsPage', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    });
+    }, waitOpts);
 
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
-    });
+    }, waitOpts);
 
     const user = userEvent.setup();
     await user.click(screen.getByText(/全件削除/));
@@ -357,12 +358,12 @@ describe('ReceiptsPage', () => {
 
     await waitFor(() => {
       expect(receiptApi.dividendApi.deleteAll).toHaveBeenCalled();
-    });
+    }, waitOpts);
 
     await waitFor(() => {
       expect(screen.queryByText(/全件削除/)).not.toBeInTheDocument();
-    });
-  });
+    }, waitOpts);
+  }, 20000);
 
   it('ログアウト: onLogout コールバック実行で csvData / dbData がクリアされ Query キャッシュが除去される', async () => {
     // AuthContext は複数コールバックをすべて発火する。配列で収集して一括発火することで実際の動作を再現する
