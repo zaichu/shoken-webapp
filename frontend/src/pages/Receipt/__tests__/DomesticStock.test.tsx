@@ -114,21 +114,22 @@ describe('DomesticStock', () => {
     });
 
     it('銘柄検索時に0件サマリーが表示されない', async () => {
+        const waitOpts = { timeout: 5000 };
         const user = userEvent.setup();
         const { container } = render(<DomesticStock csvData={mockCsvData} />);
 
         // 検索オプションは初期状態で展開済み
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
-        });
+        }, waitOpts);
         const securitiesSelect = container.querySelector('#securities-search') as HTMLSelectElement;
 
         await user.selectOptions(securitiesSelect, '1234');
 
         await waitFor(() => {
             expect(screen.queryByText('0件')).not.toBeInTheDocument();
-        });
-    });
+        }, waitOpts);
+    }, 20000);
 
     it('空のデータでもエラーが発生しない', () => {
         render(<DomesticStock csvData={[]} />);

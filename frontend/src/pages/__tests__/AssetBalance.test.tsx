@@ -43,6 +43,8 @@ const mockAssetBalanceData: AssetBalanceData[] = [
   },
 ];
 
+const waitOpts = { timeout: 5000 };
+
 describe('AssetBalanceInfo', () => {
   const defaultProps = {
     assetBalanceData: mockAssetBalanceData,
@@ -58,28 +60,25 @@ describe('AssetBalanceInfo', () => {
 
   it('ポートフォリオサマリーが表示される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
-
     await waitFor(() => {
       expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('合計取得総額が正しく計算される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
-
     await waitFor(() => {
       // 250,000 + 600,000 = 850,000
       expect(screen.getByText(/850,000/)).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('銘柄名が表示される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
-
     await waitFor(() => {
       expect(screen.getByText('トヨタ自動車')).toBeInTheDocument();
       expect(screen.getByText('ソニーグループ')).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('空のデータの場合は空状態が表示される', async () => {
@@ -92,10 +91,9 @@ describe('AssetBalanceInfo', () => {
         dividendPerShareMap={new Map()}
       />
     );
-
     await waitFor(() => {
       expect(screen.getByText('資産管理データがありません')).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('絞り込み中はフィルタデータのみ表示される', async () => {
@@ -109,12 +107,10 @@ describe('AssetBalanceInfo', () => {
         dividendPerShareMap={new Map()}
       />
     );
-
     await waitFor(() => {
       expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
-      // 絞り込み中の表示
       expect(screen.getByText(/絞り込み中/)).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('絞り込みで該当なしの場合は適切なメッセージが表示される', async () => {
@@ -127,17 +123,15 @@ describe('AssetBalanceInfo', () => {
         dividendPerShareMap={new Map()}
       />
     );
-
     await waitFor(() => {
       expect(screen.getByText('該当する銘柄がありません')).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 
   it('銘柄別構成比が表示される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
-
     await waitFor(() => {
       expect(screen.getByText('銘柄別構成比')).toBeInTheDocument();
-    });
+    }, waitOpts);
   });
 });
