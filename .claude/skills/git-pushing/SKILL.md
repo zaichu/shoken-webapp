@@ -1,34 +1,46 @@
 ---
 name: git-pushing
 description: |
-  変更をステージングし、コミットしてリモートへ push する。
+  変更を選択的にステージングし、コミットしてリモートへ push する。
+  コミット履歴を汚さないため、`git add .` を避けて staged 差分を明示確認してから push する。
   Use when: コミットと push を依頼された時、リモートへ push したいと明示された時、
   または「push して」「commit and push」「push to github」などの表現がある時。
 ---
 
 # Git Push Workflow
 
-Stage all changes, create a conventional commit, and push to the remote branch.
+履歴を汚さないことを最優先に、staged された変更のみをコミットして push する。
 
-## When to Use
+## 必須ルール
 
-Automatically activate when the user:
-- Explicitly asks to push changes ("push this", "commit and push")
-- Mentions saving work to remote ("save to github", "push to remote")
-- Completes a feature and wants to share it
-- Says phrases like "let's push this up" or "commit these changes"
+- `git add .` / `git add -A` を使わない
+- 先に `git add <path>` または `git add -p` で対象変更を絞る
+- コミットメッセージは必ず引数で明示する
+- コミットメッセージの要約・本文は日本語で書く
+- `main` には直接コミットしない
 
 ## Workflow
 
-**ALWAYS use the script** - do NOT use manual git commands:
-
 ```bash
-bash skills/git-pushing/scripts/smart_commit.sh
+# 1) staged 内容を確認
+git status -sb
+git diff --cached
+
+# 2) まだ staged していない場合は対象だけ追加
+git add -p
+
+# 3) コミットして push
+bash .claude/skills/git-pushing/scripts/smart_commit.sh "feat: <変更内容の要約>"
 ```
 
-With custom message:
-```bash
-bash skills/git-pushing/scripts/smart_commit.sh "feat: add feature"
-```
+## マージ後のブランチ削除
 
-Script handles: staging, conventional commit message, Claude footer, push with -u flag.
+マージ済みの作業ブランチは削除する。
+
+```bash
+git switch develop
+git pull --ff-only origin develop
+git branch -d <work-branch>
+git push origin --delete <work-branch>
+git fetch origin --prune
+```
