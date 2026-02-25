@@ -53,6 +53,12 @@ pub async fn bulk_create(
     // トランザクション内で全削除 → 全件挿入（スナップショット置き換え）
     let mut tx = pool.begin().await?;
 
+    // ユーザー単位のadvisory lockで並行bulk_createを直列化（READ COMMITTEDでのA∪B混入を防止）
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
+        .bind(user_id.to_string())
+        .execute(&mut *tx)
+        .await?;
+
     sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
         .bind(user_id)
         .execute(&mut *tx)
