@@ -71,6 +71,31 @@ describe('ConfirmDeleteModal', () => {
     expect(document.activeElement).toBe(confirmBtn);
   });
 
+  it('dialog 自体にフォーカスがある状態で Tab を押すと先頭要素へ移動する', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmDeleteModal {...defaultProps} />);
+    // dialog 要素（tabIndex=-1）に直接フォーカス（トラップ対象外）
+    const dialog = screen.getByRole('dialog');
+    dialog.focus();
+    expect(document.activeElement).toBe(dialog);
+
+    await user.tab();
+    // Tab → 先頭要素（✕閉じるボタン）へ
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '閉じる' }));
+  });
+
+  it('dialog 自体にフォーカスがある状態で Shift+Tab を押すと末尾要素へ移動する', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmDeleteModal {...defaultProps} />);
+    const dialog = screen.getByRole('dialog');
+    dialog.focus();
+    expect(document.activeElement).toBe(dialog);
+
+    await user.tab({ shift: true });
+    // Shift+Tab → 末尾要素（削除ボタン）へ
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '削除する' }));
+  });
+
   it('キャンセルボタンクリックで onCancel が呼ばれる', () => {
     render(<ConfirmDeleteModal {...defaultProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }));

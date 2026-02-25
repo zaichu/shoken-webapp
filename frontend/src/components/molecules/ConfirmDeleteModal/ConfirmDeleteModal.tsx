@@ -49,9 +49,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           const active = document.activeElement as HTMLElement;
           const isInTrap = Array.from(focusable).includes(active);
           if (!isInTrap) {
-            // dialog 自体にフォーカスがある等、トラップ対象外の場合は先頭へ
+            // dialog 自体にフォーカスがある等、トラップ対象外の場合: Shift+Tab は末尾、Tab は先頭へ
             e.preventDefault();
-            first.focus();
+            (e.shiftKey ? last : first).focus();
           } else if (e.shiftKey ? active === first : active === last) {
             e.preventDefault();
             (e.shiftKey ? last : first).focus();
