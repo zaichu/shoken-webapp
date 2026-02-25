@@ -51,9 +51,12 @@ export const useDividendBatch = (
     const scheduleRetry = () => {
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
-        prevCodesRef.current = '';
+        // prevCodesRef は timer 発火時にリセット（即時リセットすると再レンダー時に useEffect が再実行される）
         retryTimer = setTimeout(() => {
-          if (isActive) setRetryCount(c => c + 1);
+          if (isActive) {
+            prevCodesRef.current = '';
+            setRetryCount(c => c + 1);
+          }
         }, RETRY_DELAY_MS);
       } else {
         prevCodesRef.current = codesKey;

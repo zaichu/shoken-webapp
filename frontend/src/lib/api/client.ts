@@ -235,5 +235,10 @@ export function createApiClient(config?: ApiClientConfig): ApiClient {
   return new ApiClient(config);
 }
 
+// テスト環境でのシングルトンリセット用
+export function resetApiClient(): void {
+  _apiClient = null;
+}
+
 // エクスポート
 export { ApiClient, type ApiClientConfig, type RetryConfig };

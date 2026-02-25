@@ -50,7 +50,7 @@
 | POST | `/mutualfunds/bulk` | 投資信託を一括追加 |
 | DELETE | `/mutualfunds/all` | 投資信託を全削除 |
 | GET | `/asset-balances` | 保有銘柄一覧を取得 |
-| POST | `/asset-balances/bulk` | 保有銘柄を一括追加（UPSERT） |
+| POST | `/asset-balances/bulk` | 保有銘柄を一括登録（全削除→再挿入） |
 | DELETE | `/asset-balances/all` | 保有銘柄を全削除 |
 
 ### J-Quants API
