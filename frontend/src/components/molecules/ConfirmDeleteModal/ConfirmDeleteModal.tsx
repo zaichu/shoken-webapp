@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Button } from '@/components/atoms/Button';
 
 interface ConfirmDeleteModalProps {
@@ -27,32 +27,37 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   confirmLabel = '削除する',
   loading = false,
 }) => {
-  const cancelBtnRef = useRef<HTMLButtonElement>(null);
-
-  // Escapeキーで閉じる
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
-
-  // モーダルが開いたときにキャンセルボタンにフォーカス
-  useEffect(() => {
-    if (isOpen) {
-      cancelBtnRef.current?.focus();
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onCancel}
-      onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          onCancel();
+          return;
+        }
+        // Tab フォーカストラップ: dialog 全体で一元管理し、フォーカス逸脱を防ぐ
+        if (e.key === 'Tab') {
+          const focusable = e.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          const active = document.activeElement as HTMLElement;
+          const isInTrap = Array.from(focusable).includes(active);
+          if (!isInTrap) {
+            // dialog 自体にフォーカスがある等、トラップ対象外の場合: Shift+Tab は末尾、Tab は先頭へ
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+          } else if (e.shiftKey ? active === first : active === last) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+          }
+        }
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-delete-title"
@@ -63,7 +68,6 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
         className="w-full max-w-md"
         role="presentation"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="rounded-lg bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -90,7 +94,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
             <Button
-              ref={cancelBtnRef}
+              autoFocus
               variant="secondary"
               onClick={onCancel}
             >

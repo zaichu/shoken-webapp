@@ -27,9 +27,16 @@ const ABORT_REASON_CLEANUP = 'cleanup';
 // アイドルタイムアウト: 30分
 const IDLE_TIMEOUT = 30 * 60 * 1000;
 
+type SessionState = { user: UserInfo | null; isLoading: boolean };
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<SessionState>({ user: null, isLoading: true });
+  const user = session.user;
+  const isLoading = session.isLoading;
+  // コンテキスト互換のsetUserラッパー（単一のstate更新でカスケードを防止）
+  const setUser = useCallback((u: UserInfo | null) => {
+    setSession(s => ({ ...s, user: u }));
+  }, []);
   // ログアウト時に呼び出されるコールバックのリスト
   const logoutCallbacksRef = useRef<Set<() => void>>(new Set());
   // 初期化時にバックエンドからセッションを確認
@@ -43,15 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signal: controller.signal,
       }).then((userInfo) => {
         if (!controller.signal.aborted) {
-          setUser(userInfo);
-          setIsLoading(false);
+          setSession({ user: userInfo, isLoading: false });
         }
       }).catch(() => {
         // StrictModeクリーンアップによるabortは無視
         if (!controller.signal.aborted) {
           // セッションが無効な場合
-          setUser(null);
-          setIsLoading(false);
+          setSession({ user: null, isLoading: false });
         }
       });
     };
@@ -88,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasError = true;
       caughtError = error;
     });
-    setUser(null);
+    setSession(s => ({ ...s, user: null }));
     if (hasError) {
       throw caughtError;
     }
@@ -114,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasError = true;
       caughtError = error;
     });
-    setUser(null);
+    setSession(s => ({ ...s, user: null }));
     if (hasError) {
       throw caughtError;
     }
