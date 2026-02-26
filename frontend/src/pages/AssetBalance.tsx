@@ -128,8 +128,6 @@ export function AssetBalancePage() {
 
   // J-Quants APIから1株配当を一括取得
   // saving または loading 中は securityCodes を空にして dividend の state をリセットする
-  // （save後に csvData がクリアされ、invalidateQueries による再フェッチ完了前に dbData が旧件数に戻ることで
-  //   "X/旧件数" が表示されるのを防ぐ）
   const securityCodes = useMemo(
     () => (saving || loading) ? [] : assetBalanceData.map(item => item.security_code),
     [saving, loading, assetBalanceData]
