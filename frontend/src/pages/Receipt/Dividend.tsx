@@ -31,6 +31,27 @@ import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/r
 import { calculateDividends } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
 
+// コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
+const FILTER_CONFIG: FilterConfig<DividendData> = {
+    stringFields: [
+        item => item.security_code,
+        item => item.security_name,
+        item => item.product,
+        item => item.account,
+    ],
+    dateField: item => item.settlement_date,
+    yearSearch: true,
+    yearMonthSearch: true,
+    dateSearch: true,
+    amountFields: [
+        item => item.unit_price,
+        item => item.shares,
+        item => item.dividends_before_tax,
+        item => item.taxes,
+        item => item.net_amount_received,
+    ],
+};
+
 interface DividendProps {
     csvData: Record<string, unknown>[];
 }
@@ -52,29 +73,8 @@ export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
         yearMonths: createYearMonthOptions(dividendData, item => item.settlement_date)
     };
 
-    // フィルタ設定
-    const filterConfig: FilterConfig<DividendData> = {
-        stringFields: [
-            item => item.security_code,
-            item => item.security_name,
-            item => item.product,
-            item => item.account,
-        ],
-        dateField: item => item.settlement_date,
-        yearSearch: true,
-        yearMonthSearch: true,
-        dateSearch: true,
-        amountFields: [
-            item => item.unit_price,
-            item => item.shares,
-            item => item.dividends_before_tax,
-            item => item.taxes,
-            item => item.net_amount_received,
-        ],
-    };
-
     // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(dividendData, filterConfig);
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(dividendData, FILTER_CONFIG);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateDividends);

@@ -24,6 +24,24 @@ import { parseDomesticStockCsvItem, sortDomesticStockByTradeDate } from '@/featu
 import { calculateDailyData, calculateDomesticStock } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
 
+// コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
+const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
+    stringFields: [
+        item => item.security_code,
+        item => item.security_name,
+        item => item.account,
+    ],
+    dateField: item => item.trade_date,
+    yearSearch: true,
+    amountFields: [
+        item => item.shares,
+        item => item.asked_price,
+        item => item.proceeds,
+        item => item.purchase_price,
+        item => item.realized_profit_and_loss,
+    ],
+};
+
 interface DomesticStockProps {
     csvData: Record<string, unknown>[];
 }
@@ -36,9 +54,6 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     // CSVデータを国内株式データ形式に変換
     const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
 
-    // 日次データの集計（全データ）
-    const dailyData = calculateDailyData(domesticStockData);
-
     // 検索カテゴリーの生成
     const searchCategories = {
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
@@ -47,29 +62,11 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         yearMonths: createYearMonthOptions(domesticStockData, item => item.trade_date)
     };
 
-    // フィルタ設定
-    const filterConfig: FilterConfig<DomesticStockData> = {
-        stringFields: [
-            item => item.security_code,
-            item => item.security_name,
-            item => item.account,
-        ],
-        dateField: item => item.trade_date,
-        yearSearch: true,
-        amountFields: [
-            item => item.shares,
-            item => item.asked_price,
-            item => item.proceeds,
-            item => item.purchase_price,
-            item => item.realized_profit_and_loss,
-        ],
-    };
-
     // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(domesticStockData, filterConfig);
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(domesticStockData, FILTER_CONFIG);
 
-    // フィルタ後の日次集計
-    const filteredDailyData = searchQuery ? calculateDailyData(filteredData) : dailyData;
+    // 日次集計（searchQuery がある場合はフィルタ後データ、ない場合は全データを使用）
+    const filteredDailyData = calculateDailyData(searchQuery ? filteredData : domesticStockData);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredDailyData, calculateDomesticStock);

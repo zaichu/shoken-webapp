@@ -17,6 +17,16 @@ import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 import { calculateMutualfund } from '@/features/receipt/calculations';
 
+// コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
+const FILTER_CONFIG: FilterConfig<MutualfundData> = {
+    stringFields: [
+        item => item.fund_name,
+        item => item.account,
+    ],
+    dateField: item => item.trade_date,
+    yearSearch: true,
+};
+
 interface MutualfundProps {
     csvData: Record<string, unknown>[];
 }
@@ -35,18 +45,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         years: createYearOptions(mutualfundData, item => item.trade_date)
     };
 
-    // フィルタ設定
-    const filterConfig: FilterConfig<MutualfundData> = {
-        stringFields: [
-            item => item.fund_name,
-            item => item.account,
-        ],
-        dateField: item => item.trade_date,
-        yearSearch: true,
-    };
-
     // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, filterConfig);
+    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, FILTER_CONFIG);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
