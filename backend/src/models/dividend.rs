@@ -1,11 +1,12 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 /// 配当金モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Dividend {
     pub id: Uuid,
     #[serde(skip_serializing)]
@@ -26,7 +27,7 @@ pub struct Dividend {
 }
 
 /// 配当金作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateDividendRequest {
     pub settlement_date: NaiveDate,
     #[validate(length(min = 1, max = 100))]
@@ -45,7 +46,7 @@ pub struct CreateDividendRequest {
 }
 
 /// 配当金一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkCreateDividendRequest {
     #[validate(length(min = 1))]
     pub items: Vec<CreateDividendRequest>,

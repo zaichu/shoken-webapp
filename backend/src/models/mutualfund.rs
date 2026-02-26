@@ -1,11 +1,12 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 /// 投資信託モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Mutualfund {
     pub id: Uuid,
     #[serde(skip_serializing)]
@@ -29,7 +30,7 @@ pub struct Mutualfund {
 }
 
 /// 投資信託作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateMutualfundRequest {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
@@ -50,7 +51,7 @@ pub struct CreateMutualfundRequest {
 }
 
 /// 投資信託一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkCreateMutualfundRequest {
     #[validate(length(min = 1))]
     pub items: Vec<CreateMutualfundRequest>,

@@ -1,5 +1,5 @@
 use crate::config;
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ErrorResponse};
 use crate::models::user::{GoogleUserInfo, UserResponse};
 use crate::services::auth as auth_service;
 use crate::state::AppState;
@@ -161,6 +161,15 @@ pub async fn google_callback(
 }
 
 /// 現在ログイン中のユーザー情報を取得
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    responses(
+        (status = 200, body = UserResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn get_current_user(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -176,6 +185,14 @@ pub async fn get_current_user(
 }
 
 /// ログアウト処理
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    responses(
+        (status = 200, description = "ログアウト成功"),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
     // セッションをデータベースから削除
     if let Some(session_token) = jar

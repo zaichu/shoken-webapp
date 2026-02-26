@@ -5,6 +5,7 @@ use oauth2::{
 use serde::{Deserialize, Serialize};
 use std::env;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 /// 本番環境かどうかを判定
 /// RUST_ENV=production または APP_ENV=production の場合に true
@@ -52,12 +53,12 @@ pub enum ApiError {
     SerdeJsonError(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ErrorResponse {
     pub error: ErrorDetails,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ErrorDetails {
     pub code: String,
     pub message: String,

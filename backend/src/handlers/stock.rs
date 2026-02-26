@@ -1,5 +1,5 @@
 use crate::{
-    errors::ApiError,
+    errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     models::stock::Stock,
     services::stock as stock_service,
@@ -12,6 +12,18 @@ use axum::{
     Json,
 };
 
+/// 銘柄情報を検索（コードまたは名前）
+#[utoipa::path(
+    get,
+    path = "/stock/{query}",
+    params(
+        ("query" = String, Path, description = "銘柄コードまたは銘柄名")
+    ),
+    responses(
+        (status = 200, body = Vec<Stock>),
+        (status = 404, body = ErrorResponse),
+    ),
+)]
 pub async fn select_stock_info(
     Path(search_query): Path<String>,
     State(state): State<AppState>,
@@ -21,6 +33,17 @@ pub async fn select_stock_info(
 }
 
 /// 銘柄情報を追加（認証必須）
+#[utoipa::path(
+    post,
+    path = "/stock",
+    request_body = Stock,
+    responses(
+        (status = 201, body = Stock),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn add_stock_info(
     State(state): State<AppState>,
     _auth_user: AuthenticatedUser,

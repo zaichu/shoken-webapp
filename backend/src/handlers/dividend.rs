@@ -1,11 +1,24 @@
 use crate::{
-    errors::ApiError, extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson, models::dividend::BulkCreateDividendRequest,
-    services::dividend as dividend_service, state::AppState,
+    errors::{ApiError, ErrorResponse},
+    extractors::auth::AuthenticatedUser,
+    extractors::validated_json::ValidatedJson,
+    models::common::BulkCreateResponse,
+    models::dividend::{BulkCreateDividendRequest, Dividend},
+    services::dividend as dividend_service,
+    state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの配当金一覧を取得
+#[utoipa::path(
+    get,
+    path = "/dividends",
+    responses(
+        (status = 200, body = Vec<Dividend>),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -15,6 +28,17 @@ pub async fn list(
 }
 
 /// 配当金を一括追加（重複はスキップ）
+#[utoipa::path(
+    post,
+    path = "/dividends/bulk",
+    request_body = BulkCreateDividendRequest,
+    responses(
+        (status = 201, body = BulkCreateResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn bulk_create(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -25,6 +49,15 @@ pub async fn bulk_create(
 }
 
 /// 認証ユーザーの配当金を全削除
+#[utoipa::path(
+    delete,
+    path = "/dividends/all",
+    responses(
+        (status = 200, description = "全削除成功"),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,

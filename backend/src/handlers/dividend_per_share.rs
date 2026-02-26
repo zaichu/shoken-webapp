@@ -1,5 +1,5 @@
 use crate::{
-    errors::ApiError,
+    errors::{ApiError, ErrorResponse},
     extractors::validated_json::ValidatedJson,
     models::dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     services::dividend_cache as dividend_cache_service,
@@ -8,6 +8,15 @@ use crate::{
 use axum::{extract::State, response::IntoResponse, Json};
 
 /// 配当利回り一括取得（認証不要）
+#[utoipa::path(
+    post,
+    path = "/dividends/per-share/batch",
+    request_body = DividendPerShareBatchRequest,
+    responses(
+        (status = 200, body = DividendPerShareBatchResponse),
+        (status = 400, body = ErrorResponse),
+    ),
+)]
 pub async fn batch(
     State(state): State<AppState>,
     ValidatedJson(data): ValidatedJson<DividendPerShareBatchRequest>,

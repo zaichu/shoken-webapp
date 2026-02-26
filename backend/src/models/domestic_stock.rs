@@ -1,11 +1,12 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 /// 国内株式取引モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct DomesticStock {
     pub id: Uuid,
     #[serde(skip_serializing)]
@@ -28,7 +29,7 @@ pub struct DomesticStock {
 }
 
 /// 国内株式取引作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateDomesticStockRequest {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
@@ -48,7 +49,7 @@ pub struct CreateDomesticStockRequest {
 }
 
 /// 国内株式取引一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkCreateDomesticStockRequest {
     #[validate(length(min = 1))]
     pub items: Vec<CreateDomesticStockRequest>,
