@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback } from 'react';
+import React from 'react';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
@@ -37,18 +37,18 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
     const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
 
     // 日次データの集計（全データ）
-    const dailyData = useMemo(() => calculateDailyData(domesticStockData), [domesticStockData]);
+    const dailyData = calculateDailyData(domesticStockData);
 
     // 検索カテゴリーの生成
-    const searchCategories = useMemo(() => ({
+    const searchCategories = {
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
         accounts: getUniqueValues(domesticStockData, item => item.account),
         years: createYearOptions(domesticStockData, item => item.trade_date),
         yearMonths: createYearMonthOptions(domesticStockData, item => item.trade_date)
-    }), [domesticStockData]);
+    };
 
     // フィルタ設定
-    const filterConfig: FilterConfig<DomesticStockData> = useMemo(() => ({
+    const filterConfig: FilterConfig<DomesticStockData> = {
         stringFields: [
             item => item.security_code,
             item => item.security_name,
@@ -63,24 +63,19 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
             item => item.purchase_price,
             item => item.realized_profit_and_loss,
         ],
-    }), []);
+    };
 
     // 検索クエリに基づくフィルタリング
     const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(domesticStockData, filterConfig);
 
     // フィルタ後の日次集計
-    const filteredDailyData = useMemo(
-        () => (searchQuery ? calculateDailyData(filteredData) : dailyData),
-        [dailyData, filteredData, searchQuery]
-    );
+    const filteredDailyData = searchQuery ? calculateDailyData(filteredData) : dailyData;
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredDailyData, calculateDomesticStock);
 
     // グループキーの取得
-    const getGroupKey = useCallback((item: DomesticStockData): string => {
-        return createISODateKey(item.trade_date);
-    }, []);
+    const getGroupKey = (item: DomesticStockData): string => createISODateKey(item.trade_date);
 
     // ヘッダー項目の定義
     const headerItems = [
@@ -109,7 +104,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     // サマリーと一致するよう、最後の3カラムは「実現損益」「税額」「税引後」にする
-    const baseColumns: TableColumnConfig[] = useMemo(() => ([
+    const baseColumns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
         { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: renderSecurityCode },
         { key: 'security_name', header: '銘柄名', width: '180px' },
@@ -121,18 +116,15 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss', header: '損益', width: '90px', textAlign: 'right', format: formatCurrency },
         { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
         { key: 'realized_profit_and_loss_after_tax', header: '税引後', width: '90px', textAlign: 'right', format: formatCurrency },
-    ]), []);
+    ];
 
     // 列の前面配置ルール（口座のみ）
-    const columnRules: ColumnReorderRule<DomesticStockData>[] = useMemo(() => [
+    const columnRules: ColumnReorderRule<DomesticStockData>[] = [
         { columnKey: 'account', match: (item, q) => item.account.toLowerCase().includes(q) },
-    ], []);
+    ];
 
     // 検索タイプに応じて重要なカラムを前面に配置（日付・コードの2列固定）
-    const columns = useMemo(
-        () => reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 2),
-        [baseColumns, filteredData, searchQuery, columnRules]
-    );
+    const columns = reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 2);
 
     // サマリーカラムの定義（最後の3カラムと一致）
     const summaryColumns: SummaryColumnConfig[] = [

@@ -1,7 +1,7 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
-import React, { useMemo, useCallback } from 'react';
+import React from 'react';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
@@ -29,23 +29,21 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     // CSVデータを投資信託データ形式に変換
     const mutualfundData = useReceiptData(csvData, parseMutualfundCsvItem, sortMutualfundByTradeDate);
 
-    /**
-     * 検索オプションの生成
-     */
-    const searchCategories = useMemo(() => ({
+    // 検索オプションの生成
+    const searchCategories = {
         securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
         years: createYearOptions(mutualfundData, item => item.trade_date)
-    }), [mutualfundData]);
+    };
 
     // フィルタ設定
-    const filterConfig: FilterConfig<MutualfundData> = useMemo(() => ({
+    const filterConfig: FilterConfig<MutualfundData> = {
         stringFields: [
             item => item.fund_name,
             item => item.account,
         ],
         dateField: item => item.trade_date,
         yearSearch: true,
-    }), []);
+    };
 
     // 検索クエリに基づくフィルタリング
     const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, filterConfig);
@@ -53,11 +51,9 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
 
-    /**
-     * グループキーの取得（日付文字列：年月）
-     * ファンド名検索時は元データの正式表記を使用
-     */
-    const getGroupKey = useCallback((item: MutualfundData): string => {
+    // グループキーの取得（日付文字列：年月）
+    // ファンド名検索時は元データの正式表記を使用
+    const getGroupKey = (item: MutualfundData): string => {
         if (searchQuery) {
             // ファンド名検索の場合は元データの表記を使用（小文字化しない）
             const query = searchQuery.toLowerCase();
@@ -68,20 +64,16 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
             return createYearMonthKey(item.trade_date);
         }
         return createYearMonthKey(item.trade_date);
-    }, [searchQuery]);
+    };
 
-    /**
-     * サマリーデータの集計
-     */
-    const summary = useMemo(() => groupAndSummarizeData(
+    // サマリーデータの集計
+    const summary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
         ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
-    ), [filteredData, getGroupKey]);
+    );
 
-    /**
-     * ヘッダー項目の定義
-     */
+    // ヘッダー項目の定義
     const headerItems = [
         {
             title: '実現損益',
@@ -106,10 +98,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         }
     ];
 
-    /**
-     * テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
-     */
-    const columns: TableColumnConfig[] = useMemo(() => ([
+    // テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
+    const columns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
         { key: 'settlement_date', header: '受渡日', width: '90px', format: formatJPDate },
         { key: 'fund_name', header: 'ファンド名', width: '200px' },
@@ -122,11 +112,9 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
         { key: 'realized_profit_and_loss', header: '実現損益', width: '90px', textAlign: 'right', format: formatCurrency },
         { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
         { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '90px', textAlign: 'right', format: formatCurrency },
-    ]), []);
+    ];
 
-    /**
-     * サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）
-     */
+    // サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）
     const summaryColumns: SummaryColumnConfig[] = [
         { key: 'realized_profit_and_loss', textAlign: 'right', format: formatCurrency },
         { key: 'taxes', textAlign: 'right', format: formatCurrency },
