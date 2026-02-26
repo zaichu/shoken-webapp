@@ -134,7 +134,7 @@ export function AssetBalancePage() {
     () => (saving || loading) ? [] : assetBalanceData.map(item => item.security_code),
     [saving, loading, assetBalanceData]
   );
-  const { dividendPerShareMap, dividendStatusMap, fetchedCount, totalCount: dividendTotalCount } = useDividendBatch(securityCodes, isAuthenticated);
+  const { dividendPerShareMap, dividendStatusMap } = useDividendBatch(securityCodes, isAuthenticated);
 
   // 検索オプションの生成
   const searchCategories = useMemo(() => ({
@@ -263,12 +263,6 @@ export function AssetBalancePage() {
               />
             )}
 
-            {/* 配当取得進捗バッジ */}
-            {dividendTotalCount > 0 && fetchedCount < dividendTotalCount && (
-              <div className="mb-2 text-xs text-slate-500" role="status" aria-live="polite">
-                配当情報 {fetchedCount}/{dividendTotalCount} 件 取得済み（取得中...）
-              </div>
-            )}
 
             {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
             {!loading && !csvReader.isLoading && (
