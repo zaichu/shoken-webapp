@@ -5,3 +5,6 @@ Secrets*.toml
 *.log
 .env
 .playwright-mcp
+CLAUDE.local.md
+backend/CLAUDE.local.md
+frontend/CLAUDE.local.md
