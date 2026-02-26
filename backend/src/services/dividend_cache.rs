@@ -251,10 +251,9 @@ async fn update_cache_error(pool: &PgPool, code: &str, error_msg: &str) -> Resul
             (security_code, dividend_per_share, status, error_message, source, updated_at)
         VALUES ($1, NULL, 'error', $2, 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
-            SET dividend_per_share = NULL,
-                status             = 'error',
-                error_message      = EXCLUDED.error_message,
-                updated_at         = NOW()
+            SET status        = 'error',
+                error_message = EXCLUDED.error_message,
+                updated_at    = NOW()
         "#,
     )
     .bind(code)
