@@ -44,6 +44,9 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      - name: Check release build
+        run: cargo check --release
+
   deploy:
     name: Deploy to Fly.io
     needs: test-and-build
