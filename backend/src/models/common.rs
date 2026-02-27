@@ -7,3 +7,9 @@ pub struct BulkCreateResponse {
     pub inserted: usize,
     pub skipped: usize,
 }
+
+/// メッセージレスポンス（削除・ログアウト等）
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MessageResponse {
+    pub message: String,
+}

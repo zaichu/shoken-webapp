@@ -16,11 +16,12 @@ use axum::{
 #[utoipa::path(
     get,
     path = "/stock/{query}",
+    operation_id = "stock_search",
     params(
         ("query" = String, Path, description = "銘柄コードまたは銘柄名")
     ),
     responses(
-        (status = 200, body = Vec<Stock>),
+        (status = 200, body = Stock),
         (status = 404, body = ErrorResponse),
     ),
 )]
@@ -36,6 +37,7 @@ pub async fn select_stock_info(
 #[utoipa::path(
     post,
     path = "/stock",
+    operation_id = "stock_create",
     request_body = Stock,
     responses(
         (status = 201, body = Stock),

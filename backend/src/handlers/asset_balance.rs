@@ -3,7 +3,7 @@ use crate::{
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
-    models::common::BulkCreateResponse,
+    models::common::{BulkCreateResponse, MessageResponse},
     services::asset_balance as asset_balance_service,
     state::AppState,
 };
@@ -13,6 +13,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 #[utoipa::path(
     get,
     path = "/asset-balances",
+    operation_id = "asset_balance_list",
     responses(
         (status = 200, body = Vec<AssetBalance>),
         (status = 401, body = ErrorResponse),
@@ -31,6 +32,7 @@ pub async fn list(
 #[utoipa::path(
     post,
     path = "/asset-balances/bulk",
+    operation_id = "asset_balance_bulk_create",
     request_body = BulkCreateAssetBalanceRequest,
     responses(
         (status = 201, body = BulkCreateResponse),
@@ -53,8 +55,9 @@ pub async fn bulk_create(
 #[utoipa::path(
     delete,
     path = "/asset-balances/all",
+    operation_id = "asset_balance_delete_all",
     responses(
-        (status = 200, description = "全削除成功"),
+        (status = 200, body = MessageResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))

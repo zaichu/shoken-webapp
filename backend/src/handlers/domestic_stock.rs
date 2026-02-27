@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
-    models::common::BulkCreateResponse,
+    models::common::{BulkCreateResponse, MessageResponse},
     models::domestic_stock::{BulkCreateDomesticStockRequest, DomesticStock},
     services::domestic_stock as domestic_stock_service,
     state::AppState,
@@ -13,6 +13,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 #[utoipa::path(
     get,
     path = "/domestic-stocks",
+    operation_id = "domestic_stock_list",
     responses(
         (status = 200, body = Vec<DomesticStock>),
         (status = 401, body = ErrorResponse),
@@ -31,6 +32,7 @@ pub async fn list(
 #[utoipa::path(
     post,
     path = "/domestic-stocks/bulk",
+    operation_id = "domestic_stock_bulk_create",
     request_body = BulkCreateDomesticStockRequest,
     responses(
         (status = 201, body = BulkCreateResponse),
@@ -53,8 +55,9 @@ pub async fn bulk_create(
 #[utoipa::path(
     delete,
     path = "/domestic-stocks/all",
+    operation_id = "domestic_stock_delete_all",
     responses(
-        (status = 200, description = "全削除成功"),
+        (status = 200, body = MessageResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))

@@ -11,6 +11,7 @@ use axum::{extract::State, response::IntoResponse, Json};
 #[utoipa::path(
     post,
     path = "/dividends/per-share/batch",
+    operation_id = "dividend_per_share_batch",
     request_body = DividendPerShareBatchRequest,
     responses(
         (status = 200, body = DividendPerShareBatchResponse),

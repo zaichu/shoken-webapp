@@ -1,5 +1,6 @@
 use crate::config;
 use crate::errors::{ApiError, ErrorResponse};
+use crate::models::common::MessageResponse;
 use crate::models::user::{GoogleUserInfo, UserResponse};
 use crate::services::auth as auth_service;
 use crate::state::AppState;
@@ -164,6 +165,7 @@ pub async fn google_callback(
 #[utoipa::path(
     get,
     path = "/auth/me",
+    operation_id = "auth_me",
     responses(
         (status = 200, body = UserResponse),
         (status = 401, body = ErrorResponse),
@@ -188,8 +190,9 @@ pub async fn get_current_user(
 #[utoipa::path(
     post,
     path = "/auth/logout",
+    operation_id = "auth_logout",
     responses(
-        (status = 200, description = "ログアウト成功"),
+        (status = 200, body = MessageResponse),
     ),
     security(("cookieAuth" = []))
 )]

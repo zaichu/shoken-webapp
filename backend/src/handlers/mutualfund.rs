@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
-    models::common::BulkCreateResponse,
+    models::common::{BulkCreateResponse, MessageResponse},
     models::mutualfund::{BulkCreateMutualfundRequest, Mutualfund},
     services::mutualfund as mutualfund_service,
     state::AppState,
@@ -13,6 +13,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 #[utoipa::path(
     get,
     path = "/mutualfunds",
+    operation_id = "mutualfund_list",
     responses(
         (status = 200, body = Vec<Mutualfund>),
         (status = 401, body = ErrorResponse),
@@ -31,6 +32,7 @@ pub async fn list(
 #[utoipa::path(
     post,
     path = "/mutualfunds/bulk",
+    operation_id = "mutualfund_bulk_create",
     request_body = BulkCreateMutualfundRequest,
     responses(
         (status = 201, body = BulkCreateResponse),
@@ -53,8 +55,9 @@ pub async fn bulk_create(
 #[utoipa::path(
     delete,
     path = "/mutualfunds/all",
+    operation_id = "mutualfund_delete_all",
     responses(
-        (status = 200, description = "全削除成功"),
+        (status = 200, body = MessageResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))

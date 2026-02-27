@@ -6,7 +6,7 @@ use crate::{
     handlers,
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest, CreateAssetBalanceRequest},
-        common::BulkCreateResponse,
+        common::{BulkCreateResponse, MessageResponse},
         dividend::{BulkCreateDividendRequest, CreateDividendRequest, Dividend},
         dividend_cache::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -58,6 +58,7 @@ use crate::{
             Stock,
             UserResponse,
             BulkCreateResponse,
+            MessageResponse,
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,

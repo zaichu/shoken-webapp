@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         /** 認証ユーザーの保有銘柄一覧を取得 */
-        get: operations["list"];
+        get: operations["asset_balance_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -32,7 +32,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** 認証ユーザーの保有銘柄を全削除 */
-        delete: operations["delete_all"];
+        delete: operations["asset_balance_delete_all"];
         options?: never;
         head?: never;
         patch?: never;
@@ -48,7 +48,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 保有銘柄を一括追加（既存は更新） */
-        post: operations["bulk_create"];
+        post: operations["asset_balance_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -65,7 +65,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** ログアウト処理 */
-        post: operations["logout"];
+        post: operations["auth_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -80,7 +80,7 @@ export interface paths {
             cookie?: never;
         };
         /** 現在ログイン中のユーザー情報を取得 */
-        get: operations["get_current_user"];
+        get: operations["auth_me"];
         put?: never;
         post?: never;
         delete?: never;
@@ -97,7 +97,7 @@ export interface paths {
             cookie?: never;
         };
         /** 認証ユーザーの配当金一覧を取得 */
-        get: operations["list"];
+        get: operations["dividend_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -117,7 +117,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** 認証ユーザーの配当金を全削除 */
-        delete: operations["delete_all"];
+        delete: operations["dividend_delete_all"];
         options?: never;
         head?: never;
         patch?: never;
@@ -133,7 +133,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 配当金を一括追加（重複はスキップ） */
-        post: operations["bulk_create"];
+        post: operations["dividend_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -150,7 +150,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 配当利回り一括取得（認証不要） */
-        post: operations["batch"];
+        post: operations["dividend_per_share_batch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -165,7 +165,7 @@ export interface paths {
             cookie?: never;
         };
         /** 認証ユーザーの国内株式取引一覧を取得 */
-        get: operations["list"];
+        get: operations["domestic_stock_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -185,7 +185,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** 認証ユーザーの国内株式取引を全削除 */
-        delete: operations["delete_all"];
+        delete: operations["domestic_stock_delete_all"];
         options?: never;
         head?: never;
         patch?: never;
@@ -201,7 +201,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 国内株式取引を一括追加（全件挿入） */
-        post: operations["bulk_create"];
+        post: operations["domestic_stock_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -216,7 +216,7 @@ export interface paths {
             cookie?: never;
         };
         /** 認証ユーザーの投資信託一覧を取得 */
-        get: operations["list"];
+        get: operations["mutualfund_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -236,7 +236,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** 認証ユーザーの投資信託を全削除 */
-        delete: operations["delete_all"];
+        delete: operations["mutualfund_delete_all"];
         options?: never;
         head?: never;
         patch?: never;
@@ -252,7 +252,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 投資信託を一括追加（重複はスキップ） */
-        post: operations["bulk_create"];
+        post: operations["mutualfund_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -269,7 +269,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** 銘柄情報を追加（認証必須） */
-        post: operations["add_stock_info"];
+        post: operations["stock_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -284,7 +284,7 @@ export interface paths {
             cookie?: never;
         };
         /** 銘柄情報を検索（コードまたは名前） */
-        get: operations["select_stock_info"];
+        get: operations["stock_search"];
         put?: never;
         post?: never;
         delete?: never;
@@ -517,6 +517,10 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetails"];
         };
+        /** @description メッセージレスポンス（削除・ログアウト等） */
+        MessageResponse: {
+            message: string;
+        };
         /** @description 投資信託モデル（DB + APIレスポンス兼用） */
         Mutualfund: {
             account: string;
@@ -578,7 +582,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list: {
+    asset_balance_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -605,7 +609,7 @@ export interface operations {
             };
         };
     };
-    delete_all: {
+    asset_balance_delete_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -614,12 +618,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 全削除成功 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
             };
             401: {
                 headers: {
@@ -631,7 +636,7 @@ export interface operations {
             };
         };
     };
-    bulk_create: {
+    asset_balance_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -670,7 +675,7 @@ export interface operations {
             };
         };
     };
-    logout: {
+    auth_logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -679,16 +684,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description ログアウト成功 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
             };
         };
     };
-    get_current_user: {
+    auth_me: {
         parameters: {
             query?: never;
             header?: never;
@@ -715,7 +721,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    dividend_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -742,7 +748,7 @@ export interface operations {
             };
         };
     };
-    delete_all: {
+    dividend_delete_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -751,12 +757,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 全削除成功 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
             };
             401: {
                 headers: {
@@ -768,7 +775,7 @@ export interface operations {
             };
         };
     };
-    bulk_create: {
+    dividend_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -807,7 +814,7 @@ export interface operations {
             };
         };
     };
-    batch: {
+    dividend_per_share_batch: {
         parameters: {
             query?: never;
             header?: never;
@@ -838,7 +845,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    domestic_stock_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -865,7 +872,7 @@ export interface operations {
             };
         };
     };
-    delete_all: {
+    domestic_stock_delete_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -874,12 +881,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 全削除成功 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
             };
             401: {
                 headers: {
@@ -891,7 +899,7 @@ export interface operations {
             };
         };
     };
-    bulk_create: {
+    domestic_stock_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -930,7 +938,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    mutualfund_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -957,7 +965,7 @@ export interface operations {
             };
         };
     };
-    delete_all: {
+    mutualfund_delete_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -966,12 +974,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 全削除成功 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
             };
             401: {
                 headers: {
@@ -983,7 +992,7 @@ export interface operations {
             };
         };
     };
-    bulk_create: {
+    mutualfund_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -1022,7 +1031,7 @@ export interface operations {
             };
         };
     };
-    add_stock_info: {
+    stock_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -1061,7 +1070,7 @@ export interface operations {
             };
         };
     };
-    select_stock_info: {
+    stock_search: {
         parameters: {
             query?: never;
             header?: never;
@@ -1078,7 +1087,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Stock"][];
+                    "application/json": components["schemas"]["Stock"];
                 };
             };
             404: {
