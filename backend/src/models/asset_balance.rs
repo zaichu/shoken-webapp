@@ -1,11 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 /// 保有銘柄モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct AssetBalance {
     pub id: Uuid,
     #[serde(skip_serializing)]
@@ -26,7 +27,7 @@ pub struct AssetBalance {
 }
 
 /// 保有銘柄作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateAssetBalanceRequest {
     #[validate(length(min = 1, max = 10))]
     pub security_code: String,
@@ -43,7 +44,7 @@ pub struct CreateAssetBalanceRequest {
 }
 
 /// 保有銘柄一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkCreateAssetBalanceRequest {
     #[validate(length(min = 1))]
     pub items: Vec<CreateAssetBalanceRequest>,

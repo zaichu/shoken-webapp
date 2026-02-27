@@ -1,11 +1,25 @@
 use crate::{
-    errors::ApiError, extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson, models::mutualfund::BulkCreateMutualfundRequest,
-    services::mutualfund as mutualfund_service, state::AppState,
+    errors::{ApiError, ErrorResponse},
+    extractors::auth::AuthenticatedUser,
+    extractors::validated_json::ValidatedJson,
+    models::common::{BulkCreateResponse, MessageResponse},
+    models::mutualfund::{BulkCreateMutualfundRequest, Mutualfund},
+    services::mutualfund as mutualfund_service,
+    state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの投資信託一覧を取得
+#[utoipa::path(
+    get,
+    path = "/mutualfunds",
+    operation_id = "mutualfund_list",
+    responses(
+        (status = 200, body = Vec<Mutualfund>),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -15,6 +29,18 @@ pub async fn list(
 }
 
 /// 投資信託を一括追加（重複はスキップ）
+#[utoipa::path(
+    post,
+    path = "/mutualfunds/bulk",
+    operation_id = "mutualfund_bulk_create",
+    request_body = BulkCreateMutualfundRequest,
+    responses(
+        (status = 201, body = BulkCreateResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn bulk_create(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -26,6 +52,16 @@ pub async fn bulk_create(
 }
 
 /// 認証ユーザーの投資信託を全削除
+#[utoipa::path(
+    delete,
+    path = "/mutualfunds/all",
+    operation_id = "mutualfund_delete_all",
+    responses(
+        (status = 200, body = MessageResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,

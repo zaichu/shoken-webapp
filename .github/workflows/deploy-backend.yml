@@ -47,6 +47,17 @@ jobs:
       - name: Check release build
         run: cargo check --release
 
+      - name: Generate OpenAPI schema
+        run: cargo run --bin generate_openapi
+
+      - name: Check OpenAPI schema is up to date
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ! git diff --exit-code docs/openapi.json; then
+            echo "openapi.json が古い状態です。cargo run --bin generate_openapi を実行してコミットしてください。"
+            exit 1
+          fi
+
   deploy:
     name: Deploy to Fly.io
     needs: test-and-build

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use validator::Validate;
 
 /// 配当キャッシュレコード
@@ -17,14 +18,14 @@ pub struct DividendCache {
 }
 
 /// バッチリクエスト
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct DividendPerShareBatchRequest {
     #[validate(length(min = 1, max = 100))]
     pub security_codes: Vec<String>,
 }
 
 /// レスポンス内の1銘柄アイテム
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DividendPerShareItem {
     pub security_code: String,
     pub dividend_per_share: Option<f64>,
@@ -35,7 +36,7 @@ pub struct DividendPerShareItem {
 }
 
 /// バッチレスポンス
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DividendPerShareBatchResponse {
     pub items: Vec<DividendPerShareItem>,
 }

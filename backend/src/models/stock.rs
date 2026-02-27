@@ -1,9 +1,10 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, FromRow, Validate)]
+#[derive(Serialize, Deserialize, FromRow, Validate, ToSchema)]
 pub struct Stock {
     pub date: NaiveDate,
     #[validate(length(min = 1, max = 10))]

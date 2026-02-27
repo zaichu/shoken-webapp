@@ -1,0 +1,1578 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Shoken WebApp API",
+    "description": "証券管理Webアプリ APIドキュメント",
+    "license": {
+      "name": ""
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/asset-balances": {
+      "get": {
+        "tags": [
+          "handlers::asset_balance"
+        ],
+        "summary": "認証ユーザーの保有銘柄一覧を取得",
+        "operationId": "asset_balance_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetBalance"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/asset-balances/all": {
+      "delete": {
+        "tags": [
+          "handlers::asset_balance"
+        ],
+        "summary": "認証ユーザーの保有銘柄を全削除",
+        "operationId": "asset_balance_delete_all",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/asset-balances/bulk": {
+      "post": {
+        "tags": [
+          "handlers::asset_balance"
+        ],
+        "summary": "保有銘柄を一括追加（既存は更新）",
+        "operationId": "asset_balance_bulk_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateAssetBalanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "handlers::auth"
+        ],
+        "summary": "ログアウト処理",
+        "operationId": "auth_logout",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "handlers::auth"
+        ],
+        "summary": "現在ログイン中のユーザー情報を取得",
+        "operationId": "auth_me",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/dividends": {
+      "get": {
+        "tags": [
+          "handlers::dividend"
+        ],
+        "summary": "認証ユーザーの配当金一覧を取得",
+        "operationId": "dividend_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Dividend"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/dividends/all": {
+      "delete": {
+        "tags": [
+          "handlers::dividend"
+        ],
+        "summary": "認証ユーザーの配当金を全削除",
+        "operationId": "dividend_delete_all",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/dividends/bulk": {
+      "post": {
+        "tags": [
+          "handlers::dividend"
+        ],
+        "summary": "配当金を一括追加（重複はスキップ）",
+        "operationId": "dividend_bulk_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateDividendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/dividends/per-share/batch": {
+      "post": {
+        "tags": [
+          "handlers::dividend_per_share"
+        ],
+        "summary": "配当利回り一括取得（認証不要）",
+        "operationId": "dividend_per_share_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DividendPerShareBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DividendPerShareBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/domestic-stocks": {
+      "get": {
+        "tags": [
+          "handlers::domestic_stock"
+        ],
+        "summary": "認証ユーザーの国内株式取引一覧を取得",
+        "operationId": "domestic_stock_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DomesticStock"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/domestic-stocks/all": {
+      "delete": {
+        "tags": [
+          "handlers::domestic_stock"
+        ],
+        "summary": "認証ユーザーの国内株式取引を全削除",
+        "operationId": "domestic_stock_delete_all",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/domestic-stocks/bulk": {
+      "post": {
+        "tags": [
+          "handlers::domestic_stock"
+        ],
+        "summary": "国内株式取引を一括追加（全件挿入）",
+        "operationId": "domestic_stock_bulk_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateDomesticStockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/mutualfunds": {
+      "get": {
+        "tags": [
+          "handlers::mutualfund"
+        ],
+        "summary": "認証ユーザーの投資信託一覧を取得",
+        "operationId": "mutualfund_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Mutualfund"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/mutualfunds/all": {
+      "delete": {
+        "tags": [
+          "handlers::mutualfund"
+        ],
+        "summary": "認証ユーザーの投資信託を全削除",
+        "operationId": "mutualfund_delete_all",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/mutualfunds/bulk": {
+      "post": {
+        "tags": [
+          "handlers::mutualfund"
+        ],
+        "summary": "投資信託を一括追加（重複はスキップ）",
+        "operationId": "mutualfund_bulk_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateMutualfundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/stock": {
+      "post": {
+        "tags": [
+          "handlers::stock"
+        ],
+        "summary": "銘柄情報を追加（認証必須）",
+        "operationId": "stock_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Stock"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stock"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/stock/{query}": {
+      "get": {
+        "tags": [
+          "handlers::stock"
+        ],
+        "summary": "銘柄情報を検索（コードまたは名前）",
+        "operationId": "stock_search",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "path",
+            "description": "銘柄コードまたは銘柄名",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stock"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssetBalance": {
+        "type": "object",
+        "description": "保有銘柄モデル（DB + APIレスポンス兼用）",
+        "required": [
+          "id",
+          "security_code",
+          "security_name",
+          "shares",
+          "executing_shares",
+          "average_purchase_price",
+          "total_purchase_amount",
+          "current_price",
+          "daily_change",
+          "market_value",
+          "profit_loss_rate",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "average_purchase_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "daily_change": {
+            "type": "number",
+            "format": "double"
+          },
+          "executing_shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "market_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "profit_loss_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BulkCreateAssetBalanceRequest": {
+        "type": "object",
+        "description": "保有銘柄一括作成リクエスト",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateAssetBalanceRequest"
+            }
+          }
+        }
+      },
+      "BulkCreateDividendRequest": {
+        "type": "object",
+        "description": "配当金一括作成リクエスト",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateDividendRequest"
+            }
+          }
+        }
+      },
+      "BulkCreateDomesticStockRequest": {
+        "type": "object",
+        "description": "国内株式取引一括作成リクエスト",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateDomesticStockRequest"
+            }
+          }
+        }
+      },
+      "BulkCreateMutualfundRequest": {
+        "type": "object",
+        "description": "投資信託一括作成リクエスト",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateMutualfundRequest"
+            }
+          }
+        }
+      },
+      "BulkCreateResponse": {
+        "type": "object",
+        "description": "一括作成レスポンス（全ドメイン共通）",
+        "required": [
+          "inserted",
+          "skipped"
+        ],
+        "properties": {
+          "inserted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CreateAssetBalanceRequest": {
+        "type": "object",
+        "description": "保有銘柄作成リクエスト",
+        "required": [
+          "security_code",
+          "security_name",
+          "shares",
+          "executing_shares",
+          "average_purchase_price",
+          "total_purchase_amount",
+          "current_price",
+          "daily_change",
+          "market_value",
+          "profit_loss_rate"
+        ],
+        "properties": {
+          "average_purchase_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "current_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "daily_change": {
+            "type": "number",
+            "format": "double"
+          },
+          "executing_shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "market_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "profit_loss_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CreateDividendRequest": {
+        "type": "object",
+        "description": "配当金作成リクエスト",
+        "required": [
+          "settlement_date",
+          "product",
+          "account",
+          "security_code",
+          "security_name",
+          "unit_price",
+          "shares",
+          "dividends_before_tax",
+          "taxes",
+          "net_amount_received"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "dividends_before_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "net_amount_received": {
+            "type": "number",
+            "format": "double"
+          },
+          "product": {
+            "type": "string"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit_price": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CreateDomesticStockRequest": {
+        "type": "object",
+        "description": "国内株式取引作成リクエスト",
+        "required": [
+          "trade_date",
+          "settlement_date",
+          "security_code",
+          "security_name",
+          "account",
+          "shares",
+          "asked_price",
+          "proceeds",
+          "purchase_price",
+          "realized_profit_and_loss",
+          "taxes",
+          "realized_profit_and_loss_after_tax"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "asked_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "proceeds": {
+            "type": "number",
+            "format": "double"
+          },
+          "purchase_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss_after_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "CreateMutualfundRequest": {
+        "type": "object",
+        "description": "投資信託作成リクエスト",
+        "required": [
+          "trade_date",
+          "settlement_date",
+          "fund_name",
+          "account",
+          "shares",
+          "exchange_rate",
+          "cancellation_unit_price_yen",
+          "cancellation_amount_yen",
+          "average_acquisition_price_yen",
+          "realized_profit_and_loss",
+          "taxes",
+          "realized_profit_and_loss_after_tax"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "average_acquisition_price_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "cancellation_amount_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "cancellation_unit_price_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "dividends": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exchange_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "fund_name": {
+            "type": "string"
+          },
+          "realized_profit_and_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss_after_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "Dividend": {
+        "type": "object",
+        "description": "配当金モデル（DB + APIレスポンス兼用）",
+        "required": [
+          "id",
+          "settlement_date",
+          "product",
+          "account",
+          "security_code",
+          "security_name",
+          "unit_price",
+          "shares",
+          "dividends_before_tax",
+          "taxes",
+          "net_amount_received",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dividends_before_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "net_amount_received": {
+            "type": "number",
+            "format": "double"
+          },
+          "product": {
+            "type": "string"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DividendPerShareBatchRequest": {
+        "type": "object",
+        "description": "バッチリクエスト",
+        "required": [
+          "security_codes"
+        ],
+        "properties": {
+          "security_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DividendPerShareBatchResponse": {
+        "type": "object",
+        "description": "バッチレスポンス",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DividendPerShareItem"
+            }
+          }
+        }
+      },
+      "DividendPerShareItem": {
+        "type": "object",
+        "description": "レスポンス内の1銘柄アイテム",
+        "required": [
+          "security_code",
+          "status",
+          "is_stale"
+        ],
+        "properties": {
+          "dividend_per_share": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "fetched_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "is_stale": {
+            "type": "boolean"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "ok / zero / pending / error"
+          }
+        }
+      },
+      "DomesticStock": {
+        "type": "object",
+        "description": "国内株式取引モデル（DB + APIレスポンス兼用）",
+        "required": [
+          "id",
+          "trade_date",
+          "settlement_date",
+          "security_code",
+          "security_name",
+          "account",
+          "shares",
+          "asked_price",
+          "proceeds",
+          "purchase_price",
+          "realized_profit_and_loss",
+          "taxes",
+          "realized_profit_and_loss_after_tax",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "asked_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "proceeds": {
+            "type": "number",
+            "format": "double"
+          },
+          "purchase_price": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss_after_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "security_code": {
+            "type": "string"
+          },
+          "security_name": {
+            "type": "string"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorDetails": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetails"
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "description": "メッセージレスポンス（削除・ログアウト等）",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Mutualfund": {
+        "type": "object",
+        "description": "投資信託モデル（DB + APIレスポンス兼用）",
+        "required": [
+          "id",
+          "trade_date",
+          "settlement_date",
+          "fund_name",
+          "account",
+          "shares",
+          "exchange_rate",
+          "cancellation_unit_price_yen",
+          "cancellation_amount_yen",
+          "average_acquisition_price_yen",
+          "realized_profit_and_loss",
+          "taxes",
+          "realized_profit_and_loss_after_tax",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "average_acquisition_price_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "cancellation_amount_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "cancellation_unit_price_yen": {
+            "type": "number",
+            "format": "double"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dividends": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exchange_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "fund_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "realized_profit_and_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "realized_profit_and_loss_after_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "settlement_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "number",
+            "format": "double"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Stock": {
+        "type": "object",
+        "required": [
+          "date",
+          "code",
+          "name",
+          "market_category"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "industry_category_17": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industry_category_33": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industry_code_17": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industry_code_33": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "market_category": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size_category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "description": "APIレスポンス用のユーザー情報",
+        "required": [
+          "id",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "picture_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session_token"
+      }
+    }
+  }
+}

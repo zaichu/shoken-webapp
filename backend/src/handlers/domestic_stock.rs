@@ -1,12 +1,25 @@
 use crate::{
-    errors::ApiError, extractors::auth::AuthenticatedUser,
+    errors::{ApiError, ErrorResponse},
+    extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
-    models::domestic_stock::BulkCreateDomesticStockRequest,
-    services::domestic_stock as domestic_stock_service, state::AppState,
+    models::common::{BulkCreateResponse, MessageResponse},
+    models::domestic_stock::{BulkCreateDomesticStockRequest, DomesticStock},
+    services::domestic_stock as domestic_stock_service,
+    state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの国内株式取引一覧を取得
+#[utoipa::path(
+    get,
+    path = "/domestic-stocks",
+    operation_id = "domestic_stock_list",
+    responses(
+        (status = 200, body = Vec<DomesticStock>),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -16,6 +29,18 @@ pub async fn list(
 }
 
 /// 国内株式取引を一括追加（全件挿入）
+#[utoipa::path(
+    post,
+    path = "/domestic-stocks/bulk",
+    operation_id = "domestic_stock_bulk_create",
+    request_body = BulkCreateDomesticStockRequest,
+    responses(
+        (status = 201, body = BulkCreateResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn bulk_create(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
@@ -27,6 +52,16 @@ pub async fn bulk_create(
 }
 
 /// 認証ユーザーの国内株式取引を全削除
+#[utoipa::path(
+    delete,
+    path = "/domestic-stocks/all",
+    operation_id = "domestic_stock_delete_all",
+    responses(
+        (status = 200, body = MessageResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,

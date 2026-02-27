@@ -6,6 +6,7 @@ mod handlers;
 mod logging;
 mod middleware;
 mod models;
+mod openapi;
 mod routes;
 mod services;
 mod state;

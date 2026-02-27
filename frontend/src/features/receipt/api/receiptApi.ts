@@ -2,12 +2,10 @@ import { apiClient } from '@/lib/api/client';
 import { DividendData } from '@/lib/interfaces/dividend';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
+import type { components } from '@/generated/api';
 
-// APIレスポンス型
-interface BulkCreateResponse {
-  inserted: number;
-  skipped: number;
-}
+// APIレスポンス型（OpenAPI スキーマから生成）
+type BulkCreateResponse = components['schemas']['BulkCreateResponse'];
 
 // Date を YYYY-MM-DD 形式に変換
 const formatDate = (date: Date): string => {
