@@ -20,7 +20,7 @@ pub struct CsvUploadResponse {
 /// CSV の行エラー情報
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CsvRowError {
-    /// 1始まり（ヘッダー行を除く）、0 はバッチ全体エラー
+    /// 1始まり（ヘッダー行を除く）
     pub row: usize,
     pub message: String,
 }

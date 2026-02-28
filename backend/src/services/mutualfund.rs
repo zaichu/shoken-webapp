@@ -244,25 +244,12 @@ pub async fn upload_csv(
         });
     }
 
-    match bulk_create(pool, user_id, &items).await {
-        Ok(result) => Ok(CsvUploadResponse {
-            inserted: result.inserted,
-            skipped: result.skipped,
-            errors,
-        }),
-        Err(e) => {
-            tracing::error!("[mutualfund.upload_csv] bulk_create 失敗: {e:?}");
-            errors.push(CsvRowError {
-                row: 0,
-                message: "一括登録に失敗しました。時間をおいて再試行してください".to_string(),
-            });
-            Ok(CsvUploadResponse {
-                inserted: 0,
-                skipped: items.len(),
-                errors,
-            })
-        }
-    }
+    let result = bulk_create(pool, user_id, &items).await?;
+    Ok(CsvUploadResponse {
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors,
+    })
 }
 
 /// 認証ユーザーの投資信託を全削除
