@@ -6,6 +6,7 @@ import type { components } from '@/generated/api';
 
 // APIレスポンス型（OpenAPI スキーマから生成）
 type BulkCreateResponse = components['schemas']['BulkCreateResponse'];
+type CsvUploadResponse = components['schemas']['CsvUploadResponse'];
 
 // Date を YYYY-MM-DD 形式に変換
 const formatDate = (date: Date): string => {
@@ -21,10 +22,19 @@ const safeNumber = (value: unknown): number => {
   return Number.isFinite(num) ? num : 0;
 };
 
+// CSV ファイルを multipart/form-data で送信
+const uploadCsvFile = (path: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.post<CsvUploadResponse>(path, formData, { withCredentials: true });
+};
+
 // 配当金API
 export const dividendApi = {
   list: () =>
     apiClient.get<DividendData[]>('/dividends', { withCredentials: true }),
+
+  uploadCsv: (file: File) => uploadCsvFile('/dividends/csv', file),
 
   bulkCreate: async (items: DividendData[]) => {
     const payload = items.map(item => ({
@@ -50,6 +60,8 @@ export const dividendApi = {
 export const domesticStockApi = {
   list: () =>
     apiClient.get<DomesticStockData[]>('/domestic-stocks', { withCredentials: true }),
+
+  uploadCsv: (file: File) => uploadCsvFile('/domestic-stocks/csv', file),
 
   bulkCreate: async (items: DomesticStockData[]) => {
     const payload = items.map(item => ({
@@ -77,6 +89,8 @@ export const domesticStockApi = {
 export const mutualfundApi = {
   list: () =>
     apiClient.get<MutualfundData[]>('/mutualfunds', { withCredentials: true }),
+
+  uploadCsv: (file: File) => uploadCsvFile('/mutualfunds/csv', file),
 
   bulkCreate: async (items: MutualfundData[]) => {
     const payload = items.map(item => ({

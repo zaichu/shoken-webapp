@@ -379,6 +379,62 @@
         ]
       }
     },
+    "/dividends/csv": {
+      "post": {
+        "tags": [
+          "handlers::dividend"
+        ],
+        "summary": "CSV ファイルをアップロードして配当金を一括登録",
+        "operationId": "dividend_upload_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/dividends/per-share/batch": {
       "post": {
         "tags": [
@@ -519,6 +575,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/domestic-stocks/csv": {
+      "post": {
+        "tags": [
+          "handlers::domestic_stock"
+        ],
+        "summary": "CSV ファイルをアップロードして国内株式取引を一括登録",
+        "operationId": "domestic_stock_upload_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvUploadResponse"
                 }
               }
             }
@@ -745,6 +857,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/mutualfunds/csv": {
+      "post": {
+        "tags": [
+          "handlers::mutualfund"
+        ],
+        "summary": "CSV ファイルをアップロードして投資信託を一括登録",
+        "operationId": "mutualfund_upload_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvUploadResponse"
                 }
               }
             }
@@ -1271,6 +1439,49 @@
           "trade_date": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "CsvRowError": {
+        "type": "object",
+        "description": "CSV の行エラー情報",
+        "required": [
+          "row",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "row": {
+            "type": "integer",
+            "description": "1始まり（ヘッダー行を除く）",
+            "minimum": 0
+          }
+        }
+      },
+      "CsvUploadResponse": {
+        "type": "object",
+        "description": "CSV アップロードのレスポンス",
+        "required": [
+          "inserted",
+          "skipped",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsvRowError"
+            }
+          },
+          "inserted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

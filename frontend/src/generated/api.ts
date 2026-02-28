@@ -160,6 +160,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dividends/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをアップロードして配当金を一括登録 */
+        post: operations["dividend_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dividends/per-share/batch": {
         parameters: {
             query?: never;
@@ -222,6 +239,23 @@ export interface paths {
         put?: never;
         /** 国内株式取引を一括追加（全件挿入） */
         post: operations["domestic_stock_bulk_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domestic-stocks/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをアップロードして国内株式取引を一括登録 */
+        post: operations["domestic_stock_upload_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -293,6 +327,23 @@ export interface paths {
         put?: never;
         /** 投資信託を一括追加（重複はスキップ） */
         post: operations["mutualfund_bulk_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mutualfunds/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをアップロードして投資信託を一括登録 */
+        post: operations["mutualfund_upload_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -474,6 +525,18 @@ export interface components {
             taxes: number;
             /** Format: date */
             trade_date: string;
+        };
+        /** @description CSV の行エラー情報 */
+        CsvRowError: {
+            message: string;
+            /** @description 1始まり（ヘッダー行を除く） */
+            row: number;
+        };
+        /** @description CSV アップロードのレスポンス */
+        CsvUploadResponse: {
+            errors: components["schemas"]["CsvRowError"][];
+            inserted: number;
+            skipped: number;
         };
         /** @description 配当金モデル（DB + APIレスポンス兼用） */
         Dividend: {
@@ -1119,6 +1182,45 @@ export interface operations {
             };
         };
     };
+    dividend_upload_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": string;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvUploadResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     dividend_per_share_batch: {
         parameters: {
             query?: never;
@@ -1223,6 +1325,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkCreateResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    domestic_stock_upload_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": string;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvUploadResponse"];
                 };
             };
             400: {
@@ -1374,6 +1515,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkCreateResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    mutualfund_upload_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": string;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvUploadResponse"];
                 };
             };
             400: {
