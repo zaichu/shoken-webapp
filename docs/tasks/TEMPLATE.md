@@ -1,6 +1,8 @@
 # タスクテンプレート
 
 ブランチごとに `docs/tasks/<branch-name>.md` を作成して使用する。
+共通のテスト・レビュー・PR フローは `CLAUDE.md` / `.claude/rules/*.md` に従い、ここにはタスク固有の差分だけを書く。
+task file はローカルの一時メモであり、作業完了または中止時に削除する。
 
 例:
 - `feature/add-login-timeout` -> `docs/tasks/feature-add-login-timeout.md`
@@ -26,20 +28,19 @@
 
 ## 受け入れ条件
 
-- [ ] 条件 1
-- [ ] 条件 2
+- [ ] このタスク固有の完了条件 1
+- [ ] このタスク固有の完了条件 2
 
 ## 変更候補ファイル
 
 - backend/src/...
 - frontend/src/...
 
-## 実行コマンド
+## タスク固有コマンド（任意）
 
-- cargo test
-- cargo clippy -- -D warnings
-- npm test
-- npm run build
+- `cargo run --bin generate_openapi`
+- `npm run generate:types`
+- 手動確認の手順があれば追記する
 
 ## 進捗
 
@@ -55,4 +56,5 @@
 
 ## メモ
 
-- 補足事項を書く
+- 共通ルールに書いてある内容は繰り返さない
+- 補足事項だけを書く
