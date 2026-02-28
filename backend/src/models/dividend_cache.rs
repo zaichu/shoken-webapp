@@ -5,6 +5,16 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 /// 配当キャッシュレコード
+///
+/// status × stale_at 整合ルール（is_stale / 再取得対象の判定基準）
+/// | status  | stale_at    | is_stale | 再取得? | 理由                         |
+/// |---------|-------------|----------|---------|------------------------------|
+/// | pending | NULL        | false    | No      | 取得中のため再取得しない     |
+/// | ok      | future      | false    | No      | 有効データ                   |
+/// | ok      | NULL / past | true     | Yes     | stale（再取得待ち）          |
+/// | zero    | future      | false    | No      | 配当なし（有効）             |
+/// | zero    | NULL / past | true     | Yes     | stale（再取得待ち）          |
+/// | error   | NULL        | true     | Yes     | 即再取得対象                 |
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct DividendCache {
     pub security_code: String,
@@ -12,6 +22,8 @@ pub struct DividendCache {
     /// ok: 有配当、zero: ゼロ配当、error: 取得失敗、pending: 未取得/更新待ち
     pub status: String,
     pub fetched_at: Option<DateTime<Utc>>,
+    /// TTL期限。この時刻を過ぎると再取得対象（NULL かつ pending 以外 = 即再取得対象）
+    pub stale_at: Option<DateTime<Utc>>,
     pub source: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -41,5 +53,3 @@ pub struct DividendPerShareBatchResponse {
     pub items: Vec<DividendPerShareItem>,
 }
 
-/// キャッシュのTTL（日数）
-pub const CACHE_TTL_DAYS: i64 = 7;

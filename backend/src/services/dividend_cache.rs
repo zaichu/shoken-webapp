@@ -1,8 +1,8 @@
 use crate::errors::ApiError;
-use crate::models::dividend_cache::{DividendCache, DividendPerShareItem, CACHE_TTL_DAYS};
+use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::models::jquants::FinSummaryData;
 use crate::services::jquants::JQuantsService;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 use sqlx::PgPool;
 use std::sync::{
@@ -26,7 +26,7 @@ pub async fn get_batch(
     // DB からキャッシュを一括取得
     let cached: Vec<DividendCache> = sqlx::query_as::<_, DividendCache>(
         r#"
-        SELECT security_code, dividend_per_share, status, fetched_at, source,
+        SELECT security_code, dividend_per_share, status, fetched_at, stale_at, source,
                created_at, updated_at
         FROM jquants_dividend_cache
         WHERE security_code = ANY($1)
@@ -37,7 +37,6 @@ pub async fn get_batch(
     .await?;
 
     let now = Utc::now();
-    let ttl_threshold = now - chrono::Duration::days(CACHE_TTL_DAYS);
 
     // コードをキーにしてキャッシュをマップ化
     let cache_map: std::collections::HashMap<&str, &DividendCache> = cached
@@ -52,11 +51,8 @@ pub async fn get_batch(
         .iter()
         .map(|code| {
             if let Some(cached_item) = cache_map.get(code.as_str()) {
-                let is_stale = cached_item
-                    .fetched_at
-                    .map(|t| t < ttl_threshold)
-                    .unwrap_or(true);
-                if is_stale && cached_item.status != "pending" {
+                let is_stale = compute_is_stale(&cached_item.status, cached_item.stale_at, now);
+                if is_stale {
                     refresh_codes.push(code.clone());
                 }
                 DividendPerShareItem {
@@ -210,12 +206,13 @@ async fn fetch_and_cache(
     sqlx::query(
         r#"
         INSERT INTO jquants_dividend_cache
-            (security_code, dividend_per_share, status, fetched_at, source, updated_at)
-        VALUES ($1, $2, $3, NOW(), 'jquants', NOW())
+            (security_code, dividend_per_share, status, fetched_at, stale_at, source, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET dividend_per_share = EXCLUDED.dividend_per_share,
                 status             = EXCLUDED.status,
                 fetched_at         = EXCLUDED.fetched_at,
+                stale_at           = NOW() + INTERVAL '7 days',
                 source             = EXCLUDED.source,
                 error_message      = NULL,
                 updated_at         = NOW()
@@ -248,11 +245,12 @@ async fn update_cache_error(pool: &PgPool, code: &str, error_msg: &str) -> Resul
     sqlx::query(
         r#"
         INSERT INTO jquants_dividend_cache
-            (security_code, dividend_per_share, status, error_message, source, updated_at)
-        VALUES ($1, NULL, 'error', $2, 'jquants', NOW())
+            (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
+        VALUES ($1, NULL, 'error', $2, NULL, 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET status        = 'error',
                 error_message = EXCLUDED.error_message,
+                stale_at      = NULL,
                 updated_at    = NOW()
         "#,
     )
@@ -262,6 +260,14 @@ async fn update_cache_error(pool: &PgPool, code: &str, error_msg: &str) -> Resul
     .await?;
 
     Ok(())
+}
+
+/// キャッシュエントリの is_stale を判定する
+///
+/// pending は取得中のため stale_at が NULL でも is_stale = false とする。
+/// それ以外は stale_at が NULL または過去なら is_stale = true。
+fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+    status != "pending" && stale_at.map(|t| t < now).unwrap_or(true)
 }
 
 /// 決算サマリーから1株配当を抽出する
@@ -372,6 +378,43 @@ mod tests {
     }
 
     #[test]
+    fn test_compute_is_stale_pending_null_is_false() {
+        // pending は stale_at=NULL でも is_stale=false（取得中のため）
+        let now = Utc::now();
+        assert!(!compute_is_stale("pending", None, now));
+    }
+
+    #[test]
+    fn test_compute_is_stale_error_null_is_true() {
+        // error は stale_at=NULL → 即再取得対象
+        let now = Utc::now();
+        assert!(compute_is_stale("error", None, now));
+    }
+
+    #[test]
+    fn test_compute_is_stale_ok_past_is_true() {
+        // ok で stale_at が過去 → stale
+        let now = Utc::now();
+        let past = now - chrono::Duration::hours(1);
+        assert!(compute_is_stale("ok", Some(past), now));
+    }
+
+    #[test]
+    fn test_compute_is_stale_ok_future_is_false() {
+        // ok で stale_at が未来 → 有効
+        let now = Utc::now();
+        let future = now + chrono::Duration::days(7);
+        assert!(!compute_is_stale("ok", Some(future), now));
+    }
+
+    #[test]
+    fn test_compute_is_stale_ok_null_is_true() {
+        // ok で stale_at=NULL → stale
+        let now = Utc::now();
+        assert!(compute_is_stale("ok", None, now));
+    }
+
+    #[test]
     fn test_extract_dividend_newest_first() {
         // 開示日が新しいほうを優先
         let data = vec![
@@ -382,8 +425,4 @@ mod tests {
         assert_eq!(val, Some(60.0));
     }
 
-    #[test]
-    fn test_cache_ttl_constant() {
-        assert_eq!(CACHE_TTL_DAYS, 7);
-    }
 }
