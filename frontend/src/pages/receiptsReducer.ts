@@ -1,24 +1,37 @@
 export type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
+export interface ImportResult {
+  inserted: number;
+  skipped: number;
+  errors: { row: number; message: string }[];
+}
+
 export interface ReceiptsState {
   receiptsType: ReceiptsType;
-  csvData: {
-    dividend: Record<string, unknown>[];
-    domesticstock: Record<string, unknown>[];
-    mutualfund: Record<string, unknown>[];
+  rawFiles: {
+    dividend: File | null;
+    domesticstock: File | null;
+    mutualfund: File | null;
+  };
+  lastImportResults: {
+    dividend: ImportResult | null;
+    domesticstock: ImportResult | null;
+    mutualfund: ImportResult | null;
   };
   showDeleteConfirm: boolean;
 }
 
 export type ReceiptsAction =
   | { type: 'SET_RECEIPTS_TYPE'; payload: ReceiptsType }
-  | { type: 'SET_CSV_DATA'; receiptsType: ReceiptsType; payload: Record<string, unknown>[] }
+  | { type: 'SET_RAW_FILE'; receiptsType: ReceiptsType; payload: File | null }
+  | { type: 'SET_IMPORT_RESULT'; receiptsType: ReceiptsType; payload: ImportResult }
   | { type: 'SET_SHOW_DELETE_CONFIRM'; payload: boolean }
   | { type: 'LOGOUT' };
 
 export const initialState: ReceiptsState = {
   receiptsType: 'dividend',
-  csvData: { dividend: [], domesticstock: [], mutualfund: [] },
+  rawFiles: { dividend: null, domesticstock: null, mutualfund: null },
+  lastImportResults: { dividend: null, domesticstock: null, mutualfund: null },
   showDeleteConfirm: false,
 };
 
@@ -26,11 +39,25 @@ export function receiptsReducer(state: ReceiptsState, action: ReceiptsAction): R
   switch (action.type) {
     case 'SET_RECEIPTS_TYPE':
       return { ...state, receiptsType: action.payload };
-    case 'SET_CSV_DATA':
-      return { ...state, csvData: { ...state.csvData, [action.receiptsType]: action.payload } };
+    case 'SET_RAW_FILE':
+      return {
+        ...state,
+        rawFiles: { ...state.rawFiles, [action.receiptsType]: action.payload },
+        // 新しいファイルを選択したら前回の結果をクリア
+        lastImportResults: { ...state.lastImportResults, [action.receiptsType]: null },
+      };
+    case 'SET_IMPORT_RESULT':
+      return {
+        ...state,
+        lastImportResults: { ...state.lastImportResults, [action.receiptsType]: action.payload },
+      };
     case 'SET_SHOW_DELETE_CONFIRM':
       return { ...state, showDeleteConfirm: action.payload };
     case 'LOGOUT':
-      return { ...state, csvData: { dividend: [], domesticstock: [], mutualfund: [] } };
+      return {
+        ...state,
+        rawFiles: { dividend: null, domesticstock: null, mutualfund: null },
+        lastImportResults: { dividend: null, domesticstock: null, mutualfund: null },
+      };
   }
 }

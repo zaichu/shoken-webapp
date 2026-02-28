@@ -12,7 +12,7 @@ import {
     createISODateKey
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import {
     createYearOptions,
@@ -20,9 +20,10 @@ import {
     getUniqueValues,
     FilterConfig
 } from '@/lib/utils/searchUtils';
-import { parseDomesticStockCsvItem, sortDomesticStockByTradeDate } from '@/features/receipt/parsers';
+import { sortDomesticStockByTradeDate } from '@/features/receipt/parsers';
 import { calculateDailyData, calculateDomesticStock } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
+import { useMemo } from 'react';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
 const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
@@ -43,16 +44,15 @@ const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
 };
 
 interface DomesticStockProps {
-    csvData: Record<string, unknown>[];
+    data: DomesticStockData[];
 }
 
 /**
  * 国内株式取引データを表示するコンポーネント
  */
-export const DomesticStock: React.FC<DomesticStockProps> = ({ csvData }) => {
+export const DomesticStock: React.FC<DomesticStockProps> = ({ data }) => {
 
-    // CSVデータを国内株式データ形式に変換
-    const domesticStockData = useReceiptData(csvData, parseDomesticStockCsvItem, sortDomesticStockByTradeDate);
+    const domesticStockData = useMemo(() => sortDomesticStockByTradeDate(data), [data]);
 
     // 検索カテゴリーの生成
     const searchCategories = {

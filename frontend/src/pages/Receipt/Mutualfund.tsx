@@ -12,9 +12,10 @@ import {
     formatNumber
 } from '@/lib/utils/formatters';
 import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
-import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
-import { parseMutualfundCsvItem, sortMutualfundByTradeDate } from '@/features/receipt/parsers';
+import { sortMutualfundByTradeDate } from '@/features/receipt/parsers';
+import { useMemo } from 'react';
 import { calculateMutualfund } from '@/features/receipt/calculations';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
@@ -28,16 +29,15 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 };
 
 interface MutualfundProps {
-    csvData: Record<string, unknown>[];
+    data: MutualfundData[];
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ csvData }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data }) => {
 
-    // CSVデータを投資信託データ形式に変換
-    const mutualfundData = useReceiptData(csvData, parseMutualfundCsvItem, sortMutualfundByTradeDate);
+    const mutualfundData = useMemo(() => sortMutualfundByTradeDate(data), [data]);
 
     // 検索オプションの生成
     const searchCategories = {

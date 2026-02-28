@@ -16,7 +16,7 @@ import {
     SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptData, useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
 import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
 import {
     createYearOptions,
@@ -27,9 +27,10 @@ import {
     FilterConfig
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
-import { parseDividendCsvItem, sortDividendBySettlementDate } from '@/features/receipt/parsers';
+import { sortDividendBySettlementDate } from '@/features/receipt/parsers';
 import { calculateDividends } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
+import { useMemo } from 'react';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
 const FILTER_CONFIG: FilterConfig<DividendData> = {
@@ -53,16 +54,15 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
 };
 
 interface DividendProps {
-    csvData: Record<string, unknown>[];
+    data: DividendData[];
 }
 
 /**
  * 配当金データを表示するコンポーネント
  */
-export const Dividend: React.FC<DividendProps> = ({ csvData }) => {
+export const Dividend: React.FC<DividendProps> = ({ data }) => {
 
-    // CSVデータを配当データ形式に変換
-    const dividendData = useReceiptData(csvData, parseDividendCsvItem, sortDividendBySettlementDate);
+    const dividendData = useMemo(() => sortDividendBySettlementDate(data), [data]);
 
     // 検索カテゴリーの生成
     const searchCategories = {
