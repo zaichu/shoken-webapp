@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/delete-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * アカウント削除処理
+         *     ユーザーとすべての関連データ（sessions, dividends, domestic_stocks, mutualfunds, asset_balances）を削除
+         */
+        delete: operations["auth_delete_account"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -202,6 +222,26 @@ export interface paths {
         put?: never;
         /** 国内株式取引を一括追加（全件挿入） */
         post: operations["domestic_stock_bulk_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jquants/fins/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 決算サマリーを取得（J-Quants API V2）
+         *     V2では fins/statements → fins/summary に変更
+         */
+        get: operations["jquants_fin_summary"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -517,6 +557,236 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetails"];
         };
+        /**
+         * @description 決算サマリーデータ（J-Quants API V2）
+         *     V2では省略形フィールド名を使用
+         */
+        FinSummaryData: {
+            /** @description 期中平均株式数 */
+            AvgSh?: string | null;
+            /** @description 1株当たり純資産 */
+            BPS?: string | null;
+            /** @description 財務活動によるキャッシュフロー */
+            CFF?: string | null;
+            /** @description 投資活動によるキャッシュフロー */
+            CFI?: string | null;
+            /** @description 営業活動によるキャッシュフロー */
+            CFO?: string | null;
+            /** @description 現金及び現金同等物の期末残高 */
+            CashEq?: string | null;
+            /** @description 会計基準の改正に伴う変更 */
+            ChgAccStd?: string | null;
+            /** @description 会計上の見積りの変更 */
+            ChgEstimate?: string | null;
+            /** @description 会計基準の改正以外の変更 */
+            ChgOther?: string | null;
+            /** @description 銘柄コード（LocalCode → Code） */
+            Code: string;
+            /** @description 当会計年度終了日 */
+            CurFYEn?: string | null;
+            /** @description 当会計年度開始日 */
+            CurFYSt?: string | null;
+            /** @description 当期終了日 */
+            CurPerEn?: string | null;
+            /** @description 当期開始日 */
+            CurPerSt?: string | null;
+            /** @description 当期種別 */
+            CurPerType?: string | null;
+            /** @description 希薄化後1株当たり当期純利益 */
+            DEPS?: string | null;
+            /** @description 開示日（DisclosedDate → DiscDate） */
+            DiscDate: string;
+            /** @description 開示番号 */
+            DiscNo?: string | null;
+            /** @description 開示時刻 */
+            DiscTime?: string | null;
+            /** @description 1株当たり配当金（第1四半期末）実績 */
+            Div1Q?: string | null;
+            /** @description 1株当たり配当金（第2四半期末）実績 */
+            Div2Q?: string | null;
+            /** @description 1株当たり配当金（第3四半期末）実績 */
+            Div3Q?: string | null;
+            /** @description 1株当たり年間配当金実績 */
+            DivAnn?: string | null;
+            /** @description 1株当たり配当金（期末）実績 */
+            DivFY?: string | null;
+            /** @description 年間配当支払総額実績 */
+            DivTotalAnn?: string | null;
+            /** @description 1口当たり分配金（REIT） */
+            DivUnit?: string | null;
+            /** @description 書類種別 */
+            DocType: string;
+            /** @description 1株当たり当期純利益 */
+            EPS?: string | null;
+            /** @description 純資産 */
+            Eq?: string | null;
+            /** @description 自己資本比率 */
+            EqAR?: string | null;
+            /** @description 1株当たり配当金（第1四半期末）予想 */
+            FDiv1Q?: string | null;
+            /** @description 1株当たり配当金（第2四半期末）予想 */
+            FDiv2Q?: string | null;
+            /** @description 1株当たり配当金（第3四半期末）予想 */
+            FDiv3Q?: string | null;
+            /** @description 1株当たり年間配当金予想（今期） */
+            FDivAnn?: string | null;
+            /** @description 1株当たり配当金（期末）予想 */
+            FDivFY?: string | null;
+            /** @description 年間配当支払総額予想 */
+            FDivTotalAnn?: string | null;
+            /** @description 1口当たり分配金（REIT）予想 */
+            FDivUnit?: string | null;
+            /** @description 1株当たり当期純利益予想（通期） */
+            FEPS?: string | null;
+            /** @description 1株当たり当期純利益予想（第2四半期） */
+            FEPS2Q?: string | null;
+            /** @description 1株当たり当期純利益予想（通期・個別） */
+            FNCEPS?: string | null;
+            /** @description 1株当たり当期純利益予想（第2四半期・個別） */
+            FNCEPS2Q?: string | null;
+            /** @description 当期純利益予想（通期・個別） */
+            FNCNP?: string | null;
+            /** @description 当期純利益予想（第2四半期・個別） */
+            FNCNP2Q?: string | null;
+            /** @description 営業利益予想（通期・個別） */
+            FNCOP?: string | null;
+            /** @description 営業利益予想（第2四半期・個別） */
+            FNCOP2Q?: string | null;
+            /** @description 経常利益予想（通期・個別） */
+            FNCOdP?: string | null;
+            /** @description 経常利益予想（第2四半期・個別） */
+            FNCOdP2Q?: string | null;
+            /** @description 売上高予想（通期・個別） */
+            FNCSales?: string | null;
+            /** @description 売上高予想（第2四半期・個別） */
+            FNCSales2Q?: string | null;
+            /** @description 当期純利益予想（通期） */
+            FNP?: string | null;
+            /** @description 当期純利益予想（第2四半期） */
+            FNP2Q?: string | null;
+            /** @description 営業利益予想（通期） */
+            FOP?: string | null;
+            /** @description 営業利益予想（第2四半期） */
+            FOP2Q?: string | null;
+            /** @description 経常利益予想（通期） */
+            FOdP?: string | null;
+            /** @description 経常利益予想（第2四半期） */
+            FOdP2Q?: string | null;
+            /** @description 配当性向予想 */
+            FPayoutRatioAnn?: string | null;
+            /** @description 売上高予想（通期） */
+            FSales?: string | null;
+            /** @description 売上高予想（第2四半期） */
+            FSales2Q?: string | null;
+            /** @description 重要な子会社の異動 */
+            MatChgSub?: string | null;
+            /** @description 1株当たり純資産（個別） */
+            NCBPS?: string | null;
+            /** @description 1株当たり当期純利益（個別） */
+            NCEPS?: string | null;
+            /** @description 純資産（個別） */
+            NCEq?: string | null;
+            /** @description 自己資本比率（個別） */
+            NCEqAR?: string | null;
+            /** @description 当期純利益（個別） */
+            NCNP?: string | null;
+            /** @description 営業利益（個別） */
+            NCOP?: string | null;
+            /** @description 経常利益（個別） */
+            NCOdP?: string | null;
+            /** @description 売上高（個別） */
+            NCSales?: string | null;
+            /** @description 総資産（個別） */
+            NCTA?: string | null;
+            /** @description 当期純利益 */
+            NP?: string | null;
+            /** @description 1株当たり配当金（第1四半期末）来期予想 */
+            NxFDiv1Q?: string | null;
+            /** @description 1株当たり配当金（第2四半期末）来期予想 */
+            NxFDiv2Q?: string | null;
+            /** @description 1株当たり配当金（第3四半期末）来期予想 */
+            NxFDiv3Q?: string | null;
+            /** @description 1株当たり年間配当金来期予想 */
+            NxFDivAnn?: string | null;
+            /** @description 1株当たり配当金（期末）来期予想 */
+            NxFDivFY?: string | null;
+            /** @description 1口当たり分配金（REIT）来期予想 */
+            NxFDivUnit?: string | null;
+            /** @description 1株当たり当期純利益来期予想（通期） */
+            NxFEPS?: string | null;
+            /** @description 1株当たり当期純利益来期予想（第2四半期） */
+            NxFEPS2Q?: string | null;
+            /** @description 1株当たり当期純利益来期予想（通期・個別） */
+            NxFNCEPS?: string | null;
+            /** @description 1株当たり当期純利益来期予想（第2四半期・個別） */
+            NxFNCEPS2Q?: string | null;
+            /** @description 当期純利益来期予想（通期・個別） */
+            NxFNCNP?: string | null;
+            /** @description 当期純利益来期予想（第2四半期・個別） */
+            NxFNCNP2Q?: string | null;
+            /** @description 営業利益来期予想（通期・個別） */
+            NxFNCOP?: string | null;
+            /** @description 営業利益来期予想（第2四半期・個別） */
+            NxFNCOP2Q?: string | null;
+            /** @description 経常利益来期予想（通期・個別） */
+            NxFNCOdP?: string | null;
+            /** @description 経常利益来期予想（第2四半期・個別） */
+            NxFNCOdP2Q?: string | null;
+            /** @description 売上高来期予想（通期・個別） */
+            NxFNCSales?: string | null;
+            /** @description 売上高来期予想（第2四半期・個別） */
+            NxFNCSales2Q?: string | null;
+            /** @description 当期純利益来期予想（通期） */
+            NxFNp?: string | null;
+            /** @description 当期純利益来期予想（第2四半期） */
+            NxFNp2Q?: string | null;
+            /** @description 営業利益来期予想（通期） */
+            NxFOP?: string | null;
+            /** @description 営業利益来期予想（第2四半期） */
+            NxFOP2Q?: string | null;
+            /** @description 経常利益来期予想（通期） */
+            NxFOdP?: string | null;
+            /** @description 経常利益来期予想（第2四半期） */
+            NxFOdP2Q?: string | null;
+            /** @description 配当性向来期予想 */
+            NxFPayoutRatioAnn?: string | null;
+            /** @description 売上高来期予想（通期） */
+            NxFSales?: string | null;
+            /** @description 売上高来期予想（第2四半期） */
+            NxFSales2Q?: string | null;
+            /** @description 翌会計年度終了日 */
+            NxtFYEn?: string | null;
+            /** @description 翌会計年度開始日 */
+            NxtFYSt?: string | null;
+            /** @description 営業利益 */
+            OP?: string | null;
+            /** @description 経常利益 */
+            OdP?: string | null;
+            /** @description 配当性向実績 */
+            PayoutRatioAnn?: string | null;
+            /** @description 修正再表示 */
+            Restatement?: string | null;
+            /** @description 売上高 */
+            Sales?: string | null;
+            /** @description 発行済株式数（期末・自己株式を含む） */
+            ShOutFY?: string | null;
+            /** @description 連結範囲の重要な変更 */
+            SigChgInC?: string | null;
+            /** @description 総資産 */
+            TA?: string | null;
+            /** @description 自己株式数（期末） */
+            TrShFY?: string | null;
+        };
+        /**
+         * @description 決算サマリーレスポンス（J-Quants API V2）
+         *     V2では fins/summary を使用し、ルートフィールドは "data"
+         */
+        FinSummaryResponse: {
+            /** @description 決算サマリーデータの配列（V2では "data" フィールド） */
+            data: components["schemas"]["FinSummaryData"][];
+            /** @description ページネーションキー（データが大量の場合に設定される） */
+            pagination_key?: string | null;
+        };
         /** @description メッセージレスポンス（削除・ログアウト等） */
         MessageResponse: {
             message: string;
@@ -666,6 +936,41 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    auth_delete_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -929,6 +1234,64 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    jquants_fin_summary: {
+        parameters: {
+            query: {
+                /** @description 銘柄コード */
+                code: string;
+                /** @description 開始日（YYYY-MM-DD） */
+                from?: string;
+                /** @description 終了日（YYYY-MM-DD） */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinSummaryResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
