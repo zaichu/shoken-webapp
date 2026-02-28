@@ -191,8 +191,16 @@ pub async fn upload_csv(
         }
 
         macro_rules! parse_num {
-            ($col:expr) => {
-                match parse_number(get($col)) {
+            ($col:expr) => {{
+                let raw = get($col);
+                if raw.is_empty() {
+                    errors.push(CsvRowError {
+                        row: row_num,
+                        message: format!("必須列 '{}' が空または存在しません", $col),
+                    });
+                    continue;
+                }
+                match parse_number(raw) {
                     Ok(v) => v,
                     Err(e) => {
                         errors.push(CsvRowError {
@@ -202,7 +210,7 @@ pub async fn upload_csv(
                         continue;
                     }
                 }
-            };
+            }};
         }
 
         let trade_date = parse_date_field!("約定日");
@@ -243,9 +251,10 @@ pub async fn upload_csv(
             errors,
         }),
         Err(e) => {
+            tracing::error!("[mutualfund.upload_csv] bulk_create 失敗: {e:?}");
             errors.push(CsvRowError {
                 row: 0,
-                message: format!("一括登録に失敗しました: {e:?}"),
+                message: "一括登録に失敗しました。時間をおいて再試行してください".to_string(),
             });
             Ok(CsvUploadResponse {
                 inserted: 0,
