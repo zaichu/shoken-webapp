@@ -1,16 +1,14 @@
-import { useReducer, useEffect, useCallback, useMemo } from 'react';
+import { useReducer, useEffect, useCallback } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
-import { useCSVReader } from '../hooks/useCSVReader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Dividend } from './Receipt/Dividend';
 import { DomesticStock } from './Receipt/DomesticStock';
 import { Mutualfund } from './Receipt/Mutualfund';
-import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 import { type ReceiptsType, initialState, receiptsReducer } from './receiptsReducer';
 import { useReceiptsData } from '@/features/receipt/hooks/useReceiptsData';
@@ -24,17 +22,11 @@ const TAB_LABEL: Record<ReceiptsType, string> = {
 
 /**
  * 明細種類ごとにCSVデータを管理するページコンポーネント
- * ログイン時はDBからデータを取得、未ログイン時はCSVから取得
  */
 export function ReceiptsPage() {
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
   const [state, dispatch] = useReducer(receiptsReducer, initialState);
-  const { receiptsType, csvData, showDeleteConfirm } = state;
-
-  // 各明細種類ごとにCSVリーダーフックを作成
-  const dividendCSV = useCSVReader();
-  const domesticStockCSV = useCSVReader();
-  const mutualfundCSV = useCSVReader();
+  const { receiptsType, rawFiles, lastImportResults, showDeleteConfirm } = state;
 
   // TanStack Query ベースのデータ管理
   const {
@@ -45,65 +37,42 @@ export function ReceiptsPage() {
     dbError,
     saving,
     deleting,
-    bulkCreate,
+    uploadCsv,
     deleteAll,
   } = useReceiptsData();
 
-  // ログアウト時に CSV データをクリア（Query キャッシュは useReceiptsData が内部処理）
+  // ログアウト時に状態をクリア（Query キャッシュは useReceiptsData が内部処理）
   useEffect(() => {
     return onLogout(() => {
       dispatch({ type: 'LOGOUT' });
     });
   }, [onLogout]);
 
-  // ランタイムデータマッピング（switch削減用）
-  const runtimeDataMap = useMemo(() => ({
-    dividend: {
-      csvReader: dividendCSV,
-      csvData: csvData.dividend,
-      setCsvData: (data: Record<string, unknown>[]) =>
-        dispatch({ type: 'SET_CSV_DATA', receiptsType: 'dividend', payload: data }),
-    },
-    domesticstock: {
-      csvReader: domesticStockCSV,
-      csvData: csvData.domesticstock,
-      setCsvData: (data: Record<string, unknown>[]) =>
-        dispatch({ type: 'SET_CSV_DATA', receiptsType: 'domesticstock', payload: data }),
-    },
-    mutualfund: {
-      csvReader: mutualfundCSV,
-      csvData: csvData.mutualfund,
-      setCsvData: (data: Record<string, unknown>[]) =>
-        dispatch({ type: 'SET_CSV_DATA', receiptsType: 'mutualfund', payload: data }),
-    },
-  }), [dividendCSV, domesticStockCSV, mutualfundCSV, csvData]);
+  // ファイル名表示用（ファイル選択後のみ表示）
+  const rawFile = rawFiles[receiptsType];
+  const selectedFileName = rawFile?.name ?? undefined;
 
   /**
-   * 現在選択中のタブに応じてCSV処理を切り替える
+   * ファイル選択時にrawFileを保存する
    */
-  const handleFileSelect = useCallback(async (file: File) => {
-    const { csvReader, setCsvData } = runtimeDataMap[receiptsType];
-    try {
-      setCsvData(await csvReader.parseCSV(file));
-      if (csvReader.error) csvReader.resetError();
-    } catch (e) {
-      // CSV parse error is surfaced via csvReader.error
-      void getDisplayErrorMessage(e, 'CSVファイルの読み込みに失敗しました');
-    }
-  }, [receiptsType, runtimeDataMap]);
+  const handleFileSelect = useCallback((file: File) => {
+    dispatch({ type: 'SET_RAW_FILE', receiptsType, payload: file });
+  }, [receiptsType]);
 
   /**
-   * CSVデータをDBに保存
+   * CSVファイルをバックエンドに送信して保存
    */
   const handleSaveToDB = useCallback(() => {
-    const { csvData: tabCsvData, setCsvData } = runtimeDataMap[receiptsType];
-    if (!isAuthenticated || tabCsvData.length === 0) return;
-    bulkCreate({
+    if (!isAuthenticated || rawFile === null) return;
+    uploadCsv({
       type: receiptsType,
-      csvData: tabCsvData,
-      onSuccess: () => setCsvData([]),
+      file: rawFile,
+      onSuccess: (result) => {
+        dispatch({ type: 'SET_RAW_FILE', receiptsType, payload: null });
+        dispatch({ type: 'SET_IMPORT_RESULT', receiptsType, payload: result });
+      },
     });
-  }, [bulkCreate, isAuthenticated, receiptsType, runtimeDataMap]);
+  }, [uploadCsv, isAuthenticated, receiptsType, rawFile]);
 
   /**
    * DBデータを全削除
@@ -114,37 +83,11 @@ export function ReceiptsPage() {
     deleteAll(receiptsType);
   }, [deleteAll, isAuthenticated, receiptsType]);
 
-  /**
-   * 現在選択中のタブに対応するCSV状態を取得
-   */
-  const currentCSVState = useMemo(() => {
-    const { csvReader, csvData: tabCsvData } = runtimeDataMap[receiptsType];
-    return {
-      isLoading: csvReader.isLoading,
-      error: csvReader.error,
-      fileName: csvReader.fileName,
-      tabCsvData,
-    };
-  }, [runtimeDataMap, receiptsType]);
-
-  const { isLoading, error, fileName, tabCsvData } = currentCSVState;
-  const hasCsvData = tabCsvData.length > 0;
-
-  // 現在のタブのDBデータ
-  const currentDbData = useMemo(() => ({
-    dividend: dividendData,
-    domesticstock: domesticstockData,
-    mutualfund: mutualfundData,
-  }), [dividendData, domesticstockData, mutualfundData]);
-
-  const dbDataCount = currentDbData[receiptsType].length;
+  const hasCsvFile = rawFile !== null;
+  const dbDataCount = (receiptsType === 'dividend' ? dividendData : receiptsType === 'domesticstock' ? domesticstockData : mutualfundData).length;
   const hasDbData = dbDataCount > 0;
   const tabName = TAB_LABEL[receiptsType];
-
-  // 表示用データを決定（ログイン時はDB優先、未ログイン時はCSV）
-  const dividendDisplayData = isAuthenticated && dividendData.length > 0 ? dividendData : csvData.dividend;
-  const domesticStockDisplayData = isAuthenticated && domesticstockData.length > 0 ? domesticstockData : csvData.domesticstock;
-  const mutualfundDisplayData = isAuthenticated && mutualfundData.length > 0 ? mutualfundData : csvData.mutualfund;
+  const importResult = lastImportResults[receiptsType];
 
   return (
     <Layout>
@@ -175,19 +118,19 @@ export function ReceiptsPage() {
           })}
         </div>
       </nav>
-      <div className="mt-2" aria-busy={isLoading || dbLoading || authLoading || saving || deleting}>
+      <div className="mt-2" aria-busy={dbLoading || authLoading || saving || deleting}>
         <div className="action-toolbar">
           <div className="form-input-container">
             <CSVFileInput
               onFileSelect={handleFileSelect}
-              selectedFileName={fileName}
+              selectedFileName={selectedFileName}
               disabled={dbLoading || saving || deleting || authLoading}
             />
           </div>
           {isAuthenticated && (
             <>
               <div className="action-button-group" role="group" aria-label="データ操作">
-                {hasCsvData && (
+                {hasCsvFile && (
                   <Button
                     variant="primary"
                     size="sm"
@@ -216,31 +159,53 @@ export function ReceiptsPage() {
           )}
         </div>
 
-        {(error || dbError) && (
+        {dbError && (
           <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
-            <strong>エラー:</strong> {error || dbError}
+            <strong>エラー:</strong> {dbError}
           </Alert>
         )}
 
+        {importResult && (() => {
+          const hasErrors = importResult.errors.length > 0;
+          return (
+            <div className="my-3" role="status" aria-live="polite">
+              <Alert variant={hasErrors ? 'warning' : 'success'}>
+                <p>
+                  <strong>{importResult.inserted}件登録</strong>
+                  {' / '}
+                  {importResult.skipped}件スキップ
+                  {hasErrors && ` / ${importResult.errors.length}件エラー`}
+                </p>
+                {hasErrors && (
+                  <ul className="mt-2 list-disc list-inside text-sm space-y-1">
+                    {importResult.errors.map((e) => (
+                      <li key={e.row}>{e.row}行目: {e.message}</li>
+                    ))}
+                  </ul>
+                )}
+              </Alert>
+            </div>
+          );
+        })()}
+
         <div aria-live="polite" aria-atomic="true">
-          {(isLoading || dbLoading || authLoading) && (
+          {(dbLoading || authLoading) && (
             <div className="status-message" role="status">
               <Spinner size="md" className="text-primary" />
               <p className="text-sm text-secondary">
                 {authLoading && '認証状態を確認しています...'}
                 {dbLoading && 'データを読み込んでいます...'}
-                {isLoading && 'CSVファイルを処理しています...'}
               </p>
             </div>
           )}
         </div>
 
         {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
-        {!authLoading && !dbLoading && !isLoading && (
+        {!authLoading && !dbLoading && (
           <>
-            {receiptsType === 'dividend' && <Dividend csvData={dividendDisplayData as Record<string, unknown>[]} />}
-            {receiptsType === 'domesticstock' && <DomesticStock csvData={domesticStockDisplayData as Record<string, unknown>[]} />}
-            {receiptsType === 'mutualfund' && <Mutualfund csvData={mutualfundDisplayData as Record<string, unknown>[]} />}
+            {receiptsType === 'dividend' && <Dividend data={dividendData} />}
+            {receiptsType === 'domesticstock' && <DomesticStock data={domesticstockData} />}
+            {receiptsType === 'mutualfund' && <Mutualfund data={mutualfundData} />}
           </>
         )}
 

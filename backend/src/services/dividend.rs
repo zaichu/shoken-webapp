@@ -1,6 +1,8 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
+use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
+use crate::services::csv_import::{decode_bytes, parse_date, parse_number};
 use sqlx::PgPool;
 use std::time::Instant;
 use tracing::info;
@@ -97,6 +99,120 @@ pub async fn bulk_create(
         elapsed.as_secs_f64() * 1000.0
     );
     Ok(BulkCreateResponse { inserted, skipped })
+}
+
+/// CSV バイト列から配当金をパースして一括挿入
+pub async fn upload_csv(
+    pool: &PgPool,
+    user_id: Uuid,
+    bytes: &[u8],
+) -> Result<CsvUploadResponse, ApiError> {
+    let content = decode_bytes(bytes);
+    let mut reader = csv::Reader::from_reader(content.as_bytes());
+
+    // ヘッダー名 → 列インデックスのマップを構築
+    let header_map: std::collections::HashMap<String, usize> = reader
+        .headers()
+        .map_err(|e| {
+            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {}", e))
+        })?
+        .iter()
+        .enumerate()
+        .map(|(i, h)| (h.trim().to_string(), i))
+        .collect();
+
+    let mut items: Vec<CreateDividendRequest> = Vec::new();
+    let mut errors: Vec<CsvRowError> = Vec::new();
+
+    for (row_idx, result) in reader.records().enumerate() {
+        let row_num = row_idx + 1;
+        let record = match result {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(CsvRowError {
+                    row: row_num,
+                    message: format!("CSV行の読み込みに失敗しました: {}", e),
+                });
+                continue;
+            }
+        };
+
+        let get = |name: &str| -> &str {
+            header_map
+                .get(name)
+                .and_then(|&i| record.get(i))
+                .unwrap_or("")
+        };
+
+        // 必須文字列フィールド: 空の場合はエラーとして行をスキップ
+        macro_rules! require_str {
+            ($col:expr) => {{
+                let val = get($col);
+                if val.is_empty() {
+                    errors.push(CsvRowError {
+                        row: row_num,
+                        message: format!("必須列 '{}' が空または存在しません", $col),
+                    });
+                    continue;
+                }
+                val.to_string()
+            }};
+        }
+
+        let settlement_date = match parse_date(get("入金日")) {
+            Ok(d) => d,
+            Err(e) => {
+                errors.push(CsvRowError {
+                    row: row_num,
+                    message: format!("入金日: {}", e),
+                });
+                continue;
+            }
+        };
+
+        macro_rules! parse_num {
+            ($col:expr) => {{
+                let raw = get($col);
+                if raw.is_empty() {
+                    errors.push(CsvRowError {
+                        row: row_num,
+                        message: format!("必須列 '{}' が空または存在しません", $col),
+                    });
+                    continue;
+                }
+                match parse_number(raw) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        errors.push(CsvRowError {
+                            row: row_num,
+                            message: format!("{}: {}", $col, e),
+                        });
+                        continue;
+                    }
+                }
+            }};
+        }
+
+        items.push(CreateDividendRequest {
+            settlement_date,
+            product: require_str!("商品"),
+            account: require_str!("口座"),
+            security_code: require_str!("銘柄コード"),
+            security_name: require_str!("銘柄"),
+            unit_price: parse_num!("単価[円/現地通貨]"),
+            shares: parse_num!("数量[株/口]"),
+            dividends_before_tax: parse_num!("配当・分配金合計（税引前）[円/現地通貨]"),
+            taxes: parse_num!("税額合計[円/現地通貨]"),
+            net_amount_received: parse_num!("受取金額[円/現地通貨]"),
+        });
+    }
+
+    let result = bulk_create(pool, user_id, &items).await?;
+    Ok(CsvUploadResponse {
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors,
+    })
 }
 
 /// 認証ユーザーの配当金を全削除

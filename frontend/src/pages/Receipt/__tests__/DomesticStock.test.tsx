@@ -25,35 +25,39 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 describe('DomesticStock', () => {
-    const mockCsvData = [
+    const mockData = [
         {
-            '約定日': '2023/01/15',
-            '受渡日': '2023/01/18',
-            '銘柄コード': '1234',
-            '銘柄名': 'テスト株式',
-            '口座': '特定',
-            '数量[株]': '100',
-            '売却/決済単価[円]': '1000',
-            '売却/決済額[円]': '100000',
-            '平均取得価額[円]': '900',
-            '実現損益[円]': '10000'
+            trade_date: new Date('2023-01-15'),
+            settlement_date: new Date('2023-01-18'),
+            security_code: '1234',
+            security_name: 'テスト株式',
+            account: '特定',
+            shares: 100,
+            asked_price: 1000,
+            proceeds: 100000,
+            purchase_price: 900,
+            realized_profit_and_loss: 10000,
+            taxes: 2031,
+            realized_profit_and_loss_after_tax: 7969,
         },
         {
-            '約定日': '2023/01/20',
-            '受渡日': '2023/01/23',
-            '銘柄コード': '5678',
-            '銘柄名': 'テスト株式2',
-            '口座': 'NISA',
-            '数量[株]': '200',
-            '売却/決済単価[円]': '2000',
-            '売却/決済額[円]': '400000',
-            '平均取得価額[円]': '1800',
-            '実現損益[円]': '40000'
+            trade_date: new Date('2023-01-20'),
+            settlement_date: new Date('2023-01-23'),
+            security_code: '5678',
+            security_name: 'テスト株式2',
+            account: 'NISA',
+            shares: 200,
+            asked_price: 2000,
+            proceeds: 400000,
+            purchase_price: 1800,
+            realized_profit_and_loss: 40000,
+            taxes: 0,
+            realized_profit_and_loss_after_tax: 40000,
         }
     ];
 
     it('コンポーネントが正常にレンダリングされる', () => {
-        render(<DomesticStock csvData={mockCsvData} />);
+        render(<DomesticStock data={mockData} />);
 
         // 集計情報が表示されることを確認（複数ある場合は最初のものをチェック）
         const totalProfitElements = screen.getAllByText('実現損益');
@@ -67,7 +71,7 @@ describe('DomesticStock', () => {
     });
 
     it('テーブルのヘッダーが正しく表示される', () => {
-        render(<DomesticStock csvData={mockCsvData} />);
+        render(<DomesticStock data={mockData} />);
 
         // テーブルヘッダーの確認（実際のカラム定義に合わせる）
         // 「口座」は検索オプション内にも表示されるためgetAllByTextを使用
@@ -86,7 +90,7 @@ describe('DomesticStock', () => {
     });
 
     it('CSVデータが正しく表示される', () => {
-        render(<DomesticStock csvData={mockCsvData} />);
+        render(<DomesticStock data={mockData} />);
         
         // データの内容確認
         expect(screen.getByText('1234')).toBeInTheDocument();
@@ -96,7 +100,7 @@ describe('DomesticStock', () => {
     });
 
     it('検索オプションが正しく生成される', async () => {
-        const { container } = render(<DomesticStock csvData={mockCsvData} />);
+        const { container } = render(<DomesticStock data={mockData} />);
 
         // 検索オプションは初期状態で展開済み
         const searchOptionsHeader = screen.getByText('検索オプション');
@@ -116,7 +120,7 @@ describe('DomesticStock', () => {
 
     it('銘柄検索時に0件サマリーが表示されない', async () => {
         const user = userEvent.setup();
-        const { container } = render(<DomesticStock csvData={mockCsvData} />);
+        const { container } = render(<DomesticStock data={mockData} />);
 
         // 検索オプションは初期状態で展開済み
         await waitFor(() => {
@@ -132,7 +136,7 @@ describe('DomesticStock', () => {
     }, 20000);
 
     it('空のデータでもエラーが発生しない', () => {
-        render(<DomesticStock csvData={[]} />);
+        render(<DomesticStock data={[]} />);
 
         // 集計情報はゼロで表示される（複数要素がある場合を考慮）
         const summaryElements = screen.getAllByText('実現損益');
@@ -140,7 +144,7 @@ describe('DomesticStock', () => {
     });
 
     it('数値フォーマットが正しく適用される', () => {
-        render(<DomesticStock csvData={mockCsvData} />);
+        render(<DomesticStock data={mockData} />);
         
         // 通貨フォーマットされた値が存在することを確認
         // 具体的な値は実装に依存するため、¥記号の存在を確認
@@ -149,7 +153,7 @@ describe('DomesticStock', () => {
     });
 
     it('レスポンシブテーブルが使用される', () => {
-        const { container } = render(<DomesticStock csvData={mockCsvData} />);
+        const { container } = render(<DomesticStock data={mockData} />);
         
         // レスポンシブテーブルのクラスが適用されていることを確認
         const responsiveTable = container.querySelector('div.overflow-x-auto');

@@ -7,6 +7,7 @@ use crate::{
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest, CreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
+        csv_import::{CsvRowError, CsvUploadForm, CsvUploadResponse},
         dividend::{BulkCreateDividendRequest, CreateDividendRequest, Dividend},
         dividend_cache::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -26,12 +27,15 @@ use crate::{
     paths(
         handlers::dividend::list,
         handlers::dividend::bulk_create,
+        handlers::dividend::upload_csv,
         handlers::dividend::delete_all,
         handlers::domestic_stock::list,
         handlers::domestic_stock::bulk_create,
+        handlers::domestic_stock::upload_csv,
         handlers::domestic_stock::delete_all,
         handlers::mutualfund::list,
         handlers::mutualfund::bulk_create,
+        handlers::mutualfund::upload_csv,
         handlers::mutualfund::delete_all,
         handlers::asset_balance::list,
         handlers::asset_balance::bulk_create,
@@ -62,6 +66,9 @@ use crate::{
             UserResponse,
             BulkCreateResponse,
             MessageResponse,
+            CsvUploadForm,
+            CsvUploadResponse,
+            CsvRowError,
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,

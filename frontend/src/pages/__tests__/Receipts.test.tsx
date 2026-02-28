@@ -71,20 +71,20 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
     ) : null,
 }));
 
-// 子コンポーネント: csvData の長さだけ確認できる最小表示
+// 子コンポーネント: data の長さだけ確認できる最小表示
 vi.mock('@/pages/Receipt/Dividend', () => ({
-  Dividend: ({ csvData }: { csvData: unknown[] }) => (
-    <div data-testid="dividend-view">{csvData.length}</div>
+  Dividend: ({ data }: { data: unknown[] }) => (
+    <div data-testid="dividend-view">{data.length}</div>
   ),
 }));
 vi.mock('@/pages/Receipt/DomesticStock', () => ({
-  DomesticStock: ({ csvData }: { csvData: unknown[] }) => (
-    <div data-testid="domesticstock-view">{csvData.length}</div>
+  DomesticStock: ({ data }: { data: unknown[] }) => (
+    <div data-testid="domesticstock-view">{data.length}</div>
   ),
 }));
 vi.mock('@/pages/Receipt/Mutualfund', () => ({
-  Mutualfund: ({ csvData }: { csvData: unknown[] }) => (
-    <div data-testid="mutualfund-view">{csvData.length}</div>
+  Mutualfund: ({ data }: { data: unknown[] }) => (
+    <div data-testid="mutualfund-view">{data.length}</div>
   ),
 }));
 
@@ -93,36 +93,34 @@ import * as receiptApi from '@/features/receipt/api/receiptApi';
 vi.mock('@/features/receipt/api/receiptApi', () => ({
   dividendApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   domesticStockApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   mutualfundApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
 }));
 
-// parsers: 入力をそのまま返す
+// parsers: sort 関数はそのまま通す、transformDB は identity
 vi.mock('@/features/receipt/parsers', () => ({
-  parseDividendCsvItem: vi.fn((item: unknown) => item),
-  parseDomesticStockCsvItem: vi.fn((item: unknown) => item),
-  parseMutualfundCsvItem: vi.fn((item: unknown) => item),
+  sortDividendBySettlementDate: vi.fn((data: unknown[]) => data),
+  sortDomesticStockByTradeDate: vi.fn((data: unknown[]) => data),
+  sortMutualfundByTradeDate: vi.fn((data: unknown[]) => data),
   transformDBDividend: vi.fn((item: unknown) => item),
   transformDBDomesticStock: vi.fn((item: unknown) => item),
   transformDBMutualfund: vi.fn((item: unknown) => item),
 }));
 
-// useCSVReader: parseCSV はデフォルト空配列を返す（テスト内で上書き可能）
-const mockParseCSV = vi.fn().mockResolvedValue([]);
 vi.mock('@/hooks/useCSVReader', () => ({
   useCSVReader: () => ({
-    parseCSV: mockParseCSV,
+    parseCSV: vi.fn().mockResolvedValue([]),
     isLoading: false,
     error: null,
     fileName: null,
@@ -171,7 +169,7 @@ function makeAuthMock(opts: {
 describe('receiptsReducer', () => {
   it('initialState が正しく定義されている', () => {
     expect(initialState.receiptsType).toBe('dividend');
-    expect(initialState.csvData.dividend).toHaveLength(0);
+    expect(initialState.rawFiles.dividend).toBeNull();
     expect(initialState.showDeleteConfirm).toBe(false);
   });
 
@@ -183,35 +181,34 @@ describe('receiptsReducer', () => {
     expect(next.receiptsType).toBe('domesticstock');
   });
 
-  it('SET_CSV_DATA: 指定タブの CSV データのみ更新する', () => {
-    const mockRows = [{ col: 'a' }, { col: 'b' }];
+  it('SET_RAW_FILE: 指定タブのファイルのみ更新し、取り込み結果をクリアする', () => {
+    const file = new File([''], 'test.csv');
     const next = receiptsReducer(initialState, {
-      type: 'SET_CSV_DATA',
+      type: 'SET_RAW_FILE',
       receiptsType: 'mutualfund',
-      payload: mockRows,
+      payload: file,
     });
-    expect(next.csvData.mutualfund).toBe(mockRows);
-    // 他のタブは変更されない
-    expect(next.csvData.dividend).toHaveLength(0);
-    expect(next.csvData.domesticstock).toHaveLength(0);
+    expect(next.rawFiles.mutualfund).toBe(file);
+    expect(next.rawFiles.dividend).toBeNull();
+    expect(next.lastImportResults.mutualfund).toBeNull();
   });
 
-  it('LOGOUT: csvData をすべて空にする', () => {
+  it('LOGOUT: rawFiles と lastImportResults をリセットする', () => {
+    const file = new File([''], 'test.csv');
     const dirtyState: ReceiptsState = {
       ...initialState,
-      csvData: {
-        dividend: [{ x: 1 }],
-        domesticstock: [{ x: 2 }],
-        mutualfund: [{ x: 3 }],
+      rawFiles: { dividend: file, domesticstock: null, mutualfund: null },
+      lastImportResults: {
+        dividend: { inserted: 1, skipped: 0, errors: [] },
+        domesticstock: null,
+        mutualfund: null,
       },
     };
 
     const next = receiptsReducer(dirtyState, { type: 'LOGOUT' });
 
-    expect(next.csvData.dividend).toHaveLength(0);
-    expect(next.csvData.domesticstock).toHaveLength(0);
-    expect(next.csvData.mutualfund).toHaveLength(0);
-    // receiptsType は変更されない
+    expect(next.rawFiles.dividend).toBeNull();
+    expect(next.lastImportResults.dividend).toBeNull();
     expect(next.receiptsType).toBe(dirtyState.receiptsType);
   });
 
@@ -231,7 +228,6 @@ describe('receiptsReducer', () => {
 describe('ReceiptsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockParseCSV.mockResolvedValue([]);
   });
 
   it('初期表示: 配当金タブが選択されている', () => {
@@ -272,17 +268,14 @@ describe('ReceiptsPage', () => {
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
   });
 
-  it('CSV読込→保存: bulkCreate API が呼ばれ CSV データがクリアされる', async () => {
+  it('CSV読込→保存: uploadCsv API が呼ばれ保存ボタンが消える', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.dividendApi.bulkCreate).mockResolvedValue({ inserted: 0, skipped: 0 });
-
-    const mockRows = [{ '入金日': '2023/01/01' }, { '入金日': '2023/02/01' }];
-    mockParseCSV.mockResolvedValue(mockRows);
+    vi.mocked(receiptApi.dividendApi.uploadCsv).mockResolvedValue({ inserted: 0, skipped: 0, errors: [] });
 
     renderWithQuery(<ReceiptsPage />);
 
@@ -301,7 +294,7 @@ describe('ReceiptsPage', () => {
     await user.click(screen.getByText('保存'));
 
     await waitFor(() => {
-      expect(receiptApi.dividendApi.bulkCreate).toHaveBeenCalled();
+      expect(receiptApi.dividendApi.uploadCsv).toHaveBeenCalled();
     }, waitOpts);
 
     // 保存後は CSV データがクリアされ保存ボタンが消える

@@ -2,9 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { dividendApi, domesticStockApi, mutualfundApi } from '../api/receiptApi';
 import {
-  parseDividendCsvItem,
-  parseDomesticStockCsvItem,
-  parseMutualfundCsvItem,
   transformDBDividend,
   transformDBDomesticStock,
   transformDBMutualfund,
@@ -22,15 +19,15 @@ export interface UseReceiptsDataResult {
   dbError: string | null;
   saving: boolean;
   deleting: boolean;
-  bulkCreate: (args: BulkCreateArgs) => void;
+  uploadCsv: (args: UploadCsvArgs) => void;
   deleteAll: (type: ReceiptsType) => void;
   clearCache: () => void;
 }
 
-interface BulkCreateArgs {
+interface UploadCsvArgs {
   type: ReceiptsType;
-  csvData: Record<string, unknown>[];
-  onSuccess?: () => void;
+  file: File;
+  onSuccess?: (result: { inserted: number; skipped: number; errors: { row: number; message: string }[] }) => void;
 }
 
 /**
@@ -74,22 +71,22 @@ export function useReceiptsData(): UseReceiptsDataResult {
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
-  const bulkCreateMutation = useMutation({
-    mutationFn: ({ type, csvData }: BulkCreateArgs) => {
+  const uploadCsvMutation = useMutation({
+    mutationFn: ({ type, file }: UploadCsvArgs) => {
       switch (type) {
         case 'dividend':
-          return dividendApi.bulkCreate(csvData.map(parseDividendCsvItem));
+          return dividendApi.uploadCsv(file);
         case 'domesticstock':
-          return domesticStockApi.bulkCreate(csvData.map(parseDomesticStockCsvItem));
+          return domesticStockApi.uploadCsv(file);
         case 'mutualfund':
-          return mutualfundApi.bulkCreate(csvData.map(parseMutualfundCsvItem));
+          return mutualfundApi.uploadCsv(file);
       }
     },
     // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
     onMutate: () => ({ snapshotUserId: userId }),
-    onSuccess: (_, { type, onSuccess }, context) => {
+    onSuccess: (data, { type, onSuccess }, context) => {
       queryClient.invalidateQueries({ queryKey: receiptQueryKeys[type](context?.snapshotUserId ?? userId) });
-      onSuccess?.();
+      onSuccess?.(data);
     },
   });
 
@@ -120,7 +117,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   }, [queryClient]);
 
   const queryError = dividendQuery.error ?? domesticstockQuery.error ?? mutualfundQuery.error;
-  const mutationError = bulkCreateMutation.error ?? deleteAllMutation.error;
+  const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error;
 
   return {
     dividendData: dividendQuery.data ?? [],
@@ -135,9 +132,9 @@ export function useReceiptsData(): UseReceiptsDataResult {
       : mutationError
         ? getDisplayErrorMessage(mutationError, '操作に失敗しました')
         : null,
-    saving: bulkCreateMutation.isPending,
+    saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
-    bulkCreate: bulkCreateMutation.mutate,
+    uploadCsv: uploadCsvMutation.mutate,
     deleteAll: deleteAllMutation.mutate,
     clearCache,
   };
