@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::dividend_cache::{DividendCache, DividendPerShareItem, CACHE_TTL_DAYS};
+use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::models::jquants::FinSummaryData;
 use crate::services::jquants::JQuantsService;
 use chrono::Utc;
@@ -26,7 +26,7 @@ pub async fn get_batch(
     // DB からキャッシュを一括取得
     let cached: Vec<DividendCache> = sqlx::query_as::<_, DividendCache>(
         r#"
-        SELECT security_code, dividend_per_share, status, fetched_at, source,
+        SELECT security_code, dividend_per_share, status, fetched_at, stale_at, source,
                created_at, updated_at
         FROM jquants_dividend_cache
         WHERE security_code = ANY($1)
@@ -37,7 +37,6 @@ pub async fn get_batch(
     .await?;
 
     let now = Utc::now();
-    let ttl_threshold = now - chrono::Duration::days(CACHE_TTL_DAYS);
 
     // コードをキーにしてキャッシュをマップ化
     let cache_map: std::collections::HashMap<&str, &DividendCache> = cached
@@ -53,8 +52,8 @@ pub async fn get_batch(
         .map(|code| {
             if let Some(cached_item) = cache_map.get(code.as_str()) {
                 let is_stale = cached_item
-                    .fetched_at
-                    .map(|t| t < ttl_threshold)
+                    .stale_at
+                    .map(|t| t < now)
                     .unwrap_or(true);
                 if is_stale && cached_item.status != "pending" {
                     refresh_codes.push(code.clone());
@@ -210,12 +209,13 @@ async fn fetch_and_cache(
     sqlx::query(
         r#"
         INSERT INTO jquants_dividend_cache
-            (security_code, dividend_per_share, status, fetched_at, source, updated_at)
-        VALUES ($1, $2, $3, NOW(), 'jquants', NOW())
+            (security_code, dividend_per_share, status, fetched_at, stale_at, source, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET dividend_per_share = EXCLUDED.dividend_per_share,
                 status             = EXCLUDED.status,
                 fetched_at         = EXCLUDED.fetched_at,
+                stale_at           = NOW() + INTERVAL '7 days',
                 source             = EXCLUDED.source,
                 error_message      = NULL,
                 updated_at         = NOW()
@@ -248,11 +248,12 @@ async fn update_cache_error(pool: &PgPool, code: &str, error_msg: &str) -> Resul
     sqlx::query(
         r#"
         INSERT INTO jquants_dividend_cache
-            (security_code, dividend_per_share, status, error_message, source, updated_at)
-        VALUES ($1, NULL, 'error', $2, 'jquants', NOW())
+            (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
+        VALUES ($1, NULL, 'error', $2, NULL, 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET status        = 'error',
                 error_message = EXCLUDED.error_message,
+                stale_at      = NULL,
                 updated_at    = NOW()
         "#,
     )
@@ -382,8 +383,4 @@ mod tests {
         assert_eq!(val, Some(60.0));
     }
 
-    #[test]
-    fn test_cache_ttl_constant() {
-        assert_eq!(CACHE_TTL_DAYS, 7);
-    }
 }
