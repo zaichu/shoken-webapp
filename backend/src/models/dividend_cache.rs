@@ -52,4 +52,3 @@ pub struct DividendPerShareItem {
 pub struct DividendPerShareBatchResponse {
     pub items: Vec<DividendPerShareItem>,
 }
-

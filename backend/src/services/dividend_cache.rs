@@ -424,5 +424,4 @@ mod tests {
         let (val, _) = extract_dividend(&data);
         assert_eq!(val, Some(60.0));
     }
-
 }

@@ -3,11 +3,12 @@ use crate::{
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::common::{BulkCreateResponse, MessageResponse},
+    models::csv_import::CsvUploadResponse,
     models::domestic_stock::{BulkCreateDomesticStockRequest, DomesticStock},
     services::domestic_stock as domestic_stock_service,
     state::AppState,
 };
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの国内株式取引一覧を取得
 #[utoipa::path(
@@ -48,6 +49,45 @@ pub async fn bulk_create(
 ) -> Result<impl IntoResponse, ApiError> {
     let response =
         domestic_stock_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
+    Ok((StatusCode::CREATED, Json(response)))
+}
+
+/// CSV ファイルをアップロードして国内株式取引を一括登録
+#[utoipa::path(
+    post,
+    path = "/domestic-stocks/csv",
+    operation_id = "domestic_stock_upload_csv",
+    request_body(content = inline(String), content_type = "multipart/form-data"),
+    responses(
+        (status = 201, body = CsvUploadResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn upload_csv(
+    State(state): State<AppState>,
+    auth_user: AuthenticatedUser,
+    mut multipart: Multipart,
+) -> Result<impl IntoResponse, ApiError> {
+    let mut file_bytes: Option<Vec<u8>> = None;
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        ApiError::ValidationError(format!("マルチパートの読み込みに失敗しました: {}", e))
+    })? {
+        if field.name() == Some("file") {
+            let bytes = field.bytes().await.map_err(|e| {
+                ApiError::ValidationError(format!("ファイルの読み込みに失敗しました: {}", e))
+            })?;
+            file_bytes = Some(bytes.to_vec());
+            break;
+        }
+    }
+
+    let bytes = file_bytes
+        .ok_or_else(|| ApiError::ValidationError("fileフィールドが見つかりません".to_string()))?;
+
+    let response = domestic_stock_service::upload_csv(&state.pool, auth_user.id(), &bytes).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
 

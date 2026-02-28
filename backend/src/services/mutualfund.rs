@@ -1,6 +1,8 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
+use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
 use crate::models::mutualfund::{CreateMutualfundRequest, Mutualfund};
+use crate::services::csv_import::{compute_taxes, decode_bytes, parse_date, parse_number};
 use sqlx::PgPool;
 use std::time::Instant;
 use tracing::info;
@@ -114,6 +116,117 @@ pub async fn bulk_create(
         elapsed.as_secs_f64() * 1000.0
     );
     Ok(BulkCreateResponse { inserted, skipped })
+}
+
+/// CSV バイト列から投資信託をパースして一括挿入
+pub async fn upload_csv(
+    pool: &PgPool,
+    user_id: Uuid,
+    bytes: &[u8],
+) -> Result<CsvUploadResponse, ApiError> {
+    let content = decode_bytes(bytes);
+    let mut reader = csv::Reader::from_reader(content.as_bytes());
+
+    let header_map: std::collections::HashMap<String, usize> = reader
+        .headers()
+        .map_err(|e| {
+            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {}", e))
+        })?
+        .iter()
+        .enumerate()
+        .map(|(i, h)| (h.trim().to_string(), i))
+        .collect();
+
+    let mut items: Vec<CreateMutualfundRequest> = Vec::new();
+    let mut errors: Vec<CsvRowError> = Vec::new();
+
+    for (row_idx, result) in reader.records().enumerate() {
+        let row_num = row_idx + 1;
+        let record = match result {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(CsvRowError {
+                    row: row_num,
+                    message: format!("CSV行の読み込みに失敗しました: {}", e),
+                });
+                continue;
+            }
+        };
+
+        let get = |name: &str| -> &str {
+            header_map
+                .get(name)
+                .and_then(|&i| record.get(i))
+                .unwrap_or("")
+        };
+
+        macro_rules! parse_date_field {
+            ($col:expr) => {
+                match parse_date(get($col)) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        errors.push(CsvRowError {
+                            row: row_num,
+                            message: format!("{}: {}", $col, e),
+                        });
+                        continue;
+                    }
+                }
+            };
+        }
+
+        macro_rules! parse_num {
+            ($col:expr) => {
+                match parse_number(get($col)) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        errors.push(CsvRowError {
+                            row: row_num,
+                            message: format!("{}: {}", $col, e),
+                        });
+                        continue;
+                    }
+                }
+            };
+        }
+
+        let trade_date = parse_date_field!("約定日");
+        let settlement_date = parse_date_field!("受渡日");
+        let account = get("口座").to_string();
+        let realized_pnl = parse_num!("実現損益［円］");
+        let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
+
+        // 分配金フィールドは空文字を None に変換
+        let dividends_raw = get("分配金");
+        let dividends = if dividends_raw.trim().is_empty() {
+            None
+        } else {
+            Some(dividends_raw.to_string())
+        };
+
+        items.push(CreateMutualfundRequest {
+            trade_date,
+            settlement_date,
+            fund_name: get("ファンド名").to_string(),
+            dividends,
+            account,
+            shares: parse_num!("数量[口]"),
+            exchange_rate: parse_num!("為替レート［円］"),
+            cancellation_unit_price_yen: parse_num!("解約単価［円］"),
+            cancellation_amount_yen: parse_num!("解約額［円］"),
+            average_acquisition_price_yen: parse_num!("平均取得価額［円］"),
+            realized_profit_and_loss: realized_pnl,
+            taxes,
+            realized_profit_and_loss_after_tax: realized_pnl_after_tax,
+        });
+    }
+
+    let result = bulk_create(pool, user_id, &items).await?;
+    Ok(CsvUploadResponse {
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors,
+    })
 }
 
 /// 認証ユーザーの投資信託を全削除
