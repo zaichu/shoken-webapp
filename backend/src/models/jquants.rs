@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// 決算サマリー取得パラメータ（J-Quants API V2）
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct FinSummaryQuery {
     pub code: String,
     pub from: Option<String>,
@@ -10,7 +11,7 @@ pub struct FinSummaryQuery {
 
 /// 決算サマリーレスポンス（J-Quants API V2）
 /// V2では fins/summary を使用し、ルートフィールドは "data"
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FinSummaryResponse {
     /// 決算サマリーデータの配列（V2では "data" フィールド）
     pub data: Vec<FinSummaryData>,
@@ -21,7 +22,7 @@ pub struct FinSummaryResponse {
 
 /// 決算サマリーデータ（J-Quants API V2）
 /// V2では省略形フィールド名を使用
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FinSummaryData {
     /// 開示日（DisclosedDate → DiscDate）
     #[serde(rename = "DiscDate")]

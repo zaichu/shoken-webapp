@@ -14,6 +14,7 @@ use crate::{
         domestic_stock::{
             BulkCreateDomesticStockRequest, CreateDomesticStockRequest, DomesticStock,
         },
+        jquants::{FinSummaryData, FinSummaryResponse},
         mutualfund::{BulkCreateMutualfundRequest, CreateMutualfundRequest, Mutualfund},
         stock::Stock,
         user::UserResponse,
@@ -39,6 +40,8 @@ use crate::{
         handlers::stock::add_stock_info,
         handlers::auth::get_current_user,
         handlers::auth::logout,
+        handlers::auth::delete_account,
+        handlers::jquants::get_fin_summary,
         handlers::dividend_per_share::batch,
     ),
     components(
@@ -62,6 +65,8 @@ use crate::{
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,
+            FinSummaryResponse,
+            FinSummaryData,
             ErrorResponse,
             ErrorDetails,
         )

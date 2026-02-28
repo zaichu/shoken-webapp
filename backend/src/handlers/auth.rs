@@ -220,6 +220,16 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
 
 /// アカウント削除処理
 /// ユーザーとすべての関連データ（sessions, dividends, domestic_stocks, mutualfunds, asset_balances）を削除
+#[utoipa::path(
+    delete,
+    path = "/auth/delete-account",
+    operation_id = "auth_delete_account",
+    responses(
+        (status = 200, body = MessageResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn delete_account(
     State(state): State<AppState>,
     jar: CookieJar,

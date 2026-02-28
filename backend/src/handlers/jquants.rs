@@ -1,4 +1,4 @@
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ErrorResponse};
 use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use crate::services::jquants::JQuantsService;
 use crate::state::AppState;
@@ -9,6 +9,22 @@ use axum::{
 
 /// 決算サマリーを取得（J-Quants API V2）
 /// V2では fins/statements → fins/summary に変更
+#[utoipa::path(
+    get,
+    path = "/jquants/fins/statements",
+    operation_id = "jquants_fin_summary",
+    params(
+        ("code" = String, Query, description = "銘柄コード"),
+        ("from" = Option<String>, Query, description = "開始日（YYYY-MM-DD）"),
+        ("to" = Option<String>, Query, description = "終了日（YYYY-MM-DD）"),
+    ),
+    responses(
+        (status = 200, body = FinSummaryResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
 pub async fn get_fin_summary(
     State(state): State<AppState>,
     Query(params): Query<FinSummaryQuery>,

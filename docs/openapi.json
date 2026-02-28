@@ -140,6 +140,42 @@
         ]
       }
     },
+    "/auth/delete-account": {
+      "delete": {
+        "tags": [
+          "handlers::auth"
+        ],
+        "summary": "アカウント削除処理\nユーザーとすべての関連データ（sessions, dividends, domestic_stocks, mutualfunds, asset_balances）を削除",
+        "operationId": "auth_delete_account",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/auth/logout": {
       "post": {
         "tags": [
@@ -473,6 +509,81 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BulkCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/jquants/fins/statements": {
+      "get": {
+        "tags": [
+          "handlers::jquants"
+        ],
+        "summary": "決算サマリーを取得（J-Quants API V2）\nV2では fins/statements → fins/summary に変更",
+        "operationId": "jquants_fin_summary",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "銘柄コード",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "開始日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "終了日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinSummaryResponse"
                 }
               }
             }
@@ -1376,6 +1487,780 @@
         "properties": {
           "error": {
             "$ref": "#/components/schemas/ErrorDetails"
+          }
+        }
+      },
+      "FinSummaryData": {
+        "type": "object",
+        "description": "決算サマリーデータ（J-Quants API V2）\nV2では省略形フィールド名を使用",
+        "required": [
+          "DiscDate",
+          "Code",
+          "DocType"
+        ],
+        "properties": {
+          "AvgSh": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "期中平均株式数"
+          },
+          "BPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり純資産"
+          },
+          "CFF": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "財務活動によるキャッシュフロー"
+          },
+          "CFI": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "投資活動によるキャッシュフロー"
+          },
+          "CFO": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業活動によるキャッシュフロー"
+          },
+          "CashEq": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "現金及び現金同等物の期末残高"
+          },
+          "ChgAccStd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "会計基準の改正に伴う変更"
+          },
+          "ChgEstimate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "会計上の見積りの変更"
+          },
+          "ChgOther": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "会計基準の改正以外の変更"
+          },
+          "Code": {
+            "type": "string",
+            "description": "銘柄コード（LocalCode → Code）"
+          },
+          "CurFYEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当会計年度終了日"
+          },
+          "CurFYSt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当会計年度開始日"
+          },
+          "CurPerEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期終了日"
+          },
+          "CurPerSt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期開始日"
+          },
+          "CurPerType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期種別"
+          },
+          "DEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "希薄化後1株当たり当期純利益"
+          },
+          "DiscDate": {
+            "type": "string",
+            "description": "開示日（DisclosedDate → DiscDate）"
+          },
+          "DiscNo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "開示番号"
+          },
+          "DiscTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "開示時刻"
+          },
+          "Div1Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第1四半期末）実績"
+          },
+          "Div2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第2四半期末）実績"
+          },
+          "Div3Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第3四半期末）実績"
+          },
+          "DivAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり年間配当金実績"
+          },
+          "DivFY": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（期末）実績"
+          },
+          "DivTotalAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "年間配当支払総額実績"
+          },
+          "DivUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1口当たり分配金（REIT）"
+          },
+          "DocType": {
+            "type": "string",
+            "description": "書類種別"
+          },
+          "EPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益"
+          },
+          "Eq": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "純資産"
+          },
+          "EqAR": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "自己資本比率"
+          },
+          "FDiv1Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第1四半期末）予想"
+          },
+          "FDiv2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第2四半期末）予想"
+          },
+          "FDiv3Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第3四半期末）予想"
+          },
+          "FDivAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり年間配当金予想（今期）"
+          },
+          "FDivFY": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（期末）予想"
+          },
+          "FDivTotalAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "年間配当支払総額予想"
+          },
+          "FDivUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1口当たり分配金（REIT）予想"
+          },
+          "FEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益予想（通期）"
+          },
+          "FEPS2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益予想（第2四半期）"
+          },
+          "FNCEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益予想（通期・個別）"
+          },
+          "FNCEPS2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益予想（第2四半期・個別）"
+          },
+          "FNCNP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益予想（通期・個別）"
+          },
+          "FNCNP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益予想（第2四半期・個別）"
+          },
+          "FNCOP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益予想（通期・個別）"
+          },
+          "FNCOP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益予想（第2四半期・個別）"
+          },
+          "FNCOdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益予想（通期・個別）"
+          },
+          "FNCOdP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益予想（第2四半期・個別）"
+          },
+          "FNCSales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高予想（通期・個別）"
+          },
+          "FNCSales2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高予想（第2四半期・個別）"
+          },
+          "FNP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益予想（通期）"
+          },
+          "FNP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益予想（第2四半期）"
+          },
+          "FOP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益予想（通期）"
+          },
+          "FOP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益予想（第2四半期）"
+          },
+          "FOdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益予想（通期）"
+          },
+          "FOdP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益予想（第2四半期）"
+          },
+          "FPayoutRatioAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "配当性向予想"
+          },
+          "FSales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高予想（通期）"
+          },
+          "FSales2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高予想（第2四半期）"
+          },
+          "MatChgSub": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "重要な子会社の異動"
+          },
+          "NCBPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり純資産（個別）"
+          },
+          "NCEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益（個別）"
+          },
+          "NCEq": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "純資産（個別）"
+          },
+          "NCEqAR": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "自己資本比率（個別）"
+          },
+          "NCNP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益（個別）"
+          },
+          "NCOP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益（個別）"
+          },
+          "NCOdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益（個別）"
+          },
+          "NCSales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高（個別）"
+          },
+          "NCTA": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "総資産（個別）"
+          },
+          "NP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益"
+          },
+          "NxFDiv1Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第1四半期末）来期予想"
+          },
+          "NxFDiv2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第2四半期末）来期予想"
+          },
+          "NxFDiv3Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（第3四半期末）来期予想"
+          },
+          "NxFDivAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり年間配当金来期予想"
+          },
+          "NxFDivFY": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり配当金（期末）来期予想"
+          },
+          "NxFDivUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1口当たり分配金（REIT）来期予想"
+          },
+          "NxFEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益来期予想（通期）"
+          },
+          "NxFEPS2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益来期予想（第2四半期）"
+          },
+          "NxFNCEPS": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益来期予想（通期・個別）"
+          },
+          "NxFNCEPS2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "1株当たり当期純利益来期予想（第2四半期・個別）"
+          },
+          "NxFNCNP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益来期予想（通期・個別）"
+          },
+          "NxFNCNP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益来期予想（第2四半期・個別）"
+          },
+          "NxFNCOP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益来期予想（通期・個別）"
+          },
+          "NxFNCOP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益来期予想（第2四半期・個別）"
+          },
+          "NxFNCOdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益来期予想（通期・個別）"
+          },
+          "NxFNCOdP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益来期予想（第2四半期・個別）"
+          },
+          "NxFNCSales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高来期予想（通期・個別）"
+          },
+          "NxFNCSales2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高来期予想（第2四半期・個別）"
+          },
+          "NxFNp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益来期予想（通期）"
+          },
+          "NxFNp2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "当期純利益来期予想（第2四半期）"
+          },
+          "NxFOP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益来期予想（通期）"
+          },
+          "NxFOP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益来期予想（第2四半期）"
+          },
+          "NxFOdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益来期予想（通期）"
+          },
+          "NxFOdP2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益来期予想（第2四半期）"
+          },
+          "NxFPayoutRatioAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "配当性向来期予想"
+          },
+          "NxFSales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高来期予想（通期）"
+          },
+          "NxFSales2Q": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高来期予想（第2四半期）"
+          },
+          "NxtFYEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "翌会計年度終了日"
+          },
+          "NxtFYSt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "翌会計年度開始日"
+          },
+          "OP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "営業利益"
+          },
+          "OdP": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "経常利益"
+          },
+          "PayoutRatioAnn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "配当性向実績"
+          },
+          "Restatement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "修正再表示"
+          },
+          "Sales": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "売上高"
+          },
+          "ShOutFY": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "発行済株式数（期末・自己株式を含む）"
+          },
+          "SigChgInC": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "連結範囲の重要な変更"
+          },
+          "TA": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "総資産"
+          },
+          "TrShFY": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "自己株式数（期末）"
+          }
+        }
+      },
+      "FinSummaryResponse": {
+        "type": "object",
+        "description": "決算サマリーレスポンス（J-Quants API V2）\nV2では fins/summary を使用し、ルートフィールドは \"data\"",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FinSummaryData"
+            },
+            "description": "決算サマリーデータの配列（V2では \"data\" フィールド）"
+          },
+          "pagination_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ページネーションキー（データが大量の場合に設定される）"
           }
         }
       },
