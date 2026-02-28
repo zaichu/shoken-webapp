@@ -227,6 +227,7 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
     responses(
         (status = 200, body = MessageResponse),
         (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]

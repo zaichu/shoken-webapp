@@ -22,6 +22,8 @@ use axum::{
         (status = 200, body = FinSummaryResponse),
         (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 502, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
