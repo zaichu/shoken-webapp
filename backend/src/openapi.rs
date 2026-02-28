@@ -7,7 +7,7 @@ use crate::{
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest, CreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
-        csv_import::{CsvRowError, CsvUploadResponse},
+        csv_import::{CsvRowError, CsvUploadForm, CsvUploadResponse},
         dividend::{BulkCreateDividendRequest, CreateDividendRequest, Dividend},
         dividend_cache::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -66,6 +66,7 @@ use crate::{
             UserResponse,
             BulkCreateResponse,
             MessageResponse,
+            CsvUploadForm,
             CsvUploadResponse,
             CsvRowError,
             DividendPerShareBatchRequest,

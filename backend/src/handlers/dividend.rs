@@ -3,7 +3,7 @@ use crate::{
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::common::{BulkCreateResponse, MessageResponse},
-    models::csv_import::CsvUploadResponse,
+    models::csv_import::{CsvUploadForm, CsvUploadResponse},
     models::dividend::{BulkCreateDividendRequest, Dividend},
     services::dividend as dividend_service,
     state::AppState,
@@ -56,7 +56,7 @@ pub async fn bulk_create(
     post,
     path = "/dividends/csv",
     operation_id = "dividend_upload_csv",
-    request_body(content = inline(String), content_type = "multipart/form-data"),
+    request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 201, body = CsvUploadResponse),
         (status = 400, body = ErrorResponse),

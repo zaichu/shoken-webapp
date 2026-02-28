@@ -208,6 +208,21 @@ pub async fn upload_csv(
                 .unwrap_or("")
         };
 
+        // 必須文字列フィールド: 空の場合はエラーとして行をスキップ
+        macro_rules! require_str {
+            ($col:expr) => {{
+                let val = get($col);
+                if val.is_empty() {
+                    errors.push(CsvRowError {
+                        row: row_num,
+                        message: format!("必須列 '{}' が空または存在しません", $col),
+                    });
+                    continue;
+                }
+                val.to_string()
+            }};
+        }
+
         macro_rules! parse_date_field {
             ($col:expr) => {
                 match parse_date(get($col)) {
@@ -240,15 +255,15 @@ pub async fn upload_csv(
 
         let trade_date = parse_date_field!("約定日");
         let settlement_date = parse_date_field!("受渡日");
-        let account = get("口座").to_string();
+        let account = require_str!("口座");
         let realized_pnl = parse_num!("実現損益[円]");
         let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
 
         items.push(CreateDomesticStockRequest {
             trade_date,
             settlement_date,
-            security_code: get("銘柄コード").to_string(),
-            security_name: get("銘柄名").to_string(),
+            security_code: require_str!("銘柄コード"),
+            security_name: require_str!("銘柄名"),
             account,
             shares: parse_num!("数量[株]"),
             asked_price: parse_num!("売却/決済単価[円]"),
@@ -260,12 +275,24 @@ pub async fn upload_csv(
         });
     }
 
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(CsvUploadResponse {
-        inserted: result.inserted,
-        skipped: result.skipped,
-        errors,
-    })
+    match bulk_create(pool, user_id, &items).await {
+        Ok(result) => Ok(CsvUploadResponse {
+            inserted: result.inserted,
+            skipped: result.skipped,
+            errors,
+        }),
+        Err(e) => {
+            errors.push(CsvRowError {
+                row: 0,
+                message: format!("一括登録に失敗しました: {e:?}"),
+            });
+            Ok(CsvUploadResponse {
+                inserted: 0,
+                skipped: items.len(),
+                errors,
+            })
+        }
+    }
 }
 
 /// 認証ユーザーの国内株式取引を全削除

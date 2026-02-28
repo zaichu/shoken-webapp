@@ -144,6 +144,21 @@ pub async fn upload_csv(
                 .unwrap_or("")
         };
 
+        // 必須文字列フィールド: 空の場合はエラーとして行をスキップ
+        macro_rules! require_str {
+            ($col:expr) => {{
+                let val = get($col);
+                if val.is_empty() {
+                    errors.push(CsvRowError {
+                        row: row_num,
+                        message: format!("必須列 '{}' が空または存在しません", $col),
+                    });
+                    continue;
+                }
+                val.to_string()
+            }};
+        }
+
         let settlement_date = match parse_date(get("入金日")) {
             Ok(d) => d,
             Err(e) => {
@@ -172,10 +187,10 @@ pub async fn upload_csv(
 
         items.push(CreateDividendRequest {
             settlement_date,
-            product: get("商品").to_string(),
-            account: get("口座").to_string(),
-            security_code: get("銘柄コード").to_string(),
-            security_name: get("銘柄").to_string(),
+            product: require_str!("商品"),
+            account: require_str!("口座"),
+            security_code: require_str!("銘柄コード"),
+            security_name: require_str!("銘柄"),
             unit_price: parse_num!("単価[円/現地通貨]"),
             shares: parse_num!("数量[株/口]"),
             dividends_before_tax: parse_num!("配当・分配金合計（税引前）[円/現地通貨]"),
@@ -184,12 +199,24 @@ pub async fn upload_csv(
         });
     }
 
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(CsvUploadResponse {
-        inserted: result.inserted,
-        skipped: result.skipped,
-        errors,
-    })
+    match bulk_create(pool, user_id, &items).await {
+        Ok(result) => Ok(CsvUploadResponse {
+            inserted: result.inserted,
+            skipped: result.skipped,
+            errors,
+        }),
+        Err(e) => {
+            errors.push(CsvRowError {
+                row: 0,
+                message: format!("一括登録に失敗しました: {e:?}"),
+            });
+            Ok(CsvUploadResponse {
+                inserted: 0,
+                skipped: items.len(),
+                errors,
+            })
+        }
+    }
 }
 
 /// 認証ユーザーの配当金を全削除

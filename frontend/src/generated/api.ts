@@ -529,8 +529,16 @@ export interface components {
         /** @description CSV の行エラー情報 */
         CsvRowError: {
             message: string;
-            /** @description 1始まり（ヘッダー行を除く） */
+            /** @description 1始まり（ヘッダー行を除く）、0 はバッチ全体エラー */
             row: number;
+        };
+        /** @description CSV アップロードのリクエストボディ（multipart/form-data の file フィールド） */
+        CsvUploadForm: {
+            /**
+             * Format: binary
+             * @description アップロードするCSVファイル（Shift-JIS または UTF-8）
+             */
+            file: string;
         };
         /** @description CSV アップロードのレスポンス */
         CsvUploadResponse: {
@@ -1191,7 +1199,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": string;
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
             };
         };
         responses: {
@@ -1354,7 +1362,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": string;
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
             };
         };
         responses: {
@@ -1544,7 +1552,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": string;
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
             };
         };
         responses: {

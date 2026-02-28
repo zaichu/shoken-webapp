@@ -3,7 +3,7 @@ use crate::{
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::common::{BulkCreateResponse, MessageResponse},
-    models::csv_import::CsvUploadResponse,
+    models::csv_import::{CsvUploadForm, CsvUploadResponse},
     models::mutualfund::{BulkCreateMutualfundRequest, Mutualfund},
     services::mutualfund as mutualfund_service,
     state::AppState,
@@ -57,7 +57,7 @@ pub async fn bulk_create(
     post,
     path = "/mutualfunds/csv",
     operation_id = "mutualfund_upload_csv",
-    request_body(content = inline(String), content_type = "multipart/form-data"),
+    request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 201, body = CsvUploadResponse),
         (status = 400, body = ErrorResponse),

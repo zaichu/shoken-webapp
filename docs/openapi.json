@@ -390,7 +390,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "type": "string"
+                "$ref": "#/components/schemas/CsvUploadForm"
               }
             }
           },
@@ -618,7 +618,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "type": "string"
+                "$ref": "#/components/schemas/CsvUploadForm"
               }
             }
           },
@@ -900,7 +900,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "type": "string"
+                "$ref": "#/components/schemas/CsvUploadForm"
               }
             }
           },
@@ -1455,8 +1455,22 @@
           },
           "row": {
             "type": "integer",
-            "description": "1始まり（ヘッダー行を除く）",
+            "description": "1始まり（ヘッダー行を除く）、0 はバッチ全体エラー",
             "minimum": 0
+          }
+        }
+      },
+      "CsvUploadForm": {
+        "type": "object",
+        "description": "CSV アップロードのリクエストボディ（multipart/form-data の file フィールド）",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "アップロードするCSVファイル（Shift-JIS または UTF-8）"
           }
         }
       },
