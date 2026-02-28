@@ -22,7 +22,7 @@ pub struct DividendCache {
     /// ok: 有配当、zero: ゼロ配当、error: 取得失敗、pending: 未取得/更新待ち
     pub status: String,
     pub fetched_at: Option<DateTime<Utc>>,
-    /// TTL期限。この時刻を過ぎると再取得対象（NULL = 即再取得対象）
+    /// TTL期限。この時刻を過ぎると再取得対象（NULL かつ pending 以外 = 即再取得対象）
     pub stale_at: Option<DateTime<Utc>>,
     pub source: String,
     pub created_at: DateTime<Utc>,
