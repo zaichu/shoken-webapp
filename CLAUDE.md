@@ -20,10 +20,12 @@
 ## タスク管理
 
 - ブランチ単位の task file は `docs/tasks/<branch-name>.md` を使用する
+- task file はローカルの一時メモとして扱い、ユーザーの明示指示がない限りコミットや PR に含めない
 - task file が存在する場合は、作業開始前に必ず読む
 - task file が存在する場合は、進捗・受け入れ条件・レビュー指摘を作業に合わせて更新する
 - 新しい中規模以上のタスクでは `docs/tasks/TEMPLATE.md` を元に task file を作成する
 - task file がある場合は、その内容を優先してスコープと非対象を守る
+- task 完了時または作業中止時には、対応する task file を削除する
 
 ## 参照ルール
 
