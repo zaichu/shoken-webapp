@@ -152,6 +152,13 @@ make test  # cargo test
 - `mockall` クレートを使用
 - `tokio-test` で非同期テスト
 
+### 方針
+
+- 単体テストは `#[cfg(test)] mod tests` を基本とする
+- 統合テストは `backend/tests/` に配置する
+- `cargo test -- --nocapture` で出力確認が可能
+- カバレッジ確認が必要な場合は `cargo tarpaulin --out Html` を使用する
+
 ## HTTP クライアント
 
 - `reqwest` を使用
@@ -173,3 +180,23 @@ make test  # cargo test
 
 - `tracing` クレートを使用
 - 適切なログレベルを設定
+
+## セキュリティ
+
+### 認証・セッション
+
+- Google OAuth2 を使用する
+- セッション Cookie は `HttpOnly` を必須とする
+- 本番環境では `Secure` を有効にする
+- クロスオリジン認証では `SameSite=None`、ローカルでは `SameSite=Lax` を使い分ける
+
+### 入力・DB
+
+- 入力バリデーションは `validator` クレートで行う
+- SQL は必ずパラメータバインディングを使用し、文字列連結で組み立てない
+
+### CORS・機密情報
+
+- CORS は許可 origin を明示し、必要時のみ credentials を許可する
+- `.env` はローカル専用とし、本番環境は Fly.io Secrets で管理する
+- トークン、個人情報、接続情報をログに出力しない
