@@ -10,6 +10,8 @@
 ## 開発フロー（標準）
 
 - 明示的なスキップ指示がない限り、以下を標準フローとする
+- `docs/tasks/<branch-name>.md` が存在する場合は、作業前に必ず読み、進捗とレビュー指摘を更新する
+- 中規模以上のタスクでは `docs/tasks/TEMPLATE.md` を元に task file を作成する
 - 実装担当は Claude、レビュー担当は Codex（MCP経由）とする
 - Claude は実装完了後に PR を作成し、Codex の MCP を呼び出してレビューを依頼する
 - Codex は `.claude/skills/pr-review/SKILL.md` に従って PR をレビューする
