@@ -9,11 +9,14 @@
 
 ## 開発フロー（標準）
 
-- 明示的なスキップ指示がない限り、以下を必須フローとする
+- 明示的なスキップ指示がない限り、以下を標準フローとする
 - 実装担当は Claude、レビュー担当は Codex とする
-- 基本の流れは `Claude が作業する → Codex にレビューする`
-- PR作成後は `.claude/skills/pr-review/SKILL.md` に従って Codex レビューを実施する
-- レビュー指摘は Claude が修正し、必要に応じて Codex で再レビューする
+- Claude は実装完了後に PR を作成し、Codex にレビューを依頼する
+- Codex は `.claude/skills/pr-review/SKILL.md` に従って PR をレビューする
+- Codex は PR を承認する前に、要件充足、回帰有無、コード品質、テスト状況を確認する
+- Claude は Codex の指摘に対応し、必要な修正と検証を行う
+- 修正後は Codex が再レビューし、指摘事項の解消を確認する
+- Codex から Claude に修正実装を依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
 
 ## 出力制約
 
