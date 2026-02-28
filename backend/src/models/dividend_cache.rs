@@ -6,15 +6,15 @@ use validator::Validate;
 
 /// 配当キャッシュレコード
 ///
-/// status × stale_at 整合ルール
-/// | status  | stale_at         | 意味               | 再取得? |
-/// |---------|------------------|--------------------|---------|
-/// | pending | NULL             | 初回取得中         | No      |
-/// | ok      | future           | 有効データ         | No      |
-/// | ok      | NULL / past      | stale（再取得待ち）| Yes     |
-/// | zero    | future           | 配当なし（有効）   | No      |
-/// | zero    | NULL / past      | stale（再取得待ち）| Yes     |
-/// | error   | NULL（即再取得） | エラー             | Yes     |
+/// status × stale_at 整合ルール（is_stale / 再取得対象の判定基準）
+/// | status  | stale_at    | is_stale | 再取得? | 理由                         |
+/// |---------|-------------|----------|---------|------------------------------|
+/// | pending | NULL        | false    | No      | 取得中のため再取得しない     |
+/// | ok      | future      | false    | No      | 有効データ                   |
+/// | ok      | NULL / past | true     | Yes     | stale（再取得待ち）          |
+/// | zero    | future      | false    | No      | 配当なし（有効）             |
+/// | zero    | NULL / past | true     | Yes     | stale（再取得待ち）          |
+/// | error   | NULL        | true     | Yes     | 即再取得対象                 |
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct DividendCache {
     pub security_code: String,

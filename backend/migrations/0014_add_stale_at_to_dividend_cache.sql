@@ -6,4 +6,5 @@ UPDATE jquants_dividend_cache
 SET stale_at = fetched_at + INTERVAL '7 days'
 WHERE status IN ('ok', 'zero') AND fetched_at IS NOT NULL;
 
--- error/pending は NULL のまま（is_stale = true = 即再取得対象）
+-- error は NULL のまま（即再取得対象）
+-- pending は NULL のまま（取得中のため再取得対象外）
