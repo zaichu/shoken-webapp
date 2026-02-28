@@ -63,7 +63,16 @@
 
 ## レビュー指摘
 
-- 指摘が出たら追記する
+### Codex レビュー（PR #133）
+
+- [x] **Major**: `get()` が未存在ヘッダーを `""` にフォールバックし `parse_number("")` が 0 を返すため、必須列欠落時にエラー化されず保存される
+  → `require_str!` マクロで必須文字列フィールド（銘柄コード・銘柄名・口座・ファンド名・商品）を検証
+- [x] **Major**: `bulk_create` 失敗時にバッチ全体が 500 になり部分成功+行エラー返却にならない
+  → `match` でグレースフルハンドリング（row: 0 のバッチエラーとして Ok 返却）
+- [x] **Minor**: OpenAPI multipart request_body が `inline(String)` で file フィールド契約を表現できない
+  → `CsvUploadForm` 構造体（format: Binary）を定義し差し替え、OpenAPI・生成型を再生成
+- [x] **Open question**: `receiptApi.ts` の `bulkCreate` が残存（task の「二重実装を避ける」と矛盾）
+  → `bulkCreate` とその依存ヘルパー（`formatDate`, `safeNumber`）を削除
 
 ## メモ
 
