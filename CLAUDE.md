@@ -17,6 +17,14 @@
 - 指示されていない改善・設計提案・リファクタは禁止
 - 情報不足時の質問は1つだけ
 
+## タスク管理
+
+- ブランチ単位の task file は `docs/tasks/<branch-name>.md` を使用する
+- task file が存在する場合は、作業開始前に必ず読む
+- task file が存在する場合は、進捗・受け入れ条件・レビュー指摘を作業に合わせて更新する
+- 新しい中規模以上のタスクでは `docs/tasks/TEMPLATE.md` を元に task file を作成する
+- task file がある場合は、その内容を優先してスコープと非対象を守る
+
 ## 参照ルール
 
 1. `.claude/rules/00-general.md`
