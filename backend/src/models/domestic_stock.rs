@@ -71,5 +71,4 @@ mod tests {
 
         assert!(request.validate().is_ok());
     }
-
 }
