@@ -397,10 +397,13 @@ export interface components {
         /** @description CSV の行エラー情報 */
         CsvRowError: {
             message: string;
-            /** @description 1始まり（ヘッダー行を除く）、0 はバッチ全体エラー */
+            /** @description 1始まり（ヘッダー行を除く） */
             row: number;
         };
-        /** @description CSV アップロードのリクエストボディ（multipart/form-data の file フィールド） */
+        /**
+         * @description CSV アップロードのリクエストボディ（multipart/form-data の file フィールド）
+         *     OpenAPI スキーマ定義専用の型。実行時に直接参照されないため dead_code を抑制する。
+         */
         CsvUploadForm: {
             /**
              * Format: binary
