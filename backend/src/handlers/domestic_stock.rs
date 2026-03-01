@@ -44,25 +44,9 @@ pub async fn list(
 pub async fn upload_csv(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let mut file_bytes: Option<Vec<u8>> = None;
-
-    while let Some(field) = multipart.next_field().await.map_err(|e| {
-        ApiError::ValidationError(format!("マルチパートの読み込みに失敗しました: {}", e))
-    })? {
-        if field.name() == Some("file") {
-            let bytes = field.bytes().await.map_err(|e| {
-                ApiError::ValidationError(format!("ファイルの読み込みに失敗しました: {}", e))
-            })?;
-            file_bytes = Some(bytes.to_vec());
-            break;
-        }
-    }
-
-    let bytes = file_bytes
-        .ok_or_else(|| ApiError::ValidationError("fileフィールドが見つかりません".to_string()))?;
-
+    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
     let response = domestic_stock_service::upload_csv(&state.pool, auth_user.id(), &bytes).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }

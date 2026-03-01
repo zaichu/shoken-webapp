@@ -1,5 +1,9 @@
+use crate::errors::ApiError;
+use crate::models::common::BulkCreateResponse;
+use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
 use chrono::NaiveDate;
 use encoding_rs::{SHIFT_JIS, UTF_8};
+use std::collections::HashMap;
 
 /// UTF-8 デコードを試み、失敗時は Shift-JIS にフォールバック
 pub fn decode_bytes(bytes: &[u8]) -> String {
@@ -54,6 +58,121 @@ pub fn compute_taxes(account: &str, realized_pnl: f64) -> (f64, f64) {
         (taxes, after_tax)
     } else {
         (0.0, realized_pnl)
+    }
+}
+
+/// レコードから指定列の値を取得（列が存在しない場合は空文字）
+pub fn get_cell<'a>(
+    record: &'a csv::StringRecord,
+    header_map: &HashMap<String, usize>,
+    name: &str,
+) -> &'a str {
+    header_map
+        .get(name)
+        .and_then(|&i| record.get(i))
+        .unwrap_or("")
+}
+
+/// 必須文字列フィールドを取得（空の場合はエラー）
+pub fn parse_required_string(
+    record: &csv::StringRecord,
+    header_map: &HashMap<String, usize>,
+    col: &str,
+    row_num: usize,
+) -> Result<String, CsvRowError> {
+    let val = get_cell(record, header_map, col);
+    if val.is_empty() {
+        return Err(CsvRowError {
+            row: row_num,
+            message: format!("必須列 '{}' が空または存在しません", col),
+        });
+    }
+    Ok(val.to_string())
+}
+
+/// 必須数値フィールドを取得（空またはパース失敗でエラー）
+pub fn parse_required_number(
+    record: &csv::StringRecord,
+    header_map: &HashMap<String, usize>,
+    col: &str,
+    row_num: usize,
+) -> Result<f64, CsvRowError> {
+    let raw = get_cell(record, header_map, col);
+    if raw.is_empty() {
+        return Err(CsvRowError {
+            row: row_num,
+            message: format!("必須列 '{}' が空または存在しません", col),
+        });
+    }
+    parse_number(raw).map_err(|e| CsvRowError {
+        row: row_num,
+        message: format!("{}: {}", col, e),
+    })
+}
+
+/// 必須日付フィールドを取得（パース失敗でエラー）
+pub fn parse_required_date(
+    record: &csv::StringRecord,
+    header_map: &HashMap<String, usize>,
+    col: &str,
+    row_num: usize,
+) -> Result<NaiveDate, CsvRowError> {
+    let raw = get_cell(record, header_map, col);
+    parse_date(raw).map_err(|e| CsvRowError {
+        row: row_num,
+        message: format!("{}: {}", col, e),
+    })
+}
+
+/// CSV bytes をデコードして行ごとにパース
+/// parse_row が Err を返した行はエラーとして収集し、items には含めない
+pub fn parse_csv<T, F>(bytes: &[u8], parse_row: F) -> Result<(Vec<T>, Vec<CsvRowError>), ApiError>
+where
+    F: Fn(&csv::StringRecord, &HashMap<String, usize>, usize) -> Result<T, CsvRowError>,
+{
+    let content = decode_bytes(bytes);
+    let mut reader = csv::Reader::from_reader(content.as_bytes());
+
+    let header_map: HashMap<String, usize> = reader
+        .headers()
+        .map_err(|e| {
+            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {}", e))
+        })?
+        .iter()
+        .enumerate()
+        .map(|(i, h)| (h.trim().to_string(), i))
+        .collect();
+
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+
+    for (row_idx, result) in reader.records().enumerate() {
+        let row_num = row_idx + 1;
+        let record = match result {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(CsvRowError {
+                    row: row_num,
+                    message: format!("CSV行の読み込みに失敗しました: {}", e),
+                });
+                continue;
+            }
+        };
+        match parse_row(&record, &header_map, row_num) {
+            Ok(item) => items.push(item),
+            Err(e) => errors.push(e),
+        }
+    }
+
+    Ok((items, errors))
+}
+
+/// bulk_create 結果と行エラーから CsvUploadResponse を構築
+pub fn finish_csv_upload(result: BulkCreateResponse, errors: Vec<CsvRowError>) -> CsvUploadResponse {
+    CsvUploadResponse {
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors,
     }
 }
 
