@@ -226,4 +226,91 @@ mod tests {
         let input = "テスト".as_bytes();
         assert_eq!(decode_bytes(input), "テスト");
     }
+
+    #[test]
+    fn test_parse_csv_ok() {
+        let csv = "col_a,col_b\nfoo,123\nbar,456\n";
+        let (items, errors) = parse_csv::<String, _>(csv.as_bytes(), |record, header_map, _row| {
+            let a = get_cell(record, header_map, "col_a").to_string();
+            let b = get_cell(record, header_map, "col_b").to_string();
+            Ok(format!("{}/{}", a, b))
+        })
+        .unwrap();
+        assert_eq!(items, vec!["foo/123", "bar/456"]);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_csv_row_error_collected() {
+        // name が空の行（2行目）はエラーとして収集され、items には含まれない
+        let csv = "name,id\ngood,1\n,2\nbad,3\n";
+        let (items, errors) = parse_csv::<String, _>(csv.as_bytes(), |record, header_map, row_num| {
+            parse_required_string(record, header_map, "name", row_num)
+        })
+        .unwrap();
+        assert_eq!(items, vec!["good", "bad"]);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].row, 2);
+    }
+
+    #[test]
+    fn test_parse_required_string_empty() {
+        let record = csv::StringRecord::from(vec!["", "value"]);
+        let mut header_map = HashMap::new();
+        header_map.insert("col_a".to_string(), 0);
+        header_map.insert("col_b".to_string(), 1);
+
+        let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
+        assert_eq!(err.row, 3);
+        assert!(err.message.contains("col_a"));
+
+        let ok = parse_required_string(&record, &header_map, "col_b", 1).unwrap();
+        assert_eq!(ok, "value");
+    }
+
+    #[test]
+    fn test_parse_required_number_invalid() {
+        let record = csv::StringRecord::from(vec!["abc", "1,234"]);
+        let mut header_map = HashMap::new();
+        header_map.insert("bad".to_string(), 0);
+        header_map.insert("good".to_string(), 1);
+
+        let err = parse_required_number(&record, &header_map, "bad", 5).unwrap_err();
+        assert_eq!(err.row, 5);
+
+        let ok = parse_required_number(&record, &header_map, "good", 1).unwrap();
+        assert_eq!(ok, 1234.0);
+    }
+
+    #[test]
+    fn test_parse_required_date_invalid() {
+        let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01"]);
+        let mut header_map = HashMap::new();
+        header_map.insert("bad".to_string(), 0);
+        header_map.insert("good".to_string(), 1);
+
+        let err = parse_required_date(&record, &header_map, "bad", 2).unwrap_err();
+        assert_eq!(err.row, 2);
+
+        let ok = parse_required_date(&record, &header_map, "good", 1).unwrap();
+        assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
+    }
+
+    #[test]
+    fn test_finish_csv_upload() {
+        use crate::models::csv_import::CsvRowError;
+        let result = crate::models::common::BulkCreateResponse {
+            inserted: 3,
+            skipped: 1,
+        };
+        let errors = vec![CsvRowError {
+            row: 5,
+            message: "エラー".to_string(),
+        }];
+        let response = finish_csv_upload(result, errors);
+        assert_eq!(response.inserted, 3);
+        assert_eq!(response.skipped, 1);
+        assert_eq!(response.errors.len(), 1);
+        assert_eq!(response.errors[0].row, 5);
+    }
 }
