@@ -18,10 +18,10 @@ pub fn decode_bytes(bytes: &[u8]) -> String {
 }
 
 /// 数値文字列をパース（カンマ区切り・括弧マイナス対応）
-/// 例: "1,234" → 1234.0、"(500)" → -500.0
+/// 例: "1,234" → 1234.0、"(500)" → -500.0、"-" → 0.0（値なし）
 pub fn parse_number(s: &str) -> Result<f64, String> {
     let s = s.trim();
-    if s.is_empty() {
+    if s.is_empty() || s == "-" {
         return Ok(0.0);
     }
     // 括弧表記はマイナス
@@ -71,6 +71,15 @@ pub fn get_cell<'a>(
         .get(name)
         .and_then(|&i| record.get(i))
         .unwrap_or("")
+}
+
+/// オプション文字列フィールドを取得（空の場合は空文字列）
+pub fn parse_optional_string(
+    record: &csv::StringRecord,
+    header_map: &HashMap<String, usize>,
+    col: &str,
+) -> String {
+    get_cell(record, header_map, col).to_string()
 }
 
 /// 必須文字列フィールドを取得（空の場合はエラー）
@@ -186,6 +195,21 @@ mod tests {
         assert_eq!(parse_number("500").unwrap(), 500.0);
         assert_eq!(parse_number("(500)").unwrap(), -500.0);
         assert_eq!(parse_number("").unwrap(), 0.0);
+        // ハイフン単独は「値なし」として 0.0
+        assert_eq!(parse_number("-").unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_parse_optional_string() {
+        let record = csv::StringRecord::from(vec!["", "value"]);
+        let mut header_map = HashMap::new();
+        header_map.insert("empty".to_string(), 0);
+        header_map.insert("filled".to_string(), 1);
+
+        assert_eq!(parse_optional_string(&record, &header_map, "empty"), "");
+        assert_eq!(parse_optional_string(&record, &header_map, "filled"), "value");
+        // 存在しない列は空文字
+        assert_eq!(parse_optional_string(&record, &header_map, "missing"), "");
     }
 
     #[test]

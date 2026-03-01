@@ -34,7 +34,7 @@ pub struct CreateDividendRequest {
     pub product: String,
     #[validate(length(min = 1, max = 100))]
     pub account: String,
-    #[validate(length(min = 1, max = 10))]
+    #[validate(length(max = 10))]
     pub security_code: String,
     #[validate(length(min = 1, max = 200))]
     pub security_name: String,
