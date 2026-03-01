@@ -50,13 +50,6 @@ pub struct CreateMutualfundRequest {
     pub realized_profit_and_loss_after_tax: f64,
 }
 
-/// 投資信託一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
-pub struct BulkCreateMutualfundRequest {
-    #[validate(length(min = 1))]
-    pub items: Vec<CreateMutualfundRequest>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -143,23 +143,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dividends/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 配当金を一括追加（重複はスキップ） */
-        post: operations["dividend_bulk_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/dividends/csv": {
         parameters: {
             query?: never;
@@ -223,23 +206,6 @@ export interface paths {
         post?: never;
         /** 認証ユーザーの国内株式取引を全削除 */
         delete: operations["domestic_stock_delete_all"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/domestic-stocks/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 国内株式取引を一括追加（全件挿入） */
-        post: operations["domestic_stock_bulk_create"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -311,23 +277,6 @@ export interface paths {
         post?: never;
         /** 認証ユーザーの投資信託を全削除 */
         delete: operations["mutualfund_delete_all"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/mutualfunds/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 投資信託を一括追加（重複はスキップ） */
-        post: operations["mutualfund_bulk_create"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -419,18 +368,6 @@ export interface components {
         BulkCreateAssetBalanceRequest: {
             items: components["schemas"]["CreateAssetBalanceRequest"][];
         };
-        /** @description 配当金一括作成リクエスト */
-        BulkCreateDividendRequest: {
-            items: components["schemas"]["CreateDividendRequest"][];
-        };
-        /** @description 国内株式取引一括作成リクエスト */
-        BulkCreateDomesticStockRequest: {
-            items: components["schemas"]["CreateDomesticStockRequest"][];
-        };
-        /** @description 投資信託一括作成リクエスト */
-        BulkCreateMutualfundRequest: {
-            items: components["schemas"]["CreateMutualfundRequest"][];
-        };
         /** @description 一括作成レスポンス（全ドメイン共通） */
         BulkCreateResponse: {
             inserted: number;
@@ -457,82 +394,16 @@ export interface components {
             /** Format: double */
             total_purchase_amount: number;
         };
-        /** @description 配当金作成リクエスト */
-        CreateDividendRequest: {
-            account: string;
-            /** Format: double */
-            dividends_before_tax: number;
-            /** Format: double */
-            net_amount_received: number;
-            product: string;
-            security_code: string;
-            security_name: string;
-            /** Format: date */
-            settlement_date: string;
-            /** Format: double */
-            shares: number;
-            /** Format: double */
-            taxes: number;
-            /** Format: double */
-            unit_price: number;
-        };
-        /** @description 国内株式取引作成リクエスト */
-        CreateDomesticStockRequest: {
-            account: string;
-            /** Format: double */
-            asked_price: number;
-            /** Format: double */
-            proceeds: number;
-            /** Format: double */
-            purchase_price: number;
-            /** Format: double */
-            realized_profit_and_loss: number;
-            /** Format: double */
-            realized_profit_and_loss_after_tax: number;
-            security_code: string;
-            security_name: string;
-            /** Format: date */
-            settlement_date: string;
-            /** Format: double */
-            shares: number;
-            /** Format: double */
-            taxes: number;
-            /** Format: date */
-            trade_date: string;
-        };
-        /** @description 投資信託作成リクエスト */
-        CreateMutualfundRequest: {
-            account: string;
-            /** Format: double */
-            average_acquisition_price_yen: number;
-            /** Format: double */
-            cancellation_amount_yen: number;
-            /** Format: double */
-            cancellation_unit_price_yen: number;
-            dividends?: string | null;
-            /** Format: double */
-            exchange_rate: number;
-            fund_name: string;
-            /** Format: double */
-            realized_profit_and_loss: number;
-            /** Format: double */
-            realized_profit_and_loss_after_tax: number;
-            /** Format: date */
-            settlement_date: string;
-            /** Format: double */
-            shares: number;
-            /** Format: double */
-            taxes: number;
-            /** Format: date */
-            trade_date: string;
-        };
         /** @description CSV の行エラー情報 */
         CsvRowError: {
             message: string;
-            /** @description 1始まり（ヘッダー行を除く）、0 はバッチ全体エラー */
+            /** @description 1始まり（ヘッダー行を除く） */
             row: number;
         };
-        /** @description CSV アップロードのリクエストボディ（multipart/form-data の file フィールド） */
+        /**
+         * @description CSV アップロードのリクエストボディ（multipart/form-data の file フィールド）
+         *     OpenAPI スキーマ定義専用の型。実行時に直接参照されないため dead_code を抑制する。
+         */
         CsvUploadForm: {
             /**
              * Format: binary
@@ -1151,45 +1022,6 @@ export interface operations {
             };
         };
     };
-    dividend_bulk_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkCreateDividendRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkCreateResponse"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     dividend_upload_csv: {
         parameters: {
             query?: never;
@@ -1302,45 +1134,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    domestic_stock_bulk_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkCreateDomesticStockRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkCreateResponse"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: {
@@ -1492,45 +1285,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    mutualfund_bulk_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkCreateMutualfundRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkCreateResponse"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: {

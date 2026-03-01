@@ -1,10 +1,9 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson,
-    models::common::{BulkCreateResponse, MessageResponse},
+    models::common::MessageResponse,
     models::csv_import::{CsvUploadForm, CsvUploadResponse},
-    models::domestic_stock::{BulkCreateDomesticStockRequest, DomesticStock},
+    models::domestic_stock::DomesticStock,
     services::domestic_stock as domestic_stock_service,
     state::AppState,
 };
@@ -27,29 +26,6 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let stocks = domestic_stock_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(stocks)))
-}
-
-/// 国内株式取引を一括追加（全件挿入）
-#[utoipa::path(
-    post,
-    path = "/domestic-stocks/bulk",
-    operation_id = "domestic_stock_bulk_create",
-    request_body = BulkCreateDomesticStockRequest,
-    responses(
-        (status = 201, body = BulkCreateResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-pub async fn bulk_create(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<BulkCreateDomesticStockRequest>,
-) -> Result<impl IntoResponse, ApiError> {
-    let response =
-        domestic_stock_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
-    Ok((StatusCode::CREATED, Json(response)))
 }
 
 /// CSV ファイルをアップロードして国内株式取引を一括登録

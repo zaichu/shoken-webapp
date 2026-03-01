@@ -45,13 +45,6 @@ pub struct CreateDividendRequest {
     pub net_amount_received: f64,
 }
 
-/// 配当金一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
-pub struct BulkCreateDividendRequest {
-    #[validate(length(min = 1))]
-    pub items: Vec<CreateDividendRequest>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

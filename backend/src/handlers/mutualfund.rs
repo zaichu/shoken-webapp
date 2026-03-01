@@ -1,10 +1,9 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson,
-    models::common::{BulkCreateResponse, MessageResponse},
+    models::common::MessageResponse,
     models::csv_import::{CsvUploadForm, CsvUploadResponse},
-    models::mutualfund::{BulkCreateMutualfundRequest, Mutualfund},
+    models::mutualfund::Mutualfund,
     services::mutualfund as mutualfund_service,
     state::AppState,
 };
@@ -27,29 +26,6 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let funds = mutualfund_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(funds)))
-}
-
-/// 投資信託を一括追加（重複はスキップ）
-#[utoipa::path(
-    post,
-    path = "/mutualfunds/bulk",
-    operation_id = "mutualfund_bulk_create",
-    request_body = BulkCreateMutualfundRequest,
-    responses(
-        (status = 201, body = BulkCreateResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-pub async fn bulk_create(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<BulkCreateMutualfundRequest>,
-) -> Result<impl IntoResponse, ApiError> {
-    let response =
-        mutualfund_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
-    Ok((StatusCode::CREATED, Json(response)))
 }
 
 /// CSV ファイルをアップロードして投資信託を一括登録
