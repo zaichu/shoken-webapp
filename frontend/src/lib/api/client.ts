@@ -69,6 +69,10 @@ class ApiClient {
       (config) => {
         // リクエスト開始時刻を記録
         config.metadata = { startTime: Date.now() };
+        // FormDataの場合はContent-Typeを削除し、axiosがboundary付きで自動設定するようにする
+        if (config.data instanceof FormData) {
+          delete config.headers['Content-Type'];
+        }
         return config;
       },
       (error) => {

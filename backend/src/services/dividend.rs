@@ -3,7 +3,8 @@ use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
 use crate::services::csv_import::{
-    finish_csv_upload, parse_csv, parse_required_date, parse_required_number, parse_required_string,
+    finish_csv_upload, parse_csv, parse_optional_string, parse_required_date, parse_required_number,
+    parse_required_string,
 };
 use std::collections::HashMap;
 use sqlx::PgPool;
@@ -73,7 +74,7 @@ pub async fn bulk_create(
             $6::text[], $7::float8[], $8::float8[], $9::float8[],
             $10::float8[], $11::float8[]
         )
-        ON CONFLICT (user_id, settlement_date, security_code, shares, dividends_before_tax)
+        ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
         DO NOTHING
         "#,
     )
@@ -124,7 +125,7 @@ fn parse_dividend_row(
         settlement_date: parse_required_date(record, header_map, "入金日", row_num)?,
         product: parse_required_string(record, header_map, "商品", row_num)?,
         account: parse_required_string(record, header_map, "口座", row_num)?,
-        security_code: parse_required_string(record, header_map, "銘柄コード", row_num)?,
+        security_code: parse_optional_string(record, header_map, "銘柄コード"),
         security_name: parse_required_string(record, header_map, "銘柄", row_num)?,
         unit_price: parse_required_number(record, header_map, "単価[円/現地通貨]", row_num)?,
         shares: parse_required_number(record, header_map, "数量[株/口]", row_num)?,

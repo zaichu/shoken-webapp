@@ -136,10 +136,12 @@ export class ApiError extends Error {
     let message: string;
     
     switch (statusCode) {
-      case 400:
+      case 400: {
         errorType = ApiErrorType.VALIDATION_ERROR;
-        message = 'リクエストが不正です';
+        const data400 = response.data as { error?: { message?: string } } | null;
+        message = data400?.error?.message ?? 'リクエストが不正です';
         break;
+      }
       case 401:
         errorType = ApiErrorType.AUTHENTICATION_ERROR;
         message = '認証が必要です';
