@@ -220,6 +220,41 @@ describe('ApiClient', () => {
     });
   });
 
+  describe('FormDataリクエスト', () => {
+    it('FormDataを送信するとき Content-Type ヘッダーを削除する', () => {
+      createApiClient();
+
+      const [requestFulfilled] = mockAxiosInstance.interceptors.request.use.mock.calls[0] as [
+        (config: { data: unknown; headers: Record<string, string> }) => { data: unknown; headers: Record<string, string> },
+      ];
+      const config = {
+        data: new FormData(),
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      };
+
+      const result = requestFulfilled(config);
+
+      expect(result.headers['Content-Type']).toBeUndefined();
+      expect(result.headers['Accept']).toBe('application/json');
+    });
+
+    it('JSON送信のとき Content-Type: application/json を維持する', () => {
+      createApiClient();
+
+      const [requestFulfilled] = mockAxiosInstance.interceptors.request.use.mock.calls[0] as [
+        (config: { data: unknown; headers: Record<string, string> }) => { data: unknown; headers: Record<string, string> },
+      ];
+      const config = {
+        data: { name: 'test' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      };
+
+      const result = requestFulfilled(config);
+
+      expect(result.headers['Content-Type']).toBe('application/json');
+    });
+  });
+
   describe('設定', () => {
     it('カスタム設定でクライアントを作成できる', () => {
       const customConfig = {
