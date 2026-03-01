@@ -1,10 +1,9 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson,
-    models::common::{BulkCreateResponse, MessageResponse},
+    models::common::MessageResponse,
     models::csv_import::{CsvUploadForm, CsvUploadResponse},
-    models::dividend::{BulkCreateDividendRequest, Dividend},
+    models::dividend::Dividend,
     services::dividend as dividend_service,
     state::AppState,
 };
@@ -27,28 +26,6 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let dividends = dividend_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(dividends)))
-}
-
-/// 配当金を一括追加（重複はスキップ）
-#[utoipa::path(
-    post,
-    path = "/dividends/bulk",
-    operation_id = "dividend_bulk_create",
-    request_body = BulkCreateDividendRequest,
-    responses(
-        (status = 201, body = BulkCreateResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-pub async fn bulk_create(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<BulkCreateDividendRequest>,
-) -> Result<impl IntoResponse, ApiError> {
-    let response = dividend_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
-    Ok((StatusCode::CREATED, Json(response)))
 }
 
 /// CSV ファイルをアップロードして配当金を一括登録
