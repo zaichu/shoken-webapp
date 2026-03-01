@@ -74,7 +74,7 @@ pub async fn bulk_create(
             $6::text[], $7::float8[], $8::float8[], $9::float8[],
             $10::float8[], $11::float8[]
         )
-        ON CONFLICT (user_id, settlement_date, security_code, shares, dividends_before_tax)
+        ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
         DO NOTHING
         "#,
     )
