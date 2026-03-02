@@ -94,7 +94,6 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
             <Button
-              autoFocus
               variant="secondary"
               onClick={onCancel}
             >
