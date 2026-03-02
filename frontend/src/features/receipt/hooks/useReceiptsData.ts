@@ -15,6 +15,7 @@ export interface CsvPreviewResult {
   totalRows: number;
   validRows: number;
   errors: { row: number; message: string }[];
+  rows: Record<string, unknown>[];
 }
 
 export interface UseReceiptsDataResult {
@@ -102,6 +103,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
         totalRows: data.total_rows,
         validRows: data.valid_rows,
         errors: data.errors,
+        rows: (data.rows ?? []) as Record<string, unknown>[],
       });
     },
     onError: (error, { onError }) => {

@@ -37,6 +37,8 @@ use crate::{
         handlers::mutualfund::delete_all,
         handlers::asset_balance::list,
         handlers::asset_balance::bulk_create,
+        handlers::asset_balance::preview_csv,
+        handlers::asset_balance::upload_csv,
         handlers::asset_balance::delete_all,
         handlers::stock::select_stock_info,
         handlers::stock::add_stock_info,

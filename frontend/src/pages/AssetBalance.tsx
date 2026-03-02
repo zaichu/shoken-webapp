@@ -8,8 +8,6 @@ import { Spinner } from '@/components/atoms/Spinner';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
-import { parseNumber } from '@/lib/utils/formatters';
-import { useReceiptData } from '@/hooks/receipt/useReceiptData';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useAssetBalanceDataSource } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
@@ -23,26 +21,6 @@ const AssetPortfolioSummary = lazy(() =>
     default: module.AssetPortfolioSummary
   }))
 );
-
-
-// CSVアイテムをAssetBalanceDataに変換
-const parseCsvItem = (item: Record<string, unknown>): AssetBalanceData => ({
-  security_code: String(item['銘柄コード'] || '').replace(/"/g, ''),
-  security_name: String(item['銘柄名'] || ''),
-  shares: parseNumber(item['保有数量［株］']),
-  executing_shares: parseNumber(item['執行中［株］']),
-  average_purchase_price: parseNumber(item['平均取得価額［円］']),
-  total_purchase_amount: parseNumber(item['取得総額［円］']),
-  current_price: parseNumber(item['現在値［円］']),
-  daily_change: parseNumber(item['現在値（前日比）［円］']),
-  market_value: parseNumber(item['時価評価額［円］']),
-  profit_loss_rate: parseNumber(item['評価損益［％］']),
-});
-
-// 銘柄コードでソート
-const sortBySecurityCode = (data: AssetBalanceData[]): AssetBalanceData[] => {
-  return [...data].sort((a, b) => a.security_code.localeCompare(b.security_code));
-};
 
 
 interface AssetBalanceInfoProps {
@@ -87,27 +65,21 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
 export function AssetBalancePage() {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
 
-  // 共通フック
   const {
     dbData,
-    csvData,
+    previewRows,
     loading,
     error,
     saving,
     deleting,
-    csvReader,
-    hasCsvData,
+    previewing,
+    hasCsvFile,
     hasDbData,
     handleFileSelect,
     handleSaveToDB,
     handleDeleteAll,
-  } = useAssetBalanceDataSource(
-    parseCsvItem,
-    (item: AssetBalanceData) => item.security_code !== '',
-  );
+  } = useAssetBalanceDataSource();
 
-  // CSVデータの変換（空の銘柄コードをフィルタ）
-  const tmpAssetBalanceData = useReceiptData(csvData, parseCsvItem, sortBySecurityCode);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -116,30 +88,24 @@ export function AssetBalancePage() {
     await handleDeleteAll();
   }, [handleDeleteAll]);
 
+  // CSVプレビュー行 > DBデータ の優先順位でテーブルデータを決定
   const assetBalanceData = useMemo(() => {
-    if (csvData.length > 0) {
-      return tmpAssetBalanceData.filter(item => item.security_code !== '');
-    }
-    if (dbData.length > 0) {
-      return dbData;
-    }
+    if (previewRows.length > 0) return previewRows;
+    if (dbData.length > 0) return dbData;
     return [];
-  }, [csvData.length, tmpAssetBalanceData, dbData]);
+  }, [previewRows, dbData]);
 
   // J-Quants APIから1株配当を一括取得
-  // saving または loading 中は securityCodes を空にして dividend の state をリセットする
   const securityCodes = useMemo(
     () => (saving || loading) ? [] : assetBalanceData.map(item => item.security_code),
     [saving, loading, assetBalanceData]
   );
   const { dividendPerShareMap, dividendStatusMap } = useDividendBatch(securityCodes, isAuthenticated);
 
-  // 検索オプションの生成
   const searchCategories = useMemo(() => ({
     securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
   }), [assetBalanceData]);
 
-  // フィルタ設定（部分一致検索）
   const filterConfig: FilterConfig<AssetBalanceData> = useMemo(() => ({
     partialStringFields: [
       item => item.security_code,
@@ -147,21 +113,16 @@ export function AssetBalancePage() {
     ],
   }), []);
 
-  // 検索クエリに基づくフィルタリング
   const filteredData = useMemo(
     () => filterByConfig(assetBalanceData, searchQuery, filterConfig),
     [assetBalanceData, searchQuery, filterConfig]
   );
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+  const isProcessing = loading || saving || deleting || previewing || authLoading;
 
-  const handleClearFilter = () => {
-    setSearchQuery('');
-  };
-
-  const isProcessing = loading || saving || deleting || csvReader.isLoading || authLoading;
+  const saveLabel = previewRows.length > 0
+    ? `${previewRows.length}件 全件置換で保存`
+    : '全件置換で保存';
 
   return (
     <Layout>
@@ -200,20 +161,20 @@ export function AssetBalancePage() {
               <div className="form-input-container">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
-                  selectedFileName={csvReader.fileName || ''}
-                  disabled={loading || saving || deleting}
+                  selectedFileName={hasCsvFile ? undefined : ''}
+                  disabled={loading || saving || deleting || previewing}
                 />
               </div>
               <div className="action-button-group" role="group" aria-label="データ操作">
-                {hasCsvData && (
+                {hasCsvFile && (
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={handleSaveToDB}
-                    disabled={saving || deleting}
-                    aria-disabled={saving || deleting}
+                    disabled={saving || deleting || previewing}
+                    aria-disabled={saving || deleting || previewing}
                   >
-                    {saving ? '保存中...' : `${csvData.length}件 全件置換で保存`}
+                    {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
                   </Button>
                 )}
               </div>
@@ -232,21 +193,21 @@ export function AssetBalancePage() {
               )}
             </div>
 
-            {(csvReader.error || error) && (
+            {error && (
               <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
-                <strong>エラー:</strong> {csvReader.error || error}
+                <strong>エラー:</strong> {error}
               </Alert>
             )}
 
             <div aria-live="polite" aria-atomic="true">
-              {(loading || saving || deleting || csvReader.isLoading) && (
+              {(loading || saving || deleting || previewing) && (
                 <div className="status-message" role="status">
                   <Spinner size="md" className="text-primary" />
                   <p className="text-sm text-secondary">
                     {loading && 'データを読み込んでいます...'}
                     {saving && 'データを保存しています...'}
                     {deleting && 'データを削除しています...'}
-                    {csvReader.isLoading && 'CSVファイルを処理しています...'}
+                    {previewing && 'CSVファイルを解析しています...'}
                   </p>
                 </div>
               )}
@@ -255,20 +216,19 @@ export function AssetBalancePage() {
             {/* 検索カード（データがある場合のみ表示） */}
             {assetBalanceData.length > 0 && (
               <SearchCard
-                onSearch={handleSearch}
+                onSearch={query => setSearchQuery(query)}
                 categories={searchCategories}
                 value={searchQuery}
               />
             )}
 
-
             {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
-            {!loading && !csvReader.isLoading && (
+            {!loading && !previewing && (
               <AssetBalanceInfo
                 assetBalanceData={assetBalanceData}
                 filteredData={filteredData}
                 searchQuery={searchQuery}
-                onClearFilter={handleClearFilter}
+                onClearFilter={() => setSearchQuery('')}
                 dividendPerShareMap={dividendPerShareMap}
                 dividendStatusMap={dividendStatusMap}
               />

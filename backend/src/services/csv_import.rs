@@ -179,18 +179,27 @@ where
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn build_preview<T, F>(bytes: &[u8], parse_row: F) -> Result<CsvPreviewResponse, ApiError>
 where
+    T: serde::Serialize,
     F: Fn(&csv::StringRecord, &HashMap<String, usize>, usize) -> Result<T, CsvRowError>,
 {
     let (items, errors) = parse_csv(bytes, parse_row)?;
+    let rows = items
+        .iter()
+        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
+        .collect();
     Ok(CsvPreviewResponse {
         total_rows: items.len() + errors.len(),
         valid_rows: items.len(),
         errors,
+        rows,
     })
 }
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築
-pub fn finish_csv_upload(result: BulkCreateResponse, errors: Vec<CsvRowError>) -> CsvUploadResponse {
+pub fn finish_csv_upload(
+    result: BulkCreateResponse,
+    errors: Vec<CsvRowError>,
+) -> CsvUploadResponse {
     CsvUploadResponse {
         inserted: result.inserted,
         skipped: result.skipped,
@@ -220,7 +229,10 @@ mod tests {
         header_map.insert("filled".to_string(), 1);
 
         assert_eq!(parse_optional_string(&record, &header_map, "empty"), "");
-        assert_eq!(parse_optional_string(&record, &header_map, "filled"), "value");
+        assert_eq!(
+            parse_optional_string(&record, &header_map, "filled"),
+            "value"
+        );
         // 存在しない列は空文字
         assert_eq!(parse_optional_string(&record, &header_map, "missing"), "");
     }
@@ -281,10 +293,11 @@ mod tests {
     fn test_parse_csv_row_error_collected() {
         // name が空の行（2行目）はエラーとして収集され、items には含まれない
         let csv = "name,id\ngood,1\n,2\nbad,3\n";
-        let (items, errors) = parse_csv::<String, _>(csv.as_bytes(), |record, header_map, row_num| {
-            parse_required_string(record, header_map, "name", row_num)
-        })
-        .unwrap();
+        let (items, errors) =
+            parse_csv::<String, _>(csv.as_bytes(), |record, header_map, row_num| {
+                parse_required_string(record, header_map, "name", row_num)
+            })
+            .unwrap();
         assert_eq!(items, vec!["good", "bad"]);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].row, 2);

@@ -10,6 +10,7 @@ export interface CsvPreview {
   totalRows: number;
   validRows: number;
   errors: { row: number; message: string }[];
+  rows: Record<string, unknown>[];
 }
 
 export interface ReceiptsState {

@@ -55,14 +55,16 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
 
 interface DividendProps {
     data: DividendData[];
+    previewData?: DividendData[];
 }
 
 /**
  * 配当金データを表示するコンポーネント
  */
-export const Dividend: React.FC<DividendProps> = ({ data }) => {
+export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
+    const displayData = previewData && previewData.length > 0 ? previewData : data;
 
-    const dividendData = useMemo(() => sortDividendBySettlementDate(data), [data]);
+    const dividendData = useMemo(() => sortDividendBySettlementDate(displayData), [displayData]);
 
     // 検索カテゴリーの生成
     const searchCategories = {

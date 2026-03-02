@@ -12,6 +12,11 @@ import { Mutualfund } from './Receipt/Mutualfund';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 import { type ReceiptsType, initialState, receiptsReducer } from './receiptsReducer';
 import { useReceiptsData } from '@/features/receipt/hooks/useReceiptsData';
+import {
+  transformDBDividend,
+  transformDBDomesticStock,
+  transformDBMutualfund,
+} from '@/features/receipt/parsers';
 
 // 明細種類ごとのラベル
 const TAB_LABEL: Record<ReceiptsType, string> = {
@@ -235,9 +240,24 @@ export function ReceiptsPage() {
         {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
         {!authLoading && !dbLoading && (
           <>
-            {receiptsType === 'dividend' && <Dividend data={dividendData} />}
-            {receiptsType === 'domesticstock' && <DomesticStock data={domesticstockData} />}
-            {receiptsType === 'mutualfund' && <Mutualfund data={mutualfundData} />}
+            {receiptsType === 'dividend' && (
+              <Dividend
+                data={dividendData}
+                previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
+              />
+            )}
+            {receiptsType === 'domesticstock' && (
+              <DomesticStock
+                data={domesticstockData}
+                previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
+              />
+            )}
+            {receiptsType === 'mutualfund' && (
+              <Mutualfund
+                data={mutualfundData}
+                previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
+              />
+            )}
           </>
         )}
 

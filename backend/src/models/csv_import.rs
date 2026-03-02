@@ -36,4 +36,7 @@ pub struct CsvPreviewResponse {
     pub valid_rows: usize,
     /// 行エラー一覧
     pub errors: Vec<CsvRowError>,
+    /// パース成功行のデータ（保存前プレビュー用）
+    #[schema(value_type = Vec<Object>)]
+    pub rows: Vec<serde_json::Value>,
 }

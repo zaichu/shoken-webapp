@@ -1,7 +1,13 @@
 use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
 use crate::models::common::BulkCreateResponse;
+use crate::models::csv_import::{CsvPreviewResponse, CsvUploadResponse};
+use crate::services::csv_import::{
+    decode_bytes, finish_csv_upload, parse_csv, parse_number, parse_optional_string,
+};
+use csv::StringRecord;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
@@ -102,6 +108,104 @@ pub async fn bulk_create(
     Ok(BulkCreateResponse {
         inserted: total,
         skipped: 0,
+    })
+}
+
+/// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
+/// SBI証券形式: 先頭6行はメタデータのためスキップ
+pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    let content = decode_bytes(bytes);
+    let stripped = strip_sbi_header(&content);
+    let (items, errors) = parse_csv(stripped.as_bytes(), parse_asset_balance_row)?;
+    let items: Vec<_> = items
+        .into_iter()
+        .filter(|i| !i.security_code.is_empty())
+        .collect();
+    let rows = items
+        .iter()
+        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
+        .collect();
+    Ok(CsvPreviewResponse {
+        total_rows: items.len() + errors.len(),
+        valid_rows: items.len(),
+        errors,
+        rows,
+    })
+}
+
+/// CSV bytes をパースして保有銘柄を一括登録
+pub async fn upload_csv(
+    pool: &PgPool,
+    user_id: Uuid,
+    bytes: &[u8],
+) -> Result<CsvUploadResponse, ApiError> {
+    let content = decode_bytes(bytes);
+    let stripped = strip_sbi_header(&content);
+    let (items, errors) = parse_csv(stripped.as_bytes(), parse_asset_balance_row)?;
+    let items: Vec<_> = items
+        .into_iter()
+        .filter(|i| !i.security_code.is_empty())
+        .collect();
+    let result = bulk_create(pool, user_id, &items).await?;
+    Ok(finish_csv_upload(result, errors))
+}
+
+/// SBI証券CSVの先頭6行（メタデータ）をスキップした文字列を返す
+fn strip_sbi_header(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.len() > 6 {
+        lines[6..].join("\n")
+    } else {
+        String::new()
+    }
+}
+
+/// SBI証券CSVの1行をパースして CreateAssetBalanceRequest に変換
+fn parse_asset_balance_row(
+    record: &StringRecord,
+    header_map: &HashMap<String, usize>,
+    _row_num: usize,
+) -> Result<CreateAssetBalanceRequest, crate::models::csv_import::CsvRowError> {
+    let security_code = parse_optional_string(record, header_map, "銘柄コード").replace('"', "");
+    Ok(CreateAssetBalanceRequest {
+        security_code,
+        security_name: parse_optional_string(record, header_map, "銘柄名"),
+        shares: parse_number(&parse_optional_string(record, header_map, "保有数量［株］"))
+            .unwrap_or(0.0),
+        executing_shares: parse_number(&parse_optional_string(record, header_map, "執行中［株］"))
+            .unwrap_or(0.0),
+        average_purchase_price: parse_number(&parse_optional_string(
+            record,
+            header_map,
+            "平均取得価額［円］",
+        ))
+        .unwrap_or(0.0),
+        total_purchase_amount: parse_number(&parse_optional_string(
+            record,
+            header_map,
+            "取得総額［円］",
+        ))
+        .unwrap_or(0.0),
+        current_price: parse_number(&parse_optional_string(record, header_map, "現在値［円］"))
+            .unwrap_or(0.0),
+        daily_change: parse_number(&parse_optional_string(
+            record,
+            header_map,
+            "現在値（前日比）［円］",
+        ))
+        .unwrap_or(0.0),
+        market_value: parse_number(&parse_optional_string(
+            record,
+            header_map,
+            "時価評価額［円］",
+        ))
+        .unwrap_or(0.0),
+        profit_loss_rate: parse_number(&parse_optional_string(
+            record,
+            header_map,
+            "評価損益［％］",
+        ))
+        .unwrap_or(0.0),
     })
 }
 

@@ -140,6 +140,118 @@
         ]
       }
     },
+    "/asset-balances/csv": {
+      "post": {
+        "tags": [
+          "handlers::asset_balance"
+        ],
+        "summary": "CSV ファイルをアップロードして保有銘柄を一括登録（既存データ全置換）",
+        "operationId": "asset_balance_upload_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/asset-balances/csv/preview": {
+      "post": {
+        "tags": [
+          "handlers::asset_balance"
+        ],
+        "summary": "CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）",
+        "operationId": "asset_balance_preview_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/auth/delete-account": {
       "delete": {
         "tags": [
@@ -1212,7 +1324,8 @@
         "required": [
           "total_rows",
           "valid_rows",
-          "errors"
+          "errors",
+          "rows"
         ],
         "properties": {
           "errors": {
@@ -1221,6 +1334,13 @@
               "$ref": "#/components/schemas/CsvRowError"
             },
             "description": "行エラー一覧"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "パース成功行のデータ（保存前プレビュー用）"
           },
           "total_rows": {
             "type": "integer",

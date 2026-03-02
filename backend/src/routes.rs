@@ -116,6 +116,14 @@ fn asset_balance_routes() -> Router<AppState> {
             post(handlers::asset_balance::bulk_create),
         )
         .route(
+            "/asset-balances/csv",
+            post(handlers::asset_balance::upload_csv),
+        )
+        .route(
+            "/asset-balances/csv/preview",
+            post(handlers::asset_balance::preview_csv),
+        )
+        .route(
             "/asset-balances/all",
             delete(handlers::asset_balance::delete_all),
         )
