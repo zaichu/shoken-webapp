@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     models::common::MessageResponse,
-    models::csv_import::{CsvUploadForm, CsvUploadResponse},
+    models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     models::mutualfund::Mutualfund,
     services::mutualfund as mutualfund_service,
     state::AppState,
@@ -26,6 +26,28 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let funds = mutualfund_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(funds)))
+}
+
+/// CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）
+#[utoipa::path(
+    post,
+    path = "/mutualfunds/csv/preview",
+    operation_id = "mutualfund_preview_csv",
+    request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
+    responses(
+        (status = 200, body = CsvPreviewResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn preview_csv(
+    _auth_user: AuthenticatedUser,
+    multipart: Multipart,
+) -> Result<impl IntoResponse, ApiError> {
+    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
+    let response = mutualfund_service::preview_csv(&bytes)?;
+    Ok((StatusCode::OK, Json(response)))
 }
 
 /// CSV ファイルをアップロードして投資信託を一括登録

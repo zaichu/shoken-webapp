@@ -26,3 +26,14 @@ pub struct CsvRowError {
     pub row: usize,
     pub message: String,
 }
+
+/// CSV プレビューのレスポンス（DB 書き込みなし）
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CsvPreviewResponse {
+    /// CSVの総行数（ヘッダー除く）
+    pub total_rows: usize,
+    /// パース成功行数
+    pub valid_rows: usize,
+    /// 行エラー一覧
+    pub errors: Vec<CsvRowError>,
+}

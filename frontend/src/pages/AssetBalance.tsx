@@ -213,7 +213,7 @@ export function AssetBalancePage() {
                     disabled={saving || deleting}
                     aria-disabled={saving || deleting}
                   >
-                    {saving ? '保存中...' : '保存'}
+                    {saving ? '保存中...' : `${csvData.length}件 全件置換で保存`}
                   </Button>
                 )}
               </div>

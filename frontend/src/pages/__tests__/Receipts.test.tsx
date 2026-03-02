@@ -93,16 +93,19 @@ import * as receiptApi from '@/features/receipt/api/receiptApi';
 vi.mock('@/features/receipt/api/receiptApi', () => ({
   dividendApi: {
     list: vi.fn().mockResolvedValue([]),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   domesticStockApi: {
     list: vi.fn().mockResolvedValue([]),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   mutualfundApi: {
     list: vi.fn().mockResolvedValue([]),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
@@ -288,10 +291,10 @@ describe('ReceiptsPage', () => {
     await user.click(screen.getByTestId('csv-file-input'));
 
     await waitFor(() => {
-      expect(screen.getByText('保存')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /追加で保存/ })).toBeInTheDocument();
     }, waitOpts);
 
-    await user.click(screen.getByText('保存'));
+    await user.click(screen.getByRole('button', { name: /追加で保存/ }));
 
     await waitFor(() => {
       expect(receiptApi.dividendApi.uploadCsv).toHaveBeenCalled();
@@ -299,7 +302,7 @@ describe('ReceiptsPage', () => {
 
     // 保存後は CSV データがクリアされ保存ボタンが消える
     await waitFor(() => {
-      expect(screen.queryByText('保存')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /追加で保存/ })).not.toBeInTheDocument();
     }, waitOpts);
   }, 20000);
 

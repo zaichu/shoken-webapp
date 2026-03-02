@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
-use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use chrono::NaiveDate;
 use encoding_rs::{SHIFT_JIS, UTF_8};
 use std::collections::HashMap;
@@ -174,6 +174,19 @@ where
     }
 
     Ok((items, errors))
+}
+
+/// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
+pub fn build_preview<T, F>(bytes: &[u8], parse_row: F) -> Result<CsvPreviewResponse, ApiError>
+where
+    F: Fn(&csv::StringRecord, &HashMap<String, usize>, usize) -> Result<T, CsvRowError>,
+{
+    let (items, errors) = parse_csv(bytes, parse_row)?;
+    Ok(CsvPreviewResponse {
+        total_rows: items.len() + errors.len(),
+        valid_rows: items.len(),
+        errors,
+    })
 }
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築

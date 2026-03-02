@@ -1,9 +1,9 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
-use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::mutualfund::{CreateMutualfundRequest, Mutualfund};
 use crate::services::csv_import::{
-    compute_taxes, finish_csv_upload, get_cell, parse_csv, parse_required_date,
+    build_preview, compute_taxes, finish_csv_upload, get_cell, parse_csv, parse_required_date,
     parse_required_number, parse_required_string,
 };
 use std::collections::HashMap;
@@ -120,6 +120,11 @@ pub async fn bulk_create(
         elapsed.as_secs_f64() * 1000.0
     );
     Ok(BulkCreateResponse { inserted, skipped })
+}
+
+/// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
+pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    build_preview(bytes, parse_mutualfund_row)
 }
 
 /// CSV バイト列から投資信託をパースして一括挿入

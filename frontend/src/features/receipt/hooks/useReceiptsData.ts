@@ -11,6 +11,12 @@ import { type ReceiptsType } from '@/pages/receiptsReducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
+export interface CsvPreviewResult {
+  totalRows: number;
+  validRows: number;
+  errors: { row: number; message: string }[];
+}
+
 export interface UseReceiptsDataResult {
   dividendData: ReturnType<typeof transformDBDividend>[];
   domesticstockData: ReturnType<typeof transformDBDomesticStock>[];
@@ -19,7 +25,9 @@ export interface UseReceiptsDataResult {
   dbError: string | null;
   saving: boolean;
   deleting: boolean;
+  previewing: boolean;
   uploadCsv: (args: UploadCsvArgs) => void;
+  previewCsv: (args: PreviewCsvArgs) => void;
   deleteAll: (type: ReceiptsType) => void;
   clearCache: () => void;
 }
@@ -28,6 +36,13 @@ interface UploadCsvArgs {
   type: ReceiptsType;
   file: File;
   onSuccess?: (result: { inserted: number; skipped: number; errors: { row: number; message: string }[] }) => void;
+}
+
+interface PreviewCsvArgs {
+  type: ReceiptsType;
+  file: File;
+  onSuccess?: (result: CsvPreviewResult) => void;
+  onError?: (error: string) => void;
 }
 
 /**
@@ -69,6 +84,30 @@ export function useReceiptsData(): UseReceiptsDataResult {
         items.map(d => transformDBMutualfund(d as unknown as Record<string, unknown>))
       ),
     enabled: isAuthenticated && !authLoading && !!userId,
+  });
+
+  const previewCsvMutation = useMutation({
+    mutationFn: ({ type, file }: PreviewCsvArgs) => {
+      switch (type) {
+        case 'dividend':
+          return dividendApi.previewCsv(file);
+        case 'domesticstock':
+          return domesticStockApi.previewCsv(file);
+        case 'mutualfund':
+          return mutualfundApi.previewCsv(file);
+      }
+    },
+    onSuccess: (data, { onSuccess }) => {
+      onSuccess?.({
+        totalRows: data.total_rows,
+        validRows: data.valid_rows,
+        errors: data.errors,
+      });
+    },
+    onError: (error, { onError }) => {
+      const message = error instanceof Error ? error.message : '解析に失敗しました';
+      onError?.(message);
+    },
   });
 
   const uploadCsvMutation = useMutation({
@@ -134,7 +173,9 @@ export function useReceiptsData(): UseReceiptsDataResult {
         : null,
     saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
+    previewing: previewCsvMutation.isPending,
     uploadCsv: uploadCsvMutation.mutate,
+    previewCsv: previewCsvMutation.mutate,
     deleteAll: deleteAllMutation.mutate,
     clearCache,
   };

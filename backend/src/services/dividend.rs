@@ -1,10 +1,10 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
-use crate::models::csv_import::{CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
 use crate::services::csv_import::{
-    finish_csv_upload, parse_csv, parse_optional_string, parse_required_date, parse_required_number,
-    parse_required_string,
+    build_preview, finish_csv_upload, parse_csv, parse_optional_string, parse_required_date,
+    parse_required_number, parse_required_string,
 };
 use std::collections::HashMap;
 use sqlx::PgPool;
@@ -103,6 +103,11 @@ pub async fn bulk_create(
         elapsed.as_secs_f64() * 1000.0
     );
     Ok(BulkCreateResponse { inserted, skipped })
+}
+
+/// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）
+pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    build_preview(bytes, parse_dividend_row)
 }
 
 /// CSV バイト列から配当金をパースして一括挿入

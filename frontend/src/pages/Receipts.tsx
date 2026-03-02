@@ -37,7 +37,9 @@ export function ReceiptsPage() {
     dbError,
     saving,
     deleting,
+    previewing,
     uploadCsv,
+    previewCsv,
     deleteAll,
   } = useReceiptsData();
 
@@ -51,13 +53,21 @@ export function ReceiptsPage() {
   // ファイル名表示用（ファイル選択後のみ表示）
   const rawFile = rawFiles[receiptsType];
   const selectedFileName = rawFile?.name ?? undefined;
+  const csvPreview = state.csvPreviews[receiptsType];
 
   /**
-   * ファイル選択時にrawFileを保存する
+   * ファイル選択時にrawFileを保存しプレビューを取得する
    */
   const handleFileSelect = useCallback((file: File) => {
     dispatch({ type: 'SET_RAW_FILE', receiptsType, payload: file });
-  }, [receiptsType]);
+    previewCsv({
+      type: receiptsType,
+      file,
+      onSuccess: (result) => {
+        dispatch({ type: 'SET_CSV_PREVIEW', receiptsType, payload: result });
+      },
+    });
+  }, [receiptsType, previewCsv]);
 
   /**
    * CSVファイルをバックエンドに送信して保存
@@ -88,6 +98,9 @@ export function ReceiptsPage() {
   const hasDbData = dbDataCount > 0;
   const tabName = TAB_LABEL[receiptsType];
   const importResult = lastImportResults[receiptsType];
+  const saveLabel = csvPreview
+    ? `${csvPreview.validRows}件 追加で保存`
+    : '追加で保存';
 
   return (
     <Layout>
@@ -124,7 +137,7 @@ export function ReceiptsPage() {
             <CSVFileInput
               onFileSelect={handleFileSelect}
               selectedFileName={selectedFileName}
-              disabled={dbLoading || saving || deleting || authLoading}
+              disabled={dbLoading || saving || deleting || previewing || authLoading}
             />
           </div>
           {isAuthenticated && (
@@ -135,10 +148,10 @@ export function ReceiptsPage() {
                     variant="primary"
                     size="sm"
                     onClick={handleSaveToDB}
-                    disabled={saving || deleting}
-                    aria-disabled={saving || deleting}
+                    disabled={saving || deleting || previewing}
+                    aria-disabled={saving || deleting || previewing}
                   >
-                    {saving ? '保存中...' : '保存'}
+                    {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
                   </Button>
                 )}
               </div>
@@ -163,6 +176,25 @@ export function ReceiptsPage() {
           <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
             <strong>エラー:</strong> {dbError}
           </Alert>
+        )}
+
+        {hasCsvFile && !previewing && csvPreview && !importResult && (
+          <div className="my-3" role="status" aria-live="polite">
+            <Alert variant={csvPreview.errors.length > 0 ? 'warning' : 'info'}>
+              <p>
+                <strong>{csvPreview.validRows}件 追加で保存されます</strong>
+                {csvPreview.errors.length > 0 && ` / ${csvPreview.errors.length}件エラー`}
+                <span className="ml-2 text-xs text-secondary">（保存モード: 追加）</span>
+              </p>
+              {csvPreview.errors.length > 0 && (
+                <ul className="mt-2 list-disc list-inside text-sm space-y-1">
+                  {csvPreview.errors.map((e) => (
+                    <li key={e.row}>{e.row}行目: {e.message}</li>
+                  ))}
+                </ul>
+              )}
+            </Alert>
+          </div>
         )}
 
         {importResult && (() => {

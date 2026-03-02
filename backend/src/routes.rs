@@ -73,6 +73,10 @@ fn dividend_routes() -> Router<AppState> {
     Router::new()
         .route("/dividends", get(handlers::dividend::list))
         .route("/dividends/csv", post(handlers::dividend::upload_csv))
+        .route(
+            "/dividends/csv/preview",
+            post(handlers::dividend::preview_csv),
+        )
         .route("/dividends/all", delete(handlers::dividend::delete_all))
 }
 
@@ -84,6 +88,10 @@ fn domestic_stock_routes() -> Router<AppState> {
             post(handlers::domestic_stock::upload_csv),
         )
         .route(
+            "/domestic-stocks/csv/preview",
+            post(handlers::domestic_stock::preview_csv),
+        )
+        .route(
             "/domestic-stocks/all",
             delete(handlers::domestic_stock::delete_all),
         )
@@ -93,6 +101,10 @@ fn mutualfund_routes() -> Router<AppState> {
     Router::new()
         .route("/mutualfunds", get(handlers::mutualfund::list))
         .route("/mutualfunds/csv", post(handlers::mutualfund::upload_csv))
+        .route(
+            "/mutualfunds/csv/preview",
+            post(handlers::mutualfund::preview_csv),
+        )
         .route("/mutualfunds/all", delete(handlers::mutualfund::delete_all))
 }
 
