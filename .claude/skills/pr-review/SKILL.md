@@ -22,29 +22,42 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
 ## Workflow
 
 1. レビュー対象PRを自動検出する。
+- `git fetch origin` で比較元を最新化する。
 - `git branch --show-current` で現在ブランチを確認する。
-- `gh pr list --state open --head <current-branch>` で open PR を探す。
+- `gh pr list --state open --head "$(git branch --show-current)" --json number,title,url,body` で open PR を探す。
 - 見つからない場合は、ユーザーに PR 番号 or URL を確認する。
 
 2. 実装完了状態を確定する。
-- `git status -sb` で差分が意図どおりか確認する。
+- `git status --short` で差分が意図どおりか確認する。
+- `git rev-parse HEAD` で対象コミットを確定する。
 - レビュー対象コミット/差分を特定する。
 - PR 番号と URL を確定する。
 
 3. レビュー材料を収集する。
 - 必ず以下を取得する。
-  - `git diff --name-status`
-  - `git diff --stat`
-  - `git diff`
+  - `git diff origin/main...HEAD --name-status`
+  - `git diff origin/main...HEAD --stat`
+  - `git diff origin/main...HEAD`
 - PR がある場合は以下も取得する。
   - `gh pr view <PR番号> --json number,title,url,body`
-  - `gh pr view <PR番号> --comments`
 - PR がない場合は比較範囲を明記する。
   - 作業ブランチ上の確認: `origin/main...HEAD`
   - `main` ブランチ上の確認: `HEAD~1..HEAD`（必要に応じてユーザー確認）
 
 4. 検証結果を確定する。
-- 変更範囲に応じて `lint` / `test` / `build` を実行する。
+- 変更範囲に応じて、実際に通った以下のコマンドだけを使う。
+- フロントエンド変更がある場合:
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run build`
+- バックエンド変更がある場合:
+  - `cd backend && cargo fmt --check`
+  - `cd backend && cargo clippy -- -D warnings`
+  - `cd backend && cargo test`
+  - `cd backend && cargo build`
+- API 定義変更がある場合:
+  - `bash scripts/check-openapi.sh`
 - 実行コマンドと結果（pass/fail）をそのまま記録する。
 - 失敗していても隠さず依頼文に含める。
 
