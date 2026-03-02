@@ -1,35 +1,29 @@
 import { apiClient } from '@/lib/api/client';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { components } from '@/generated/api';
 
-interface BulkCreateResponse {
-  inserted: number;
-  skipped: number;
-}
+type CsvPreviewResponse = components['schemas']['CsvPreviewResponse'];
+type CsvUploadResponse = components['schemas']['CsvUploadResponse'];
 
-const safeNumber = (value: unknown): number => {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
+const uploadCsvFile = (path: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.post<CsvUploadResponse>(path, formData, { withCredentials: true });
+};
+
+const previewCsvFile = (path: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.post<CsvPreviewResponse>(path, formData, { withCredentials: true });
 };
 
 export const assetBalanceApi = {
   list: () =>
     apiClient.get<AssetBalanceData[]>('/asset-balances', { withCredentials: true }),
 
-  bulkCreate: async (items: AssetBalanceData[]) => {
-    const payload = items.map(item => ({
-      security_code: item.security_code,
-      security_name: item.security_name,
-      shares: safeNumber(item.shares),
-      executing_shares: safeNumber(item.executing_shares),
-      average_purchase_price: safeNumber(item.average_purchase_price),
-      total_purchase_amount: safeNumber(item.total_purchase_amount),
-      current_price: safeNumber(item.current_price),
-      daily_change: safeNumber(item.daily_change),
-      market_value: safeNumber(item.market_value),
-      profit_loss_rate: safeNumber(item.profit_loss_rate),
-    }));
-    return apiClient.post<BulkCreateResponse>('/asset-balances/bulk', { items: payload }, { withCredentials: true });
-  },
+  previewCsv: (file: File) => previewCsvFile('/asset-balances/csv/preview', file),
+
+  uploadCsv: (file: File) => uploadCsvFile('/asset-balances/csv', file),
 
   deleteAll: async () =>
     apiClient.delete('/asset-balances/all', { withCredentials: true }),

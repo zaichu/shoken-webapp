@@ -55,6 +55,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-balances/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをアップロードして保有銘柄を一括登録（既存データ全置換） */
+        post: operations["asset_balance_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-balances/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["asset_balance_preview_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/delete-account": {
         parameters: {
             query?: never;
@@ -160,6 +194,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dividends/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["dividend_preview_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dividends/per-share/batch": {
         parameters: {
             query?: never;
@@ -222,6 +273,23 @@ export interface paths {
         put?: never;
         /** CSV ファイルをアップロードして国内株式取引を一括登録 */
         post: operations["domestic_stock_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domestic-stocks/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["domestic_stock_preview_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -293,6 +361,23 @@ export interface paths {
         put?: never;
         /** CSV ファイルをアップロードして投資信託を一括登録 */
         post: operations["mutualfund_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mutualfunds/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["mutualfund_preview_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -393,6 +478,17 @@ export interface components {
             shares: number;
             /** Format: double */
             total_purchase_amount: number;
+        };
+        /** @description CSV プレビューのレスポンス（DB 書き込みなし） */
+        CsvPreviewResponse: {
+            /** @description 行エラー一覧 */
+            errors: components["schemas"]["CsvRowError"][];
+            /** @description パース成功行のデータ（保存前プレビュー用） */
+            rows: Record<string, never>[];
+            /** @description CSVの総行数（ヘッダー除く） */
+            total_rows: number;
+            /** @description パース成功行数 */
+            valid_rows: number;
         };
         /** @description CSV の行エラー情報 */
         CsvRowError: {
@@ -887,6 +983,84 @@ export interface operations {
             };
         };
     };
+    asset_balance_upload_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvUploadResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    asset_balance_preview_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     auth_delete_account: {
         parameters: {
             query?: never;
@@ -1061,6 +1235,45 @@ export interface operations {
             };
         };
     };
+    dividend_preview_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     dividend_per_share_batch: {
         parameters: {
             query?: never;
@@ -1165,6 +1378,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CsvUploadResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    domestic_stock_preview_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
                 };
             };
             400: {
@@ -1316,6 +1568,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CsvUploadResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    mutualfund_preview_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CsvUploadForm"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
                 };
             };
             400: {

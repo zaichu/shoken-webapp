@@ -45,14 +45,16 @@ const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
 
 interface DomesticStockProps {
     data: DomesticStockData[];
+    previewData?: DomesticStockData[];
 }
 
 /**
  * 国内株式取引データを表示するコンポーネント
  */
-export const DomesticStock: React.FC<DomesticStockProps> = ({ data }) => {
+export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData }) => {
+    const displayData = previewData && previewData.length > 0 ? previewData : data;
 
-    const domesticStockData = useMemo(() => sortDomesticStockByTradeDate(data), [data]);
+    const domesticStockData = useMemo(() => sortDomesticStockByTradeDate(displayData), [displayData]);
 
     // 検索カテゴリーの生成
     const searchCategories = {

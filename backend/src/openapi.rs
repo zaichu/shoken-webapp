@@ -7,7 +7,7 @@ use crate::{
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest, CreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
-        csv_import::{CsvRowError, CsvUploadForm, CsvUploadResponse},
+        csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadForm, CsvUploadResponse},
         dividend::Dividend,
         dividend_cache::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -24,16 +24,21 @@ use crate::{
 #[openapi(
     paths(
         handlers::dividend::list,
+        handlers::dividend::preview_csv,
         handlers::dividend::upload_csv,
         handlers::dividend::delete_all,
         handlers::domestic_stock::list,
+        handlers::domestic_stock::preview_csv,
         handlers::domestic_stock::upload_csv,
         handlers::domestic_stock::delete_all,
         handlers::mutualfund::list,
+        handlers::mutualfund::preview_csv,
         handlers::mutualfund::upload_csv,
         handlers::mutualfund::delete_all,
         handlers::asset_balance::list,
         handlers::asset_balance::bulk_create,
+        handlers::asset_balance::preview_csv,
+        handlers::asset_balance::upload_csv,
         handlers::asset_balance::delete_all,
         handlers::stock::select_stock_info,
         handlers::stock::add_stock_info,
@@ -57,6 +62,7 @@ use crate::{
             MessageResponse,
             CsvUploadForm,
             CsvUploadResponse,
+            CsvPreviewResponse,
             CsvRowError,
             DividendPerShareBatchRequest,
             DividendPerShareItem,

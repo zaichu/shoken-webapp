@@ -43,12 +43,20 @@ cd backend && cargo build
 cd backend && cargo build --release
 ```
 
+### OpenAPI / api.ts 同期チェック（API変更時は必須）
+```bash
+bash scripts/check-openapi.sh
+```
+openapi.json と frontend/src/generated/api.ts を両方再生成して差分を確認する。
+差分があれば commit してから push する。
+
 ## 推奨実行順序
 
 1. `cargo fmt --check` - フォーマット確認
 2. `cargo clippy -- -D warnings` - Lint
 3. `cargo test` - テスト
 4. `cargo build` - ビルド
+5. `bash scripts/check-openapi.sh` - openapi.json と api.ts の同期確認（API変更時）
 
 ## よくあるエラー
 

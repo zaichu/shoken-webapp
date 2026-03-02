@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     models::common::MessageResponse,
-    models::csv_import::{CsvUploadForm, CsvUploadResponse},
+    models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     models::domestic_stock::DomesticStock,
     services::domestic_stock as domestic_stock_service,
     state::AppState,
@@ -26,6 +26,28 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let stocks = domestic_stock_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(stocks)))
+}
+
+/// CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）
+#[utoipa::path(
+    post,
+    path = "/domestic-stocks/csv/preview",
+    operation_id = "domestic_stock_preview_csv",
+    request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
+    responses(
+        (status = 200, body = CsvPreviewResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn preview_csv(
+    _auth_user: AuthenticatedUser,
+    multipart: Multipart,
+) -> Result<impl IntoResponse, ApiError> {
+    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
+    let response = domestic_stock_service::preview_csv(&bytes)?;
+    Ok((StatusCode::OK, Json(response)))
 }
 
 /// CSV ファイルをアップロードして国内株式取引を一括登録

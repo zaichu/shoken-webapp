@@ -30,14 +30,16 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 
 interface MutualfundProps {
     data: MutualfundData[];
+    previewData?: MutualfundData[];
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ data }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => {
+    const displayData = previewData && previewData.length > 0 ? previewData : data;
 
-    const mutualfundData = useMemo(() => sortMutualfundByTradeDate(data), [data]);
+    const mutualfundData = useMemo(() => sortMutualfundByTradeDate(displayData), [displayData]);
 
     // 検索オプションの生成
     const searchCategories = {

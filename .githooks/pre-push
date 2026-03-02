@@ -1,0 +1,26 @@
+#!/bin/bash
+# pre-push hook: openapi.json / api.ts の同期チェック
+# バックエンドの .rs ファイルがコミットに含まれる場合に openapi.json と api.ts の更新漏れを検出する
+
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# push 対象のコミットに backend/src の変更が含まれるか確認
+# stdin から "local_ref local_sha remote_ref remote_sha" を読み取る
+while read local_ref local_sha remote_ref remote_sha; do
+  # 新規ブランチの場合は空コミットとの比較
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    range="$local_sha"
+    changed=$(git diff-tree --no-commit-id -r --name-only "$range" 2>/dev/null || true)
+  else
+    range="$remote_sha..$local_sha"
+    changed=$(git log --name-only --format="" "$range" 2>/dev/null || true)
+  fi
+
+  if echo "$changed" | grep -q "^backend/src/"; then
+    bash "$REPO_ROOT/scripts/check-openapi.sh"
+  fi
+done
+
+exit 0
