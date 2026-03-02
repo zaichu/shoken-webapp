@@ -184,10 +184,3 @@ export function WithErrorBoundary({
   );
 }
 
-// エラーバウンダリーのフック（実験的）
-// eslint-disable-next-line react-refresh/only-export-components
-export function useErrorHandler() {
-  return (error: Error) => {
-    throw error;
-  };
-}

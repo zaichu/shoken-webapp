@@ -16,9 +16,6 @@ export interface CardBodyProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-export interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactNode;
-}
 
 export function Card({ children, className, ...rest }: CardProps) {
   return (
@@ -59,13 +56,3 @@ export function CardBody({ children, className, ...rest }: CardBodyProps) {
   );
 }
 
-export function CardFooter({ children, className, ...rest }: CardFooterProps) {
-  return (
-    <div
-      className={cn('border-t border-border px-4 py-3', className)}
-      {...rest}
-    >
-      {children}
-    </div>
-  );
-}

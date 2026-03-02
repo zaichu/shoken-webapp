@@ -18,7 +18,7 @@ interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
     onSearch?: (query: string) => void;
 }
 
-const renderTextValue = (value: unknown): string | number => {
+const toText = (value: unknown): string | number => {
     if (typeof value === 'string' || typeof value === 'number') return value;
     if (value === null || value === undefined) return '';
     return String(value);
@@ -68,7 +68,7 @@ const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: R
 
     return (
         <TableCell key={key} {...props} data-negative={isNegative ? 'true' : undefined}>
-            {renderTextValue(formattedValue)}
+            {toText(formattedValue)}
         </TableCell>
     );
 };
@@ -135,7 +135,7 @@ function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
                                 className={summaryValueClass}
                                 data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
                             >
-                                {React.isValidElement(sv.value) ? sv.value : renderTextValue(sv.value)}
+                                {React.isValidElement(sv.value) ? sv.value : toText(sv.value)}
                             </TableCell>
                         ))}
                     </TableRow>

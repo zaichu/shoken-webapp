@@ -68,7 +68,7 @@ export function matchesYearMonth(date: Date, query: string): boolean {
 /**
  * 日付検索マッチャー
  */
-export function matchesDate(date: Date, query: string): boolean {
+function matchesDate(date: Date, query: string): boolean {
   const dateStr = date.toISOString().split('T')[0];
   return dateStr === query;
 }
@@ -76,7 +76,7 @@ export function matchesDate(date: Date, query: string): boolean {
 /**
  * 金額配列の部分一致検索
  */
-export function matchesAmounts(amounts: number[], query: string): boolean {
+function matchesAmounts(amounts: number[], query: string): boolean {
   return amounts.some(amount => amount.toString().includes(query));
 }
 

@@ -6,7 +6,7 @@
 /**
  * 日本の日付フォーマット用のオプション
  */
-export const JP_DATE_FORMAT_OPTIONS = {
+const JP_DATE_FORMAT_OPTIONS = {
   year: 'numeric',
   month: '2-digit',
   day: '2-digit'
@@ -17,21 +17,6 @@ export const JP_DATE_FORMAT_OPTIONS = {
  * 配当金や分配金の源泉徴収税率（20.315%）
  */
 export const TAX_RATE = 0.20315;
-
-/**
- * HTMLエスケープ処理
- * XSS攻撃を防ぐため、特殊文字をエスケープ
- */
-const escapeHtml = (str: string): string => {
-  const htmlEscapes: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  };
-  return str.replace(/[&<>"']/g, char => htmlEscapes[char]);
-};
 
 /**
  * 銘柄コードのリンクHTML生成
@@ -51,22 +36,6 @@ export function normalizeSecurityCode(value: unknown): string {
   if (!raw) return '';
   const token = raw.split(/[:：]/)[0];
   return token.replace(/\s+/g, '').toUpperCase();
-}
-
-/**
- * @deprecated SecurityCodeLinkコンポーネントまたはrenderSecurityCodeを使用してください
- */
-export function createSecurityCodeLink(value: unknown): string {
-  const code = typeof value === 'string' ? value.trim() : '';
-  if (!code) return '';
-
-  // 想定外の文字列はリンク化せず表示のみ（URLパラメータの安全性確保）
-  if (!SECURITY_CODE_REGEX.test(code)) {
-    return escapeHtml(code);
-  }
-
-  const escapedCode = escapeHtml(code);
-  return `<a href="/search?code=${encodeURIComponent(code)}" class="security-code-link text-primary font-semibold hover:underline" data-search="${escapedCode}">${escapedCode}</a>`;
 }
 
 // ==================== 日付関連 ====================
@@ -353,14 +322,3 @@ export function calculatePercentage(value: number, total: number, decimals = 2):
   return Number(((value / total) * 100).toFixed(decimals));
 }
 
-// ==================== 後方互換性のためのエイリアス ====================
-
-/**
- * @deprecated formatCurrency()を使用してください
- */
-export const formatCurrencyString = formatCurrency;
-
-/**
- * @deprecated formatJPDate()を使用してください
- */
-export const formatJPDateString = formatJPDate;
