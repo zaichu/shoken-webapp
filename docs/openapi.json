@@ -379,6 +379,62 @@
         ]
       }
     },
+    "/dividends/csv/preview": {
+      "post": {
+        "tags": [
+          "handlers::dividend"
+        ],
+        "summary": "CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）",
+        "operationId": "dividend_preview_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/dividends/per-share/batch": {
       "post": {
         "tags": [
@@ -519,6 +575,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CsvUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/domestic-stocks/csv/preview": {
+      "post": {
+        "tags": [
+          "handlers::domestic_stock"
+        ],
+        "summary": "CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）",
+        "operationId": "domestic_stock_preview_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponse"
                 }
               }
             }
@@ -745,6 +857,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CsvUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/mutualfunds/csv/preview": {
+      "post": {
+        "tags": [
+          "handlers::mutualfund"
+        ],
+        "summary": "CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）",
+        "operationId": "mutualfund_preview_csv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponse"
                 }
               }
             }
@@ -1035,6 +1203,34 @@
           "total_purchase_amount": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "CsvPreviewResponse": {
+        "type": "object",
+        "description": "CSV プレビューのレスポンス（DB 書き込みなし）",
+        "required": [
+          "total_rows",
+          "valid_rows",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsvRowError"
+            },
+            "description": "行エラー一覧"
+          },
+          "total_rows": {
+            "type": "integer",
+            "description": "CSVの総行数（ヘッダー除く）",
+            "minimum": 0
+          },
+          "valid_rows": {
+            "type": "integer",
+            "description": "パース成功行数",
+            "minimum": 0
           }
         }
       },
