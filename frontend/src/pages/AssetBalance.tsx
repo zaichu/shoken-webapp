@@ -75,6 +75,7 @@ export function AssetBalancePage() {
     previewing,
     hasCsvFile,
     hasDbData,
+    csvFileName,
     handleFileSelect,
     handleSaveToDB,
     handleDeleteAll,
@@ -161,7 +162,7 @@ export function AssetBalancePage() {
               <div className="form-input-container">
                 <CSVFileInput
                   onFileSelect={handleFileSelect}
-                  selectedFileName={hasCsvFile ? undefined : ''}
+                  selectedFileName={csvFileName ?? ''}
                   disabled={loading || saving || deleting || previewing}
                 />
               </div>
@@ -171,8 +172,8 @@ export function AssetBalancePage() {
                     variant="primary"
                     size="sm"
                     onClick={handleSaveToDB}
-                    disabled={saving || deleting || previewing}
-                    aria-disabled={saving || deleting || previewing}
+                    disabled={saving || deleting || previewing || previewRows.length === 0}
+                    aria-disabled={saving || deleting || previewing || previewRows.length === 0}
                   >
                     {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
                   </Button>

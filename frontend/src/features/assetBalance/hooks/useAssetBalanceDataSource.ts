@@ -19,6 +19,7 @@ export interface UseAssetBalanceDataSourceResult {
   // フラグ
   hasCsvFile: boolean;
   hasDbData: boolean;
+  csvFileName: string | null;
   // アクション
   handleFileSelect: (file: File) => void;
   handleSaveToDB: () => void;
@@ -86,9 +87,9 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
   }, [previewMutation]);
 
   const handleSaveToDB = useCallback(() => {
-    if (!isAuthenticated || rawFile === null) return;
+    if (!isAuthenticated || rawFile === null || previewRows.length === 0) return;
     uploadCsvMutation.mutate(rawFile);
-  }, [uploadCsvMutation, isAuthenticated, rawFile]);
+  }, [uploadCsvMutation, isAuthenticated, rawFile, previewRows.length]);
 
   const handleDeleteAll = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -114,6 +115,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     previewing: previewMutation.isPending,
     hasCsvFile: rawFile !== null,
     hasDbData: dbData.length > 0,
+    csvFileName: rawFile?.name ?? null,
     handleFileSelect,
     handleSaveToDB,
     handleDeleteAll,
