@@ -160,6 +160,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dividends/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["dividend_preview_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dividends/per-share/batch": {
         parameters: {
             query?: never;
@@ -222,6 +239,23 @@ export interface paths {
         put?: never;
         /** CSV ファイルをアップロードして国内株式取引を一括登録 */
         post: operations["domestic_stock_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domestic-stocks/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["domestic_stock_preview_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -293,6 +327,23 @@ export interface paths {
         put?: never;
         /** CSV ファイルをアップロードして投資信託を一括登録 */
         post: operations["mutualfund_upload_csv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mutualfunds/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし） */
+        post: operations["mutualfund_preview_csv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -394,6 +445,15 @@ export interface components {
             /** Format: double */
             total_purchase_amount: number;
         };
+        /** @description CSV プレビューのレスポンス（DB 書き込みなし） */
+        CsvPreviewResponse: {
+            /** @description 行エラー一覧 */
+            errors: components["schemas"]["CsvRowError"][];
+            /** @description CSVの総行数（ヘッダー除く） */
+            total_rows: number;
+            /** @description パース成功行数 */
+            valid_rows: number;
+        };
         /** @description CSV の行エラー情報 */
         CsvRowError: {
             message: string;
@@ -410,14 +470,6 @@ export interface components {
              * @description アップロードするCSVファイル（Shift-JIS または UTF-8）
              */
             file: string;
-        };
-        /** @description CSV プレビューのレスポンス（DB 書き込みなし） */
-        CsvPreviewResponse: {
-            errors: components["schemas"]["CsvRowError"][];
-            /** @description 行エラー一覧 */
-            total_rows: number;
-            /** @description パース成功行数 */
-            valid_rows: number;
         };
         /** @description CSV アップロードのレスポンス */
         CsvUploadResponse: {
@@ -1030,7 +1082,7 @@ export interface operations {
             };
         };
     };
-    dividend_preview_csv: {
+    dividend_upload_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1043,12 +1095,12 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                    "application/json": components["schemas"]["CsvUploadResponse"];
                 };
             };
             400: {
@@ -1069,7 +1121,7 @@ export interface operations {
             };
         };
     };
-    dividend_upload_csv: {
+    dividend_preview_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1082,12 +1134,12 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvUploadResponse"];
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
                 };
             };
             400: {
@@ -1193,7 +1245,7 @@ export interface operations {
             };
         };
     };
-    domestic_stock_preview_csv: {
+    domestic_stock_upload_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1206,12 +1258,12 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                    "application/json": components["schemas"]["CsvUploadResponse"];
                 };
             };
             400: {
@@ -1232,7 +1284,7 @@ export interface operations {
             };
         };
     };
-    domestic_stock_upload_csv: {
+    domestic_stock_preview_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1245,12 +1297,12 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvUploadResponse"];
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
                 };
             };
             400: {
@@ -1383,7 +1435,7 @@ export interface operations {
             };
         };
     };
-    mutualfund_preview_csv: {
+    mutualfund_upload_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1396,12 +1448,12 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                    "application/json": components["schemas"]["CsvUploadResponse"];
                 };
             };
             400: {
@@ -1422,7 +1474,7 @@ export interface operations {
             };
         };
     };
-    mutualfund_upload_csv: {
+    mutualfund_preview_csv: {
         parameters: {
             query?: never;
             header?: never;
@@ -1435,12 +1487,12 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CsvUploadResponse"];
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
                 };
             };
             400: {

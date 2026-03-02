@@ -1,6 +1,6 @@
 #!/bin/bash
-# pre-push hook: openapi.json の同期チェック
-# バックエンドの .rs ファイルがコミットに含まれる場合に openapi.json の更新漏れを検出する
+# pre-push hook: openapi.json / api.ts の同期チェック
+# バックエンドの .rs ファイルがコミットに含まれる場合に openapi.json と api.ts の更新漏れを検出する
 
 set -euo pipefail
 
