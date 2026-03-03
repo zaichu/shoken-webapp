@@ -2,7 +2,7 @@
 
 ## 概要
 
-主要ページ（ホーム・銘柄検索・資産管理・取引明細）のUIレビューを実施し、スクリーンショットと改善提案を作成する。  
+主要ページ（ホーム・銘柄検索・資産管理・取引明細）および CSV CRUD フローのUIレビューを実施し、スクリーンショットと改善提案を作成する。
 **MCPでもE2Eでも、やることと成果物は同じ。**
 
 ## Usage
@@ -13,11 +13,15 @@
 ```
 
 ## 完了条件
-1. `.playwright-mcp/` に対象スクリーンショットが揃っている  
-2. UIレビューレポート（日本語）が出ている  
+1. `.playwright-mcp/` に対象スクリーンショットが揃っている
+2. UIレビューレポート（日本語）が出ている
 3. 改善提案に優先度（高/中/低）が付いている
 
-## 保存先・成果物（共通）
+---
+
+## A. 主要ページレビュー
+
+### 必須スクショ（13枚）
 保存先: `.playwright-mcp/`
 
 | ファイル名 | 内容 |
@@ -36,7 +40,7 @@
 | `receipts-mutualfund-search-year.png` | 投資信託 - 西暦検索結果 |
 | `receipts-mutualfund-search-fund.png` | 投資信託 - ファンド検索結果 |
 
-## 追加であると安心なスクショ（任意）
+### 追加であると安心なスクショ（任意）
 | ファイル名 | 内容 |
 |---|---|
 | `login-initial.png` | ログインページの初期表示（**未ログイン時**） |
@@ -48,6 +52,45 @@
 | `assetbalance-empty.png` | 資産管理が0件のEmptyState（**ログイン時**） |
 | `assetbalance-filter-empty.png` | 絞り込み0件のEmptyState（解除リンク表示） |
 
+### スクショ取得コマンド（主要ページ）
+認証情報（`frontend/.auth/storage-state.json`）が必要。初回または期限切れ時は `cd frontend && npm run ui:save-auth` で再取得する。
+
+```bash
+cd frontend && npm run ui:screenshot:auth
+```
+
+※ `npm run ui:screenshot` は認証情報を読み込まないため使用しない。
+
+---
+
+## B. CSV CRUDレビュー
+
+CSV アップロード→保存→削除の一連フローを対象とする。E2E テスト（`csv-crud.spec.ts`）が自動的にスクショを保存する。
+
+### 必須スクショ（9枚）
+保存先: `.playwright-mcp/`
+
+| ファイル名 | 内容 | 検証ポイント |
+|---|---|---|
+| `csv-domesticstock-after-base-import.png` | 国内株式 - base CSV（3件）取込後 | 3件登録メッセージ、テーブル行数 |
+| `csv-domesticstock-after-additional-import.png` | 国内株式 - 追加CSV取込後（重複含む10件登録） | 10件登録メッセージ、occurrence_index による重複許容 |
+| `csv-domesticstock-after-delete.png` | 国内株式 - 全件削除後 | EmptyState 表示、全件削除ボタン消滅 |
+| `csv-dividend-after-base-import.png` | 配当金 - base CSV（3件）取込後 | 3件登録メッセージ |
+| `csv-dividend-after-additional-import.png` | 配当金 - 追加CSV取込後（重複2件スキップ→3件登録） | 3件登録/2件スキップ表示 |
+| `csv-assetbalance-after-base-import.png` | 資産管理 - base CSV（2銘柄）取込後 | 全件削除ボタンに「(2件)」と表示 |
+| `csv-assetbalance-after-updated-import.png` | 資産管理 - updated CSV（3銘柄）取込後 | 全件削除ボタンに「(3件)」と表示、保有銘柄数の更新 |
+| `csv-mutualfund-after-base-import.png` | 投資信託 - base CSV（2件）取込後 | 2件登録メッセージ |
+| `csv-mutualfund-after-additional-import.png` | 投資信託 - 追加CSV取込後（重複1件スキップ→2件登録） | 2件登録/1件スキップ表示 |
+
+### スクショ取得コマンド（CSV CRUD）
+前提: ローカル環境が起動中（DB → backend → frontend）、`frontend/.auth/storage-state.json` が保存済み。
+
+```bash
+cd frontend && npm run ui:csv-crud:auth
+```
+
+---
+
 ## 実施手順（共通）
 
 ### 1) 事前確認
@@ -56,8 +99,8 @@
 - ローカルDBは `cd backend && make db-up` で起動する（`backend/.env` はローカルDB向け `DATABASE_URL` を使用）
 - まとめて起動する場合は、プロジェクトルートで `./scripts/start-local.sh` を使用する
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
-  - Playwright の `storageState` オプションにこのパスを指定する
-  - 初回保存 / 期限切れ時は `npm run ui:save-auth` で再取得する
+  - 各 E2E スクリプトは環境変数 `STORAGE_STATE` またはコマンドの `:auth` サフィックスで認証状態を読み込む
+  - 初回保存 / 期限切れ時は `cd frontend && npm run ui:save-auth` で再取得する
 - このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
 - スクショは **FHD（1920x1080）** をデフォルトで取得する（4Kが必要な場合は `UI_REVIEW_VIEWPORT=4k` を指定）
 - 開発サーバー運用は以下を厳守する
@@ -67,12 +110,16 @@
 
 ### 2) 既存スクショを削除
 ```bash
+# 主要ページのみリセット
 rm -f .playwright-mcp/*.png
+
+# CSV CRUDも含めてリセット
+rm -f .playwright-mcp/csv-*.png
 ```
 
 ### 3) スクショを取得（MCPかE2Eのどちらか）
 
-#### A. MCPで取得する場合
+#### A. MCPで取得する場合（主要ページ）
 - 先にログインを完了してから開始する
 - `http://127.0.0.1:8080/` に遷移して `home-initial.png` を保存
 - `http://127.0.0.1:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
@@ -159,22 +206,32 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# 保存した認証情報を使ってスクショ取得
+# 主要ページのスクショ取得
 (cd frontend && npm run ui:screenshot:auth)
+
+# CSV CRUD フローのスクショ取得（任意）
+# (cd frontend && npm run ui:csv-crud:auth)
 ```
 
-※ `npm run ui:screenshot` は認証情報を読み込まないため、本レビューでは使用しない。  
 ※ `npm run dev` を単独でバックグラウンド起動して放置しないこと（プロセス残留の原因）。
 
 ### 4) UIレビュー（画像分析）
-以下の観点で評価する:
+
+#### 4.1) 主要ページの観点
 - 視認性（文字サイズ、コントラスト、情報の階層）
 - 操作性（クリック領域、状態の分かりやすさ、導線）
 - 一貫性（配色、余白、コンポーネント挙動）
 - データ表示の妥当性（ラベル誤り、不自然な空白、誤解を生む表現）
 - アクセシビリティ（フォーカス、ラベル、可読性）
 
-#### 4.1) 画面横断のデザイン統一性チェック（必須）
+#### 4.2) CSV CRUDフローの観点
+- 取込結果の視認性（登録件数・スキップ件数メッセージが明確か）
+- 更新差分の分かりやすさ（全件置換後に保有銘柄数が正しく反映されているか）
+- 削除確認UIの安全性（確認モーダルのテキストが誤操作防止に十分か）
+- 重複スキップ時のフィードバック（ON CONFLICT スキップ件数が利用者に伝わるか）
+- EmptyState の整合性（全件削除後の表示が他画面と一貫しているか）
+
+#### 4.3) 画面横断のデザイン統一性チェック（必須）
 - 同じ意味の情報は、画面が違っても同じデザインルールで表示されているかを確認する
 - 特に「集計/合計」UIは必ず横断比較する（例: 配当金の合計表示 と 資産一覧の合計表示）
 - 比較時は以下を最低限確認する:
@@ -188,17 +245,26 @@ trap cleanup EXIT INT TERM
 ```markdown
 ## UIレビューレポート
 
+### 実施条件
+- 取得スクショ: 主要ページ X/13、CSV CRUD X/9
+
 ### 総合評価
+#### 主要ページ
 - スコア: X/10
+- 概要: ...
+
+#### CSV CRUDフロー
+- スコア: X/10（未取得の場合は「未評価」）
 - 概要: ...
 
 ### 優れている点
 - ...
 
 ### 改善提案
-| 優先度 | 画面 | 問題 | 改善案 |
-|---|---|---|---|
-| 高 | ... | ... | ... |
+| 優先度 | 対象 | 画面 | 問題 | 改善案 |
+|---|---|---|---|---|
+| 高 | 主要ページ | ... | ... | ... |
+| 中 | CSV CRUD | ... | ... | ... |
 
 ### 推奨アクション
 1. ...
@@ -208,5 +274,6 @@ trap cleanup EXIT INT TERM
 ## 運用ルール
 - スクショ取得に一部失敗しても、取得できた分でレビューを継続
 - 失敗ファイルは「未取得」と明記
+- CSV CRUD スクショが未取得の場合は「未評価」と明記してレポートを継続
 - レポートは必ず日本語で出力
 - 作業終了時に `8080/8081/8082` の不要プロセスが残っていないことを確認する
