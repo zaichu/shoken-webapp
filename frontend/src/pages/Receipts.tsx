@@ -95,6 +95,8 @@ export function ReceiptsPage() {
   const handleDeleteAll = useCallback(() => {
     if (!isAuthenticated) return;
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
+    // 削除完了後にimport resultを非表示にする（削除成功と取込成功の競合を防ぐ）
+    dispatch({ type: 'CLEAR_IMPORT_RESULT', receiptsType });
     deleteAll(receiptsType);
   }, [deleteAll, isAuthenticated, receiptsType]);
 
@@ -207,11 +209,18 @@ export function ReceiptsPage() {
           return (
             <div className="my-3" role="status" aria-live="polite">
               <Alert variant={hasErrors ? 'warning' : 'success'}>
-                <p>
+                <p className="flex flex-wrap items-baseline gap-x-3">
                   <strong>{importResult.inserted}件登録</strong>
-                  {' / '}
-                  {importResult.skipped}件スキップ
-                  {hasErrors && ` / ${importResult.errors.length}件エラー`}
+                  {importResult.skipped > 0 && (
+                    <span className="text-sm text-secondary">
+                      {importResult.skipped}件スキップ（重複）
+                    </span>
+                  )}
+                  {hasErrors && (
+                    <span className="text-sm text-secondary">
+                      {importResult.errors.length}件エラー
+                    </span>
+                  )}
                 </p>
                 {hasErrors && (
                   <ul className="mt-2 list-disc list-inside text-sm space-y-1">

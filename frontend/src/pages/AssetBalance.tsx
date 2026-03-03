@@ -73,6 +73,7 @@ export function AssetBalancePage() {
     saving,
     deleting,
     previewing,
+    lastSavedCount,
     hasCsvFile,
     hasDbData,
     csvFileName,
@@ -198,6 +199,15 @@ export function AssetBalancePage() {
               <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
                 <strong>エラー:</strong> {error}
               </Alert>
+            )}
+
+            {lastSavedCount !== null && (
+              <div className="my-3" role="status" aria-live="polite">
+                <Alert variant="success">
+                  <strong>{lastSavedCount}件保存しました</strong>
+                  <span className="ml-2 text-sm text-secondary">（全件置換）</span>
+                </Alert>
+              </div>
             )}
 
             <div aria-live="polite" aria-atomic="true">

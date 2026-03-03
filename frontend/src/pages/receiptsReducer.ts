@@ -38,6 +38,7 @@ export type ReceiptsAction =
   | { type: 'SET_RAW_FILE'; receiptsType: ReceiptsType; payload: File | null }
   | { type: 'SET_CSV_PREVIEW'; receiptsType: ReceiptsType; payload: CsvPreview | null }
   | { type: 'SET_IMPORT_RESULT'; receiptsType: ReceiptsType; payload: ImportResult }
+  | { type: 'CLEAR_IMPORT_RESULT'; receiptsType: ReceiptsType }
   | { type: 'SET_SHOW_DELETE_CONFIRM'; payload: boolean }
   | { type: 'LOGOUT' };
 
@@ -70,6 +71,11 @@ export function receiptsReducer(state: ReceiptsState, action: ReceiptsAction): R
       return {
         ...state,
         lastImportResults: { ...state.lastImportResults, [action.receiptsType]: action.payload },
+      };
+    case 'CLEAR_IMPORT_RESULT':
+      return {
+        ...state,
+        lastImportResults: { ...state.lastImportResults, [action.receiptsType]: null },
       };
     case 'SET_SHOW_DELETE_CONFIRM':
       return { ...state, showDeleteConfirm: action.payload };

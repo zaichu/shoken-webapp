@@ -16,6 +16,7 @@ export interface UseAssetBalanceDataSourceResult {
   saving: boolean;
   deleting: boolean;
   previewing: boolean;
+  lastSavedCount: number | null;
   // フラグ
   hasCsvFile: boolean;
   hasDbData: boolean;
@@ -37,6 +38,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
 
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [previewRows, setPreviewRows] = useState<AssetBalanceData[]>([]);
+  const [lastSavedCount, setLastSavedCount] = useState<number | null>(null);
 
   const dbQuery = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
@@ -54,9 +56,10 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
   const uploadCsvMutation = useMutation({
     mutationFn: (file: File) => assetBalanceApi.uploadCsv(file),
     onMutate: () => ({ snapshotUserId: userId }),
-    onSuccess: (_, __, context) => {
+    onSuccess: (data, _, context) => {
       setRawFile(null);
       setPreviewRows([]);
+      setLastSavedCount(data?.inserted ?? null);
       queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId) });
     },
   });
@@ -77,12 +80,14 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
       clearAssetBalanceCache(queryClient);
       setRawFile(null);
       setPreviewRows([]);
+      setLastSavedCount(null);
     });
   }, [onLogout, queryClient]);
 
   const handleFileSelect = useCallback((file: File) => {
     setRawFile(file);
     setPreviewRows([]);
+    setLastSavedCount(null);
     previewMutation.mutate(file);
   }, [previewMutation]);
 
@@ -113,6 +118,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
     previewing: previewMutation.isPending,
+    lastSavedCount,
     hasCsvFile: rawFile !== null,
     hasDbData: dbData.length > 0,
     csvFileName: rawFile?.name ?? null,
