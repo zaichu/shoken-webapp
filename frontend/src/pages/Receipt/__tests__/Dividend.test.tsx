@@ -219,16 +219,10 @@ describe('Dividend', () => {
         });
     });
 
-    it('空のデータでもエラーが発生しない', () => {
+    it('空のデータでEmptyStateが表示される', () => {
         render(<Dividend data={[]} />);
 
-        // タイトルは表示される（テーブルヘッダーにも「配当金」があるためgetAllByTextを使用）
-        const titleElements = screen.getAllByText('配当金');
-        expect(titleElements.length).toBeGreaterThan(0);
-
-        // 集計情報はゼロで表示される
-        const summaryElements = screen.getAllByText('配当金');
-        expect(summaryElements.length).toBeGreaterThan(0);
+        expect(screen.getByText('データがありません')).toBeInTheDocument();
     });
 
     it('数値フォーマットが正しく適用される', () => {

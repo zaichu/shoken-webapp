@@ -210,10 +210,10 @@ export function ReceiptsPage() {
           return (
             <div className="my-3" role="status" aria-live="polite">
               <Alert variant={hasErrors ? 'warning' : 'success'}>
-                <p className="flex flex-wrap items-baseline gap-x-3">
+                <p className="flex flex-wrap items-center gap-x-2">
                   <strong>{importResult.inserted}件登録</strong>
                   {importResult.skipped > 0 && (
-                    <span className="text-sm text-secondary">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
                       {importResult.skipped}件スキップ（重複）
                     </span>
                   )}
@@ -254,18 +254,21 @@ export function ReceiptsPage() {
               <Dividend
                 data={dividendData}
                 previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
+                importResult={importResult}
               />
             )}
             {receiptsType === 'domesticstock' && (
               <DomesticStock
                 data={domesticstockData}
                 previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
+                importResult={importResult}
               />
             )}
             {receiptsType === 'mutualfund' && (
               <Mutualfund
                 data={mutualfundData}
                 previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
+                importResult={importResult}
               />
             )}
           </>

@@ -135,12 +135,10 @@ describe('DomesticStock', () => {
         }, waitOpts);
     }, 20000);
 
-    it('空のデータでもエラーが発生しない', () => {
+    it('空のデータでEmptyStateが表示される', () => {
         render(<DomesticStock data={[]} />);
 
-        // 集計情報はゼロで表示される（複数要素がある場合を考慮）
-        const summaryElements = screen.getAllByText('実現損益');
-        expect(summaryElements.length).toBeGreaterThan(0);
+        expect(screen.getByText('データがありません')).toBeInTheDocument();
     });
 
     it('数値フォーマットが正しく適用される', () => {

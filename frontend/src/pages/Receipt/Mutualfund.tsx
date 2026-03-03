@@ -1,8 +1,11 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
+import { EmptyState } from '@/components/atoms/EmptyState';
+import { Card, CardBody } from '@/components/atoms/Card';
 import React from 'react';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
+import type { ImportResult } from '@/pages/receiptsReducer';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
@@ -31,12 +34,13 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 interface MutualfundProps {
     data: MutualfundData[];
     previewData?: MutualfundData[];
+    importResult?: ImportResult | null;
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, importResult }) => {
     const displayData = previewData && previewData.length > 0 ? previewData : data;
 
     const mutualfundData = useMemo(() => sortMutualfundByTradeDate(displayData), [displayData]);
@@ -123,10 +127,35 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => 
         { key: 'realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ];
 
+    if (mutualfundData.length === 0) {
+        return (
+            <Card>
+                <CardBody>
+                    <EmptyState
+                        title="データがありません"
+                        description="CSVファイルをアップロードして投資信託の取引明細を追加してください"
+                    />
+                </CardBody>
+            </Card>
+        );
+    }
+
+    const importNote = importResult && (
+        <div className="mt-1 flex items-center gap-x-2 text-sm text-slate-600">
+            <span>最新取込:</span>
+            <strong>{importResult.inserted}件登録</strong>
+            {importResult.skipped > 0 && (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                    {importResult.skipped}件スキップ（重複）
+                </span>
+            )}
+        </div>
+    );
+
     return (
         <ReceiptTemplate
             title="投資信託"
-            header={<ReceiptHeader items={headerItems} />}
+            header={<><ReceiptHeader items={headerItems} />{importNote}</>}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
