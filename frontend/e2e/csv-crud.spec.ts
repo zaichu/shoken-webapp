@@ -70,7 +70,7 @@ async function clickSave(page: Page) {
 // =====================================================================
 // 国内株式 - 追加と削除
 // =====================================================================
-test('国内株式 - CSVで3件追加 + 2件追加 + 全件削除', async ({ page }) => {
+test('国内株式 - CSVで3件追加 + 10件追加（商船三井8件新規重複含む）+ 全件削除', async ({ page }) => {
   await page.goto('/receipts');
   await waitForPageReady(page);
 
@@ -91,10 +91,13 @@ test('国内株式 - CSVで3件追加 + 2件追加 + 全件削除', async ({ pag
     fullPage: true,
   });
 
-  // ── additional CSV (2件) をアップロード・保存 ──
+  // ── additional CSV (9x商船三井 + 九州電力 + 三菱電機) をアップロード・保存 ──
+  // 国内株式は occurrence_index で同一内容の複数行を許容する仕様。
+  // base 後の DB には商船三井が1件（index=1）。additional の商船三井9行のうち
+  // index=1 は既存とみなしてスキップ、index=2〜9（8件）が新規挿入される。
   await uploadCsv(page, 'domesticstock-additional.csv');
   await clickSave(page);
-  await expect(page.getByText(/2件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/10件登録/)).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-domesticstock-after-additional-import.png'),
@@ -116,7 +119,7 @@ test('国内株式 - CSVで3件追加 + 2件追加 + 全件削除', async ({ pag
 // =====================================================================
 // 配当金 - 追加
 // =====================================================================
-test('配当金 - CSVで3件追加 + 3件追加', async ({ page }) => {
+test('配当金 - CSVで3件追加 + 3件追加（KDDI重複2件はスキップ）', async ({ page }) => {
   await page.goto('/receipts');
   await waitForPageReady(page);
   // 配当金タブはデフォルト選択済み
@@ -134,7 +137,8 @@ test('配当金 - CSVで3件追加 + 3件追加', async ({ page }) => {
     fullPage: true,
   });
 
-  // ── additional CSV (3件) ──
+  // ── additional CSV (3x KDDI + 日本電信電話 + トヨタ) ──
+  // 配当金は ON CONFLICT DO NOTHING のため、KDDI 重複2件はスキップ → 3件登録 / 2件スキップ
   await uploadCsv(page, 'dividend-additional.csv');
   await clickSave(page);
   await expect(page.getByText(/3件登録/)).toBeVisible({ timeout: 10000 });
@@ -182,7 +186,7 @@ test('資産管理 - base(2銘柄)→updated(3銘柄)の差分更新', async ({ 
 // =====================================================================
 // 投資信託 - 追加
 // =====================================================================
-test('投資信託 - CSVで2件追加 + 2件追加', async ({ page }) => {
+test('投資信託 - CSVで2件追加 + 2件追加（eMAXIS重複1件はスキップ）', async ({ page }) => {
   await page.goto('/receipts');
   await waitForPageReady(page);
 
@@ -203,7 +207,8 @@ test('投資信託 - CSVで2件追加 + 2件追加', async ({ page }) => {
     fullPage: true,
   });
 
-  // ── additional CSV (2件) ──
+  // ── additional CSV (2x eMAXIS S&P500 + eMAXIS 全世界) ──
+  // 投資信託は ON CONFLICT DO NOTHING のため、eMAXIS Slim S&P500 重複1件はスキップ → 2件登録 / 1件スキップ
   await uploadCsv(page, 'mutualfund-additional.csv');
   await clickSave(page);
   await expect(page.getByText(/2件登録/)).toBeVisible({ timeout: 10000 });
