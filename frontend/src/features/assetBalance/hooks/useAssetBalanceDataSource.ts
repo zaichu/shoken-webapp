@@ -72,6 +72,8 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
       if (queryClient.getQueryState(key) !== undefined) {
         queryClient.setQueryData(key, []);
       }
+      // 削除後に保存バナーを非表示にする（空データ状態でN件保存済みが残らないよう）
+      setLastSavedCount(null);
     },
   });
 

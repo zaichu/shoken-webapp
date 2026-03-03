@@ -95,9 +95,10 @@ export function ReceiptsPage() {
   const handleDeleteAll = useCallback(() => {
     if (!isAuthenticated) return;
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
-    // 削除完了後にimport resultを非表示にする（削除成功と取込成功の競合を防ぐ）
-    dispatch({ type: 'CLEAR_IMPORT_RESULT', receiptsType });
-    deleteAll(receiptsType);
+    deleteAll(receiptsType, {
+      // 削除成功時のみimport resultをクリア（失敗時は保持）
+      onSuccess: () => dispatch({ type: 'CLEAR_IMPORT_RESULT', receiptsType }),
+    });
   }, [deleteAll, isAuthenticated, receiptsType]);
 
   const hasCsvFile = rawFile !== null;

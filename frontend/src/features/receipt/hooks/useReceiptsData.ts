@@ -29,7 +29,7 @@ export interface UseReceiptsDataResult {
   previewing: boolean;
   uploadCsv: (args: UploadCsvArgs) => void;
   previewCsv: (args: PreviewCsvArgs) => void;
-  deleteAll: (type: ReceiptsType) => void;
+  deleteAll: (type: ReceiptsType, options?: { onSuccess?: () => void }) => void;
   clearCache: () => void;
 }
 
@@ -178,7 +178,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
     previewing: previewCsvMutation.isPending,
     uploadCsv: uploadCsvMutation.mutate,
     previewCsv: previewCsvMutation.mutate,
-    deleteAll: deleteAllMutation.mutate,
+    deleteAll: (type, options) => deleteAllMutation.mutate(type, { onSuccess: options?.onSuccess }),
     clearCache,
   };
 }
