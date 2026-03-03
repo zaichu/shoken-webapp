@@ -86,7 +86,7 @@ CSV アップロード→保存→削除の一連フローを対象とする。E
 前提: ローカル環境が起動中（DB → backend → frontend）、`frontend/.auth/storage-state.json` が保存済み。
 
 ```bash
-cd frontend && npm run ui:csv-crud:auth
+cd frontend && npm run ui:screenshot:csv-crud
 ```
 
 ---
@@ -209,8 +209,8 @@ trap cleanup EXIT INT TERM
 # 主要ページのスクショ取得
 (cd frontend && npm run ui:screenshot:auth)
 
-# CSV CRUD フローのスクショ取得（任意）
-# (cd frontend && npm run ui:csv-crud:auth)
+# CSV CRUD フローのスクショ取得
+(cd frontend && npm run ui:screenshot:csv-crud)
 ```
 
 ※ `npm run dev` を単独でバックグラウンド起動して放置しないこと（プロセス残留の原因）。

@@ -2,7 +2,7 @@
  * CSV CRUD E2E テスト
  *
  * 使用方法:
- *   npm run ui:csv-crud:auth
+ *   npm run ui:screenshot:csv-crud
  *
  * 前提:
  *   - ローカル環境が起動中 (DB → backend → frontend)
