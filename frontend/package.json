@@ -12,6 +12,7 @@
     "test:watch": "NODE_OPTIONS='--max-old-space-size=8192' vitest --watch",
     "ui:screenshot": "npx playwright test e2e/ui-screenshots.spec.ts",
     "ui:screenshot:auth": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/ui-screenshots.spec.ts",
+    "ui:csv-crud:auth": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/csv-crud.spec.ts",
     "ui:save-auth": "npx tsx e2e/save-auth.spec.ts",
     "generate:types": "npx openapi-typescript ../docs/openapi.json -o src/generated/api.ts"
   },
