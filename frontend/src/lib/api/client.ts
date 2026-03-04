@@ -216,7 +216,7 @@ class ApiClient {
 // シングルトンインスタンスの遅延初期化
 let _apiClient: ApiClient | null = null;
 
-export function getApiClient(): ApiClient {
+function getApiClient(): ApiClient {
   if (!_apiClient) {
     _apiClient = new ApiClient();
   }
@@ -239,10 +239,5 @@ export function createApiClient(config?: ApiClientConfig): ApiClient {
   return new ApiClient(config);
 }
 
-// テスト環境でのシングルトンリセット用
-export function resetApiClient(): void {
-  _apiClient = null;
-}
-
 // エクスポート
-export { ApiClient, type ApiClientConfig, type RetryConfig };
+export type { ApiClientConfig, RetryConfig };
