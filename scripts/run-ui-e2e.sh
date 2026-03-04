@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
@@ -13,6 +12,7 @@ STORAGE_STATE="${STORAGE_STATE:-$FRONTEND_DIR/.auth/storage-state.json}"
 BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-e2e.log}"
 FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-e2e.log}"
 DB_LOG="${DB_LOG:-/tmp/shoken-db-e2e.log}"
+START_LOCAL_LOG="${START_LOCAL_LOG:-/tmp/shoken-start-local-e2e.log}"
 
 RUN_MAIN=1
 RUN_CSV=1
@@ -20,8 +20,8 @@ RUN_SAVE_AUTH=0
 KEEP_RUNNING=0
 START_ONLY=0
 
-BACK_PID=""
-FRONT_PID=""
+START_LOCAL_PID=""
+STARTED_STACK=0
 
 usage() {
   cat <<EOF
@@ -50,87 +50,88 @@ cleanup() {
     return 0
   fi
 
-  if [[ -n "$FRONT_PID" ]] && kill -0 "$FRONT_PID" >/dev/null 2>&1; then
-    kill "$FRONT_PID" >/dev/null 2>&1 || true
+  if [[ "$STARTED_STACK" -eq 1 ]]; then
+    if [[ -n "$START_LOCAL_PID" ]] && kill -0 "$START_LOCAL_PID" >/dev/null 2>&1; then
+      kill "$START_LOCAL_PID" >/dev/null 2>&1 || true
+      wait "$START_LOCAL_PID" >/dev/null 2>&1 || true
+    else
+      "$ROOT_DIR/scripts/stop-local.sh" --keep-db >/dev/null 2>&1 || true
+    fi
   fi
-  if [[ -n "$BACK_PID" ]] && kill -0 "$BACK_PID" >/dev/null 2>&1; then
-    kill "$BACK_PID" >/dev/null 2>&1 || true
+}
+
+print_log_tail() {
+  local label="$1"
+  local path="$2"
+
+  if [[ -f "$path" ]]; then
+    echo "--- $label: $path ---" >&2
+    tail -n 80 "$path" >&2 || true
   fi
 }
 
-wait_for_http_ok() {
-  local url="$1"
-  local label="$2"
-  local retries="${3:-120}"
-  local interval="${4:-0.5}"
+ensure_stack() {
+  echo "1/2 Ensuring local stack..."
 
-  for _ in $(seq 1 "$retries"); do
-    if curl -sSf "$url" >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep "$interval"
-  done
-
-  echo "$label did not become ready: $url" >&2
-  return 1
-}
-
-ensure_db() {
-  echo "1/4 Ensuring local PostgreSQL..."
-  (cd "$BACKEND_DIR" && make db-up >"$DB_LOG" 2>&1)
-
-  for i in $(seq 1 120); do
-    if (cd "$BACKEND_DIR" && docker compose -f docker-compose.yml exec -T postgres pg_isready -U user -d shoken_db >/dev/null 2>&1); then
-      return 0
-    fi
-    sleep 0.5
-    if [[ "$i" -eq 120 ]]; then
-      echo "Local DB did not become ready." >&2
-      tail -n 80 "$DB_LOG" >&2 || true
-      exit 1
-    fi
-  done
-}
-
-ensure_backend() {
-  echo "2/4 Ensuring backend..."
-  if curl -sSf "$BACKEND_URL/health" >/dev/null 2>&1; then
+  if curl -sSf "$BACKEND_URL/health" >/dev/null 2>&1 && curl -sSf "$FRONTEND_URL/" >/dev/null 2>&1; then
     echo "  Reusing backend: $BACKEND_URL"
-    return 0
-  fi
-
-  (cd "$BACKEND_DIR" && make run >"$BACKEND_LOG" 2>&1) &
-  BACK_PID=$!
-
-  if ! wait_for_http_ok "$BACKEND_URL/health" "Backend" 120 0.5; then
-    tail -n 80 "$BACKEND_LOG" >&2 || true
-    exit 1
-  fi
-}
-
-ensure_frontend() {
-  echo "3/4 Ensuring frontend..."
-  if curl -sSf "$FRONTEND_URL/" >/dev/null 2>&1; then
     echo "  Reusing frontend: $FRONTEND_URL"
     return 0
   fi
 
-  (
-    cd "$FRONTEND_DIR"
-    VITE_SHOKEN_WEBAPI_API_URL="$BACKEND_URL" \
-      npm run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort >"$FRONTEND_LOG" 2>&1
-  ) &
-  FRONT_PID=$!
+  "$ROOT_DIR/scripts/stop-local.sh" --keep-db >/dev/null 2>&1 || true
 
-  if ! wait_for_http_ok "$FRONTEND_URL/" "Frontend" 120 0.5; then
-    tail -n 80 "$FRONTEND_LOG" >&2 || true
-    exit 1
+  if [[ "$KEEP_RUNNING" -eq 1 || "$START_ONLY" -eq 1 ]]; then
+    nohup env \
+      BACKEND_URL="$BACKEND_URL" \
+      FRONTEND_URL="$FRONTEND_URL" \
+      FRONTEND_PORT="$FRONTEND_PORT" \
+      BACKEND_LOG="$BACKEND_LOG" \
+      FRONTEND_LOG="$FRONTEND_LOG" \
+      DB_LOG="$DB_LOG" \
+      "$ROOT_DIR/scripts/start-local.sh" >"$START_LOCAL_LOG" 2>&1 &
+  else
+    env \
+      BACKEND_URL="$BACKEND_URL" \
+      FRONTEND_URL="$FRONTEND_URL" \
+      FRONTEND_PORT="$FRONTEND_PORT" \
+      BACKEND_LOG="$BACKEND_LOG" \
+      FRONTEND_LOG="$FRONTEND_LOG" \
+      DB_LOG="$DB_LOG" \
+      "$ROOT_DIR/scripts/start-local.sh" >"$START_LOCAL_LOG" 2>&1 &
   fi
+  START_LOCAL_PID=$!
+  STARTED_STACK=1
+
+  for _ in $(seq 1 120); do
+    if curl -sSf "$BACKEND_URL/health" >/dev/null 2>&1 && curl -sSf "$FRONTEND_URL/" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    if ! kill -0 "$START_LOCAL_PID" >/dev/null 2>&1; then
+      echo "start-local.sh exited before services became ready." >&2
+      print_log_tail "start-local" "$START_LOCAL_LOG"
+      print_log_tail "db" "$DB_LOG"
+      print_log_tail "backend" "$BACKEND_LOG"
+      print_log_tail "frontend" "$FRONTEND_LOG"
+      exit 1
+    fi
+
+    sleep 0.5
+  done
+
+  echo "Local stack did not become ready." >&2
+  print_log_tail "start-local" "$START_LOCAL_LOG"
+  print_log_tail "db" "$DB_LOG"
+  print_log_tail "backend" "$BACKEND_LOG"
+  print_log_tail "frontend" "$FRONTEND_LOG"
+  exit 1
 }
 
 ensure_storage_state() {
+  echo "2/2 Ensuring auth state..."
+
   if [[ "$RUN_SAVE_AUTH" -eq 1 ]]; then
-    echo "4/4 Saving auth state..."
     (cd "$FRONTEND_DIR" && npm run ui:save-auth)
     return 0
   fi
@@ -193,20 +194,21 @@ fi
 
 trap cleanup EXIT INT TERM
 
-ensure_db
-ensure_backend
-ensure_frontend
+ensure_stack
+if [[ "$START_ONLY" -eq 1 ]]; then
+  echo "Ready:"
+  echo "  Backend  : $BACKEND_URL"
+  echo "  Frontend : $FRONTEND_URL"
+  echo "Start only mode completed."
+  exit 0
+fi
+
 ensure_storage_state
 
 echo "Ready:"
 echo "  Backend  : $BACKEND_URL"
 echo "  Frontend : $FRONTEND_URL"
 echo "  Screens  : $ROOT_DIR/.playwright-mcp"
-
-if [[ "$START_ONLY" -eq 1 ]]; then
-  echo "Start only mode completed."
-  exit 0
-fi
 
 if [[ "$RUN_MAIN" -eq 1 ]]; then
   run_main_screenshots
