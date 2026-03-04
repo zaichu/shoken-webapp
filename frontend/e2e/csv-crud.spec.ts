@@ -2,12 +2,12 @@
  * CSV CRUD E2E テスト
  *
  * 使用方法:
- *   npm run ui:screenshot:csv-crud
+ *   ./scripts/run-ui-e2e.sh --skip-main
  *
  * 前提:
- *   - ローカル環境が起動中 (DB → backend → frontend)
+ *   - 標準の実行入口はプロジェクトルートの run-ui-e2e.sh
  *   - ログイン状態が .auth/storage-state.json に保存済み
- *   - 起動: ./scripts/start-local.sh
+ *   - run-ui-e2e.sh がローカル環境の起動・再利用を行う
  */
 import { test, expect, type Page } from '@playwright/test';
 import * as path from 'path';
@@ -84,7 +84,7 @@ test('国内株式 - CSVで3件追加 + 10件追加（商船三井8件新規重�
   // ── base CSV (3件) をアップロード・保存 ──
   await uploadCsv(page, 'domesticstock-base.csv');
   await clickSave(page);
-  await expect(page.getByText(/3件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-domesticstock-after-base-import.png'),
@@ -97,7 +97,7 @@ test('国内株式 - CSVで3件追加 + 10件追加（商船三井8件新規重�
   // index=1 は既存とみなしてスキップ、index=2〜9（8件）が新規挿入される。
   await uploadCsv(page, 'domesticstock-additional.csv');
   await clickSave(page);
-  await expect(page.getByText(/10件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /10件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-domesticstock-after-additional-import.png'),
@@ -130,7 +130,7 @@ test('配当金 - CSVで3件追加 + 3件追加（KDDI重複2件はスキップ�
   // ── base CSV (3件) ──
   await uploadCsv(page, 'dividend-base.csv');
   await clickSave(page);
-  await expect(page.getByText(/3件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-dividend-after-base-import.png'),
@@ -141,7 +141,7 @@ test('配当金 - CSVで3件追加 + 3件追加（KDDI重複2件はスキップ�
   // 配当金は ON CONFLICT DO NOTHING のため、KDDI 重複2件はスキップ → 3件登録 / 2件スキップ
   await uploadCsv(page, 'dividend-additional.csv');
   await clickSave(page);
-  await expect(page.getByText(/3件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-dividend-after-additional-import.png'),
@@ -200,7 +200,7 @@ test('投資信託 - CSVで2件追加 + 2件追加（eMAXIS重複1件はスキ�
   // ── base CSV (2件) ──
   await uploadCsv(page, 'mutualfund-base.csv');
   await clickSave(page);
-  await expect(page.getByText(/2件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /2件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-mutualfund-after-base-import.png'),
@@ -211,7 +211,7 @@ test('投資信託 - CSVで2件追加 + 2件追加（eMAXIS重複1件はスキ�
   // 投資信託は ON CONFLICT DO NOTHING のため、eMAXIS Slim S&P500 重複1件はスキップ → 2件登録 / 1件スキップ
   await uploadCsv(page, 'mutualfund-additional.csv');
   await clickSave(page);
-  await expect(page.getByText(/2件登録/)).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /2件登録/ })).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-mutualfund-after-additional-import.png'),
