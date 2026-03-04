@@ -306,6 +306,41 @@ describe('ReceiptsPage', () => {
     }, waitOpts);
   }, 20000);
 
+  it('取込結果: importResult は Receipts.tsx の Alert 1箇所だけに表示される（子コンポーネントに重複なし）', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true })
+    );
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.uploadCsv).mockResolvedValue({ inserted: 3, skipped: 2, errors: [] });
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /追加で保存/ })).toBeInTheDocument();
+    }, waitOpts);
+
+    await user.click(screen.getByRole('button', { name: /追加で保存/ }));
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.uploadCsv).toHaveBeenCalled();
+    }, waitOpts);
+
+    // 「3件登録」という strong テキストは親 Alert に 1 つだけ存在する
+    await waitFor(() => {
+      const matches = screen.getAllByText(/3件登録/);
+      expect(matches).toHaveLength(1);
+    }, waitOpts);
+  }, 20000);
+
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
