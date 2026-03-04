@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/atoms/Button';
 
 interface ConfirmDeleteModalProps {
@@ -27,11 +27,19 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   confirmLabel = '削除する',
   loading = false,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // isOpen=true になった時に dialog へ focus する
+  // !isOpen 時は div が DOM にないため dialogRef.current が null → no-op
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div
-      ref={(node) => { node?.focus(); }}
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onCancel}
       onKeyDown={(e) => {
