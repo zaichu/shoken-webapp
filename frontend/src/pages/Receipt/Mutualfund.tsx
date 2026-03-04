@@ -4,7 +4,6 @@ import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import React from 'react';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
-import type { ImportResult } from '@/pages/receiptsReducer';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
@@ -33,13 +32,12 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 interface MutualfundProps {
     data: MutualfundData[];
     previewData?: MutualfundData[];
-    importResult?: ImportResult | null;
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, importResult }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => {
     const displayData = previewData && previewData.length > 0 ? previewData : data;
 
     const mutualfundData = useMemo(() => sortMutualfundByTradeDate(displayData), [displayData]);
@@ -126,22 +124,10 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, impor
         { key: 'realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ];
 
-    const importNote = importResult && (
-        <div className="mt-1 flex items-center gap-x-2 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-sm">
-            <span className="font-medium text-slate-500">最新取込</span>
-            <strong className="text-slate-900">{importResult.inserted}件登録</strong>
-            {importResult.skipped > 0 && (
-                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                    {importResult.skipped}件スキップ（重複）
-                </span>
-            )}
-        </div>
-    );
-
     return (
         <ReceiptTemplate
             title="投資信託"
-            header={<><ReceiptHeader items={headerItems} />{importNote}</>}
+            header={<ReceiptHeader items={headerItems} />}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >

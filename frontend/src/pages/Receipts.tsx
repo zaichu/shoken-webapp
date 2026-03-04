@@ -254,21 +254,18 @@ export function ReceiptsPage() {
               <Dividend
                 data={dividendData}
                 previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
-                importResult={importResult}
               />
             )}
             {receiptsType === 'domesticstock' && (
               <DomesticStock
                 data={domesticstockData}
                 previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
-                importResult={importResult}
               />
             )}
             {receiptsType === 'mutualfund' && (
               <Mutualfund
                 data={mutualfundData}
                 previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
-                importResult={importResult}
               />
             )}
           </>
