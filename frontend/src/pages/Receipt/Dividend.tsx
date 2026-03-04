@@ -1,8 +1,10 @@
 import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
+import { EmptyState } from '@/components/atoms/EmptyState';
 import React from 'react';
 import { DividendData } from '@/lib/interfaces/dividend';
+import type { ImportResult } from '@/pages/receiptsReducer';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import {
     createSearchOptions,
@@ -56,12 +58,13 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
 interface DividendProps {
     data: DividendData[];
     previewData?: DividendData[];
+    importResult?: ImportResult | null;
 }
 
 /**
  * 配当金データを表示するコンポーネント
  */
-export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
+export const Dividend: React.FC<DividendProps> = ({ data, previewData, importResult }) => {
     const displayData = previewData && previewData.length > 0 ? previewData : data;
 
     const dividendData = useMemo(() => sortDividendBySettlementDate(displayData), [displayData]);
@@ -202,35 +205,57 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
         { key: 'net_amount_received', textAlign: 'right', format: formatCurrency },
     ];
 
+    const importNote = importResult && (
+        <div className="mt-1 flex items-center gap-x-2 text-sm text-slate-600">
+            <span>最新取込:</span>
+            <strong>{importResult.inserted}件登録</strong>
+            {importResult.skipped > 0 && (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                    {importResult.skipped}件スキップ（重複）
+                </span>
+            )}
+        </div>
+    );
+
     return (
         <ReceiptTemplate
             title="配当金"
             header={
-                <ReceiptHeader
-                    items={headerItems}
-                    title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
-                    collapsible={isSecurityCodeSearch}
-                >
-                    {isSecurityCodeSearch && (
-                        <DividendInfo
-                            searchQuery={searchQuery}
-                            securityCode={searchSecurityCode}
-                            summary={summary}
-                            embedded
-                        />
-                    )}
-                </ReceiptHeader>
+                <>
+                    <ReceiptHeader
+                        items={headerItems}
+                        title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
+                        collapsible={isSecurityCodeSearch}
+                    >
+                        {isSecurityCodeSearch && (
+                            <DividendInfo
+                                searchQuery={searchQuery}
+                                securityCode={searchSecurityCode}
+                                summary={summary}
+                                embedded
+                            />
+                        )}
+                    </ReceiptHeader>
+                    {importNote}
+                </>
             }
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
-            <ReceiptTable
-                data={filteredData}
-                summary={summary}
-                columns={columns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
+            {dividendData.length === 0 ? (
+                <EmptyState
+                    title="データがありません"
+                    description="CSVファイルをアップロードして配当金の取引明細を追加してください"
+                />
+            ) : (
+                <ReceiptTable
+                    data={filteredData}
+                    summary={summary}
+                    columns={columns}
+                    summaryColumns={summaryColumns}
+                    getGroupKey={getGroupKey}
+                />
+            )}
         </ReceiptTemplate>
     );
 };
