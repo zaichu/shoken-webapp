@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     body::Body,
     http::{Method, Request, StatusCode},
@@ -10,8 +12,13 @@ use crate::errors::{ErrorDetails, ErrorResponse};
 
 /// Origin検証ミドルウェア（CSRF対策）
 /// POST/PUT/DELETE リクエストに対して Origin ヘッダーを検証し、
-/// 許可されたオリジンからのリクエストのみ通過させる
-pub async fn validate_origin(request: Request<Body>, next: Next) -> Response {
+/// 許可されたオリジンからのリクエストのみ通過させる。
+/// allowed_origins は Config::cors_origins と一致させる。
+pub async fn validate_origin(
+    allowed_origins: Arc<Vec<String>>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     let method = request.method().clone();
 
     // GET/HEAD/OPTIONS はスキップ
@@ -26,17 +33,8 @@ pub async fn validate_origin(request: Request<Body>, next: Next) -> Response {
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
-    // 許可されたオリジンリスト
-    let allowed_origins = [
-        "https://shoken-webapp.vercel.app",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://[::1]:8080",
-        "http://localhost.:8080",
-    ];
-
     match origin {
-        Some(ref o) if allowed_origins.contains(&o.as_str()) => {
+        Some(ref o) if allowed_origins.iter().any(|a| a == o) => {
             // 許可されたオリジン → 通過
             next.run(request).await
         }
@@ -67,9 +65,19 @@ mod tests {
     use tower::ServiceExt;
 
     fn test_app() -> Router {
+        let allowed_origins = Arc::new(vec![
+            "https://shoken-webapp.vercel.app".to_string(),
+            "http://localhost:8080".to_string(),
+            "http://127.0.0.1:8080".to_string(),
+            "http://[::1]:8080".to_string(),
+            "http://localhost.:8080".to_string(),
+        ]);
         Router::new()
             .route("/test", post(|| async { "ok" }))
-            .layer(middleware::from_fn(validate_origin))
+            .layer(middleware::from_fn(move |req, next| {
+                let origins = allowed_origins.clone();
+                async move { validate_origin(origins, req, next).await }
+            }))
     }
 
     #[tokio::test]
@@ -126,9 +134,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_with_disallowed_origin() {
+        let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]);
         let app = Router::new()
             .route("/test", axum::routing::delete(|| async { "ok" }))
-            .layer(middleware::from_fn(validate_origin));
+            .layer(middleware::from_fn(move |req, next| {
+                let origins = allowed_origins.clone();
+                async move { validate_origin(origins, req, next).await }
+            }));
 
         let req = Request::builder()
             .method(Method::DELETE)

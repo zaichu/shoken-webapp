@@ -124,7 +124,10 @@ pub async fn google_callback(
         .exchange_code(AuthorizationCode::new(query.code))
         .request_async(&http_client)
         .await
-        .map_err(|e| ApiError::ApiError(format!("トークン交換エラー: {:?}", e)))?;
+        .map_err(|e| {
+            tracing::error!("OAuth token exchange error: {:?}", e);
+            ApiError::OAuthError(e.to_string())
+        })?;
 
     let access_token = token_result.access_token().secret();
 
