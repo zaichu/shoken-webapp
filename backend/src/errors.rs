@@ -7,22 +7,7 @@ use std::env;
 use thiserror::Error;
 use utoipa::ToSchema;
 
-/// 本番環境かどうかを判定
-/// RUST_ENV=production または APP_ENV=production の場合に true
-/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
-fn is_production() -> bool {
-    // 明示的な環境フラグを優先
-    if let Ok(v) = env::var("RUST_ENV") {
-        return v == "production";
-    }
-    if let Ok(v) = env::var("APP_ENV") {
-        return v == "production";
-    }
-    // フォールバック: BACKEND_URL が https:// で始まる場合のみ本番と判定
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
-}
+use crate::config::is_production_env;
 
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
@@ -66,146 +51,108 @@ pub struct ErrorDetails {
     pub details: Option<String>,
 }
 
+// --- ヘルパー関数 ---
+
+/// details なしのシンプルなエラーレスポンスパーツを生成
+fn simple_error(status: StatusCode, code: &str, message: String) -> (StatusCode, ErrorDetails) {
+    (
+        status,
+        ErrorDetails {
+            code: code.to_string(),
+            message,
+            details: None,
+        },
+    )
+}
+
+/// ApiError を HTTP ステータスと ErrorDetails に変換
+fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
+    match err {
+        ApiError::ValidationError(msg) => {
+            simple_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", msg)
+        }
+        ApiError::JsonParseError => {
+            simple_error(StatusCode::BAD_REQUEST, "JSON_PARSE_ERROR", err.to_string())
+        }
+        ApiError::DatabaseError(ref e) => {
+            let (code, message) = match e {
+                sqlx::Error::RowNotFound => ("NOT_FOUND", "Resource not found"),
+                sqlx::Error::Database(db_err) => {
+                    if db_err.is_unique_violation() {
+                        ("DUPLICATE_ENTRY", "Duplicate entry")
+                    } else if db_err.is_foreign_key_violation() {
+                        ("FOREIGN_KEY_VIOLATION", "Foreign key constraint violation")
+                    } else {
+                        ("DATABASE_ERROR", "Database error occurred")
+                    }
+                }
+                _ => ("DATABASE_ERROR", "Database error occurred"),
+            };
+            if is_production_env() {
+                tracing::error!("Database error [{}]", code);
+            } else {
+                tracing::error!("Database error [{}]: {}", code, e);
+            }
+            (
+                if code == "NOT_FOUND" {
+                    StatusCode::NOT_FOUND
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                },
+                ErrorDetails {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                    details: if is_production_env() {
+                        None
+                    } else {
+                        Some(e.to_string())
+                    },
+                },
+            )
+        }
+        ApiError::NotFound => simple_error(StatusCode::NOT_FOUND, "NOT_FOUND", err.to_string()),
+        ApiError::EnvVarError(_) => simple_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "CONFIGURATION_ERROR",
+            "Configuration error".to_string(),
+        ),
+        ApiError::UrlParseError(_) => simple_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "URL_PARSE_ERROR",
+            "Invalid URL".to_string(),
+        ),
+        ApiError::OAuthError(_) => simple_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "OAUTH_ERROR",
+            "Authentication error".to_string(),
+        ),
+        ApiError::Unauthorized(msg) => simple_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg),
+        ApiError::NetworkError(msg) => simple_error(StatusCode::BAD_GATEWAY, "NETWORK_ERROR", msg),
+        ApiError::ApiError(msg) => simple_error(StatusCode::BAD_REQUEST, "API_ERROR", msg),
+        ApiError::RateLimitError(msg) => {
+            simple_error(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", msg)
+        }
+        ApiError::SerdeJsonError(ref e) => {
+            tracing::error!("JSON processing error: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorDetails {
+                    code: "JSON_ERROR".to_string(),
+                    message: "JSON processing error".to_string(),
+                    details: if is_production_env() {
+                        None
+                    } else {
+                        Some(e.to_string())
+                    },
+                },
+            )
+        }
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_details) = match self {
-            ApiError::ValidationError(msg) => (
-                StatusCode::BAD_REQUEST,
-                ErrorDetails {
-                    code: "VALIDATION_ERROR".to_string(),
-                    message: msg,
-                    details: None,
-                },
-            ),
-            ApiError::JsonParseError => (
-                StatusCode::BAD_REQUEST,
-                ErrorDetails {
-                    code: "JSON_PARSE_ERROR".to_string(),
-                    message: self.to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::DatabaseError(ref e) => {
-                let (code, message) = match e {
-                    sqlx::Error::RowNotFound => ("NOT_FOUND", "Resource not found"),
-                    sqlx::Error::Database(db_err) => {
-                        if db_err.is_unique_violation() {
-                            ("DUPLICATE_ENTRY", "Duplicate entry")
-                        } else if db_err.is_foreign_key_violation() {
-                            ("FOREIGN_KEY_VIOLATION", "Foreign key constraint violation")
-                        } else {
-                            ("DATABASE_ERROR", "Database error occurred")
-                        }
-                    }
-                    _ => ("DATABASE_ERROR", "Database error occurred"),
-                };
-                // ログにエラー詳細を出力
-                // 本番環境ではエラーコードのみ（個人情報漏洩防止）
-                if is_production() {
-                    tracing::error!("Database error [{}]", code);
-                } else {
-                    tracing::error!("Database error [{}]: {}", code, e);
-                }
-                (
-                    if code == "NOT_FOUND" {
-                        StatusCode::NOT_FOUND
-                    } else {
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    },
-                    ErrorDetails {
-                        code: code.to_string(),
-                        message: message.to_string(),
-                        // 本番環境では詳細を含めない
-                        details: if is_production() {
-                            None
-                        } else {
-                            Some(e.to_string())
-                        },
-                    },
-                )
-            }
-            ApiError::NotFound => (
-                StatusCode::NOT_FOUND,
-                ErrorDetails {
-                    code: "NOT_FOUND".to_string(),
-                    message: self.to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::EnvVarError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorDetails {
-                    code: "CONFIGURATION_ERROR".to_string(),
-                    message: "Configuration error".to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::UrlParseError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorDetails {
-                    code: "URL_PARSE_ERROR".to_string(),
-                    message: "Invalid URL".to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::OAuthError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorDetails {
-                    code: "OAUTH_ERROR".to_string(),
-                    message: "Authentication error".to_string(),
-                    details: None,
-                },
-            ),
-            ApiError::Unauthorized(msg) => (
-                StatusCode::UNAUTHORIZED,
-                ErrorDetails {
-                    code: "UNAUTHORIZED".to_string(),
-                    message: msg,
-                    details: None,
-                },
-            ),
-            ApiError::NetworkError(msg) => (
-                StatusCode::BAD_GATEWAY,
-                ErrorDetails {
-                    code: "NETWORK_ERROR".to_string(),
-                    message: msg,
-                    details: None,
-                },
-            ),
-            ApiError::ApiError(msg) => (
-                StatusCode::BAD_REQUEST,
-                ErrorDetails {
-                    code: "API_ERROR".to_string(),
-                    message: msg,
-                    details: None,
-                },
-            ),
-            ApiError::RateLimitError(msg) => (
-                StatusCode::TOO_MANY_REQUESTS,
-                ErrorDetails {
-                    code: "RATE_LIMIT_EXCEEDED".to_string(),
-                    message: msg,
-                    details: None,
-                },
-            ),
-            ApiError::SerdeJsonError(ref e) => {
-                tracing::error!("JSON processing error: {}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    ErrorDetails {
-                        code: "JSON_ERROR".to_string(),
-                        message: "JSON processing error".to_string(),
-                        // 本番環境では詳細を含めない
-                        details: if is_production() {
-                            None
-                        } else {
-                            Some(e.to_string())
-                        },
-                    },
-                )
-            }
-        };
-
+        let (status, error_details) = into_http(self);
         (
             status,
             Json(ErrorResponse {
@@ -290,5 +237,18 @@ mod tests {
         let error = ApiError::OAuthError("認証エラー".to_string());
         let response = error.into_response();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_simple_error_helper() {
+        let (status, details) = simple_error(
+            StatusCode::BAD_REQUEST,
+            "TEST_CODE",
+            "test message".to_string(),
+        );
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(details.code, "TEST_CODE");
+        assert_eq!(details.message, "test message");
+        assert!(details.details.is_none());
     }
 }
