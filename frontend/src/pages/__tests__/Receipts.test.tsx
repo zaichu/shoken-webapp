@@ -71,20 +71,29 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
     ) : null,
 }));
 
-// 子コンポーネント: data の長さだけ確認できる最小表示
+// 子コンポーネント: data の長さ確認 + importResult が渡された場合は表示（回帰検知用）
 vi.mock('@/pages/Receipt/Dividend', () => ({
-  Dividend: ({ data }: { data: unknown[] }) => (
-    <div data-testid="dividend-view">{data.length}</div>
+  Dividend: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="dividend-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 vi.mock('@/pages/Receipt/DomesticStock', () => ({
-  DomesticStock: ({ data }: { data: unknown[] }) => (
-    <div data-testid="domesticstock-view">{data.length}</div>
+  DomesticStock: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="domesticstock-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 vi.mock('@/pages/Receipt/Mutualfund', () => ({
-  Mutualfund: ({ data }: { data: unknown[] }) => (
-    <div data-testid="mutualfund-view">{data.length}</div>
+  Mutualfund: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="mutualfund-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 
