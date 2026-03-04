@@ -127,7 +127,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => 
     return (
         <ReceiptTemplate
             title="投資信託"
-            header={<ReceiptHeader items={headerItems} />}
+            header={mutualfundData.length > 0 ? <ReceiptHeader items={headerItems} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >

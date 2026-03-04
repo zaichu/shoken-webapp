@@ -49,7 +49,7 @@ const FEATURES = [
 export function HomePage() {
   return (
     <Layout>
-      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm flex-1">
         <PageHeader
           title="証券Webへようこそ"
           description="銘柄検索や取引明細の管理ができます。"

@@ -206,7 +206,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
     return (
         <ReceiptTemplate
             title="配当金"
-            header={
+            header={dividendData.length > 0 ? (
                 <ReceiptHeader
                     items={headerItems}
                     title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
@@ -221,7 +221,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
                         />
                     )}
                 </ReceiptHeader>
-            }
+            ) : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
