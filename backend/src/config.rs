@@ -315,8 +315,10 @@ mod tests {
     async fn test_validate_origin_respects_cors_origins_env() {
         let _lock = ENV_MUTEX.lock().unwrap();
         let _app_env = EnvGuard::set("APP_ENV", None);
-        let _cors_origins =
-            EnvGuard::set("CORS_ORIGINS", Some("http://custom-origin.example.com:8080"));
+        let _cors_origins = EnvGuard::set(
+            "CORS_ORIGINS",
+            Some("http://custom-origin.example.com:8080"),
+        );
 
         let config = Config::from_env();
         let app = build_test_app(&config);
