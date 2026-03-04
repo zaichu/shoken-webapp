@@ -109,7 +109,7 @@ fn is_localhost_origin(origin: &str) -> bool {
 /// 本番環境かどうかを判定
 /// RUST_ENV=production または APP_ENV=production の場合に true
 /// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
-fn is_production_env() -> bool {
+pub fn is_production_env() -> bool {
     if let Ok(v) = env::var("RUST_ENV") {
         return v == "production";
     }
