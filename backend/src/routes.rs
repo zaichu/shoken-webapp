@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     middleware,
     routing::{delete, get, post},
@@ -14,6 +16,7 @@ use crate::{
 const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
+    let allowed_origins = Arc::new(config.cors_origins.clone());
     Router::new()
         .merge(stock_routes())
         .merge(jquants_routes())
@@ -28,7 +31,10 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
             "/api-docs/openapi.json",
             get(|| async { Json(ApiDoc::openapi()) }),
         )
-        .layer(middleware::from_fn(validate_origin))
+        .layer(middleware::from_fn(move |req, next| {
+            let origins = allowed_origins.clone();
+            async move { validate_origin(origins, req, next).await }
+        }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
         .with_state(state)

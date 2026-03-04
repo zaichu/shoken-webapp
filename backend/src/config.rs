@@ -153,7 +153,7 @@ mod tests {
     use crate::{routes::app_router, state::AppState};
     use axum::{
         body::Body,
-        http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request},
+        http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
         Router,
     };
     use reqwest::Client;
@@ -307,6 +307,49 @@ mod tests {
             .get(ACCESS_CONTROL_ALLOW_ORIGIN)
             .and_then(|value| value.to_str().ok());
         assert_eq!(allowed_origin, None);
+    }
+
+    /// CORS_ORIGINS で設定したオリジンが validate_origin ミドルウェアにも反映されることを確認する
+    /// （POST リクエストに対して Config::cors_origins と validate_origin が同一リストを参照する）
+    #[tokio::test]
+    async fn test_validate_origin_respects_cors_origins_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let _app_env = EnvGuard::set("APP_ENV", None);
+        let _cors_origins = EnvGuard::set(
+            "CORS_ORIGINS",
+            Some("http://custom-origin.example.com:8080"),
+        );
+
+        let config = Config::from_env();
+        let app = build_test_app(&config);
+
+        // 許可オリジンからの POST → 通過（/health は GET のみだが validate_origin のチェックが目的）
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/health")
+            .header("origin", "http://custom-origin.example.com:8080")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_ne!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "許可されたカスタムオリジンは通過すべき"
+        );
+
+        // 許可されていないオリジンからの POST → 403
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/health")
+            .header("origin", "http://disallowed-origin.example.com")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "許可されていないオリジンは拒否すべき"
+        );
     }
 
     #[tokio::test]
