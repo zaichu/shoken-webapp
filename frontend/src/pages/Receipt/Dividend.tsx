@@ -2,7 +2,6 @@ import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
-import { Card, CardBody } from '@/components/atoms/Card';
 import React from 'react';
 import { DividendData } from '@/lib/interfaces/dividend';
 import type { ImportResult } from '@/pages/receiptsReducer';
@@ -206,19 +205,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, importRes
         { key: 'net_amount_received', textAlign: 'right', format: formatCurrency },
     ];
 
-    if (dividendData.length === 0) {
-        return (
-            <Card>
-                <CardBody>
-                    <EmptyState
-                        title="データがありません"
-                        description="CSVファイルをアップロードして配当金の取引明細を追加してください"
-                    />
-                </CardBody>
-            </Card>
-        );
-    }
-
     const importNote = importResult && (
         <div className="mt-1 flex items-center gap-x-2 text-sm text-slate-600">
             <span>最新取込:</span>
@@ -256,13 +242,20 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, importRes
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
-            <ReceiptTable
-                data={filteredData}
-                summary={summary}
-                columns={columns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
+            {dividendData.length === 0 ? (
+                <EmptyState
+                    title="データがありません"
+                    description="CSVファイルをアップロードして配当金の取引明細を追加してください"
+                />
+            ) : (
+                <ReceiptTable
+                    data={filteredData}
+                    summary={summary}
+                    columns={columns}
+                    summaryColumns={summaryColumns}
+                    getGroupKey={getGroupKey}
+                />
+            )}
         </ReceiptTemplate>
     );
 };

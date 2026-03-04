@@ -2,7 +2,6 @@ import { ReceiptTemplate } from '@/components/templates/ReceiptTemplate';
 import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeader';
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
-import { Card, CardBody } from '@/components/atoms/Card';
 import React from 'react';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
 import type { ImportResult } from '@/pages/receiptsReducer';
@@ -127,19 +126,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, impor
         { key: 'realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ];
 
-    if (mutualfundData.length === 0) {
-        return (
-            <Card>
-                <CardBody>
-                    <EmptyState
-                        title="データがありません"
-                        description="CSVファイルをアップロードして投資信託の取引明細を追加してください"
-                    />
-                </CardBody>
-            </Card>
-        );
-    }
-
     const importNote = importResult && (
         <div className="mt-1 flex items-center gap-x-2 text-sm text-slate-600">
             <span>最新取込:</span>
@@ -159,13 +145,20 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, impor
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >
-            <ReceiptTable
-                data={filteredData}
-                summary={summary}
-                columns={columns}
-                summaryColumns={summaryColumns}
-                getGroupKey={getGroupKey}
-            />
+            {mutualfundData.length === 0 ? (
+                <EmptyState
+                    title="データがありません"
+                    description="CSVファイルをアップロードして投資信託の取引明細を追加してください"
+                />
+            ) : (
+                <ReceiptTable
+                    data={filteredData}
+                    summary={summary}
+                    columns={columns}
+                    summaryColumns={summaryColumns}
+                    getGroupKey={getGroupKey}
+                />
+            )}
         </ReceiptTemplate>
     );
 };
