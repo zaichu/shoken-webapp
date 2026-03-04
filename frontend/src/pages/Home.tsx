@@ -49,13 +49,13 @@ const FEATURES = [
 export function HomePage() {
   return (
     <Layout>
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <PageHeader
           title="証券Webへようこそ"
           description="銘柄検索や取引明細の管理ができます。"
         />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3">
           {FEATURES.map(({ title, description, detail, to, icon }) => (
             <Link key={to} to={to} className="block group">
               <Card className="h-full transition-shadow hover:shadow-md">
@@ -78,7 +78,7 @@ export function HomePage() {
         </div>
 
         {/* クイックアクション */}
-        <div className="mt-6 pt-4 border-t border-slate-200">
+        <div className="mt-8 pt-5 border-t border-slate-200">
           <h2 className="text-sm font-medium text-slate-500 mb-3">クイックアクション</h2>
           <div className="flex flex-wrap gap-2">
             {QUICK_ACTIONS.map(({ label, to, icon }) => (
@@ -95,7 +95,7 @@ export function HomePage() {
         </div>
 
         {/* はじめかた */}
-        <div className="mt-6 pt-4 border-t border-slate-200">
+        <div className="mt-8 pt-5 border-t border-slate-200">
           <h2 className="text-sm font-medium text-slate-500 mb-3">はじめかた</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
