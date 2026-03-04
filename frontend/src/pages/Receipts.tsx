@@ -102,7 +102,7 @@ export function ReceiptsPage() {
   }, [deleteAll, isAuthenticated, receiptsType]);
 
   const hasCsvFile = rawFile !== null;
-  const dbDataCount = (receiptsType === 'dividend' ? dividendData : receiptsType === 'domesticstock' ? domesticstockData : mutualfundData).length;
+  const dbDataCount = { dividend: dividendData, domesticstock: domesticstockData, mutualfund: mutualfundData }[receiptsType].length;
   const hasDbData = dbDataCount > 0;
   const tabName = TAB_LABEL[receiptsType];
   const importResult = lastImportResults[receiptsType];

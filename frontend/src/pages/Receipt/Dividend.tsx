@@ -17,8 +17,7 @@ import {
     SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
+import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
     createYearMonthOptions,
@@ -31,7 +30,6 @@ import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
 import { sortDividendBySettlementDate } from '@/features/receipt/parsers';
 import { calculateDividends } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
-import { useMemo } from 'react';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
 const FILTER_CONFIG: FilterConfig<DividendData> = {
@@ -63,9 +61,8 @@ interface DividendProps {
  * 配当金データを表示するコンポーネント
  */
 export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
-    const displayData = previewData && previewData.length > 0 ? previewData : data;
-
-    const dividendData = useMemo(() => sortDividendBySettlementDate(displayData), [displayData]);
+    const { sortedData: dividendData, searchQuery, setSearchQuery, filteredData } =
+        useReceiptBaseData(data, previewData, sortDividendBySettlementDate, FILTER_CONFIG);
 
     // 検索カテゴリーの生成
     const searchCategories = {
@@ -75,9 +72,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
         years: createYearOptions(dividendData, item => item.settlement_date),
         yearMonths: createYearMonthOptions(dividendData, item => item.settlement_date)
     };
-
-    // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(dividendData, FILTER_CONFIG);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateDividends);

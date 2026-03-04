@@ -13,8 +13,7 @@ import {
     createISODateKey
 } from '@/lib/utils/formatters';
 import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
+import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
     createYearMonthOptions,
@@ -24,7 +23,6 @@ import {
 import { sortDomesticStockByTradeDate } from '@/features/receipt/parsers';
 import { calculateDailyData, calculateDomesticStock } from '@/features/receipt/calculations';
 import { reorderColumnsBySearch, ColumnReorderRule } from '@/lib/utils/columnUtils';
-import { useMemo } from 'react';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
 const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
@@ -53,9 +51,8 @@ interface DomesticStockProps {
  * 国内株式取引データを表示するコンポーネント
  */
 export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData }) => {
-    const displayData = previewData && previewData.length > 0 ? previewData : data;
-
-    const domesticStockData = useMemo(() => sortDomesticStockByTradeDate(displayData), [displayData]);
+    const { sortedData: domesticStockData, searchQuery, setSearchQuery, filteredData } =
+        useReceiptBaseData(data, previewData, sortDomesticStockByTradeDate, FILTER_CONFIG);
 
     // 検索カテゴリーの生成
     const searchCategories = {
@@ -64,9 +61,6 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData 
         years: createYearOptions(domesticStockData, item => item.trade_date),
         yearMonths: createYearMonthOptions(domesticStockData, item => item.trade_date)
     };
-
-    // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(domesticStockData, FILTER_CONFIG);
 
     // 日次集計（searchQuery がある場合はフィルタ後データ、ない場合は全データを使用）
     const filteredDailyData = calculateDailyData(searchQuery ? filteredData : domesticStockData);

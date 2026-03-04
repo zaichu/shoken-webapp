@@ -13,10 +13,8 @@ import {
     formatNumber
 } from '@/lib/utils/formatters';
 import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
-import { useReceiptCalculations } from '@/hooks/receipt/useReceiptData';
-import { useReceiptPageState } from '@/hooks/receipt/useReceiptPageState';
+import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import { sortMutualfundByTradeDate } from '@/features/receipt/parsers';
-import { useMemo } from 'react';
 import { calculateMutualfund } from '@/features/receipt/calculations';
 
 // コンポーネント外に定数として定義（毎レンダーで新参照が生成されるのを防ぐ）
@@ -38,18 +36,14 @@ interface MutualfundProps {
  * 投資信託データを表示するコンポーネント
  */
 export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => {
-    const displayData = previewData && previewData.length > 0 ? previewData : data;
-
-    const mutualfundData = useMemo(() => sortMutualfundByTradeDate(displayData), [displayData]);
+    const { sortedData: mutualfundData, searchQuery, setSearchQuery, filteredData } =
+        useReceiptBaseData(data, previewData, sortMutualfundByTradeDate, FILTER_CONFIG);
 
     // 検索オプションの生成
     const searchCategories = {
         securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
         years: createYearOptions(mutualfundData, item => item.trade_date)
     };
-
-    // 検索クエリに基づくフィルタリング
-    const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(mutualfundData, FILTER_CONFIG);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
