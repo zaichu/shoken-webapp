@@ -158,41 +158,45 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
                   }}
                 />
               </div>
-              {/* 下段: 詳細情報 */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">コード:</span>
-                  <SecurityCodeLink value={item.securityCode} className="text-xs" />
+              {/* 下段: 詳細情報（取得情報 / 配当情報を2段に分離） */}
+              <div className="mt-1 space-y-1.5 text-xs text-slate-600">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">コード:</span>
+                    <SecurityCodeLink value={item.securityCode} className="text-xs" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">取得総額:</span>
+                    <span className="font-medium">{formatCurrency(item.value)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">取得単価:</span>
+                    <span className="font-medium">{formatCurrency(item.averagePrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">数量:</span>
+                    <span className="font-medium">{`${formatNumber(item.shares)}株`}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">取得単価:</span>
-                  <span className="font-medium">{formatCurrency(item.averagePrice)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">数量:</span>
-                  <span className="font-medium">{`${formatNumber(item.shares)}株`}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">取得総額:</span>
-                  <span className="font-medium">{formatCurrency(item.value)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">1株配当:</span>
-                  <span className={`font-medium ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-                    {formatPerShare(divInfo)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">年間配当:</span>
-                  <span className={`font-medium ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-                    {formatAnnual(divInfo)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">配当利回り:</span>
-                  <span className={`font-medium ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-                    {formatYield(divInfo)}
-                  </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">1株配当:</span>
+                    <span className={`font-medium ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {formatPerShare(divInfo)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">年間配当:</span>
+                    <span className={`font-medium ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {formatAnnual(divInfo)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">配当利回り:</span>
+                    <span className={`font-medium ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {formatYield(divInfo)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

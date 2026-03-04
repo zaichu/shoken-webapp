@@ -109,9 +109,9 @@ function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
             rawValue: summaryItem[column.key]
         }));
 
-        const summaryBorderClass = summaryIndex > 0 && 'border-t border-slate-200';
-        const summaryLeftClass = cn('bg-slate-50 text-slate-700 font-medium border-l-2 border-slate-400', summaryBorderClass);
-        const summaryValueClass = cn('bg-slate-50 text-slate-700 text-right font-medium', summaryBorderClass);
+        const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-slate-300';
+        const summaryLeftClass = cn('bg-slate-100 text-slate-800 font-semibold border-l-2 border-slate-500', summaryBorderClass);
+        const summaryValueClass = cn('bg-slate-100 text-slate-800 text-right font-semibold', summaryBorderClass);
 
         return (
             <React.Fragment key={`group-${summaryIndex}`}>

@@ -213,7 +213,7 @@ export function ReceiptsPage() {
                 <p className="flex flex-wrap items-center gap-x-2">
                   <strong>{importResult.inserted}件登録</strong>
                   {importResult.skipped > 0 && (
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
                       {importResult.skipped}件スキップ（重複）
                     </span>
                   )}
