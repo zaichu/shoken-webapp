@@ -4,7 +4,6 @@ import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import React from 'react';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
-import type { ImportResult } from '@/pages/receiptsReducer';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import {
@@ -48,13 +47,12 @@ const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
 interface DomesticStockProps {
     data: DomesticStockData[];
     previewData?: DomesticStockData[];
-    importResult?: ImportResult | null;
 }
 
 /**
  * 国内株式取引データを表示するコンポーネント
  */
-export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData, importResult }) => {
+export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData }) => {
     const displayData = previewData && previewData.length > 0 ? previewData : data;
 
     const domesticStockData = useMemo(() => sortDomesticStockByTradeDate(displayData), [displayData]);
@@ -135,22 +133,10 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
         { key: 'total_realized_profit_and_loss_after_tax', textAlign: 'right', format: formatCurrency },
     ];
 
-    const importNote = importResult && (
-        <div className="mt-1 flex items-center gap-x-2 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-sm">
-            <span className="font-medium text-slate-500">最新取込</span>
-            <strong className="text-slate-900">{importResult.inserted}件登録</strong>
-            {importResult.skipped > 0 && (
-                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                    {importResult.skipped}件スキップ（重複）
-                </span>
-            )}
-        </div>
-    );
-
     return (
         <ReceiptTemplate
             title="国内株式"
-            header={<><ReceiptHeader items={headerItems} />{importNote}</>}
+            header={<ReceiptHeader items={headerItems} />}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
         >

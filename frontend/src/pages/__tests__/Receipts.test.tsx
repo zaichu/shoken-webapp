@@ -71,20 +71,29 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
     ) : null,
 }));
 
-// 子コンポーネント: data の長さだけ確認できる最小表示
+// 子コンポーネント: data の長さ確認 + importResult が渡された場合は表示（回帰検知用）
 vi.mock('@/pages/Receipt/Dividend', () => ({
-  Dividend: ({ data }: { data: unknown[] }) => (
-    <div data-testid="dividend-view">{data.length}</div>
+  Dividend: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="dividend-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 vi.mock('@/pages/Receipt/DomesticStock', () => ({
-  DomesticStock: ({ data }: { data: unknown[] }) => (
-    <div data-testid="domesticstock-view">{data.length}</div>
+  DomesticStock: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="domesticstock-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 vi.mock('@/pages/Receipt/Mutualfund', () => ({
-  Mutualfund: ({ data }: { data: unknown[] }) => (
-    <div data-testid="mutualfund-view">{data.length}</div>
+  Mutualfund: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+    <div data-testid="mutualfund-view">
+      {data.length}
+      {importResult && <strong>{importResult.inserted}件登録</strong>}
+    </div>
   ),
 }));
 
@@ -303,6 +312,41 @@ describe('ReceiptsPage', () => {
     // 保存後は CSV データがクリアされ保存ボタンが消える
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /追加で保存/ })).not.toBeInTheDocument();
+    }, waitOpts);
+  }, 20000);
+
+  it('取込結果: importResult は Receipts.tsx の Alert 1箇所だけに表示される（子コンポーネントに重複なし）', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true })
+    );
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.uploadCsv).mockResolvedValue({ inserted: 3, skipped: 2, errors: [] });
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /追加で保存/ })).toBeInTheDocument();
+    }, waitOpts);
+
+    await user.click(screen.getByRole('button', { name: /追加で保存/ }));
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.uploadCsv).toHaveBeenCalled();
+    }, waitOpts);
+
+    // 「3件登録」という strong テキストは親 Alert に 1 つだけ存在する
+    await waitFor(() => {
+      const matches = screen.getAllByText(/3件登録/);
+      expect(matches).toHaveLength(1);
     }, waitOpts);
   }, 20000);
 
