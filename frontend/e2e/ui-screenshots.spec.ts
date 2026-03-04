@@ -7,13 +7,10 @@ import { fileURLToPath } from 'url';
  * UIレビュー用スクリーンショット取得
  *
  * 使用方法:
- * 1. 開発サーバーを起動: npm run dev
- * 2. スクショ取得: npm run ui:screenshot
+ * 1. プロジェクトルートで ./scripts/run-ui-e2e.sh --skip-csv
  *
  * ログインが必要な場合:
- * 1. 手動でブラウザを開きログイン
- * 2. npm run ui:save-auth でログイン状態を保存
- * 3. npm run ui:screenshot:auth で実行
+ * 1. プロジェクトルートで ./scripts/run-ui-e2e.sh --skip-csv --save-auth
  */
 
 const __filename = fileURLToPath(import.meta.url);

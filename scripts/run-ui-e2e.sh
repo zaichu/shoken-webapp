@@ -70,10 +70,15 @@ print_log_tail() {
   fi
 }
 
+http_ok() {
+  local url="$1"
+  curl -sSf --connect-timeout 1 --max-time 2 "$url" >/dev/null 2>&1
+}
+
 ensure_stack() {
   echo "1/2 Ensuring local stack..."
 
-  if curl -sSf "$BACKEND_URL/health" >/dev/null 2>&1 && curl -sSf "$FRONTEND_URL/" >/dev/null 2>&1; then
+  if http_ok "$BACKEND_URL/health" && http_ok "$FRONTEND_URL/"; then
     echo "  Reusing backend: $BACKEND_URL"
     echo "  Reusing frontend: $FRONTEND_URL"
     return 0
@@ -104,10 +109,6 @@ ensure_stack() {
   STARTED_STACK=1
 
   for _ in $(seq 1 120); do
-    if curl -sSf "$BACKEND_URL/health" >/dev/null 2>&1 && curl -sSf "$FRONTEND_URL/" >/dev/null 2>&1; then
-      return 0
-    fi
-
     if ! kill -0 "$START_LOCAL_PID" >/dev/null 2>&1; then
       echo "start-local.sh exited before services became ready." >&2
       print_log_tail "start-local" "$START_LOCAL_LOG"
@@ -115,6 +116,10 @@ ensure_stack() {
       print_log_tail "backend" "$BACKEND_LOG"
       print_log_tail "frontend" "$FRONTEND_LOG"
       exit 1
+    fi
+
+    if http_ok "$BACKEND_URL/health" && http_ok "$FRONTEND_URL/"; then
+      return 0
     fi
 
     sleep 0.5

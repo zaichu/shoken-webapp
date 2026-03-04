@@ -53,13 +53,12 @@
 | `assetbalance-filter-empty.png` | 絞り込み0件のEmptyState（解除リンク表示） |
 
 ### スクショ取得コマンド（主要ページ）
-認証情報（`frontend/.auth/storage-state.json`）が必要。初回または期限切れ時は `cd frontend && npm run ui:save-auth` で再取得する。
+標準の実行入口はプロジェクトルートの [`scripts/run-ui-e2e.sh`](/home/zaichu/project/shoken-webapp/scripts/run-ui-e2e.sh) とする。認証情報（`frontend/.auth/storage-state.json`）が必要。初回または期限切れ時は `--save-auth` を付けて再取得する。
 
 ```bash
-cd frontend && npm run ui:screenshot:auth
+./scripts/run-ui-e2e.sh --skip-csv
+./scripts/run-ui-e2e.sh --skip-csv --save-auth
 ```
-
-※ `npm run ui:screenshot` は認証情報を読み込まないため使用しない。
 
 ---
 
@@ -83,10 +82,11 @@ CSV アップロード→保存→削除の一連フローを対象とする。E
 | `csv-mutualfund-after-additional-import.png` | 投資信託 - 追加CSV取込後（重複1件スキップ→2件登録） | 2件登録/1件スキップ表示 |
 
 ### スクショ取得コマンド（CSV CRUD）
-前提: ローカル環境が起動中（DB → backend → frontend）、`frontend/.auth/storage-state.json` が保存済み。
+標準の実行入口はプロジェクトルートの [`scripts/run-ui-e2e.sh`](/home/zaichu/project/shoken-webapp/scripts/run-ui-e2e.sh) とする。`frontend/.auth/storage-state.json` が保存済みであること。
 
 ```bash
-cd frontend && npm run ui:screenshot:csv-crud
+./scripts/run-ui-e2e.sh --skip-main
+./scripts/run-ui-e2e.sh --skip-main --save-auth
 ```
 
 ---
@@ -97,10 +97,11 @@ cd frontend && npm run ui:screenshot:csv-crud
 - 本レビューは **8080固定**（`http://127.0.0.1:8080` を使用）
 - **起動順は必ず DB → backend → frontend**（ローカルDB起動後、バックエンド `/health` 応答を確認してからフロントエンドを起動）
 - ローカルDBは `cd backend && make db-up` で起動する（`backend/.env` はローカルDB向け `DATABASE_URL` を使用）
-- まとめて起動する場合は、プロジェクトルートで `./scripts/start-local.sh` を使用する
+- E2E / スクショ取得は `./scripts/run-ui-e2e.sh` を標準入口にする
+- サーバー起動だけ確認したい場合は `./scripts/run-ui-e2e.sh --start-only` を使う
+- まとめて起動するだけなら `./scripts/start-local.sh` も使えるが、レビュー用途では優先しない
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
-  - 各 E2E スクリプトは環境変数 `STORAGE_STATE` またはコマンドの `:auth` サフィックスで認証状態を読み込む
-  - 初回保存 / 期限切れ時は `cd frontend && npm run ui:save-auth` で再取得する
+  - 初回保存 / 期限切れ時は `./scripts/run-ui-e2e.sh --save-auth --skip-csv` または `./scripts/run-ui-e2e.sh --save-auth --skip-main` を使う
 - このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
 - スクショは **FHD（1920x1080）** をデフォルトで取得する（4Kが必要な場合は `UI_REVIEW_VIEWPORT=4k` を指定）
 - 開発サーバー運用は以下を厳守する
@@ -117,9 +118,20 @@ rm -f .playwright-mcp/*.png
 rm -f .playwright-mcp/csv-*.png
 ```
 
-### 3) スクショを取得（MCPかE2Eのどちらか）
+### 3) スクショを取得（標準は `run-ui-e2e.sh`）
 
-#### A. MCPで取得する場合（主要ページ）
+#### A. 標準フロー
+```bash
+cd /path/to/shoken-webapp
+
+# 主要ページ + CSV CRUD をまとめて取得
+./scripts/run-ui-e2e.sh
+
+# 初回ログイン保存を含める場合
+./scripts/run-ui-e2e.sh --save-auth
+```
+
+#### B. MCPで取得する場合（主要ページ）
 - 先にログインを完了してから開始する
 - `http://127.0.0.1:8080/` に遷移して `home-initial.png` を保存
 - `http://127.0.0.1:8080/search` で `任天堂` を検索し、`search-nintendo-result.png` を保存
@@ -128,13 +140,15 @@ rm -f .playwright-mcp/csv-*.png
 - `http://127.0.0.1:8080/receipts` に遷移し、各タブ/検索状態を操作して取引明細の9枚を保存
 - 設定は `fullPage: true`
 
-#### B. E2Eで取得する場合
+#### C. 個別コマンドで取得する場合
+`run-ui-e2e.sh` の内部動作を切り分けたい場合のみ使う。通常運用ではこの手順を直接叩かない。
+
 ```bash
 set -euo pipefail
 cd /path/to/shoken-webapp
 
 # ログイン状態を保存（初回のみ/期限切れ時）
-# cd frontend && npm run ui:save-auth
+# ./scripts/run-ui-e2e.sh --save-auth --skip-csv
 
 # 先にローカルDBを起動して待機
 (cd backend && make db-up >/tmp/shoken-db.log 2>&1)
@@ -214,6 +228,7 @@ trap cleanup EXIT INT TERM
 ```
 
 ※ `npm run dev` を単独でバックグラウンド起動して放置しないこと（プロセス残留の原因）。
+※ 通常運用は `./scripts/run-ui-e2e.sh` を使うこと。
 
 ### 4) UIレビュー（画像分析）
 
@@ -273,7 +288,7 @@ UIレビューで見つかった改善対応
 - スクショ取得に一部失敗しても、取得できた分でレビューを継続
 - 失敗ファイルは「未取得」と明記
 - CSV CRUD スクショが未取得の場合は「未評価」と明記して task を継続
-- UIレビュー結果は `.playwright-mcp/ui-review-report.md` ではなく `docs/tasks/` の task file に残す
+- UIレビュー結果は `docs/tasks/` の task file に残す
 - task file の命名と運用は `CLAUDE.md` と `docs/tasks/TEMPLATE.md` に従う
 - task は必ず日本語で出力
 - 作業終了時に `8080/8081/8082` の不要プロセスが残っていないことを確認する
