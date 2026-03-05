@@ -5,7 +5,7 @@
 | 種別 | 対象 | ツール | 場所 |
 |---|---|---|---|
 | 単体テスト（フロント） | hooks / utils / api | Vitest + RTL | `frontend/src/**/__tests__/` |
-| 単体テスト（バックエンド） | ハンドラー / サービス / ミドルウェア | cargo test | `backend/src/**/tests` |
+| 単体テスト（バックエンド） | ハンドラー / サービス / ミドルウェア | cargo test | 各ファイル末尾の `#[cfg(test)] mod tests` |
 | 統合テスト（バックエンド） | DB アクセス（testcontainers） | cargo test | `backend/tests/` |
 | E2E テスト（正常系） | 主要ページ / CSV CRUD | Playwright | `frontend/e2e/` |
 | E2E テスト（失敗系） | API 401 / CSV 行エラー | Playwright + page.route() | `frontend/e2e/error-scenarios.spec.ts` |

@@ -94,5 +94,5 @@ Client → POST /asset-balances/csv
   → handler::asset_balance::upload_csv
   → services::csv_import::parse_csv (with parse_asset_balance_row)
   → services::asset_balance::bulk_create (DELETE ALL → INSERT)
-  → 200 { inserted, skipped, errors }
+  → 201 { inserted, skipped, errors }
 ```
