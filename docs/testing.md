@@ -80,7 +80,7 @@ cargo test -- --ignored
 ```bash
 # フロントエンドサーバーのみ起動でテスト可能
 cd frontend && npm run dev -- --host 127.0.0.1 --port 8080 &
-npx playwright test e2e/error-scenarios.spec.ts
+cd frontend && npx playwright test e2e/error-scenarios.spec.ts
 ```
 
 `error-scenarios.spec.ts` は `page.route()` でバックエンド API をモックするため、
@@ -92,10 +92,12 @@ npx playwright test e2e/error-scenarios.spec.ts
 
 ## CI での実行
 
-GitHub Actions（`.github/workflows/ci.yml`）で以下が自動実行されます:
+GitHub Actions で以下が自動実行されます（PR 時）:
 
-1. フロント: lint / tsc / test / build
-2. バックエンド: fmt / clippy / test / build
+| ワークフロー | ファイル | ステップ |
+|---|---|---|
+| フロント | `deploy-frontend.yml` | lint / test / build |
+| バックエンド | `deploy-backend.yml` | clippy / test / check / OpenAPI 同期確認 / tsc |
 
 ### セキュリティ監査（週次）
 
