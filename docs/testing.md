@@ -112,8 +112,8 @@ npm audit --audit-level=high  # npm 依存関係の脆弱性
 
 ```bash
 # バックエンド（tarpaulin 要インストール）
-cd backend && cargo tarpaulin --out Html
+(cd backend && cargo tarpaulin --out Html)
 
 # フロントエンド
-cd frontend && npm test -- --coverage
+(cd frontend && npm test -- --coverage)
 ```

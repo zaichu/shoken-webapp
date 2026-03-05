@@ -8,7 +8,7 @@ git clone https://github.com/zaichu/shoken-webapp.git
 cd shoken-webapp
 
 # 2. 環境変数を設定
-cd backend && cp .env.example .env  # DATABASE_URL 等を設定
+(cd backend && cp .env.example .env)  # DATABASE_URL 等を設定
 echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.development.local
 
 # 3. 一括起動（推奨）
@@ -35,10 +35,10 @@ echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.developm
 
 ```bash
 # バックエンド
-cd backend && make deploy
+(cd backend && make deploy)
 
 # フロントエンド（Vercel CLI）
-cd frontend && vercel --prod
+(cd frontend && vercel --prod)
 ```
 
 ## ヘルスチェック
@@ -54,16 +54,14 @@ fly logs --app shoken-webapp-backend
 ## データベースマイグレーション
 
 ```bash
-cd backend
-
 # マイグレーション作成
-sqlx migrate add <migration_name>
+(cd backend && sqlx migrate add <migration_name>)
 
 # マイグレーション実行（起動時に自動実行）
-make run
+(cd backend && make run)
 
 # オフラインモード用 sqlx-data 更新
-make sqlx-prepare
+(cd backend && make sqlx-prepare)
 ```
 
 ## 環境変数（本番）
@@ -86,8 +84,8 @@ fly secrets set BACKEND_URL="https://shoken-webapp-backend.fly.dev"
 脆弱性が発見された場合:
 ```bash
 # 依存関係の脆弱性チェック
-cd backend && cargo audit
-cd frontend && npm audit
+(cd backend && cargo audit)
+(cd frontend && npm audit)
 ```
 
 ## Dependabot PR 対応
@@ -102,21 +100,21 @@ cd frontend && npm audit
 ### DB 接続失敗
 
 ```bash
-cd backend && make db-up  # Docker で PostgreSQL を起動
+(cd backend && make db-up)  # Docker で PostgreSQL を起動
 ```
 
 ### バックエンドビルドエラー
 
 ```bash
-cd backend && cargo check  # コンパイルエラー確認
-cd backend && cargo fmt     # フォーマット修正
+(cd backend && cargo check)  # コンパイルエラー確認
+(cd backend && cargo fmt)    # フォーマット修正
 ```
 
 ### フロントエンドの型エラー
 
 ```bash
-cd frontend && npx tsc --noEmit  # 型エラー確認
-cd frontend && npm run lint      # Lint エラー確認
+(cd frontend && npx tsc --noEmit)  # 型エラー確認
+(cd frontend && npm run lint)      # Lint エラー確認
 ```
 
 ### OpenAPI スキーマと api.ts の不一致
