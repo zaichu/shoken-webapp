@@ -28,8 +28,8 @@ echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.developm
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | main push |
-| バックエンド | Fly.io | main push |
+| フロントエンド | Vercel | main push（Vercel GitHub 連携） |
+| バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 ### 手動デプロイ（緊急時）
 
@@ -45,10 +45,10 @@ echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.developm
 
 ```bash
 # バックエンド
-curl https://shoken-webapp-backend.fly.dev/health
+curl https://shoken-backend.fly.dev/health
 
 # ログ確認
-fly logs --app shoken-webapp-backend
+fly logs --app shoken-backend
 ```
 
 ## データベースマイグレーション
@@ -73,7 +73,7 @@ fly secrets set DATABASE_URL="postgresql://..."
 fly secrets set GOOGLE_CLIENT_ID="..."
 fly secrets set GOOGLE_CLIENT_SECRET="..."
 fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
-fly secrets set BACKEND_URL="https://shoken-webapp-backend.fly.dev"
+fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
 ```
 
 ## セキュリティインシデント対応
