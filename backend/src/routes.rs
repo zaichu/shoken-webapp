@@ -11,7 +11,10 @@ use utoipa::OpenApi;
 use crate::{
     config::Config,
     handlers,
-    middleware::{add_security_headers, build_rate_limiter, rate_limit, validate_origin},
+    middleware::{
+        add_security_headers, build_keyed_rate_limiter, build_rate_limiter, keyed_rate_limit,
+        rate_limit, validate_origin,
+    },
     openapi::ApiDoc,
     state::AppState,
 };
@@ -21,7 +24,8 @@ const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
     let allowed_origins = Arc::new(config.cors_origins.clone());
-    let auth_limiter = build_rate_limiter(config.auth_rate_limit_rps);
+    // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
+    let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
     Router::new()
         .merge(stock_routes())
@@ -76,7 +80,9 @@ fn dividend_per_share_routes() -> Router<AppState> {
     )
 }
 
-fn auth_routes(limiter: Option<Arc<governor::DefaultDirectRateLimiter>>) -> Router<AppState> {
+fn auth_routes(
+    limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+) -> Router<AppState> {
     let router = Router::new()
         .route("/auth/google", get(handlers::auth::google_auth))
         .route(
@@ -92,7 +98,7 @@ fn auth_routes(limiter: Option<Arc<governor::DefaultDirectRateLimiter>>) -> Rout
     if let Some(l) = limiter {
         router.layer(middleware::from_fn(move |req, next| {
             let l = l.clone();
-            async move { rate_limit(l, req, next).await }
+            async move { keyed_rate_limit(l, req, next).await }
         }))
     } else {
         router
