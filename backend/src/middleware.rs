@@ -10,6 +10,20 @@ use axum::{
 
 use crate::errors::{ErrorDetails, ErrorResponse};
 
+/// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
+///
+/// `starts_with` での前方一致では `https://example.com.evil/` のような
+/// 類似ドメインに対してバイパスされるため、ホスト境界まで厳密に切り出す。
+fn extract_origin(url: &str) -> Option<&str> {
+    let after_scheme = url.find("://")?;
+    let authority_start = after_scheme + 3;
+    let end = url[authority_start..]
+        .find('/')
+        .map(|i| authority_start + i)
+        .unwrap_or(url.len());
+    Some(&url[..end])
+}
+
 /// CSRF 検証失敗レスポンスを生成する
 fn csrf_error() -> Response {
     let error_response = ErrorResponse {
@@ -63,7 +77,10 @@ pub async fn validate_origin(
                 .map(|s| s.to_string());
 
             match referer {
-                Some(ref r) if allowed_origins.iter().any(|a| r.starts_with(a.as_str())) => {
+                Some(ref r)
+                    if extract_origin(r)
+                        .is_some_and(|o| allowed_origins.iter().any(|a| a == o)) =>
+                {
                     // 許可済みオリジンの Referer → 通過
                     next.run(request).await
                 }
@@ -89,6 +106,31 @@ mod tests {
     use super::*;
     use axum::{body::Body, http::Request, middleware, routing::post, Router};
     use tower::ServiceExt;
+
+    #[test]
+    fn test_extract_origin_with_path() {
+        assert_eq!(
+            extract_origin("http://localhost:8080/some/page"),
+            Some("http://localhost:8080")
+        );
+    }
+
+    #[test]
+    fn test_extract_origin_without_path() {
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app"),
+            Some("https://shoken-webapp.vercel.app")
+        );
+    }
+
+    #[test]
+    fn test_extract_origin_spoofed_domain() {
+        // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
+            Some("https://shoken-webapp.vercel.app.evil.com")
+        );
+    }
 
     fn test_app() -> Router {
         let allowed_origins = Arc::new(vec![
@@ -200,6 +242,20 @@ mod tests {
             .method(Method::POST)
             .uri("/test")
             .header("referer", "https://evil.example.com/attack")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_post_with_spoofed_referer_prefix_is_rejected() {
+        // 許可オリジンを接頭辞に持つ偽装ドメイン → starts_with バイパスを防ぐ
+        let app = test_app();
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/test")
+            .header("referer", "https://shoken-webapp.vercel.app.evil.com/steal")
             .body(Body::empty())
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
