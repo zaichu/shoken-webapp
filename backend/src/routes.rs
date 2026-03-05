@@ -32,8 +32,7 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
     if let Some(ref limiter) = auth_limiter {
         let l = limiter.clone();
         tokio::spawn(async move {
-            let mut interval =
-                tokio::time::interval(std::time::Duration::from_secs(60));
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             loop {
                 interval.tick().await;
                 l.retain_recent();
@@ -182,6 +181,25 @@ fn asset_balance_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    fn make_test_state() -> AppState {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool");
+        let secrets = Arc::new(crate::state::Secrets {
+            database_url: database_url.to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+        AppState {
+            pool,
+            secrets,
+            client: reqwest::Client::new(),
+            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
 
     #[test]
     fn test_stock_routes_creation() {
@@ -216,5 +234,65 @@ mod tests {
     #[test]
     fn test_asset_balance_routes_creation() {
         let _router = asset_balance_routes();
+    }
+
+    /// auth ルートが rps=1 制限を超えると 429 を返すことを確認
+    #[tokio::test]
+    async fn test_auth_routes_rate_limit_returns_429() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let limiter = crate::middleware::build_keyed_rate_limiter(1);
+        let state = make_test_state();
+        let router = auth_routes(limiter).with_state(state);
+
+        // 1 回目は通過（ルートが見つからず 200/401/500 になるが 429 ではない）
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/auth/me")
+            .header("fly-client-ip", "1.2.3.4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.clone().oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+
+        // 2 回目（同一 IP）は 429
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/auth/me")
+            .header("fly-client-ip", "1.2.3.4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
+    #[tokio::test]
+    async fn test_jquants_routes_rate_limit_returns_429() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let limiter = crate::middleware::build_rate_limiter(1);
+        let state = make_test_state();
+        let router = jquants_routes(limiter).with_state(state);
+
+        // 1 回目は通過
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/jquants/fins/statements")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.clone().oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+
+        // 2 回目は 429
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/jquants/fins/statements")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 }
