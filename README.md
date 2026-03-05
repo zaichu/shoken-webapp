@@ -237,6 +237,14 @@ shoken-webapp/
 公開 URL:
 - https://shoken-webapp.vercel.app
 
+## ドキュメント
+
+| ドキュメント | 内容 |
+|---|---|
+| [アーキテクチャ概要](docs/architecture.md) | システム構成・認証フロー・ミドルウェアスタック・CSV設計 |
+| [運用ランブック](docs/runbook.md) | ローカル起動・デプロイ・DBマイグレーション・トラブルシューティング |
+| [テストガイド](docs/testing.md) | フロントエンド・バックエンド・E2Eテストの実行方法と方針 |
+
 ## 補足
 
 - フロントエンド詳細: `frontend/README.md`
