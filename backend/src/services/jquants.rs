@@ -101,7 +101,7 @@ mod tests {
     /// 実行には環境変数 JQUANTS_API_KEY が必要
     /// cargo test test_get_fin_summary_real_api -- --ignored
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_fin_summary_real_api() {
         let api_key =
             std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
@@ -138,7 +138,7 @@ mod tests {
     /// 実行には環境変数 JQUANTS_API_KEY が必要
     /// cargo test test_get_nintendo_dividend -- --ignored --nocapture
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_nintendo_dividend() {
         let api_key =
             std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");

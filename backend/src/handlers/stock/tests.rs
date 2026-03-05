@@ -11,46 +11,45 @@ use axum::{
 use chrono::NaiveDate;
 use reqwest::Client;
 use serde_json::{json, Value};
-use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    Pool, Postgres,
-};
+use sqlx::{Pool, Postgres};
 use tower::ServiceExt;
+use testcontainers::runners::AsyncRunner;
+use testcontainers_modules::postgres::Postgres as PgImage;
+use tokio::time::{sleep, timeout, Duration};
 
-async fn setup_test_db() -> Pool<Postgres> {
-    let options = PgConnectOptions::new()
-        .host("localhost")
-        .port(5432)
-        .database("test_db")
-        .username("postgres")
-        .password("password");
+/// testcontainers 経由で Postgres を起動し、マイグレーション + テストデータを投入する
+/// 戻り値: (pool, _node) で _node を drop すると停止する
+async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
+    let node = PgImage::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect_with(options)
+    // 接続リトライ
+    let pool = {
+        let mut last_error = None;
+        let mut pool_ok = None;
+        for _ in 0..20 {
+            let attempt = timeout(
+                Duration::from_secs(2),
+                sqlx::postgres::PgPoolOptions::new().connect(&database_url),
+            )
+            .await;
+            match attempt {
+                Ok(Ok(p)) => {
+                    pool_ok = Some(p);
+                    break;
+                }
+                Ok(Err(e)) => last_error = Some(e),
+                Err(_) => {}
+            }
+            sleep(Duration::from_millis(500)).await;
+        }
+        pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {:?}", last_error))
+    };
+
+    crate::db::run_migrations(&pool)
         .await
-        .expect("Failed to connect to database");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS stock (
-            date DATE NOT NULL,
-            code VARCHAR(10) NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            market_category VARCHAR(50) NOT NULL,
-            industry_code_33 VARCHAR(10),
-            industry_category_33 VARCHAR(100),
-            industry_code_17 VARCHAR(10),
-            industry_category_17 VARCHAR(100),
-            size_code VARCHAR(10),
-            size_category VARCHAR(50),
-            PRIMARY KEY (date, code)
-        )
-        "#,
-    )
-    .execute(&pool)
-    .await
-    .expect("Failed to create test table");
+        .expect("マイグレーション失敗");
 
     sqlx::query(
         r#"
@@ -72,14 +71,14 @@ async fn setup_test_db() -> Pool<Postgres> {
     .bind(Option::<String>::Some("大型株".to_string()))
     .execute(&pool)
     .await
-    .expect("Failed to insert test data");
+    .expect("テストデータ投入失敗");
 
-    pool
+    (pool, node)
 }
 
 fn setup_test_app(pool: Pool<Postgres>) -> Router {
     let secrets = Arc::new(Secrets {
-        database_url: "postgresql://postgres:password@localhost/test_db".to_string(),
+        database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
         jquants_api_key: None,
         google_client_id: None,
         google_client_secret: None,
@@ -94,15 +93,15 @@ fn setup_test_app(pool: Pool<Postgres>) -> Router {
     };
 
     Router::new()
-        .route("/stock/:search_query", get(select_stock_info))
+        .route("/stock/{search_query}", get(select_stock_info))
         .route("/stock", post(add_stock_info))
         .with_state(app_state)
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "requires Docker to run Postgres container"]
 async fn test_select_stock_info() {
-    let pool = setup_test_db().await;
+    let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool);
 
     // コードによる検索テスト
@@ -160,9 +159,9 @@ async fn test_select_stock_info() {
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "requires Docker to run Postgres container"]
 async fn test_add_stock_info() {
-    let pool = setup_test_db().await;
+    let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool.clone());
 
     let stock_data = json!({
@@ -231,10 +230,14 @@ async fn test_add_stock_info() {
 }
 
 /// 未認証時に POST /stock が 401 を返すことを確認
+/// セッション検証はハンドラー入口で実行され DB クエリは発生しないため DB 不要
 #[tokio::test]
-#[ignore]
 async fn test_add_stock_info_unauthorized() {
-    let pool = setup_test_db().await;
+    let pool = crate::db::connect_pool_lazy(
+        "postgresql://postgres:postgres@localhost/postgres",
+        1,
+    )
+    .unwrap();
     let app = setup_test_app(pool);
 
     let stock_data = json!({
