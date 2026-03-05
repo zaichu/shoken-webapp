@@ -16,23 +16,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const FIXTURE_DIR = path.join(__dirname, '__fixtures__/csv');
 
-const API_BASE = process.env.VITE_SHOKEN_WEBAPI_API_URL ?? 'http://127.0.0.1:3001';
 const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザー' };
 
+// ホスト非依存のパターン（VITE_SHOKEN_WEBAPI_API_URL の値に関わらず一致する）
+const ROUTES = {
+  authMe: /\/auth\/me$/,
+  dividends: /\/dividends$/,
+  dividendsCsvPreview: /\/dividends\/csv\/preview$/,
+  domesticStocks: /\/domestic-stocks$/,
+  mutualfunds: /\/mutualfunds$/,
+  assetBalances: /\/asset-balances$/,
+};
+
 async function setupCommonMocks(page: Page) {
-  await page.route(`${API_BASE}/auth/me`, (route) =>
+  await page.route(ROUTES.authMe, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) }),
   );
-  await page.route(`${API_BASE}/dividends`, (route) =>
+  await page.route(ROUTES.dividends, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
-  await page.route(`${API_BASE}/domestic-stocks`, (route) =>
+  await page.route(ROUTES.domesticStocks, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
-  await page.route(`${API_BASE}/mutualfunds`, (route) =>
+  await page.route(ROUTES.mutualfunds, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
-  await page.route(`${API_BASE}/asset-balances`, (route) =>
+  await page.route(ROUTES.assetBalances, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
 }
@@ -44,7 +53,7 @@ async function setupCommonMocks(page: Page) {
 test('配当金一覧取得が 401 のときエラー Alert が表示される', async ({ page }) => {
   await setupCommonMocks(page);
   // 後から登録したハンドラが優先されるため、401 で上書き
-  await page.route(`${API_BASE}/dividends`, (route) =>
+  await page.route(ROUTES.dividends, (route) =>
     route.fulfill({
       status: 401,
       contentType: 'application/json',
@@ -62,7 +71,7 @@ test('配当金一覧取得が 401 のときエラー Alert が表示される',
 
 test('資産管理一覧取得が 401 のときエラー Alert が表示される', async ({ page }) => {
   await setupCommonMocks(page);
-  await page.route(`${API_BASE}/asset-balances`, (route) =>
+  await page.route(ROUTES.assetBalances, (route) =>
     route.fulfill({
       status: 401,
       contentType: 'application/json',
@@ -85,7 +94,7 @@ test('資産管理一覧取得が 401 のときエラー Alert が表示され�
 test('CSV プレビューで行エラーが返ったとき warning Alert に一覧表示される', async ({ page }) => {
   await setupCommonMocks(page);
   // プレビューAPI: 行エラーを含む正常レスポンス（HTTP 200）
-  await page.route(`${API_BASE}/dividends/csv/preview`, (route) =>
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
