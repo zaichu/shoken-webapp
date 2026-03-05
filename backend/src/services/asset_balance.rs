@@ -2,9 +2,8 @@ use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvUploadResponse};
-use crate::services::csv_import::{
-    decode_bytes, finish_csv_upload, parse_csv, parse_number, parse_optional_string,
-};
+use crate::services::csv_import::{finish_csv_upload, parse_csv};
+use crate::services::csv_parse::{decode_bytes, parse_number, parse_optional_string};
 use csv::StringRecord;
 use sqlx::PgPool;
 use std::collections::HashMap;

@@ -1,0 +1,59 @@
+use crate::{
+    errors::{ApiError, ErrorResponse},
+    extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
+    models::stock::Stock,
+    services::stock as stock_service,
+    AppState,
+};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
+
+/// 銘柄情報を検索（コードまたは名前）
+#[utoipa::path(
+    get,
+    path = "/stock/{query}",
+    operation_id = "stock_search",
+    params(
+        ("query" = String, Path, description = "銘柄コードまたは銘柄名")
+    ),
+    responses(
+        (status = 200, body = Stock),
+        (status = 404, body = ErrorResponse),
+    ),
+)]
+pub async fn select_stock_info(
+    Path(search_query): Path<String>,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, ApiError> {
+    let stock = stock_service::search(&state.pool, &search_query).await?;
+    Ok((StatusCode::OK, Json(stock)))
+}
+
+/// 銘柄情報を追加（認証必須）
+#[utoipa::path(
+    post,
+    path = "/stock",
+    operation_id = "stock_create",
+    request_body = Stock,
+    responses(
+        (status = 201, body = Stock),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn add_stock_info(
+    State(state): State<AppState>,
+    _auth_user: AuthenticatedUser,
+    ValidatedJson(data): ValidatedJson<Stock>,
+) -> Result<impl IntoResponse, ApiError> {
+    let stock = stock_service::create(&state.pool, &data).await?;
+    Ok((StatusCode::CREATED, Json(stock)))
+}
+
+#[cfg(test)]
+mod tests;

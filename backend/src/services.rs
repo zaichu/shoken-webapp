@@ -1,6 +1,7 @@
 pub mod asset_balance;
 pub mod auth;
 pub mod csv_import;
+pub mod csv_parse;
 pub mod dividend;
 pub mod dividend_cache;
 pub mod domestic_stock;

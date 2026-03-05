@@ -2,9 +2,9 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
-use crate::services::csv_import::{
-    build_preview, finish_csv_upload, parse_csv, parse_optional_string, parse_required_date,
-    parse_required_number, parse_required_string,
+use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
+use crate::services::csv_parse::{
+    parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
 };
 use sqlx::PgPool;
 use std::collections::HashMap;
