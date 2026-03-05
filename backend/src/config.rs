@@ -5,6 +5,10 @@ use tower_http::cors::CorsLayer;
 pub struct Config {
     pub cors_origins: Vec<String>,
     pub database_max_connections: u32,
+    /// `/auth/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
+    pub auth_rate_limit_rps: u32,
+    /// `/jquants/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
+    pub jquants_rate_limit_rps: u32,
 }
 
 impl Default for Config {
@@ -18,6 +22,8 @@ impl Default for Config {
                 "http://localhost.:8080".to_string(),
             ],
             database_max_connections: 5,
+            auth_rate_limit_rps: 10,
+            jquants_rate_limit_rps: 5,
         }
     }
 }
@@ -30,6 +36,18 @@ impl Config {
             let parsed = parse_cors_origins(&origins);
             if !parsed.is_empty() {
                 config.cors_origins = parsed;
+            }
+        }
+
+        if let Ok(rps) = env::var("AUTH_RATE_LIMIT_RPS") {
+            if let Ok(v) = rps.parse::<u32>() {
+                config.auth_rate_limit_rps = v;
+            }
+        }
+
+        if let Ok(rps) = env::var("JQUANTS_RATE_LIMIT_RPS") {
+            if let Ok(v) = rps.parse::<u32>() {
+                config.jquants_rate_limit_rps = v;
             }
         }
 
@@ -243,6 +261,8 @@ mod tests {
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
+            auth_rate_limit_rps: 10,
+            jquants_rate_limit_rps: 5,
         };
 
         assert_eq!(config.database_max_connections, 10);
@@ -367,5 +387,30 @@ mod tests {
             .get(ACCESS_CONTROL_ALLOW_ORIGIN)
             .and_then(|value| value.to_str().ok());
         assert_eq!(allowed_origin, Some("http://localhost:8080"));
+    }
+
+    /// 不正オリジンによる 403 にもセキュリティヘッダーが付くことを確認する
+    #[tokio::test]
+    async fn test_security_headers_on_403_response() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let _app_env = EnvGuard::set("APP_ENV", None);
+        let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
+
+        let config = Config::from_env();
+        let app = build_test_app(&config);
+
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/health")
+            .header("origin", "http://evil.example.com")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            resp.headers().get("X-Content-Type-Options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
     }
 }

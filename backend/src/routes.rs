@@ -9,7 +9,14 @@ use tower_http::limit::RequestBodyLimitLayer;
 use utoipa::OpenApi;
 
 use crate::{
-    config::Config, handlers, middleware::validate_origin, openapi::ApiDoc, state::AppState,
+    config::Config,
+    handlers,
+    middleware::{
+        add_security_headers, build_keyed_rate_limiter, build_rate_limiter, keyed_rate_limit,
+        rate_limit, validate_origin,
+    },
+    openapi::ApiDoc,
+    state::AppState,
 };
 
 /// リクエストボディの上限サイズ（10MB）
@@ -17,11 +24,27 @@ const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
     let allowed_origins = Arc::new(config.cors_origins.clone());
+    // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
+    let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
+    let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
+
+    // keyed limiter のキー増加を抑制するため、60 秒ごとに retain_recent を実行
+    if let Some(ref limiter) = auth_limiter {
+        let l = limiter.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+            loop {
+                interval.tick().await;
+                l.retain_recent();
+            }
+        });
+    }
+
     Router::new()
         .merge(stock_routes())
-        .merge(jquants_routes())
+        .merge(jquants_routes(jquants_limiter))
         .merge(dividend_per_share_routes())
-        .merge(auth_routes())
+        .merge(auth_routes(auth_limiter))
         .merge(dividend_routes())
         .merge(domestic_stock_routes())
         .merge(mutualfund_routes())
@@ -37,6 +60,8 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
+        // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
+        .layer(middleware::from_fn(add_security_headers))
         .with_state(state)
 }
 
@@ -46,11 +71,19 @@ fn stock_routes() -> Router<AppState> {
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
 }
 
-fn jquants_routes() -> Router<AppState> {
-    Router::new().route(
+fn jquants_routes(limiter: Option<Arc<governor::DefaultDirectRateLimiter>>) -> Router<AppState> {
+    let router = Router::new().route(
         "/jquants/fins/statements",
         get(handlers::jquants::get_fin_summary),
-    )
+    );
+    if let Some(l) = limiter {
+        router.layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { rate_limit(l, req, next).await }
+        }))
+    } else {
+        router
+    }
 }
 
 fn dividend_per_share_routes() -> Router<AppState> {
@@ -60,8 +93,10 @@ fn dividend_per_share_routes() -> Router<AppState> {
     )
 }
 
-fn auth_routes() -> Router<AppState> {
-    Router::new()
+fn auth_routes(
+    limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+) -> Router<AppState> {
+    let router = Router::new()
         .route("/auth/google", get(handlers::auth::google_auth))
         .route(
             "/auth/google/callback",
@@ -72,7 +107,15 @@ fn auth_routes() -> Router<AppState> {
         .route(
             "/auth/delete-account",
             delete(handlers::auth::delete_account),
-        )
+        );
+    if let Some(l) = limiter {
+        router.layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
+    } else {
+        router
+    }
 }
 
 fn dividend_routes() -> Router<AppState> {
@@ -138,6 +181,25 @@ fn asset_balance_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    fn make_test_state() -> AppState {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool");
+        let secrets = Arc::new(crate::state::Secrets {
+            database_url: database_url.to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+        AppState {
+            pool,
+            secrets,
+            client: reqwest::Client::new(),
+            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
 
     #[test]
     fn test_stock_routes_creation() {
@@ -146,12 +208,12 @@ mod tests {
 
     #[test]
     fn test_jquants_routes_creation() {
-        let _router = jquants_routes();
+        let _router = jquants_routes(None);
     }
 
     #[test]
     fn test_auth_routes_creation() {
-        let _router = auth_routes();
+        let _router = auth_routes(None);
     }
 
     #[test]
@@ -172,5 +234,65 @@ mod tests {
     #[test]
     fn test_asset_balance_routes_creation() {
         let _router = asset_balance_routes();
+    }
+
+    /// auth ルートが rps=1 制限を超えると 429 を返すことを確認
+    #[tokio::test]
+    async fn test_auth_routes_rate_limit_returns_429() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let limiter = crate::middleware::build_keyed_rate_limiter(1);
+        let state = make_test_state();
+        let router = auth_routes(limiter).with_state(state);
+
+        // 1 回目は通過（ルートが見つからず 200/401/500 になるが 429 ではない）
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/auth/me")
+            .header("fly-client-ip", "1.2.3.4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.clone().oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+
+        // 2 回目（同一 IP）は 429
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/auth/me")
+            .header("fly-client-ip", "1.2.3.4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
+    #[tokio::test]
+    async fn test_jquants_routes_rate_limit_returns_429() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let limiter = crate::middleware::build_rate_limiter(1);
+        let state = make_test_state();
+        let router = jquants_routes(limiter).with_state(state);
+
+        // 1 回目は通過
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/jquants/fins/statements")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.clone().oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+
+        // 2 回目は 429
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/jquants/fins/statements")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 }
