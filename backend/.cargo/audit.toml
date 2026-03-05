@@ -1,0 +1,5 @@
+[advisories]
+# RUSTSEC-2023-0071: RSA Marvin Attack（rsa クレート経由、oauth2 依存）
+# 修正バージョンなし。本プロジェクトでは RSA 鍵の復号は行わないため影響は限定的。
+# 参照: https://rustsec.org/advisories/RUSTSEC-2023-0071
+ignore = ["RUSTSEC-2023-0071"]
