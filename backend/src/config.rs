@@ -5,6 +5,10 @@ use tower_http::cors::CorsLayer;
 pub struct Config {
     pub cors_origins: Vec<String>,
     pub database_max_connections: u32,
+    /// `/auth/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
+    pub auth_rate_limit_rps: u32,
+    /// `/jquants/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
+    pub jquants_rate_limit_rps: u32,
 }
 
 impl Default for Config {
@@ -18,6 +22,8 @@ impl Default for Config {
                 "http://localhost.:8080".to_string(),
             ],
             database_max_connections: 5,
+            auth_rate_limit_rps: 10,
+            jquants_rate_limit_rps: 5,
         }
     }
 }
@@ -30,6 +36,18 @@ impl Config {
             let parsed = parse_cors_origins(&origins);
             if !parsed.is_empty() {
                 config.cors_origins = parsed;
+            }
+        }
+
+        if let Ok(rps) = env::var("AUTH_RATE_LIMIT_RPS") {
+            if let Ok(v) = rps.parse::<u32>() {
+                config.auth_rate_limit_rps = v;
+            }
+        }
+
+        if let Ok(rps) = env::var("JQUANTS_RATE_LIMIT_RPS") {
+            if let Ok(v) = rps.parse::<u32>() {
+                config.jquants_rate_limit_rps = v;
             }
         }
 
@@ -243,6 +261,8 @@ mod tests {
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
+            auth_rate_limit_rps: 10,
+            jquants_rate_limit_rps: 5,
         };
 
         assert_eq!(config.database_max_connections, 10);

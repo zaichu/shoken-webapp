@@ -9,7 +9,11 @@ use tower_http::limit::RequestBodyLimitLayer;
 use utoipa::OpenApi;
 
 use crate::{
-    config::Config, handlers, middleware::validate_origin, openapi::ApiDoc, state::AppState,
+    config::Config,
+    handlers,
+    middleware::{add_security_headers, build_rate_limiter, rate_limit, validate_origin},
+    openapi::ApiDoc,
+    state::AppState,
 };
 
 /// リクエストボディの上限サイズ（10MB）
@@ -17,11 +21,13 @@ const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
     let allowed_origins = Arc::new(config.cors_origins.clone());
+    let auth_limiter = build_rate_limiter(config.auth_rate_limit_rps);
+    let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
     Router::new()
         .merge(stock_routes())
-        .merge(jquants_routes())
+        .merge(jquants_routes(jquants_limiter))
         .merge(dividend_per_share_routes())
-        .merge(auth_routes())
+        .merge(auth_routes(auth_limiter))
         .merge(dividend_routes())
         .merge(domestic_stock_routes())
         .merge(mutualfund_routes())
@@ -31,6 +37,7 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
             "/api-docs/openapi.json",
             get(|| async { Json(ApiDoc::openapi()) }),
         )
+        .layer(middleware::from_fn(add_security_headers))
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, req, next).await }
@@ -46,11 +53,19 @@ fn stock_routes() -> Router<AppState> {
         .route("/stock/{query}", get(handlers::stock::select_stock_info))
 }
 
-fn jquants_routes() -> Router<AppState> {
-    Router::new().route(
+fn jquants_routes(limiter: Option<Arc<governor::DefaultDirectRateLimiter>>) -> Router<AppState> {
+    let router = Router::new().route(
         "/jquants/fins/statements",
         get(handlers::jquants::get_fin_summary),
-    )
+    );
+    if let Some(l) = limiter {
+        router.layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { rate_limit(l, req, next).await }
+        }))
+    } else {
+        router
+    }
 }
 
 fn dividend_per_share_routes() -> Router<AppState> {
@@ -60,8 +75,8 @@ fn dividend_per_share_routes() -> Router<AppState> {
     )
 }
 
-fn auth_routes() -> Router<AppState> {
-    Router::new()
+fn auth_routes(limiter: Option<Arc<governor::DefaultDirectRateLimiter>>) -> Router<AppState> {
+    let router = Router::new()
         .route("/auth/google", get(handlers::auth::google_auth))
         .route(
             "/auth/google/callback",
@@ -72,7 +87,15 @@ fn auth_routes() -> Router<AppState> {
         .route(
             "/auth/delete-account",
             delete(handlers::auth::delete_account),
-        )
+        );
+    if let Some(l) = limiter {
+        router.layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { rate_limit(l, req, next).await }
+        }))
+    } else {
+        router
+    }
 }
 
 fn dividend_routes() -> Router<AppState> {
@@ -146,12 +169,12 @@ mod tests {
 
     #[test]
     fn test_jquants_routes_creation() {
-        let _router = jquants_routes();
+        let _router = jquants_routes(None);
     }
 
     #[test]
     fn test_auth_routes_creation() {
-        let _router = auth_routes();
+        let _router = auth_routes(None);
     }
 
     #[test]

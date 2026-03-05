@@ -7,8 +7,48 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 
 use crate::errors::{ErrorDetails, ErrorResponse};
+
+/// 毎秒 rps リクエストを許可するレート制限インスタンスを生成する
+/// rps = 0 の場合は制限なし（None）を返す
+pub fn build_rate_limiter(rps: u32) -> Option<Arc<DefaultDirectRateLimiter>> {
+    let rps = std::num::NonZeroU32::new(rps)?;
+    Some(Arc::new(RateLimiter::direct(Quota::per_second(rps))))
+}
+
+/// レート制限ミドルウェア。制限超過時は 429 を返す
+pub async fn rate_limit(
+    limiter: Arc<DefaultDirectRateLimiter>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    if limiter.check().is_err() {
+        let error_response = ErrorResponse {
+            error: ErrorDetails {
+                code: "RATE_LIMIT_EXCEEDED".to_string(),
+                message: "リクエストが多すぎます。しばらくしてから再試行してください。".to_string(),
+                details: None,
+            },
+        };
+        return (StatusCode::TOO_MANY_REQUESTS, Json(error_response)).into_response();
+    }
+    next.run(req).await
+}
+
+/// セキュリティヘッダー付与ミドルウェア
+pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
+    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
+    headers.insert(
+        "Referrer-Policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
+    response
+}
 
 /// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
 ///
@@ -273,5 +313,86 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_present() {
+        let app = Router::new()
+            .route("/test", post(|| async { "ok" }))
+            .layer(middleware::from_fn(add_security_headers));
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/test")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            resp.headers().get("X-Content-Type-Options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
+        assert_eq!(
+            resp.headers().get("Referrer-Policy").unwrap(),
+            "strict-origin-when-cross-origin"
+        );
+    }
+
+    #[test]
+    fn test_build_rate_limiter_zero_returns_none() {
+        assert!(build_rate_limiter(0).is_none());
+    }
+
+    #[test]
+    fn test_build_rate_limiter_nonzero_returns_some() {
+        assert!(build_rate_limiter(10).is_some());
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_allows_within_quota() {
+        let limiter = build_rate_limiter(100).unwrap();
+        let app = Router::new()
+            .route("/test", post(|| async { "ok" }))
+            .layer(middleware::from_fn(move |req, next| {
+                let l = limiter.clone();
+                async move { rate_limit(l, req, next).await }
+            }));
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/test")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_blocks_excess_requests() {
+        // rps=1 で複数回リクエストを送ると 429 が返る
+        let limiter = build_rate_limiter(1).unwrap();
+        let make_app = || {
+            let l = limiter.clone();
+            Router::new()
+                .route("/test", post(|| async { "ok" }))
+                .layer(middleware::from_fn(move |req, next| {
+                    let l = l.clone();
+                    async move { rate_limit(l, req, next).await }
+                }))
+        };
+        // 1回目は通過
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/test")
+            .body(Body::empty())
+            .unwrap();
+        let resp = make_app().oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
+        // 2回目は超過
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/test")
+            .body(Body::empty())
+            .unwrap();
+        let resp = make_app().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 }
