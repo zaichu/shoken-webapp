@@ -173,10 +173,17 @@ fn parse_asset_balance_row(
 ) -> Result<CreateAssetBalanceRequest, crate::models::csv_import::CsvRowError> {
     use crate::models::csv_import::CsvRowError;
 
-    // 数値パース失敗を CsvRowError に変換するヘルパー
+    // 必須数値列: 空欄・"-" もエラー。パース失敗も CsvRowError に変換する
     let num = |col: &str| {
         let raw = parse_optional_string(record, header_map, col);
-        parse_number(&raw).map_err(|e| CsvRowError {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed == "-" {
+            return Err(CsvRowError {
+                row: row_num,
+                message: format!("必須列 '{}' が空または値なし", col),
+            });
+        }
+        parse_number(trimmed).map_err(|e| CsvRowError {
             row: row_num,
             message: format!("{}: {}", col, e),
         })
@@ -258,6 +265,19 @@ mod tests {
         let csv = make_csv(HEADER, "1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
         assert!(items.is_empty(), "不正行はアイテムに含まれてはいけない");
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("保有数量"));
+    }
+
+    #[test]
+    fn test_parse_asset_balance_row_dash_in_required_col_is_error() {
+        // 保有数量が "-"（値なし）→ 必須列なので CsvRowError
+        let csv = make_csv(HEADER, "1234,テスト,-,-,1500,150000,1600,0,160000,0");
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(
+            items.is_empty(),
+            "必須列が '-' の行はアイテムに含まれてはいけない"
+        );
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("保有数量"));
     }
