@@ -5,7 +5,11 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::{
+    limit::RequestBodyLimitLayer,
+    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
+    trace::TraceLayer,
+};
 use utoipa::OpenApi;
 
 use crate::{
@@ -60,6 +64,12 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
+        // リクエストトレース（メソッド/パス/ステータス/レイテンシ）
+        .layer(TraceLayer::new_for_http())
+        // x-request-id をレスポンスに伝播
+        .layer(PropagateRequestIdLayer::x_request_id())
+        // x-request-id が未設定の場合は UUID v4 を自動付与
+        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
         .layer(middleware::from_fn(add_security_headers))
         .with_state(state)
