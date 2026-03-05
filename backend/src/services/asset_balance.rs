@@ -160,45 +160,55 @@ fn strip_sbi_header(content: &str) -> String {
 }
 
 /// SBI証券CSVの1行をパースして CreateAssetBalanceRequest に変換
+///
+/// 数値パース失敗は CsvRowError として返す。
+/// ただし以下の列は "-" / 空欄が仕様上ありうるため 0.0 フォールバックを維持する:
+///   - 執行中: 執行中の注文がなければ "-" または空欄
+///   - 現在値（前日比）: 変動なし時は 0 または "-"
+///   - 評価損益（%）: NISA 等で表示されない場合に "-"
 fn parse_asset_balance_row(
     record: &StringRecord,
     header_map: &HashMap<String, usize>,
-    _row_num: usize,
+    row_num: usize,
 ) -> Result<CreateAssetBalanceRequest, crate::models::csv_import::CsvRowError> {
+    use crate::models::csv_import::CsvRowError;
+
+    // 必須数値列: 空欄・"-" もエラー。パース失敗も CsvRowError に変換する
+    let num = |col: &str| {
+        let raw = parse_optional_string(record, header_map, col);
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed == "-" {
+            return Err(CsvRowError {
+                row: row_num,
+                message: format!("必須列 '{}' が空または値なし", col),
+            });
+        }
+        parse_number(trimmed).map_err(|e| CsvRowError {
+            row: row_num,
+            message: format!("{}: {}", col, e),
+        })
+    };
+
     let security_code = parse_optional_string(record, header_map, "銘柄コード").replace('"', "");
     Ok(CreateAssetBalanceRequest {
         security_code,
         security_name: parse_optional_string(record, header_map, "銘柄名"),
-        shares: parse_number(&parse_optional_string(record, header_map, "保有数量［株］"))
-            .unwrap_or(0.0),
+        shares: num("保有数量［株］")?,
+        // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
         executing_shares: parse_number(&parse_optional_string(record, header_map, "執行中［株］"))
             .unwrap_or(0.0),
-        average_purchase_price: parse_number(&parse_optional_string(
-            record,
-            header_map,
-            "平均取得価額［円］",
-        ))
-        .unwrap_or(0.0),
-        total_purchase_amount: parse_number(&parse_optional_string(
-            record,
-            header_map,
-            "取得総額［円］",
-        ))
-        .unwrap_or(0.0),
-        current_price: parse_number(&parse_optional_string(record, header_map, "現在値［円］"))
-            .unwrap_or(0.0),
+        average_purchase_price: num("平均取得価額［円］")?,
+        total_purchase_amount: num("取得総額［円］")?,
+        current_price: num("現在値［円］")?,
+        // 前日比は変動なし時に 0 または "-" が仕様上ありうるため 0.0 フォールバック
         daily_change: parse_number(&parse_optional_string(
             record,
             header_map,
             "現在値（前日比）［円］",
         ))
         .unwrap_or(0.0),
-        market_value: parse_number(&parse_optional_string(
-            record,
-            header_map,
-            "時価評価額［円］",
-        ))
-        .unwrap_or(0.0),
+        market_value: num("時価評価額［円］")?,
+        // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
         profit_loss_rate: parse_number(&parse_optional_string(
             record,
             header_map,
@@ -219,4 +229,76 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     let deleted = result.rows_affected();
     info!("[asset_balance.delete_all] 完了: {}件削除", deleted);
     Ok(deleted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::csv_import::parse_csv;
+
+    fn make_csv(header: &str, row: &str) -> String {
+        format!("{}\n{}\n", header, row)
+    }
+
+    const HEADER: &str =
+        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+
+    #[test]
+    fn test_parse_asset_balance_row_ok() {
+        let csv = make_csv(
+            HEADER,
+            "1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67",
+        );
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(errors.is_empty());
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].security_code, "1234");
+        assert_eq!(items[0].shares, 100.0);
+        assert_eq!(items[0].executing_shares, 0.0); // "-" → 0.0
+        assert_eq!(items[0].average_purchase_price, 1500.0);
+        assert_eq!(items[0].current_price, 1600.0);
+    }
+
+    #[test]
+    fn test_parse_asset_balance_row_invalid_shares_is_error() {
+        // 保有数量が不正値（N/A など）→ サイレント 0 埋めせず CsvRowError を返す
+        let csv = make_csv(HEADER, "1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(items.is_empty(), "不正行はアイテムに含まれてはいけない");
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("保有数量"));
+    }
+
+    #[test]
+    fn test_parse_asset_balance_row_dash_in_required_col_is_error() {
+        // 保有数量が "-"（値なし）→ 必須列なので CsvRowError
+        let csv = make_csv(HEADER, "1234,テスト,-,-,1500,150000,1600,0,160000,0");
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(
+            items.is_empty(),
+            "必須列が '-' の行はアイテムに含まれてはいけない"
+        );
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("保有数量"));
+    }
+
+    #[test]
+    fn test_parse_asset_balance_row_invalid_price_is_error() {
+        // 現在値が不正値（N/A など）→ CsvRowError
+        let csv = make_csv(HEADER, "1234,テスト,100,-,1500,150000,N/A,0,160000,0");
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(items.is_empty());
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("現在値"));
+    }
+
+    #[test]
+    fn test_parse_asset_balance_row_optional_zero_fields() {
+        // 前日比・評価損益が "-" でも 0.0 として許容
+        let csv = make_csv(HEADER, "5678,ファンド,50,-,2000,100000,2100,-,105000,-");
+        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        assert!(errors.is_empty());
+        assert_eq!(items[0].daily_change, 0.0);
+        assert_eq!(items[0].profit_loss_rate, 0.0);
+    }
 }
