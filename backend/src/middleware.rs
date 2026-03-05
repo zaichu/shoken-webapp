@@ -9,7 +9,28 @@ use axum::{
 };
 use governor::{DefaultDirectRateLimiter, DefaultKeyedRateLimiter, Quota, RateLimiter};
 
+use axum::http::Request as AxumRequest;
+use tower_http::trace::MakeSpan;
+
 use crate::errors::{ErrorDetails, ErrorResponse};
+
+/// TraceLayer 用スパンメーカー（クエリパラメータを除外）
+///
+/// `TraceLayer::new_for_http()` の既定実装はクエリ文字列込みの URI を記録するため、
+/// OAuth コールバックの `code` / `state` など機密パラメータがログに残る。
+/// このスパンメーカーはパスのみを記録し機密情報の漏洩を防ぐ。
+#[derive(Clone, Copy, Debug)]
+pub struct PathOnlyMakeSpan;
+
+impl<B> MakeSpan<B> for PathOnlyMakeSpan {
+    fn make_span(&mut self, request: &AxumRequest<B>) -> tracing::Span {
+        tracing::debug_span!(
+            "http_request",
+            method = %request.method(),
+            path = request.uri().path(),
+        )
+    }
+}
 
 fn rate_limit_error() -> Response {
     let error_response = ErrorResponse {

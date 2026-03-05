@@ -17,7 +17,7 @@ use crate::{
     handlers,
     middleware::{
         add_security_headers, build_keyed_rate_limiter, build_rate_limiter, keyed_rate_limit,
-        rate_limit, validate_origin,
+        rate_limit, validate_origin, PathOnlyMakeSpan,
     },
     openapi::ApiDoc,
     state::AppState,
@@ -64,8 +64,8 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
-        // リクエストトレース（メソッド/パス/ステータス/レイテンシ）
-        .layer(TraceLayer::new_for_http())
+        // リクエストトレース（パスのみ記録：クエリパラメータの機密情報漏洩を防ぐ）
+        .layer(TraceLayer::new_for_http().make_span_with(PathOnlyMakeSpan))
         // x-request-id をレスポンスに伝播
         .layer(PropagateRequestIdLayer::x_request_id())
         // x-request-id が未設定の場合は UUID v4 を自動付与
@@ -304,5 +304,46 @@ mod tests {
             .unwrap();
         let resp = router.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    /// x-request-id がレスポンスに伝播されることを確認
+    #[tokio::test]
+    async fn test_request_id_propagated_to_response() {
+        use axum::{body::Body, http::Request, routing::get, Router};
+        use tower::ServiceExt;
+        use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
+
+        let router: Router = Router::new()
+            .route("/health", get(|| async { "OK" }))
+            .layer(PropagateRequestIdLayer::x_request_id())
+            .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
+
+        // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.clone().oneshot(req).await.unwrap();
+        assert!(
+            resp.headers().contains_key("x-request-id"),
+            "x-request-id should be auto-generated"
+        );
+
+        // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/health")
+            .header("x-request-id", "my-custom-id")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(
+            resp.headers()
+                .get("x-request-id")
+                .and_then(|v| v.to_str().ok()),
+            Some("my-custom-id"),
+            "existing x-request-id should be propagated unchanged"
+        );
     }
 }
