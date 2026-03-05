@@ -1,25 +1,8 @@
 import { apiClient } from '@/lib/api/client';
+import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
 import { DividendData } from '@/lib/interfaces/dividend';
 import { DomesticStockData } from '@/lib/interfaces/domesticStock';
 import { MutualfundData } from '@/lib/interfaces/mutualfund';
-import type { components } from '@/generated/api';
-
-// APIレスポンス型（OpenAPI スキーマから生成）
-type CsvUploadResponse = components['schemas']['CsvUploadResponse'];
-type CsvPreviewResponse = components['schemas']['CsvPreviewResponse'];
-
-// CSV ファイルを multipart/form-data で送信
-const uploadCsvFile = (path: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return apiClient.post<CsvUploadResponse>(path, formData, { withCredentials: true });
-};
-
-const previewCsvFile = (path: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return apiClient.post<CsvPreviewResponse>(path, formData, { withCredentials: true });
-};
 
 // 配当金API
 export const dividendApi = {
@@ -59,4 +42,3 @@ export const mutualfundApi = {
   deleteAll: async () =>
     apiClient.delete('/mutualfunds/all', { withCredentials: true }),
 };
-

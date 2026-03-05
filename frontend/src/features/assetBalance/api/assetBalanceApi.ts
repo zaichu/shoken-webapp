@@ -1,21 +1,6 @@
 import { apiClient } from '@/lib/api/client';
+import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
-import type { components } from '@/generated/api';
-
-type CsvPreviewResponse = components['schemas']['CsvPreviewResponse'];
-type CsvUploadResponse = components['schemas']['CsvUploadResponse'];
-
-const uploadCsvFile = (path: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return apiClient.post<CsvUploadResponse>(path, formData, { withCredentials: true });
-};
-
-const previewCsvFile = (path: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return apiClient.post<CsvPreviewResponse>(path, formData, { withCredentials: true });
-};
 
 export const assetBalanceApi = {
   list: () =>
