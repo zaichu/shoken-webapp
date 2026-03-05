@@ -242,6 +242,10 @@ shoken-webapp/
 - フロントエンド詳細: `frontend/README.md`
 - バックエンド詳細: `backend/README.md`
 
+## セキュリティ
+
+セキュリティ上の問題を発見した場合は [SECURITY.md](SECURITY.md) を参照してください。
+
 ## ライセンス
 
 MIT
