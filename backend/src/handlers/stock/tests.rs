@@ -12,10 +12,10 @@ use chrono::NaiveDate;
 use reqwest::Client;
 use serde_json::{json, Value};
 use sqlx::{Pool, Postgres};
-use tower::ServiceExt;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres as PgImage;
 use tokio::time::{sleep, timeout, Duration};
+use tower::ServiceExt;
 
 /// testcontainers 経由で Postgres を起動し、マイグレーション + テストデータを投入する
 /// 戻り値: (pool, _node) で _node を drop すると停止する
@@ -233,11 +233,8 @@ async fn test_add_stock_info() {
 /// セッション検証はハンドラー入口で実行され DB クエリは発生しないため DB 不要
 #[tokio::test]
 async fn test_add_stock_info_unauthorized() {
-    let pool = crate::db::connect_pool_lazy(
-        "postgresql://postgres:postgres@localhost/postgres",
-        1,
-    )
-    .unwrap();
+    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
+        .unwrap();
     let app = setup_test_app(pool);
 
     let stock_data = json!({
