@@ -27,6 +27,20 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
+
+    // keyed limiter のキー増加を抑制するため、60 秒ごとに retain_recent を実行
+    if let Some(ref limiter) = auth_limiter {
+        let l = limiter.clone();
+        tokio::spawn(async move {
+            let mut interval =
+                tokio::time::interval(std::time::Duration::from_secs(60));
+            loop {
+                interval.tick().await;
+                l.retain_recent();
+            }
+        });
+    }
+
     Router::new()
         .merge(stock_routes())
         .merge(jquants_routes(jquants_limiter))

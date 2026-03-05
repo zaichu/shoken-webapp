@@ -39,29 +39,19 @@ pub fn build_keyed_rate_limiter(
     Some(Arc::new(RateLimiter::keyed(Quota::per_second(rps))))
 }
 
-/// X-Forwarded-For / fly-client-ip ヘッダーからクライアント IP を取得する
+/// クライアント IP を取得する
+///
+/// Fly.io は `fly-client-ip` を必ずセットし、クライアントによる偽装を防ぐ。
+/// `X-Forwarded-For` はクライアントが任意の値を送れるため信頼しない。
+/// `fly-client-ip` が存在しない場合（ローカル開発など）は 0.0.0.0 を返す。
+/// これにより「プロキシ未経由の不明リクエスト」は共有バケットに入るため、
+/// バイパス攻撃には使えない。
 fn extract_client_ip(req: &Request<Body>) -> std::net::IpAddr {
-    // Fly.io / CDN などのリバースプロキシ経由の実 IP
-    if let Some(ip) = req
-        .headers()
+    req.headers()
         .get("fly-client-ip")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse().ok())
-    {
-        return ip;
-    }
-    if let Some(ip) = req
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(str::trim)
-        .and_then(|s| s.parse().ok())
-    {
-        return ip;
-    }
-    // フォールバック: ローカル/不明
-    std::net::IpAddr::from([0, 0, 0, 0])
+        .unwrap_or(std::net::IpAddr::from([0, 0, 0, 0]))
 }
 
 /// グローバルレート制限ミドルウェア。制限超過時は 429 を返す
@@ -470,7 +460,7 @@ mod tests {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/test")
-            .header("x-forwarded-for", "1.2.3.4")
+            .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
@@ -493,7 +483,7 @@ mod tests {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/test")
-            .header("x-forwarded-for", "1.2.3.4")
+            .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
         let resp = make_app().oneshot(req).await.unwrap();
@@ -502,7 +492,7 @@ mod tests {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/test")
-            .header("x-forwarded-for", "1.2.3.4")
+            .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
         let resp = make_app().oneshot(req).await.unwrap();
@@ -526,16 +516,16 @@ mod tests {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/test")
-            .header("x-forwarded-for", "1.2.3.4")
+            .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
         let resp = make_app().oneshot(req).await.unwrap();
         assert_ne!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
-        // IP2 はまだ許可される
+        // IP2 はまだ許可される（独立したバケット）
         let req = Request::builder()
             .method(Method::POST)
             .uri("/test")
-            .header("x-forwarded-for", "5.6.7.8")
+            .header("fly-client-ip", "5.6.7.8")
             .body(Body::empty())
             .unwrap();
         let resp = make_app().oneshot(req).await.unwrap();
