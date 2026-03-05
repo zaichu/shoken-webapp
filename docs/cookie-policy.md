@@ -12,9 +12,9 @@
 
 | 属性 | 値 |
 |---|---|
-| 名前 | `session_id` |
+| 名前 | `session_token` |
 | 目的 | ログイン状態の維持 |
-| 種類 | セッション Cookie（ブラウザを閉じると削除） |
+| 有効期限 | 7日間（発行から7日後に自動期限切れ） |
 | HttpOnly | ✅（JavaScript からアクセス不可） |
 | Secure | ✅（HTTPS 通信のみ送信） |
 | SameSite | `None`（本番環境）/ `Lax`（開発環境） |
