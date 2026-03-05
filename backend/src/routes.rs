@@ -37,13 +37,14 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
             "/api-docs/openapi.json",
             get(|| async { Json(ApiDoc::openapi()) }),
         )
-        .layer(middleware::from_fn(add_security_headers))
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, req, next).await }
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(config.build_cors_layer())
+        // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
+        .layer(middleware::from_fn(add_security_headers))
         .with_state(state)
 }
 

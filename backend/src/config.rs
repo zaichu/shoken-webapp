@@ -388,4 +388,29 @@ mod tests {
             .and_then(|value| value.to_str().ok());
         assert_eq!(allowed_origin, Some("http://localhost:8080"));
     }
+
+    /// 不正オリジンによる 403 にもセキュリティヘッダーが付くことを確認する
+    #[tokio::test]
+    async fn test_security_headers_on_403_response() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let _app_env = EnvGuard::set("APP_ENV", None);
+        let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
+
+        let config = Config::from_env();
+        let app = build_test_app(&config);
+
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/health")
+            .header("origin", "http://evil.example.com")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            resp.headers().get("X-Content-Type-Options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
+    }
 }
