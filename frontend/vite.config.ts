@@ -18,7 +18,7 @@ export default defineConfig({
   base: '/',
   server: {
     port: 8080,
-    open: true,
+    open: !process.env.CI && !process.env.PLAYWRIGHT_TEST,
   },
   build: {
     outDir: 'dist',
