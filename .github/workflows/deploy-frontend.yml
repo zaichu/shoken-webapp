@@ -42,3 +42,17 @@ jobs:
         run: npm run build
         env:
           VITE_SHOKEN_WEBAPI_API_URL: https://example.com
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E tests (CI mode)
+        run: npm run test:e2e:ci
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
