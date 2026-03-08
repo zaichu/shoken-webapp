@@ -1,6 +1,12 @@
--- 0016 で DOUBLE PRECISION → NUMERIC(18,6) に変換後、
+-- 0016 で DOUBLE PRECISION → NUMERIC に変換後、
 -- content_hash が float8::text 前提で作られた値のままになるため再計算する
 -- 同一表現（numeric::text）でハッシュを作り直すことで新規 insert との互換性を回復する
+--
+-- ユニークインデックス (user_id, content_hash, occurrence_index) が存在するため、
+-- content_hash 更新 → occurrence_index 更新の過渡状態でキー衝突が起きないよう
+-- インデックスを DROP してから再計算し、最後に RECREATE する
+
+DROP INDEX IF EXISTS idx_domestic_stocks_hash_occurrence;
 
 UPDATE domestic_stocks
 SET content_hash = md5(
@@ -24,3 +30,6 @@ UPDATE domestic_stocks d
 SET occurrence_index = ranked.rn
 FROM ranked
 WHERE d.id = ranked.id;
+
+CREATE UNIQUE INDEX idx_domestic_stocks_hash_occurrence
+    ON domestic_stocks (user_id, content_hash, occurrence_index);
