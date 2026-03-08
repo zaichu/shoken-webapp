@@ -40,13 +40,12 @@
 ## 4. 公平性・アクセシビリティ
 
 - 特定のユーザー層を不当に不利にする設計は避ける
-- WCAG 2.1 AA を目標基準とする（自動監査: `@axe-core/playwright`）
+- WCAG 2.1 AA を目標基準とする（将来的に `@axe-core/playwright` による自動監査を導入予定）
 - 色のみで情報を伝えない、スクリーンリーダー対応ラベルを付与する
 
 ### チェックポイント
 
 - [ ] 新しいUIコンポーネントに `aria-label` / `role` が適切に付与されているか
-- [ ] E2E アクセシビリティチェック（`npm run test:e2e`）がパスするか
 
 ## 5. 機能追加時のレビュー観点
 
@@ -62,7 +61,7 @@
 
 ## 参考ドキュメント
 
-- [プライバシーポリシー](../frontend/src/pages/PrivacyPolicyPage.tsx)（アプリ内表示）
-- [利用規約](../frontend/src/pages/TermsOfServicePage.tsx)（アプリ内表示）
+- [プライバシーポリシー](privacy-policy.md)
+- [利用規約](terms.md)
 - [セキュリティポリシー](../SECURITY.md)
 - [セキュリティ共通ルール](../.claude/rules/02-security.md)
