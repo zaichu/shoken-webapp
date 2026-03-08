@@ -220,15 +220,8 @@ fn parse_asset_balance_row(
 
 /// 認証ユーザーの保有銘柄を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    info!("[asset_balance.delete_all] リクエスト受信");
-    let result = sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
-        .bind(user_id)
-        .execute(pool)
-        .await?;
-
-    let deleted = result.rows_affected();
-    info!("[asset_balance.delete_all] 完了: {}件削除", deleted);
-    Ok(deleted)
+    crate::services::shared::delete_all_for_user(pool, user_id, "asset_balances", "asset_balance")
+        .await
 }
 
 #[cfg(test)]

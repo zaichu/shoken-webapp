@@ -7,4 +7,5 @@ pub mod dividend_cache;
 pub mod domestic_stock;
 pub mod jquants;
 pub mod mutualfund;
+pub mod shared;
 pub mod stock;

@@ -189,13 +189,5 @@ fn parse_mutualfund_row(
 
 /// 認証ユーザーの投資信託を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    info!("[mutualfund.delete_all] リクエスト受信");
-    let result = sqlx::query("DELETE FROM mutualfunds WHERE user_id = $1")
-        .bind(user_id)
-        .execute(pool)
-        .await?;
-
-    let deleted = result.rows_affected();
-    info!("[mutualfund.delete_all] 完了: {}件削除", deleted);
-    Ok(deleted)
+    crate::services::shared::delete_all_for_user(pool, user_id, "mutualfunds", "mutualfund").await
 }
