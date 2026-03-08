@@ -33,7 +33,8 @@ pub fn parse_number(s: &str) -> Result<Decimal, String> {
     let s = s.replace(',', "");
     let value =
         Decimal::from_str(&s).map_err(|_| format!("数値のパースに失敗しました: '{}'", s))?;
-    Ok(if negative { -value } else { value })
+    // trailing zero を除去して表記差（"1" vs "1.0"）がハッシュに影響しないよう正規化する
+    Ok(if negative { -value } else { value }.normalize())
 }
 
 /// 日付文字列をパース（"YYYY/MM/DD" または "YYYY-MM-DD"）

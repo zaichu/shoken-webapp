@@ -8,13 +8,15 @@
 
 DROP INDEX IF EXISTS idx_domestic_stocks_hash_occurrence;
 
+-- trim_scale() で trailing zeros を除去し、parse_number().normalize() と同一の表現でハッシュを作る
+-- (例: 1.0 → 1、1.10 → 1.1) ※ trim_scale は PostgreSQL 13+
 UPDATE domestic_stocks
 SET content_hash = md5(
     trade_date::text || '|' || settlement_date::text || '|' ||
     security_code || '|' || security_name || '|' || account || '|' ||
-    shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
-    purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
-    taxes::text || '|' || realized_profit_and_loss_after_tax::text
+    trim_scale(shares)::text || '|' || trim_scale(asked_price)::text || '|' || trim_scale(proceeds)::text || '|' ||
+    trim_scale(purchase_price)::text || '|' || trim_scale(realized_profit_and_loss)::text || '|' ||
+    trim_scale(taxes)::text || '|' || trim_scale(realized_profit_and_loss_after_tax)::text
 );
 
 -- occurrence_index を新しい content_hash に合わせて再計算
