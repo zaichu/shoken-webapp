@@ -25,6 +25,9 @@ const TAB_LABEL: Record<ReceiptsType, string> = {
   mutualfund: '投資信託',
 };
 
+// タブ一覧（順序固定）
+const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
+
 /**
  * 明細種類ごとにCSVデータを管理するページコンポーネント
  */
@@ -107,8 +110,6 @@ export function ReceiptsPage() {
   const tabName = TAB_LABEL[receiptsType];
   const importResult = lastImportResults[receiptsType];
 
-  // タブ一覧（順序を固定して矢印キーナビゲーションに使用）
-  const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
   const tablistRef = useRef<HTMLDivElement>(null);
 
   // 矢印キーでのタブ切り替え（roving tabIndex パターン）
