@@ -175,10 +175,11 @@ mod tests {
         Router,
     };
     use reqwest::Client;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
     use tower::ServiceExt;
 
-    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+    static ENV_MUTEX: Mutex<()> = Mutex::const_new(());
 
     struct EnvGuard {
         key: &'static str,
@@ -304,7 +305,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_filters_localhost_in_production() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().await;
         let _app_env = EnvGuard::set("APP_ENV", Some("production"));
         let _cors_origins = EnvGuard::set(
             "CORS_ORIGINS",
@@ -333,7 +334,7 @@ mod tests {
     /// （POST リクエストに対して Config::cors_origins と validate_origin が同一リストを参照する）
     #[tokio::test]
     async fn test_validate_origin_respects_cors_origins_env() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().await;
         let _app_env = EnvGuard::set("APP_ENV", None);
         let _cors_origins = EnvGuard::set(
             "CORS_ORIGINS",
@@ -374,7 +375,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_allows_localhost_in_non_production() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().await;
         let _app_env = EnvGuard::set("APP_ENV", None);
         let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
 
@@ -392,7 +393,7 @@ mod tests {
     /// 不正オリジンによる 403 にもセキュリティヘッダーが付くことを確認する
     #[tokio::test]
     async fn test_security_headers_on_403_response() {
-        let _lock = ENV_MUTEX.lock().unwrap();
+        let _lock = ENV_MUTEX.lock().await;
         let _app_env = EnvGuard::set("APP_ENV", None);
         let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
 

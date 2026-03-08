@@ -40,6 +40,6 @@ pub async fn batch(
 mod tests {
     #[test]
     fn test_module_compilation() {
-        assert!(true);
+        // モジュールが正常にコンパイルされることを確認
     }
 }
