@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
@@ -106,6 +106,31 @@ export function ReceiptsPage() {
   const hasDbData = dbDataCount > 0;
   const tabName = TAB_LABEL[receiptsType];
   const importResult = lastImportResults[receiptsType];
+
+  // タブ一覧（順序を固定して矢印キーナビゲーションに使用）
+  const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
+  const tablistRef = useRef<HTMLDivElement>(null);
+
+  // 矢印キーでのタブ切り替え（roving tabIndex パターン）
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = TABS.indexOf(receiptsType);
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % TABS.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = TABS.length - 1;
+    }
+    if (nextIndex !== null) {
+      e.preventDefault();
+      dispatch({ type: 'SET_RECEIPTS_TYPE', payload: TABS[nextIndex] });
+      const buttons = tablistRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      buttons?.[nextIndex]?.focus();
+    }
+  }, [receiptsType, dispatch]);
   const saveLabel = csvPreview
     ? `${csvPreview.validRows}件 追加で保存`
     : '追加で保存';
@@ -117,8 +142,8 @@ export function ReceiptsPage() {
         description="配当金・国内株式・投資信託の取引明細を管理します。"
       />
       <nav className="border-b border-slate-200 no-print" aria-label="取引明細タブ">
-        <div className="flex flex-wrap gap-1" role="tablist">
-          {(['dividend', 'domesticstock', 'mutualfund'] as const).map((tab) => {
+        <div className="flex flex-wrap gap-1" role="tablist" ref={tablistRef}>
+          {TABS.map((tab) => {
             const isActive = receiptsType === tab;
             return (
               <button
@@ -129,10 +154,12 @@ export function ReceiptsPage() {
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                 }`}
                 onClick={() => dispatch({ type: 'SET_RECEIPTS_TYPE', payload: tab })}
+                onKeyDown={handleTabKeyDown}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${tab}`}
+                tabIndex={isActive ? 0 : -1}
               >
                 {TAB_LABEL[tab]}
               </button>
