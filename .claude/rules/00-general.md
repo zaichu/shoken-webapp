@@ -14,8 +14,8 @@
 - 中規模以上のタスクでは `docs/tasks/TEMPLATE.md` を元に task file を作成する
 - task file はローカルの一時ファイルとして扱い、ユーザー明示指示がない限りコミット・PR に含めない
 - task 完了時または作業中止時には、対応する task file を削除する
-- 実装担当は Claude、レビュー担当は Codex（MCP経由）とする
-- Claude は実装完了後に PR を作成し、Codex の MCP を呼び出してレビューを依頼する
+- 実装担当は Claude、レビュー担当は Codex（CLI経由）とする
+- Claude は実装完了後に PR を作成し、Codex CLI を呼び出してレビューを依頼する
 - Codex は `.claude/skills/pr-review/SKILL.md` に従って PR をレビューする
 - Codex は PR を承認する前に、要件充足、回帰有無、コード品質、テスト状況を確認する
 - Claude は Codex の指摘に対応し、必要な修正と検証を行う

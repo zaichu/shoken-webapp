@@ -116,8 +116,8 @@ export function ReceiptsPage() {
         title="取引明細"
         description="配当金・国内株式・投資信託の取引明細を管理します。"
       />
-      <nav className="border-b border-slate-200 no-print">
-        <div className="flex flex-wrap gap-1">
+      <nav className="border-b border-slate-200 no-print" aria-label="取引明細タブ">
+        <div className="flex flex-wrap gap-1" role="tablist">
           {(['dividend', 'domesticstock', 'mutualfund'] as const).map((tab) => {
             const isActive = receiptsType === tab;
             return (
@@ -132,6 +132,7 @@ export function ReceiptsPage() {
                 type="button"
                 role="tab"
                 aria-selected={isActive}
+                aria-controls={`tabpanel-${tab}`}
               >
                 {TAB_LABEL[tab]}
               </button>
@@ -250,24 +251,30 @@ export function ReceiptsPage() {
         {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
         {!authLoading && !dbLoading && (
           <>
-            {receiptsType === 'dividend' && (
-              <Dividend
-                data={dividendData}
-                previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
-              />
-            )}
-            {receiptsType === 'domesticstock' && (
-              <DomesticStock
-                data={domesticstockData}
-                previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
-              />
-            )}
-            {receiptsType === 'mutualfund' && (
-              <Mutualfund
-                data={mutualfundData}
-                previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
-              />
-            )}
+            <div id="tabpanel-dividend" role="tabpanel" hidden={receiptsType !== 'dividend'}>
+              {receiptsType === 'dividend' && (
+                <Dividend
+                  data={dividendData}
+                  previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
+                />
+              )}
+            </div>
+            <div id="tabpanel-domesticstock" role="tabpanel" hidden={receiptsType !== 'domesticstock'}>
+              {receiptsType === 'domesticstock' && (
+                <DomesticStock
+                  data={domesticstockData}
+                  previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
+                />
+              )}
+            </div>
+            <div id="tabpanel-mutualfund" role="tabpanel" hidden={receiptsType !== 'mutualfund'}>
+              {receiptsType === 'mutualfund' && (
+                <Mutualfund
+                  data={mutualfundData}
+                  previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
+                />
+              )}
+            </div>
           </>
         )}
 
