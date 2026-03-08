@@ -214,13 +214,8 @@ fn parse_domestic_stock_row(
 
 /// 認証ユーザーの国内株式取引を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    crate::services::shared::delete_all_for_user(
-        pool,
-        user_id,
-        "domestic_stocks",
-        "domestic_stock",
-    )
-    .await
+    crate::services::shared::delete_all_for_user(pool, user_id, "domestic_stocks", "domestic_stock")
+        .await
 }
 
 #[cfg(test)]
