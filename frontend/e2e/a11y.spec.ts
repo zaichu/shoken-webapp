@@ -91,16 +91,27 @@ test('資産管理ページに重大な WCAG 違反がない', async ({ page }) 
   ).toHaveLength(0);
 });
 
-test('取引明細ページに重大な WCAG 違反がない', async ({ page }) => {
+test('取引明細ページに重大な WCAG 違反がない（全タブ）', async ({ page }) => {
   await setupAuthMocks(page);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
 
-  const results = await buildAxe(page).analyze();
-  const critical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+  const tabs = [
+    { label: '配当金', selector: 'button[role="tab"][id="tab-dividend"]' },
+    { label: '国内株式', selector: 'button[role="tab"][id="tab-domesticstock"]' },
+    { label: '投資信託', selector: 'button[role="tab"][id="tab-mutualfund"]' },
+  ];
 
-  expect(
-    critical,
-    critical.map((v) => `[${v.impact}] ${v.id}: ${v.description}`).join('\n'),
-  ).toHaveLength(0);
+  for (const tab of tabs) {
+    await page.click(tab.selector);
+    await page.waitForLoadState('networkidle');
+
+    const results = await buildAxe(page).analyze();
+    const critical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+
+    expect(
+      critical,
+      `[${tab.label}タブ] ` + critical.map((v) => `[${v.impact}] ${v.id}: ${v.description}`).join('\n'),
+    ).toHaveLength(0);
+  }
 });

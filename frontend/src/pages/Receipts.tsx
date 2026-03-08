@@ -149,6 +149,7 @@ export function ReceiptsPage() {
             return (
               <button
                 key={tab}
+                id={`tab-${tab}`}
                 className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   isActive
                     ? 'border-primary text-primary bg-white'
@@ -279,7 +280,7 @@ export function ReceiptsPage() {
         {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
         {!authLoading && !dbLoading && (
           <>
-            <div id="tabpanel-dividend" role="tabpanel" hidden={receiptsType !== 'dividend'}>
+            <div id="tabpanel-dividend" role="tabpanel" aria-labelledby="tab-dividend" hidden={receiptsType !== 'dividend'}>
               {receiptsType === 'dividend' && (
                 <Dividend
                   data={dividendData}
@@ -287,7 +288,7 @@ export function ReceiptsPage() {
                 />
               )}
             </div>
-            <div id="tabpanel-domesticstock" role="tabpanel" hidden={receiptsType !== 'domesticstock'}>
+            <div id="tabpanel-domesticstock" role="tabpanel" aria-labelledby="tab-domesticstock" hidden={receiptsType !== 'domesticstock'}>
               {receiptsType === 'domesticstock' && (
                 <DomesticStock
                   data={domesticstockData}
@@ -295,7 +296,7 @@ export function ReceiptsPage() {
                 />
               )}
             </div>
-            <div id="tabpanel-mutualfund" role="tabpanel" hidden={receiptsType !== 'mutualfund'}>
+            <div id="tabpanel-mutualfund" role="tabpanel" aria-labelledby="tab-mutualfund" hidden={receiptsType !== 'mutualfund'}>
               {receiptsType === 'mutualfund' && (
                 <Mutualfund
                   data={mutualfundData}
