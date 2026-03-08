@@ -6,6 +6,7 @@ use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{
     compute_taxes, get_cell, parse_required_date, parse_required_number, parse_required_string,
 };
+use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -58,20 +59,21 @@ pub async fn bulk_create(
     let fund_names: Vec<&str> = items.iter().map(|i| i.fund_name.as_str()).collect();
     let dividends: Vec<Option<&str>> = items.iter().map(|i| i.dividends.as_deref()).collect();
     let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
-    let shares: Vec<f64> = items.iter().map(|i| i.shares).collect();
-    let exchange_rates: Vec<f64> = items.iter().map(|i| i.exchange_rate).collect();
-    let cancellation_unit_prices: Vec<f64> = items
+    let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
+    let exchange_rates: Vec<Decimal> = items.iter().map(|i| i.exchange_rate).collect();
+    let cancellation_unit_prices: Vec<Decimal> = items
         .iter()
         .map(|i| i.cancellation_unit_price_yen)
         .collect();
-    let cancellation_amounts: Vec<f64> = items.iter().map(|i| i.cancellation_amount_yen).collect();
-    let avg_acquisition_prices: Vec<f64> = items
+    let cancellation_amounts: Vec<Decimal> =
+        items.iter().map(|i| i.cancellation_amount_yen).collect();
+    let avg_acquisition_prices: Vec<Decimal> = items
         .iter()
         .map(|i| i.average_acquisition_price_yen)
         .collect();
-    let realized_pls: Vec<f64> = items.iter().map(|i| i.realized_profit_and_loss).collect();
-    let taxes: Vec<f64> = items.iter().map(|i| i.taxes).collect();
-    let realized_pls_after_tax: Vec<f64> = items
+    let realized_pls: Vec<Decimal> = items.iter().map(|i| i.realized_profit_and_loss).collect();
+    let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
+    let realized_pls_after_tax: Vec<Decimal> = items
         .iter()
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
@@ -85,8 +87,8 @@ pub async fn bulk_create(
                                  realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax)
         SELECT * FROM UNNEST(
             $1::uuid[], $2::date[], $3::date[], $4::text[], $5::text[],
-            $6::text[], $7::float8[], $8::float8[], $9::float8[],
-            $10::float8[], $11::float8[], $12::float8[], $13::float8[], $14::float8[]
+            $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+            $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[], $14::numeric[]
         )
         ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
         DO NOTHING

@@ -6,6 +6,7 @@ use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{
     parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
 };
+use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -57,11 +58,12 @@ pub async fn bulk_create(
     let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
     let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
-    let unit_prices: Vec<f64> = items.iter().map(|i| i.unit_price).collect();
-    let shares: Vec<f64> = items.iter().map(|i| i.shares).collect();
-    let dividends_before_taxes: Vec<f64> = items.iter().map(|i| i.dividends_before_tax).collect();
-    let taxes: Vec<f64> = items.iter().map(|i| i.taxes).collect();
-    let net_amounts: Vec<f64> = items.iter().map(|i| i.net_amount_received).collect();
+    let unit_prices: Vec<Decimal> = items.iter().map(|i| i.unit_price).collect();
+    let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
+    let dividends_before_taxes: Vec<Decimal> =
+        items.iter().map(|i| i.dividends_before_tax).collect();
+    let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
+    let net_amounts: Vec<Decimal> = items.iter().map(|i| i.net_amount_received).collect();
 
     // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
     let result = sqlx::query(
@@ -71,8 +73,8 @@ pub async fn bulk_create(
                                taxes, net_amount_received)
         SELECT * FROM UNNEST(
             $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
-            $6::text[], $7::float8[], $8::float8[], $9::float8[],
-            $10::float8[], $11::float8[]
+            $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+            $10::numeric[], $11::numeric[]
         )
         ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
         DO NOTHING

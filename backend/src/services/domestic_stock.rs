@@ -6,6 +6,7 @@ use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{
     compute_taxes, parse_required_date, parse_required_number, parse_required_string,
 };
+use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -69,13 +70,13 @@ pub async fn bulk_create(
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
     let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
     let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
-    let shares: Vec<f64> = items.iter().map(|i| i.shares).collect();
-    let asked_prices: Vec<f64> = items.iter().map(|i| i.asked_price).collect();
-    let proceeds: Vec<f64> = items.iter().map(|i| i.proceeds).collect();
-    let purchase_prices: Vec<f64> = items.iter().map(|i| i.purchase_price).collect();
-    let realized_pls: Vec<f64> = items.iter().map(|i| i.realized_profit_and_loss).collect();
-    let taxes: Vec<f64> = items.iter().map(|i| i.taxes).collect();
-    let realized_pls_after_tax: Vec<f64> = items
+    let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
+    let asked_prices: Vec<Decimal> = items.iter().map(|i| i.asked_price).collect();
+    let proceeds: Vec<Decimal> = items.iter().map(|i| i.proceeds).collect();
+    let purchase_prices: Vec<Decimal> = items.iter().map(|i| i.purchase_price).collect();
+    let realized_pls: Vec<Decimal> = items.iter().map(|i| i.realized_profit_and_loss).collect();
+    let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
+    let realized_pls_after_tax: Vec<Decimal> = items
         .iter()
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
@@ -103,8 +104,8 @@ pub async fn bulk_create(
                 ) AS content_hash
             FROM UNNEST(
                 $1::uuid[], $2::date[], $3::date[], $4::text[],
-                $5::text[], $6::text[], $7::float8[], $8::float8[], $9::float8[],
-                $10::float8[], $11::float8[], $12::float8[], $13::float8[]
+                $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+                $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[]
             ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
                    security_name, account, shares, asked_price, proceeds,
                    purchase_price, realized_profit_and_loss, taxes,
@@ -222,6 +223,7 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 mod tests {
     use super::*;
     use chrono::NaiveDate;
+    use rust_decimal_macros::dec;
 
     fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
@@ -230,13 +232,13 @@ mod tests {
             security_code: "9508".to_string(),
             security_name: "九州電力".to_string(),
             account: "特定".to_string(),
-            shares: 100.0,
-            asked_price: 1880.0,
-            proceeds: 188000.0,
-            purchase_price: 1770.0,
-            realized_profit_and_loss: 11000.0,
-            taxes: 2234.0,
-            realized_profit_and_loss_after_tax: 8766.0,
+            shares: dec!(100),
+            asked_price: dec!(1880),
+            proceeds: dec!(188000),
+            purchase_price: dec!(1770),
+            realized_profit_and_loss: dec!(11000),
+            taxes: dec!(2234),
+            realized_profit_and_loss_after_tax: dec!(8766),
         }
     }
 

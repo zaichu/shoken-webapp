@@ -1,7 +1,9 @@
 use crate::models::csv_import::CsvRowError;
 use chrono::NaiveDate;
 use encoding_rs::{SHIFT_JIS, UTF_8};
+use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 /// UTF-8 デコードを試み、失敗時は Shift-JIS にフォールバック
 pub fn decode_bytes(bytes: &[u8]) -> String {
@@ -16,11 +18,11 @@ pub fn decode_bytes(bytes: &[u8]) -> String {
 }
 
 /// 数値文字列をパース（カンマ区切り・括弧マイナス対応）
-/// 例: "1,234" → 1234.0、"(500)" → -500.0、"-" → 0.0（値なし）
-pub fn parse_number(s: &str) -> Result<f64, String> {
+/// 例: "1,234" → 1234、"(500)" → -500、"-" → 0（値なし）
+pub fn parse_number(s: &str) -> Result<Decimal, String> {
     let s = s.trim();
     if s.is_empty() || s == "-" {
-        return Ok(0.0);
+        return Ok(Decimal::ZERO);
     }
     // 括弧表記はマイナス
     let (negative, s) = if s.starts_with('(') && s.ends_with(')') {
@@ -29,9 +31,8 @@ pub fn parse_number(s: &str) -> Result<f64, String> {
         (false, s)
     };
     let s = s.replace(',', "");
-    let value: f64 = s
-        .parse()
-        .map_err(|_| format!("数値のパースに失敗しました: '{}'", s))?;
+    let value =
+        Decimal::from_str(&s).map_err(|_| format!("数値のパースに失敗しました: '{}'", s))?;
     Ok(if negative { -value } else { value })
 }
 
@@ -48,14 +49,14 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
 }
 
 /// 税金を計算する（特定口座かつ利益がある場合のみ）
-pub fn compute_taxes(account: &str, realized_pnl: f64) -> (f64, f64) {
-    const TAX_RATE: f64 = 0.20315;
-    if account.contains("特定") && realized_pnl > 0.0 {
-        let taxes = (realized_pnl * TAX_RATE).floor();
+pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal) {
+    let tax_rate = Decimal::from_str("0.20315").unwrap();
+    if account.contains("特定") && realized_pnl > Decimal::ZERO {
+        let taxes = (realized_pnl * tax_rate).floor();
         let after_tax = realized_pnl - taxes;
         (taxes, after_tax)
     } else {
-        (0.0, realized_pnl)
+        (Decimal::ZERO, realized_pnl)
     }
 }
 
@@ -103,7 +104,7 @@ pub fn parse_required_number(
     header_map: &HashMap<String, usize>,
     col: &str,
     row_num: usize,
-) -> Result<f64, CsvRowError> {
+) -> Result<Decimal, CsvRowError> {
     let raw = get_cell(record, header_map, col);
     if raw.is_empty() {
         return Err(CsvRowError {
@@ -134,15 +135,16 @@ pub fn parse_required_date(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_parse_number_normal() {
-        assert_eq!(parse_number("1,234").unwrap(), 1234.0);
-        assert_eq!(parse_number("500").unwrap(), 500.0);
-        assert_eq!(parse_number("(500)").unwrap(), -500.0);
-        assert_eq!(parse_number("").unwrap(), 0.0);
-        // ハイフン単独は「値なし」として 0.0
-        assert_eq!(parse_number("-").unwrap(), 0.0);
+        assert_eq!(parse_number("1,234").unwrap(), dec!(1234));
+        assert_eq!(parse_number("500").unwrap(), dec!(500));
+        assert_eq!(parse_number("(500)").unwrap(), dec!(-500));
+        assert_eq!(parse_number("").unwrap(), Decimal::ZERO);
+        // ハイフン単独は「値なし」として 0
+        assert_eq!(parse_number("-").unwrap(), Decimal::ZERO);
     }
 
     #[test]
@@ -175,23 +177,23 @@ mod tests {
 
     #[test]
     fn test_compute_taxes_tokutei_profit() {
-        let (taxes, after) = compute_taxes("特定", 10000.0);
-        assert_eq!(taxes, 2031.0); // floor(10000 * 0.20315)
-        assert_eq!(after, 7969.0);
+        let (taxes, after) = compute_taxes("特定", dec!(10000));
+        assert_eq!(taxes, dec!(2031)); // floor(10000 * 0.20315)
+        assert_eq!(after, dec!(7969));
     }
 
     #[test]
     fn test_compute_taxes_loss() {
-        let (taxes, after) = compute_taxes("特定", -5000.0);
-        assert_eq!(taxes, 0.0);
-        assert_eq!(after, -5000.0);
+        let (taxes, after) = compute_taxes("特定", dec!(-5000));
+        assert_eq!(taxes, Decimal::ZERO);
+        assert_eq!(after, dec!(-5000));
     }
 
     #[test]
     fn test_compute_taxes_nisa() {
-        let (taxes, after) = compute_taxes("NISA", 10000.0);
-        assert_eq!(taxes, 0.0);
-        assert_eq!(after, 10000.0);
+        let (taxes, after) = compute_taxes("NISA", dec!(10000));
+        assert_eq!(taxes, Decimal::ZERO);
+        assert_eq!(after, dec!(10000));
     }
 
     #[test]
@@ -226,7 +228,7 @@ mod tests {
         assert_eq!(err.row, 5);
 
         let ok = parse_required_number(&record, &header_map, "good", 1).unwrap();
-        assert_eq!(ok, 1234.0);
+        assert_eq!(ok, dec!(1234));
     }
 
     #[test]

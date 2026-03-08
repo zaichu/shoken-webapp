@@ -5,6 +5,7 @@ use crate::models::csv_import::{CsvPreviewResponse, CsvUploadResponse};
 use crate::services::csv_import::{finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{decode_bytes, parse_number, parse_optional_string};
 use csv::StringRecord;
+use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -45,15 +46,16 @@ pub async fn bulk_create(
     let user_ids: Vec<Uuid> = vec![user_id; total];
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
     let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
-    let shares: Vec<f64> = items.iter().map(|i| i.shares).collect();
-    let executing_shares: Vec<f64> = items.iter().map(|i| i.executing_shares).collect();
-    let average_purchase_prices: Vec<f64> =
+    let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
+    let executing_shares: Vec<Decimal> = items.iter().map(|i| i.executing_shares).collect();
+    let average_purchase_prices: Vec<Decimal> =
         items.iter().map(|i| i.average_purchase_price).collect();
-    let total_purchase_amounts: Vec<f64> = items.iter().map(|i| i.total_purchase_amount).collect();
-    let current_prices: Vec<f64> = items.iter().map(|i| i.current_price).collect();
-    let daily_changes: Vec<f64> = items.iter().map(|i| i.daily_change).collect();
-    let market_values: Vec<f64> = items.iter().map(|i| i.market_value).collect();
-    let profit_loss_rates: Vec<f64> = items.iter().map(|i| i.profit_loss_rate).collect();
+    let total_purchase_amounts: Vec<Decimal> =
+        items.iter().map(|i| i.total_purchase_amount).collect();
+    let current_prices: Vec<Decimal> = items.iter().map(|i| i.current_price).collect();
+    let daily_changes: Vec<Decimal> = items.iter().map(|i| i.daily_change).collect();
+    let market_values: Vec<Decimal> = items.iter().map(|i| i.market_value).collect();
+    let profit_loss_rates: Vec<Decimal> = items.iter().map(|i| i.profit_loss_rate).collect();
 
     // トランザクション内で全削除 → 全件挿入（スナップショット置き換え）
     let mut tx = pool.begin().await?;
@@ -76,8 +78,8 @@ pub async fn bulk_create(
                                         average_purchase_price, total_purchase_amount, current_price,
                                         daily_change, market_value, profit_loss_rate)
             SELECT * FROM UNNEST(
-                $1::uuid[], $2::text[], $3::text[], $4::float8[], $5::float8[],
-                $6::float8[], $7::float8[], $8::float8[], $9::float8[], $10::float8[], $11::float8[]
+                $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
+                $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )
             "#,
         )
@@ -196,7 +198,7 @@ fn parse_asset_balance_row(
         shares: num("保有数量［株］")?,
         // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
         executing_shares: parse_number(&parse_optional_string(record, header_map, "執行中［株］"))
-            .unwrap_or(0.0),
+            .unwrap_or(Decimal::ZERO),
         average_purchase_price: num("平均取得価額［円］")?,
         total_purchase_amount: num("取得総額［円］")?,
         current_price: num("現在値［円］")?,
@@ -206,7 +208,7 @@ fn parse_asset_balance_row(
             header_map,
             "現在値（前日比）［円］",
         ))
-        .unwrap_or(0.0),
+        .unwrap_or(Decimal::ZERO),
         market_value: num("時価評価額［円］")?,
         // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
         profit_loss_rate: parse_number(&parse_optional_string(
@@ -214,7 +216,7 @@ fn parse_asset_balance_row(
             header_map,
             "評価損益［％］",
         ))
-        .unwrap_or(0.0),
+        .unwrap_or(Decimal::ZERO),
     })
 }
 
@@ -228,6 +230,7 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 mod tests {
     use super::*;
     use crate::services::csv_import::parse_csv;
+    use rust_decimal_macros::dec;
 
     fn make_csv(header: &str, row: &str) -> String {
         format!("{}\n{}\n", header, row)
@@ -246,10 +249,10 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].security_code, "1234");
-        assert_eq!(items[0].shares, 100.0);
-        assert_eq!(items[0].executing_shares, 0.0); // "-" → 0.0
-        assert_eq!(items[0].average_purchase_price, 1500.0);
-        assert_eq!(items[0].current_price, 1600.0);
+        assert_eq!(items[0].shares, dec!(100));
+        assert_eq!(items[0].executing_shares, Decimal::ZERO); // "-" → 0
+        assert_eq!(items[0].average_purchase_price, dec!(1500));
+        assert_eq!(items[0].current_price, dec!(1600));
     }
 
     #[test]
@@ -291,7 +294,7 @@ mod tests {
         let csv = make_csv(HEADER, "5678,ファンド,50,-,2000,100000,2100,-,105000,-");
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
         assert!(errors.is_empty());
-        assert_eq!(items[0].daily_change, 0.0);
-        assert_eq!(items[0].profit_loss_rate, 0.0);
+        assert_eq!(items[0].daily_change, Decimal::ZERO);
+        assert_eq!(items[0].profit_loss_rate, Decimal::ZERO);
     }
 }
