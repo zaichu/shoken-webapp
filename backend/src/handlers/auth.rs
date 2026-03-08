@@ -265,6 +265,5 @@ mod tests {
     #[test]
     fn test_module_compilation() {
         // モジュールが正常にコンパイルされることを確認
-        assert!(true);
     }
 }

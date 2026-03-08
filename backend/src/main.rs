@@ -106,19 +106,18 @@ mod tests {
     async fn test_router_creation() {
         let _router = create_test_router();
         // ルーターが正常に作成されることを確認
-        assert!(true);
     }
 
     #[tokio::test]
     async fn test_cors_configuration() {
-        let allowed_headers = vec![
+        let allowed_headers = [
             axum::http::header::CONTENT_TYPE,
             axum::http::header::ACCEPT,
             axum::http::header::ORIGIN,
             axum::http::header::AUTHORIZATION,
         ];
 
-        let allowed_methods = vec![
+        let allowed_methods = [
             Method::GET,
             Method::POST,
             Method::PUT,
