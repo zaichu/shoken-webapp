@@ -50,6 +50,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
         placeholder="ファイル未選択"
         value={selectedFileName}
         disabled={disabled}
+        aria-label="選択されたファイル名"
       />
     </div>
   );

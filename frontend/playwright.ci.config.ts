@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['**/error-scenarios.spec.ts'],
+  testMatch: ['**/error-scenarios.spec.ts', '**/a11y.spec.ts'],
   fullyParallel: false,
   forbidOnly: true,
   retries: 1,
