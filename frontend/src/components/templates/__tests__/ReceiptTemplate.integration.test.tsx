@@ -189,8 +189,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(mockOnSearchExpandToggle).toHaveBeenCalledTimes(6);
   });
 
-  // TODO: テーブルデータの表示確認テストを修正する必要あり
-  test.skip('テーブルデータが正しく表示される', () => {
+  test('テーブルデータが正しく表示される', () => {
     render(
       <ReceiptTemplate
         title="データ表示テスト"
@@ -213,15 +212,15 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(screen.getByText('金額')).toBeInTheDocument();
     expect(screen.getByText('カテゴリ')).toBeInTheDocument();
 
-    // データの確認
-    expect(screen.getByText('1')).toBeInTheDocument();
+    // データの確認（複数箇所に同一テキストが出る場合は getAllByText を使用）
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     expect(screen.getByText('商品A')).toBeInTheDocument();
     expect(screen.getByText('1000')).toBeInTheDocument();
-    expect(screen.getByText('カテゴリ1')).toBeInTheDocument();
+    expect(screen.getAllByText('カテゴリ1').length).toBeGreaterThan(0);
 
-    // サマリーの確認
+    // サマリーの確認（1500 はデータ行とサマリー行の両方に出る）
     expect(screen.getByText('3000')).toBeInTheDocument();
-    expect(screen.getByText('1500')).toBeInTheDocument();
+    expect(screen.getAllByText('1500').length).toBeGreaterThan(0);
   });
 
   test('検索カテゴリのドロップダウンが正常に動作する', () => {

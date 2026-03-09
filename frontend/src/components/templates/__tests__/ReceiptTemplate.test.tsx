@@ -104,49 +104,33 @@ describe('ReceiptTemplate', () => {
     expect(screen.getByText('カスタムフッター')).toBeInTheDocument();
   });
 
-  // TODO: forceResizeの実装変更に伴いテストを修正する必要あり
-  test.skip('SearchCard展開時にforceResizeが更新される', () => {
+  test('SearchCard展開時にonSearchExpandToggleが呼ばれる', () => {
     render(
-      <ReceiptTemplate 
+      <ReceiptTemplate
         {...defaultProps}
         onSearch={mockOnSearch}
         onSearchExpandToggle={mockOnSearchExpandToggle}
       />
     );
 
-    const initialForceResize = screen.getByTestId('mock-receipt-table').getAttribute('data-force-resize');
-    
-    // SearchCardを展開
     const expandButton = screen.getByText('Expand');
     fireEvent.click(expandButton);
 
-    const updatedForceResize = screen.getByTestId('mock-receipt-table').getAttribute('data-force-resize');
-    
-    // forceResizeが更新されることを確認
-    expect(updatedForceResize).not.toBe(initialForceResize);
     expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
   });
 
-  // TODO: forceResizeの実装変更に伴いテストを修正する必要あり
-  test.skip('SearchCard折りたたみ時にforceResizeが更新される', () => {
+  test('SearchCard折りたたみ時にonSearchExpandToggleが呼ばれる', () => {
     render(
-      <ReceiptTemplate 
+      <ReceiptTemplate
         {...defaultProps}
         onSearch={mockOnSearch}
         onSearchExpandToggle={mockOnSearchExpandToggle}
       />
     );
 
-    const initialForceResize = screen.getByTestId('mock-receipt-table').getAttribute('data-force-resize');
-    
-    // SearchCardを折りたたみ
     const collapseButton = screen.getByText('Collapse');
     fireEvent.click(collapseButton);
 
-    const updatedForceResize = screen.getByTestId('mock-receipt-table').getAttribute('data-force-resize');
-    
-    // forceResizeが更新されることを確認
-    expect(updatedForceResize).not.toBe(initialForceResize);
     expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
   });
 
