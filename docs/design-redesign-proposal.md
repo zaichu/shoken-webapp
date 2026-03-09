@@ -21,7 +21,7 @@ shoken-webapp 再設計提案
 - `dividend` / `domestic_stock` / `mutualfund` / `asset_balance` の 4 ドメインに CRUD ハンドラー・サービス・モデルが平行して存在し、機能追加のたびに 4 ファイルを同時に変更する必要がある。
 - CSV パースロジックがドメイン別サービスに分散し、テストが書きにくい。
 - セッションが DB テーブルに保存されており、スケールアウト時にセッション共有が必要になる。
-- `DOUBLE PRECISION` の金額を Rust 側で `f64` として扱っており、丸め誤差が計算結果に伝播する。
+- `DOUBLE PRECISION` の金額を Rust 側で `f64` として扱っており、丸め誤差が計算結果に伝播する（主要取引モデルは `rust_decimal::Decimal` 移行済み。`jquants_dividend_cache` は未移行）。
 - J-Quants API の依存が services 層に直接書かれており、モック化・テストがしづらい。
 
 ### フロントエンド
@@ -40,17 +40,20 @@ shoken-webapp 再設計提案
 
 ### 1. DB スキーマ
 
-#### 金額を `NUMERIC(18, 6)` に統一
+#### 金額を `NUMERIC` に統一（対応済み・一部残存）
+実装では `NUMERIC(18,6)` ではなく無制限精度の `NUMERIC` を採用した（trailing zeros 問題を避けるため）。
+
 ```sql
 -- Before
 shares DOUBLE PRECISION NOT NULL,
 taxes DOUBLE PRECISION NOT NULL,
 
--- After
-shares NUMERIC(18, 6) NOT NULL,
-taxes NUMERIC(18, 6) NOT NULL,
+-- After（実装済み: 0016_alter_money_columns_to_numeric.sql）
+shares NUMERIC NOT NULL,
+taxes  NUMERIC NOT NULL,
 ```
 Rust 側では `rust_decimal::Decimal` で受け取り、計算に使用する。
+**残作業**: `jquants_dividend_cache.dividend_per_share` は `DOUBLE PRECISION` のまま未移行。
 
 #### UUID v7（時系列 UUID）を採用
 ```sql
@@ -237,7 +240,7 @@ Fly.io の Metrics → Grafana Cloud に流す。
 
 | 課題 | インパクト | コスト | 優先度 |
 |---|---|---|---|
-| 金額を NUMERIC / Decimal に統一 | 高（計算バグ防止） | 中 | **P0** ✓ 完了（#184） |
+| 金額を NUMERIC / Decimal に統一 | 高（計算バグ防止） | 中 | **P0** ✓ 主要テーブル完了（#184）、jquants_dividend_cache は未移行 |
 | `CsvDomain` トレイト統一 | 高（保守性） | 中 | **P1** |
 | Feature-first 構造への移行 | 中（DX） | 高 | P2 |
 | UUID v7 | 低（パフォーマンス） | 低 | P3 |
