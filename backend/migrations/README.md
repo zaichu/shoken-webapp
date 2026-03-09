@@ -89,17 +89,60 @@ git add .sqlx/ Cargo.lock  # 更新があれば合わせてコミット
 
 ---
 
+## 2 つの初期化経路
+
+### A. 既存環境（本番 DB / ローカル開発 DB）: `migrations/` を使う
+
+```bash
+# 0001〜0017 を逐次適用（適用済みはスキップ）
+cd backend && cargo sqlx migrate run
+# または
+cd backend && make migrate-local
+```
+
+アプリ起動時（`main.rs` の `run_migrations()`）も同じ経路を使用する。
+
+### B. 新規環境（CI / Docker testcontainers / fresh install）: `migrations_baseline/` を使う
+
+`migrations_baseline/0001_baseline.sql` は 0001〜0017 の **最終状態** を 1 ファイルに集約したもの。
+新規 DB を高速に初期化できる。**既存 DB には使用しないこと**（`_sqlx_migrations` の履歴が変わるため）。
+
+```bash
+# ローカル新規 DB への適用
+cd backend && make migrate-baseline-local
+
+# Rust コード（統合テスト）からの使用
+db::run_baseline_migrations(&pool).await?;
+```
+
+> **どちらの経路も同じスキーマが出来上がる。** 違いは `_sqlx_migrations` テーブルの中身だけ。
+> - A の場合: 0001〜0017 の 17 行が記録される
+> - B の場合: `0001_baseline` の 1 行が記録される
+
+### 経路の選び方まとめ
+
+| 場面 | 使う経路 | コマンド |
+|------|----------|---------|
+| 本番 DB のアップグレード | A | `cargo sqlx migrate run` |
+| ローカル開発 DB の初回構築 | A または B | `make migrate-local` or `make migrate-baseline-local` |
+| 統合テスト（testcontainers） | B | `run_baseline_migrations()` |
+| 新しいマイグレーション追加後の検証 | A | `cargo sqlx migrate run` |
+
+---
+
 ## 検証観点
 
 ### 新規 DB 構築時（fresh install）
 
 ```bash
-# ローカル DB を起動して全 migration を順に適用（backend/ ディレクトリで実行）
+# A: ローカル DB を起動して全 migration を順に適用
 cd backend && make db-up
-cd backend && cargo sqlx migrate run
+cd backend && make migrate-local
 
-# Docker が使える環境では統合テストで全テーブルの作成を確認
-# （#[ignore] テストなので --ignored が必要）
+# B: baseline で一発初期化
+cd backend && make migrate-baseline-local
+
+# Docker 統合テスト（baseline 経路を使用）
 cd backend && cargo test db_integration_with_docker_and_migrations -- --ignored --nocapture
 ```
 
@@ -108,6 +151,11 @@ cd backend && cargo test db_integration_with_docker_and_migrations -- --ignored 
 - `cargo sqlx migrate run` は適用済み migration をスキップし、未適用分のみ実行する
 - 適用前後でアプリケーションが正常起動することを確認する（`/health` エンドポイント）
 - データ量が多い場合はロック競合に注意し、本番適用は低トラフィック時間帯に行う
+
+### `migrations_baseline/` の更新タイミング
+
+新規 migration（0018 以降）を追加したときは、`migrations_baseline/0001_baseline.sql` にも同じ変更を反映すること。
+（CI の testcontainers テストは baseline を使うため、両者が乖離すると新規 migration が検証されない）
 
 ---
 

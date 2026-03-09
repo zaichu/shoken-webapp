@@ -4,7 +4,7 @@ use axum::{
 };
 use backend::{
     config::Config,
-    db::run_migrations,
+    db::run_baseline_migrations,
     models::asset_balance::CreateAssetBalanceRequest,
     routes::app_router,
     services::asset_balance as asset_balance_svc,
@@ -76,9 +76,10 @@ async fn db_integration_with_docker_and_migrations() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
 
     let pool = connect_with_retry(&database_url).await;
-    run_migrations(&pool)
+    // 新規コンテナには baseline で一発初期化（0001〜0017 を個別適用するより高速）
+    run_baseline_migrations(&pool)
         .await
-        .expect("Failed to run migrations");
+        .expect("Failed to run baseline migrations");
 
     sqlx::query(
         r#"
@@ -170,7 +171,9 @@ async fn start_test_pool() -> (PgPool, impl Drop) {
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
     let pool = connect_with_retry(&database_url).await;
-    run_migrations(&pool).await.expect("migrations failed");
+    run_baseline_migrations(&pool)
+        .await
+        .expect("baseline migrations failed");
     (pool, node)
 }
 

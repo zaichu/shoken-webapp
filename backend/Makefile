@@ -68,6 +68,11 @@ migrate-local:
 	@echo "📦 ローカルDocker DBにマイグレーションを実行します..."
 	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
 
+.PHONY: migrate-baseline-local
+migrate-baseline-local:
+	@echo "📦 ローカルDocker DB を baseline で一発初期化します（新規 DB 専用）..."
+	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run --source migrations_baseline
+
 .PHONY: sqlx-prepare
 sqlx-prepare:
 	@echo "📦 SQLxクエリキャッシュを準備します..."
@@ -111,7 +116,8 @@ help:
 	@echo "  check         : コンパイルチェックのみを実行します"
 	@echo "  test          : テストを実行します"
 	@echo "  migrate       : データベースマイグレーションを実行します"
-	@echo "  migrate-local : ローカルDocker DBにマイグレーションを実行します"
+	@echo "  migrate-local         : ローカルDocker DBにマイグレーションを実行します"
+	@echo "  migrate-baseline-local: ローカルDocker DB を baseline で初期化します（新規 DB 専用）"
 	@echo "  sqlx-prepare  : SQLxクエリキャッシュを準備します"
 	@echo "  docker-build  : Dockerイメージをビルドします"
 	@echo "  db-up         : PostgreSQL を Docker で起動します"

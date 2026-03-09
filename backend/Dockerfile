@@ -13,6 +13,7 @@ RUN cargo build --release && rm -rf src
 # 実際のソースコードをコピー
 COPY src ./src
 COPY migrations ./migrations
+COPY migrations_baseline ./migrations_baseline
 
 # 依存関係のビルドキャッシュを無効化しないために、main.rsのタイムスタンプを更新
 RUN touch src/main.rs
@@ -39,6 +40,7 @@ RUN apt-get update && apt-get install -y \
 # ビルド成果物をコピー
 COPY --from=builder /app/target/release/backend /app/backend
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/migrations_baseline /app/migrations_baseline
 
 # 非rootユーザーで実行
 RUN useradd -m appuser
