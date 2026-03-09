@@ -76,10 +76,10 @@ sqlx migrate add <snake_case_description>
 # 3. ローカル DB で確認
 cargo sqlx migrate run
 
-# 4. オフラインキャッシュを更新（CI/本番のコンパイル向け）
-make sqlx-prepare
-
-# 5. Cargo.lock と .sqlx/ をコミット
+# 4. (任意) SQLx クエリを含む変更の場合はオフラインキャッシュを更新
+#    SQLx クエリを追加・変更したときのみ必要（migration のみなら不要）
+make sqlx-prepare          # .sqlx/ を更新
+git add .sqlx/ Cargo.lock  # 更新があれば合わせてコミット
 ```
 
 ### バージョン番号命名規則
@@ -115,4 +115,3 @@ cd backend && cargo test db_integration_with_docker_and_migrations -- --ignored 
 
 - [ ] `domestic_stocks` の 0012 に記録が残る `import_batch_fingerprint` 列の経緯を集約テストでカバー
 - [ ] `asset_balances` テーブルの更新戦略（UPSERT vs DELETE+INSERT）を統合テストで検証
-- [ ] `jquants_rate_control` の単一行制約（`id = 1`）を明示するコメントを migration に追記
