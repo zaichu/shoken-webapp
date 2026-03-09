@@ -27,6 +27,12 @@
 - task file がある場合は、その内容を優先してスコープと非対象を守る
 - task 完了時または作業中止時には、対応する task file を削除する
 
+## 設計方針
+
+- API 契約の正本は `docs/openapi.json` とし、backend の API 変更時は `frontend/src/generated/api.ts` まで必ず同期する
+- CSV 取り込みは原則 backend で `parse / validate / import` する。frontend はファイル送信と結果表示を優先する
+- unrelated な修正は同じブランチに混在させない。`1 ブランチ = 1 タスク` を守る
+
 ## 参照ルール
 
 1. `.claude/rules/00-general.md`

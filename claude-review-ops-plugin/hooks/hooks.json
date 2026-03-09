@@ -1,0 +1,17 @@
+{
+  "description": "Remind Claude to re-run the review loop after push or PR creation commands",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/review_reminder.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

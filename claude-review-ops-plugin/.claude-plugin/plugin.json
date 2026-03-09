@@ -1,0 +1,10 @@
+{
+  "name": "review-ops",
+  "version": "0.1.0",
+  "description": "PR review operations commands and reminders for Claude Code",
+  "author": {
+    "name": "zaichu"
+  },
+  "license": "MIT",
+  "keywords": ["review", "pr", "codex", "workflow"]
+}
