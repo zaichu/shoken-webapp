@@ -45,20 +45,31 @@ describe('encoding utilities', () => {
   });
 
   describe('tryDecodeWithMultipleEncodings', () => {
-    // jsdom の TextDecoder(shift-jis) は UTF-8 日本語バイト列を有効な日本語として解釈するため、
-    // shift-jis と utf-8 の confidence が同点になり shift-jis が優先される（SUPPORTED_ENCODINGS 先頭）。
-    // encoding === 'utf-8' の断定は実ブラウザでは正しく動作するが jsdom では不安定。
-    // 実ブラウザでの動作は E2E テストで担保する。
-    it.skip('UTF-8エンコーディングでデコードする（jsdom では shift-jis が同信頼度で優先されるためスキップ）', () => {
-      const utf8Text = 'こんにちは世界';
-      const encoder = new TextEncoder();
-      const uint8Array = encoder.encode(utf8Text);
+    it('UTF-8エンコーディングでデコードする', () => {
+      // jsdom の TextDecoder(shift-jis) は UTF-8 バイト列を有効な日本語として誤認するため、
+      // shift-jis を「サポート外」として throw させ、実ブラウザ相当の環境を模擬する。
+      // tryDecodeWithMultipleEncodings は shift-jis をスキップして utf-8 を選択する。
+      const originalTextDecoder = global.TextDecoder;
+      global.TextDecoder = function MockDecoder(encoding: string, options?: TextDecoderOptions) {
+        if (encoding === 'shift-jis') {
+          throw new RangeError(`The encoding label provided ('${encoding}') is invalid.`);
+        }
+        return new originalTextDecoder(encoding, options);
+      } as unknown as typeof TextDecoder;
 
-      const result = tryDecodeWithMultipleEncodings(uint8Array);
+      try {
+        const utf8Text = 'こんにちは世界';
+        const encoder = new TextEncoder();
+        const uint8Array = encoder.encode(utf8Text);
 
-      expect(result.text).toBe(utf8Text);
-      expect(result.encoding).toBe('utf-8');
-      expect(result.confidence).toBeGreaterThan(0.5);
+        const result = tryDecodeWithMultipleEncodings(uint8Array);
+
+        expect(result.text).toBe(utf8Text);
+        expect(result.encoding).toBe('utf-8');
+        expect(result.confidence).toBeGreaterThan(0.5);
+      } finally {
+        global.TextDecoder = originalTextDecoder;
+      }
     });
 
     it('空の配列の場合は適切にハンドリングする', () => {
