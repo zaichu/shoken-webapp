@@ -21,6 +21,9 @@
 - Claude は Codex の指摘に対応し、必要な修正と検証を行う
 - 修正後は Codex が再レビューし、指摘事項の解消を確認する
 - Codex から Claude に修正実装を依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
+- Codex CLI のレビュー起動は `codex exec review` を優先し、必要なら `codex exec "/pr-review してください"` を使う
+- push 後にレビューを省略しない。修正を push したら毎回再レビューする
+- backend の API 契約変更時は `bash scripts/check-openapi.sh` を実行して `docs/openapi.json` と `frontend/src/generated/api.ts` を同期する
 
 ## 出力制約
 
