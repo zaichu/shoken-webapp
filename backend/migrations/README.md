@@ -34,9 +34,9 @@ repair を実行する前に version=17 まで全て適用済みであること�
 ### 手順
 
 ```bash
-# 本番 DB
+# 本番 DB: repair 後に fly deploy（起動時に run_migrations() が自動適用）
 psql $DATABASE_URL -f backend/scripts/repair-migrations.sql
-fly ssh console -C "cd /app && ./backend migrate"  # または fly deploy 後に起動で自動適用
+fly deploy
 
 # ローカル開発 DB（Makefile ターゲット）
 cd backend && make repair-and-migrate-local

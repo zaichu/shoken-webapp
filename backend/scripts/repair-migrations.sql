@@ -10,6 +10,8 @@
 --     テーブルが存在していても SQL は安全に再実行される
 --   - このスクリプトはスキーマには一切変更を加えない
 --   - 事前条件: version=17 (0017_recalculate_domestic_stocks_content_hash) まで適用済みであること
+-- psql がエラーで停止するよう ON_ERROR_STOP を有効にする（psql -v ON_ERROR_STOP=1 でも可）
+\set ON_ERROR_STOP on
 
 DO $$
 BEGIN

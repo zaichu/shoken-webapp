@@ -72,7 +72,7 @@ migrate-local:
 repair-and-migrate-local:
 	@echo "🔧 ローカルDocker DB を旧 0001〜0017 から新 0001〜0009 に切り替えます..."
 	@echo "  (version=17 未達の場合はエラーで停止します)"
-	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db psql postgresql://user:password@localhost:5432/shoken_db -f scripts/repair-migrations.sql
+	psql postgresql://user:password@localhost:5432/shoken_db -v ON_ERROR_STOP=1 -f scripts/repair-migrations.sql
 	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
 
 .PHONY: sqlx-prepare
