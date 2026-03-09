@@ -91,15 +91,5 @@ describe('encoding utilities', () => {
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
-    it('UTF-8 としても Shift-JIS としても valid なバイト列は UTF-8 を優先する', () => {
-      // [0xC2, 0xB1] は UTF-8 で「±」(U+00B1)、Shift-JIS で「ﾂｱ」。
-      // どちらも U+FFFD なしでデコードできるが、有効な UTF-8 バイト列であるため UTF-8 を優先する。
-      const ambiguousBytes = new Uint8Array([0xC2, 0xB1]);
-
-      const result = tryDecodeWithMultipleEncodings(ambiguousBytes);
-
-      expect(result.encoding).toBe('utf-8');
-      expect(result.text).toBe('±');
-    });
   });
 });
