@@ -114,8 +114,7 @@ Jane;25;Osaka`;
   };
 
   describe('parseCSVFile', () => {
-    // Note: jsdom 27+ でTextDecoderの実装が変わったため、これらのテストはブラウザ環境でのみ実行されるべき
-    it.skip('ファイルを正常にパースできる', async () => {
+    it('ファイルを正常にパースできる', async () => {
       const csvContent = `name,age,city
 John,30,Tokyo
 Jane,25,Osaka`;
@@ -148,7 +147,7 @@ Jane,25,Osaka`;
       await expect(parseCSVFile(file)).rejects.toThrow('ファイルサイズが大きすぎます');
     });
 
-    it.skip('ヘッダー行をスキップできる', async () => {
+    it('ヘッダー行をスキップできる', async () => {
       const csvContent = `コメント行1
 コメント行2
 name,age,city
