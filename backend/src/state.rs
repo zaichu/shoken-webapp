@@ -40,42 +40,78 @@ pub struct AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{LazyLock, Mutex};
+
+    // env var 操作テストを直列化するためのロック（並行テストによる競合防止）
+    static ENV_MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
     #[test]
-    fn test_secrets_fields() {
-        // Secrets の各フィールドに値が正しく格納されることを確認
-        let secrets = Secrets {
-            database_url: "postgresql://user:password@localhost/test_db".to_string(),
-            jquants_api_key: Some("test_api_key".to_string()),
-            google_client_id: Some("client_id".to_string()),
-            google_client_secret: Some("client_secret".to_string()),
-            frontend_url: "http://localhost:8080".to_string(),
-        };
-        assert_eq!(
-            secrets.database_url,
-            "postgresql://user:password@localhost/test_db"
+    fn test_secrets_from_env_error_without_database_url() {
+        let _guard = ENV_MUTEX.lock().unwrap();
+        let saved = std::env::var("DATABASE_URL").ok();
+        std::env::remove_var("DATABASE_URL");
+
+        let result = Secrets::from_env();
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(
+            err_msg.contains("DATABASE_URL"),
+            "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"
         );
-        assert_eq!(secrets.jquants_api_key.as_deref(), Some("test_api_key"));
-        assert_eq!(secrets.google_client_id.as_deref(), Some("client_id"));
-        assert_eq!(
-            secrets.google_client_secret.as_deref(),
-            Some("client_secret")
-        );
-        assert_eq!(secrets.frontend_url, "http://localhost:8080");
+
+        if let Some(val) = saved {
+            std::env::set_var("DATABASE_URL", val);
+        }
     }
 
     #[test]
-    fn test_secrets_optional_fields_can_be_none() {
-        // jquants_api_key, google_client_id, google_client_secret は省略可能
-        let secrets = Secrets {
-            database_url: "postgresql://localhost/db".to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        };
-        assert!(secrets.jquants_api_key.is_none());
-        assert!(secrets.google_client_id.is_none());
-        assert!(secrets.google_client_secret.is_none());
+    fn test_secrets_from_env_frontend_url_default() {
+        // FRONTEND_URL 未設定時はデフォルト値 "http://localhost:8080" を使用する
+        let _guard = ENV_MUTEX.lock().unwrap();
+        let saved_db = std::env::var("DATABASE_URL").ok();
+        let saved_fe = std::env::var("FRONTEND_URL").ok();
+
+        std::env::set_var("DATABASE_URL", "postgresql://user:password@localhost/test");
+        std::env::remove_var("FRONTEND_URL");
+
+        let result = Secrets::from_env();
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().frontend_url, "http://localhost:8080");
+
+        match saved_db {
+            Some(val) => std::env::set_var("DATABASE_URL", val),
+            None => std::env::remove_var("DATABASE_URL"),
+        }
+        match saved_fe {
+            Some(val) => std::env::set_var("FRONTEND_URL", val),
+            None => std::env::remove_var("FRONTEND_URL"),
+        }
+    }
+
+    #[test]
+    fn test_secrets_from_env_jquants_key_is_optional() {
+        // JQUANTS_API_KEY は省略可能で None になる
+        let _guard = ENV_MUTEX.lock().unwrap();
+        let saved_db = std::env::var("DATABASE_URL").ok();
+        let saved_jq = std::env::var("JQUANTS_API_KEY").ok();
+
+        std::env::set_var("DATABASE_URL", "postgresql://user:password@localhost/test");
+        std::env::remove_var("JQUANTS_API_KEY");
+
+        let result = Secrets::from_env();
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().jquants_api_key.is_none());
+
+        match saved_db {
+            Some(val) => std::env::set_var("DATABASE_URL", val),
+            None => std::env::remove_var("DATABASE_URL"),
+        }
+        match saved_jq {
+            Some(val) => std::env::set_var("JQUANTS_API_KEY", val),
+            None => std::env::remove_var("JQUANTS_API_KEY"),
+        }
     }
 }
