@@ -3,9 +3,7 @@
  */
 
 // サポートされているエンコーディング
-// utf-8 を先に試すことで、UTF-8 と shift-jis が同信頼度になった場合に utf-8 を優先する
-// （JavaScript の Array.sort は安定ソートのため、同点では挿入順が保持される）
-const SUPPORTED_ENCODINGS = ['utf-8', 'shift-jis', 'iso-8859-1', 'euc-jp'] as const;
+const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1', 'euc-jp'] as const;
 
 export interface DecodeResult {
   text: string;
@@ -21,7 +19,7 @@ export const detectMojibake = (text: string): boolean => {
   const mojibakePatterns = [
     /[\uFFFD]/g, // 置換文字
     /��/g, // よくある文字化け
-    /[�]/g, // 不明な文字
+    /[<EFBFBD>]/g, // 不明な文字
   ];
 
   return mojibakePatterns.some(pattern => pattern.test(text));
@@ -88,6 +86,15 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
     } catch (error) {
       console.warn(`${encoding} でのデコードに失敗しました:`, error);
     }
+  }
+
+  // UTF-8 として U+FFFD なしでデコードできた場合はそのバイト列は有効な UTF-8 であるため優先する。
+  // これにより、同一バイト列が Shift-JIS としても有効に見えるケース（例: [0xC2, 0xB1] = ﾂｱ / ±）で
+  // 正しく UTF-8 と判定できる。Shift-JIS 固有バイト（0x81-0x9F 先頭の 2 バイト文字など）は
+  // UTF-8 でデコードすると U+FFFD が生成されるため、この条件には該当せず Shift-JIS が選ばれる。
+  const cleanUtf8 = results.find(r => r.encoding === 'utf-8' && !r.text.includes('\uFFFD'));
+  if (cleanUtf8 && cleanUtf8.confidence > 0.5) {
+    return cleanUtf8;
   }
 
   // 信頼度が最も高いものを選択
