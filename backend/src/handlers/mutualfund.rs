@@ -4,6 +4,7 @@ use crate::{
     models::common::MessageResponse,
     models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     models::mutualfund::Mutualfund,
+    services::csv_domain::MutualfundDomain,
     services::mutualfund as mutualfund_service,
     state::AppState,
 };
@@ -45,9 +46,7 @@ pub async fn preview_csv(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = mutualfund_service::preview_csv(&bytes)?;
-    Ok((StatusCode::OK, Json(response)))
+    crate::handlers::csv_import::handle_preview_csv::<MutualfundDomain>(multipart).await
 }
 
 /// CSV ファイルをアップロードして投資信託を一括登録
@@ -68,9 +67,12 @@ pub async fn upload_csv(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = mutualfund_service::upload_csv(&state.pool, auth_user.id(), &bytes).await?;
-    Ok((StatusCode::CREATED, Json(response)))
+    crate::handlers::csv_import::handle_upload_csv::<MutualfundDomain>(
+        &state.pool,
+        auth_user.id(),
+        multipart,
+    )
+    .await
 }
 
 /// 認証ユーザーの投資信託を全削除

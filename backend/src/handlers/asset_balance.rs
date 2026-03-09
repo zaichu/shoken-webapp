@@ -6,6 +6,7 @@ use crate::{
     models::common::{BulkCreateResponse, MessageResponse},
     models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     services::asset_balance as asset_balance_service,
+    services::csv_domain::AssetBalanceDomain,
     state::AppState,
 };
 use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
@@ -69,9 +70,7 @@ pub async fn preview_csv(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = asset_balance_service::preview_csv(&bytes)?;
-    Ok((StatusCode::OK, Json(response)))
+    crate::handlers::csv_import::handle_preview_csv::<AssetBalanceDomain>(multipart).await
 }
 
 /// CSV ファイルをアップロードして保有銘柄を一括登録（既存データ全置換）
@@ -92,9 +91,12 @@ pub async fn upload_csv(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = asset_balance_service::upload_csv(&state.pool, auth_user.id(), &bytes).await?;
-    Ok((StatusCode::CREATED, Json(response)))
+    crate::handlers::csv_import::handle_upload_csv::<AssetBalanceDomain>(
+        &state.pool,
+        auth_user.id(),
+        multipart,
+    )
+    .await
 }
 
 /// 認証ユーザーの保有銘柄を全削除

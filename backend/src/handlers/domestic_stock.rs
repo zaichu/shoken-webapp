@@ -4,6 +4,7 @@ use crate::{
     models::common::MessageResponse,
     models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     models::domestic_stock::DomesticStock,
+    services::csv_domain::DomesticStockDomain,
     services::domestic_stock as domestic_stock_service,
     state::AppState,
 };
@@ -45,9 +46,7 @@ pub async fn preview_csv(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = domestic_stock_service::preview_csv(&bytes)?;
-    Ok((StatusCode::OK, Json(response)))
+    crate::handlers::csv_import::handle_preview_csv::<DomesticStockDomain>(multipart).await
 }
 
 /// CSV ファイルをアップロードして国内株式取引を一括登録
@@ -68,9 +67,12 @@ pub async fn upload_csv(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let bytes = crate::handlers::csv_import::read_csv_file_bytes(multipart).await?;
-    let response = domestic_stock_service::upload_csv(&state.pool, auth_user.id(), &bytes).await?;
-    Ok((StatusCode::CREATED, Json(response)))
+    crate::handlers::csv_import::handle_upload_csv::<DomesticStockDomain>(
+        &state.pool,
+        auth_user.id(),
+        multipart,
+    )
+    .await
 }
 
 /// 認証ユーザーの国内株式取引を全削除
