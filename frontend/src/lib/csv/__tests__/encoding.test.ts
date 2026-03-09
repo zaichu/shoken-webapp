@@ -69,13 +69,26 @@ describe('encoding utilities', () => {
     it('無効なバイト配列でも結果を返す', () => {
       // 無効なUTF-8シーケンス
       const uint8Array = new Uint8Array([0xFF, 0xFE, 0xFD]);
-      
+
       const result = tryDecodeWithMultipleEncodings(uint8Array);
-      
+
       expect(result).toBeDefined();
       expect(typeof result.text).toBe('string');
       expect(typeof result.encoding).toBe('string');
       expect(typeof result.confidence).toBe('number');
+    });
+
+    it('Shift-JIS バイト列は Shift-JIS として正しくデコードされる', () => {
+      // 半角カタカナ「ｱｲｳ」の Shift-JIS バイト (0xB1, 0xB2, 0xB3)
+      // UTF-8 では無効バイト（継続バイトが単独で出現）→ U+FFFD が生成され confidence が下がる
+      // Shift-JIS デコードは文字化けなしで confidence が高くなるため、Shift-JIS が選ばれる
+      const shiftJisBytes = new Uint8Array([0xB1, 0xB2, 0xB3]);
+
+      const result = tryDecodeWithMultipleEncodings(shiftJisBytes);
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).toBe('ｱｲｳ');
+      expect(result.confidence).toBeGreaterThan(0.5);
     });
   });
 });
