@@ -259,11 +259,3 @@ pub async fn delete_account(
         Json(serde_json::json!({"message": "アカウントを削除しました"})),
     ))
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_module_compilation() {
-        // モジュールが正常にコンパイルされることを確認
-    }
-}

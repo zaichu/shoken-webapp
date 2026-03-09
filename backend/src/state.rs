@@ -40,71 +40,42 @@ pub struct AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::postgres::PgPoolOptions;
 
-    fn create_test_secrets() -> Secrets {
-        Secrets {
+    #[test]
+    fn test_secrets_fields() {
+        // Secrets の各フィールドに値が正しく格納されることを確認
+        let secrets = Secrets {
             database_url: "postgresql://user:password@localhost/test_db".to_string(),
             jquants_api_key: Some("test_api_key".to_string()),
+            google_client_id: Some("client_id".to_string()),
+            google_client_secret: Some("client_secret".to_string()),
+            frontend_url: "http://localhost:8080".to_string(),
+        };
+        assert_eq!(
+            secrets.database_url,
+            "postgresql://user:password@localhost/test_db"
+        );
+        assert_eq!(secrets.jquants_api_key.as_deref(), Some("test_api_key"));
+        assert_eq!(secrets.google_client_id.as_deref(), Some("client_id"));
+        assert_eq!(
+            secrets.google_client_secret.as_deref(),
+            Some("client_secret")
+        );
+        assert_eq!(secrets.frontend_url, "http://localhost:8080");
+    }
+
+    #[test]
+    fn test_secrets_optional_fields_can_be_none() {
+        // jquants_api_key, google_client_id, google_client_secret は省略可能
+        let secrets = Secrets {
+            database_url: "postgresql://localhost/db".to_string(),
+            jquants_api_key: None,
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_app_state_creation() {
-        let database_url = "postgresql://user:password@localhost/test_db";
-
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
-
-        let secrets = Arc::new(create_test_secrets());
-        let client = Client::new();
-
-        let app_state = AppState {
-            pool: pool.clone(),
-            secrets: secrets.clone(),
-            client: client.clone(),
-            background_task_running: Arc::new(AtomicBool::new(false)),
         };
-
-        // AppStateが正常に作成されることを確認
-        let _ = &app_state.pool;
-        let _ = &app_state.secrets;
-        let _ = &app_state.client;
-
-        // AppStateのクローンが正常に動作することを確認
-        let cloned_state = app_state.clone();
-        let _ = &cloned_state.pool;
-        let _ = &cloned_state.secrets;
-        let _ = &cloned_state.client;
-    }
-
-    #[tokio::test]
-    async fn test_app_state_clone() {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
-
-        let secrets = Arc::new(create_test_secrets());
-        let client = Client::new();
-
-        let original_state = AppState {
-            pool,
-            secrets,
-            client,
-            background_task_running: Arc::new(AtomicBool::new(false)),
-        };
-
-        let cloned_state = original_state.clone();
-
-        let _ = &cloned_state.pool;
-        let _ = &cloned_state.secrets;
-        let _ = &cloned_state.client;
+        assert!(secrets.jquants_api_key.is_none());
+        assert!(secrets.google_client_id.is_none());
+        assert!(secrets.google_client_secret.is_none());
     }
 }

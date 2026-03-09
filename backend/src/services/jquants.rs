@@ -91,11 +91,6 @@ mod tests {
     use super::*;
     use crate::models::jquants::FinSummaryQuery;
 
-    #[test]
-    fn test_module_compilation() {
-        // モジュールが正常にコンパイルされることを確認
-    }
-
     /// 実際のJ-Quants APIを呼び出すテスト
     /// 実行には環境変数 JQUANTS_API_KEY が必要
     /// cargo test test_get_fin_summary_real_api -- --ignored

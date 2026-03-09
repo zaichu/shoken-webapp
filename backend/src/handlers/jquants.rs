@@ -41,11 +41,3 @@ pub async fn get_fin_summary(
     let response = JQuantsService::get_fin_summary(&state.client, params, api_key).await?;
     Ok(Json(response))
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_module_compilation() {
-        // モジュールが正常にコンパイルされることを確認
-    }
-}
