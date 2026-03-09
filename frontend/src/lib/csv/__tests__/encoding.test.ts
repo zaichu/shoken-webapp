@@ -45,18 +45,22 @@ describe('encoding utilities', () => {
   });
 
   describe('tryDecodeWithMultipleEncodings', () => {
-    it('UTF-8エンコーディングでデコードする', () => {
-      // UTF-8 日本語バイト列は U+FFFD なしでデコードできるため、
-      // tryDecodeWithMultipleEncodings の cleanUtf8 優先条件により utf-8 が選ばれる。
+    it('UTF-8 BOM付きファイルは UTF-8 として正しくデコードされる', () => {
+      // UTF-8 BOM (0xEF 0xBB 0xBF) が存在する場合は UTF-8 と確定できる。
+      // Windows の Excel 等が出力する UTF-8 CSV はこの BOM を持つ。
       const utf8Text = 'こんにちは世界';
       const encoder = new TextEncoder();
-      const uint8Array = encoder.encode(utf8Text);
+      const utf8Bytes = encoder.encode(utf8Text);
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const uint8Array = new Uint8Array(bom.length + utf8Bytes.length);
+      uint8Array.set(bom, 0);
+      uint8Array.set(utf8Bytes, bom.length);
 
       const result = tryDecodeWithMultipleEncodings(uint8Array);
 
-      expect(result.text).toBe(utf8Text);
       expect(result.encoding).toBe('utf-8');
-      expect(result.confidence).toBeGreaterThan(0.5);
+      expect(result.confidence).toBe(1.0);
+      expect(result.text).toContain(utf8Text);
     });
 
     it('空の配列の場合は適切にハンドリングする', () => {

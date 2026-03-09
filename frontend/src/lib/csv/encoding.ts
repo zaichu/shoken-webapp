@@ -51,6 +51,14 @@ export const calculateEncodingConfidence = (text: string): number => {
  * 複数のエンコーディングを試して正常に読み込めるものを使用
  */
 export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeResult => {
+  // UTF-8 BOM (0xEF 0xBB 0xBF) が存在する場合は UTF-8 と確定できる
+  const hasBOM = uint8Array.length >= 3 &&
+    uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF;
+  if (hasBOM) {
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    return { text: decoder.decode(uint8Array), encoding: 'utf-8', confidence: 1.0 };
+  }
+
   const results: DecodeResult[] = [];
 
   for (const encoding of SUPPORTED_ENCODINGS) {
@@ -79,23 +87,6 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
     } catch (error) {
       console.warn(`${encoding} でのデコードに失敗しました:`, error);
     }
-  }
-
-  // UTF-8 優先条件:
-  // バイト列が有効な UTF-8（U+FFFD なしでデコード可能）であれば UTF-8 を優先して返す。
-  //
-  // 根拠:
-  //   - 同じバイト列が UTF-8 でも Shift-JIS でも有効に見えるケースが存在する
-  //     （例: 3バイト UTF-8 日本語文字のバイト列は Shift-JIS でも有効な文字列に見える）。
-  //   - 実際の Shift-JIS / EUC-JP CSV（証券会社等）は必ず漢字を含む。
-  //     Shift-JIS: 漢字の先頭バイト（0x81-0x9F）は UTF-8 の継続バイト → U+FFFD 生成
-  //     EUC-JP: 漢字の先頭バイト（0xA1-0xFE）も UTF-8 の継続バイト → U+FFFD 生成
-  //     そのため実ファイルでは cleanUtf8 は null となり正しいエンコーディングが選ばれる。
-  //   - 回帰テスト: [0x82, 0xA0] (Shift-JIS かな) や [0xCC, 0xF3] (EUC-JP 漢字) 相当の
-  //     バイト列は UTF-8 で U+FFFD を生成するため Shift-JIS / EUC-JP が正しく選ばれる。
-  const cleanUtf8 = results.find(r => r.encoding === 'utf-8' && !r.text.includes('\uFFFD'));
-  if (cleanUtf8 && cleanUtf8.confidence > 0.5) {
-    return cleanUtf8;
   }
 
   // 信頼度が最も高いものを選択
