@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -14,14 +15,22 @@ pub struct AssetBalance {
     pub user_id: Uuid,
     pub security_code: String,
     pub security_name: String,
-    pub shares: f64,
-    pub executing_shares: f64,
-    pub average_purchase_price: f64,
-    pub total_purchase_amount: f64,
-    pub current_price: f64,
-    pub daily_change: f64,
-    pub market_value: f64,
-    pub profit_loss_rate: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub executing_shares: Decimal,
+    #[schema(value_type = f64)]
+    pub average_purchase_price: Decimal,
+    #[schema(value_type = f64)]
+    pub total_purchase_amount: Decimal,
+    #[schema(value_type = f64)]
+    pub current_price: Decimal,
+    #[schema(value_type = f64)]
+    pub daily_change: Decimal,
+    #[schema(value_type = f64)]
+    pub market_value: Decimal,
+    #[schema(value_type = f64)]
+    pub profit_loss_rate: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -33,14 +42,22 @@ pub struct CreateAssetBalanceRequest {
     pub security_code: String,
     #[validate(length(min = 1, max = 200))]
     pub security_name: String,
-    pub shares: f64,
-    pub executing_shares: f64,
-    pub average_purchase_price: f64,
-    pub total_purchase_amount: f64,
-    pub current_price: f64,
-    pub daily_change: f64,
-    pub market_value: f64,
-    pub profit_loss_rate: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub executing_shares: Decimal,
+    #[schema(value_type = f64)]
+    pub average_purchase_price: Decimal,
+    #[schema(value_type = f64)]
+    pub total_purchase_amount: Decimal,
+    #[schema(value_type = f64)]
+    pub current_price: Decimal,
+    #[schema(value_type = f64)]
+    pub daily_change: Decimal,
+    #[schema(value_type = f64)]
+    pub market_value: Decimal,
+    #[schema(value_type = f64)]
+    pub profit_loss_rate: Decimal,
 }
 
 /// 保有銘柄一括作成リクエスト
@@ -53,20 +70,21 @@ pub struct BulkCreateAssetBalanceRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_create_asset_balance_request_validation() {
         let request = CreateAssetBalanceRequest {
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
-            shares: 100.0,
-            executing_shares: 0.0,
-            average_purchase_price: 1500.0,
-            total_purchase_amount: 150000.0,
-            current_price: 1600.0,
-            daily_change: 10.0,
-            market_value: 160000.0,
-            profit_loss_rate: 6.67,
+            shares: dec!(100),
+            executing_shares: dec!(0),
+            average_purchase_price: dec!(1500),
+            total_purchase_amount: dec!(150000),
+            current_price: dec!(1600),
+            daily_change: dec!(10),
+            market_value: dec!(160000),
+            profit_loss_rate: dec!(6.67),
         };
 
         assert!(request.validate().is_ok());

@@ -1,4 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -17,14 +18,22 @@ pub struct Mutualfund {
     pub fund_name: String,
     pub dividends: Option<String>,
     pub account: String,
-    pub shares: f64,
-    pub exchange_rate: f64,
-    pub cancellation_unit_price_yen: f64,
-    pub cancellation_amount_yen: f64,
-    pub average_acquisition_price_yen: f64,
-    pub realized_profit_and_loss: f64,
-    pub taxes: f64,
-    pub realized_profit_and_loss_after_tax: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub exchange_rate: Decimal,
+    #[schema(value_type = f64)]
+    pub cancellation_unit_price_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub cancellation_amount_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub average_acquisition_price_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss_after_tax: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -40,19 +49,28 @@ pub struct CreateMutualfundRequest {
     pub dividends: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub account: String,
-    pub shares: f64,
-    pub exchange_rate: f64,
-    pub cancellation_unit_price_yen: f64,
-    pub cancellation_amount_yen: f64,
-    pub average_acquisition_price_yen: f64,
-    pub realized_profit_and_loss: f64,
-    pub taxes: f64,
-    pub realized_profit_and_loss_after_tax: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub exchange_rate: Decimal,
+    #[schema(value_type = f64)]
+    pub cancellation_unit_price_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub cancellation_amount_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub average_acquisition_price_yen: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss_after_tax: Decimal,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_create_mutualfund_request_validation() {
@@ -62,14 +80,14 @@ mod tests {
             fund_name: "テストファンド".to_string(),
             dividends: Some("再投資型".to_string()),
             account: "特定".to_string(),
-            shares: 10000.0,
-            exchange_rate: 1.0,
-            cancellation_unit_price_yen: 15000.0,
-            cancellation_amount_yen: 150000.0,
-            average_acquisition_price_yen: 14000.0,
-            realized_profit_and_loss: 10000.0,
-            taxes: 2000.0,
-            realized_profit_and_loss_after_tax: 8000.0,
+            shares: dec!(10000),
+            exchange_rate: dec!(1),
+            cancellation_unit_price_yen: dec!(15000),
+            cancellation_amount_yen: dec!(150000),
+            average_acquisition_price_yen: dec!(14000),
+            realized_profit_and_loss: dec!(10000),
+            taxes: dec!(2000),
+            realized_profit_and_loss_after_tax: dec!(8000),
         };
 
         assert!(request.validate().is_ok());

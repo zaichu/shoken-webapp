@@ -1,4 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -17,13 +18,20 @@ pub struct DomesticStock {
     pub security_code: String,
     pub security_name: String,
     pub account: String,
-    pub shares: f64,
-    pub asked_price: f64,
-    pub proceeds: f64,
-    pub purchase_price: f64,
-    pub realized_profit_and_loss: f64,
-    pub taxes: f64,
-    pub realized_profit_and_loss_after_tax: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub asked_price: Decimal,
+    #[schema(value_type = f64)]
+    pub proceeds: Decimal,
+    #[schema(value_type = f64)]
+    pub purchase_price: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss_after_tax: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -39,18 +47,26 @@ pub struct CreateDomesticStockRequest {
     pub security_name: String,
     #[validate(length(min = 1, max = 100))]
     pub account: String,
-    pub shares: f64,
-    pub asked_price: f64,
-    pub proceeds: f64,
-    pub purchase_price: f64,
-    pub realized_profit_and_loss: f64,
-    pub taxes: f64,
-    pub realized_profit_and_loss_after_tax: f64,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub asked_price: Decimal,
+    #[schema(value_type = f64)]
+    pub proceeds: Decimal,
+    #[schema(value_type = f64)]
+    pub purchase_price: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub realized_profit_and_loss_after_tax: Decimal,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_create_domestic_stock_request_validation() {
@@ -60,13 +76,13 @@ mod tests {
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
             account: "特定".to_string(),
-            shares: 100.0,
-            asked_price: 1500.0,
-            proceeds: 150000.0,
-            purchase_price: 1400.0,
-            realized_profit_and_loss: 10000.0,
-            taxes: 2000.0,
-            realized_profit_and_loss_after_tax: 8000.0,
+            shares: dec!(100),
+            asked_price: dec!(1500),
+            proceeds: dec!(150000),
+            purchase_price: dec!(1400),
+            realized_profit_and_loss: dec!(10000),
+            taxes: dec!(2000),
+            realized_profit_and_loss_after_tax: dec!(8000),
         };
 
         assert!(request.validate().is_ok());

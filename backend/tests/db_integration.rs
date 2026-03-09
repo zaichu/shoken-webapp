@@ -12,6 +12,7 @@ use backend::{
 };
 use chrono::NaiveDate;
 use reqwest::Client;
+use rust_decimal_macros::dec;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{env, sync::Arc, time::Duration};
 use testcontainers::runners::AsyncRunner;
@@ -152,14 +153,14 @@ fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     CreateAssetBalanceRequest {
         security_code: code.to_string(),
         security_name: format!("テスト銘柄{}", code),
-        shares: 100.0,
-        executing_shares: 0.0,
-        average_purchase_price: 1000.0,
-        total_purchase_amount: 100_000.0,
-        current_price: 1100.0,
-        daily_change: 10.0,
-        market_value: 110_000.0,
-        profit_loss_rate: 10.0,
+        shares: dec!(100),
+        executing_shares: dec!(0),
+        average_purchase_price: dec!(1000),
+        total_purchase_amount: dec!(100000),
+        current_price: dec!(1100),
+        daily_change: dec!(10),
+        market_value: dec!(110000),
+        profit_loss_rate: dec!(10),
     }
 }
 

@@ -1,4 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -17,11 +18,16 @@ pub struct Dividend {
     pub account: String,
     pub security_code: String,
     pub security_name: String,
-    pub unit_price: f64,
-    pub shares: f64,
-    pub dividends_before_tax: f64,
-    pub taxes: f64,
-    pub net_amount_received: f64,
+    #[schema(value_type = f64)]
+    pub unit_price: Decimal,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub dividends_before_tax: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub net_amount_received: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -38,16 +44,22 @@ pub struct CreateDividendRequest {
     pub security_code: String,
     #[validate(length(min = 1, max = 200))]
     pub security_name: String,
-    pub unit_price: f64,
-    pub shares: f64,
-    pub dividends_before_tax: f64,
-    pub taxes: f64,
-    pub net_amount_received: f64,
+    #[schema(value_type = f64)]
+    pub unit_price: Decimal,
+    #[schema(value_type = f64)]
+    pub shares: Decimal,
+    #[schema(value_type = f64)]
+    pub dividends_before_tax: Decimal,
+    #[schema(value_type = f64)]
+    pub taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub net_amount_received: Decimal,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_create_dividend_request_validation() {
@@ -57,11 +69,11 @@ mod tests {
             account: "特定".to_string(),
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
-            unit_price: 100.0,
-            shares: 100.0,
-            dividends_before_tax: 1000.0,
-            taxes: 200.0,
-            net_amount_received: 800.0,
+            unit_price: dec!(100),
+            shares: dec!(100),
+            dividends_before_tax: dec!(1000),
+            taxes: dec!(200),
+            net_amount_received: dec!(800),
         };
 
         assert!(request.validate().is_ok());
