@@ -246,35 +246,28 @@ describe('Dividend', () => {
         expect(table).toHaveClass('w-full', 'border-collapse');
     });
 
-    // TODO: 配当情報フォームの数値計算テストを修正する必要あり
-    it.skip('配当情報フォームで数値計算が動作する', async () => {
+    it('銘柄選択後にread-onlyの集計情報が表示される', async () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み - 銘柄を選択して配当情報フォームを表示（IDで指定）
+        // 検索オプションは初期状態で展開済み - 銘柄を選択（IDで指定）
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
         const selectElement = container.querySelector('#securities-search') as HTMLSelectElement;
         await user.selectOptions(selectElement, '1234');
 
+        // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
         });
 
-        // フォームが存在し、入力可能であることを確認
-        const inputs = screen.getAllByRole('spinbutton');
-        expect(inputs.length).toBeGreaterThan(0);
+        // embedded モードでは read-only KPI カードが表示される
+        expect(screen.getByText('平均取得価格')).toBeVisible();
+        expect(screen.getByText('保有数量(株)')).toBeVisible();
+        expect(screen.getByText('一株配当')).toBeVisible();
 
-        // 最初の入力フィールドに数値を入力してテスト
-        if (inputs.length > 0) {
-            await user.clear(inputs[0]);
-            await user.type(inputs[0], '1000');
-
-            // 入力が反映されることを確認
-            await waitFor(() => {
-                expect(inputs[0]).toHaveValue(1000);
-            });
-        }
+        // 入力フォーム（spinbutton）は表示されない（embedded モードは read-only）
+        expect(screen.queryAllByRole('spinbutton').length).toBe(0);
     });
 });
