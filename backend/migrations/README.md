@@ -9,14 +9,14 @@ SQLx マイグレーション履歴の説明書。
 
 | No. | ファイル | 対象テーブル | 変更内容 |
 |-----|---------|-------------|---------|
-| 0001 | `0001_init.sql` | `stocks` | pgcrypto/citext 拡張、銘柄マスタ初期作成 |
+| 0001 | `0001_init.sql` | `stock` | pgcrypto/citext 拡張、銘柄マスタ初期作成 |
 | 0002 | `0002_create_users.sql` | `users` | Google OAuth ユーザー管理テーブル |
 | 0003 | `0003_create_sessions.sql` | `sessions` | セッション管理テーブル（7日有効期限） |
 | 0004 | `0004_create_dividends.sql` | `dividends` | 配当金取引テーブル（DOUBLE PRECISION） |
 | 0005 | `0005_create_domestic_stocks.sql` | `domestic_stocks` | 国内株式取引テーブル（DOUBLE PRECISION） |
 | 0006 | `0006_create_mutualfunds.sql` | `mutualfunds` | 投資信託取引テーブル（DOUBLE PRECISION） |
 | 0007 | `0007_create_asset_balances.sql` | `asset_balances` | 資産残高（保有銘柄）テーブル |
-| 0008 | `0008_fix_stock_schema.sql` | `stocks` | 主キーを (code) → (date, code) に変更、業種カラム長拡張 |
+| 0008 | `0008_fix_stock_schema.sql` | `stock` | 主キーを (code) → (date, code) に変更、業種カラム長拡張 |
 | 0009 | `0009_create_jquants_dividend_cache.sql` | `jquants_dividend_cache`, `jquants_rate_control` | J-Quants API キャッシュ・レートコントロールテーブル |
 | 0010 | `0010_drop_domestic_stocks_unique.sql` | `domestic_stocks` | 同一内容の重複取引を許容するため UNIQUE 制約を削除 |
 | 0011 | `0011_add_content_hash_to_domestic_stocks.sql` | `domestic_stocks` | `content_hash` / `occurrence_index` 追加、重複判定ロジックを実装 |
@@ -79,7 +79,7 @@ cargo sqlx migrate run
 # 4. オフラインキャッシュを更新（CI/本番のコンパイル向け）
 make sqlx-prepare
 
-# 5. Cargo.lock と sqlx-data.json をコミット
+# 5. Cargo.lock と .sqlx/ をコミット
 ```
 
 ### バージョン番号命名規則
@@ -94,12 +94,13 @@ make sqlx-prepare
 ### 新規 DB 構築時（fresh install）
 
 ```bash
-# ローカル DB を起動して全 migration を順に適用
-make db-up
-cargo sqlx migrate run
+# ローカル DB を起動して全 migration を順に適用（backend/ ディレクトリで実行）
+cd backend && make db-up
+cd backend && cargo sqlx migrate run
 
-# テーブルが全て作成されることを確認
-cargo test db_integration_with_docker_and_migrations -- --nocapture
+# Docker が使える環境では統合テストで全テーブルの作成を確認
+# （#[ignore] テストなので --ignored が必要）
+cd backend && cargo test db_integration_with_docker_and_migrations -- --ignored --nocapture
 ```
 
 ### 既存 DB 更新時
