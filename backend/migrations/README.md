@@ -26,16 +26,26 @@ SQLx マイグレーション管理。
 **このブランチをデプロイする前に、既存 DB で必ず以下を実行すること。**
 実行しないと `VersionMismatch` エラーでアプリが起動不能になる。
 
-```bash
-# 1. _sqlx_migrations をリセット（テーブル/データは一切変更しない）
-psql $DATABASE_URL -f backend/scripts/repair-migrations.sql
+### 前提条件
 
-# 2. 新しいファイルを "applied" として記録
-cd backend && cargo sqlx migrate run
+repair を実行する前に version=17 まで全て適用済みであること。
+スクリプト内でチェックしており、未達の場合はエラーで停止する。
+
+### 手順
+
+```bash
+# 本番 DB
+psql $DATABASE_URL -f backend/scripts/repair-migrations.sql
+fly ssh console -C "cd /app && ./backend migrate"  # または fly deploy 後に起動で自動適用
+
+# ローカル開発 DB（Makefile ターゲット）
+cd backend && make repair-and-migrate-local
 ```
 
-`backend/scripts/repair-migrations.sql` の中身は `TRUNCATE TABLE _sqlx_migrations;` のみ。
+`backend/scripts/repair-migrations.sql` は version=17 チェック後に `TRUNCATE TABLE _sqlx_migrations;` を実行する。
 全 SQL に `IF NOT EXISTS` が付いているため、テーブルが存在していても安全に再実行される。
+
+> **この切り替えは一回限り**。完了後は通常の `cargo sqlx migrate run` / `make migrate-local` を使う。
 
 ---
 
