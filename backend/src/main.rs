@@ -11,6 +11,9 @@ mod routes;
 mod services;
 mod state;
 
+#[cfg(test)]
+mod test_env;
+
 use config::Config;
 use db::{connect_pool, run_migrations};
 use dotenvy::dotenv;
@@ -19,9 +22,6 @@ use routes::app_router;
 use state::{AppState, Secrets};
 use std::sync::{atomic::AtomicBool, Arc};
 use tokio::net::TcpListener;
-
-#[cfg(test)]
-use db::connect_pool_lazy;
 
 #[tokio::main]
 async fn main() {
@@ -69,93 +69,4 @@ async fn main() {
     axum::serve(listener, router)
         .await
         .expect("サーバーの起動に失敗しました");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::http::Method;
-    use axum::Router;
-
-    /// テスト用のアプリケーションルーターを作成する
-    pub fn create_test_router() -> Router {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = connect_pool_lazy(database_url, 1).expect("Failed to create connection pool");
-
-        let secrets = Arc::new(Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: Some("test_api_key".to_string()),
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
-
-        let client = Client::new();
-        let state = AppState {
-            pool,
-            secrets,
-            client,
-            background_task_running: Arc::new(AtomicBool::new(false)),
-        };
-
-        let config = Config::default();
-        app_router(state, &config)
-    }
-
-    #[tokio::test]
-    async fn test_router_creation() {
-        let _router = create_test_router();
-        // ルーターが正常に作成されることを確認
-    }
-
-    #[tokio::test]
-    async fn test_cors_configuration() {
-        let allowed_headers = [
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::ACCEPT,
-            axum::http::header::ORIGIN,
-            axum::http::header::AUTHORIZATION,
-        ];
-
-        let allowed_methods = [
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-            Method::OPTIONS,
-        ];
-
-        // CORS設定が正しく構成されることを確認
-        assert_eq!(allowed_headers.len(), 4);
-        assert_eq!(allowed_methods.len(), 5);
-        assert!(allowed_methods.contains(&Method::GET));
-        assert!(allowed_methods.contains(&Method::POST));
-    }
-
-    #[tokio::test]
-    async fn test_app_state_creation_from_config() {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = connect_pool_lazy(database_url, 5).expect("Failed to create connection pool");
-
-        let secrets = Arc::new(Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
-        let client = Client::new();
-
-        let state = AppState {
-            pool,
-            secrets,
-            client,
-            background_task_running: Arc::new(AtomicBool::new(false)),
-        };
-
-        // AppStateが正常に作成されることを確認
-        let _ = &state.pool;
-        let _ = &state.secrets;
-        let _ = &state.client;
-    }
 }

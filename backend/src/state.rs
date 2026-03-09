@@ -40,71 +40,52 @@ pub struct AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::postgres::PgPoolOptions;
+    use crate::test_env::{EnvGuard, ENV_MUTEX};
 
-    fn create_test_secrets() -> Secrets {
-        Secrets {
-            database_url: "postgresql://user:password@localhost/test_db".to_string(),
-            jquants_api_key: Some("test_api_key".to_string()),
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        }
+    #[tokio::test]
+    async fn test_secrets_from_env_error_without_database_url() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set("DATABASE_URL", None);
+
+        let result = Secrets::from_env();
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(
+            err_msg.contains("DATABASE_URL"),
+            "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"
+        );
     }
 
     #[tokio::test]
-    async fn test_app_state_creation() {
-        let database_url = "postgresql://user:password@localhost/test_db";
+    async fn test_secrets_from_env_frontend_url_default() {
+        // FRONTEND_URL 未設定時はデフォルト値 "http://localhost:8080" を使用する
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set(
+            "DATABASE_URL",
+            Some("postgresql://user:password@localhost/test"),
+        );
+        let _fe = EnvGuard::set("FRONTEND_URL", None);
 
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
+        let result = Secrets::from_env();
 
-        let secrets = Arc::new(create_test_secrets());
-        let client = Client::new();
-
-        let app_state = AppState {
-            pool: pool.clone(),
-            secrets: secrets.clone(),
-            client: client.clone(),
-            background_task_running: Arc::new(AtomicBool::new(false)),
-        };
-
-        // AppStateが正常に作成されることを確認
-        let _ = &app_state.pool;
-        let _ = &app_state.secrets;
-        let _ = &app_state.client;
-
-        // AppStateのクローンが正常に動作することを確認
-        let cloned_state = app_state.clone();
-        let _ = &cloned_state.pool;
-        let _ = &cloned_state.secrets;
-        let _ = &cloned_state.client;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().frontend_url, "http://localhost:8080");
     }
 
     #[tokio::test]
-    async fn test_app_state_clone() {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy(database_url)
-            .expect("Failed to create connection pool");
+    async fn test_secrets_from_env_jquants_key_is_optional() {
+        // JQUANTS_API_KEY は省略可能で None になる
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set(
+            "DATABASE_URL",
+            Some("postgresql://user:password@localhost/test"),
+        );
+        let _jq = EnvGuard::set("JQUANTS_API_KEY", None);
 
-        let secrets = Arc::new(create_test_secrets());
-        let client = Client::new();
+        let result = Secrets::from_env();
 
-        let original_state = AppState {
-            pool,
-            secrets,
-            client,
-            background_task_running: Arc::new(AtomicBool::new(false)),
-        };
-
-        let cloned_state = original_state.clone();
-
-        let _ = &cloned_state.pool;
-        let _ = &cloned_state.secrets;
-        let _ = &cloned_state.client;
+        assert!(result.is_ok());
+        assert!(result.unwrap().jquants_api_key.is_none());
     }
 }

@@ -35,11 +35,3 @@ pub async fn batch(
 
     Ok(Json(DividendPerShareBatchResponse { items }))
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_module_compilation() {
-        // モジュールが正常にコンパイルされることを確認
-    }
-}

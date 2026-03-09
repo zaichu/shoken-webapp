@@ -11,6 +11,9 @@ pub mod routes;
 pub mod services;
 pub mod state;
 
+#[cfg(test)]
+pub mod test_env;
+
 pub use config::Config;
 pub use errors::ApiError;
 pub use extractors::validated_json::ValidatedJson;

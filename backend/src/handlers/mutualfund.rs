@@ -94,11 +94,3 @@ pub async fn delete_all(
         Json(serde_json::json!({"message": "全ての投資信託データを削除しました"})),
     ))
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_module_compilation() {
-        // モジュールが正常にコンパイルされることを確認
-    }
-}

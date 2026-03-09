@@ -168,6 +168,7 @@ pub fn is_secure_cookie() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_env::{EnvGuard, ENV_MUTEX};
     use crate::{routes::app_router, state::AppState};
     use axum::{
         body::Body,
@@ -176,35 +177,7 @@ mod tests {
     };
     use reqwest::Client;
     use std::sync::Arc;
-    use tokio::sync::Mutex;
     use tower::ServiceExt;
-
-    static ENV_MUTEX: Mutex<()> = Mutex::const_new(());
-
-    struct EnvGuard {
-        key: &'static str,
-        previous: Option<String>,
-    }
-
-    impl EnvGuard {
-        fn set(key: &'static str, value: Option<&str>) -> Self {
-            let previous = env::var(key).ok();
-            match value {
-                Some(value) => env::set_var(key, value),
-                None => env::remove_var(key),
-            }
-            Self { key, previous }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            match &self.previous {
-                Some(value) => env::set_var(self.key, value),
-                None => env::remove_var(self.key),
-            }
-        }
-    }
 
     fn build_test_app(config: &Config) -> Router {
         let database_url = "postgresql://user:password@localhost/test_db";
