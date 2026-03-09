@@ -80,16 +80,29 @@ describe('encoding utilities', () => {
       expect(typeof result.confidence).toBe('number');
     });
 
-    it('Shift-JIS 固有バイト列は Shift-JIS として正しくデコードされる', () => {
+    it('Shift-JIS 単バイト半角カナは Shift-JIS として正しくデコードされる', () => {
       // 半角カタカナ「ｱｲｳ」の Shift-JIS バイト (0xB1, 0xB2, 0xB3)
       // UTF-8 では無効バイト（継続バイトが単独で出現）→ U+FFFD が生成され confidence が下がる
-      // Shift-JIS デコードは文字化けなしで confidence が高くなるため、Shift-JIS が選ばれる
       const shiftJisBytes = new Uint8Array([0xB1, 0xB2, 0xB3]);
 
       const result = tryDecodeWithMultipleEncodings(shiftJisBytes);
 
       expect(result.encoding).toBe('shift-jis');
       expect(result.text).toBe('ｱｲｳ');
+      expect(result.confidence).toBeGreaterThan(0.5);
+    });
+
+    it('Shift-JIS 2バイト文字（漢字等、先頭バイト 0x81-0x9F）は Shift-JIS として正しくデコードされる', () => {
+      // 実際の証券 CSV は列ヘッダーに漢字を含む。
+      // Shift-JIS 2バイト文字の先頭バイト 0x82 は UTF-8 の継続バイト → U+FFFD を生成し
+      // cleanUtf8 が null となるため、信頼度ソートで Shift-JIS が選ばれる。
+      // ⇒ cleanUtf8 の優先が実ファイルの Shift-JIS 判定を壊さないことの回帰テスト。
+      const shiftJisKanji = new Uint8Array([0x82, 0xA0, 0x82, 0xA2]); // Shift-JIS 2バイト文字列
+
+      const result = tryDecodeWithMultipleEncodings(shiftJisKanji);
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).not.toContain('\uFFFD');
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
