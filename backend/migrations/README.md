@@ -21,19 +21,20 @@ SQLx マイグレーション管理。
 
 ---
 
-## 既存 DB からの移行（migrations_legacy/ からの切り替え）
+## ⚠️ 既存 DB への重要な注意事項
 
-旧 migrations/0001〜0017 を適用済みの DB は以下の手順で新しいファイルセットに移行する。
+**このブランチをデプロイする前に、既存 DB で必ず以下を実行すること。**
+実行しないと `VersionMismatch` エラーでアプリが起動不能になる。
 
 ```bash
-# 1. _sqlx_migrations をリセット（スキーマは変更しない）
-psql $DATABASE_URL -f scripts/repair-migrations.sql
+# 1. _sqlx_migrations をリセット（テーブル/データは一切変更しない）
+psql $DATABASE_URL -f backend/scripts/repair-migrations.sql
 
 # 2. 新しいファイルを "applied" として記録
 cd backend && cargo sqlx migrate run
 ```
 
-`scripts/repair-migrations.sql` の中身は `TRUNCATE TABLE _sqlx_migrations;` のみ。
+`backend/scripts/repair-migrations.sql` の中身は `TRUNCATE TABLE _sqlx_migrations;` のみ。
 全 SQL に `IF NOT EXISTS` が付いているため、テーブルが存在していても安全に再実行される。
 
 ---
@@ -45,6 +46,13 @@ cd backend && cargo sqlx migrate run
 - **既存の `.sql` ファイルを編集・削除しない**
 - **ファイル名の通番を変更しない**
 - **適用済みのテーブルを DROP する migration を追加しない**
+
+### ファイル数を増やさないためのルール
+
+0001〜0009 はテーブルの最終状態を定義している。**テーブル構造を変える場合は ALTER TABLE / CREATE INDEX を新ファイルに追記する**。
+「新しいカラムを既存ファイルに書き込む」ことはしない（SQLx チェックサムが変わるため）。
+
+次の migration を追加するときは、変更目的を 1 つに絞ること。複数の目的を 1 ファイルに混在させない。
 
 ### 新規 migration 追加手順
 
