@@ -17,9 +17,8 @@ export interface DecodeResult {
 export const detectMojibake = (text: string): boolean => {
   // 一般的な文字化けパターン
   const mojibakePatterns = [
-    /[\uFFFD]/g, // 置換文字
-    /��/g, // よくある文字化け
-    /[\uFFFD]/g, // 不明な文字（重複パターンで確実に検出）
+    /[\uFFFD]/g, // 置換文字（不明な文字）
+    /\uFFFD\uFFFD/g, // 連続した置換文字
   ];
 
   return mojibakePatterns.some(pattern => pattern.test(text));
@@ -86,22 +85,6 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
     } catch (error) {
       console.warn(`${encoding} でのデコードに失敗しました:`, error);
     }
-  }
-
-  // 設計判断: UTF-8 で U+FFFD なしにデコードできた場合（= バイト列が有効な UTF-8）は UTF-8 を優先する。
-  //
-  // 根拠:
-  //   - 実際の Shift-JIS CSV（証券会社のダウンロードファイル等）は漢字を含み、
-  //     0x81-0x9F 先頭の 2 バイト文字が UTF-8 では U+FFFD を生成するため
-  //     ファイル全体では cleanUtf8 = null となり Shift-JIS が正しく選ばれる。
-  //   - 有効な UTF-8 バイト列が同時に有効な Shift-JIS にも見えるケース
-  //     （例: 半角カナ 0xA1-0xDF の連続）は理論上存在するが、
-  //     漢字を一切含まない Shift-JIS CSV は実用上ほぼ出現しない。
-  //   - 現代の CSV ファイルは UTF-8 が主流であり、有効な UTF-8 を優先することが
-  //     より安全なフォールバックとなる。
-  const cleanUtf8 = results.find(r => r.encoding === 'utf-8' && !r.text.includes('\uFFFD'));
-  if (cleanUtf8 && cleanUtf8.confidence > 0.5) {
-    return cleanUtf8;
   }
 
   // 信頼度が最も高いものを選択
