@@ -63,6 +63,20 @@ describe('encoding utilities', () => {
       expect(result.text).toContain(utf8Text);
     });
 
+    it('UTF-8 BOMなし日本語ファイルは UTF-8 として正しくデコードされる', () => {
+      // SUPPORTED_ENCODINGS の先頭が utf-8 であるため、UTF-8 と Shift-JIS の信頼度が
+      // 同点になった場合でも安定ソートにより utf-8 が優先して選ばれる。
+      const utf8Text = 'こんにちは世界';
+      const encoder = new TextEncoder();
+      const uint8Array = encoder.encode(utf8Text);
+
+      const result = tryDecodeWithMultipleEncodings(uint8Array);
+
+      expect(result.encoding).toBe('utf-8');
+      expect(result.text).toBe(utf8Text);
+      expect(result.confidence).toBeGreaterThan(0.5);
+    });
+
     it('空の配列の場合は適切にハンドリングする', () => {
       const uint8Array = new Uint8Array(0);
       
