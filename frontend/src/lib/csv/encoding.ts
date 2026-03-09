@@ -2,8 +2,8 @@
  * CSVファイルのエンコーディング検出と変換を担当するユーティリティ
  */
 
-// サポートされているエンコーディング
-const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1', 'euc-jp'] as const;
+// サポートされているエンコーディング（utf-8 を先頭に置くことで信頼度同点時に utf-8 を優先する）
+const SUPPORTED_ENCODINGS = ['utf-8', 'shift-jis', 'iso-8859-1', 'euc-jp'] as const;
 
 export interface DecodeResult {
   text: string;
@@ -15,14 +15,7 @@ export interface DecodeResult {
  * 文字化けを検出する
  */
 export const detectMojibake = (text: string): boolean => {
-  // 一般的な文字化けパターン
-  const mojibakePatterns = [
-    /[\uFFFD]/g, // 置換文字
-    /��/g, // よくある文字化け
-    /[�]/g, // 不明な文字
-  ];
-
-  return mojibakePatterns.some(pattern => pattern.test(text));
+  return /[\uFFFD]/.test(text);
 };
 
 /**
@@ -58,6 +51,14 @@ export const calculateEncodingConfidence = (text: string): number => {
  * 複数のエンコーディングを試して正常に読み込めるものを使用
  */
 export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeResult => {
+  // UTF-8 BOM (0xEF 0xBB 0xBF) が存在する場合は UTF-8 と確定できる
+  const hasBOM = uint8Array.length >= 3 &&
+    uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF;
+  if (hasBOM) {
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    return { text: decoder.decode(uint8Array), encoding: 'utf-8', confidence: 1.0 };
+  }
+
   const results: DecodeResult[] = [];
 
   for (const encoding of SUPPORTED_ENCODINGS) {
