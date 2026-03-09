@@ -46,30 +46,17 @@ describe('encoding utilities', () => {
 
   describe('tryDecodeWithMultipleEncodings', () => {
     it('UTF-8エンコーディングでデコードする', () => {
-      // jsdom の TextDecoder(shift-jis) は UTF-8 バイト列を有効な日本語として誤認するため、
-      // shift-jis を「サポート外」として throw させ、実ブラウザ相当の環境を模擬する。
-      // tryDecodeWithMultipleEncodings は shift-jis をスキップして utf-8 を選択する。
-      const originalTextDecoder = global.TextDecoder;
-      global.TextDecoder = function MockDecoder(encoding: string, options?: TextDecoderOptions) {
-        if (encoding === 'shift-jis') {
-          throw new RangeError(`The encoding label provided ('${encoding}') is invalid.`);
-        }
-        return new originalTextDecoder(encoding, options);
-      } as unknown as typeof TextDecoder;
+      // UTF-8 日本語バイト列は U+FFFD なしでデコードできるため、
+      // tryDecodeWithMultipleEncodings の cleanUtf8 優先条件により utf-8 が選ばれる。
+      const utf8Text = 'こんにちは世界';
+      const encoder = new TextEncoder();
+      const uint8Array = encoder.encode(utf8Text);
 
-      try {
-        const utf8Text = 'こんにちは世界';
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(utf8Text);
+      const result = tryDecodeWithMultipleEncodings(uint8Array);
 
-        const result = tryDecodeWithMultipleEncodings(uint8Array);
-
-        expect(result.text).toBe(utf8Text);
-        expect(result.encoding).toBe('utf-8');
-        expect(result.confidence).toBeGreaterThan(0.5);
-      } finally {
-        global.TextDecoder = originalTextDecoder;
-      }
+      expect(result.text).toBe(utf8Text);
+      expect(result.encoding).toBe('utf-8');
+      expect(result.confidence).toBeGreaterThan(0.5);
     });
 
     it('空の配列の場合は適切にハンドリングする', () => {
