@@ -90,7 +90,7 @@ pub fn parse_required_string(
     row_num: usize,
 ) -> Result<String, CsvRowError> {
     let val = get_cell(record, header_map, col);
-    if val.is_empty() {
+    if val.trim().is_empty() {
         return Err(CsvRowError {
             row: row_num,
             message: format!("必須列 '{}' が空または存在しません", col),
@@ -107,7 +107,7 @@ pub fn parse_required_number(
     row_num: usize,
 ) -> Result<Decimal, CsvRowError> {
     let raw = get_cell(record, header_map, col);
-    if raw.is_empty() {
+    if raw.trim().is_empty() {
         return Err(CsvRowError {
             row: row_num,
             message: format!("必須列 '{}' が空または存在しません", col),
