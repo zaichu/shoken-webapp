@@ -40,16 +40,42 @@ pub struct AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{LazyLock, Mutex};
+    use std::env;
+    use tokio::sync::Mutex;
 
-    // env var 操作テストを直列化するためのロック（並行テストによる競合防止）
-    static ENV_MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+    // env var 操作テストを直列化するためのロック（config.rs と同じパターン）
+    static ENV_MUTEX: Mutex<()> = Mutex::const_new(());
 
-    #[test]
-    fn test_secrets_from_env_error_without_database_url() {
-        let _guard = ENV_MUTEX.lock().unwrap();
-        let saved = std::env::var("DATABASE_URL").ok();
-        std::env::remove_var("DATABASE_URL");
+    /// env var を操作し、Drop 時に元の値へ自動復元するガード
+    struct EnvGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let previous = env::var(key).ok();
+            match value {
+                Some(v) => env::set_var(key, v),
+                None => env::remove_var(key),
+            }
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(v) => env::set_var(self.key, v),
+                None => env::remove_var(self.key),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_secrets_from_env_error_without_database_url() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set("DATABASE_URL", None);
 
         let result = Secrets::from_env();
 
@@ -59,59 +85,37 @@ mod tests {
             err_msg.contains("DATABASE_URL"),
             "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"
         );
-
-        if let Some(val) = saved {
-            std::env::set_var("DATABASE_URL", val);
-        }
     }
 
-    #[test]
-    fn test_secrets_from_env_frontend_url_default() {
+    #[tokio::test]
+    async fn test_secrets_from_env_frontend_url_default() {
         // FRONTEND_URL 未設定時はデフォルト値 "http://localhost:8080" を使用する
-        let _guard = ENV_MUTEX.lock().unwrap();
-        let saved_db = std::env::var("DATABASE_URL").ok();
-        let saved_fe = std::env::var("FRONTEND_URL").ok();
-
-        std::env::set_var("DATABASE_URL", "postgresql://user:password@localhost/test");
-        std::env::remove_var("FRONTEND_URL");
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set(
+            "DATABASE_URL",
+            Some("postgresql://user:password@localhost/test"),
+        );
+        let _fe = EnvGuard::set("FRONTEND_URL", None);
 
         let result = Secrets::from_env();
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().frontend_url, "http://localhost:8080");
-
-        match saved_db {
-            Some(val) => std::env::set_var("DATABASE_URL", val),
-            None => std::env::remove_var("DATABASE_URL"),
-        }
-        match saved_fe {
-            Some(val) => std::env::set_var("FRONTEND_URL", val),
-            None => std::env::remove_var("FRONTEND_URL"),
-        }
     }
 
-    #[test]
-    fn test_secrets_from_env_jquants_key_is_optional() {
+    #[tokio::test]
+    async fn test_secrets_from_env_jquants_key_is_optional() {
         // JQUANTS_API_KEY は省略可能で None になる
-        let _guard = ENV_MUTEX.lock().unwrap();
-        let saved_db = std::env::var("DATABASE_URL").ok();
-        let saved_jq = std::env::var("JQUANTS_API_KEY").ok();
-
-        std::env::set_var("DATABASE_URL", "postgresql://user:password@localhost/test");
-        std::env::remove_var("JQUANTS_API_KEY");
+        let _lock = ENV_MUTEX.lock().await;
+        let _db = EnvGuard::set(
+            "DATABASE_URL",
+            Some("postgresql://user:password@localhost/test"),
+        );
+        let _jq = EnvGuard::set("JQUANTS_API_KEY", None);
 
         let result = Secrets::from_env();
 
         assert!(result.is_ok());
         assert!(result.unwrap().jquants_api_key.is_none());
-
-        match saved_db {
-            Some(val) => std::env::set_var("DATABASE_URL", val),
-            None => std::env::remove_var("DATABASE_URL"),
-        }
-        match saved_jq {
-            Some(val) => std::env::set_var("JQUANTS_API_KEY", val),
-            None => std::env::remove_var("JQUANTS_API_KEY"),
-        }
     }
 }
