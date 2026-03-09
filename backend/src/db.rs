@@ -14,20 +14,10 @@ pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgP
         .connect_lazy(database_url)
 }
 
-/// 既存環境向け: `migrations/0001〜0017` を逐次適用してスキーマを最新化する。
-/// 本番 DB・ローカル開発 DB のアップグレードに使用する。
+/// `migrations/` を適用してスキーマを最新化する。
+/// 本番 DB・ローカル DB・テスト全て同じ経路を使用する。
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!().run(pool).await
-}
-
-/// 新規環境向け: `migrations_baseline/0001_baseline.sql` で一発初期化する。
-/// 0001〜0017 を集約した最終スキーマを直接適用するため、テストや CI で高速化できる。
-/// 既存 DB には使用しないこと（migration 履歴が変わるため）。
-///
-/// 統合テスト（`tests/db_integration.rs`）から使用する。バイナリは `run_migrations` を使用。
-#[allow(dead_code)]
-pub async fn run_baseline_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
-    sqlx::migrate!("./migrations_baseline").run(pool).await
 }
 
 #[cfg(test)]
