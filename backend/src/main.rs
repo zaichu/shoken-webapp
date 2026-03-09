@@ -11,6 +11,9 @@ mod routes;
 mod services;
 mod state;
 
+#[cfg(test)]
+mod test_env;
+
 use config::Config;
 use db::{connect_pool, run_migrations};
 use dotenvy::dotenv;

@@ -40,37 +40,7 @@ pub struct AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
-    use tokio::sync::Mutex;
-
-    // env var 操作テストを直列化するためのロック（config.rs と同じパターン）
-    static ENV_MUTEX: Mutex<()> = Mutex::const_new(());
-
-    /// env var を操作し、Drop 時に元の値へ自動復元するガード
-    struct EnvGuard {
-        key: &'static str,
-        previous: Option<String>,
-    }
-
-    impl EnvGuard {
-        fn set(key: &'static str, value: Option<&str>) -> Self {
-            let previous = env::var(key).ok();
-            match value {
-                Some(v) => env::set_var(key, v),
-                None => env::remove_var(key),
-            }
-            Self { key, previous }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            match &self.previous {
-                Some(v) => env::set_var(self.key, v),
-                None => env::remove_var(self.key),
-            }
-        }
-    }
+    use crate::test_env::{EnvGuard, ENV_MUTEX};
 
     #[tokio::test]
     async fn test_secrets_from_env_error_without_database_url() {
