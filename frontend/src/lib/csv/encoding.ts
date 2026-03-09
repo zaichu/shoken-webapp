@@ -3,9 +3,7 @@
  */
 
 // サポートされているエンコーディング
-// 証券 CSV で実用的な UTF-8 と Shift-JIS を優先し、iso-8859-1 はフォールバックとして残す。
-// euc-jp は現代の証券 CSV では使用されないため除外し、utf-8 との衝突リスクを排除する。
-const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1'] as const;
+const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1', 'euc-jp'] as const;
 
 export interface DecodeResult {
   text: string;
@@ -89,12 +87,12 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
   // 根拠:
   //   - 同じバイト列が UTF-8 でも Shift-JIS でも有効に見えるケースが存在する
   //     （例: 3バイト UTF-8 日本語文字のバイト列は Shift-JIS でも有効な文字列に見える）。
-  //   - 実際の Shift-JIS CSV（証券会社等）は必ず漢字を含む。
-  //     漢字の Shift-JIS 先頭バイト（0x81-0x9F）は UTF-8 の継続バイトと重なるため
-  //     UTF-8 デコード時に U+FFFD を生成する。そのため cleanUtf8 は null となり
-  //     正しく Shift-JIS が選ばれる（[0xB1, 0xB2, 0xB3] = ｱｲｳ の回帰テスト参照）。
-  //   - 漢字を一切含まず有効な UTF-8 でもある Shift-JIS（純粋な半角カナ等）は
-  //     実用上ほぼ存在せず、UTF-8 優先が適切なデフォルト動作となる。
+  //   - 実際の Shift-JIS / EUC-JP CSV（証券会社等）は必ず漢字を含む。
+  //     Shift-JIS: 漢字の先頭バイト（0x81-0x9F）は UTF-8 の継続バイト → U+FFFD 生成
+  //     EUC-JP: 漢字の先頭バイト（0xA1-0xFE）も UTF-8 の継続バイト → U+FFFD 生成
+  //     そのため実ファイルでは cleanUtf8 は null となり正しいエンコーディングが選ばれる。
+  //   - 回帰テスト: [0x82, 0xA0] (Shift-JIS かな) や [0xCC, 0xF3] (EUC-JP 漢字) 相当の
+  //     バイト列は UTF-8 で U+FFFD を生成するため Shift-JIS / EUC-JP が正しく選ばれる。
   const cleanUtf8 = results.find(r => r.encoding === 'utf-8' && !r.text.includes('\uFFFD'));
   if (cleanUtf8 && cleanUtf8.confidence > 0.5) {
     return cleanUtf8;

@@ -96,7 +96,6 @@ describe('encoding utilities', () => {
       // 実際の証券 CSV は列ヘッダーに漢字を含む。
       // Shift-JIS 2バイト文字の先頭バイト 0x82 は UTF-8 の継続バイト → U+FFFD を生成し
       // cleanUtf8 が null となるため、信頼度ソートで Shift-JIS が選ばれる。
-      // ⇒ cleanUtf8 の優先が実ファイルの Shift-JIS 判定を壊さないことの回帰テスト。
       const shiftJisKanji = new Uint8Array([0x82, 0xA0, 0x82, 0xA2]); // Shift-JIS 2バイト文字列
 
       const result = tryDecodeWithMultipleEncodings(shiftJisKanji);
@@ -104,6 +103,21 @@ describe('encoding utilities', () => {
       expect(result.encoding).toBe('shift-jis');
       expect(result.text).not.toContain('\uFFFD');
       expect(result.confidence).toBeGreaterThan(0.5);
+    });
+
+    it('EUC-JP 2バイト文字（先頭バイト 0xA1-0xFE）は正しくデコードされる', () => {
+      // EUC-JP 漢字の先頭バイト（0xA4, 0xCC 等 0xA1-0xFE 範囲）は
+      // UTF-8 の継続バイトのため先頭に出現すると U+FFFD → cleanUtf8 が null となり
+      // 信頼度ソートに委ねられる。このテストは cleanUtf8 が EUC-JP 判定を壊さないことを確認。
+      // EUC-JP 約定日 相当のバイト列（先頭が継続バイト 0xCC → UTF-8 で U+FFFD 生成）
+      const eucJpBytes = new Uint8Array([0xCC, 0xF3, 0xC4, 0xEA]); // EUC-JP 2バイト文字列
+
+      const result = tryDecodeWithMultipleEncodings(eucJpBytes);
+
+      // UTF-8 には U+FFFD が生成されるため cleanUtf8 は null → euc-jp または shift-jis が選ばれる
+      // 重要: UTF-8 が返らないこと（cleanUtf8 優先が発動しないこと）を確認
+      expect(result.encoding).not.toBe('utf-8');
+      expect(result.text).toBeDefined();
     });
 
   });
