@@ -3,7 +3,9 @@
  */
 
 // サポートされているエンコーディング
-const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1', 'euc-jp'] as const;
+// 証券 CSV で実用的な UTF-8 と Shift-JIS を優先し、iso-8859-1 はフォールバックとして残す。
+// euc-jp は現代の証券 CSV では使用されないため除外し、utf-8 との衝突リスクを排除する。
+const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1'] as const;
 
 export interface DecodeResult {
   text: string;
