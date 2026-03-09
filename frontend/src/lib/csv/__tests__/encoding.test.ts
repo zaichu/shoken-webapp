@@ -52,14 +52,9 @@ describe('encoding utilities', () => {
 
       const result = tryDecodeWithMultipleEncodings(uint8Array);
 
-      // 文字化けなしでデコードできること（テキストが空でない）
-      expect(result.text.length).toBeGreaterThan(0);
-      // 信頼度が十分高いこと（有効なテキストとして認識される）
+      expect(result.text).toBe(utf8Text);
+      expect(result.encoding).toBe('utf-8');
       expect(result.confidence).toBeGreaterThan(0.5);
-      // エンコーディング名が返ること
-      expect(result.encoding).toBeTruthy();
-      // Note: jsdom では shift-jis が UTF-8 バイトを有効な日本語として誤認する場合があるため
-      // encoding === 'utf-8' の厳密なアサーションは行わない
     });
 
     it('空の配列の場合は適切にハンドリングする', () => {

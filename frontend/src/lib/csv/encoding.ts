@@ -3,7 +3,9 @@
  */
 
 // サポートされているエンコーディング
-const SUPPORTED_ENCODINGS = ['shift-jis', 'utf-8', 'iso-8859-1', 'euc-jp'] as const;
+// utf-8 を先に試すことで、UTF-8 と shift-jis が同信頼度になった場合に utf-8 を優先する
+// （JavaScript の Array.sort は安定ソートのため、同点では挿入順が保持される）
+const SUPPORTED_ENCODINGS = ['utf-8', 'shift-jis', 'iso-8859-1', 'euc-jp'] as const;
 
 export interface DecodeResult {
   text: string;
