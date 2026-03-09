@@ -19,7 +19,7 @@ export const detectMojibake = (text: string): boolean => {
   const mojibakePatterns = [
     /[\uFFFD]/g, // 置換文字
     /��/g, // よくある文字化け
-    /[<EFBFBD>]/g, // 不明な文字
+    /[\uFFFD]/g, // 不明な文字（重複パターンで確実に検出）
   ];
 
   return mojibakePatterns.some(pattern => pattern.test(text));
