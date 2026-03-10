@@ -46,43 +46,43 @@ pub async fn get_batch(
         .collect();
 
     // items は元の codes 順で構築し API の返却件数を維持する
-    // refresh_set で重複排除してバックグラウンド更新の多重登録を防ぐ
-    let mut refresh_set: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    // refresh_codes は初出現順を保持しつつ重複を除去する（更新優先度順を維持するため）
+    let mut refresh_seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut refresh_codes: Vec<String> = Vec::new();
+    let mut items: Vec<DividendPerShareItem> = Vec::with_capacity(codes.len());
 
-    let items: Vec<DividendPerShareItem> = codes
-        .iter()
-        .map(|code| {
-            if let Some(cached_item) = cache_map.get(code.as_str()) {
-                let is_stale = compute_is_stale(&cached_item.status, cached_item.stale_at, now);
-                if is_stale {
-                    refresh_set.insert(code.as_str());
-                }
-                DividendPerShareItem {
-                    security_code: code.clone(),
-                    dividend_per_share: cached_item.dividend_per_share,
-                    status: cached_item.status.clone(),
-                    fetched_at: cached_item.fetched_at,
-                    is_stale,
-                }
-            } else {
-                // 未キャッシュ → pending としてキューに積む
-                refresh_set.insert(code.as_str());
-                DividendPerShareItem {
-                    security_code: code.clone(),
-                    dividend_per_share: None,
-                    status: "pending".to_string(),
-                    fetched_at: None,
-                    is_stale: false,
-                }
+    for code in codes {
+        let item = if let Some(cached_item) = cache_map.get(code.as_str()) {
+            let is_stale = compute_is_stale(&cached_item.status, cached_item.stale_at, now);
+            if is_stale && refresh_seen.insert(code.as_str()) {
+                refresh_codes.push(code.clone());
             }
-        })
-        .collect();
+            DividendPerShareItem {
+                security_code: code.clone(),
+                dividend_per_share: cached_item.dividend_per_share,
+                status: cached_item.status.clone(),
+                fetched_at: cached_item.fetched_at,
+                is_stale,
+            }
+        } else {
+            // 未キャッシュ → pending としてキューに積む
+            if refresh_seen.insert(code.as_str()) {
+                refresh_codes.push(code.clone());
+            }
+            DividendPerShareItem {
+                security_code: code.clone(),
+                dividend_per_share: None,
+                status: "pending".to_string(),
+                fetched_at: None,
+                is_stale: false,
+            }
+        };
+        items.push(item);
+    }
 
     // バックグラウンド更新をキック（多重起動防止）
-    if !refresh_set.is_empty() {
+    if !refresh_codes.is_empty() {
         if let Some(key) = api_key {
-            let refresh_codes: Vec<String> =
-                refresh_set.into_iter().map(str::to_string).collect();
             background::spawn_background_refresh(
                 pool.clone(),
                 client.clone(),
