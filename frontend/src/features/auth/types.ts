@@ -23,7 +23,3 @@ export interface AuthContextType {
   onLogout: (callback: () => void) => () => void;
 }
 
-/// Google OAuth認証URL取得のレスポンス
-export interface AuthUrlResponse {
-  auth_url: string;
-}

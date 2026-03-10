@@ -1,11 +1,7 @@
-import { FormatFunction, TableColumnAlignment, SelectOption } from '../../types/common';
+import { FormatFunction, TableColumnAlignment } from '../../types/common';
 
 export interface ReceiptBase {
     settlement_date: Date;
-}
-
-export interface Calculations {
-    [key: string]: number;
 }
 
 /**
@@ -14,13 +10,6 @@ export interface Calculations {
 export interface TaxCalculations {
     total_taxes: number;
 }
-
-export interface ReceiptSummary {
-    filter: string;
-    [key: string]: string | number;
-}
-
-export type SearchOption = SelectOption;
 
 export interface TableColumnConfig {
     key: string;

@@ -29,11 +29,3 @@ export interface MutualfundCalculations extends TaxCalculations {
     total_realized_profit_and_loss_after_tax: number; // 合計実現損益(税引)
 }
 
-/**
- * 投資信託の集計サマリー
- */
-export interface MutualfundSummary extends MutualfundCalculations {
-    filter: string;                            // 集計単位（日付や検索クエリ）
-    // インデックスシグネチャを追加して汎用的なアクセスを許可
-    [key: string]: unknown;
-}

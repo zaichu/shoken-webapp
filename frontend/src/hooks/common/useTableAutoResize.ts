@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * テーブルの自動リサイズ機能を提供するカスタムフック
  */
-export interface UseTableAutoResizeOptions {
+interface UseTableAutoResizeOptions {
   /** 自動リサイズを有効にするか */
   enabled?: boolean;
   /** 最小高さ（px） */
@@ -16,7 +16,7 @@ export interface UseTableAutoResizeOptions {
   forceResize?: number;
 }
 
-export interface UseTableAutoResizeResult {
+interface UseTableAutoResizeResult {
   /** コンテナのref */
   containerRef: React.RefObject<HTMLDivElement | null>;
   /** 計算された高さ */

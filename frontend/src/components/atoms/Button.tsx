@@ -1,14 +1,14 @@
 import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
 import { Spinner } from './Spinner';
 
-export type ButtonVariant =
+type ButtonVariant =
   | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark'
   | 'outline-primary' | 'outline-secondary' | 'outline-success' | 'outline-danger'
   | 'outline-warning' | 'outline-info' | 'outline-light' | 'outline-dark';
 
-export type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;

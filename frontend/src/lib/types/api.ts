@@ -15,7 +15,7 @@ export enum ApiErrorType {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
-export interface ApiErrorDetails {
+interface ApiErrorDetails {
   code?: string;
   field?: string;
   constraints?: Record<string, string>;

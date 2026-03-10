@@ -2,20 +2,20 @@ import { useState } from 'react';
 import { parseCSVFile } from '../lib/csv/parser';
 import { CSVParseOptions } from '@/lib/types/csv';
 
-export interface CSVReaderState {
+interface CSVReaderState {
   isLoading: boolean;
   error: string | null;
   fileName: string;
 }
 
-export interface CSVReaderActions {
+interface CSVReaderActions {
   parseCSV: (file: File) => Promise<Record<string, unknown>[]>;
   resetError: () => void;
   setFile: (name: string) => void;
   reset: () => void;
 }
 
-export type CSVReaderHook = CSVReaderState & CSVReaderActions;
+type CSVReaderHook = CSVReaderState & CSVReaderActions;
 
 /**
  * CSVファイルを読み込むためのカスタムフック

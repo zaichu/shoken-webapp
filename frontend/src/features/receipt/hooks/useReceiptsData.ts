@@ -11,14 +11,14 @@ import { type ReceiptsType } from '@/pages/receiptsReducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
-export interface CsvPreviewResult {
+interface CsvPreviewResult {
   totalRows: number;
   validRows: number;
   errors: { row: number; message: string }[];
   rows: Record<string, unknown>[];
 }
 
-export interface UseReceiptsDataResult {
+interface UseReceiptsDataResult {
   dividendData: ReturnType<typeof transformDBDividend>[];
   domesticstockData: ReturnType<typeof transformDBDomesticStock>[];
   mutualfundData: ReturnType<typeof transformDBMutualfund>[];

@@ -1,9 +1,9 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../../lib/utils/classNames';
 
-export type AlertVariant = 'info' | 'warning' | 'danger' | 'success';
+type AlertVariant = 'info' | 'warning' | 'danger' | 'success';
 
-export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
+interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   variant?: AlertVariant;
 }

@@ -33,7 +33,7 @@ export interface ReceiptsState {
   showDeleteConfirm: boolean;
 }
 
-export type ReceiptsAction =
+type ReceiptsAction =
   | { type: 'SET_RECEIPTS_TYPE'; payload: ReceiptsType }
   | { type: 'SET_RAW_FILE'; receiptsType: ReceiptsType; payload: File | null }
   | { type: 'SET_CSV_PREVIEW'; receiptsType: ReceiptsType; payload: CsvPreview | null }
