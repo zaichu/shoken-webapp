@@ -1,14 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// 決算サマリー取得パラメータ（J-Quants API V2）
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct FinSummaryQuery {
-    pub code: String,
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
-
 /// 決算サマリーレスポンス（J-Quants API V2）
 /// V2では fins/summary を使用し、ルートフィールドは "data"
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -24,6 +16,7 @@ pub struct FinSummaryResponse {
 /// V2では省略形フィールド名を使用
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FinSummaryData {
+    // ── 基本情報 ─────────────────────────────────────────────────────────────
     /// 開示日（DisclosedDate → DiscDate）
     #[serde(rename = "DiscDate")]
     pub disclosed_date: String,
@@ -48,6 +41,7 @@ pub struct FinSummaryData {
     #[serde(rename = "CurPerType", default)]
     pub type_of_current_period: Option<String>,
 
+    // ── 会計期間 ─────────────────────────────────────────────────────────────
     /// 当期開始日
     #[serde(rename = "CurPerSt", default)]
     pub current_period_start_date: Option<String>,
@@ -72,6 +66,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NxtFYEn", default)]
     pub next_fiscal_year_end_date: Option<String>,
 
+    // ── 当期実績（連結） ──────────────────────────────────────────────────────
     /// 売上高
     #[serde(rename = "Sales", default)]
     pub net_sales: Option<String>,
@@ -128,6 +123,7 @@ pub struct FinSummaryData {
     #[serde(rename = "CashEq", default)]
     pub cash_and_equivalents: Option<String>,
 
+    // ── 配当金（実績） ────────────────────────────────────────────────────────
     /// 1株当たり配当金（第1四半期末）実績
     #[serde(rename = "Div1Q", default)]
     pub result_dividend_per_share_1st_quarter: Option<String>,
@@ -160,6 +156,7 @@ pub struct FinSummaryData {
     #[serde(rename = "PayoutRatioAnn", default)]
     pub result_payout_ratio_annual: Option<String>,
 
+    // ── 配当金（今期予想） ────────────────────────────────────────────────────
     /// 1株当たり配当金（第1四半期末）予想
     #[serde(rename = "FDiv1Q", default)]
     pub forecast_dividend_per_share_1st_quarter: Option<String>,
@@ -192,6 +189,7 @@ pub struct FinSummaryData {
     #[serde(rename = "FPayoutRatioAnn", default)]
     pub forecast_payout_ratio_annual: Option<String>,
 
+    // ── 配当金（来期予想） ────────────────────────────────────────────────────
     /// 1株当たり配当金（第1四半期末）来期予想
     #[serde(rename = "NxFDiv1Q", default)]
     pub next_year_forecast_dividend_per_share_1st_quarter: Option<String>,
@@ -220,6 +218,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NxFPayoutRatioAnn", default)]
     pub next_year_forecast_payout_ratio_annual: Option<String>,
 
+    // ── 業績予想・連結（第2四半期） ───────────────────────────────────────────
     /// 売上高予想（第2四半期）
     #[serde(rename = "FSales2Q", default)]
     pub forecast_net_sales_2nd_quarter: Option<String>,
@@ -260,6 +259,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NxFEPS2Q", default)]
     pub next_year_forecast_earnings_per_share_2nd_quarter: Option<String>,
 
+    // ── 業績予想・連結（通期） ────────────────────────────────────────────────
     /// 売上高予想（通期）
     #[serde(rename = "FSales", default)]
     pub forecast_net_sales: Option<String>,
@@ -300,6 +300,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NxFEPS", default)]
     pub next_year_forecast_earnings_per_share: Option<String>,
 
+    // ── 注記・開示変更 ────────────────────────────────────────────────────────
     /// 重要な子会社の異動
     #[serde(rename = "MatChgSub", default)]
     pub material_changes_in_subsidiaries: Option<String>,
@@ -324,6 +325,7 @@ pub struct FinSummaryData {
     #[serde(rename = "Restatement", default)]
     pub retrospective_restatement: Option<String>,
 
+    // ── 株式数 ────────────────────────────────────────────────────────────────
     /// 発行済株式数（期末・自己株式を含む）
     #[serde(rename = "ShOutFY", default)]
     pub number_of_issued_and_outstanding_shares_at_the_end_of_fiscal_year_including_treasury_stock:
@@ -337,6 +339,7 @@ pub struct FinSummaryData {
     #[serde(rename = "AvgSh", default)]
     pub average_number_of_shares: Option<String>,
 
+    // ── 個別財務指標（実績） ───────────────────────────────────────────────────
     /// 売上高（個別）
     #[serde(rename = "NCSales", default)]
     pub non_consolidated_net_sales: Option<String>,
@@ -373,6 +376,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NCBPS", default)]
     pub non_consolidated_book_value_per_share: Option<String>,
 
+    // ── 個別財務指標（第2四半期予想） ────────────────────────────────────────
     /// 売上高予想（第2四半期・個別）
     #[serde(rename = "FNCSales2Q", default)]
     pub forecast_non_consolidated_net_sales_2nd_quarter: Option<String>,
@@ -413,6 +417,7 @@ pub struct FinSummaryData {
     #[serde(rename = "NxFNCEPS2Q", default)]
     pub next_year_forecast_non_consolidated_earnings_per_share_2nd_quarter: Option<String>,
 
+    // ── 個別財務指標（通期予想） ──────────────────────────────────────────────
     /// 売上高予想（通期・個別）
     #[serde(rename = "FNCSales", default)]
     pub forecast_non_consolidated_net_sales: Option<String>,
@@ -458,32 +463,6 @@ pub struct FinSummaryData {
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[test]
-    fn test_fin_summary_query_deserialize() {
-        let query = FinSummaryQuery {
-            code: "7203".to_string(),
-            from: Some("2023-01-01".to_string()),
-            to: Some("2023-12-31".to_string()),
-        };
-
-        assert_eq!(query.code, "7203");
-        assert_eq!(query.from.unwrap(), "2023-01-01");
-        assert_eq!(query.to.unwrap(), "2023-12-31");
-    }
-
-    #[test]
-    fn test_fin_summary_query_optional_params() {
-        let query = FinSummaryQuery {
-            code: "7203".to_string(),
-            from: None,
-            to: None,
-        };
-
-        assert_eq!(query.code, "7203");
-        assert!(query.from.is_none());
-        assert!(query.to.is_none());
-    }
 
     #[test]
     fn test_fin_summary_data_deserialize_v2_format() {
