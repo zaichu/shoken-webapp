@@ -45,8 +45,9 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
 | 対象 | 件数/回数 | 処理時間（デバッグビルド） | 備考 |
 |---|---|---|---|
 | `decode_bytes` (UTF-8) | 1,000 行 × 10 回 | 0.08ms | `timing_csv_parse` テスト |
-| `parse_number` | 50,000 回 | 12.10ms | 0.24µs/回 |
-| `parse_date` | 30,000 回 | 39.29ms | 1.31µs/回 |
+| `decode_bytes` (Shift-JIS フォールバック) | 1,000 行 × 10 回 | 0.44ms | UTF-8 の約 5.5 倍 |
+| `parse_number` | 50,000 回 | 11.61ms | 0.23µs/回 |
+| `parse_date` | 30,000 回 | 36.71ms | 1.22µs/回 |
 | DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値） |
 
 > 実測値は `cargo test --lib -- timing_csv_parse --ignored --nocapture` で確認すること。
