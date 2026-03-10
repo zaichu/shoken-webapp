@@ -94,6 +94,19 @@ const QuickSearchButtons: React.FC<QuickSearchButtonsProps> = ({
     );
 };
 
+type DropdownSearchType = 'securities' | 'years';
+type ButtonsSearchType = 'products' | 'accounts';
+
+const DROPDOWN_CONFIGS: Array<{ key: DropdownSearchType; label: string }> = [
+    { key: 'securities', label: '銘柄' },
+    { key: 'years', label: '西暦' },
+];
+
+const BUTTONS_CONFIGS: Array<{ key: ButtonsSearchType; label: string }> = [
+    { key: 'products', label: '商品' },
+    { key: 'accounts', label: '口座' },
+];
+
 interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
@@ -246,66 +259,36 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 <CardBody id="search-options-body" className="p-3">
                     {/* グリッドレイアウト: モバイル1列、sm2列、lg4列 */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {/* 銘柄検索 */}
-                        {hasData(categories.securities) && (
-                            <div className="space-y-1">
-                                <label htmlFor="securities-search" className="text-sm font-medium text-dark">銘柄</label>
-                                <QuickSearchDropdown
-                                    items={categories.securities!}
-                                    id="securities-search"
-                                    searchType="securities"
-                                    activeSearchType={effectiveActiveSearchType}
-                                    searchQuery={effectiveSearchQuery}
-                                    onSearch={handleQuickSearch}
-                                />
-                            </div>
-                        )}
-
-                        {/* 年度検索 */}
-                        {hasData(categories.years) && (
-                            <div className="space-y-1">
-                                <label htmlFor="years-search" className="text-sm font-medium text-dark">西暦</label>
-                                <QuickSearchDropdown
-                                    items={categories.years!}
-                                    id="years-search"
-                                    searchType="years"
-                                    activeSearchType={effectiveActiveSearchType}
-                                    searchQuery={effectiveSearchQuery}
-                                    onSearch={handleQuickSearch}
-                                />
-                            </div>
-                        )}
-
-                        {/* 商品検索 */}
-                        {hasData(categories.products) && (
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium text-dark">商品</div>
-                                <div className="flex flex-wrap gap-1">
-                                    <QuickSearchButtons
-                                        items={categories.products!}
-                                        searchType="products"
+                        {DROPDOWN_CONFIGS.map(({ key, label }) =>
+                            hasData(categories[key]) && (
+                                <div key={key} className="space-y-1">
+                                    <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
+                                    <QuickSearchDropdown
+                                        items={categories[key]!}
+                                        id={`${key}-search`}
+                                        searchType={key}
                                         activeSearchType={effectiveActiveSearchType}
                                         searchQuery={effectiveSearchQuery}
                                         onSearch={handleQuickSearch}
                                     />
                                 </div>
-                            </div>
+                            )
                         )}
-
-                        {/* 口座検索 */}
-                        {hasData(categories.accounts) && (
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium text-dark">口座</div>
-                                <div className="flex flex-wrap gap-1">
-                                    <QuickSearchButtons
-                                        items={categories.accounts!}
-                                        searchType="accounts"
-                                        activeSearchType={effectiveActiveSearchType}
-                                        searchQuery={effectiveSearchQuery}
-                                        onSearch={handleQuickSearch}
-                                    />
+                        {BUTTONS_CONFIGS.map(({ key, label }) =>
+                            hasData(categories[key]) && (
+                                <div key={key} className="space-y-1">
+                                    <div className="text-sm font-medium text-dark">{label}</div>
+                                    <div className="flex flex-wrap gap-1">
+                                        <QuickSearchButtons
+                                            items={categories[key]!}
+                                            searchType={key}
+                                            activeSearchType={effectiveActiveSearchType}
+                                            searchQuery={effectiveSearchQuery}
+                                            onSearch={handleQuickSearch}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )
                         )}
                     </div>
                 </CardBody>
