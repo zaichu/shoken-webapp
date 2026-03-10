@@ -69,6 +69,11 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
   2. Open questions / assumptions
   3. 修正方針サマリー（短く）
 
+5a. レビュー結果を PR にコメントとして投稿する。
+- PR が検出されている場合は `gh pr comment <PR番号> --body "..."` で投稿する。
+- コメント本文は手順 5 の findings と同じ内容とする。
+- `gh` が失敗しても stdout への出力は続ける。
+
 6. 依頼文作成モード（明示要求時のみ）。
 - `references/codex-review-request-template.md` を読み、必須項目を埋める。
 - 曖昧語を使わない。
