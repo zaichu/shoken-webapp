@@ -72,7 +72,7 @@ migrate-local:
 repair-and-migrate-local:
 	@echo "🔧 ローカルDocker DB を旧 0001〜0017 から新 0001〜0009 に切り替えます..."
 	@echo "  (version=17 未達の場合はエラーで停止します)"
-	psql postgresql://user:password@localhost:5432/shoken_db -v ON_ERROR_STOP=1 -f scripts/repair-migrations.sql
+	docker compose -f docker-compose.yml exec -T postgres psql -U user -d shoken_db -v ON_ERROR_STOP=1 < scripts/repair-migrations.sql
 	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
 
 .PHONY: sqlx-prepare
@@ -95,6 +95,15 @@ db-up:
 db-down:
 	@echo "🐳 PostgreSQL を停止します..."
 	docker compose -f docker-compose.yml down
+
+.PHONY: db-reset
+db-reset:
+	@echo "🔄 PostgreSQL を初期化します（ボリューム削除 → 再起動 → マイグレーション）..."
+	docker compose -f docker-compose.yml down -v
+	docker compose -f docker-compose.yml up -d
+	@echo "PostgreSQL の起動を待機中..."
+	@for i in $$(seq 1 30); do docker compose -f docker-compose.yml exec -T postgres pg_isready -U user -d shoken_db >/dev/null 2>&1 && break || sleep 1; done
+	$(MAKE) migrate-local
 
 .PHONY: db-logs
 db-logs:
@@ -124,6 +133,7 @@ help:
 	@echo "  docker-build  : Dockerイメージをビルドします"
 	@echo "  db-up         : PostgreSQL を Docker で起動します"
 	@echo "  db-down       : PostgreSQL を停止します"
+	@echo "  db-reset      : PostgreSQL を初期化します（ボリューム削除 → 再起動 → migrate）"
 	@echo "  db-logs       : PostgreSQL のログを表示します"
 	@echo "  clean         : ビルド成果物をクリーンアップします"
 	@echo "  clean-build   : クリーンアップして再ビルドします"
