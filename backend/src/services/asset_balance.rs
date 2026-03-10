@@ -4,11 +4,11 @@ use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvUploadResponse};
 use crate::services::csv_import::{finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{decode_bytes, parse_number, parse_optional_string};
+use crate::services::shared::BulkTimer;
 use csv::StringRecord;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
 
@@ -39,8 +39,7 @@ pub async fn bulk_create(
     items: &[CreateAssetBalanceRequest],
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
-    info!("[asset_balance.bulk_create] リクエスト受信: {}件", total);
-    let start = Instant::now();
+    let timer = BulkTimer::new("asset_balance", total);
 
     // 各フィールドを配列に変換
     let user_ids: Vec<Uuid> = vec![user_id; total];
@@ -100,28 +99,13 @@ pub async fn bulk_create(
 
     tx.commit().await?;
 
-    let elapsed = start.elapsed();
-    info!(
-        "[asset_balance.bulk_create] 完了: inserted={}, 処理時間={:.2}ms",
-        total,
-        elapsed.as_secs_f64() * 1000.0
-    );
-    Ok(BulkCreateResponse {
-        inserted: total,
-        skipped: 0,
-    })
+    Ok(timer.finish(total))
 }
 
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
 /// SBI証券形式: 先頭6行はメタデータのためスキップ
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    let content = decode_bytes(bytes);
-    let stripped = strip_sbi_header(&content);
-    let (items, errors) = parse_csv(stripped.as_bytes(), parse_asset_balance_row)?;
-    let items: Vec<_> = items
-        .into_iter()
-        .filter(|i| !i.security_code.is_empty())
-        .collect();
+    let (items, errors) = parse_sbi_asset_balance_csv(bytes)?;
     let rows = items
         .iter()
         .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
@@ -140,15 +124,30 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
+    let (items, errors) = parse_sbi_asset_balance_csv(bytes)?;
+    let result = bulk_create(pool, user_id, &items).await?;
+    Ok(finish_csv_upload(result, errors))
+}
+
+/// SBI証券CSV bytes をデコード・ヘッダースキップ・パース・フィルタして返す
+/// preview / upload の共通前処理経路
+fn parse_sbi_asset_balance_csv(
+    bytes: &[u8],
+) -> Result<
+    (
+        Vec<CreateAssetBalanceRequest>,
+        Vec<crate::models::csv_import::CsvRowError>,
+    ),
+    ApiError,
+> {
     let content = decode_bytes(bytes);
     let stripped = strip_sbi_header(&content);
     let (items, errors) = parse_csv(stripped.as_bytes(), parse_asset_balance_row)?;
-    let items: Vec<_> = items
+    let items = items
         .into_iter()
         .filter(|i| !i.security_code.is_empty())
         .collect();
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(finish_csv_upload(result, errors))
+    Ok((items, errors))
 }
 
 /// SBI証券CSVの先頭6行（メタデータ）をスキップした文字列を返す
