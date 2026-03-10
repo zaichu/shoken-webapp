@@ -6,10 +6,10 @@ use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
 use crate::services::csv_parse::{
     parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
 };
+use crate::services::shared::BulkTimer;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
 
@@ -40,14 +40,10 @@ pub async fn bulk_create(
     items: &[CreateDividendRequest],
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
-    info!("[dividend.bulk_create] リクエスト受信: {}件", total);
-    let start = Instant::now();
+    let timer = BulkTimer::new("dividend", total);
 
     if items.is_empty() {
-        return Ok(BulkCreateResponse {
-            inserted: 0,
-            skipped: 0,
-        });
+        return Ok(timer.finish(0));
     }
 
     // 各フィールドを配列に変換
@@ -95,16 +91,7 @@ pub async fn bulk_create(
     .await?;
 
     let inserted = result.rows_affected() as usize;
-    let skipped = total - inserted;
-    let elapsed = start.elapsed();
-
-    info!(
-        "[dividend.bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
-        inserted,
-        skipped,
-        elapsed.as_secs_f64() * 1000.0
-    );
-    Ok(BulkCreateResponse { inserted, skipped })
+    Ok(timer.finish(inserted))
 }
 
 /// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）

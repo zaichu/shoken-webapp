@@ -1,7 +1,37 @@
 use crate::errors::ApiError;
+use crate::models::common::BulkCreateResponse;
 use sqlx::PgPool;
+use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
+
+/// bulk_create の開始ログ・完了ログ・処理時間計測をまとめた補助構造体
+pub struct BulkTimer {
+    domain: &'static str,
+    start: Instant,
+    total: usize,
+}
+
+impl BulkTimer {
+    pub fn new(domain: &'static str, total: usize) -> Self {
+        info!("[{}.bulk_create] リクエスト受信: {}件", domain, total);
+        Self {
+            domain,
+            start: Instant::now(),
+            total,
+        }
+    }
+
+    pub fn finish(self, inserted: usize) -> BulkCreateResponse {
+        let skipped = self.total - inserted;
+        let elapsed_ms = self.start.elapsed().as_secs_f64() * 1000.0;
+        info!(
+            "[{}.bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
+            self.domain, inserted, skipped, elapsed_ms
+        );
+        BulkCreateResponse { inserted, skipped }
+    }
+}
 
 /// ユーザーに紐づく全レコードを削除する共通実装。
 /// テーブル名は呼び出し元がリテラルで指定するため SQL インジェクションの危険はない。
