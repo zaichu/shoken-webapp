@@ -1,32 +1,22 @@
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
-import { CSVFileInput } from '../components/molecules/CSVFileInput';
-import { Alert } from '@/components/atoms/Alert';
-import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Dividend } from './Receipt/Dividend';
 import { DomesticStock } from './Receipt/DomesticStock';
 import { Mutualfund } from './Receipt/Mutualfund';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
-import { type ReceiptsType, initialState, receiptsReducer } from './receiptsReducer';
+import { initialState, receiptsReducer } from './receiptsReducer';
 import { useReceiptsData } from '@/features/receipt/hooks/useReceiptsData';
 import {
   transformDBDividend,
   transformDBDomesticStock,
   transformDBMutualfund,
 } from '@/features/receipt/parsers';
-
-// 明細種類ごとのラベル
-const TAB_LABEL: Record<ReceiptsType, string> = {
-  dividend: '配当金',
-  domesticstock: '国内株式',
-  mutualfund: '投資信託',
-};
-
-// タブ一覧（順序固定）
-const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
+import { ReceiptsTabNav, TABS, TAB_LABEL } from './ReceiptsTabNav';
+import { ReceiptsCsvToolbar } from './ReceiptsCsvToolbar';
+import { ReceiptsAlerts } from './ReceiptsAlerts';
 
 /**
  * 明細種類ごとにCSVデータを管理するページコンポーネント
@@ -58,14 +48,10 @@ export function ReceiptsPage() {
     });
   }, [onLogout]);
 
-  // ファイル名表示用（ファイル選択後のみ表示）
   const rawFile = rawFiles[receiptsType];
   const selectedFileName = rawFile?.name ?? undefined;
   const csvPreview = state.csvPreviews[receiptsType];
 
-  /**
-   * ファイル選択時にrawFileを保存しプレビューを取得する
-   */
   const handleFileSelect = useCallback((file: File) => {
     dispatch({ type: 'SET_RAW_FILE', receiptsType, payload: file });
     previewCsv({
@@ -77,9 +63,6 @@ export function ReceiptsPage() {
     });
   }, [receiptsType, previewCsv]);
 
-  /**
-   * CSVファイルをバックエンドに送信して保存
-   */
   const handleSaveToDB = useCallback(() => {
     if (!isAuthenticated || rawFile === null) return;
     uploadCsv({
@@ -92,14 +75,10 @@ export function ReceiptsPage() {
     });
   }, [uploadCsv, isAuthenticated, receiptsType, rawFile]);
 
-  /**
-   * DBデータを全削除
-   */
   const handleDeleteAll = useCallback(() => {
     if (!isAuthenticated) return;
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
     deleteAll(receiptsType, {
-      // 削除成功時のみimport resultをクリア（失敗時は保持）
       onSuccess: () => dispatch({ type: 'CLEAR_IMPORT_RESULT', receiptsType }),
     });
   }, [deleteAll, isAuthenticated, receiptsType]);
@@ -109,6 +88,7 @@ export function ReceiptsPage() {
   const hasDbData = dbDataCount > 0;
   const tabName = TAB_LABEL[receiptsType];
   const importResult = lastImportResults[receiptsType];
+  const saveLabel = csvPreview ? `${csvPreview.validRows}件 追加で保存` : '追加で保存';
 
   const tablistRef = useRef<HTMLDivElement>(null);
 
@@ -116,25 +96,17 @@ export function ReceiptsPage() {
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     const currentIndex = TABS.indexOf(receiptsType);
     let nextIndex: number | null = null;
-    if (e.key === 'ArrowRight') {
-      nextIndex = (currentIndex + 1) % TABS.length;
-    } else if (e.key === 'ArrowLeft') {
-      nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
-    } else if (e.key === 'Home') {
-      nextIndex = 0;
-    } else if (e.key === 'End') {
-      nextIndex = TABS.length - 1;
-    }
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TABS.length;
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    else if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = TABS.length - 1;
     if (nextIndex !== null) {
       e.preventDefault();
       dispatch({ type: 'SET_RECEIPTS_TYPE', payload: TABS[nextIndex] });
       const buttons = tablistRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
       buttons?.[nextIndex]?.focus();
     }
-  }, [receiptsType, dispatch]);
-  const saveLabel = csvPreview
-    ? `${csvPreview.validRows}件 追加で保存`
-    : '追加で保存';
+  }, [receiptsType]);
 
   return (
     <Layout>
@@ -142,128 +114,37 @@ export function ReceiptsPage() {
         title="取引明細"
         description="配当金・国内株式・投資信託の取引明細を管理します。"
       />
-      <nav className="border-b border-slate-200 no-print" aria-label="取引明細タブ">
-        <div className="flex flex-wrap gap-1" role="tablist" ref={tablistRef}>
-          {TABS.map((tab) => {
-            const isActive = receiptsType === tab;
-            return (
-              <button
-                key={tab}
-                id={`tab-${tab}`}
-                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  isActive
-                    ? 'border-primary text-primary bg-white'
-                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-                }`}
-                onClick={() => dispatch({ type: 'SET_RECEIPTS_TYPE', payload: tab })}
-                onKeyDown={handleTabKeyDown}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`tabpanel-${tab}`}
-                tabIndex={isActive ? 0 : -1}
-              >
-                {TAB_LABEL[tab]}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <ReceiptsTabNav
+        receiptsType={receiptsType}
+        tablistRef={tablistRef}
+        onTabChange={(tab) => dispatch({ type: 'SET_RECEIPTS_TYPE', payload: tab })}
+        onKeyDown={handleTabKeyDown}
+      />
       <div className="mt-2" aria-busy={dbLoading || authLoading || saving || deleting}>
-        <div className="action-toolbar">
-          <div className="form-input-container">
-            <CSVFileInput
-              onFileSelect={handleFileSelect}
-              selectedFileName={selectedFileName}
-              disabled={dbLoading || saving || deleting || previewing || authLoading}
-            />
-          </div>
-          {isAuthenticated && (
-            <>
-              <div className="action-button-group" role="group" aria-label="データ操作">
-                {hasCsvFile && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleSaveToDB}
-                    disabled={saving || deleting || previewing}
-                    aria-disabled={saving || deleting || previewing}
-                  >
-                    {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
-                  </Button>
-                )}
-              </div>
-              {hasDbData && (
-                <div className="ml-auto border-l border-slate-300 pl-3">
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
-                    disabled={saving || deleting || dbLoading}
-                    aria-disabled={saving || deleting || dbLoading}
-                  >
-                    {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <ReceiptsCsvToolbar
+          isAuthenticated={isAuthenticated}
+          hasCsvFile={hasCsvFile}
+          hasDbData={hasDbData}
+          dbDataCount={dbDataCount}
+          saving={saving}
+          deleting={deleting}
+          previewing={previewing}
+          dbLoading={dbLoading}
+          authLoading={authLoading}
+          saveLabel={saveLabel}
+          selectedFileName={selectedFileName}
+          onFileSelect={handleFileSelect}
+          onSave={handleSaveToDB}
+          onDeleteRequest={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
+        />
 
-        {dbError && (
-          <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
-            <strong>エラー:</strong> {dbError}
-          </Alert>
-        )}
-
-        {hasCsvFile && !previewing && csvPreview && !importResult && (
-          <div className="my-3" role="status" aria-live="polite">
-            <Alert variant={csvPreview.errors.length > 0 ? 'warning' : 'info'}>
-              <p>
-                <strong>{csvPreview.validRows}件 追加で保存されます</strong>
-                {csvPreview.errors.length > 0 && ` / ${csvPreview.errors.length}件エラー`}
-                <span className="ml-2 text-xs text-secondary">（保存モード: 追加）</span>
-              </p>
-              {csvPreview.errors.length > 0 && (
-                <ul className="mt-2 list-disc list-inside text-sm space-y-1">
-                  {csvPreview.errors.map((e) => (
-                    <li key={e.row}>{e.row}行目: {e.message}</li>
-                  ))}
-                </ul>
-              )}
-            </Alert>
-          </div>
-        )}
-
-        {importResult && (() => {
-          const hasErrors = importResult.errors.length > 0;
-          return (
-            <div className="my-3" role="status" aria-live="polite">
-              <Alert variant={hasErrors ? 'warning' : 'success'}>
-                <p className="flex flex-wrap items-center gap-x-2">
-                  <strong>{importResult.inserted}件登録</strong>
-                  {importResult.skipped > 0 && (
-                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                      {importResult.skipped}件スキップ（重複）
-                    </span>
-                  )}
-                  {hasErrors && (
-                    <span className="text-sm text-secondary">
-                      {importResult.errors.length}件エラー
-                    </span>
-                  )}
-                </p>
-                {hasErrors && (
-                  <ul className="mt-2 list-disc list-inside text-sm space-y-1">
-                    {importResult.errors.map((e) => (
-                      <li key={e.row}>{e.row}行目: {e.message}</li>
-                    ))}
-                  </ul>
-                )}
-              </Alert>
-            </div>
-          );
-        })()}
+        <ReceiptsAlerts
+          dbError={dbError}
+          hasCsvFile={hasCsvFile}
+          previewing={previewing}
+          csvPreview={csvPreview}
+          importResult={importResult}
+        />
 
         <div aria-live="polite" aria-atomic="true">
           {(dbLoading || authLoading) && (
