@@ -14,6 +14,8 @@ pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgP
         .connect_lazy(database_url)
 }
 
+/// `migrations/` を適用してスキーマを最新化する。
+/// 本番 DB・ローカル DB・テスト全て同じ経路を使用する。
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!().run(pool).await
 }
