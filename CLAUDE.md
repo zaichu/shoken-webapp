@@ -33,6 +33,12 @@
 - CSV 取り込みは原則 backend で `parse / validate / import` する。frontend はファイル送信と結果表示を優先する
 - unrelated な修正は同じブランチに混在させない。`1 ブランチ = 1 タスク` を守る
 
+## Agent Assets
+
+- repo 内の agent 設定の正本は `./.claude` とする
+- `./.agents` と `./.codex` は `./.claude` を指す symlink として維持する
+- symlink が壊れた場合は `./scripts/repair-agent-links.sh` を実行して復旧する
+
 ## 参照ルール
 
 1. `.claude/rules/00-general.md`
