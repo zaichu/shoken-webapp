@@ -27,37 +27,16 @@ use crate::{
 const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 pub fn app_router(state: AppState, config: &Config) -> Router {
-    let allowed_origins = Arc::new(config.cors_origins.clone());
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
-
-    // keyed limiter のキー増加を抑制するため、60 秒ごとに retain_recent を実行
     if let Some(ref limiter) = auth_limiter {
-        let l = limiter.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                l.retain_recent();
-            }
-        });
+        spawn_rate_limiter_cleanup(limiter.clone());
     }
 
-    Router::new()
-        .merge(stock_routes())
-        .merge(jquants_routes(jquants_limiter))
-        .merge(dividend_per_share_routes())
-        .merge(auth_routes(auth_limiter))
-        .merge(dividend_routes())
-        .merge(domestic_stock_routes())
-        .merge(mutualfund_routes())
-        .merge(asset_balance_routes())
-        .route("/health", get(|| async { "OK" }))
-        .route(
-            "/api-docs/openapi.json",
-            get(|| async { Json(ApiDoc::openapi()) }),
-        )
+    let allowed_origins = Arc::new(config.cors_origins.clone());
+    domain_routes(jquants_limiter, auth_limiter)
+        .merge(utility_routes())
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, req, next).await }
@@ -73,6 +52,43 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
         // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
         .layer(middleware::from_fn(add_security_headers))
         .with_state(state)
+}
+
+/// keyed limiter のキー増加を抑制するため、60 秒ごとに retain_recent を実行
+fn spawn_rate_limiter_cleanup(limiter: Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            limiter.retain_recent();
+        }
+    });
+}
+
+/// ドメインルートをまとめたルーター（認証・コア機能）
+fn domain_routes(
+    jquants_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
+    auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+) -> Router<AppState> {
+    Router::new()
+        .merge(stock_routes())
+        .merge(jquants_routes(jquants_limiter))
+        .merge(dividend_per_share_routes())
+        .merge(auth_routes(auth_limiter))
+        .merge(dividend_routes())
+        .merge(domestic_stock_routes())
+        .merge(mutualfund_routes())
+        .merge(asset_balance_routes())
+}
+
+/// ヘルスチェックと API ドキュメントのルーター
+fn utility_routes() -> Router<AppState> {
+    Router::new()
+        .route("/health", get(|| async { "OK" }))
+        .route(
+            "/api-docs/openapi.json",
+            get(|| async { Json(ApiDoc::openapi()) }),
+        )
 }
 
 fn stock_routes() -> Router<AppState> {
