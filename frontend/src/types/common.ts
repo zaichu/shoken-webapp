@@ -11,13 +11,6 @@ export interface HeaderItem {
   valueClassName?: string;
 }
 
-export interface SelectOption {
-  value: string;
-  label: string;
-  disabled?: boolean;
-  group?: string;
-}
-
 export type TableColumnAlignment = 'left' | 'center' | 'right';
 
 // 検索カテゴリ
