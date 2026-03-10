@@ -5,7 +5,7 @@
 // サポートされているエンコーディング（utf-8 を先頭に置くことで信頼度同点時に utf-8 を優先する）
 const SUPPORTED_ENCODINGS = ['utf-8', 'shift-jis', 'iso-8859-1', 'euc-jp'] as const;
 
-export interface DecodeResult {
+interface DecodeResult {
   text: string;
   encoding: string;
   confidence: number;

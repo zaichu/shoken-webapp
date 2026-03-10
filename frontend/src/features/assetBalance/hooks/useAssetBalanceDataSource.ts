@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
-export interface UseAssetBalanceDataSourceResult {
+interface UseAssetBalanceDataSourceResult {
   // データ
   dbData: AssetBalanceData[];
   previewRows: AssetBalanceData[];

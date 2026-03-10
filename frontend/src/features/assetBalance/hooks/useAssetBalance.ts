@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
-export interface UseAssetBalanceReturn {
+interface UseAssetBalanceReturn {
   assetBalanceData: AssetBalanceData[];
   isLoading: boolean;
   getAssetBalanceByCode: (code: string) => AssetBalanceData | undefined;

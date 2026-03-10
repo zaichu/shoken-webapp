@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { InputField, InputFieldProps } from './InputField';
 
-export interface NumberInputFieldProps extends Omit<InputFieldProps, 'type' | 'value' | 'onChange'> {
+interface NumberInputFieldProps extends Omit<InputFieldProps, 'type' | 'value' | 'onChange'> {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
   min?: number;

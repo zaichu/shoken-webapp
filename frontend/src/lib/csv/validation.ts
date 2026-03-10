@@ -2,7 +2,7 @@
  * CSVデータの検証を担当するユーティリティ
  */
 
-export interface ValidationResult {
+interface ValidationResult {
   valid: boolean;
   errors: string[];
 }

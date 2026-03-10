@@ -20,18 +20,6 @@ export interface SelectOption {
 
 export type TableColumnAlignment = 'left' | 'center' | 'right';
 
-export interface BaseColumnConfig {
-  key: string;
-  header: string;
-  width?: string;
-  textAlign?: TableColumnAlignment;
-  format?: FormatFunction;
-  sortable?: boolean;
-  filterable?: boolean;
-  className?: string;
-  headerClassName?: string;
-}
-
 // 検索カテゴリ
 export interface SearchCategories {
   securities?: { value: string, label: string }[];

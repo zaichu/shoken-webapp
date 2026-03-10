@@ -240,4 +240,3 @@ export function createApiClient(config?: ApiClientConfig): ApiClient {
 }
 
 // エクスポート
-export type { ApiClientConfig, RetryConfig };

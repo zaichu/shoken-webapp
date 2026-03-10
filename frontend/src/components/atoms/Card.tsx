@@ -1,18 +1,18 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../../lib/utils/classNames';
 
-export type CardVariant = 'default' | 'primary' | 'secondary';
+type CardVariant = 'default' | 'primary' | 'secondary';
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
+interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   variant?: CardVariant;
 }
 
-export interface CardBodyProps extends HTMLAttributes<HTMLDivElement> {
+interface CardBodyProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 

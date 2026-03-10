@@ -2,7 +2,7 @@ import { ReactNode, HTMLAttributes, TableHTMLAttributes, forwardRef } from 'reac
 import { useTableAutoResize } from '../../hooks/common/useTableAutoResize';
 import { cn } from '../../lib/utils/classNames';
 
-export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
+interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   children: ReactNode;
   striped?: boolean;
   bordered?: boolean;
@@ -17,20 +17,20 @@ export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   forceResize?: number;
 }
 
-export interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
+interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
   children: ReactNode;
   variant?: 'light' | 'dark';
   stickyTop?: boolean;
   className?: string;
 }
 
-export interface TableRowProps extends HTMLAttributes<HTMLTableRowElement> {
+interface TableRowProps extends HTMLAttributes<HTMLTableRowElement> {
   children: ReactNode;
   active?: boolean;
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
 }
 
-export interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
+interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   children?: ReactNode;
   as?: 'td' | 'th';
   scope?: 'col' | 'row' | 'colgroup' | 'rowgroup';

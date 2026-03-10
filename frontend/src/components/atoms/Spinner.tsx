@@ -1,9 +1,9 @@
 import { HTMLAttributes } from 'react';
 import { cn } from '../../lib/utils/classNames';
 
-export type SpinnerSize = 'sm' | 'md' | 'lg';
+type SpinnerSize = 'sm' | 'md' | 'lg';
 
-export interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
+interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
   size?: SpinnerSize;
   label?: string;
 }

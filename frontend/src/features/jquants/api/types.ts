@@ -1,9 +1,5 @@
 // J-Quants API レスポンスの型定義
 
-export interface JQuantsTokenResponse {
-  refresh_token: string;
-}
-
 /**
  * J-Quants API V2 決算サマリーデータ
  * V2では省略形フィールド名を使用
@@ -152,11 +148,3 @@ export interface JQuantsStatementsResponse {
   pagination_key?: string;
 }
 
-export interface JQuantsDividendResponse {
-  dividend_per_share: number;
-}
-
-export interface JQuantsError {
-  message: string;
-  status: number;
-}
