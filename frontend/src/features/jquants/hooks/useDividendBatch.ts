@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchDividendPerShareBatch, DividendStatus } from '../api/dividendPerShareApi';
 
 const BASE_RETRIES = 3;
@@ -22,9 +22,14 @@ export const useDividendBatch = (
   const retryCountRef = useRef(0);
   const prevCodesRef = useRef<string>('');
 
+  // 重複排除・ソートした安定キー（配列参照の変化に影響されない）
+  const codesKey = useMemo(
+    () => [...new Set(securityCodes)].sort().join(','),
+    [securityCodes]
+  );
+
   useEffect(() => {
-    const codesKey = securityCodes.slice().sort().join(',');
-    if (!enabled || securityCodes.length === 0) {
+    if (!enabled || codesKey === '') {
       setDividendPerShareMap(new Map());
       setDividendStatusMap(new Map());
       setFetchedCount(0);
@@ -42,7 +47,8 @@ export const useDividendBatch = (
     }
 
     // バックエンドが12秒/銘柄で処理するため、銘柄数に応じて最大リトライ数を動的に計算
-    const uniqueCount = new Set(securityCodes).size;
+    const uniqueCodes = codesKey.split(',');
+    const uniqueCount = uniqueCodes.length;
     const maxRetries = Math.max(BASE_RETRIES, Math.ceil(uniqueCount * SECS_PER_CODE / RETRY_DELAY_MS) + 3);
 
     let isActive = true;
@@ -65,7 +71,6 @@ export const useDividendBatch = (
 
     const fetchAll = async () => {
       setLoading(true);
-      const uniqueCodes = Array.from(new Set(securityCodes));
       setTotalCount(uniqueCodes.length);
 
       const items = await fetchDividendPerShareBatch(uniqueCodes);
@@ -112,7 +117,7 @@ export const useDividendBatch = (
       isActive = false;
       if (retryTimer !== null) clearTimeout(retryTimer);
     };
-  }, [securityCodes, enabled, retryCount]);
+  }, [codesKey, enabled, retryCount]);
 
   return { dividendPerShareMap, dividendStatusMap, loading, fetchedCount, totalCount };
 };

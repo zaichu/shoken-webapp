@@ -9,13 +9,14 @@ export function createYearOptions<T>(
   data: T[],
   dateGetter: (item: T) => Date
 ): { value: string; label: string }[] {
-  return [...new Set(data.map(item => {
+  const seen = new Map<string, { value: string; label: string }>();
+  for (const item of data) {
     const year = dateGetter(item).getFullYear().toString();
-    const label = `${year}年`;
-    return { value: year, label };
-  }))].filter((item, index, self) =>
-    index === self.findIndex(t => t.value === item.value)
-  ).sort((a, b) => a.value.localeCompare(b.value));
+    if (!seen.has(year)) {
+      seen.set(year, { value: year, label: `${year}年` });
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
 }
 
 /**
@@ -25,16 +26,17 @@ export function createYearMonthOptions<T>(
   data: T[],
   dateGetter: (item: T) => Date
 ): { value: string; label: string }[] {
-  return [...new Set(data.map(item => {
+  const seen = new Map<string, { value: string; label: string }>();
+  for (const item of data) {
     const date = dateGetter(item);
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
     const value = `${year}-${month.toString().padStart(2, '0')}`;
-    const label = `${year}年${month.toString().padStart(2, '0')}月`;
-    return { value, label };
-  }))].filter((item, index, self) =>
-    index === self.findIndex(t => t.value === item.value)
-  ).sort((a, b) => a.value.localeCompare(b.value));
+    if (!seen.has(value)) {
+      seen.set(value, { value, label: `${year}年${month.toString().padStart(2, '0')}月` });
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
 }
 
 /**
@@ -71,13 +73,6 @@ export function matchesYearMonth(date: Date, query: string): boolean {
 function matchesDate(date: Date, query: string): boolean {
   const dateStr = date.toISOString().split('T')[0];
   return dateStr === query;
-}
-
-/**
- * 金額配列の部分一致検索
- */
-function matchesAmounts(amounts: number[], query: string): boolean {
-  return amounts.some(amount => amount.toString().includes(query));
 }
 
 // ==================== 汎用フィルタ設定 ====================
@@ -159,9 +154,10 @@ export function filterByConfig<T>(
 
     // 金額の部分一致検索
     if (config.amountFields) {
-      const amounts = config.amountFields.map(getter => getter(item));
-      if (matchesAmounts(amounts, normalizedQuery)) {
-        return true;
+      for (const getter of config.amountFields) {
+        if (getter(item).toString().includes(normalizedQuery)) {
+          return true;
+        }
       }
     }
 

@@ -4,17 +4,19 @@ export function createSearchOptions<T>(
     labelField: keyof T,
     prefix?: boolean
 ): { value: string, label: string }[] {
-    return data
-        .map(item => ({
-            value: String(item[valueField] || item[labelField]),
-            label: prefix
-                ? `${item[valueField] ? `${String(item[valueField])}: ` : ''}${String(item[labelField])}`
-                : String(item[labelField]),
-        }))
-        .filter((item, index, self) =>
-            index === self.findIndex(t => t.value === item.value)
-        )
-        .sort((a, b) => a.value.localeCompare(b.value));
+    const seen = new Map<string, { value: string; label: string }>();
+    for (const item of data) {
+        const value = String(item[valueField] || item[labelField]);
+        if (!seen.has(value)) {
+            seen.set(value, {
+                value,
+                label: prefix
+                    ? `${item[valueField] ? `${String(item[valueField])}: ` : ''}${String(item[labelField])}`
+                    : String(item[labelField]),
+            });
+        }
+    }
+    return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
 }
 
 export type SummaryResult<K extends string | number | symbol> = {

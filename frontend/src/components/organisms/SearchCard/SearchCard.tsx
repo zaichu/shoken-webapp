@@ -119,19 +119,17 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     const effectiveSearchQuery = value ?? searchQuery;
     const effectiveActiveSearchType = value === '' ? null : activeSearchType;
 
-    // データが存在するかチェックするヘルパー関数
-    const hasData = (data: unknown[] | undefined): boolean => {
-        return Boolean(data && data.length > 0);
-    };
+    // データが存在するかチェック
+    const hasData = (data: unknown[] | undefined): boolean =>
+        Boolean(data && data.length > 0);
 
-    // 全ての検索カテゴリが空かチェック（UIで描画するカテゴリのみ判定）
-    const hasAnyCategories = () => {
-        if (!categories) return false;
-        return hasData(categories.securities) ||
-            hasData(categories.products) ||
-            hasData(categories.accounts) ||
-            hasData(categories.years);
-    };
+    // 描画対象カテゴリが1つ以上あるか（毎レンダーで再評価されないよう定数化）
+    const hasAnyCategories = categories != null && (
+        hasData(categories.securities) ||
+        hasData(categories.products) ||
+        hasData(categories.accounts) ||
+        hasData(categories.years)
+    );
 
     // 展開状態の切り替え処理
     const handleToggleExpanded = () => {
@@ -165,7 +163,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     // カテゴリが何もない場合は SearchCard 自体を非表示
-    if (!hasAnyCategories()) {
+    if (!hasAnyCategories) {
         return null;
     }
 

@@ -92,14 +92,13 @@ function renderDataRows<T extends DataItem>(
 
 function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
     summaryToRender: S[],
-    data: T[],
+    groupedDataMap: Map<string, T[]>,
     columns: TableColumnConfig[],
     summaryColumns: SummaryColumnConfig[],
-    getGroupKey: (item: T) => string,
     formatGroupHeader: (key: string) => string
 ) {
     return summaryToRender.map((summaryItem, summaryIndex) => {
-        const groupItems = data.filter(item => getGroupKey(item) === summaryItem.filter);
+        const groupItems = groupedDataMap.get(summaryItem.filter) ?? [];
         const headerText = formatGroupHeader(summaryItem.filter);
         const itemCount = groupItems.length;
 
@@ -209,8 +208,18 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
         }
     };
 
-    const summaryGroupKeys = new Set(data.map(item => getGroupKey(item)));
-    const summaryToRender = summary.filter(summaryItem => summaryGroupKeys.has(summaryItem.filter));
+    // データをグループキーで事前にマップ化（O(n) → O(n+m) に削減）
+    const groupedDataMap = new Map<string, T[]>();
+    for (const item of data) {
+        const key = getGroupKey(item);
+        const group = groupedDataMap.get(key);
+        if (group) {
+            group.push(item);
+        } else {
+            groupedDataMap.set(key, [item]);
+        }
+    }
+    const summaryToRender = summary.filter(summaryItem => groupedDataMap.has(summaryItem.filter));
 
     return (
         <Table
@@ -237,7 +246,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             </TableHeader>
             <TableBody>
                 {summaryToRender.length > 0
-                    ? renderGroupedRows(summaryToRender, data, columns, summaryColumns, getGroupKey, formatGroupHeader)
+                    ? renderGroupedRows(summaryToRender, groupedDataMap, columns, summaryColumns, formatGroupHeader)
                     : renderDataRows(data, columns, 'item')
                 }
             </TableBody>
