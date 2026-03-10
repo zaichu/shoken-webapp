@@ -24,16 +24,7 @@ pub async fn get_batch(
         return Ok(vec![]);
     }
 
-    // 入力コードを重複排除（DB クエリ・refresh 対象を無駄に増やさない）
-    let unique_codes: Vec<&str> = {
-        let mut seen = std::collections::HashSet::new();
-        codes
-            .iter()
-            .filter_map(|c| seen.insert(c.as_str()).then_some(c.as_str()))
-            .collect()
-    };
-
-    // DB からキャッシュを一括取得
+    // DB からキャッシュを一括取得（ANY がDB側で重複を除く）
     let cached: Vec<DividendCache> = sqlx::query_as::<_, DividendCache>(
         r#"
         SELECT security_code, dividend_per_share, status, fetched_at, stale_at, source,
@@ -42,7 +33,7 @@ pub async fn get_batch(
         WHERE security_code = ANY($1)
         "#,
     )
-    .bind(&unique_codes)
+    .bind(codes)
     .fetch_all(pool)
     .await?;
 
@@ -54,20 +45,20 @@ pub async fn get_batch(
         .map(|c| (c.security_code.as_str(), c))
         .collect();
 
-    // items 構築と refresh 対象抽出を同時に行う
-    // refresh_set で重複排除し、map() 内の副作用を排除
+    // items は元の codes 順で構築し API の返却件数を維持する
+    // refresh_set で重複排除してバックグラウンド更新の多重登録を防ぐ
     let mut refresh_set: std::collections::HashSet<&str> = std::collections::HashSet::new();
 
-    let items: Vec<DividendPerShareItem> = unique_codes
+    let items: Vec<DividendPerShareItem> = codes
         .iter()
-        .map(|&code| {
-            if let Some(cached_item) = cache_map.get(code) {
+        .map(|code| {
+            if let Some(cached_item) = cache_map.get(code.as_str()) {
                 let is_stale = compute_is_stale(&cached_item.status, cached_item.stale_at, now);
                 if is_stale {
-                    refresh_set.insert(code);
+                    refresh_set.insert(code.as_str());
                 }
                 DividendPerShareItem {
-                    security_code: code.to_string(),
+                    security_code: code.clone(),
                     dividend_per_share: cached_item.dividend_per_share,
                     status: cached_item.status.clone(),
                     fetched_at: cached_item.fetched_at,
@@ -75,9 +66,9 @@ pub async fn get_batch(
                 }
             } else {
                 // 未キャッシュ → pending としてキューに積む
-                refresh_set.insert(code);
+                refresh_set.insert(code.as_str());
                 DividendPerShareItem {
-                    security_code: code.to_string(),
+                    security_code: code.clone(),
                     dividend_per_share: None,
                     status: "pending".to_string(),
                     fetched_at: None,
@@ -90,7 +81,8 @@ pub async fn get_batch(
     // バックグラウンド更新をキック（多重起動防止）
     if !refresh_set.is_empty() {
         if let Some(key) = api_key {
-            let refresh_codes: Vec<String> = refresh_set.into_iter().map(str::to_string).collect();
+            let refresh_codes: Vec<String> =
+                refresh_set.into_iter().map(str::to_string).collect();
             background::spawn_background_refresh(
                 pool.clone(),
                 client.clone(),
