@@ -157,4 +157,24 @@ describe('useDividendBatch', () => {
     // 再フェッチされていない
     expect(mockFetch).toHaveBeenCalledTimes(callCount);
   });
+
+  it('同じ銘柄集合だが配列参照が変わっても再フェッチしない', async () => {
+    mockFetch.mockResolvedValue([makeItem('6001', 'ok', 80)]);
+
+    let codes = ['6001'];
+    const { rerender, result } = renderHook(({ c }: { c: string[] }) => useDividendBatch(c, true), {
+      initialProps: { c: codes },
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false), waitOpts);
+    const callCount = mockFetch.mock.calls.length;
+
+    // 内容は同じだが新しい配列参照に変更
+    codes = ['6001'];
+    rerender({ c: codes });
+    rerender({ c: codes });
+
+    // codesKey が同じなので再フェッチしない
+    expect(mockFetch).toHaveBeenCalledTimes(callCount);
+  });
 });
