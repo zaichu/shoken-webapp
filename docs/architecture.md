@@ -44,7 +44,7 @@ shoken-webapp/
 │       ├── services/      # ビジネスロジック（CSV パース / DB アクセス）
 │       ├── models/        # データモデル・バリデーション
 │       ├── extractors/    # カスタム Axum エクストラクター
-│       ├── middleware.rs  # 認証・レート制限・セキュリティヘッダー・TraceLayer
+│       ├── middleware/      # rate_limit / security / tracing サブモジュール
 │       ├── routes.rs      # ルーティング定義
 │       ├── config.rs      # 環境変数読み込み
 │       ├── errors.rs      # 統一エラーハンドリング
