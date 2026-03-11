@@ -204,6 +204,14 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_bytes_shift_jis() {
+        use encoding_rs::SHIFT_JIS;
+        // SBI CSV は Shift-JIS で出力されるため、フォールバック経路が正しく動作するか確認
+        let (bytes, _, _) = SHIFT_JIS.encode("テスト");
+        assert_eq!(decode_bytes(&bytes), "テスト");
+    }
+
+    #[test]
     fn test_parse_required_string_empty() {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let mut header_map = HashMap::new();
@@ -244,5 +252,91 @@ mod tests {
 
         let ok = parse_required_date(&record, &header_map, "good", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
+    }
+
+    /// CSV パース処理の所要時間を計測するタイミングテスト。
+    /// 通常の `cargo test` では実行されない。以下で明示的に実行する:
+    /// ```
+    /// cargo test --lib -- timing_csv_parse --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_parse --ignored --nocapture で実行"]
+    fn timing_csv_parse() {
+        use encoding_rs::SHIFT_JIS;
+        use std::time::Instant;
+
+        const ROWS: usize = 1_000;
+
+        // ── UTF-8 CSV（1,000 行）の decode_bytes タイミング ───────────────────
+        let csv_utf8: String = {
+            let mut s = String::from("日付,銘柄コード,金額\n");
+            for i in 0..ROWS {
+                s.push_str(&format!(
+                    "2024/{:02}/{:02},1234,{}\n",
+                    (i % 12) + 1,
+                    (i % 28) + 1,
+                    i * 100
+                ));
+            }
+            s
+        };
+        let bytes_utf8 = csv_utf8.as_bytes();
+
+        let start = Instant::now();
+        for _ in 0..10 {
+            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
+        }
+        let elapsed_decode_utf8 = start.elapsed();
+        println!(
+            "[timing] decode_bytes (UTF-8, {}行) × 10 回: {:.2}ms",
+            ROWS,
+            elapsed_decode_utf8.as_secs_f64() * 1000.0
+        );
+
+        // ── Shift-JIS CSV（1,000 行）の decode_bytes タイミング ──────────────
+        // SBI CSV は実際に Shift-JIS で出力されるため、フォールバック経路を計測する
+        let (bytes_sjis, _, _) = SHIFT_JIS.encode(&csv_utf8);
+        let bytes_sjis = bytes_sjis.into_owned();
+
+        let start = Instant::now();
+        for _ in 0..10 {
+            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
+        }
+        let elapsed_decode_sjis = start.elapsed();
+        println!(
+            "[timing] decode_bytes (Shift-JIS フォールバック, {}行) × 10 回: {:.2}ms",
+            ROWS,
+            elapsed_decode_sjis.as_secs_f64() * 1000.0
+        );
+
+        // ── parse_number タイミング ───────────────────────────────────────────
+        let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
+        let start = Instant::now();
+        for _ in 0..10_000 {
+            for s in &samples {
+                let _ = std::hint::black_box(parse_number(std::hint::black_box(s)));
+            }
+        }
+        let elapsed_parse_number = start.elapsed();
+        println!(
+            "[timing] parse_number × {}回: {:.2}ms",
+            10_000 * samples.len(),
+            elapsed_parse_number.as_secs_f64() * 1000.0
+        );
+
+        // ── parse_date タイミング ─────────────────────────────────────────────
+        let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"];
+        let start = Instant::now();
+        for _ in 0..10_000 {
+            for s in &date_samples {
+                let _ = std::hint::black_box(parse_date(std::hint::black_box(s)));
+            }
+        }
+        let elapsed_parse_date = start.elapsed();
+        println!(
+            "[timing] parse_date × {}回: {:.2}ms",
+            10_000 * date_samples.len(),
+            elapsed_parse_date.as_secs_f64() * 1000.0
+        );
     }
 }
