@@ -48,9 +48,11 @@ const isNegativeValue = (value: unknown): boolean => {
 const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
     const formattedValue = column.format ? column.format(value) : value;
     const isNegative = !React.isValidElement(formattedValue) && isNegativeValue(value);
+    const displayText = React.isValidElement(formattedValue) ? undefined : String(toText(formattedValue));
 
     const cellStyle: React.CSSProperties = {
-        minWidth: 'width' in column ? column.width : undefined,
+        width: 'width' in column ? column.width : undefined,
+        maxWidth: 'width' in column ? column.width : undefined,
         textAlign: column.textAlign,
         fontVariantNumeric: column.textAlign === 'right' ? 'tabular-nums' : undefined,
         ...style
@@ -67,7 +69,7 @@ const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: R
     }
 
     return (
-        <TableCell key={key} {...props} data-negative={isNegative ? 'true' : undefined}>
+        <TableCell key={key} {...props} title={displayText} data-negative={isNegative ? 'true' : undefined}>
             {toText(formattedValue)}
         </TableCell>
     );
@@ -109,7 +111,7 @@ function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
         }));
 
         const summaryBorderClass = summaryIndex > 0 && 'border-t-2 border-slate-300';
-        const summaryLeftClass = cn('bg-slate-100 text-slate-800 font-semibold border-l-2 border-slate-500', summaryBorderClass);
+        const summaryLeftClass = cn('whitespace-normal bg-slate-100 text-slate-800 font-semibold border-l-2 border-slate-500', summaryBorderClass);
         const summaryValueClass = cn('bg-slate-100 text-slate-800 text-right font-semibold', summaryBorderClass);
 
         return (
@@ -236,7 +238,7 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
                         <TableCell
                             as="th"
                             className="text-center whitespace-nowrap"
-                            style={{ minWidth: column.width }}
+                            style={{ width: column.width, maxWidth: column.width }}
                             key={column.header}
                         >
                             {column.header}

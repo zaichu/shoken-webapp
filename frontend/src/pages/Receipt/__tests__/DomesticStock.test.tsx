@@ -102,9 +102,13 @@ describe('DomesticStock', () => {
     it('検索オプションが正しく生成される', async () => {
         const { container } = render(<DomesticStock data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み
+        // 検索オプションヘッダーの確認
         const searchOptionsHeader = screen.getByText('検索オプション');
         expect(searchOptionsHeader).toBeInTheDocument();
+
+        // SearchCardを展開してから銘柄検索セレクトボックスを確認
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -122,7 +126,9 @@ describe('DomesticStock', () => {
         const user = userEvent.setup();
         const { container } = render(<DomesticStock data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み
+        // SearchCardを展開してから銘柄検索セレクトボックスを操作
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         }, waitOpts);
@@ -139,6 +145,7 @@ describe('DomesticStock', () => {
         render(<DomesticStock data={[]} />);
 
         expect(screen.getByText('データがありません')).toBeInTheDocument();
+        expect(screen.getByText('国内株式明細をCSVで追加してください')).toBeInTheDocument();
     });
 
     it('数値フォーマットが正しく適用される', () => {
@@ -154,11 +161,11 @@ describe('DomesticStock', () => {
         const { container } = render(<DomesticStock data={mockData} />);
         
         // レスポンシブテーブルのクラスが適用されていることを確認
-        const responsiveTable = container.querySelector('div.overflow-x-auto');
+        const responsiveTable = container.querySelector('div.overflow-x-hidden');
         expect(responsiveTable).toBeInTheDocument();
         
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
-        expect(table).toHaveClass('w-full', 'border-collapse');
+        expect(table).toHaveClass('w-full', 'table-fixed');
     });
 });

@@ -49,7 +49,7 @@ async function deleteAllIfExists(page: Page) {
  */
 async function uploadCsv(page: Page, filename: string) {
   const csvPath = path.join(FIXTURE_DIR, filename);
-  await page.locator('#csv-file-input').setInputFiles(csvPath);
+  await page.locator('[data-testid="csv-file-input"]').setInputFiles(csvPath);
   // 保存ボタンが "解析中..." から "N件 〇〇で保存" に変わるまで待機
   const saveBtn = page.getByRole('button', { name: /保存/ });
   await saveBtn.waitFor({ state: 'visible', timeout: 15000 });
@@ -58,13 +58,18 @@ async function uploadCsv(page: Page, filename: string) {
 
 /**
  * 保存ボタンをクリックし、rawFile がクリアされる（ボタン消滅）まで待つ
- * receipts: その後 importResult に "件登録" が表示される
  */
 async function clickSave(page: Page) {
   const saveBtn = page.getByRole('button', { name: /保存/ });
   await saveBtn.click();
   // rawFile = null になりボタンがアンマウントされるまで待機
   await expect(saveBtn).not.toBeVisible({ timeout: 15000 });
+}
+
+async function expectSaveResult(page: Page, inserted: number) {
+  const notice = page.getByTestId('csv-save-result-notice');
+  await expect(notice).toBeVisible({ timeout: 10000 });
+  await expect(notice).toContainText(`${inserted}件反映`);
 }
 
 // =====================================================================
@@ -84,7 +89,7 @@ test('国内株式 - CSVで3件追加 + 10件追加（商船三井8件新規重�
   // ── base CSV (3件) をアップロード・保存 ──
   await uploadCsv(page, 'domesticstock-base.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 3);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-domesticstock-after-base-import.png'),
@@ -97,7 +102,7 @@ test('国内株式 - CSVで3件追加 + 10件追加（商船三井8件新規重�
   // index=1 は既存とみなしてスキップ、index=2〜9（8件）が新規挿入される。
   await uploadCsv(page, 'domesticstock-additional.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /10件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 10);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-domesticstock-after-additional-import.png'),
@@ -130,7 +135,7 @@ test('配当金 - CSVで3件追加 + 3件追加（KDDI重複2件はスキップ�
   // ── base CSV (3件) ──
   await uploadCsv(page, 'dividend-base.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 3);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-dividend-after-base-import.png'),
@@ -138,10 +143,10 @@ test('配当金 - CSVで3件追加 + 3件追加（KDDI重複2件はスキップ�
   });
 
   // ── additional CSV (3x KDDI + 日本電信電話 + トヨタ) ──
-  // 配当金は ON CONFLICT DO NOTHING のため、KDDI 重複2件はスキップ → 3件登録 / 2件スキップ
+  // 配当金は ON CONFLICT DO NOTHING のため、KDDI 重複2件はスキップ → 3件反映 / 2件スキップ
   await uploadCsv(page, 'dividend-additional.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /3件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 3);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-dividend-after-additional-import.png'),
@@ -200,7 +205,7 @@ test('投資信託 - CSVで2件追加 + 2件追加（eMAXIS重複1件はスキ�
   // ── base CSV (2件) ──
   await uploadCsv(page, 'mutualfund-base.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /2件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 2);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-mutualfund-after-base-import.png'),
@@ -208,10 +213,10 @@ test('投資信託 - CSVで2件追加 + 2件追加（eMAXIS重複1件はスキ�
   });
 
   // ── additional CSV (2x eMAXIS S&P500 + eMAXIS 全世界) ──
-  // 投資信託は ON CONFLICT DO NOTHING のため、eMAXIS Slim S&P500 重複1件はスキップ → 2件登録 / 1件スキップ
+  // 投資信託は ON CONFLICT DO NOTHING のため、eMAXIS Slim S&P500 重複1件はスキップ → 2件反映 / 1件スキップ
   await uploadCsv(page, 'mutualfund-additional.csv');
   await clickSave(page);
-  await expect(page.locator('[aria-live="polite"] strong').filter({ hasText: /2件登録/ })).toBeVisible({ timeout: 10000 });
+  await expectSaveResult(page, 2);
 
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, 'csv-mutualfund-after-additional-import.png'),

@@ -45,12 +45,13 @@ const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
 interface DomesticStockProps {
     data: DomesticStockData[];
     previewData?: DomesticStockData[];
+    utilityRail?: React.ReactNode;
 }
 
 /**
  * 国内株式取引データを表示するコンポーネント
  */
-export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData }) => {
+export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData, utilityRail }) => {
     const { sortedData: domesticStockData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortDomesticStockByTradeDate, FILTER_CONFIG);
 
@@ -99,17 +100,17 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     // サマリーと一致するよう、最後の3カラムは「実現損益」「税額」「税引後」にする
     const baseColumns: TableColumnConfig[] = [
-        { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
-        { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: renderSecurityCode },
-        { key: 'security_name', header: '銘柄名', width: '180px' },
-        { key: 'account', header: '口座', width: '70px' },
-        { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },
-        { key: 'asked_price', header: '売却単価', width: '85px', textAlign: 'right', format: formatCurrency },
-        { key: 'proceeds', header: '売却額', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'purchase_price', header: '取得価額', width: '85px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss', header: '損益', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss_after_tax', header: '税引後', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'trade_date', header: '約定日', width: '84px', format: formatJPDate },
+        { key: 'security_code', header: '銘柄コード', width: '72px', textAlign: 'center', format: renderSecurityCode },
+        { key: 'security_name', header: '銘柄名', width: '156px' },
+        { key: 'account', header: '口座', width: '60px' },
+        { key: 'shares', header: '数量', width: '56px', textAlign: 'right', format: formatNumber },
+        { key: 'asked_price', header: '売却単価', width: '76px', textAlign: 'right', format: formatCurrency },
+        { key: 'proceeds', header: '売却額', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'purchase_price', header: '取得価額', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '損益', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '64px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '税引後', width: '84px', textAlign: 'right', format: formatCurrency },
     ];
 
     // 列の前面配置ルール（口座のみ）
@@ -130,14 +131,15 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData 
     return (
         <ReceiptTemplate
             title="国内株式"
-            header={domesticStockData.length > 0 ? <ReceiptHeader items={headerItems} /> : undefined}
+            header={domesticStockData.length > 0 ? <ReceiptHeader items={headerItems} compact={Boolean(utilityRail)} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
+            utilityRail={utilityRail}
         >
             {domesticStockData.length === 0 ? (
                 <EmptyState
                     title="データがありません"
-                    description="CSVファイルをアップロードして国内株式の取引明細を追加してください"
+                    description="国内株式明細をCSVで追加してください"
                 />
             ) : (
                 <ReceiptTable

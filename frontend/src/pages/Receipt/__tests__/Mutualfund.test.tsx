@@ -45,6 +45,7 @@ describe('Mutualfund', () => {
         render(<Mutualfund data={[]} />);
 
         expect(screen.getByText('データがありません')).toBeInTheDocument();
+        expect(screen.getByText('投資信託明細をCSVで追加してください')).toBeInTheDocument();
     });
 
     it('空データ時もReceiptTemplateが維持される', () => {

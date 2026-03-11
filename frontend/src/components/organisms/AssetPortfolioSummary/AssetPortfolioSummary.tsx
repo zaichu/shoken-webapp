@@ -104,56 +104,74 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   }
 
   return (
-    <div className="mb-3" data-testid="asset-portfolio-summary">
-      <Card>
-        <CardBody className="p-4">
-          {/* セクションヘッダー: KPI + 銘柄数 + 絞り込み状態 */}
-          <div className="mb-4 border-b border-slate-200 pb-4">
-            {/* 絞り込み中バナー */}
-            {isFiltered && (
-              <div className="mb-4 pb-4 border-b border-slate-100">
-                <div className="flex items-center rounded-md bg-blue-50 px-3 py-2">
-                  <span className="text-sm font-medium text-blue-700">
-                    🔍 絞り込み中: {displayCount}/{actualTotalCount}件を表示
-                  </span>
-                </div>
-              </div>
-            )}
-            {/* KPI行 */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-xs font-medium text-slate-600 mb-1">合計取得総額</p>
-                <p className="text-2xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
-                  {formatCurrency(totalPurchaseAmount)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-emerald-50 px-4 py-3">
-                <p className="text-xs font-medium text-slate-600 mb-1">年間配当金額</p>
-                <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
-                  {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
-                </p>
-              </div>
-              <div className="rounded-lg bg-emerald-50 px-4 py-3">
-                <p className="text-xs font-medium text-slate-600 mb-1">配当利回り</p>
-                <p className="text-2xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
-                  {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
-                </p>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-xs font-medium text-slate-600 mb-1">保有銘柄数</p>
-                <p className="text-2xl font-bold text-slate-700 tabular-nums">
-                  {isFiltered
-                    ? `${displayCount} / ${actualTotalCount}`
-                    : `${displayCount}`
-                  }
-                  <span className="text-sm font-normal text-slate-500 ml-1">銘柄</span>
-                </p>
-              </div>
+    <div className="mb-3 space-y-4" data-testid="asset-portfolio-summary">
+      <section
+        className="rounded-[2rem] border border-slate-200/90 bg-white/85 px-5 py-5 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]"
+        data-testid="portfolio-kpi-strip"
+      >
+        <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">資産サマリー</h2>
+          </div>
+          {isFiltered && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                絞り込み中: {displayCount}/{actualTotalCount}件
+              </span>
+              {onClearFilter && (
+                <button
+                  type="button"
+                  onClick={onClearFilter}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  解除
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]">
+            <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
+            <p className="text-3xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+              {formatCurrency(totalPurchaseAmount)}
+            </p>
+          </div>
+          <div className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/90 px-4 py-4 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]">
+            <p className="mb-1 text-xs font-medium text-slate-600">年間配当金額</p>
+            <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
+              {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
+            </p>
+          </div>
+          <div className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/90 px-4 py-4 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]">
+            <p className="mb-1 text-xs font-medium text-slate-600">配当利回り</p>
+            <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
+              {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
+            </p>
+          </div>
+          <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]">
+            <p className="mb-1 text-xs font-medium text-slate-600">保有銘柄数</p>
+            <p className="text-3xl font-bold text-slate-700 tabular-nums">
+              {isFiltered
+                ? `${displayCount} / ${actualTotalCount}`
+                : `${displayCount}`
+              }
+              <span className="ml-1 text-sm font-normal text-slate-500">銘柄</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <Card className="overflow-hidden rounded-[1.75rem] border-slate-200 bg-white/95 shadow-sm">
+        <CardBody className="p-0">
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700">銘柄別構成比</h3>
             </div>
           </div>
-          {/* 銘柄別構成比 */}
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">銘柄別構成比</h3>
-          <PortfolioPieChart data={chartData} dividendPerShareMap={dividendPerShareMap} dividendStatusMap={dividendStatusMap} />
+          <div className="p-4">
+            <PortfolioPieChart data={chartData} dividendPerShareMap={dividendPerShareMap} dividendStatusMap={dividendStatusMap} />
+          </div>
         </CardBody>
       </Card>
     </div>

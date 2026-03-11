@@ -38,6 +38,9 @@ where
                 continue;
             }
         };
+        if is_all_empty_record(&record) {
+            continue;
+        }
         match parse_row(&record, &header_map, row_num) {
             Ok(item) => items.push(item),
             Err(e) => errors.push(e),
@@ -45,6 +48,10 @@ where
     }
 
     Ok((items, errors))
+}
+
+fn is_all_empty_record(record: &csv::StringRecord) -> bool {
+    record.iter().all(|value| value.trim().is_empty())
 }
 
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
@@ -109,6 +116,20 @@ mod tests {
         assert_eq!(items, vec!["good", "bad"]);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].row, 2);
+    }
+
+    #[test]
+    fn test_parse_csv_skips_all_empty_rows() {
+        let csv = "col_a,col_b\nfoo,123\n,\nbar,456\n";
+        let (items, errors) = parse_csv::<String, _>(csv.as_bytes(), |record, header_map, _row| {
+            let a = get_cell(record, header_map, "col_a").to_string();
+            let b = get_cell(record, header_map, "col_b").to_string();
+            Ok(format!("{}/{}", a, b))
+        })
+        .unwrap();
+
+        assert_eq!(items, vec!["foo/123", "bar/456"]);
+        assert!(errors.is_empty());
     }
 
     #[test]

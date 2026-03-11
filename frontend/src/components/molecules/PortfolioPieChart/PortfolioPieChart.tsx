@@ -106,65 +106,72 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
   const color = COLORS[index % COLORS.length];
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      {/* 上段: 銘柄名 + 構成比 */}
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: color }} />
-          <span className="truncate text-sm font-medium text-slate-700" title={item.name}>
-            {item.name}
-          </span>
+    <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-3.5 py-3 shadow-[0_18px_36px_-34px_rgba(15,23,42,0.38)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: color }} />
+            <div className="flex min-w-0 items-center gap-2" data-testid="portfolio-card-identity">
+              <span
+                className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5"
+                data-testid="portfolio-card-code"
+              >
+                <SecurityCodeLink value={item.securityCode} className="text-[11px] font-semibold tracking-[0.16em] text-slate-500 no-underline hover:underline" />
+              </span>
+              <p className="truncate text-[15px] font-semibold text-slate-800" title={item.name}>
+                {item.name}
+              </p>
+            </div>
+          </div>
         </div>
-        <span className="shrink-0 text-lg font-bold text-slate-800">
-          {item.percentage.toFixed(1)}%
-        </span>
+        <div className="shrink-0 text-right">
+          <p className="text-xl font-bold text-slate-800">{item.percentage.toFixed(1)}%</p>
+        </div>
       </div>
-      {/* 横棒グラフ */}
-      <div className="h-2.5 w-full rounded-full bg-slate-100 mb-2">
+
+      <div className="mt-2.5 h-2 w-full rounded-full bg-slate-100">
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{ width: `${Math.min(item.percentage, 100)}%`, backgroundColor: color }}
         />
       </div>
-      {/* 下段: 詳細情報（取得情報 / 配当情報を2段に分離） */}
-      <div className="mt-1 space-y-1.5 text-xs text-slate-600">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">コード:</span>
-            <SecurityCodeLink value={item.securityCode} className="text-xs" />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">取得総額:</span>
-            <span className="font-medium">{formatCurrency(item.value)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">取得単価:</span>
-            <span className="font-medium">{formatCurrency(item.averagePrice)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">数量:</span>
-            <span className="font-medium">{`${formatNumber(item.shares)}株`}</span>
-          </div>
+
+      <div
+        className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-[1rem] bg-slate-50"
+        data-testid="portfolio-card-acquisition-stats"
+      >
+        <div className="min-w-0 px-3 py-2">
+          <p className="truncate text-[10px] font-medium text-slate-500">取得総額</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{formatCurrency(item.value)}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5">
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">1株配当:</span>
-            <span className={`font-medium ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-              {formatPerShare(divInfo)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">年間配当:</span>
-            <span className={`font-medium ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-              {formatAnnual(divInfo)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">配当利回り:</span>
-            <span className={`font-medium ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
-              {formatYield(divInfo)}
-            </span>
-          </div>
+        <div className="min-w-0 border-l border-slate-200/80 px-3 py-2">
+          <p className="truncate text-[10px] font-medium text-slate-500">取得単価</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{formatCurrency(item.averagePrice)}</p>
+        </div>
+        <div className="min-w-0 border-l border-slate-200/80 px-3 py-2">
+          <p className="truncate text-[10px] font-medium text-slate-500">数量</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{`${formatNumber(item.shares)}株`}</p>
+        </div>
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-[1rem] bg-emerald-50/55">
+        <div className="min-w-0 px-3 py-2 text-xs text-slate-600">
+          <p className="truncate text-[10px] font-medium text-slate-500">1株配当</p>
+          <p className={`mt-0.5 truncate text-sm font-semibold ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+            {formatPerShare(divInfo)}
+          </p>
+        </div>
+        <div className="min-w-0 border-l border-emerald-100/80 px-3 py-2 text-xs text-slate-600">
+          <p className="truncate text-[10px] font-medium text-slate-500">年間配当</p>
+          <p className={`mt-0.5 truncate text-sm font-semibold ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+            {formatAnnual(divInfo)}
+          </p>
+        </div>
+        <div className="min-w-0 border-l border-emerald-100/80 px-3 py-2 text-xs text-slate-600">
+          <p className="truncate text-[10px] font-medium text-slate-500">配当利回り</p>
+          <p className={`mt-0.5 truncate text-sm font-semibold ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>
+            {formatYield(divInfo)}
+          </p>
         </div>
       </div>
     </div>
@@ -209,11 +216,16 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   if (chartData.length === 0) return null;
 
   const remainingCount = chartData.length - TOP_N;
+  const gridClassName = displayData.length <= 1
+    ? 'grid grid-cols-1 gap-3'
+    : displayData.length === 2 && !showAll
+      ? 'grid grid-cols-1 gap-3 xl:grid-cols-2'
+      : 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3';
 
   return (
     <div className={className} data-testid="portfolio-pie-chart">
       {/* 横棒グラフリスト（2-3列グリッド） */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={gridClassName}>
         {displayData.map((item, index) => (
           <PortfolioItemCard
             key={item.securityCode}

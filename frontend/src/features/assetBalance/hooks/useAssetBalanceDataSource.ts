@@ -5,6 +5,7 @@ import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
+import type { CsvUploadResult } from '@/lib/csvImport';
 
 interface UseAssetBalanceDataSourceResult {
   // データ
@@ -16,7 +17,7 @@ interface UseAssetBalanceDataSourceResult {
   saving: boolean;
   deleting: boolean;
   previewing: boolean;
-  lastSavedCount: number | null;
+  lastSavedResult: CsvUploadResult | null;
   // フラグ
   hasCsvFile: boolean;
   hasDbData: boolean;
@@ -38,7 +39,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
 
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [previewRows, setPreviewRows] = useState<AssetBalanceData[]>([]);
-  const [lastSavedCount, setLastSavedCount] = useState<number | null>(null);
+  const [lastSavedResult, setLastSavedResult] = useState<CsvUploadResult | null>(null);
 
   const dbQuery = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
@@ -59,7 +60,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     onSuccess: (data, _, context) => {
       setRawFile(null);
       setPreviewRows([]);
-      setLastSavedCount(data?.inserted ?? null);
+      setLastSavedResult(data ?? null);
       queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId) });
     },
   });
@@ -72,8 +73,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
       if (queryClient.getQueryState(key) !== undefined) {
         queryClient.setQueryData(key, []);
       }
-      // 削除後に保存バナーを非表示にする（空データ状態でN件保存済みが残らないよう）
-      setLastSavedCount(null);
+      setLastSavedResult(null);
     },
   });
 
@@ -82,14 +82,14 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
       clearAssetBalanceCache(queryClient);
       setRawFile(null);
       setPreviewRows([]);
-      setLastSavedCount(null);
+      setLastSavedResult(null);
     });
   }, [onLogout, queryClient]);
 
   const handleFileSelect = useCallback((file: File) => {
     setRawFile(file);
     setPreviewRows([]);
-    setLastSavedCount(null);
+    setLastSavedResult(null);
     previewMutation.mutate(file);
   }, [previewMutation]);
 
@@ -120,7 +120,7 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
     previewing: previewMutation.isPending,
-    lastSavedCount,
+    lastSavedResult,
     hasCsvFile: rawFile !== null,
     hasDbData: dbData.length > 0,
     csvFileName: rawFile?.name ?? null,

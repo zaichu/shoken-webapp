@@ -111,7 +111,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('text-sm');
+    expect(table).toHaveClass('text-[12px]');
   });
 
   test('responsiveプロパティが正しく適用される', () => {
@@ -126,7 +126,9 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('overflow-x-auto');
+    expect(container).toHaveClass('overflow-x-hidden');
+    expect(container).not.toHaveClass('overflow-x-auto');
+    expect(screen.getByRole('table')).toHaveClass('table-fixed');
   });
 
   test('responsive="md"プロパティが正しく適用される', () => {
@@ -141,7 +143,7 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('overflow-x-auto');
+    expect(container).toHaveClass('overflow-x-hidden');
   });
 
   test('variantプロパティが正しく適用される', () => {

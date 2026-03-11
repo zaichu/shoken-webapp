@@ -142,7 +142,8 @@ fn parse_sbi_asset_balance_csv(
 > {
     let content = decode_bytes(bytes);
     let stripped = strip_sbi_header(&content);
-    let (items, errors) = parse_csv(stripped.as_bytes(), parse_asset_balance_row)?;
+    let filtered = strip_account_summary_rows(&stripped);
+    let (items, errors) = parse_csv(filtered.as_bytes(), parse_asset_balance_row)?;
     let items = items
         .into_iter()
         .filter(|i| !i.security_code.is_empty())
@@ -158,6 +159,18 @@ fn strip_sbi_header(content: &str) -> String {
     } else {
         String::new()
     }
+}
+
+/// SBI証券CSVに混ざる「特定口座合計」などの口座集計行を除外する
+///
+/// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
+/// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
+fn strip_account_summary_rows(content: &str) -> String {
+    content
+        .lines()
+        .filter(|line| !(line.starts_with(',') && line.contains("口座合計")))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// SBI証券CSVの1行をパースして CreateAssetBalanceRequest に変換
@@ -237,6 +250,8 @@ mod tests {
 
     const HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+    const SBI_HEADER: &str =
+        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
 
     #[test]
     fn test_parse_asset_balance_row_ok() {
@@ -245,7 +260,7 @@ mod tests {
             "1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67",
         );
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
-        assert!(errors.is_empty());
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].security_code, "1234");
         assert_eq!(items[0].shares, dec!(100));
@@ -292,8 +307,56 @@ mod tests {
         // 前日比・評価損益が "-" でも 0.0 として許容
         let csv = make_csv(HEADER, "5678,ファンド,50,-,2000,100000,2100,-,105000,-");
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
-        assert!(errors.is_empty());
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items[0].daily_change, Decimal::ZERO);
         assert_eq!(items[0].profit_loss_rate, Decimal::ZERO);
+    }
+
+    #[test]
+    fn test_parse_sbi_asset_balance_csv_skips_empty_rows() {
+        let csv = [
+            "■現在の評価額合計［円］,,\"3,588,300\"",
+            "■評価損益合計,前日比［円］,\"59,700\"",
+            ",前月比［円］,\"45,000\"",
+            ",評価損益［円］,\"684,900\"",
+            "■特定口座",
+            "",
+            SBI_HEADER,
+            "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67",
+            ",,,,,,,,,,,",
+            "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56",
+        ]
+        .join("\n");
+
+        let (items, errors) = parse_sbi_asset_balance_csv(csv.as_bytes()).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].security_code, "1234");
+        assert_eq!(items[1].security_code, "5678");
+    }
+
+    #[test]
+    fn test_parse_sbi_asset_balance_csv_skips_account_summary_rows() {
+        let csv = [
+            "■現在の評価額合計［円］,,\"9,474,000\"",
+            "■評価損益合計,前日比［円］,\"288,000\"",
+            ",前月比［円］,\"-120,000\"",
+            ",評価損益［円］,\"2,005,900\"",
+            "■特定口座",
+            "",
+            SBI_HEADER,
+            "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
+            "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
+            ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
+        ]
+        .join("\n");
+
+        let (items, errors) = parse_sbi_asset_balance_csv(csv.as_bytes()).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].security_code, "1605");
+        assert_eq!(items[1].security_code, "7974");
     }
 }

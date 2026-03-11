@@ -1,15 +1,13 @@
+import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
+
 export type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
-export interface ImportResult {
-  inserted: number;
-  skipped: number;
-  errors: { row: number; message: string }[];
-}
+export type ImportResult = CsvUploadResult;
 
 export interface CsvPreview {
   totalRows: number;
   validRows: number;
-  errors: { row: number; message: string }[];
+  errors: CsvImportError[];
   rows: Record<string, unknown>[];
 }
 

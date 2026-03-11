@@ -1,3 +1,5 @@
+import { APP_SHELL_CONTAINER } from '@/lib/layout';
+
 const REPO_BASE = 'https://github.com/zaichu/shoken-webapp/blob/main/docs';
 
 const LINKS = [
@@ -9,7 +11,7 @@ const LINKS = [
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white py-4">
-      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-6 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
+      <div className={`${APP_SHELL_CONTAINER} flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-500`}>
         {LINKS.map(({ label, href }) => (
           <a
             key={href}

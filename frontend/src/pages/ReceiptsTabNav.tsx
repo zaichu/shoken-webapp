@@ -14,6 +14,7 @@ interface ReceiptsTabNavProps {
   tablistRef: React.RefObject<HTMLDivElement | null>;
   onTabChange: (tab: ReceiptsType) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  counts: Record<ReceiptsType, number>;
 }
 
 export function ReceiptsTabNav({
@@ -21,20 +22,25 @@ export function ReceiptsTabNav({
   tablistRef,
   onTabChange,
   onKeyDown,
+  counts,
 }: ReceiptsTabNavProps) {
   return (
-    <nav className="border-b border-slate-200 no-print" aria-label="取引明細タブ">
-      <div className="flex flex-wrap gap-1" role="tablist" ref={tablistRef}>
+    <nav className="mb-5 no-print" aria-label="取引明細タブ">
+      <div
+        className="flex flex-wrap gap-1.5 border-b border-slate-200/90"
+        role="tablist"
+        ref={tablistRef}
+      >
         {TABS.map((tab) => {
           const isActive = receiptsType === tab;
           return (
             <button
               key={tab}
               id={`tab-${tab}`}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              className={`-mb-px inline-flex items-center gap-2 rounded-t-2xl border border-transparent border-b-0 px-4 py-3 text-sm font-medium transition-[color,background-color,border-color,box-shadow] ${
                 isActive
-                  ? 'border-primary text-primary bg-white'
-                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                  ? 'border-slate-200 bg-white text-slate-900 shadow-[0_-1px_0_0_rgba(255,255,255,1),0_18px_32px_-30px_rgba(15,23,42,0.7)]'
+                  : 'text-slate-500 hover:bg-white/80 hover:text-slate-800'
               }`}
               onClick={() => onTabChange(tab)}
               onKeyDown={onKeyDown}
@@ -45,6 +51,14 @@ export function ReceiptsTabNav({
               tabIndex={isActive ? 0 : -1}
             >
               {TAB_LABEL[tab]}
+              <span
+                data-testid={`tab-count-${tab}`}
+                className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  isActive ? 'border border-slate-200 bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {counts[tab]}
+              </span>
             </button>
           );
         })}
