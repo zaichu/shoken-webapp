@@ -121,10 +121,10 @@ export function ReceiptsPage() {
         onKeyDown={handleTabKeyDown}
       />
       <div className="mt-2" aria-busy={dbLoading || authLoading || saving || deleting}>
-        {/* デスクトップ: aside（CSV操作）右 + main（明細テーブル）左の2カラム */}
+        {/* デスクトップ: aside（CSV操作）左 + main（明細テーブル）右の2カラム */}
         <div className="flex flex-col lg:flex-row lg:gap-4 lg:items-start">
-          {/* aside: CSV操作・アラート — モバイルでは先頭、デスクトップでは右カラム */}
-          <div className="shrink-0 space-y-2 lg:order-2 lg:w-72">
+          {/* aside: CSV操作・アラート — モバイルでは先頭、デスクトップでは左カラム */}
+          <div className="shrink-0 space-y-2 lg:w-60">
             <ReceiptsCsvToolbar
               isAuthenticated={isAuthenticated}
               hasCsvFile={hasCsvFile}
@@ -164,8 +164,8 @@ export function ReceiptsPage() {
             </div>
           </div>
 
-          {/* main: 明細テーブル — モバイルでは2番目、デスクトップでは左カラム */}
-          <div className="flex-1 min-w-0 lg:order-1">
+          {/* main: 明細テーブル — モバイルでは2番目、デスクトップでは右カラム */}
+          <div className="flex-1 min-w-0">
             {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
             {!authLoading && !dbLoading && (
               <>

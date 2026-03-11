@@ -39,9 +39,14 @@ export function ReceiptsCsvToolbar({
 }: ReceiptsCsvToolbarProps) {
   if (panelMode) {
     return (
-      <div className="panel-card">
-        <div className="panel-card-header">CSV操作</div>
-        <div className="panel-card-body space-y-2" role="group" aria-label="データ操作">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm" role="group" aria-label="データ操作">
+        <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          CSV操作
+        </p>
+        <div className="space-y-2">
           <CSVFileInput
             onFileSelect={onFileSelect}
             selectedFileName={selectedFileName}

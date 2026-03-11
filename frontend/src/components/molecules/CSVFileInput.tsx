@@ -30,7 +30,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
         className={`cursor-pointer ${disabled ? 'pointer-events-none opacity-65' : ''}`}
         htmlFor="csv-file-input"
       >
-        <span className="inline-flex items-center px-3 py-1.5 bg-primary text-sm text-white rounded-l font-medium hover:bg-primary-hover transition-colors">
+        <span className="inline-flex items-center whitespace-nowrap shrink-0 px-3 py-1.5 bg-primary text-sm text-white rounded-l font-medium hover:bg-primary-hover transition-colors">
           CSVファイル選択
         </span>
       </label>

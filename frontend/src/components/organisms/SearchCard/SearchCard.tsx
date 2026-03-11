@@ -213,7 +213,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-6">
+                <div className={`flex items-center ${compact ? 'gap-2' : 'gap-6'}`}>
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
                         type="button"
@@ -238,16 +238,18 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         tabIndex={isDefaultState ? -1 : 0}
                         data-testid="search-clear-button"
                     >
-                        <svg className="w-3.5 h-3.5 mr-1 inline-block" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+                        <svg className="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        絞り込み解除
+                        {!compact && <span className="ml-1">絞り込み解除</span>}
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5" aria-hidden="true">
-                        <span className="text-xs font-semibold text-white">
-                            {isExpanded ? '閉じる' : '開く'}
-                        </span>
+                        {!compact && (
+                            <span className="text-xs font-semibold text-white whitespace-nowrap">
+                                {isExpanded ? '閉じる' : '開く'}
+                            </span>
+                        )}
                         <svg
                             className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                             fill="none"
