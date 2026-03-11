@@ -102,9 +102,13 @@ describe('DomesticStock', () => {
     it('検索オプションが正しく生成される', async () => {
         const { container } = render(<DomesticStock data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み
+        // 検索オプションヘッダーの確認
         const searchOptionsHeader = screen.getByText('検索オプション');
         expect(searchOptionsHeader).toBeInTheDocument();
+
+        // SearchCardを展開してから銘柄検索セレクトボックスを確認
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -122,7 +126,9 @@ describe('DomesticStock', () => {
         const user = userEvent.setup();
         const { container } = render(<DomesticStock data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み
+        // SearchCardを展開してから銘柄検索セレクトボックスを操作
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         }, waitOpts);

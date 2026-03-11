@@ -109,15 +109,21 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // 初期状態の確認（SearchCardは展開済み）
+    // 初期状態の確認（SearchCardは折りたたみ済み）
     expect(screen.getByText('検索オプション')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
 
-    // SearchCardを折りたたむ
     const header = screen.getByTestId('search-card-header');
-    fireEvent.click(header!);
 
-    // タイマーを進める
+    // SearchCardを展開する
+    fireEvent.click(header!);
+    vi.advanceTimersByTime(100);
+
+    // コールバックが呼ばれることを確認（展開）
+    expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+
+    // SearchCardを折りたたむ
+    fireEvent.click(header!);
     vi.advanceTimersByTime(100);
 
     // コールバックが呼ばれることを確認（折りたたみ）
@@ -145,7 +151,10 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // 初期状態で展開済み - 商品ボタンをクリック
+    // SearchCardを展開してから商品ボタンをクリック
+    const header = screen.getByTestId('search-card-header');
+    fireEvent.click(header);
+
     const productButton = screen.getByText('株式');
     fireEvent.click(productButton);
 
@@ -172,17 +181,17 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
     const header = screen.getByTestId('search-card-header');
 
-    // 初期状態は展開済み - 複数回折りたたみ・展開を実行
+    // 初期状態は折りたたみ済み - 複数回展開・折りたたみを実行
     for (let i = 0; i < 3; i++) {
-      // 折りたたみ
-      fireEvent.click(header!);
-      vi.advanceTimersByTime(100);
-      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
-
       // 展開
       fireEvent.click(header!);
       vi.advanceTimersByTime(100);
       expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+
+      // 折りたたみ
+      fireEvent.click(header!);
+      vi.advanceTimersByTime(100);
+      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
     }
 
     // 各操作で適切にコールバックが呼ばれることを確認
@@ -240,7 +249,10 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // 初期状態で展開済み - 銘柄ドロップダウンを操作（IDで指定）
+    // SearchCardを展開してから銘柄ドロップダウンを操作（IDで指定）
+    const header = screen.getByTestId('search-card-header');
+    fireEvent.click(header);
+
     const select = container.querySelector('#securities-search') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'AAPL' } });
 

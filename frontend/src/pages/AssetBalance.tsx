@@ -210,6 +210,7 @@ export function AssetBalancePage() {
                     onSearch={query => setSearchQuery(query)}
                     categories={searchCategories}
                     value={searchQuery}
+                    compact
                   />
                 )}
               </div>

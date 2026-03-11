@@ -124,9 +124,13 @@ describe('Dividend', () => {
     it('検索オプションが正しく生成される', async () => {
         const { container } = render(<Dividend data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み
+        // 検索オプションヘッダーの確認
         const searchOptionsHeader = screen.getByText('検索オプション');
         expect(searchOptionsHeader).toBeInTheDocument();
+
+        // SearchCardを展開してから銘柄検索セレクトボックスを確認
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -144,7 +148,9 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み - 銘柄検索セレクトボックスで銘柄を選択（IDで指定）
+        // SearchCardを展開してから銘柄検索セレクトボックスを操作（IDで指定）
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -171,6 +177,9 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend data={mockData} />);
 
+        // SearchCardを展開してから銘柄検索セレクトボックスを操作
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -197,7 +206,9 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み - 最初に銘柄を選択（IDで指定）
+        // SearchCardを展開してから銘柄を選択（IDで指定）
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -250,7 +261,9 @@ describe('Dividend', () => {
         const user = userEvent.setup();
         const { container } = render(<Dividend data={mockData} />);
 
-        // 検索オプションは初期状態で展開済み - 銘柄を選択（IDで指定）
+        // SearchCardを展開してから銘柄を選択（IDで指定）
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        searchCardHeader.click();
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });

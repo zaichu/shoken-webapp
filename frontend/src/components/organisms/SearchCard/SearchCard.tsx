@@ -112,6 +112,8 @@ interface SearchCardProps {
     categories?: SearchCategories;
     onExpandToggle?: (isExpanded: boolean) => void; // 展開状態変更の通知
     value?: string; // 親の検索状態と同期（外部クリア対応）
+    defaultExpanded?: boolean; // 初期展開状態（デフォルト: true）
+    compact?: boolean; // コンパクトモード: aside などで lg:grid-cols-4 を抑制する
 }
 
 /**
@@ -122,10 +124,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     onSearch,
     categories,
     onExpandToggle,
-    value
+    value,
+    defaultExpanded = true,
+    compact = false,
 }) => {
 
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
@@ -257,8 +261,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
-                    {/* グリッドレイアウト: モバイル1列、sm2列、lg4列 */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {/* グリッドレイアウト: モバイル1列、sm2列、lg4列（compact時は最大2列） */}
+                    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${compact ? '' : 'lg:grid-cols-4'}`}>
                         {DROPDOWN_CONFIGS.map(({ key, label }) =>
                             hasData(categories[key]) && (
                                 <div key={key} className="space-y-1">

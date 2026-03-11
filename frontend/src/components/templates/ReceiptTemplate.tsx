@@ -42,6 +42,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
           onSearch={onSearch}
           categories={searchCategories}
           onExpandToggle={handleSearchExpandToggle}
+          defaultExpanded={false}
         />
       )}
 
