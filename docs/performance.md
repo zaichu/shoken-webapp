@@ -40,7 +40,7 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
 
 ## ベースライン（ローカル計測）
 
-環境: WSL2 / Rust release build（`cargo test` はデバッグビルド）
+環境: WSL2 / デバッグビルド（`cargo test --lib -- timing_csv_parse --ignored --nocapture`）
 
 | 対象 | 件数/回数 | 処理時間（デバッグビルド） | 備考 |
 |---|---|---|---|
@@ -48,7 +48,7 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
 | `decode_bytes` (Shift-JIS フォールバック) | 1,000 行 × 10 回 | 0.44ms | UTF-8 の約 5.5 倍 |
 | `parse_number` | 50,000 回 | 11.61ms | 0.23µs/回 |
 | `parse_date` | 30,000 回 | 36.71ms | 1.22µs/回 |
-| DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値） |
+| DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値）。手順: `cd backend && make run` 後に dividend CSV（100件）を POST し、ログの `[dividend.bulk_create] 完了:` 行で確認 |
 
 > 実測値は `cargo test --lib -- timing_csv_parse --ignored --nocapture` で確認すること。
 
