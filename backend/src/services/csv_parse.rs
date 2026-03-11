@@ -284,7 +284,7 @@ mod tests {
 
         let start = Instant::now();
         for _ in 0..10 {
-            let _ = decode_bytes(bytes_utf8);
+            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
         }
         let elapsed_decode_utf8 = start.elapsed();
         println!(
@@ -300,7 +300,7 @@ mod tests {
 
         let start = Instant::now();
         for _ in 0..10 {
-            let _ = decode_bytes(&bytes_sjis);
+            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
         }
         let elapsed_decode_sjis = start.elapsed();
         println!(
@@ -314,7 +314,7 @@ mod tests {
         let start = Instant::now();
         for _ in 0..10_000 {
             for s in &samples {
-                let _ = parse_number(s);
+                std::hint::black_box(parse_number(std::hint::black_box(s)));
             }
         }
         let elapsed_parse_number = start.elapsed();
@@ -329,7 +329,7 @@ mod tests {
         let start = Instant::now();
         for _ in 0..10_000 {
             for s in &date_samples {
-                let _ = parse_date(s);
+                std::hint::black_box(parse_date(std::hint::black_box(s)));
             }
         }
         let elapsed_parse_date = start.elapsed();
