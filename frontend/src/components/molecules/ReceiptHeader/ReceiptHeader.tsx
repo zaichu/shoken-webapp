@@ -9,6 +9,7 @@ interface ReceiptHeaderProps {
     children?: ReactNode;
     collapsible?: boolean;
     defaultExpanded?: boolean;
+    compact?: boolean;
 }
 
 export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
@@ -16,7 +17,8 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     title = '集計情報',
     children,
     collapsible = false,
-    defaultExpanded = true
+    defaultExpanded = true,
+    compact = false,
 }) => {
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
@@ -34,6 +36,86 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
             handleToggleExpanded();
         }
     };
+
+    const getCompactItemTone = (item: HeaderItem) => {
+        const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
+        if (token.includes('emerald')) {
+            return 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]';
+        }
+        if (token.includes('red')) {
+            return 'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]';
+        }
+        if (token.includes('blue')) {
+            return 'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]';
+        }
+        return 'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]';
+    };
+
+    if (compact) {
+        return (
+            <section
+                className="rounded-[2rem] border border-slate-200/90 bg-white/85 px-5 py-5 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]"
+                data-testid="receipt-summary-strip"
+            >
+                <div
+                    className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
+                    onClick={collapsible ? handleToggleExpanded : undefined}
+                    onKeyDown={collapsible ? handleKeyDown : undefined}
+                    role={collapsible ? 'button' : undefined}
+                    tabIndex={collapsible ? 0 : undefined}
+                    aria-expanded={collapsible ? effectiveExpanded : undefined}
+                    aria-controls={collapsible ? bodyId : undefined}
+                    data-testid="receipt-header"
+                >
+                    <div>
+                        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+                    </div>
+                    {collapsible && (
+                        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
+                            <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
+                            <svg
+                                className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </span>
+                    )}
+                </div>
+                <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-4">
+                    {items.length > 0 && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="kpi-grid">
+                            {items.map((item) => (
+                                <div
+                                    key={item.title}
+                                    className={cn(
+                                        'rounded-[1.35rem] border px-4 py-4',
+                                        getCompactItemTone(item),
+                                        item.className,
+                                    )}
+                                >
+                                    <p className="mb-1 text-xs font-medium text-slate-600">{item.title}</p>
+                                    <p
+                                        className={cn('text-3xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                        data-negative={item.value < 0 ? 'true' : undefined}
+                                    >
+                                        {item.format(item.value)}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {children && (
+                        <div className={items.length > 0 ? 'mt-4 border-t border-slate-200/90 pt-4' : ''}>
+                            {children}
+                        </div>
+                    )}
+                </div>
+            </section>
+        );
+    }
 
     return (
         <Card>
@@ -55,12 +137,15 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
             >
                 <h5 className="text-sm font-semibold text-white">{title}</h5>
                 {collapsible && (
-                    <span className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5" aria-hidden="true">
+                    <span
+                        className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
+                        aria-hidden="true"
+                    >
                         <span className="text-xs font-semibold text-white">
                             {effectiveExpanded ? '閉じる' : '開く'}
                         </span>
                         <svg
-                            className={`w-4 h-4 transition-transform duration-200 ${effectiveExpanded ? 'rotate-180' : ''}`}
+                            className={cn('w-4 h-4 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"

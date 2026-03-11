@@ -10,11 +10,12 @@ import { receiptQueryKeys, clearReceiptsCache } from '../queryKeys';
 import { type ReceiptsType } from '@/pages/receiptsReducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
 
 interface CsvPreviewResult {
   totalRows: number;
   validRows: number;
-  errors: { row: number; message: string }[];
+  errors: CsvImportError[];
   rows: Record<string, unknown>[];
 }
 
@@ -36,7 +37,7 @@ interface UseReceiptsDataResult {
 interface UploadCsvArgs {
   type: ReceiptsType;
   file: File;
-  onSuccess?: (result: { inserted: number; skipped: number; errors: { row: number; message: string }[] }) => void;
+  onSuccess?: (result: CsvUploadResult) => void;
 }
 
 interface PreviewCsvArgs {

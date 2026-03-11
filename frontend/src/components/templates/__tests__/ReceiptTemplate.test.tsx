@@ -225,4 +225,33 @@ describe('ReceiptTemplate', () => {
     const receiptContainer = screen.getByTestId('receipt-container');
     expect(receiptContainer).toBeInTheDocument();
   });
+
+  test('workspaceレイアウトではヘッダーがmain stage上部に配置される', () => {
+    const headerContent = <div data-testid="workspace-header">集計ヘッダー</div>;
+    const railTools = <div data-testid="workspace-tools">CSV操作</div>;
+
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        onSearch={mockOnSearch}
+        header={headerContent}
+        utilityRail={railTools}
+      />
+    );
+
+    expect(screen.getByTestId('receipt-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('receipt-utility-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('receipt-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_22rem]');
+    expect(screen.getByTestId('receipt-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
+
+    const utilityRail = screen.getByTestId('receipt-utility-rail');
+    expect(utilityRail).toContainElement(screen.getByTestId('workspace-tools'));
+    expect(utilityRail).toContainElement(screen.getByTestId('search-card'));
+    expect(utilityRail).not.toContainElement(screen.getByTestId('workspace-header'));
+
+    const mainStage = screen.getByTestId('receipt-main-stage');
+    expect(mainStage).toContainElement(screen.getByTestId('workspace-header'));
+    expect(mainStage).toContainElement(screen.getByTestId('mock-receipt-table'));
+  });
 });

@@ -145,6 +145,7 @@ describe('DomesticStock', () => {
         render(<DomesticStock data={[]} />);
 
         expect(screen.getByText('データがありません')).toBeInTheDocument();
+        expect(screen.getByText('国内株式明細をCSVで追加してください')).toBeInTheDocument();
     });
 
     it('数値フォーマットが正しく適用される', () => {
@@ -160,11 +161,11 @@ describe('DomesticStock', () => {
         const { container } = render(<DomesticStock data={mockData} />);
         
         // レスポンシブテーブルのクラスが適用されていることを確認
-        const responsiveTable = container.querySelector('div.overflow-x-auto');
+        const responsiveTable = container.querySelector('div.overflow-x-hidden');
         expect(responsiveTable).toBeInTheDocument();
         
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
-        expect(table).toHaveClass('w-full', 'border-collapse');
+        expect(table).toHaveClass('w-full', 'table-fixed');
     });
 });

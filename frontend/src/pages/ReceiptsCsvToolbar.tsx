@@ -1,5 +1,7 @@
 import { CSVFileInput } from '@/components/molecules/CSVFileInput';
+import { CsvSaveResultNotice } from '@/components/molecules/CsvSaveResultNotice';
 import { Button } from '@/components/atoms/Button';
+import type { CsvUploadResult } from '@/lib/csvImport';
 
 interface ReceiptsCsvToolbarProps {
   isAuthenticated: boolean;
@@ -12,6 +14,7 @@ interface ReceiptsCsvToolbarProps {
   dbLoading: boolean;
   authLoading: boolean;
   saveLabel: string;
+  saveResult?: CsvUploadResult | null;
   selectedFileName?: string;
   /** パネルモード: 縦並びボタンのサイドパネル表示 */
   panelMode?: boolean;
@@ -31,6 +34,7 @@ export function ReceiptsCsvToolbar({
   dbLoading,
   authLoading,
   saveLabel,
+  saveResult,
   selectedFileName,
   panelMode = false,
   onFileSelect,
@@ -39,14 +43,8 @@ export function ReceiptsCsvToolbar({
 }: ReceiptsCsvToolbarProps) {
   if (panelMode) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm" role="group" aria-label="データ操作">
-        <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          CSV操作
-        </p>
-        <div className="space-y-2">
+      <section className="space-y-3 px-5 py-5" role="group" aria-label="データ操作">
+        <div className="space-y-3">
           <CSVFileInput
             onFileSelect={onFileSelect}
             selectedFileName={selectedFileName}
@@ -58,7 +56,7 @@ export function ReceiptsCsvToolbar({
                 <Button
                   variant="primary"
                   size="sm"
-                  className="w-full"
+                  className="h-11 w-full rounded-xl text-sm font-semibold"
                   onClick={onSave}
                   disabled={saving || deleting || previewing}
                   aria-disabled={saving || deleting || previewing}
@@ -70,7 +68,7 @@ export function ReceiptsCsvToolbar({
                 <Button
                   variant="outline-danger"
                   size="sm"
-                  className="w-full"
+                  className="h-11 w-full rounded-xl text-sm font-semibold"
                   onClick={onDeleteRequest}
                   disabled={saving || deleting || dbLoading}
                   aria-disabled={saving || deleting || dbLoading}
@@ -80,8 +78,14 @@ export function ReceiptsCsvToolbar({
               )}
             </>
           )}
+          {saveResult && (
+            <CsvSaveResultNotice
+              result={saveResult}
+              modeLabel="追加保存"
+            />
+          )}
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -120,6 +124,14 @@ export function ReceiptsCsvToolbar({
               >
                 {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
               </Button>
+            </div>
+          )}
+          {saveResult && (
+            <div className="w-full pt-2">
+              <CsvSaveResultNotice
+                result={saveResult}
+                modeLabel="追加保存"
+              />
             </div>
           )}
         </>

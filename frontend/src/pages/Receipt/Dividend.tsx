@@ -55,12 +55,13 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
 interface DividendProps {
     data: DividendData[];
     previewData?: DividendData[];
+    utilityRail?: React.ReactNode;
 }
 
 /**
  * 配当金データを表示するコンポーネント
  */
-export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
+export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRail }) => {
     const { sortedData: dividendData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortDividendBySettlementDate, FILTER_CONFIG);
 
@@ -169,16 +170,16 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
 
     // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = [
-        { key: 'settlement_date', header: '入金日', width: '90px', format: formatJPDate },
-        { key: 'product', header: '商品', width: '80px' },
-        { key: 'account', header: '口座', width: '70px' },
-        { key: 'security_code', header: '銘柄コード', width: '80px', textAlign: 'center', format: renderSecurityCode },
-        { key: 'security_name', header: '銘柄名', width: '200px' },
-        { key: 'unit_price', header: '単価', width: '70px', textAlign: 'right', format: formatCurrency },
-        { key: 'shares', header: '数量', width: '60px', textAlign: 'right', format: formatNumber },
-        { key: 'dividends_before_tax', header: '配当金', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
-        { key: 'net_amount_received', header: '受取額', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'settlement_date', header: '入金日', width: '84px', format: formatJPDate },
+        { key: 'product', header: '商品', width: '64px' },
+        { key: 'account', header: '口座', width: '64px' },
+        { key: 'security_code', header: '銘柄コード', width: '72px', textAlign: 'center', format: renderSecurityCode },
+        { key: 'security_name', header: '銘柄名', width: '160px' },
+        { key: 'unit_price', header: '単価', width: '72px', textAlign: 'right', format: formatCurrency },
+        { key: 'shares', header: '数量', width: '56px', textAlign: 'right', format: formatNumber },
+        { key: 'dividends_before_tax', header: '配当金', width: '84px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '64px', textAlign: 'right', format: formatCurrency },
+        { key: 'net_amount_received', header: '受取額', width: '84px', textAlign: 'right', format: formatCurrency },
     ];
 
     // 列の前面配置ルール（商品 > 口座の優先順）
@@ -205,6 +206,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
                     items={headerItems}
                     title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
                     collapsible={isSecurityCodeSearch}
+                    compact={Boolean(utilityRail)}
                 >
                     {isSecurityCodeSearch && (
                         <DividendInfo
@@ -218,11 +220,13 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData }) => {
             ) : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
+            layout={utilityRail ? 'workspace' : 'stack'}
+            utilityRail={utilityRail}
         >
             {dividendData.length === 0 ? (
                 <EmptyState
                     title="データがありません"
-                    description="CSVファイルをアップロードして配当金の取引明細を追加してください"
+                    description="配当金明細をCSVで追加してください"
                 />
             ) : (
                 <ReceiptTable

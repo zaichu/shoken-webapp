@@ -30,12 +30,13 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 interface MutualfundProps {
     data: MutualfundData[];
     previewData?: MutualfundData[];
+    utilityRail?: React.ReactNode;
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utilityRail }) => {
     const { sortedData: mutualfundData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortMutualfundByTradeDate, FILTER_CONFIG);
 
@@ -97,18 +98,16 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => 
 
     // テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
     const columns: TableColumnConfig[] = [
-        { key: 'trade_date', header: '約定日', width: '90px', format: formatJPDate },
-        { key: 'settlement_date', header: '受渡日', width: '90px', format: formatJPDate },
-        { key: 'fund_name', header: 'ファンド名', width: '200px' },
-        { key: 'account', header: '口座', width: '70px' },
-        { key: 'shares', header: '数量', width: '70px', textAlign: 'right', format: formatNumber },
-        { key: 'exchange_rate', header: '為替', width: '70px', textAlign: 'right', format: formatCurrency },
-        { key: 'cancellation_unit_price_yen', header: '解約単価', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'cancellation_amount_yen', header: '解約額', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'average_acquisition_price_yen', header: '取得価額', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss', header: '実現損益', width: '90px', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', width: '70px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '90px', textAlign: 'right', format: formatCurrency },
+        { key: 'trade_date', header: '約定日', width: '84px', format: formatJPDate },
+        { key: 'fund_name', header: 'ファンド名', width: '180px' },
+        { key: 'account', header: '口座', width: '60px' },
+        { key: 'shares', header: '数量', width: '64px', textAlign: 'right', format: formatNumber },
+        { key: 'cancellation_unit_price_yen', header: '解約単価', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'cancellation_amount_yen', header: '解約額', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'average_acquisition_price_yen', header: '取得価額', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', width: '82px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '64px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '84px', textAlign: 'right', format: formatCurrency },
     ];
 
     // サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）
@@ -121,14 +120,16 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData }) => 
     return (
         <ReceiptTemplate
             title="投資信託"
-            header={mutualfundData.length > 0 ? <ReceiptHeader items={headerItems} /> : undefined}
+            header={mutualfundData.length > 0 ? <ReceiptHeader items={headerItems} compact={Boolean(utilityRail)} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
+            layout={utilityRail ? 'workspace' : 'stack'}
+            utilityRail={utilityRail}
         >
             {mutualfundData.length === 0 ? (
                 <EmptyState
                     title="データがありません"
-                    description="CSVファイルをアップロードして投資信託の取引明細を追加してください"
+                    description="投資信託明細をCSVで追加してください"
                 />
             ) : (
                 <ReceiptTable

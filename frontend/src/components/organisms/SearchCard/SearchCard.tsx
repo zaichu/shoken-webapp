@@ -184,6 +184,116 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
+    if (compact) {
+        return (
+            <section className="px-5 py-5" data-testid="search-card-compact">
+                <div
+                    className="flex cursor-pointer items-start justify-between gap-3 select-none"
+                    onClick={handleToggleExpanded}
+                    onKeyDown={handleKeyDown}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    aria-controls="search-options-body"
+                    aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                    data-testid="search-card-header"
+                >
+                    <div className="flex min-w-0 items-start gap-3">
+                        <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                        </span>
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Filter</p>
+                            <h5 className="mt-1 text-sm font-semibold text-slate-800">検索オプション</h5>
+                            {!isExpanded && effectiveActiveSearchType && (
+                                <span className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                    フィルタ適用中
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleClearSearch();
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation();
+                                }
+                            }}
+                            className={`rounded-full px-3 py-1 text-xs transition-opacity ${
+                                isDefaultState
+                                    ? 'pointer-events-none opacity-0'
+                                    : 'opacity-100 border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                            aria-label="検索条件をクリア"
+                            aria-hidden={isDefaultState}
+                            tabIndex={isDefaultState ? -1 : 0}
+                            data-testid="search-clear-button"
+                        >
+                            リセット
+                        </Button>
+                        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
+                            <span className="text-xs font-semibold">{isExpanded ? '閉じる' : '開く'}</span>
+                            <svg
+                                className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+                {isExpanded && categories && (
+                    <div id="search-options-body" className="pt-4">
+                        <div className="grid grid-cols-1 gap-3.5">
+                            {DROPDOWN_CONFIGS.map(({ key, label }) =>
+                                hasData(categories[key]) && (
+                                    <div key={key} className="space-y-1">
+                                        <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
+                                        <QuickSearchDropdown
+                                            items={categories[key]!}
+                                            id={`${key}-search`}
+                                            searchType={key}
+                                            activeSearchType={effectiveActiveSearchType}
+                                            searchQuery={effectiveSearchQuery}
+                                            onSearch={handleQuickSearch}
+                                        />
+                                    </div>
+                                )
+                            )}
+                            {BUTTONS_CONFIGS.map(({ key, label }) =>
+                                hasData(categories[key]) && (
+                                    <div key={key} className="space-y-1">
+                                        <div className="text-sm font-medium text-dark">{label}</div>
+                                        <div className="flex flex-wrap gap-1">
+                                            <QuickSearchButtons
+                                                items={categories[key]!}
+                                                searchType={key}
+                                                activeSearchType={effectiveActiveSearchType}
+                                                searchQuery={effectiveSearchQuery}
+                                                onSearch={handleQuickSearch}
+                                            />
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+                )}
+            </section>
+        );
+    }
+
     return (
         <Card className="mt-1">
             <CardHeader
@@ -208,12 +318,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     </svg>
                     <h5 className="text-sm font-semibold">検索オプション</h5>
                     {!isExpanded && effectiveActiveSearchType && (
-                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
+                        <span className="text-xs px-2 py-0.5 rounded bg-white/20">
                             フィルタ適用中
                         </span>
                     )}
                 </div>
-                <div className={`flex items-center ${compact ? 'gap-2' : 'gap-6'}`}>
+                <div className="flex items-center gap-6">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
                         type="button"
@@ -244,12 +354,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         {!compact && <span className="ml-1">絞り込み解除</span>}
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
-                    <span className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5" aria-hidden="true">
-                        {!compact && (
-                            <span className="text-xs font-semibold text-white whitespace-nowrap">
-                                {isExpanded ? '閉じる' : '開く'}
-                            </span>
-                        )}
+                    <span
+                        className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
+                        aria-hidden="true"
+                    >
+                        <span className="text-xs font-semibold whitespace-nowrap text-white">
+                            {isExpanded ? '閉じる' : '開く'}
+                        </span>
                         <svg
                             className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                             fill="none"
@@ -263,8 +374,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
-                    {/* グリッドレイアウト: モバイル1列、sm2列、lg4列（compact時は最大2列） */}
-                    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${compact ? '' : 'lg:grid-cols-4'}`}>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {DROPDOWN_CONFIGS.map(({ key, label }) =>
                             hasData(categories[key]) && (
                                 <div key={key} className="space-y-1">

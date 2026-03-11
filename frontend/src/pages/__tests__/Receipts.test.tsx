@@ -73,24 +73,27 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
 
 // 子コンポーネント: data の長さ確認 + importResult が渡された場合は表示（回帰検知用）
 vi.mock('@/pages/Receipt/Dividend', () => ({
-  Dividend: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+  Dividend: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
     <div data-testid="dividend-view">
+      {utilityRail}
       {data.length}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
   ),
 }));
 vi.mock('@/pages/Receipt/DomesticStock', () => ({
-  DomesticStock: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+  DomesticStock: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
     <div data-testid="domesticstock-view">
+      {utilityRail}
       {data.length}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
   ),
 }));
 vi.mock('@/pages/Receipt/Mutualfund', () => ({
-  Mutualfund: ({ data, importResult }: { data: unknown[]; importResult?: { inserted: number } }) => (
+  Mutualfund: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
     <div data-testid="mutualfund-view">
+      {utilityRail}
       {data.length}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
@@ -248,7 +251,7 @@ describe('ReceiptsPage', () => {
     renderWithQuery(<ReceiptsPage />);
 
     // 配当金タブが aria-selected=true
-    const tab = screen.getByRole('tab', { name: '配当金' });
+    const tab = screen.getByRole('tab', { name: /^配当金/ });
     expect(tab).toHaveAttribute('aria-selected', 'true');
 
     // Dividend コンポーネントが表示される
@@ -262,7 +265,7 @@ describe('ReceiptsPage', () => {
     renderWithQuery(<ReceiptsPage />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('tab', { name: '国内株式' }));
+    await user.click(screen.getByRole('tab', { name: /^国内株式/ }));
 
     expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
@@ -274,7 +277,7 @@ describe('ReceiptsPage', () => {
     renderWithQuery(<ReceiptsPage />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('tab', { name: '投資信託' }));
+    await user.click(screen.getByRole('tab', { name: /^投資信託/ }));
 
     expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
@@ -291,9 +294,12 @@ describe('ReceiptsPage', () => {
 
     renderWithQuery(<ReceiptsPage />);
 
-    // DB フェッチ完了を待つ
     await waitFor(() => {
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
     }, waitOpts);
 
     const user = userEvent.setup();
@@ -315,7 +321,7 @@ describe('ReceiptsPage', () => {
     }, waitOpts);
   }, 20000);
 
-  it('取込結果: importResult は Receipts.tsx の Alert 1箇所だけに表示される（子コンポーネントに重複なし）', async () => {
+  it('取込結果: right rail に軽い confirmation strip が1箇所だけ表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
@@ -327,7 +333,11 @@ describe('ReceiptsPage', () => {
     renderWithQuery(<ReceiptsPage />);
 
     await waitFor(() => {
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
     }, waitOpts);
 
     const user = userEvent.setup();
@@ -343,11 +353,14 @@ describe('ReceiptsPage', () => {
       expect(receiptApi.dividendApi.uploadCsv).toHaveBeenCalled();
     }, waitOpts);
 
-    // 「3件登録」という strong テキストは親 Alert に 1 つだけ存在する
     await waitFor(() => {
-      const matches = screen.getAllByText(/3件登録/);
-      expect(matches).toHaveLength(1);
+      expect(screen.getByText('保存しました')).toBeInTheDocument();
     }, waitOpts);
+
+    expect(screen.getByText('3件反映')).toBeInTheDocument();
+    expect(screen.getByText('追加保存')).toBeInTheDocument();
+    expect(screen.getByText('2件スキップ')).toBeInTheDocument();
+    expect(screen.getAllByText('保存しました')).toHaveLength(1);
   }, 20000);
 
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
@@ -365,7 +378,7 @@ describe('ReceiptsPage', () => {
     renderWithQuery(<ReceiptsPage />);
 
     await waitFor(() => {
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
     }, waitOpts);
 
     await waitFor(() => {
@@ -410,12 +423,12 @@ describe('ReceiptsPage', () => {
     await waitFor(() => expect(capturedCallbacks.length).toBeGreaterThan(0));
 
     await waitFor(() => {
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    });
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
 
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
-    });
+    }, waitOpts);
 
     act(() => {
       capturedCallbacks.forEach(cb => cb());
@@ -428,5 +441,33 @@ describe('ReceiptsPage', () => {
     expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
     expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
     expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
+  });
+
+  it('desktop向けworkspaceレイアウトとタブ件数が表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([
+      { id: 'd1', payment_date: '2025-01-01' },
+      { id: 'd2', payment_date: '2025-02-01' },
+    ] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([
+      { id: 's1', trade_date: '2025-01-01' },
+    ] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+
+    expect(screen.getByTestId('receipts-workspace')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-count-dividend')).toHaveTextContent('2');
+      expect(screen.getByTestId('tab-count-domesticstock')).toHaveTextContent('1');
+      expect(screen.getByTestId('tab-count-mutualfund')).toHaveTextContent('0');
+    }, waitOpts);
+
+    expect(screen.getByRole('tablist').className).toContain('border-b');
+    expect(screen.getByRole('tab', { name: /^配当金/ }).className).toContain('rounded-t-2xl');
   });
 });

@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -36,7 +37,11 @@ vi.mock('@/components/atoms/Button', () => ({
   ),
 }));
 vi.mock('@/components/molecules/CSVFileInput', () => ({
-  CSVFileInput: () => <div data-testid="csv-file-input" />,
+  CSVFileInput: ({ onFileSelect }: { onFileSelect: (file: File) => void }) => (
+    <button data-testid="csv-file-input" onClick={() => onFileSelect(new File(['dummy'], 'asset.csv'))}>
+      CSV読込
+    </button>
+  ),
 }));
 vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
   ConfirmDeleteModal: ({ isOpen, onConfirm }: { isOpen: boolean; onConfirm: () => void }) =>
@@ -58,7 +63,8 @@ import * as assetBalanceApiModule from '@/features/assetBalance/api/assetBalance
 vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
   assetBalanceApi: {
     list: vi.fn().mockResolvedValue([]),
-    bulkCreate: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
 }));
@@ -175,6 +181,60 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     await waitFor(() => {
       expect(screen.getByText(/全件削除/)).toBeInTheDocument();
     });
+  });
+
+  it('認証済み時: workspace は広めの right rail レイアウトで表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assetbalance-workspace')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('assetbalance-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_22rem]');
+    expect(screen.getByTestId('assetbalance-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
+  });
+
+  it('保存後: right rail に軽い confirmation strip が表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockResolvedValue({
+      total_rows: 2,
+      valid_rows: 2,
+      errors: [],
+      rows: [mockDbRow, { ...mockDbRow, security_code: '6758' }],
+    } as never);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.uploadCsv).mockResolvedValue({
+      inserted: 2,
+      skipped: 1,
+      errors: [],
+    } as never);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /全件置換で保存/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /全件置換で保存/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('保存しました')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('2件反映')).toBeInTheDocument();
+    expect(screen.getByText('全件置換')).toBeInTheDocument();
+    expect(screen.getByText('1件スキップ')).toBeInTheDocument();
+    expect(screen.queryByText(/2件保存しました/)).not.toBeInTheDocument();
   });
 
   it('ログアウト: onLogout コールバック実行でキャッシュが除去される', async () => {

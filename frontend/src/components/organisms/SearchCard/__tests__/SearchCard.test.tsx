@@ -281,4 +281,19 @@ describe('SearchCard', () => {
 
     expect(mockOnSearch).toHaveBeenCalledWith('');
   });
+
+  test('compactモードでは検索グリッドが1列表示になる', () => {
+    const { container } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        compact
+      />
+    );
+
+    const grid = container.querySelector('#search-options-body > div');
+    expect(grid).toHaveClass('grid-cols-1');
+    expect(grid).not.toHaveClass('sm:grid-cols-2');
+    expect(grid).not.toHaveClass('lg:grid-cols-4');
+  });
 });

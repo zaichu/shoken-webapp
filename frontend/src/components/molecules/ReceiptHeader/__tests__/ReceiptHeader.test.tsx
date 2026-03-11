@@ -153,4 +153,14 @@ describe('ReceiptHeader', () => {
     rerender(<ReceiptHeader items={defaultItems} collapsible={true} />);
     expect(screen.getByText('テスト項目1')).not.toBeVisible();
   });
+
+  it('compactモードでは資産サマリーと同じ横方向のKPIグリッドで表示される', () => {
+    const { container } = render(<ReceiptHeader items={defaultItems} compact />);
+
+    expect(screen.getByTestId('receipt-summary-strip')).toBeInTheDocument();
+    const grid = container.querySelector('[data-testid="kpi-grid"]');
+    expect(grid).toHaveClass('grid-cols-1');
+    expect(grid).toHaveClass('sm:grid-cols-2');
+    expect(grid).toHaveClass('xl:grid-cols-3');
+  });
 });

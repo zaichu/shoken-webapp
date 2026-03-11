@@ -50,6 +50,7 @@ describe('AssetPortfolioSummary', () => {
     const mockData = createMockData();
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
+    expect(screen.getByTestId('portfolio-kpi-strip')).toBeInTheDocument();
     // 合計取得総額のラベルが表示される
     expect(screen.getByText('合計取得総額')).toBeInTheDocument();
     // 250,000 + 600,000 = 850,000
@@ -62,6 +63,7 @@ describe('AssetPortfolioSummary', () => {
 
     expect(screen.getByTestId('portfolio-pie-chart')).toBeInTheDocument();
     expect(screen.getByText('銘柄別構成比')).toBeInTheDocument();
+    expect(screen.queryByText('保有比率と配当効率をまとめて確認できます。')).not.toBeInTheDocument();
   });
 
   it('データがない場合は空状態が表示される', () => {
@@ -140,7 +142,7 @@ describe('AssetPortfolioSummary', () => {
       // 50*100 + 240*50 = 17,000
       expect(screen.getByTestId('portfolio-annual-dividends')).toHaveTextContent(/17,000/);
       // 配当利回りラベルが表示される
-      expect(screen.getByText('配当利回り')).toBeInTheDocument();
+      expect(screen.getAllByText('配当利回り').length).toBeGreaterThanOrEqual(1);
       // 17000 / 850000 * 100 = 2.00%
       expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('2.00%');
     });

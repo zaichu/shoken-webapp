@@ -1,12 +1,11 @@
 import { Alert } from '@/components/atoms/Alert';
-import { type CsvPreview, type ImportResult } from './receiptsReducer';
+import { type CsvPreview } from './receiptsReducer';
 
 interface ReceiptsAlertsProps {
   dbError: string | null | undefined;
   hasCsvFile: boolean;
   previewing: boolean;
   csvPreview: CsvPreview | null | undefined;
-  importResult: ImportResult | null | undefined;
 }
 
 export function ReceiptsAlerts({
@@ -14,18 +13,19 @@ export function ReceiptsAlerts({
   hasCsvFile,
   previewing,
   csvPreview,
-  importResult,
 }: ReceiptsAlertsProps) {
   return (
     <>
       {dbError && (
-        <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
-          <strong>エラー:</strong> {dbError}
-        </Alert>
+        <section className="px-5 py-4">
+          <Alert variant="danger" role="alert" aria-live="assertive">
+            <strong>エラー:</strong> {dbError}
+          </Alert>
+        </section>
       )}
 
-      {hasCsvFile && !previewing && csvPreview && !importResult && (
-        <div className="my-3" role="status" aria-live="polite">
+      {hasCsvFile && !previewing && csvPreview && (
+        <section className="px-5 py-4" role="status" aria-live="polite">
           <Alert variant={csvPreview.errors.length > 0 ? 'warning' : 'info'}>
             <p>
               <strong>{csvPreview.validRows}件 追加で保存されます</strong>
@@ -40,38 +40,8 @@ export function ReceiptsAlerts({
               </ul>
             )}
           </Alert>
-        </div>
+        </section>
       )}
-
-      {importResult && (() => {
-        const hasErrors = importResult.errors.length > 0;
-        return (
-          <div className="my-3" role="status" aria-live="polite">
-            <Alert variant={hasErrors ? 'warning' : 'success'}>
-              <p className="flex flex-wrap items-center gap-x-2">
-                <strong>{importResult.inserted}件登録</strong>
-                {importResult.skipped > 0 && (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                    {importResult.skipped}件スキップ（重複）
-                  </span>
-                )}
-                {hasErrors && (
-                  <span className="text-sm text-secondary">
-                    {importResult.errors.length}件エラー
-                  </span>
-                )}
-              </p>
-              {hasErrors && (
-                <ul className="mt-2 list-disc list-inside text-sm space-y-1">
-                  {importResult.errors.map((e) => (
-                    <li key={e.row}>{e.row}行目: {e.message}</li>
-                  ))}
-                </ul>
-              )}
-            </Alert>
-          </div>
-        );
-      })()}
     </>
   );
 }

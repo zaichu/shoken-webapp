@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { cn } from '../../lib/utils/classNames';
+import { APP_SHELL_CONTAINER } from '@/lib/layout';
 
 // ナビゲーションリンクの設定
 const NAV_LINKS = [
@@ -84,7 +85,7 @@ export function Header() {
   return (
     <>
       <header className="bg-slate-800 text-white no-print">
-        <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-6 py-3">
+        <div className={`${APP_SHELL_CONTAINER} py-3`}>
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="flex items-center justify-between">
               <Link className="text-2xl font-bold tracking-wide text-white hover:text-slate-200 transition-colors" to="/">証券Web</Link>
