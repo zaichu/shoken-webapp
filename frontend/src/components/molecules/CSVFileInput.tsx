@@ -50,6 +50,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
       </label>
       <input
         id={inputId}
+        data-testid="csv-file-input"
         ref={ref}
         type="file"
         accept=".csv"

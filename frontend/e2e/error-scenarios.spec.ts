@@ -114,7 +114,7 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
   await page.waitForLoadState('networkidle');
 
   // ファイル選択でプレビュー API が自動的に呼ばれる
-  await page.locator('#csv-file-input').setInputFiles(
+  await page.locator('[data-testid="csv-file-input"]').setInputFiles(
     path.join(FIXTURE_DIR, 'dividend-base.csv'),
   );
 

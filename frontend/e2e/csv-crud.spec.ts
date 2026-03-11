@@ -49,7 +49,7 @@ async function deleteAllIfExists(page: Page) {
  */
 async function uploadCsv(page: Page, filename: string) {
   const csvPath = path.join(FIXTURE_DIR, filename);
-  await page.locator('#csv-file-input').setInputFiles(csvPath);
+  await page.locator('[data-testid="csv-file-input"]').setInputFiles(csvPath);
   // 保存ボタンが "解析中..." から "N件 〇〇で保存" に変わるまで待機
   const saveBtn = page.getByRole('button', { name: /保存/ });
   await saveBtn.waitFor({ state: 'visible', timeout: 15000 });
