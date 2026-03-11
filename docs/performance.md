@@ -79,5 +79,5 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
    エンコーディングを決定し、不要な UTF-8 デコード試行を省く。
 2. **大量データのストレステスト**: 10,000 行超の CSV で BulkTimer を観測し、
    DB 側（インデックス競合、VACUUM 頻度）の影響を確認する。
-3. **release ビルドでの計測**: `cargo test --release -- timing_csv_parse --ignored --nocapture`
+3. **release ビルドでの計測**: `cargo test --release --lib -- timing_csv_parse --ignored --nocapture`
    でデバッグ/リリースの差を確認する。

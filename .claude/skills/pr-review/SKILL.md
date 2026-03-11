@@ -71,10 +71,10 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
 
 5a. レビュー結果を PR にコメントとして投稿する。
 - PR が検出されている場合は以下を実行する。
-  1. 既存の Codex レビューコメントを確認する: `gh api repos/:owner/:repo/issues/<PR番号>/comments --jq '[.[] | select(.body | startswith("対象範囲: PR"))] | last | .id'`
-  2. コメントが存在する場合は更新する: `gh api repos/:owner/:repo/issues/comments/<comment_id> -X PATCH -f body="..."`
+  1. 既存の Codex レビューコメントを確認する: `gh api repos/{owner}/{repo}/issues/<PR番号>/comments --jq '[.[] | select(.body | startswith("対象範囲: PR"))] | last | .id'`
+  2. コメントが存在する場合は更新する: `gh api repos/{owner}/{repo}/issues/comments/<comment_id> -X PATCH -f body="..."`
   3. コメントが存在しない場合は新規投稿する: `gh pr comment <PR番号> --body "..."`
-- コメント本文は手順 5 の findings と同じ内容とする。
+- コメント本文は手順 5 の findings と同じ内容とし、先頭に `🤖 Codex review` または `🤖 Claude review` の見出しを付けてどのエージェントが投稿したか明示する。
 - `gh` が失敗しても stdout への出力は続ける。
 
 6. 依頼文作成モード（明示要求時のみ）。
