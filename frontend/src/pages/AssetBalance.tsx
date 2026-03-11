@@ -159,91 +159,100 @@ export function AssetBalancePage() {
         {/* ログイン済みの場合のメインコンテンツ */}
         {!authLoading && isAuthenticated && (
           <>
-            <div className="action-toolbar">
-              <div className="form-input-container">
-                <CSVFileInput
-                  onFileSelect={handleFileSelect}
-                  selectedFileName={csvFileName ?? ''}
-                  disabled={loading || saving || deleting || previewing}
-                />
-              </div>
-              <div className="action-button-group" role="group" aria-label="データ操作">
-                {hasCsvFile && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleSaveToDB}
-                    disabled={saving || deleting || previewing || previewRows.length === 0}
-                    aria-disabled={saving || deleting || previewing || previewRows.length === 0}
-                  >
-                    {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
-                  </Button>
+            {/* デスクトップ: aside（CSV操作・検索）右 + main（ポートフォリオ）左の2カラム */}
+            <div className="flex flex-col lg:flex-row lg:gap-4 lg:items-start">
+              {/* aside: CSV操作・検索 — モバイルでは先頭、デスクトップでは右カラム */}
+              <div className="shrink-0 space-y-2 lg:order-2 lg:w-72">
+                <div className="action-toolbar">
+                  <div className="form-input-container">
+                    <CSVFileInput
+                      onFileSelect={handleFileSelect}
+                      selectedFileName={csvFileName ?? ''}
+                      disabled={loading || saving || deleting || previewing}
+                    />
+                  </div>
+                  <div className="action-button-group" role="group" aria-label="データ操作">
+                    {hasCsvFile && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSaveToDB}
+                        disabled={saving || deleting || previewing || previewRows.length === 0}
+                        aria-disabled={saving || deleting || previewing || previewRows.length === 0}
+                      >
+                        {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
+                      </Button>
+                    )}
+                  </div>
+                  {hasDbData && (
+                    <div className="ml-auto border-l border-slate-300 pl-3">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={saving || deleting || loading}
+                        aria-disabled={saving || deleting || loading}
+                      >
+                        {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {error && (
+                  <Alert variant="danger" role="alert" aria-live="assertive">
+                    <strong>エラー:</strong> {error}
+                  </Alert>
+                )}
+
+                {/* 検索カード（データがある場合のみ表示） */}
+                {assetBalanceData.length > 0 && (
+                  <SearchCard
+                    onSearch={query => setSearchQuery(query)}
+                    categories={searchCategories}
+                    value={searchQuery}
+                  />
                 )}
               </div>
-              {hasDbData && (
-                <div className="ml-auto border-l border-slate-300 pl-3">
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={saving || deleting || loading}
-                    aria-disabled={saving || deleting || loading}
-                  >
-                    {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
-                  </Button>
+
+              {/* main: ポートフォリオサマリー — モバイルでは2番目、デスクトップでは左カラム */}
+              <div className="flex-1 min-w-0 lg:order-1">
+                {lastSavedCount !== null && (
+                  <div className="mb-2" role="status" aria-live="polite">
+                    <Alert variant="success">
+                      <strong>{lastSavedCount}件保存しました</strong>
+                      <span className="ml-2 text-sm text-secondary">（全件置換）</span>
+                    </Alert>
+                  </div>
+                )}
+
+                <div aria-live="polite" aria-atomic="true">
+                  {(loading || saving || deleting || previewing) && (
+                    <div className="status-message" role="status">
+                      <Spinner size="md" className="text-primary" />
+                      <p className="text-sm text-secondary">
+                        {loading && 'データを読み込んでいます...'}
+                        {saving && 'データを保存しています...'}
+                        {deleting && 'データを削除しています...'}
+                        {previewing && 'CSVファイルを解析しています...'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {error && (
-              <Alert variant="danger" className="my-3" role="alert" aria-live="assertive">
-                <strong>エラー:</strong> {error}
-              </Alert>
-            )}
-
-            {lastSavedCount !== null && (
-              <div className="my-3" role="status" aria-live="polite">
-                <Alert variant="success">
-                  <strong>{lastSavedCount}件保存しました</strong>
-                  <span className="ml-2 text-sm text-secondary">（全件置換）</span>
-                </Alert>
+                {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
+                {!loading && !previewing && (
+                  <AssetBalanceInfo
+                    assetBalanceData={assetBalanceData}
+                    filteredData={filteredData}
+                    searchQuery={searchQuery}
+                    onClearFilter={() => setSearchQuery('')}
+                    dividendPerShareMap={dividendPerShareMap}
+                    dividendStatusMap={dividendStatusMap}
+                  />
+                )}
               </div>
-            )}
-
-            <div aria-live="polite" aria-atomic="true">
-              {(loading || saving || deleting || previewing) && (
-                <div className="status-message" role="status">
-                  <Spinner size="md" className="text-primary" />
-                  <p className="text-sm text-secondary">
-                    {loading && 'データを読み込んでいます...'}
-                    {saving && 'データを保存しています...'}
-                    {deleting && 'データを削除しています...'}
-                    {previewing && 'CSVファイルを解析しています...'}
-                  </p>
-                </div>
-              )}
             </div>
-
-            {/* 検索カード（データがある場合のみ表示） */}
-            {assetBalanceData.length > 0 && (
-              <SearchCard
-                onSearch={query => setSearchQuery(query)}
-                categories={searchCategories}
-                value={searchQuery}
-              />
-            )}
-
-            {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
-            {!loading && !previewing && (
-              <AssetBalanceInfo
-                assetBalanceData={assetBalanceData}
-                filteredData={filteredData}
-                searchQuery={searchQuery}
-                onClearFilter={() => setSearchQuery('')}
-                dividendPerShareMap={dividendPerShareMap}
-                dividendStatusMap={dividendStatusMap}
-              />
-            )}
 
             <ConfirmDeleteModal
               isOpen={showDeleteConfirm}

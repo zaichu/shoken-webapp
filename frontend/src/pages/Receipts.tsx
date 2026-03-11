@@ -121,72 +121,81 @@ export function ReceiptsPage() {
         onKeyDown={handleTabKeyDown}
       />
       <div className="mt-2" aria-busy={dbLoading || authLoading || saving || deleting}>
-        <ReceiptsCsvToolbar
-          isAuthenticated={isAuthenticated}
-          hasCsvFile={hasCsvFile}
-          hasDbData={hasDbData}
-          dbDataCount={dbDataCount}
-          saving={saving}
-          deleting={deleting}
-          previewing={previewing}
-          dbLoading={dbLoading}
-          authLoading={authLoading}
-          saveLabel={saveLabel}
-          selectedFileName={selectedFileName}
-          onFileSelect={handleFileSelect}
-          onSave={handleSaveToDB}
-          onDeleteRequest={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
-        />
+        {/* デスクトップ: aside（CSV操作）右 + main（明細テーブル）左の2カラム */}
+        <div className="flex flex-col lg:flex-row lg:gap-4 lg:items-start">
+          {/* aside: CSV操作・アラート — モバイルでは先頭、デスクトップでは右カラム */}
+          <div className="shrink-0 space-y-2 lg:order-2 lg:w-72">
+            <ReceiptsCsvToolbar
+              isAuthenticated={isAuthenticated}
+              hasCsvFile={hasCsvFile}
+              hasDbData={hasDbData}
+              dbDataCount={dbDataCount}
+              saving={saving}
+              deleting={deleting}
+              previewing={previewing}
+              dbLoading={dbLoading}
+              authLoading={authLoading}
+              saveLabel={saveLabel}
+              selectedFileName={selectedFileName}
+              onFileSelect={handleFileSelect}
+              onSave={handleSaveToDB}
+              onDeleteRequest={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
+            />
 
-        <ReceiptsAlerts
-          dbError={dbError}
-          hasCsvFile={hasCsvFile}
-          previewing={previewing}
-          csvPreview={csvPreview}
-          importResult={importResult}
-        />
+            <ReceiptsAlerts
+              dbError={dbError}
+              hasCsvFile={hasCsvFile}
+              previewing={previewing}
+              csvPreview={csvPreview}
+              importResult={importResult}
+            />
 
-        <div aria-live="polite" aria-atomic="true">
-          {(dbLoading || authLoading) && (
-            <div className="status-message" role="status">
-              <Spinner size="md" className="text-primary" />
-              <p className="text-sm text-secondary">
-                {authLoading && '認証状態を確認しています...'}
-                {dbLoading && 'データを読み込んでいます...'}
-              </p>
+            <div aria-live="polite" aria-atomic="true">
+              {(dbLoading || authLoading) && (
+                <div className="status-message" role="status">
+                  <Spinner size="md" className="text-primary" />
+                  <p className="text-sm text-secondary">
+                    {authLoading && '認証状態を確認しています...'}
+                    {dbLoading && 'データを読み込んでいます...'}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* main: 明細テーブル — モバイルでは2番目、デスクトップでは左カラム */}
+          <div className="flex-1 min-w-0 lg:order-1">
+            {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
+            {!authLoading && !dbLoading && (
+              <>
+                <div id="tabpanel-dividend" role="tabpanel" aria-labelledby="tab-dividend" hidden={receiptsType !== 'dividend'}>
+                  {receiptsType === 'dividend' && (
+                    <Dividend
+                      data={dividendData}
+                      previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
+                    />
+                  )}
+                </div>
+                <div id="tabpanel-domesticstock" role="tabpanel" aria-labelledby="tab-domesticstock" hidden={receiptsType !== 'domesticstock'}>
+                  {receiptsType === 'domesticstock' && (
+                    <DomesticStock
+                      data={domesticstockData}
+                      previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
+                    />
+                  )}
+                </div>
+                <div id="tabpanel-mutualfund" role="tabpanel" aria-labelledby="tab-mutualfund" hidden={receiptsType !== 'mutualfund'}>
+                  {receiptsType === 'mutualfund' && (
+                    <Mutualfund
+                      data={mutualfundData}
+                      previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-
-        {/* ローディング完了後のみコンテンツを表示（0円集計との同時表示を防止） */}
-        {!authLoading && !dbLoading && (
-          <>
-            <div id="tabpanel-dividend" role="tabpanel" aria-labelledby="tab-dividend" hidden={receiptsType !== 'dividend'}>
-              {receiptsType === 'dividend' && (
-                <Dividend
-                  data={dividendData}
-                  previewData={csvPreview?.rows?.map(r => transformDBDividend(r))}
-                />
-              )}
-            </div>
-            <div id="tabpanel-domesticstock" role="tabpanel" aria-labelledby="tab-domesticstock" hidden={receiptsType !== 'domesticstock'}>
-              {receiptsType === 'domesticstock' && (
-                <DomesticStock
-                  data={domesticstockData}
-                  previewData={csvPreview?.rows?.map(r => transformDBDomesticStock(r))}
-                />
-              )}
-            </div>
-            <div id="tabpanel-mutualfund" role="tabpanel" aria-labelledby="tab-mutualfund" hidden={receiptsType !== 'mutualfund'}>
-              {receiptsType === 'mutualfund' && (
-                <Mutualfund
-                  data={mutualfundData}
-                  previewData={csvPreview?.rows?.map(r => transformDBMutualfund(r))}
-                />
-              )}
-            </div>
-          </>
-        )}
 
         <ConfirmDeleteModal
           isOpen={showDeleteConfirm}
