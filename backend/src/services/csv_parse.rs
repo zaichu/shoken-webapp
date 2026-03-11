@@ -314,7 +314,7 @@ mod tests {
         let start = Instant::now();
         for _ in 0..10_000 {
             for s in &samples {
-                std::hint::black_box(parse_number(std::hint::black_box(s)));
+                let _ = std::hint::black_box(parse_number(std::hint::black_box(s)));
             }
         }
         let elapsed_parse_number = start.elapsed();
@@ -329,7 +329,7 @@ mod tests {
         let start = Instant::now();
         for _ in 0..10_000 {
             for s in &date_samples {
-                std::hint::black_box(parse_date(std::hint::black_box(s)));
+                let _ = std::hint::black_box(parse_date(std::hint::black_box(s)));
             }
         }
         let elapsed_parse_date = start.elapsed();
