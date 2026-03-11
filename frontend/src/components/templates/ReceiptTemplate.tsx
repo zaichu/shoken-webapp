@@ -25,9 +25,10 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   onSearch,
   searchCategories,
   onSearchExpandToggle,
-  layout = 'stack',
+  layout: layoutProp,
   utilityRail,
 }) => {
+  const layout = layoutProp ?? (utilityRail ? 'workspace' : 'stack');
   const triggerResize = useTriggerResize();
 
   // 検索カードの展開状態変更時の処理
@@ -63,11 +64,11 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
           className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
           data-testid="receipt-workspace"
         >
-          <div className="order-2 min-w-0 space-y-4 lg:order-1" data-testid="receipt-main-stage">
+          <div className="min-w-0 space-y-4" data-testid="receipt-main-stage">
             {header}
             {mainCard}
           </div>
-          <aside className="order-1 lg:order-2" data-testid="receipt-utility-rail">
+          <aside data-testid="receipt-utility-rail">
             <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/80 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)] backdrop-blur-sm divide-y divide-slate-200/80">
               {utilityRail}
               {searchCard}

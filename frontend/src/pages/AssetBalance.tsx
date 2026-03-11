@@ -164,7 +164,7 @@ export function AssetBalancePage() {
               className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
               data-testid="assetbalance-workspace"
             >
-              <div className="order-2 min-w-0 lg:order-1" data-testid="assetbalance-main-stage">
+              <div className="min-w-0" data-testid="assetbalance-main-stage">
                 <div aria-live="polite" aria-atomic="true">
                   {(loading || saving || deleting || previewing) && (
                     <div className="status-message" role="status">
@@ -192,7 +192,7 @@ export function AssetBalancePage() {
                 )}
               </div>
 
-              <aside className="order-1 lg:order-2" data-testid="assetbalance-utility-rail">
+              <aside data-testid="assetbalance-utility-rail">
                 <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/80 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)] backdrop-blur-sm divide-y divide-slate-200/80">
                   <section className="space-y-3 px-5 py-5" role="group" aria-label="データ操作">
                     <div className="space-y-3">

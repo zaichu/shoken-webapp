@@ -220,7 +220,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
             ) : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
-            layout={utilityRail ? 'workspace' : 'stack'}
             utilityRail={utilityRail}
         >
             {dividendData.length === 0 ? (

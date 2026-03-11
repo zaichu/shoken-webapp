@@ -123,7 +123,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
             header={mutualfundData.length > 0 ? <ReceiptHeader items={headerItems} compact={Boolean(utilityRail)} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
-            layout={utilityRail ? 'workspace' : 'stack'}
             utilityRail={utilityRail}
         >
             {mutualfundData.length === 0 ? (

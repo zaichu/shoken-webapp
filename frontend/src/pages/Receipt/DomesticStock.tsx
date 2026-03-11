@@ -134,7 +134,6 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
             header={domesticStockData.length > 0 ? <ReceiptHeader items={headerItems} compact={Boolean(utilityRail)} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
-            layout={utilityRail ? 'workspace' : 'stack'}
             utilityRail={utilityRail}
         >
             {domesticStockData.length === 0 ? (

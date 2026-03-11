@@ -162,10 +162,13 @@ fn strip_sbi_header(content: &str) -> String {
 }
 
 /// SBI証券CSVに混ざる「特定口座合計」などの口座集計行を除外する
+///
+/// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
+/// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
 fn strip_account_summary_rows(content: &str) -> String {
     content
         .lines()
-        .filter(|line| !line.contains("口座合計"))
+        .filter(|line| !(line.starts_with(',') && line.contains("口座合計")))
         .collect::<Vec<_>>()
         .join("\n")
 }
