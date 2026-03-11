@@ -204,6 +204,14 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_bytes_shift_jis() {
+        use encoding_rs::SHIFT_JIS;
+        // SBI CSV は Shift-JIS で出力されるため、フォールバック経路が正しく動作するか確認
+        let (bytes, _, _) = SHIFT_JIS.encode("テスト");
+        assert_eq!(decode_bytes(&bytes), "テスト");
+    }
+
+    #[test]
     fn test_parse_required_string_empty() {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let mut header_map = HashMap::new();
