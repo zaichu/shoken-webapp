@@ -107,6 +107,53 @@ const BUTTONS_CONFIGS: Array<{ key: ButtonsSearchType; label: string }> = [
     { key: 'accounts', label: '口座' },
 ];
 
+interface SearchFieldsGridProps {
+    categories: SearchCategories;
+    gridClassName: string;
+    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    searchQuery: string;
+    onSearch: (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => void;
+    hasData: (data: unknown[] | undefined) => boolean;
+}
+
+const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
+    categories, gridClassName, activeSearchType, searchQuery, onSearch, hasData,
+}) => (
+    <div className={`grid ${gridClassName}`}>
+        {DROPDOWN_CONFIGS.map(({ key, label }) =>
+            hasData(categories[key]) && (
+                <div key={key} className="space-y-1">
+                    <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
+                    <QuickSearchDropdown
+                        items={categories[key]!}
+                        id={`${key}-search`}
+                        searchType={key}
+                        activeSearchType={activeSearchType}
+                        searchQuery={searchQuery}
+                        onSearch={onSearch}
+                    />
+                </div>
+            )
+        )}
+        {BUTTONS_CONFIGS.map(({ key, label }) =>
+            hasData(categories[key]) && (
+                <div key={key} className="space-y-1">
+                    <div className="text-sm font-medium text-dark">{label}</div>
+                    <div className="flex flex-wrap gap-1">
+                        <QuickSearchButtons
+                            items={categories[key]!}
+                            searchType={key}
+                            activeSearchType={activeSearchType}
+                            searchQuery={searchQuery}
+                            onSearch={onSearch}
+                        />
+                    </div>
+                </div>
+            )
+        )}
+    </div>
+);
+
 interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
@@ -255,39 +302,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 </div>
                 {isExpanded && categories && (
                     <div id="search-options-body" className="pt-4">
-                        <div className="grid grid-cols-1 gap-3.5">
-                            {DROPDOWN_CONFIGS.map(({ key, label }) =>
-                                hasData(categories[key]) && (
-                                    <div key={key} className="space-y-1">
-                                        <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
-                                        <QuickSearchDropdown
-                                            items={categories[key]!}
-                                            id={`${key}-search`}
-                                            searchType={key}
-                                            activeSearchType={effectiveActiveSearchType}
-                                            searchQuery={effectiveSearchQuery}
-                                            onSearch={handleQuickSearch}
-                                        />
-                                    </div>
-                                )
-                            )}
-                            {BUTTONS_CONFIGS.map(({ key, label }) =>
-                                hasData(categories[key]) && (
-                                    <div key={key} className="space-y-1">
-                                        <div className="text-sm font-medium text-dark">{label}</div>
-                                        <div className="flex flex-wrap gap-1">
-                                            <QuickSearchButtons
-                                                items={categories[key]!}
-                                                searchType={key}
-                                                activeSearchType={effectiveActiveSearchType}
-                                                searchQuery={effectiveSearchQuery}
-                                                onSearch={handleQuickSearch}
-                                            />
-                                        </div>
-                                    </div>
-                                )
-                            )}
-                        </div>
+                        <SearchFieldsGrid
+                            categories={categories}
+                            gridClassName="grid-cols-1 gap-3.5"
+                            activeSearchType={effectiveActiveSearchType}
+                            searchQuery={effectiveSearchQuery}
+                            onSearch={handleQuickSearch}
+                            hasData={hasData}
+                        />
                     </div>
                 )}
             </section>
@@ -374,39 +396,14 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {DROPDOWN_CONFIGS.map(({ key, label }) =>
-                            hasData(categories[key]) && (
-                                <div key={key} className="space-y-1">
-                                    <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
-                                    <QuickSearchDropdown
-                                        items={categories[key]!}
-                                        id={`${key}-search`}
-                                        searchType={key}
-                                        activeSearchType={effectiveActiveSearchType}
-                                        searchQuery={effectiveSearchQuery}
-                                        onSearch={handleQuickSearch}
-                                    />
-                                </div>
-                            )
-                        )}
-                        {BUTTONS_CONFIGS.map(({ key, label }) =>
-                            hasData(categories[key]) && (
-                                <div key={key} className="space-y-1">
-                                    <div className="text-sm font-medium text-dark">{label}</div>
-                                    <div className="flex flex-wrap gap-1">
-                                        <QuickSearchButtons
-                                            items={categories[key]!}
-                                            searchType={key}
-                                            activeSearchType={effectiveActiveSearchType}
-                                            searchQuery={effectiveSearchQuery}
-                                            onSearch={handleQuickSearch}
-                                        />
-                                    </div>
-                                </div>
-                            )
-                        )}
-                    </div>
+                    <SearchFieldsGrid
+                        categories={categories}
+                        gridClassName="grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                        activeSearchType={effectiveActiveSearchType}
+                        searchQuery={effectiveSearchQuery}
+                        onSearch={handleQuickSearch}
+                        hasData={hasData}
+                    />
                 </CardBody>
             )}
         </Card>
