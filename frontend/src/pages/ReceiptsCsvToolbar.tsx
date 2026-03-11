@@ -13,6 +13,8 @@ interface ReceiptsCsvToolbarProps {
   authLoading: boolean;
   saveLabel: string;
   selectedFileName?: string;
+  /** パネルモード: 縦並びボタンのサイドパネル表示 */
+  panelMode?: boolean;
   onFileSelect: (file: File) => void;
   onSave: () => void;
   onDeleteRequest: () => void;
@@ -30,10 +32,54 @@ export function ReceiptsCsvToolbar({
   authLoading,
   saveLabel,
   selectedFileName,
+  panelMode = false,
   onFileSelect,
   onSave,
   onDeleteRequest,
 }: ReceiptsCsvToolbarProps) {
+  if (panelMode) {
+    return (
+      <div className="panel-card">
+        <div className="panel-card-header">CSV操作</div>
+        <div className="panel-card-body space-y-2" role="group" aria-label="データ操作">
+          <CSVFileInput
+            onFileSelect={onFileSelect}
+            selectedFileName={selectedFileName}
+            disabled={dbLoading || saving || deleting || previewing || authLoading}
+          />
+          {isAuthenticated && (
+            <>
+              {hasCsvFile && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={onSave}
+                  disabled={saving || deleting || previewing}
+                  aria-disabled={saving || deleting || previewing}
+                >
+                  {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
+                </Button>
+              )}
+              {hasDbData && (
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  className="w-full"
+                  onClick={onDeleteRequest}
+                  disabled={saving || deleting || dbLoading}
+                  aria-disabled={saving || deleting || dbLoading}
+                >
+                  {deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="action-toolbar">
       <div className="form-input-container">

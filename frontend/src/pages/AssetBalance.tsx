@@ -162,20 +162,20 @@ export function AssetBalancePage() {
             {/* デスクトップ: aside（CSV操作・検索）右 + main（ポートフォリオ）左の2カラム */}
             <div className="flex flex-col lg:flex-row lg:gap-4 lg:items-start">
               {/* aside: CSV操作・検索 — モバイルでは先頭、デスクトップでは右カラム */}
-              <div className="shrink-0 space-y-2 lg:order-2 lg:w-72">
-                <div className="action-toolbar">
-                  <div className="form-input-container">
+              <div className="shrink-0 space-y-3 lg:order-2 lg:w-72">
+                <div className="panel-card">
+                  <div className="panel-card-header">CSV操作</div>
+                  <div className="panel-card-body space-y-2" role="group" aria-label="データ操作">
                     <CSVFileInput
                       onFileSelect={handleFileSelect}
                       selectedFileName={csvFileName ?? ''}
                       disabled={loading || saving || deleting || previewing}
                     />
-                  </div>
-                  <div className="action-button-group" role="group" aria-label="データ操作">
                     {hasCsvFile && (
                       <Button
                         variant="primary"
                         size="sm"
+                        className="w-full"
                         onClick={handleSaveToDB}
                         disabled={saving || deleting || previewing || previewRows.length === 0}
                         aria-disabled={saving || deleting || previewing || previewRows.length === 0}
@@ -183,20 +183,19 @@ export function AssetBalancePage() {
                         {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
                       </Button>
                     )}
-                  </div>
-                  {hasDbData && (
-                    <div className="ml-auto border-l border-slate-300 pl-3">
+                    {hasDbData && (
                       <Button
                         variant="outline-danger"
                         size="sm"
+                        className="w-full"
                         onClick={() => setShowDeleteConfirm(true)}
                         disabled={saving || deleting || loading}
                         aria-disabled={saving || deleting || loading}
                       >
                         {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 {error && (

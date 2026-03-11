@@ -137,6 +137,7 @@ export function ReceiptsPage() {
               authLoading={authLoading}
               saveLabel={saveLabel}
               selectedFileName={selectedFileName}
+              panelMode
               onFileSelect={handleFileSelect}
               onSave={handleSaveToDB}
               onDeleteRequest={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
