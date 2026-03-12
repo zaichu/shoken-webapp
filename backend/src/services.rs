@@ -1,4 +1,5 @@
 pub mod asset_balance;
+pub mod asset_balance_csv;
 pub mod auth;
 pub mod csv_domain;
 pub mod csv_import;
