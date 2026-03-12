@@ -29,21 +29,36 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         setIsExpanded(prev => !prev);
     };
 
-    const TONE_CLASSES: Record<KpiTone, string> = {
+    // compact モード: カード背景 + border + shadow
+    const COMPACT_BG: Record<KpiTone, string> = {
         emerald: 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]',
         red:     'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]',
         blue:    'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]',
         slate:   'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]',
     };
+    // non-compact モード: カード背景のみ
+    const NON_COMPACT_BG: Record<KpiTone, string> = {
+        emerald: 'bg-emerald-50',
+        red:     'bg-red-50',
+        blue:    'bg-blue-50',
+        slate:   'bg-slate-50',
+    };
+    // 値テキスト色（compact / non-compact 共通）
+    const TONE_VALUE_COLOR: Record<KpiTone, string> = {
+        emerald: 'text-emerald-600',
+        red:     'text-red-500',
+        blue:    'text-blue-600',
+        slate:   'text-slate-800',
+    };
 
-    const getCompactItemTone = (item: HeaderItem) => {
-        // tone prop が優先。未指定の場合は後方互換で className から推定
-        if (item.tone) return TONE_CLASSES[item.tone];
+    const resolveTone = (item: HeaderItem): KpiTone => {
+        if (item.tone) return item.tone;
+        // 後方互換: className / valueClassName から推定
         const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
-        if (token.includes('emerald')) return TONE_CLASSES.emerald;
-        if (token.includes('red'))     return TONE_CLASSES.red;
-        if (token.includes('blue'))    return TONE_CLASSES.blue;
-        return TONE_CLASSES.slate;
+        if (token.includes('emerald')) return 'emerald';
+        if (token.includes('red'))     return 'red';
+        if (token.includes('blue'))    return 'blue';
+        return 'slate';
     };
 
     if (compact) {
@@ -93,13 +108,12 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                                     key={item.title}
                                     className={cn(
                                         'rounded-[1.35rem] border px-4 py-4',
-                                        getCompactItemTone(item),
-                                        item.className,
+                                        COMPACT_BG[resolveTone(item)],
                                     )}
                                 >
                                     <p className="mb-1 text-xs font-medium text-slate-600">{item.title}</p>
                                     <p
-                                        className={cn('text-3xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                        className={cn('text-3xl font-bold tabular-nums', TONE_VALUE_COLOR[resolveTone(item)])}
                                         data-negative={item.value < 0 ? 'true' : undefined}
                                     >
                                         {item.format(item.value)}
@@ -174,11 +188,11 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                         {items.map((item) => (
                             <div
                                 key={item.title}
-                                className={cn('rounded-lg px-4 py-3', item.className ?? 'bg-slate-50')}
+                                className={cn('rounded-lg px-4 py-3', NON_COMPACT_BG[resolveTone(item)])}
                             >
                                 <p className="text-xs font-medium text-slate-600 mb-1">{item.title}</p>
                                 <p
-                                    className={cn('text-2xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                    className={cn('text-2xl font-bold tabular-nums', TONE_VALUE_COLOR[resolveTone(item)])}
                                     data-negative={item.value < 0 ? 'true' : undefined}
                                 >
                                     {item.format(item.value)}
