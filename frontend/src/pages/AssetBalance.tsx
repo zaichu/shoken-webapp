@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
+import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { CSVFileInput } from '../components/molecules/CSVFileInput';
 import { CsvSaveResultNotice } from '@/components/molecules/CsvSaveResultNotice';
@@ -160,40 +161,39 @@ export function AssetBalancePage() {
         {/* ログイン済みの場合のメインコンテンツ */}
         {!authLoading && isAuthenticated && (
           <>
-            <div
-              className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
-              data-testid="assetbalance-workspace"
-            >
-              <div className="min-w-0" data-testid="assetbalance-main-stage">
-                <div aria-live="polite" aria-atomic="true">
-                  {(loading || saving || deleting || previewing) && (
-                    <div className="status-message" role="status">
-                      <Spinner size="md" className="text-primary" />
-                      <p className="text-sm text-secondary">
-                        {loading && 'データを読み込んでいます...'}
-                        {saving && 'データを保存しています...'}
-                        {deleting && 'データを削除しています...'}
-                        {previewing && 'CSVファイルを解析しています...'}
-                      </p>
-                    </div>
+            <WorkspaceShell
+              testIdPrefix="assetbalance"
+              main={
+                <>
+                  <div aria-live="polite" aria-atomic="true">
+                    {(loading || saving || deleting || previewing) && (
+                      <div className="status-message" role="status">
+                        <Spinner size="md" className="text-primary" />
+                        <p className="text-sm text-secondary">
+                          {loading && 'データを読み込んでいます...'}
+                          {saving && 'データを保存しています...'}
+                          {deleting && 'データを削除しています...'}
+                          {previewing && 'CSVファイルを解析しています...'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
+                  {!loading && !previewing && (
+                    <AssetBalanceInfo
+                      assetBalanceData={assetBalanceData}
+                      filteredData={filteredData}
+                      searchQuery={searchQuery}
+                      onClearFilter={() => setSearchQuery('')}
+                      dividendPerShareMap={dividendPerShareMap}
+                      dividendStatusMap={dividendStatusMap}
+                    />
                   )}
-                </div>
-
-                {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
-                {!loading && !previewing && (
-                  <AssetBalanceInfo
-                    assetBalanceData={assetBalanceData}
-                    filteredData={filteredData}
-                    searchQuery={searchQuery}
-                    onClearFilter={() => setSearchQuery('')}
-                    dividendPerShareMap={dividendPerShareMap}
-                    dividendStatusMap={dividendStatusMap}
-                  />
-                )}
-              </div>
-
-              <aside data-testid="assetbalance-utility-rail">
-                <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/80 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)] backdrop-blur-sm divide-y divide-slate-200/80">
+                </>
+              }
+              rail={
+                <>
                   <section className="space-y-3 px-5 py-5" role="group" aria-label="データ操作">
                     <div className="space-y-3">
                       <CSVFileInput
@@ -251,9 +251,9 @@ export function AssetBalancePage() {
                       compact
                     />
                   )}
-                </div>
-              </aside>
-            </div>
+                </>
+              }
+            />
 
             <ConfirmDeleteModal
               isOpen={showDeleteConfirm}

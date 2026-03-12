@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { Card, CardBody } from '@/components/atoms/Card';
+import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
 import { ResizeProvider } from '@/contexts/ResizeContext';
 import { useTriggerResize } from '@/hooks/common/useResize';
 import { SearchCategories } from '@/types/common';
@@ -60,21 +61,12 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   if (layout === 'workspace') {
     return (
       <div className="space-y-2" data-testid="receipt-container">
-        <div
-          className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
-          data-testid="receipt-workspace"
-        >
-          <div className="min-w-0 space-y-4" data-testid="receipt-main-stage">
-            {header}
-            {mainCard}
-          </div>
-          <aside data-testid="receipt-utility-rail">
-            <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/80 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)] backdrop-blur-sm divide-y divide-slate-200/80">
-              {utilityRail}
-              {searchCard}
-            </div>
-          </aside>
-        </div>
+        <WorkspaceShell
+          testIdPrefix="receipt"
+          mainClassName="space-y-4"
+          main={<>{header}{mainCard}</>}
+          rail={<>{utilityRail}{searchCard}</>}
+        />
         {footer && <div>{footer}</div>}
       </div>
     );
