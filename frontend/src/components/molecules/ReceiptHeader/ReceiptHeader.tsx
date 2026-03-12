@@ -52,38 +52,45 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     };
 
     if (compact) {
+        const compactChevron = collapsible && (
+            <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
+                <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
+                <svg
+                    className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+            </span>
+        );
         return (
             <section
                 className="rounded-[2rem] border border-slate-200/90 bg-white/85 px-5 py-5 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]"
                 data-testid="receipt-summary-strip"
             >
-                <div
-                    className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
-                    onClick={collapsible ? handleToggleExpanded : undefined}
-                    onKeyDown={collapsible ? handleKeyDown : undefined}
-                    role={collapsible ? 'button' : undefined}
-                    tabIndex={collapsible ? 0 : undefined}
-                    aria-expanded={collapsible ? effectiveExpanded : undefined}
-                    aria-controls={collapsible ? bodyId : undefined}
-                    data-testid="receipt-header"
-                >
-                    <div>
-                        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+                {collapsible ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 border-b border-slate-200/80 pb-4 text-left"
+                        onClick={handleToggleExpanded}
+                        onKeyDown={handleKeyDown}
+                        aria-expanded={effectiveExpanded}
+                        aria-controls={bodyId}
+                        data-testid="receipt-header"
+                    >
+                        <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
+                        {compactChevron}
+                    </button>
+                ) : (
+                    <div
+                        className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
+                        data-testid="receipt-header"
+                    >
+                        <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
                     </div>
-                    {collapsible && (
-                        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
-                            <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
-                            <svg
-                                className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </span>
-                    )}
-                </div>
+                )}
                 <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-4">
                     {items.length > 0 && (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="kpi-grid">
@@ -117,42 +124,54 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         );
     }
 
+    const chevron = (
+        <span
+            className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
+            aria-hidden="true"
+        >
+            <span className="text-xs font-semibold text-white">
+                {effectiveExpanded ? '閉じる' : '開く'}
+            </span>
+            <svg
+                className={cn('w-4 h-4 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+            >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        </span>
+    );
+
     return (
         <Card>
             <CardHeader
                 variant="secondary"
                 className={cn(
-                    'flex items-center justify-between',
                     collapsible
-                        ? cn('cursor-pointer select-none transition-colors', effectiveExpanded ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-400 hover:bg-slate-500')
-                        : 'bg-slate-600'
+                        ? cn('p-0', effectiveExpanded ? 'bg-slate-600' : 'bg-slate-400')
+                        : 'flex items-center justify-between bg-slate-600'
                 )}
-                onClick={collapsible ? handleToggleExpanded : undefined}
-                onKeyDown={collapsible ? handleKeyDown : undefined}
-                role={collapsible ? 'button' : undefined}
-                tabIndex={collapsible ? 0 : undefined}
-                aria-expanded={collapsible ? effectiveExpanded : undefined}
-                aria-controls={collapsible ? bodyId : undefined}
-                data-testid="receipt-header"
+                data-testid={collapsible ? undefined : 'receipt-header'}
             >
-                <h5 className="text-sm font-semibold text-white">{title}</h5>
-                {collapsible && (
-                    <span
-                        className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
-                        aria-hidden="true"
+                {collapsible ? (
+                    <button
+                        type="button"
+                        className={cn(
+                            'flex w-full items-center justify-between px-4 py-2 transition-colors',
+                            effectiveExpanded ? 'hover:bg-slate-700' : 'hover:bg-slate-500',
+                        )}
+                        onClick={handleToggleExpanded}
+                        onKeyDown={handleKeyDown}
+                        aria-expanded={effectiveExpanded}
+                        aria-controls={bodyId}
+                        data-testid="receipt-header"
                     >
-                        <span className="text-xs font-semibold text-white">
-                            {effectiveExpanded ? '閉じる' : '開く'}
-                        </span>
-                        <svg
-                            className={cn('w-4 h-4 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </span>
+                        <h5 className="text-sm font-semibold text-white">{title}</h5>
+                        {chevron}
+                    </button>
+                ) : (
+                    <h5 className="text-sm font-semibold text-white">{title}</h5>
                 )}
             </CardHeader>
             {/* 折りたたみ時はhiddenで非表示（children内のstateを保持するため） */}
