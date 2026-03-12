@@ -29,14 +29,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         setIsExpanded(prev => !prev);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (!collapsible) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleToggleExpanded();
-        }
-    };
-
     const getCompactItemTone = (item: HeaderItem) => {
         const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
         if (token.includes('emerald')) {
@@ -75,7 +67,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                         type="button"
                         className="flex w-full items-start justify-between gap-3 border-b border-slate-200/80 pb-4 text-left"
                         onClick={handleToggleExpanded}
-                        onKeyDown={handleKeyDown}
                         aria-expanded={effectiveExpanded}
                         aria-controls={bodyId}
                         data-testid="receipt-header"
@@ -162,7 +153,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                             effectiveExpanded ? 'hover:bg-slate-700' : 'hover:bg-slate-500',
                         )}
                         onClick={handleToggleExpanded}
-                        onKeyDown={handleKeyDown}
                         aria-expanded={effectiveExpanded}
                         aria-controls={bodyId}
                         data-testid="receipt-header"
