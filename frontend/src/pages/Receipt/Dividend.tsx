@@ -144,22 +144,19 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
             title: '配当金',
             value: calculations.total_dividends_before_tax,
             format: formatCurrency,
-            className: 'bg-emerald-50',
-            valueClassName: 'text-emerald-600'
+            tone: 'emerald' as const,
         },
         {
             title: '税額',
             value: calculations.total_taxes,
             format: formatCurrency,
-            className: 'bg-red-50',
-            valueClassName: 'text-red-500'
+            tone: 'red' as const,
         },
         {
             title: '受取金額',
             value: calculations.total_net_amount_received,
             format: formatCurrency,
-            className: 'bg-emerald-50',
-            valueClassName: 'text-emerald-600'
+            tone: 'emerald' as const,
         }
     ];
 

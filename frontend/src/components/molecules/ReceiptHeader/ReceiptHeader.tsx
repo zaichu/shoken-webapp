@@ -1,7 +1,7 @@
 import React, { ReactNode, useId, useState } from 'react';
 import { cn } from '@/lib/utils/classNames';
 import { Card, CardHeader, CardBody } from '@/components/atoms/Card';
-import { HeaderItem } from '@/types/common';
+import { HeaderItem, KpiTone } from '@/types/common';
 
 interface ReceiptHeaderProps {
     items: HeaderItem[];
@@ -29,18 +29,21 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         setIsExpanded(prev => !prev);
     };
 
+    const TONE_CLASSES: Record<KpiTone, string> = {
+        emerald: 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]',
+        red:     'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]',
+        blue:    'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]',
+        slate:   'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]',
+    };
+
     const getCompactItemTone = (item: HeaderItem) => {
+        // tone prop が優先。未指定の場合は後方互換で className から推定
+        if (item.tone) return TONE_CLASSES[item.tone];
         const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
-        if (token.includes('emerald')) {
-            return 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]';
-        }
-        if (token.includes('red')) {
-            return 'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]';
-        }
-        if (token.includes('blue')) {
-            return 'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]';
-        }
-        return 'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]';
+        if (token.includes('emerald')) return TONE_CLASSES.emerald;
+        if (token.includes('red'))     return TONE_CLASSES.red;
+        if (token.includes('blue'))    return TONE_CLASSES.blue;
+        return TONE_CLASSES.slate;
     };
 
     if (compact) {
