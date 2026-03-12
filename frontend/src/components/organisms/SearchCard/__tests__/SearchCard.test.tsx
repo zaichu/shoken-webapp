@@ -147,8 +147,7 @@ describe('SearchCard', () => {
           securities: [],
           products: [],
           accounts: [],
-          years: [],
-          yearMonths: []
+          years: []
         }}
       />
     );
@@ -165,8 +164,7 @@ describe('SearchCard', () => {
           securities: undefined,
           products: undefined,
           accounts: undefined,
-          years: [{ value: '2024', label: '2024年' }],
-          yearMonths: undefined
+          years: [{ value: '2024', label: '2024年' }]
         }}
       />
     );
@@ -186,8 +184,7 @@ describe('SearchCard', () => {
           securities: undefined,
           products: undefined,
           accounts: undefined,
-          years: undefined,
-          yearMonths: undefined
+          years: undefined
         }}
       />
     );

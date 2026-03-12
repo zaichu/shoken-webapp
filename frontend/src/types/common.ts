@@ -19,5 +19,4 @@ export interface SearchCategories {
   products?: string[];
   accounts?: string[];
   years?: { value: string, label: string }[];
-  yearMonths?: { value: string, label: string }[];
 }

@@ -16,7 +16,6 @@ import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
-    createYearMonthOptions,
     getUniqueValues,
     FilterConfig
 } from '@/lib/utils/searchUtils';
@@ -59,8 +58,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
     const searchCategories = {
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
         accounts: getUniqueValues(domesticStockData, item => item.account),
-        years: createYearOptions(domesticStockData, item => item.trade_date),
-        yearMonths: createYearMonthOptions(domesticStockData, item => item.trade_date)
+        years: createYearOptions(domesticStockData, item => item.trade_date)
     };
 
     // 日次集計（searchQuery がある場合はフィルタ後データ、ない場合は全データを使用）

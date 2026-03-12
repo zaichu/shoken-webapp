@@ -20,7 +20,6 @@ import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
-    createYearMonthOptions,
     getUniqueValues,
     matchesYear,
     matchesYearMonth,
@@ -70,8 +69,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
         securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
         products: getUniqueValues(dividendData, item => item.product),
         accounts: getUniqueValues(dividendData, item => item.account),
-        years: createYearOptions(dividendData, item => item.settlement_date),
-        yearMonths: createYearMonthOptions(dividendData, item => item.settlement_date)
+        years: createYearOptions(dividendData, item => item.settlement_date)
     };
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
