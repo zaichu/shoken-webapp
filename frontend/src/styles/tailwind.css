@@ -96,6 +96,11 @@
 }
 
 @layer components {
+  /* 単発ページのコンテンツ面（Home・Search など） */
+  .page-surface {
+    @apply flex-1 rounded-lg border border-slate-200 bg-white p-6 shadow-sm;
+  }
+
   /* フォーム入力コンテナ（CSV入力等） */
   .form-input-container {
     @apply w-full max-w-[400px];
