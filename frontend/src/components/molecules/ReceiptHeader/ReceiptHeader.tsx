@@ -1,7 +1,7 @@
 import React, { ReactNode, useId, useState } from 'react';
 import { cn } from '@/lib/utils/classNames';
 import { Card, CardHeader, CardBody } from '@/components/atoms/Card';
-import { HeaderItem } from '@/types/common';
+import { HeaderItem, KpiTone } from '@/types/common';
 
 interface ReceiptHeaderProps {
     items: HeaderItem[];
@@ -29,19 +29,29 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         setIsExpanded(prev => !prev);
     };
 
-    const getCompactItemTone = (item: HeaderItem) => {
-        const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
-        if (token.includes('emerald')) {
-            return 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]';
-        }
-        if (token.includes('red')) {
-            return 'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]';
-        }
-        if (token.includes('blue')) {
-            return 'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]';
-        }
-        return 'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]';
+    // compact モード: カード背景 + border + shadow
+    const COMPACT_BG: Record<KpiTone, string> = {
+        emerald: 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]',
+        red:     'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]',
+        blue:    'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]',
+        slate:   'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]',
     };
+    // non-compact モード: カード背景のみ
+    const NON_COMPACT_BG: Record<KpiTone, string> = {
+        emerald: 'bg-emerald-50',
+        red:     'bg-red-50',
+        blue:    'bg-blue-50',
+        slate:   'bg-slate-50',
+    };
+    // 値テキスト色（compact / non-compact 共通）
+    const TONE_VALUE_COLOR: Record<KpiTone, string> = {
+        emerald: 'text-emerald-600',
+        red:     'text-red-500',
+        blue:    'text-blue-600',
+        slate:   'text-slate-800',
+    };
+
+    const resolveTone = (item: HeaderItem): KpiTone => item.tone ?? 'slate';
 
     if (compact) {
         const compactChevron = collapsible && (
@@ -90,13 +100,12 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                                     key={item.title}
                                     className={cn(
                                         'rounded-[1.35rem] border px-4 py-4',
-                                        getCompactItemTone(item),
-                                        item.className,
+                                        COMPACT_BG[resolveTone(item)],
                                     )}
                                 >
                                     <p className="mb-1 text-xs font-medium text-slate-600">{item.title}</p>
                                     <p
-                                        className={cn('text-3xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                        className={cn('text-3xl font-bold tabular-nums', TONE_VALUE_COLOR[resolveTone(item)])}
                                         data-negative={item.value < 0 ? 'true' : undefined}
                                     >
                                         {item.format(item.value)}
@@ -171,11 +180,11 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                         {items.map((item) => (
                             <div
                                 key={item.title}
-                                className={cn('rounded-lg px-4 py-3', item.className ?? 'bg-slate-50')}
+                                className={cn('rounded-lg px-4 py-3', NON_COMPACT_BG[resolveTone(item)])}
                             >
                                 <p className="text-xs font-medium text-slate-600 mb-1">{item.title}</p>
                                 <p
-                                    className={cn('text-2xl font-bold tabular-nums', item.valueClassName ?? 'text-slate-800')}
+                                    className={cn('text-2xl font-bold tabular-nums', TONE_VALUE_COLOR[resolveTone(item)])}
                                     data-negative={item.value < 0 ? 'true' : undefined}
                                 >
                                     {item.format(item.value)}

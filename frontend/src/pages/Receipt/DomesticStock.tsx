@@ -76,22 +76,19 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
             title: '実現損益',
             value: calculations.total_realized_profit_and_loss,
             format: formatCurrency,
-            className: 'bg-emerald-50',
-            valueClassName: 'text-emerald-600'
+            tone: 'emerald' as const,
         },
         {
             title: '税額',
             value: calculations.total_taxes,
             format: formatCurrency,
-            className: 'bg-red-50',
-            valueClassName: 'text-red-500'
+            tone: 'red' as const,
         },
         {
             title: '実現損益(税引)',
             value: calculations.total_realized_profit_and_loss_after_tax,
             format: formatCurrency,
-            className: 'bg-emerald-50',
-            valueClassName: 'text-emerald-600'
+            tone: 'emerald' as const,
         }
     ];
 
