@@ -10,10 +10,6 @@ export interface HeaderItem {
   value: number;
   format: (value: number) => string;
   tone?: KpiTone;
-  /** @deprecated tone を使用してください */
-  className?: string;
-  /** @deprecated tone を使用してください */
-  valueClassName?: string;
 }
 
 export type TableColumnAlignment = 'left' | 'center' | 'right';

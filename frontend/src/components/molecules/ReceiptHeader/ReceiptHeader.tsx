@@ -51,15 +51,7 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         slate:   'text-slate-800',
     };
 
-    const resolveTone = (item: HeaderItem): KpiTone => {
-        if (item.tone) return item.tone;
-        // 後方互換: className / valueClassName から推定
-        const token = `${item.className ?? ''} ${item.valueClassName ?? ''}`;
-        if (token.includes('emerald')) return 'emerald';
-        if (token.includes('red'))     return 'red';
-        if (token.includes('blue'))    return 'blue';
-        return 'slate';
-    };
+    const resolveTone = (item: HeaderItem): KpiTone => item.tone ?? 'slate';
 
     if (compact) {
         const compactChevron = collapsible && (
