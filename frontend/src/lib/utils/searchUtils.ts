@@ -20,26 +20,6 @@ export function createYearOptions<T>(
 }
 
 /**
- * 年月の検索オプションを生成
- */
-export function createYearMonthOptions<T>(
-  data: T[],
-  dateGetter: (item: T) => Date
-): { value: string; label: string }[] {
-  const seen = new Map<string, { value: string; label: string }>();
-  for (const item of data) {
-    const date = dateGetter(item);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const value = `${year}-${month.toString().padStart(2, '0')}`;
-    if (!seen.has(value)) {
-      seen.set(value, { value, label: `${year}年${month.toString().padStart(2, '0')}月` });
-    }
-  }
-  return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
-}
-
-/**
  * 配列から重複を除いたユニーク値を取得
  */
 export function getUniqueValues<T>(

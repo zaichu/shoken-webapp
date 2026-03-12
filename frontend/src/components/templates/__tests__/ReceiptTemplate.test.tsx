@@ -61,8 +61,7 @@ describe('ReceiptTemplate', () => {
           securities: [{ value: 'AAPL', label: 'Apple' }],
           products: ['株式'],
           accounts: ['一般口座'],
-          years: [{ value: '2024', label: '2024年' }],
-          yearMonths: [{ value: '2024-01', label: '2024年1月' }]
+          years: [{ value: '2024', label: '2024年' }]
         }}
       />
     );
