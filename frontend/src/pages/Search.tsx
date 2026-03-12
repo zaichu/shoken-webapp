@@ -39,7 +39,7 @@ export function SearchPage() {
 
   return (
     <Layout>
-      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm flex-1">
+      <div className="page-surface">
         <PageHeader
           title="銘柄検索"
           description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
