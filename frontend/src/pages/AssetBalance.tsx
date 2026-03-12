@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
+import { DataActionRail } from '@/components/organisms/DataActionRail/DataActionRail';
 import { PageHeader } from '../components/atoms/PageHeader';
-import { CSVFileInput } from '../components/molecules/CSVFileInput';
-import { CsvSaveResultNotice } from '@/components/molecules/CsvSaveResultNotice';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
@@ -194,45 +193,21 @@ export function AssetBalancePage() {
               }
               rail={
                 <>
-                  <section className="space-y-3 px-5 py-5" role="group" aria-label="データ操作">
-                    <div className="space-y-3">
-                      <CSVFileInput
-                        onFileSelect={handleFileSelect}
-                        selectedFileName={csvFileName ?? ''}
-                        disabled={loading || saving || deleting || previewing}
-                      />
-                      {hasCsvFile && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="h-11 w-full rounded-xl text-sm font-semibold"
-                          onClick={handleSaveToDB}
-                          disabled={saving || deleting || previewing || previewRows.length === 0}
-                          aria-disabled={saving || deleting || previewing || previewRows.length === 0}
-                        >
-                          {saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
-                        </Button>
-                      )}
-                      {hasDbData && (
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          className="h-11 w-full rounded-xl text-sm font-semibold"
-                          onClick={() => setShowDeleteConfirm(true)}
-                          disabled={saving || deleting || loading}
-                          aria-disabled={saving || deleting || loading}
-                        >
-                          {deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
-                        </Button>
-                      )}
-                      {lastSavedResult && (
-                        <CsvSaveResultNotice
-                          result={lastSavedResult}
-                          modeLabel="全件置換"
-                        />
-                      )}
-                    </div>
-                  </section>
+                  <DataActionRail
+                    onFileSelect={handleFileSelect}
+                    selectedFileName={csvFileName ?? ''}
+                    fileInputDisabled={loading || saving || deleting || previewing}
+                    hasCsvFile={hasCsvFile}
+                    saveLabel={saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
+                    onSave={handleSaveToDB}
+                    saveDisabled={saving || deleting || previewing || previewRows.length === 0}
+                    hasDbData={hasDbData}
+                    deleteLabel={deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
+                    onDeleteRequest={() => setShowDeleteConfirm(true)}
+                    deleteDisabled={saving || deleting || loading}
+                    saveResult={lastSavedResult}
+                    saveModeLabel="全件置換"
+                  />
 
                   {error && (
                     <div className="px-5 py-4">
