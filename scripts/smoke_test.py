@@ -9,14 +9,14 @@ usage:
     --server "bash scripts/start-local.sh" --port 8080 \
     -- python3 scripts/smoke_test.py
 
-出力先: output/smoke/
+出力先: output/smoke/  （output/ は .gitignore 対象）
+前提: frontend/.auth/storage-state.json が存在すること
 """
 
 import json
-import os
 import sys
 from pathlib import Path
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 BASE_URL = "http://127.0.0.1:8080"
 AUTH_STATE = Path(__file__).parent.parent / "frontend" / ".auth" / "storage-state.json"
@@ -36,13 +36,20 @@ def save(page, name: str) -> None:
     print(f"  保存: {path.relative_to(Path.cwd())}")
 
 
-def run_smoke(use_auth: bool) -> dict:
+def run_smoke() -> dict:
     results = {}
+    console_errors: list[str] = []
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        ctx_opts = {"storage_state": str(AUTH_STATE)} if use_auth else {}
-        ctx = browser.new_context(viewport={"width": 1920, "height": 1080}, **ctx_opts)
+        ctx = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            storage_state=str(AUTH_STATE),
+        )
         page = ctx.new_page()
+
+        # console 監視は最初に登録する（全ページ巡回中のエラーも拾う）
+        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
 
         # 各主要ページのロードとスクリーンショット
         for name, url in PAGES:
@@ -62,33 +69,36 @@ def run_smoke(use_auth: bool) -> dict:
             page.locator("button:has-text('読み込み中')").wait_for(state="hidden", timeout=15000)
             page.wait_for_load_state("networkidle", timeout=10000)
             save(page, "search-nintendo")
-            # 検索結果テーブルまたは EmptyState の存在を確認
             has_results = page.locator("table").count() > 0
             results["search-op"] = {"ok": True, "note": f"検索操作成功 (結果テーブル: {has_results})"}
         else:
             results["search-op"] = {"ok": False, "note": "検索入力欄が見つからない"}
             print("  警告: 検索入力欄が見つかりませんでした")
 
-        # コンソールエラー確認
-        errors = []
-        page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
-        page.goto(f"{BASE_URL}/", wait_until="networkidle", timeout=20000)
-        results["console_errors"] = errors
-
+        results["console_errors"] = console_errors
         browser.close()
+
     return results
 
 
 def main():
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    # auth state 必須チェック（認証必須ページを正しく検証するために必要）
+    if not AUTH_STATE.exists():
+        print(
+            f"エラー: 認証状態ファイルが見つかりません: {AUTH_STATE}\n"
+            "先に認証状態を保存してください:\n"
+            "  ./scripts/run-ui-e2e.sh --save-auth --skip-csv",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-    use_auth = AUTH_STATE.exists()
-    print(f"認証状態: {'あり' if use_auth else 'なし（未ログイン）'}")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"認証状態: {AUTH_STATE}")
     print(f"出力先: {OUTPUT_DIR}")
     print()
 
     try:
-        results = run_smoke(use_auth)
+        results = run_smoke()
     except Exception as e:
         print(f"エラー: {e}", file=sys.stderr)
         sys.exit(1)
