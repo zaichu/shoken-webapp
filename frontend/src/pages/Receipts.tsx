@@ -15,7 +15,7 @@ import {
   transformDBMutualfund,
 } from '@/features/receipt/parsers';
 import { ReceiptsTabNav, TABS, TAB_LABEL } from './ReceiptsTabNav';
-import { ReceiptsCsvToolbar } from './ReceiptsCsvToolbar';
+import { DataActionRail } from '@/components/organisms/DataActionRail/DataActionRail';
 import { ReceiptsAlerts } from './ReceiptsAlerts';
 
 /**
@@ -110,23 +110,20 @@ export function ReceiptsPage() {
 
   const utilityRail = (
     <>
-      <ReceiptsCsvToolbar
-        isAuthenticated={isAuthenticated}
-        hasCsvFile={hasCsvFile}
-        hasDbData={hasDbData}
-        dbDataCount={dbDataCount}
-        saving={saving}
-        deleting={deleting}
-        previewing={previewing}
-        dbLoading={dbLoading}
-        authLoading={authLoading}
-        saveLabel={saveLabel}
-        saveResult={importResult}
-        selectedFileName={selectedFileName}
-        panelMode
+      <DataActionRail
         onFileSelect={handleFileSelect}
+        selectedFileName={selectedFileName}
+        fileInputDisabled={dbLoading || saving || deleting || previewing || authLoading}
+        hasCsvFile={isAuthenticated && hasCsvFile}
+        saveLabel={saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
         onSave={handleSaveToDB}
+        saveDisabled={saving || deleting || previewing}
+        hasDbData={isAuthenticated && hasDbData}
+        deleteLabel={deleting ? '削除中...' : `全件削除 (${dbDataCount}件)`}
         onDeleteRequest={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true })}
+        deleteDisabled={saving || deleting || dbLoading}
+        saveResult={importResult}
+        saveModeLabel="追加保存"
       />
 
       <ReceiptsAlerts
