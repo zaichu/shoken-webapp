@@ -2,7 +2,7 @@ use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvUploadResponse};
-use crate::services::asset_balance_csv::parse_sbi_asset_balance_csv;
+use crate::services::asset_balance_csv::parse_asset_balance_csv;
 use crate::services::csv_import::finish_csv_upload;
 use crate::services::shared::BulkTimer;
 use rust_decimal::Decimal;
@@ -101,9 +101,9 @@ pub async fn bulk_create(
 }
 
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
-/// SBI証券形式: 先頭6行はメタデータのためスキップ
+/// 現在の取込対象形式では、先頭6行はメタデータのためスキップ
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    let (items, errors) = parse_sbi_asset_balance_csv(bytes)?;
+    let (items, errors) = parse_asset_balance_csv(bytes)?;
     let rows = items
         .iter()
         .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
@@ -122,7 +122,7 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let (items, errors) = parse_sbi_asset_balance_csv(bytes)?;
+    let (items, errors) = parse_asset_balance_csv(bytes)?;
     let result = bulk_create(pool, user_id, &items).await?;
     Ok(finish_csv_upload(result, errors))
 }
