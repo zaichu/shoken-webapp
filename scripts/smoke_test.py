@@ -22,11 +22,15 @@ BASE_URL = "http://127.0.0.1:8080"
 AUTH_STATE = Path(__file__).parent.parent / "frontend" / ".auth" / "storage-state.json"
 OUTPUT_DIR = Path(__file__).parent.parent / "output" / "smoke"
 
-# (ルート, 認証後に表示されるべきヘッダーテキスト)
+# (名前, URL, 認証確認セレクタ)
+# - テキスト文字列: page.locator("text=...") で確認（ページヘッダー等）
+# - CSS セレクタ（'['で始まる）: 認証後のみ描画される要素で確認（より信頼性が高い）
+# assetbalance: [data-testid="assetbalance-workspace"] は isAuthenticated 時のみ描画される
+# receipts: auth-only 要素が存在しないため、ページヘッダーテキストで代替（制約あり）
 PAGES = [
     ("home",         f"{BASE_URL}/",            "証券Webへようこそ"),
     ("search",       f"{BASE_URL}/search",       "銘柄検索"),
-    ("assetbalance", f"{BASE_URL}/assetbalance", "資産管理"),
+    ("assetbalance", f"{BASE_URL}/assetbalance", '[data-testid="assetbalance-workspace"]'),
     ("receipts",     f"{BASE_URL}/receipts",     "取引明細"),
 ]
 
@@ -40,6 +44,7 @@ def save(page, name: str) -> None:
 def run_smoke() -> dict:
     results: dict = {}
     console_errors: list[str] = []
+    page_errors: list[str] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -57,20 +62,32 @@ def run_smoke() -> dict:
                 console_errors.append(msg.text)
         page.on("console", _on_console)
 
+        # pageerror 監視（uncaught exception を拾う）
+        page.on("pageerror", lambda err: page_errors.append(str(err)))
+
         # 各主要ページのロードとコンテンツ確認
-        for name, url, expected_text in PAGES:
+        for name, url, check_selector in PAGES:
             print(f"→ {name}: {url}")
             page.goto(url, wait_until="networkidle", timeout=20000)
             save(page, name)
-            # 認証済みコンテンツ（ページヘッダーテキスト）が表示されているか確認
-            found = page.locator(f"text={expected_text}").count() > 0
-            if found:
-                results[name] = {"url": url, "ok": True, "note": f"'{expected_text}' が表示されている"}
+            # 認証済みコンテンツの確認
+            # - CSS セレクタ（'['で始まる）は locator() で検索
+            # - テキスト文字列は text= locator で検索
+            if check_selector.startswith("["):
+                found = page.locator(check_selector).count() > 0
+                label = f"{check_selector} が存在する"
             else:
-                results[name] = {"url": url, "ok": False, "note": f"'{expected_text}' が見つからない（ログインページへのリダイレクトまたはエラーの可能性）"}
-                print(f"  警告: '{expected_text}' が見つかりませんでした")
+                found = page.locator(f"text={check_selector}").count() > 0
+                label = f"'{check_selector}' が表示されている"
+            if found:
+                results[name] = {"url": url, "ok": True, "note": label}
+            else:
+                results[name] = {"url": url, "ok": False, "note": f"{label}（未検出: 認証切れまたはエラーの可能性）"}
+                print(f"  警告: {label} を確認できませんでした")
 
-        # 銘柄検索操作のスモーク（コード検索で確実に何かレスポンスが来る）
+        # 銘柄検索操作のスモーク
+        # /stock/{query} はローカル DB を検索する。結果が出れば OK、
+        # エラー（DB 未 seed など）は回帰として扱い ok: False にする
         print("→ 銘柄検索: '7974' で検索")
         page.goto(f"{BASE_URL}/search", wait_until="networkidle", timeout=20000)
         search_input = page.locator("input[placeholder*='銘柄']").first
@@ -81,14 +98,14 @@ def run_smoke() -> dict:
             page.locator("button:has-text('検索')").wait_for(state="visible", timeout=15000)
             page.wait_for_load_state("networkidle", timeout=10000)
             save(page, "search-7974")
-            # 結果テーブル or エラーメッセージが表示されているか確認
             has_table = page.locator("table").count() > 0
             has_error = page.locator("text=エラー").count() > 0
             if has_table:
                 results["search-op"] = {"ok": True, "note": "検索結果テーブルが表示された"}
             elif has_error:
-                # エラー表示は外部 API 不通によるもの。UI は正常動作
-                results["search-op"] = {"ok": True, "note": "API エラー表示（UI は正常動作）"}
+                # /stock/{query} はローカル DB を参照するため、エラーは DB 未 seed の可能性がある
+                results["search-op"] = {"ok": False, "note": "エラー表示（ローカル DB に銘柄データが未登録の可能性）"}
+                print("  警告: 検索結果がエラー表示です（'stock' テーブルに seed データが必要かもしれません）")
             else:
                 results["search-op"] = {"ok": False, "note": "検索後に結果もエラーも表示されない（未応答の可能性）"}
                 print("  警告: 検索後の状態が不明です")
@@ -97,6 +114,7 @@ def run_smoke() -> dict:
             print("  警告: 検索入力欄が見つかりませんでした")
 
         results["console_errors"] = console_errors
+        results["page_errors"] = page_errors
         browser.close()
 
     return results
@@ -137,6 +155,11 @@ def main():
             if val:
                 print(f"  ✗ console_errors ({len(val)}件): {val[:3]}")
                 failed.append("console_errors")
+            continue
+        if key == "page_errors":
+            if val:
+                print(f"  ✗ page_errors ({len(val)}件): {val[:3]}")
+                failed.append("page_errors")
             continue
         status = "✓" if val.get("ok") else "✗"
         note = val.get("note", val.get("title", ""))
