@@ -18,8 +18,12 @@ import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://127.0.0.1:8080"
-AUTH_STATE = Path(__file__).parent.parent / "frontend" / ".auth" / "storage-state.json"
+import os
+
+# 環境変数で上書き可能（run-ui-e2e.sh の FRONTEND_URL / STORAGE_STATE と整合させる）
+BASE_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:8080")
+_default_auth = Path(__file__).parent.parent / "frontend" / ".auth" / "storage-state.json"
+AUTH_STATE = Path(os.environ.get("STORAGE_STATE", str(_default_auth)))
 OUTPUT_DIR = Path(__file__).parent.parent / "output" / "smoke"
 
 # (名前, URL, 確認セレクタ)
@@ -152,9 +156,11 @@ def run_smoke() -> dict:
         if search_input.count() > 0:
             search_input.fill("7974")
             page.locator("button:has-text('検索')").click()
-            # 検索ボタンがクリック可能に戻るまで待つ（loading 解除 = API 応答完了）
-            page.locator("button:has-text('検索')").wait_for(state="visible", timeout=15000)
-            page.wait_for_load_state("networkidle", timeout=10000)
+            # ボタンテキストが完全に "検索" に戻るまで待つ
+            # has-text は部分一致のため "検索中..." にもマッチしてしまう
+            # text-is で完全一致させることで loading 中の誤判定を防ぐ
+            # ローディング中は "検索中..." でリトライ中も isLoading=true のまま変わらない
+            page.locator("button:text-is('検索')").wait_for(state="visible", timeout=30000)
             save(page, "search-7974")
             has_table = page.locator("table").count() > 0
             last = stock_responses[-1] if stock_responses else None
