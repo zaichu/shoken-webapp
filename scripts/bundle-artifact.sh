@@ -45,13 +45,18 @@ echo "🧹 Cleaning previous build..."
 rm -rf dist bundle.html
 
 # Parcel は /xxx をプロジェクトルート相対で解決するため、
-# public/ 配下のファイルをルートに一時コピーし、終了時（成功・失敗問わず）に削除する
-# public/ の内容を常に上書きコピーすることで、root に同名ファイルがあっても正しいアセットを使う
+# public/ 配下をルートに一時コピーする。root に同名ファイルが既にある場合は退避し、
+# 終了時（成功・失敗問わず）にコピーを削除して退避ファイルを復元する
 PUBLIC_COPIES=()
+BACKUP_DIR=""
 if [ -d "public" ]; then
+  BACKUP_DIR=$(mktemp -d)
   for src in public/*; do
     [ -e "$src" ] || continue
     dest=$(basename "$src")
+    if [ -e "$dest" ]; then
+      mv "$dest" "$BACKUP_DIR/$dest"
+    fi
     cp -r "$src" "$dest"
     PUBLIC_COPIES+=("$dest")
   done
@@ -60,7 +65,11 @@ fi
 cleanup() {
   for f in "${PUBLIC_COPIES[@]+"${PUBLIC_COPIES[@]}"}"; do
     rm -rf "$f"
+    if [ -n "$BACKUP_DIR" ] && [ -e "$BACKUP_DIR/$f" ]; then
+      mv "$BACKUP_DIR/$f" "$f"
+    fi
   done
+  [ -n "$BACKUP_DIR" ] && rm -rf "$BACKUP_DIR"
 }
 trap cleanup EXIT
 
