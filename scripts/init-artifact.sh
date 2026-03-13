@@ -39,11 +39,18 @@ fi
 
 # Check if project name is provided
 if [ -z "$1" ]; then
-  echo "❌ Usage: ./create-react-shadcn-complete.sh <project-name>"
+  echo "❌ Usage: ./init-artifact.sh <project-name>"
   exit 1
 fi
 
 PROJECT_NAME="$1"
+
+# プロジェクト名にパス区切り文字が含まれる場合は拒否（sed やパス操作が壊れるため）
+if [[ "$PROJECT_NAME" =~ [/\\] ]]; then
+  echo "❌ Error: project name must be a simple name without path separators."
+  echo "   Use: ./init-artifact.sh my-project"
+  exit 1
+fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPONENTS_TARBALL="$SCRIPT_DIR/shadcn-components.tar.gz"
 

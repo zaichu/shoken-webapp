@@ -46,15 +46,14 @@ rm -rf dist bundle.html
 
 # Parcel は /xxx をプロジェクトルート相対で解決するため、
 # public/ 配下のファイルをルートに一時コピーし、終了時（成功・失敗問わず）に削除する
+# public/ の内容を常に上書きコピーすることで、root に同名ファイルがあっても正しいアセットを使う
 PUBLIC_COPIES=()
 if [ -d "public" ]; then
   for src in public/*; do
     [ -e "$src" ] || continue
     dest=$(basename "$src")
-    if [ ! -e "$dest" ]; then
-      cp -r "$src" "$dest"
-      PUBLIC_COPIES+=("$dest")
-    fi
+    cp -r "$src" "$dest"
+    PUBLIC_COPIES+=("$dest")
   done
 fi
 
