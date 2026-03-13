@@ -22,11 +22,12 @@ BASE_URL = "http://127.0.0.1:8080"
 AUTH_STATE = Path(__file__).parent.parent / "frontend" / ".auth" / "storage-state.json"
 OUTPUT_DIR = Path(__file__).parent.parent / "output" / "smoke"
 
+# (ルート, 認証後に表示されるべきヘッダーテキスト)
 PAGES = [
-    ("home",          f"{BASE_URL}/"),
-    ("search",        f"{BASE_URL}/search"),
-    ("assetbalance",  f"{BASE_URL}/assetbalance"),
-    ("receipts",      f"{BASE_URL}/receipts"),
+    ("home",         f"{BASE_URL}/",            "証券Webへようこそ"),
+    ("search",       f"{BASE_URL}/search",       "銘柄検索"),
+    ("assetbalance", f"{BASE_URL}/assetbalance", "資産管理"),
+    ("receipts",     f"{BASE_URL}/receipts",     "取引明細"),
 ]
 
 
@@ -37,7 +38,7 @@ def save(page, name: str) -> None:
 
 
 def run_smoke() -> dict:
-    results = {}
+    results: dict = {}
     console_errors: list[str] = []
 
     with sync_playwright() as p:
@@ -49,28 +50,48 @@ def run_smoke() -> dict:
         page = ctx.new_page()
 
         # console 監視は最初に登録する（全ページ巡回中のエラーも拾う）
-        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+        # "Failed to load resource" はネットワーク失敗（外部 API 不通など）なので除外し、
+        # JS アプリケーション側のエラーのみを対象にする
+        def _on_console(msg):
+            if msg.type == "error" and "Failed to load resource" not in msg.text:
+                console_errors.append(msg.text)
+        page.on("console", _on_console)
 
-        # 各主要ページのロードとスクリーンショット
-        for name, url in PAGES:
+        # 各主要ページのロードとコンテンツ確認
+        for name, url, expected_text in PAGES:
             print(f"→ {name}: {url}")
             page.goto(url, wait_until="networkidle", timeout=20000)
             save(page, name)
-            results[name] = {"url": url, "title": page.title(), "ok": True}
+            # 認証済みコンテンツ（ページヘッダーテキスト）が表示されているか確認
+            found = page.locator(f"text={expected_text}").count() > 0
+            if found:
+                results[name] = {"url": url, "ok": True, "note": f"'{expected_text}' が表示されている"}
+            else:
+                results[name] = {"url": url, "ok": False, "note": f"'{expected_text}' が見つからない（ログインページへのリダイレクトまたはエラーの可能性）"}
+                print(f"  警告: '{expected_text}' が見つかりませんでした")
 
-        # 銘柄検索操作のスモーク
-        print("→ 銘柄検索: '任天堂' を検索")
+        # 銘柄検索操作のスモーク（コード検索で確実に何かレスポンスが来る）
+        print("→ 銘柄検索: '7974' で検索")
         page.goto(f"{BASE_URL}/search", wait_until="networkidle", timeout=20000)
         search_input = page.locator("input[placeholder*='銘柄']").first
         if search_input.count() > 0:
-            search_input.fill("任天堂")
+            search_input.fill("7974")
             page.locator("button:has-text('検索')").click()
-            # 「読み込み中」ボタンが消えるまで待つ（外部 API 応答待ち）
-            page.locator("button:has-text('読み込み中')").wait_for(state="hidden", timeout=15000)
+            # 検索ボタンがクリック可能に戻るまで待つ（loading 解除 = API 応答完了）
+            page.locator("button:has-text('検索')").wait_for(state="visible", timeout=15000)
             page.wait_for_load_state("networkidle", timeout=10000)
-            save(page, "search-nintendo")
-            has_results = page.locator("table").count() > 0
-            results["search-op"] = {"ok": True, "note": f"検索操作成功 (結果テーブル: {has_results})"}
+            save(page, "search-7974")
+            # 結果テーブル or エラーメッセージが表示されているか確認
+            has_table = page.locator("table").count() > 0
+            has_error = page.locator("text=エラー").count() > 0
+            if has_table:
+                results["search-op"] = {"ok": True, "note": "検索結果テーブルが表示された"}
+            elif has_error:
+                # エラー表示は外部 API 不通によるもの。UI は正常動作
+                results["search-op"] = {"ok": True, "note": "API エラー表示（UI は正常動作）"}
+            else:
+                results["search-op"] = {"ok": False, "note": "検索後に結果もエラーも表示されない（未応答の可能性）"}
+                print("  警告: 検索後の状態が不明です")
         else:
             results["search-op"] = {"ok": False, "note": "検索入力欄が見つからない"}
             print("  警告: 検索入力欄が見つかりませんでした")
@@ -114,7 +135,8 @@ def main():
     for key, val in results.items():
         if key == "console_errors":
             if val:
-                print(f"  コンソールエラー ({len(val)}件): {val[:3]}")
+                print(f"  ✗ console_errors ({len(val)}件): {val[:3]}")
+                failed.append("console_errors")
             continue
         status = "✓" if val.get("ok") else "✗"
         note = val.get("note", val.get("title", ""))
