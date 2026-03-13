@@ -8,20 +8,14 @@ NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
 
 echo "🔍 Detected Node.js version: $NODE_VERSION"
 
-if [ "$NODE_VERSION" -lt 18 ]; then
-  echo "❌ Error: Node.js 18 or higher is required"
+if [ "$NODE_VERSION" -lt 20 ]; then
+  echo "❌ Error: Node.js 20 or higher is required"
   echo "   Current version: $(node -v)"
+  echo "   Note: vite@8 and @vitejs/plugin-react@6 require Node 20+"
   exit 1
 fi
 
-# Set Vite version based on Node version
-if [ "$NODE_VERSION" -ge 20 ]; then
-  VITE_VERSION="latest"
-  echo "✅ Using Vite latest (Node 20+)"
-else
-  VITE_VERSION="5.4.11"
-  echo "✅ Using Vite $VITE_VERSION (Node 18 compatible)"
-fi
+echo "✅ Node.js $NODE_VERSION: OK"
 
 # Detect OS and set sed syntax
 if [[ "$OSTYPE" == "darwin"* ]]; then

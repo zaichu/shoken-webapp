@@ -17,7 +17,7 @@ if [ ! -f "index.html" ]; then
 fi
 
 # Install bundling dependencies（既にインストール済みならスキップ）
-if ! pnpm list parcel html-inline --depth=0 2>/dev/null | grep -q "parcel "; then
+if [ ! -d "node_modules/parcel" ] || [ ! -d "node_modules/html-inline" ]; then
   echo "📦 Installing bundling dependencies..."
   pnpm add -D parcel @parcel/config-default parcel-resolver-tspaths html-inline
 else
