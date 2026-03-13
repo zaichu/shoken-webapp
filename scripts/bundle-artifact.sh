@@ -19,6 +19,8 @@ fi
 # Install bundling dependencies（既にインストール済みならスキップ）
 if [ ! -d "node_modules/parcel" ] || [ ! -d "node_modules/html-inline" ]; then
   echo "📦 Installing bundling dependencies..."
+  # pnpm ストアの不整合（ERR_PNPM_UNEXPECTED_STORE）を解消してから追加する
+  pnpm install
   pnpm add -D parcel @parcel/config-default parcel-resolver-tspaths html-inline
 else
   echo "📦 Bundling dependencies already installed, skipping."
