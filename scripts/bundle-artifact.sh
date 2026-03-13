@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# pnpm を non-TTY 環境（CI・エージェント）でも動作させる
+export CI=true
+
 echo "📦 Bundling React app to single HTML artifact..."
 
 # Check if we're in a project directory

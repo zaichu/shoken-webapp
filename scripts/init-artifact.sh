@@ -265,7 +265,7 @@ EOF
 # Install all shadcn/ui dependencies
 echo "📦 Installing shadcn/ui dependencies..."
 pnpm install @radix-ui/react-accordion @radix-ui/react-aspect-ratio @radix-ui/react-avatar @radix-ui/react-checkbox @radix-ui/react-collapsible @radix-ui/react-context-menu @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-hover-card @radix-ui/react-label @radix-ui/react-menubar @radix-ui/react-navigation-menu @radix-ui/react-popover @radix-ui/react-progress @radix-ui/react-radio-group @radix-ui/react-scroll-area @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slider @radix-ui/react-slot @radix-ui/react-switch @radix-ui/react-tabs @radix-ui/react-toast @radix-ui/react-toggle @radix-ui/react-toggle-group @radix-ui/react-tooltip
-pnpm install sonner cmdk vaul embla-carousel-react react-day-picker react-resizable-panels date-fns react-hook-form @hookform/resolvers zod
+pnpm install sonner cmdk vaul embla-carousel-react react-day-picker date-fns react-hook-form @hookform/resolvers zod
 
 # Extract shadcn components from tarball
 echo "📦 Extracting shadcn/ui components..."
@@ -340,7 +340,7 @@ echo "  - accordion, alert, aspect-ratio, avatar, badge, breadcrumb"
 echo "  - button, calendar, card, carousel, checkbox, collapsible"
 echo "  - command, context-menu, dialog, drawer, dropdown-menu"
 echo "  - form, hover-card, input, label, menubar, navigation-menu"
-echo "  - popover, progress, radio-group, resizable, scroll-area"
+echo "  - popover, progress, radio-group, scroll-area"
 echo "  - select, separator, sheet, skeleton, slider, sonner"
 echo "  - switch, table, tabs, textarea, toast, toggle, toggle-group, tooltip"
 echo ""
