@@ -94,13 +94,23 @@ def run_smoke() -> dict:
                 print(f"  警告: {label} を確認できませんでした")
 
         # 銘柄検索操作のスモーク
-        # /stock/{query} はローカル DB を参照する。seed が入っていれば結果テーブルを確認できる。
-        # ローカル開発手順では stock テーブルの初期 seed が含まれていないため、
-        # エラー表示は「DB 未 seed」として warning 扱い（ok: True）にする。
-        # UI が完全に無応答（結果もエラーも出ない）場合のみ ok: False とする。
+        # /stock/{query} はローカル DB を参照する。
+        # フロントエンドの catch ブロックが全 Axios エラーを同じメッセージで包むため
+        # UI テキストでは 404 と 5xx を区別できない。
+        # ネットワーク応答のステータスコードで判定する:
+        #   404 → stock テーブル未 seed（ローカル開発での想定範囲内）→ warning (ok: True)
+        #   5xx → バックエンド異常 → ok: False
         print("→ 銘柄検索: '7974' で検索")
         page.goto(f"{BASE_URL}/search", wait_until="networkidle", timeout=20000)
         search_input = page.locator("input[placeholder*='銘柄']").first
+
+        stock_response_status: list[int] = []
+
+        def _on_response(response):
+            if "/stock/" in response.url:
+                stock_response_status.append(response.status)
+        page.on("response", _on_response)
+
         if search_input.count() > 0:
             search_input.fill("7974")
             page.locator("button:has-text('検索')").click()
@@ -109,16 +119,24 @@ def run_smoke() -> dict:
             page.wait_for_load_state("networkidle", timeout=10000)
             save(page, "search-7974")
             has_table = page.locator("table").count() > 0
-            has_error = page.locator("text=エラー").count() > 0
+            status = stock_response_status[-1] if stock_response_status else None
             if has_table:
-                results["search-op"] = {"ok": True, "note": "検索結果テーブルが表示された"}
-            elif has_error:
-                # stock テーブル未 seed 環境では 404 になるため warning 扱い
-                results["search-op"] = {"ok": True, "note": "エラー表示（stock テーブル未 seed の可能性。UI は正常応答）"}
-                print("  警告: 検索結果がエラー表示です（stock テーブルに seed データが必要かもしれません）")
+                results["search-op"] = {"ok": True, "note": f"検索結果テーブルが表示された (HTTP {status})"}
+            elif status == 404:
+                # 404: stock テーブル未 seed のローカル環境では想定範囲内
+                results["search-op"] = {"ok": True, "note": "銘柄未検出（stock テーブル未 seed の可能性。UI は正常応答）"}
+                print("  警告: 銘柄コード '7974' が見つかりません（stock テーブルに seed データが必要かもしれません）")
+            elif status is not None and status >= 500:
+                results["search-op"] = {"ok": False, "note": f"バックエンドエラー (HTTP {status}) が返された"}
+                print(f"  失敗: /stock/7974 が HTTP {status} を返しました")
             else:
-                results["search-op"] = {"ok": False, "note": "検索後に結果もエラーも表示されない（UI が無応答の可能性）"}
-                print("  警告: 検索後の状態が不明です")
+                has_error = page.locator("text=エラー").count() > 0
+                if has_error:
+                    results["search-op"] = {"ok": False, "note": f"エラー表示（API ステータス: {status}）"}
+                    print(f"  失敗: 検索でエラーが表示されました（HTTP {status}）")
+                else:
+                    results["search-op"] = {"ok": False, "note": "検索後に結果もエラーも表示されない（UI が無応答の可能性）"}
+                    print("  警告: 検索後の状態が不明です")
         else:
             results["search-op"] = {"ok": False, "note": "検索入力欄が見つからない"}
             print("  警告: 検索入力欄が見つかりませんでした")
