@@ -66,6 +66,23 @@ def run_smoke() -> dict:
         # pageerror 監視（uncaught exception を拾う）
         page.on("pageerror", lambda err: page_errors.append(str(err)))
 
+        # 認証確認: ヘッダーのユーザーメニューボタンは isAuthenticated && user 時のみ描画
+        # （Header.tsx:118）。これが見えなければセッション期限切れとして全ページ失敗扱いにする
+        print("→ 認証確認: ユーザーメニューボタンの有無を確認")
+        page.goto(f"{BASE_URL}/", wait_until="networkidle", timeout=20000)
+        try:
+            page.wait_for_selector('[aria-controls="user-menu"]', state="visible", timeout=10000)
+        except Exception:
+            pass
+        if page.locator('[aria-controls="user-menu"]').count() == 0:
+            for name, url, _ in PAGES:
+                results[name] = {"url": url, "ok": False, "note": "認証切れのため未検証"}
+            results["console_errors"] = console_errors
+            results["page_errors"] = page_errors
+            browser.close()
+            return results
+        print("  認証: ユーザーメニューボタンを確認")
+
         # 各主要ページのロードとコンテンツ確認
         for name, url, check_selector in PAGES:
             print(f"→ {name}: {url}")
