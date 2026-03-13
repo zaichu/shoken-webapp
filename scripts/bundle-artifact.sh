@@ -41,21 +41,30 @@ fi
 echo "🧹 Cleaning previous build..."
 rm -rf dist bundle.html
 
-# Parcel は /favicon.svg をプロジェクトルート相対で探すため一時コピーを作成
-FAVICON_COPIED=0
-if [ -f "public/favicon.svg" ] && [ ! -f "favicon.svg" ]; then
-  cp public/favicon.svg favicon.svg
-  FAVICON_COPIED=1
+# Parcel は /xxx をプロジェクトルート相対で解決するため、
+# public/ 配下のファイルをルートに一時コピーし、終了時（成功・失敗問わず）に削除する
+PUBLIC_COPIES=()
+if [ -d "public" ]; then
+  for src in public/*; do
+    [ -e "$src" ] || continue
+    dest=$(basename "$src")
+    if [ ! -e "$dest" ]; then
+      cp "$src" "$dest"
+      PUBLIC_COPIES+=("$dest")
+    fi
+  done
 fi
+
+cleanup() {
+  for f in "${PUBLIC_COPIES[@]+"${PUBLIC_COPIES[@]}"}"; do
+    rm -f "$f"
+  done
+}
+trap cleanup EXIT
 
 # Build with Parcel
 echo "🔨 Building with Parcel..."
 pnpm exec parcel build index.html --dist-dir dist --no-source-maps
-
-# 一時コピーを削除
-if [ "$FAVICON_COPIED" -eq 1 ]; then
-  rm -f favicon.svg
-fi
 
 # Inline everything into single HTML
 echo "🎯 Inlining all assets into single HTML file..."
