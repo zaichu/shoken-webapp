@@ -79,19 +79,29 @@ def run_smoke() -> dict:
                     pass  # タイムアウト時は count() で false を検出して失敗として記録
             save(page, name)
             # コンテンツ確認
-            # - CSS セレクタ（'['で始まる）は locator() で検索
+            # - CSS セレクタ（'['で始まる）は locator() で検索 + role="alert" の不在も確認
+            #   （workspace/card は API エラー時でも描画されるため、エラーアラートの不在が必要）
             # - テキスト文字列は text= locator で検索
             if check_selector.startswith("["):
                 found = page.locator(check_selector).count() > 0
+                has_api_error = page.locator('[role="alert"]').count() > 0
                 label = f"{check_selector} が存在する"
+                if found and not has_api_error:
+                    results[name] = {"url": url, "ok": True, "note": label}
+                elif found and has_api_error:
+                    results[name] = {"url": url, "ok": False, "note": f"{label}（API エラーアラートが表示されている）"}
+                    print(f"  失敗: {name} で API エラーアラートが検出されました")
+                else:
+                    results[name] = {"url": url, "ok": False, "note": f"{label}（未検出: 認証切れまたはエラーの可能性）"}
+                    print(f"  警告: {label} を確認できませんでした")
             else:
                 found = page.locator(f"text={check_selector}").count() > 0
                 label = f"'{check_selector}' が表示されている"
-            if found:
-                results[name] = {"url": url, "ok": True, "note": label}
-            else:
-                results[name] = {"url": url, "ok": False, "note": f"{label}（未検出: 認証切れまたはエラーの可能性）"}
-                print(f"  警告: {label} を確認できませんでした")
+                if found:
+                    results[name] = {"url": url, "ok": True, "note": label}
+                else:
+                    results[name] = {"url": url, "ok": False, "note": f"{label}（未検出: 認証切れまたはエラーの可能性）"}
+                    print(f"  警告: {label} を確認できませんでした")
 
         # 銘柄検索操作のスモーク
         # /stock/{query} はローカル DB を参照する。
