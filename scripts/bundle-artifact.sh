@@ -60,7 +60,7 @@ fi
 
 cleanup() {
   for f in "${PUBLIC_COPIES[@]+"${PUBLIC_COPIES[@]}"}"; do
-    rm -f "$f"
+    rm -rf "$f"
   done
 }
 trap cleanup EXIT

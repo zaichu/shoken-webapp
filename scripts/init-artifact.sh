@@ -17,11 +17,11 @@ fi
 
 echo "✅ Node.js $NODE_VERSION: OK"
 
-# Detect OS and set sed syntax
+# Detect OS and set sed syntax（配列で保持することで '' が literal にならない）
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  SED_INPLACE="sed -i ''"
+  SED_INPLACE=("sed" "-i" "")
 else
-  SED_INPLACE="sed -i"
+  SED_INPLACE=("sed" "-i")
 fi
 
 # Check if pnpm is installed
@@ -63,8 +63,8 @@ echo "" | pnpm create vite "$PROJECT_NAME" --template react-ts
 cd "$PROJECT_NAME"
 
 echo "🧹 Cleaning up Vite template..."
-$SED_INPLACE '/<link rel="icon".*vite\.svg/d' index.html
-$SED_INPLACE 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
+"${SED_INPLACE[@]}" '/<link rel="icon".*vite\.svg/d' index.html
+"${SED_INPLACE[@]}" 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
 
 echo "📦 Installing base dependencies..."
 pnpm install
