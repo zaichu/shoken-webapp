@@ -20,4 +20,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui コンポーネントは CVA 等の非コンポーネント値も export するため
+    // react-refresh のルールを除外する
+    files: ['src/components/ui/**/*.{ts,tsx}', 'src/hooks/use-toast.ts'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
 ])
