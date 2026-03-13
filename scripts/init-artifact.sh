@@ -50,7 +50,7 @@ fi
 echo "🚀 Creating new React + Vite project: $PROJECT_NAME"
 
 # Create new Vite project (always use latest create-vite, pin vite version later)
-pnpm create vite "$PROJECT_NAME" --template react-ts
+echo "" | pnpm create vite "$PROJECT_NAME" --template react-ts
 
 # Navigate into project directory
 cd "$PROJECT_NAME"
@@ -61,12 +61,6 @@ $SED_INPLACE 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.htm
 
 echo "📦 Installing base dependencies..."
 pnpm install
-
-# Pin Vite version for Node 18
-if [ "$NODE_VERSION" -lt 20 ]; then
-  echo "📌 Pinning Vite to $VITE_VERSION for Node 18 compatibility..."
-  pnpm add -D vite@$VITE_VERSION
-fi
 
 echo "📦 Installing Tailwind CSS and dependencies..."
 pnpm install -D tailwindcss@3.4.1 postcss autoprefixer @types/node tailwindcss-animate
@@ -269,6 +263,43 @@ pnpm install sonner cmdk vaul embla-carousel-react react-day-picker react-resiza
 # Extract shadcn components from tarball
 echo "📦 Extracting shadcn/ui components..."
 tar -xzf "$COMPONENTS_TARBALL" -C src/
+
+# Update eslint.config.js to disable react-refresh rules for shadcn/ui files
+echo "🔧 Updating ESLint config for shadcn/ui components..."
+cat > eslint.config.js << 'EOF'
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+  },
+  {
+    // shadcn/ui コンポーネントは CVA 等の非コンポーネント値も export するため
+    // react-refresh のルールを除外する
+    files: ['src/components/ui/**/*.{ts,tsx}', 'src/hooks/use-toast.ts'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+])
+EOF
 
 # Create components.json for reference
 echo "📝 Creating components.json config..."
