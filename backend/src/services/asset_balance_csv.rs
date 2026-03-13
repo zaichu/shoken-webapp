@@ -6,13 +6,13 @@ use csv::StringRecord;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 
-/// SBI証券CSV bytes をデコード・ヘッダースキップ・パース・フィルタして返す
+/// 保有銘柄 CSV bytes をデコード・ヘッダースキップ・パース・フィルタして返す
 /// preview / upload の共通前処理経路
-pub(crate) fn parse_sbi_asset_balance_csv(
+pub(crate) fn parse_asset_balance_csv(
     bytes: &[u8],
 ) -> Result<(Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>), crate::errors::ApiError> {
     let content = decode_bytes(bytes);
-    let stripped = strip_sbi_header(&content);
+    let stripped = strip_asset_balance_csv_metadata(&content);
     let filtered = strip_account_summary_rows(&stripped);
     let (items, errors) = parse_csv(filtered.as_bytes(), parse_asset_balance_row)?;
     let items = items
@@ -22,8 +22,8 @@ pub(crate) fn parse_sbi_asset_balance_csv(
     Ok((items, errors))
 }
 
-/// SBI証券CSVの先頭6行（メタデータ）をスキップした文字列を返す
-fn strip_sbi_header(content: &str) -> String {
+/// 保有銘柄 CSV の先頭6行（メタデータ）をスキップした文字列を返す
+fn strip_asset_balance_csv_metadata(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
     if lines.len() > 6 {
         lines[6..].join("\n")
@@ -32,7 +32,7 @@ fn strip_sbi_header(content: &str) -> String {
     }
 }
 
-/// SBI証券CSVに混ざる「特定口座合計」などの口座集計行を除外する
+/// 保有銘柄 CSV に混ざる「特定口座合計」などの口座集計行を除外する
 ///
 /// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
 /// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
@@ -44,7 +44,7 @@ fn strip_account_summary_rows(content: &str) -> String {
         .join("\n")
 }
 
-/// SBI証券CSVの1行をパースして CreateAssetBalanceRequest に変換
+/// 保有銘柄 CSV の1行をパースして CreateAssetBalanceRequest に変換
 ///
 /// 数値パース失敗は CsvRowError として返す。
 /// ただし以下の列は "-" / 空欄が仕様上ありうるため 0.0 フォールバックを維持する:
@@ -113,7 +113,7 @@ mod tests {
 
     const HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
-    const SBI_HEADER: &str =
+    const ASSET_BALANCE_CSV_HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
 
     #[test]
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_sbi_asset_balance_csv_skips_empty_rows() {
+    fn test_parse_asset_balance_csv_skips_empty_rows() {
         let csv = [
             "■現在の評価額合計［円］,,\"3,588,300\"",
             "■評価損益合計,前日比［円］,\"59,700\"",
@@ -184,14 +184,14 @@ mod tests {
             ",評価損益［円］,\"684,900\"",
             "■特定口座",
             "",
-            SBI_HEADER,
+            ASSET_BALANCE_CSV_HEADER,
             "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67",
             ",,,,,,,,,,,",
             "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56",
         ]
         .join("\n");
 
-        let (items, errors) = parse_sbi_asset_balance_csv(csv.as_bytes()).unwrap();
+        let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
 
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 2);
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_sbi_asset_balance_csv_skips_account_summary_rows() {
+    fn test_parse_asset_balance_csv_skips_account_summary_rows() {
         let csv = [
             "■現在の評価額合計［円］,,\"9,474,000\"",
             "■評価損益合計,前日比［円］,\"288,000\"",
@@ -208,14 +208,14 @@ mod tests {
             ",評価損益［円］,\"2,005,900\"",
             "■特定口座",
             "",
-            SBI_HEADER,
+            ASSET_BALANCE_CSV_HEADER,
             "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
             "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
             ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
         ]
         .join("\n");
 
-        let (items, errors) = parse_sbi_asset_balance_csv(csv.as_bytes()).unwrap();
+        let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
 
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 2);

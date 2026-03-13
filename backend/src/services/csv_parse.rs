@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_decode_bytes_shift_jis() {
         use encoding_rs::SHIFT_JIS;
-        // SBI CSV は Shift-JIS で出力されるため、フォールバック経路が正しく動作するか確認
+        // 証券会社の CSV は Shift-JIS で出力されることがあるため、フォールバック経路を確認
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
     }
@@ -294,7 +294,7 @@ mod tests {
         );
 
         // ── Shift-JIS CSV（1,000 行）の decode_bytes タイミング ──────────────
-        // SBI CSV は実際に Shift-JIS で出力されるため、フォールバック経路を計測する
+        // 証券会社の CSV は Shift-JIS の場合があるため、フォールバック経路を計測する
         let (bytes_sjis, _, _) = SHIFT_JIS.encode(&csv_utf8);
         let bytes_sjis = bytes_sjis.into_owned();
 

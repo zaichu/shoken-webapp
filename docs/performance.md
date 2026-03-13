@@ -62,7 +62,7 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
 
 ### 中
 - **Shift-JIS デコード**: `decode_bytes()` は UTF-8 を先に試みてエラー時のみ SHIFT_JIS に
-  フォールバックする。SBI CSV は実際に Shift-JIS のため、毎回フォールバックが発生している。
+  フォールバックする。証券会社の CSV は Shift-JIS の場合があり、フォールバックが発生しうる。
   先に BOM や先頭バイトでエンコーディングを判定する改善余地がある。
 
 ### 低
