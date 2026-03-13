@@ -52,7 +52,7 @@ if [ -d "public" ]; then
     [ -e "$src" ] || continue
     dest=$(basename "$src")
     if [ ! -e "$dest" ]; then
-      cp "$src" "$dest"
+      cp -r "$src" "$dest"
       PUBLIC_COPIES+=("$dest")
     fi
   done

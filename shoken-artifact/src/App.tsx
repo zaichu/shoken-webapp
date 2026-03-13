@@ -30,7 +30,7 @@ function App() {
   const totalValue = STOCKS.reduce((sum, s) => sum + s.currentPrice * s.shares, 0)
   const totalCost = STOCKS.reduce((sum, s) => sum + s.avgPrice * s.shares, 0)
   const totalPnl = totalValue - totalCost
-  const totalPnlRate = (totalPnl / totalCost) * 100
+  const totalPnlRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0
 
   return (
     <div className="min-h-screen bg-gray-50">

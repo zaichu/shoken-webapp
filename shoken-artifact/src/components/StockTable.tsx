@@ -46,7 +46,7 @@ export function StockTable({ stocks }: Props) {
             const value = s.currentPrice * s.shares
             const cost = s.avgPrice * s.shares
             const pnl = value - cost
-            const rate = (pnl / cost) * 100
+            const rate = cost > 0 ? (pnl / cost) * 100 : 0
             return (
               <tr key={s.code} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-4 py-3">
