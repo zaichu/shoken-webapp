@@ -156,10 +156,14 @@ def run_smoke() -> dict:
         if search_input.count() > 0:
             search_input.fill("7974")
             page.locator("button:has-text('検索')").click()
-            # ボタンテキストが完全に "検索" に戻るまで待つ
-            # has-text は部分一致のため "検索中..." にもマッチしてしまう
-            # text-is で完全一致させることで loading 中の誤判定を防ぐ
-            # ローディング中は "検索中..." でリトライ中も isLoading=true のまま変わらない
+            # 2ステップ待機で検索完了を確実に捕捉する:
+            # ① クリック後に "検索中..." が出るのを確認（ローディング開始 = リクエスト発火）
+            # ② "検索中..." が消えて "検索" に戻るのを待つ（リトライを含む全完了後）
+            # ① を省くと初期状態の "検索" ボタンが既に可視なため即時解決してしまう
+            try:
+                page.locator("button:text-is('検索中...')").wait_for(state="visible", timeout=5000)
+            except Exception:
+                pass  # ネットワークが非常に高速でローディング状態を見逃した場合
             page.locator("button:text-is('検索')").wait_for(state="visible", timeout=30000)
             save(page, "search-7974")
             has_table = page.locator("table").count() > 0
