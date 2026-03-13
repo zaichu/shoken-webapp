@@ -29,7 +29,7 @@ export function StockTable({ stocks }: Props) {
   }
 
   return (
-    <div className="border rounded-md bg-white overflow-hidden">
+    <div className="border rounded-md bg-white overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-gray-50 text-gray-500 text-left">

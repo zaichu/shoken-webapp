@@ -26,8 +26,15 @@ fi
 
 # Check if pnpm is installed
 if ! command -v pnpm &> /dev/null; then
-  echo "📦 pnpm not found. Installing pnpm..."
-  npm install -g pnpm
+  if command -v corepack &> /dev/null; then
+    echo "📦 pnpm not found. Installing via corepack..."
+    corepack enable pnpm
+  else
+    echo "❌ Error: pnpm is required but not installed."
+    echo "   Install with: corepack enable pnpm"
+    echo "   Or: npm install -g pnpm"
+    exit 1
+  fi
 fi
 
 # Check if project name is provided
