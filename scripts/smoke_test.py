@@ -170,8 +170,15 @@ def run_smoke() -> dict:
                 results["search-op"] = {"ok": True, "note": f"検索結果テーブルが表示された (HTTP {status})"}
             elif status == 404 and error_code == "NOT_FOUND":
                 # backend が "NOT_FOUND" コードで返す 404 = 銘柄未登録（ローカル未 seed の想定範囲内）
-                results["search-op"] = {"ok": True, "note": "銘柄未検出（stock テーブル未 seed の可能性。UI は正常応答）"}
-                print("  警告: 銘柄コード '7974' が見つかりません（stock テーブルに seed データが必要かもしれません）")
+                # ただし UI のエラー描画も正常に行われているか確認する
+                has_error_ui = page.locator("text=エラー").count() > 0
+                if has_error_ui:
+                    results["search-op"] = {"ok": True, "note": "銘柄未検出（stock テーブル未 seed の可能性。エラー UI は正常表示）"}
+                    print("  警告: 銘柄コード '7974' が見つかりません（stock テーブルに seed データが必要かもしれません）")
+                else:
+                    # 404 が返ったがエラー UI が表示されていない = UI 描画が壊れている可能性
+                    results["search-op"] = {"ok": False, "note": "404 が返されたがエラー UI が表示されていない（UI 描画の異常）"}
+                    print("  失敗: 404 NOT_FOUND だがエラーアラートが表示されていません")
             elif status == 404:
                 # NOT_FOUND コード以外の 404 = ルート不達・プロキシ崩れ等
                 results["search-op"] = {"ok": False, "note": f"404 が返されたが error.code={error_code!r}（ルート不達の可能性）"}
