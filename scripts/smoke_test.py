@@ -39,7 +39,12 @@ PAGES = [
 def save(page, name: str) -> None:
     path = OUTPUT_DIR / f"{name}.png"
     page.screenshot(path=str(path), full_page=True)
-    print(f"  保存: {path.relative_to(Path.cwd())}")
+    # cwd に依存しないよう __file__ 基準の相対パスで表示する
+    try:
+        rel = path.relative_to(Path(__file__).parent.parent)
+    except ValueError:
+        rel = path
+    print(f"  保存: {rel}")
 
 
 def run_smoke() -> dict:
@@ -131,11 +136,17 @@ def run_smoke() -> dict:
         page.goto(f"{BASE_URL}/search", wait_until="networkidle", timeout=20000)
         search_input = page.locator("input[placeholder*='銘柄']").first
 
-        stock_response_status: list[int] = []
+        # /stock/ レスポンスのステータスとボディを収集する
+        # ボディの error.code で "NOT_FOUND"（銘柄未登録）とその他のエラーを区別する
+        stock_responses: list[dict] = []
 
         def _on_response(response):
             if "/stock/" in response.url:
-                stock_response_status.append(response.status)
+                try:
+                    body = response.json()
+                except Exception:
+                    body = {}
+                stock_responses.append({"status": response.status, "body": body})
         page.on("response", _on_response)
 
         if search_input.count() > 0:
@@ -146,13 +157,19 @@ def run_smoke() -> dict:
             page.wait_for_load_state("networkidle", timeout=10000)
             save(page, "search-7974")
             has_table = page.locator("table").count() > 0
-            status = stock_response_status[-1] if stock_response_status else None
+            last = stock_responses[-1] if stock_responses else None
+            status = last["status"] if last else None
+            error_code = (last["body"].get("error", {}) or {}).get("code") if last else None
             if has_table:
                 results["search-op"] = {"ok": True, "note": f"検索結果テーブルが表示された (HTTP {status})"}
-            elif status == 404:
-                # 404: stock テーブル未 seed のローカル環境では想定範囲内
+            elif status == 404 and error_code == "NOT_FOUND":
+                # backend が "NOT_FOUND" コードで返す 404 = 銘柄未登録（ローカル未 seed の想定範囲内）
                 results["search-op"] = {"ok": True, "note": "銘柄未検出（stock テーブル未 seed の可能性。UI は正常応答）"}
                 print("  警告: 銘柄コード '7974' が見つかりません（stock テーブルに seed データが必要かもしれません）")
+            elif status == 404:
+                # NOT_FOUND コード以外の 404 = ルート不達・プロキシ崩れ等
+                results["search-op"] = {"ok": False, "note": f"404 が返されたが error.code={error_code!r}（ルート不達の可能性）"}
+                print(f"  失敗: /stock/7974 が 404 を返しましたが error.code が 'NOT_FOUND' ではありません: {error_code!r}")
             elif status is not None and status >= 500:
                 results["search-op"] = {"ok": False, "note": f"バックエンドエラー (HTTP {status}) が返された"}
                 print(f"  失敗: /stock/7974 が HTTP {status} を返しました")
