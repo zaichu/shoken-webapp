@@ -27,8 +27,8 @@ function App() {
     s => s.name.includes(filter) || s.code.includes(filter)
   )
 
-  const totalValue = STOCKS.reduce((sum, s) => sum + s.currentPrice * s.shares, 0)
-  const totalCost = STOCKS.reduce((sum, s) => sum + s.avgPrice * s.shares, 0)
+  const totalValue = filtered.reduce((sum, s) => sum + s.currentPrice * s.shares, 0)
+  const totalCost = filtered.reduce((sum, s) => sum + s.avgPrice * s.shares, 0)
   const totalPnl = totalValue - totalCost
   const totalPnlRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0
 
@@ -44,7 +44,7 @@ function App() {
           totalCost={totalCost}
           totalPnl={totalPnl}
           totalPnlRate={totalPnlRate}
-          stockCount={STOCKS.length}
+          stockCount={filtered.length}
         />
         <div className="space-y-3">
           <FilterBar value={filter} onChange={setFilter} />
