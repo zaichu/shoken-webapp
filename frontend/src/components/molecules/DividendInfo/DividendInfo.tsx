@@ -14,9 +14,14 @@ const AssetBadge = () => (
 );
 
 const JQuantsBadge = () => (
-  <span className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+  <a
+    href="https://jpx-jquants.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
+  >
     J-Quants
-  </span>
+  </a>
 );
 
 interface DividendInfoProps {
@@ -131,7 +136,10 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
             <p className="text-xs font-medium text-slate-600 mb-1">
               平均取得価格{assetBalanceData && <AssetBadge />}
             </p>
-            <p className="text-2xl font-bold tabular-nums text-primary">
+            <p
+              className="text-2xl font-bold tabular-nums text-primary"
+              title={averageUnitPrice === undefined ? '資産管理にCSVを取り込むと表示されます' : undefined}
+            >
               {averageUnitPrice !== undefined ? formatCurrency(averageUnitPrice) : '---'}
             </p>
           </div>
@@ -139,7 +147,10 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
             <p className="text-xs font-medium text-slate-600 mb-1">
               保有数量(株){assetBalanceData && <AssetBadge />}
             </p>
-            <p className="text-2xl font-bold tabular-nums text-primary">
+            <p
+              className="text-2xl font-bold tabular-nums text-primary"
+              title={holdingQuantity === undefined ? '資産管理にCSVを取り込むと表示されます' : undefined}
+            >
               {holdingQuantity !== undefined ? holdingQuantity.toLocaleString('ja-JP') : '---'}
             </p>
           </div>

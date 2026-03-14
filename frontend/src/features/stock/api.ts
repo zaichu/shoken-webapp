@@ -19,7 +19,7 @@ export async function fetchStockData(query: string): Promise<StockData> {
 
     throw new ApiError(
       ApiErrorType.DESERIALIZATION_ERROR,
-      '株式データの処理に失敗しました'
+      '銘柄データの読み込みに失敗しました。J-Quants API の応答形式が変更された可能性があります。'
     );
   }
 }
