@@ -81,6 +81,9 @@ pnpm exec parcel build index.html --dist-dir dist --no-source-maps
 # Inline everything into single HTML
 echo "🎯 Inlining all assets into single HTML file..."
 pnpm exec html-inline dist/index.html > bundle.html
+# trailing whitespace / 末尾空行を除去（git diff --check を通すため）
+sed -i 's/[[:space:]]*$//' bundle.html
+sed -i -e :a -e '/^\n*$/{$d;N;ba}' bundle.html
 
 # Get file size
 FILE_SIZE=$(du -h bundle.html | cut -f1)

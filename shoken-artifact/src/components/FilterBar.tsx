@@ -16,6 +16,7 @@ export function FilterBar({ value, onChange }: Props) {
       />
       {value && (
         <button
+          type="button"
           onClick={() => onChange('')}
           className="text-sm text-gray-400 hover:text-gray-600"
         >

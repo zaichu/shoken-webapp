@@ -85,6 +85,7 @@ cd "$PROJECT_NAME"
 echo "🧹 Cleaning up Vite template..."
 "${SED_INPLACE[@]}" '/<link rel="icon".*vite\.svg/d' index.html
 "${SED_INPLACE[@]}" 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
+"${SED_INPLACE[@]}" 's/lang="en"/lang="ja"/' index.html
 # Vite テンプレの starter ファイルを削除（artifact 基盤には不要）
 rm -f src/App.tsx src/App.css
 rm -rf src/assets
