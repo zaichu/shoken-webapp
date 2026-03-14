@@ -86,9 +86,20 @@ echo "🧹 Cleaning up Vite template..."
 "${SED_INPLACE[@]}" '/<link rel="icon".*vite\.svg/d' index.html
 "${SED_INPLACE[@]}" 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
 "${SED_INPLACE[@]}" 's/lang="en"/lang="ja"/' index.html
-# Vite テンプレの starter ファイルを削除（artifact 基盤には不要）
+# Vite テンプレの starter ファイルを削除し、main.tsx を最小構成で上書き（artifact 基盤には不要）
 rm -f src/App.tsx src/App.css
 rm -rf src/assets
+cat > src/main.tsx << 'EOF'
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <div>Hello, artifact!</div>
+  </StrictMode>,
+)
+EOF
 
 echo "📦 Installing base dependencies (vite@8 + React 19 を明示固定)..."
 # create-vite テンプレートのバージョンに依存しないよう、shoken-artifact と同じバージョンで上書き
@@ -295,6 +306,19 @@ pnpm install "sonner@^2.0.7" "cmdk@^1.1.1" "vaul@^1.1.2" "embla-carousel-react@^
 # Extract shadcn components from tarball
 echo "📦 Extracting shadcn/ui components..."
 tar -xzf "$COMPONENTS_TARBALL" -C src/
+
+# Install bundling dependencies（Parcel + html-inline）
+echo "📦 Installing bundling dependencies (Parcel + html-inline)..."
+pnpm install -D "parcel@^2.16.4" "@parcel/config-default@^2.16.4" "parcel-resolver-tspaths@^0.0.9" "html-inline@^1.2.0"
+
+# Create Parcel config with tspaths resolver
+echo "🔧 Creating Parcel configuration..."
+cat > .parcelrc << 'EOF'
+{
+  "extends": "@parcel/config-default",
+  "resolvers": ["parcel-resolver-tspaths", "..."]
+}
+EOF
 
 # Update eslint.config.js to disable react-refresh rules for shadcn/ui files
 echo "🔧 Updating ESLint config for shadcn/ui components..."
