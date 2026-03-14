@@ -63,8 +63,8 @@ fi
 
 echo "🚀 Creating new React + Vite project: $PROJECT_NAME"
 
-# Create new Vite project (always use latest create-vite, pin vite version later)
-echo "" | pnpm create vite "$PROJECT_NAME" --template react-ts
+# create-vite@8 でメジャーバージョンを固定（vite@8 + React 19 テンプレートを使用）
+echo "" | pnpm create vite@8 "$PROJECT_NAME" --template react-ts
 
 # Navigate into project directory
 cd "$PROJECT_NAME"
@@ -272,7 +272,7 @@ EOF
 # Install all shadcn/ui dependencies
 echo "📦 Installing shadcn/ui dependencies..."
 pnpm install @radix-ui/react-accordion @radix-ui/react-aspect-ratio @radix-ui/react-avatar @radix-ui/react-checkbox @radix-ui/react-collapsible @radix-ui/react-context-menu @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-hover-card @radix-ui/react-label @radix-ui/react-menubar @radix-ui/react-navigation-menu @radix-ui/react-popover @radix-ui/react-progress @radix-ui/react-radio-group @radix-ui/react-scroll-area @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slider @radix-ui/react-slot @radix-ui/react-switch @radix-ui/react-tabs @radix-ui/react-toast @radix-ui/react-toggle @radix-ui/react-toggle-group @radix-ui/react-tooltip
-pnpm install sonner cmdk vaul embla-carousel-react react-day-picker date-fns react-hook-form @hookform/resolvers zod
+pnpm install "sonner@^2.0.7" "cmdk@^1.1.1" "vaul@^1.1.2" "embla-carousel-react@^8.6.0" "react-day-picker@^9.14.0" "date-fns@^4.1.0" "react-hook-form@^7.71.2" "@hookform/resolvers@^5.2.2" "zod@^4.3.6"
 
 # Extract shadcn components from tarball
 echo "📦 Extracting shadcn/ui components..."

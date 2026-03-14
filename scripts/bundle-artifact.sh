@@ -20,7 +20,8 @@ if [ ! -f "index.html" ]; then
 fi
 
 # Install bundling dependencies（既にインストール済みならスキップ）
-if [ ! -d "node_modules/parcel" ] || [ ! -d "node_modules/html-inline" ]; then
+if [ ! -d "node_modules/parcel" ] || [ ! -d "node_modules/html-inline" ] || \
+   [ ! -d "node_modules/@parcel/config-default" ] || [ ! -d "node_modules/parcel-resolver-tspaths" ]; then
   echo "📦 Installing bundling dependencies..."
   # pnpm ストアの不整合（ERR_PNPM_UNEXPECTED_STORE）を解消してから追加する
   pnpm install
