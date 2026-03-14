@@ -1,7 +1,9 @@
 use crate::models::asset_balance::CreateAssetBalanceRequest;
 use crate::models::csv_import::CsvRowError;
 use crate::services::csv_import::parse_csv;
-use crate::services::csv_parse::{decode_bytes, parse_number, parse_optional_string};
+use crate::services::csv_parse::{
+    decode_bytes, normalize_security_name, parse_number, parse_optional_string,
+};
 use csv::StringRecord;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -75,7 +77,11 @@ pub(crate) fn parse_asset_balance_row(
     let security_code = parse_optional_string(record, header_map, "銘柄コード").replace('"', "");
     Ok(CreateAssetBalanceRequest {
         security_code,
-        security_name: parse_optional_string(record, header_map, "銘柄名"),
+        security_name: normalize_security_name(&parse_optional_string(
+            record,
+            header_map,
+            "銘柄名",
+        )),
         shares: num("保有数量［株］")?,
         // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
         executing_shares: parse_number(&parse_optional_string(record, header_map, "執行中［株］"))

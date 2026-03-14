@@ -9,21 +9,30 @@
 
 ## 開発フロー（標準）
 
-- 明示的なスキップ指示がない限り、以下を標準フローとする
+### 役割分担
+- **Claude**: 設計・タスク定義・コードレビュー・マージ判断
+- **Codex**: 実装・テスト・コミット・push・PR 作成
+
+### 標準フロー
+1. Claude がタスクを設計し `docs/tasks/<branch-name>.md` を作成する
+2. Claude が `.claude/skills/claude-codex-handoff/SKILL.md` で Codex に実装を委譲する
+3. Codex が実装・lint/test/build・commit・push・PR 作成を行う
+4. Claude が `/pr-review` スキルで PR をレビューし、GitHub にコメントを投稿する
+5. 修正が必要な場合は Claude が再度 `claude-codex-handoff` で Codex に指示する
+6. Claude が LGTM 判断 → マージ
+
+### タスク管理ルール
 - `docs/tasks/<branch-name>.md` が存在する場合は、作業前に必ず読み、進捗とレビュー指摘を更新する
 - 中規模以上のタスクでは `docs/tasks/TEMPLATE.md` を元に task file を作成する
 - task file はローカルの一時ファイルとして扱い、ユーザー明示指示がない限りコミット・PR に含めない
 - task 完了時または作業中止時には、対応する task file を削除する
-- 実装担当は Claude、レビュー担当は Codex（CLI経由）とする
-- Claude は実装完了後に PR を作成し、Codex CLI を呼び出してレビューを依頼する
-- Codex は `.claude/skills/pr-review/SKILL.md` に従って PR をレビューする
-- Codex は PR を承認する前に、要件充足、回帰有無、コード品質、テスト状況を確認する
-- Claude は Codex の指摘に対応し、必要な修正と検証を行う
-- 修正後は Codex が再レビューし、指摘事項の解消を確認する
-- Codex から Claude に修正実装を依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
-- Codex CLI のレビュー起動は `codex exec review` を優先し、必要なら `codex exec "/pr-review してください"` を使う
-- push 後にレビューを省略しない。修正を push したら毎回再レビューする
 - backend の API 契約変更時は `bash scripts/check-openapi.sh` を実行して `docs/openapi.json` と `frontend/src/generated/api.ts` を同期する
+
+### Codex が遵守するルール
+- 実装後は必ず lint/test/build を通してからコミットする
+- push 後に PR を作成し、Claude のレビューを待つ
+- Claude から指摘が来たら修正して再 push する（再レビューは Claude が行う）
+- Codex から Claude に設計相談・調査依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
 
 ## 出力制約
 

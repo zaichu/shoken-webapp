@@ -36,7 +36,7 @@ describe('Stock API', () => {
       vi.mocked(axios.isAxiosError).mockReturnValue(false);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(error);
 
-      await expect(fetchStockData('1234')).rejects.toThrow('株式データの処理に失敗しました');
+      await expect(fetchStockData('1234')).rejects.toThrow('銘柄データの読み込みに失敗しました');
     });
   });
 

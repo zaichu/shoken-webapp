@@ -1,51 +1,37 @@
 ---
 name: pr-review
 description: |
-  Claude の実装完了後に、発行済みPRを自動検出してレビュー開始する運用を標準化する。
-  Use when: 「PRレビューを開始したい」「Claude作業後にそのままレビューしたい」
-  「レビュー依頼文を作りたい」と依頼された時。
+  Codex が実装・push した PR を Claude が自動検出してレビューする。
+  Use when: 「PRをレビューして」「レビューしてください」と依頼された時。
+  または Codex から PR 作成完了の通知を受けた後。
 ---
 
-# PR Review Handoff
+# PR Review（Claude 実行）
 
 ## Overview
-Claude が実装を終えたら、このスキルで `gh` から発行済み PR を自動検出し、
-差分と検証結果を集めて **そのままレビューを開始** する。
+Codex が実装して push した PR を Claude がレビューする。
 全体開発ルール（`.claude/rules/00-general.md`）における標準フローは
-`Claude が作業する → Codex にレビューする` とし、本スキルで運用する。
-
-依頼文作成モードは補助機能として残し、
-ユーザーが「依頼文を作って」と明示した場合のみ使う。
+`Codex が実装する → Claude がレビューする` とし、本スキルで運用する。
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 
 ## Workflow
 
-1. レビュー対象PRを自動検出する。
-- `git fetch origin` で比較元を最新化する。
-- `git branch --show-current` で現在ブランチを確認する。
-- `gh pr list --state open --head "$(git branch --show-current)" --json number,title,url,body` で open PR を探す。
-- 見つからない場合は、ユーザーに PR 番号 or URL を確認する。
+### 1. レビュー対象 PR を自動検出する
+- `git fetch origin` で比較元を最新化する
+- `git branch --show-current` で現在ブランチを確認する
+- `gh pr list --state open --head "$(git branch --show-current)" --json number,title,url,body` で open PR を探す
+- 見つからない場合は、ユーザーに PR 番号 or URL を確認する
 
-2. 実装完了状態を確定する。
-- `git status --short` で差分が意図どおりか確認する。
-- `git rev-parse HEAD` で対象コミットを確定する。
-- レビュー対象コミット/差分を特定する。
-- PR 番号と URL を確定する。
+### 2. レビュー材料を収集する
+- `git diff origin/main...HEAD --name-status`
+- `git diff origin/main...HEAD --stat`
+- `git diff origin/main...HEAD`
+- `gh pr view <PR番号> --json number,title,url,body`
 
-3. レビュー材料を収集する。
-- 必ず以下を取得する。
-  - `git diff origin/main...HEAD --name-status`
-  - `git diff origin/main...HEAD --stat`
-  - `git diff origin/main...HEAD`
-- PR がある場合は以下も取得する。
-  - `gh pr view <PR番号> --json number,title,url,body`
-- PR がない場合は比較範囲を明記する。
-  - 作業ブランチ上の確認: `origin/main...HEAD`
-  - `main` ブランチ上の確認: `HEAD~1..HEAD`（必要に応じてユーザー確認）
+### 3. 検証結果を確定する
+変更範囲に応じて実行:
 
-4. 検証結果を確定する。
-- 変更範囲に応じて、実際に通った以下のコマンドだけを使う。
 - フロントエンド変更がある場合:
   - `cd frontend && npm run lint`
   - `cd frontend && npx tsc --noEmit`
@@ -53,50 +39,37 @@ Claude が実装を終えたら、このスキルで `gh` から発行済み PR 
   - `cd frontend && npm run build`
 - バックエンド変更がある場合:
   - `cd backend && cargo fmt --check`
-  - `cd backend && cargo clippy -- -D warnings`
+  - `cd backend && cargo clippy --all-targets -- -D warnings`
   - `cd backend && cargo test`
-  - `cd backend && cargo build`
 - API 定義変更がある場合:
   - `bash scripts/check-openapi.sh`
-- 実行コマンドと結果（pass/fail）をそのまま記録する。
-- 失敗していても隠さず依頼文に含める。
 
-5. レビューを実行する（デフォルト）。
-- findings first で重大度順に出す。
-- `path:line` を付ける。
-- 期待フォーマット:
-  1. Findings（重大度順、`path:line` 付き）
-  2. Open questions / assumptions
-  3. 修正方針サマリー（短く）
+### 4. レビューを実行する
+findings first で重大度順に出す:
 
-5a. レビュー結果を PR にコメントとして投稿する。
-- PR が検出されている場合は以下を実行する。
-  1. 実行エージェントに対応する既存コメントを確認する（Codex なら `🤖 Codex review`、Claude なら `🤖 Claude review` で検索）: `gh api repos/{owner}/{repo}/issues/<PR番号>/comments --jq '[.[] | select(.body | startswith("🤖 Codex review"))] | last | .id'`
-  2. コメントが存在する場合は更新する: `gh api repos/{owner}/{repo}/issues/comments/<comment_id> -X PATCH -f body="..."`
-  3. コメントが存在しない場合は新規投稿する: `gh pr comment <PR番号> --body "..."`
-- コメント本文は手順 5 の findings と同じ内容とし、先頭に `🤖 Codex review` または `🤖 Claude review` の見出しを付けてどのエージェントが投稿したか明示する。
-- `gh` が失敗しても stdout への出力は続ける。
+1. **Findings**（重大度順、`path:line` 付き）
+   - `[high]` / `[medium]` / `[low]` で分類
+2. **Open questions / assumptions**（あれば）
+3. **判定**: LGTM / 要修正
 
-6. 依頼文作成モード（明示要求時のみ）。
-- `references/codex-review-request-template.md` を読み、必須項目を埋める。
-- 曖昧語を使わない。
-- レビュー観点（バグ、回帰、テスト不足、設計リスク）を明示する。
+### 5. レビュー結果を PR にコメントする
+- 既存の `🤖 Claude review` コメントを確認: `gh api repos/{owner}/{repo}/issues/<PR番号>/comments --jq '[.[] | select(.body | startswith("🤖 Claude review"))] | last | .id'`
+- 存在する場合は更新: `gh api repos/{owner}/{repo}/issues/comments/<comment_id> -X PATCH -f body="..."`
+- 存在しない場合は新規投稿: `gh pr comment <PR番号> --body "..."`
+- コメント先頭は `🤖 Claude review` で始める
 
-7. レビュー結果を取り込む。
-- 指摘を重大度順に処理する。
-- 修正後に同じ検証コマンドを再実行する。
-- 必要に応じて再レビューを Codex に依頼する。
+### 6. 修正が必要な場合
+- `.claude/skills/claude-codex-handoff/SKILL.md` を使って Codex に修正を依頼する
+- 修正 push 後は本スキルで再レビューする（LGTM まで繰り返す）
 
-## Review Request Rules
-- レビュー結果には必ず対象範囲を入れる。
-  - PR URL または比較範囲（例: `origin/main...HEAD`）
-- レビュー結果には必ず検証結果を入れる。
-  - 実行したコマンドと pass/fail
-- findings first / 重大度順 / ファイルパスと行番号を必須とする。
+### 7. LGTM 後
+- PR をマージする: `gh pr merge <PR番号> --squash --delete-branch`
+- main を更新: `git switch main && git pull --ff-only origin main`
+
+## Review Rules
+- findings first / 重大度順 / ファイルパスと行番号を必須とする
+- 検証コマンドと pass/fail を必ず記録する
+- PR コメントへの返信も必ず行う（CodeRabbit 等の自動レビューも含む）
 
 ## Output
-- デフォルト: レビュー結果（findings first）。
-- 例外: ユーザーが依頼文作成を明示した場合のみ、Codex へ渡す依頼文を Markdown で返す。
-
-## Reference
-- 依頼テンプレートは `references/codex-review-request-template.md` を使う。
+レビュー結果（findings first）を出力し、PR にコメントする。

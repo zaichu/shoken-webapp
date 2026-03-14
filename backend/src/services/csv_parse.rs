@@ -99,6 +99,20 @@ pub fn parse_required_string(
     Ok(val.to_string())
 }
 
+/// 銘柄名を正規化する
+///
+/// 証券会社のCSVによっては "K D D I" のように各文字間にスペースが挿入される場合がある。
+/// すべてのトークンが1文字の場合はスペースを除去して結合する（例: "K D D I" → "KDDI"）。
+/// 複数文字のトークンが含まれる場合（例: "eMAXIS Slim 全世界株式"）はそのまま返す。
+pub fn normalize_security_name(name: &str) -> String {
+    let tokens: Vec<&str> = name.split_whitespace().collect();
+    if tokens.len() > 1 && tokens.iter().all(|t| t.chars().count() == 1) {
+        tokens.join("")
+    } else {
+        name.trim().to_string()
+    }
+}
+
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
 pub fn parse_required_number(
     record: &csv::StringRecord,
@@ -338,5 +352,18 @@ mod tests {
             10_000 * date_samples.len(),
             elapsed_parse_date.as_secs_f64() * 1000.0
         );
+    }
+
+    #[test]
+    fn test_normalize_security_name() {
+        assert_eq!(normalize_security_name("K D D I"), "KDDI");
+        assert_eq!(normalize_security_name("I N P E X"), "INPEX");
+        assert_eq!(
+            normalize_security_name("eMAXIS Slim 全世界株式"),
+            "eMAXIS Slim 全世界株式"
+        );
+        assert_eq!(normalize_security_name("任天堂"), "任天堂");
+        assert_eq!(normalize_security_name("  KDDI  "), "KDDI");
+        assert_eq!(normalize_security_name(""), "");
     }
 }
