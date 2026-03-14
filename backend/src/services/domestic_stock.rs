@@ -189,7 +189,12 @@ fn parse_domestic_stock_row(
         trade_date,
         settlement_date,
         security_code: parse_required_string(record, header_map, "銘柄コード", row_num)?,
-        security_name: normalize_security_name(&parse_required_string(record, header_map, "銘柄名", row_num)?),
+        security_name: normalize_security_name(&parse_required_string(
+            record,
+            header_map,
+            "銘柄名",
+            row_num,
+        )?),
         account,
         shares: parse_required_number(record, header_map, "数量[株]", row_num)?,
         asked_price: parse_required_number(record, header_map, "売却/決済単価[円]", row_num)?,

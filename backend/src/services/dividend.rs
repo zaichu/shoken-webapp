@@ -121,7 +121,9 @@ fn parse_dividend_row(
         product: parse_required_string(record, header_map, "商品", row_num)?,
         account: parse_required_string(record, header_map, "口座", row_num)?,
         security_code: parse_optional_string(record, header_map, "銘柄コード"),
-        security_name: normalize_security_name(&parse_required_string(record, header_map, "銘柄", row_num)?),
+        security_name: normalize_security_name(&parse_required_string(
+            record, header_map, "銘柄", row_num,
+        )?),
         unit_price: parse_required_number(record, header_map, "単価[円/現地通貨]", row_num)?,
         shares: parse_required_number(record, header_map, "数量[株/口]", row_num)?,
         dividends_before_tax: parse_required_number(
