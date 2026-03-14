@@ -57,19 +57,48 @@ findings first で重大度順に出す:
 - 存在する場合は更新: `gh api repos/{owner}/{repo}/issues/comments/<comment_id> -X PATCH -f body="..."`
 - 存在しない場合は新規投稿: `gh pr comment <PR番号> --body "..."`
 - コメント先頭は `🤖 Claude review` で始める
+- **inline レビューコメントも必ず確認・返信する**:
+  - 取得: `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments --jq '.[] | {id, path, body}'`
+  - 返信: `gh api repos/{owner}/{repo}/pulls/comments/<comment_id>/replies --method POST --field 'body=...'`
 
 ### 6. 修正が必要な場合
-- `.claude/skills/claude-codex-handoff/SKILL.md` を使って Codex に修正を依頼する
-- 修正 push 後は本スキルで再レビューする（LGTM まで繰り返す）
+`claude-codex-handoff` スキルを使って Codex に修正を依頼する。依頼文には**以下を必ず含める**:
+
+```markdown
+## レビュー指摘への対応（全件返信 + 修正）
+
+以下の各指摘を順番に処理する:
+1. PR コメントに返信する
+2. 修正を実装する
+3. lint/test/build を通す
+4. push する（PR は既に作成済みのため gh pr create は不要）
+
+### 指摘一覧
+
+| # | 重大度 | 内容 | ファイル:行 | コメントID | 返信コマンド |
+|---|--------|------|-----------|-----------|------------|
+| 1 | [high] | <内容> | path/to/file.ts:42 | issue_comment:<id> | `gh api repos/{owner}/{repo}/issues/comments/<id> --method PATCH -f body='対応しました。<一言>'` |
+| 2 | [low]  | <内容> | path/to/other.rs:10 | pulls_comment:<id> | `gh api repos/{owner}/{repo}/pulls/comments/<id>/replies --method POST --field 'body=対応しました。<一言>'` |
+
+対応しない場合（スコープ外など）も「対応しない理由」を必ずコメントに返信すること。
+CodeRabbit 等の自動レビューコメントも同様に返信すること。
+```
+
+修正 push 後は本スキルで再レビューする（LGTM まで繰り返す）。
 
 ### 7. LGTM 後
+- **全コメント返信済みか最終確認する**:
+  - `gh api repos/{owner}/{repo}/issues/<PR番号>/comments` — issue コメントに未返信がないか
+  - `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments` — inline コメントに未返信がないか
+  - 未返信があれば返信してからマージする
 - PR をマージする: `gh pr merge <PR番号> --squash --delete-branch`
 - main を更新: `git switch main && git pull --ff-only origin main`
 
 ## Review Rules
 - findings first / 重大度順 / ファイルパスと行番号を必須とする
 - 検証コマンドと pass/fail を必ず記録する
-- PR コメントへの返信も必ず行う（CodeRabbit 等の自動レビューも含む）
+- issue コメント・inline コメント・CodeRabbit コメントすべてに返信する
+- **未返信の指摘が 1 件でも残ればマージしない**
 
 ## Output
 レビュー結果（findings first）を出力し、PR にコメントする。

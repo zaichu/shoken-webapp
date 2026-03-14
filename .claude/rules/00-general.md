@@ -18,8 +18,12 @@
 2. Claude が `.claude/skills/claude-codex-handoff/SKILL.md` で Codex に実装を委譲する
 3. Codex が実装・lint/test/build・commit・push・PR 作成を行う
 4. Claude が `/pr-review` スキルで PR をレビューし、GitHub にコメントを投稿する
-5. 修正が必要な場合は Claude が再度 `claude-codex-handoff` で Codex に指示する
-6. Claude が LGTM 判断 → マージ
+5. **修正が必要な場合**: Claude が `claude-codex-handoff` で指摘一覧（コメント ID 付き）を Codex に渡す
+6. **Codex が指摘への対応をする**: 各指摘コメントに返信 → 修正実装 → lint/test/build → push（PR 作成は不要）
+7. Claude が再レビュー（ステップ 4 に戻る）
+8. LGTM → Claude がマージ
+
+**重要: ステップ 5〜7 は LGTM が出るまで繰り返す。返信なし・未修正の指摘が 1 件でも残ればマージ禁止。**
 
 ### タスク管理ルール
 - `docs/tasks/<branch-name>.md` が存在する場合は、作業前に必ず読み、進捗とレビュー指摘を更新する
@@ -31,7 +35,10 @@
 ### Codex が遵守するルール
 - 実装後は必ず lint/test/build を通してからコミットする
 - push 後に PR を作成し、Claude のレビューを待つ
-- Claude から指摘が来たら修正して再 push する（再レビューは Claude が行う）
+- Claude からレビュー指摘が来たら、**まず各指摘コメントに返信し、その後修正して再 push する**
+  - 返信なしで修正だけするのは禁止
+  - 修正しない場合（スコープ外など）も「対応しない理由」を必ずコメントに返信する
+- CodeRabbit 等の自動レビューコメントにも同様に返信する
 - Codex から Claude に設計相談・調査依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
 
 ## 出力制約
