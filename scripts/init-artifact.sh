@@ -63,8 +63,10 @@ fi
 
 echo "🚀 Creating new React + Vite project: $PROJECT_NAME"
 
-# create-vite@8 でメジャーバージョンを固定（vite@8 + React 19 テンプレートを使用）
-echo "" | pnpm create vite@8 "$PROJECT_NAME" --template react-ts
+# create-vite で React+TypeScript テンプレートを生成する
+# create-vite のバージョンと vite テンプレートのバージョンは一致しないため、
+# 生成後に vite / @vitejs/plugin-react を明示的に shoken-artifact と同じバージョンに上書きする
+echo "" | pnpm create vite "$PROJECT_NAME" --template react-ts
 
 # Navigate into project directory
 cd "$PROJECT_NAME"
@@ -73,8 +75,9 @@ echo "🧹 Cleaning up Vite template..."
 "${SED_INPLACE[@]}" '/<link rel="icon".*vite\.svg/d' index.html
 "${SED_INPLACE[@]}" 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
 
-echo "📦 Installing base dependencies..."
-pnpm install
+echo "📦 Installing base dependencies (vite@8 + React 19 を明示固定)..."
+# create-vite テンプレートのバージョンに依存しないよう、shoken-artifact と同じバージョンで上書き
+pnpm install vite@^8.0.0 "@vitejs/plugin-react@^6.0.0" react@^19.2.4 react-dom@^19.2.4 typescript@~5.9.3
 
 echo "📦 Installing Tailwind CSS and dependencies..."
 pnpm install -D tailwindcss@3.4.1 postcss autoprefixer @types/node tailwindcss-animate
