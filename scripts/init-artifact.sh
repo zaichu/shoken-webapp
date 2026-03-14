@@ -3,19 +3,30 @@
 # Exit on error
 set -e
 
-# Detect Node version
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+# Detect Node version（vite@8 の engines.node: ^20.19.0 || >=22.12.0 に合わせて検証）
+NODE_FULL=$(node -v | cut -d'v' -f2)
+NODE_MAJOR=$(echo "$NODE_FULL" | cut -d'.' -f1)
+NODE_MINOR=$(echo "$NODE_FULL" | cut -d'.' -f2)
 
-echo "🔍 Detected Node.js version: $NODE_VERSION"
+echo "🔍 Detected Node.js version: $NODE_FULL"
 
-if [ "$NODE_VERSION" -lt 20 ]; then
-  echo "❌ Error: Node.js 20 or higher is required"
-  echo "   Current version: $(node -v)"
-  echo "   Note: vite@8 and @vitejs/plugin-react@6 require Node 20+"
+NODE_OK=0
+if [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -ge 19 ]; then
+  NODE_OK=1
+elif [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -ge 12 ]; then
+  NODE_OK=1
+elif [ "$NODE_MAJOR" -gt 22 ]; then
+  NODE_OK=1
+fi
+
+if [ "$NODE_OK" -eq 0 ]; then
+  echo "❌ Error: Node.js ^20.19.0 || >=22.12.0 is required"
+  echo "   Current version: $NODE_FULL"
+  echo "   Note: vite@8 and @vitejs/plugin-react@6 require Node ^20.19.0 || >=22.12.0"
   exit 1
 fi
 
-echo "✅ Node.js $NODE_VERSION: OK"
+echo "✅ Node.js $NODE_FULL: OK"
 
 # Detect OS and set sed syntax（配列で保持することで '' が literal にならない）
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -74,6 +85,9 @@ cd "$PROJECT_NAME"
 echo "🧹 Cleaning up Vite template..."
 "${SED_INPLACE[@]}" '/<link rel="icon".*vite\.svg/d' index.html
 "${SED_INPLACE[@]}" 's/<title>.*<\/title>/<title>'"$PROJECT_NAME"'<\/title>/' index.html
+# Vite テンプレの starter ファイルを削除（artifact 基盤には不要）
+rm -f src/App.tsx src/App.css
+rm -rf src/assets
 
 echo "📦 Installing base dependencies (vite@8 + React 19 を明示固定)..."
 # create-vite テンプレートのバージョンに依存しないよう、shoken-artifact と同じバージョンで上書き
