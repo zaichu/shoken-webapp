@@ -49,6 +49,21 @@ describe('SearchCard', () => {
     expect(screen.getByText('口座')).toBeInTheDocument();
   });
 
+  test('initialExpanded=falseのとき初期状態では検索オプションが折りたたまれている', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+    expect(screen.queryByText('西暦')).not.toBeInTheDocument();
+    expect(screen.queryByText('商品')).not.toBeInTheDocument();
+    expect(screen.queryByText('口座')).not.toBeInTheDocument();
+  });
+
   test('ヘッダーをクリックすると検索オプションが折りたたまれる', () => {
     render(
       <SearchCard
