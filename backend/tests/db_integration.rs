@@ -6,8 +6,14 @@ use backend::{
     config::Config,
     db::run_migrations,
     models::asset_balance::CreateAssetBalanceRequest,
+    models::dividend::CreateDividendRequest,
+    models::domestic_stock::CreateDomesticStockRequest,
+    models::mutualfund::CreateMutualfundRequest,
     routes::app_router,
     services::asset_balance as asset_balance_svc,
+    services::dividend as dividend_svc,
+    services::domestic_stock as domestic_stock_svc,
+    services::mutualfund as mutualfund_svc,
     state::{AppState, Secrets},
 };
 use chrono::NaiveDate;
@@ -164,6 +170,56 @@ fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     }
 }
 
+fn make_dividend_item(security_code: &str) -> CreateDividendRequest {
+    CreateDividendRequest {
+        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        product: "国内株式".to_string(),
+        account: "特定".to_string(),
+        security_code: security_code.to_string(),
+        security_name: format!("銘柄_{}", security_code),
+        unit_price: dec!(100.0),
+        shares: dec!(100.0),
+        dividends_before_tax: dec!(1000.0),
+        taxes: dec!(203.0),
+        net_amount_received: dec!(797.0),
+    }
+}
+
+fn make_domestic_stock_item(security_code: &str) -> CreateDomesticStockRequest {
+    CreateDomesticStockRequest {
+        trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
+        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        security_code: security_code.to_string(),
+        security_name: format!("銘柄_{}", security_code),
+        account: "特定".to_string(),
+        shares: dec!(100.0),
+        asked_price: dec!(1000.0),
+        proceeds: dec!(100000.0),
+        purchase_price: dec!(90000.0),
+        realized_profit_and_loss: dec!(10000.0),
+        taxes: dec!(2030.0),
+        realized_profit_and_loss_after_tax: dec!(7970.0),
+    }
+}
+
+fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
+    CreateMutualfundRequest {
+        trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
+        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        fund_name: fund_name.to_string(),
+        dividends: None,
+        account: "特定".to_string(),
+        shares: dec!(1000.0),
+        exchange_rate: dec!(1.0),
+        cancellation_unit_price_yen: dec!(12000.0),
+        cancellation_amount_yen: dec!(12000000.0),
+        average_acquisition_price_yen: dec!(10000.0),
+        realized_profit_and_loss: dec!(2000000.0),
+        taxes: dec!(406060.0),
+        realized_profit_and_loss_after_tax: dec!(1593940.0),
+    }
+}
+
 /// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
 async fn start_test_pool() -> (PgPool, impl Drop) {
     let node = Postgres::default().start().await.unwrap();
@@ -172,6 +228,18 @@ async fn start_test_pool() -> (PgPool, impl Drop) {
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
     (pool, node)
+}
+
+async fn create_test_user(pool: &PgPool) -> Uuid {
+    let user_id = Uuid::new_v4();
+    sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
+        .bind(user_id)
+        .bind(format!("test_google_{user_id}"))
+        .bind(format!("test_{user_id}@example.com"))
+        .execute(pool)
+        .await
+        .expect("failed to insert test user");
+    user_id
 }
 
 #[tokio::test]
@@ -250,4 +318,203 @@ async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
         "AとBのデータが混在している可能性（{}件）",
         rows.len()
     );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_bulk_create_and_list() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let items = vec![
+        make_dividend_item("1001"),
+        make_dividend_item("1002"),
+        make_dividend_item("1003"),
+    ];
+    let created = dividend_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("dividend bulk_create failed");
+    assert_eq!(created.inserted, 3);
+    assert_eq!(created.skipped, 0);
+
+    let rows = dividend_svc::list(&pool, user_id)
+        .await
+        .expect("dividend list failed");
+    assert_eq!(rows.len(), 3);
+
+    let deleted = dividend_svc::delete_all(&pool, user_id)
+        .await
+        .expect("dividend delete_all failed");
+    assert_eq!(deleted, 3);
+
+    let rows = dividend_svc::list(&pool, user_id)
+        .await
+        .expect("dividend list after delete failed");
+    assert_eq!(rows.len(), 0);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_bulk_create_skips_duplicates() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let items = vec![make_dividend_item("2001")];
+
+    let first = dividend_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("first dividend bulk_create failed");
+    assert_eq!(first.inserted, 1);
+    assert_eq!(first.skipped, 0);
+
+    let second = dividend_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("second dividend bulk_create failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn domestic_stock_bulk_create_and_list() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let items = vec![
+        make_domestic_stock_item("3001"),
+        make_domestic_stock_item("3002"),
+        make_domestic_stock_item("3003"),
+    ];
+    let created = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("domestic_stock bulk_create failed");
+    assert_eq!(created.inserted, 3);
+    assert_eq!(created.skipped, 0);
+
+    let rows = domestic_stock_svc::list(&pool, user_id)
+        .await
+        .expect("domestic_stock list failed");
+    assert_eq!(rows.len(), 3);
+
+    let deleted = domestic_stock_svc::delete_all(&pool, user_id)
+        .await
+        .expect("domestic_stock delete_all failed");
+    assert_eq!(deleted, 3);
+
+    let rows = domestic_stock_svc::list(&pool, user_id)
+        .await
+        .expect("domestic_stock list after delete failed");
+    assert_eq!(rows.len(), 0);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn domestic_stock_bulk_create_skips_duplicates() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let items = vec![make_domestic_stock_item("4001")];
+
+    let first = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("first domestic_stock bulk_create failed");
+    assert_eq!(first.inserted, 1);
+    assert_eq!(first.skipped, 0);
+
+    let second = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("second domestic_stock bulk_create failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn mutualfund_bulk_create_and_list() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let items = vec![
+        make_mutualfund_item("テスト投信A"),
+        make_mutualfund_item("テスト投信B"),
+    ];
+    let created = mutualfund_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("mutualfund bulk_create failed");
+    assert_eq!(created.inserted, 2);
+    assert_eq!(created.skipped, 0);
+
+    let rows = mutualfund_svc::list(&pool, user_id)
+        .await
+        .expect("mutualfund list failed");
+    assert_eq!(rows.len(), 2);
+
+    let deleted = mutualfund_svc::delete_all(&pool, user_id)
+        .await
+        .expect("mutualfund delete_all failed");
+    assert_eq!(deleted, 2);
+
+    let rows = mutualfund_svc::list(&pool, user_id)
+        .await
+        .expect("mutualfund list after delete failed");
+    assert_eq!(rows.len(), 0);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn mutualfund_bulk_create_skips_duplicates() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let items = vec![make_mutualfund_item("テスト投信C")];
+
+    let first = mutualfund_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("first mutualfund bulk_create failed");
+    assert_eq!(first.inserted, 1);
+    assert_eq!(first.skipped, 0);
+
+    let second = mutualfund_svc::bulk_create(&pool, user_id, &items)
+        .await
+        .expect("second mutualfund bulk_create failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn unauthenticated_requests_return_401() {
+    let (pool, _node) = start_test_pool().await;
+    let config = Config::default();
+    let state = AppState {
+        pool,
+        secrets: Arc::new(Secrets {
+            database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        }),
+        client: Client::new(),
+        background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    };
+    let app = app_router(state, &config);
+
+    for path in [
+        "/dividends",
+        "/domestic-stocks",
+        "/mutualfunds",
+        "/asset-balances",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri(path)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request failed");
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{path}");
+    }
 }
