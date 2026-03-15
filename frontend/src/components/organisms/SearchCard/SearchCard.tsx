@@ -28,7 +28,6 @@ const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
                 }`}
                 value={displayValue}
                 onChange={(e) => onSearch(e.target.value, searchType)}
-                aria-label="検索フィルター"
             >
                 <option value="">全て表示</option>
                 {items.map((option) => (
