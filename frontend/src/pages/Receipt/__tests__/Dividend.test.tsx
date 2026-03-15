@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { Dividend } from '../Dividend';
@@ -130,7 +130,7 @@ describe('Dividend', () => {
 
         // SearchCardを展開してから銘柄検索セレクトボックスを確認
         const searchCardHeader = screen.getByTestId('search-card-header');
-        searchCardHeader.click();
+        fireEvent.click(searchCardHeader);
 
         // 銘柄検索セレクトボックスの確認（IDで指定）
         await waitFor(() => {
@@ -150,7 +150,7 @@ describe('Dividend', () => {
 
         // SearchCardを展開してから銘柄検索セレクトボックスを操作（IDで指定）
         const searchCardHeader = screen.getByTestId('search-card-header');
-        searchCardHeader.click();
+        fireEvent.click(searchCardHeader);
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -179,7 +179,7 @@ describe('Dividend', () => {
 
         // SearchCardを展開してから銘柄検索セレクトボックスを操作
         const searchCardHeader = screen.getByTestId('search-card-header');
-        searchCardHeader.click();
+        fireEvent.click(searchCardHeader);
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -195,11 +195,15 @@ describe('Dividend', () => {
         // クリックで折りたたみ
         const header = screen.getByTestId('receipt-header');
         await user.click(header);
-        expect(screen.getByText('平均取得価格')).not.toBeVisible();
+        await waitFor(() => {
+            expect(screen.getByText('平均取得価格')).not.toBeVisible();
+        });
 
         // 再クリックで展開
         await user.click(header);
-        expect(screen.getByText('平均取得価格')).toBeVisible();
+        await waitFor(() => {
+            expect(screen.getByText('平均取得価格')).toBeVisible();
+        });
     });
 
     it('検索をクリアすると通常のヘッダーに戻る', async () => {
@@ -208,7 +212,7 @@ describe('Dividend', () => {
 
         // SearchCardを展開してから銘柄を選択（IDで指定）
         const searchCardHeader = screen.getByTestId('search-card-header');
-        searchCardHeader.click();
+        fireEvent.click(searchCardHeader);
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
@@ -264,7 +268,7 @@ describe('Dividend', () => {
 
         // SearchCardを展開してから銘柄を選択（IDで指定）
         const searchCardHeader = screen.getByTestId('search-card-header');
-        searchCardHeader.click();
+        fireEvent.click(searchCardHeader);
         await waitFor(() => {
             expect(container.querySelector('#securities-search')).toBeInTheDocument();
         });
