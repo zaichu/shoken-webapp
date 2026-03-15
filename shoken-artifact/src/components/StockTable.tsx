@@ -1,22 +1,9 @@
-import { Badge } from '@/components/ui/badge'
-import type { Stock } from '@/App'
+import { PnlBadge } from '@/components/PnlBadge'
+import { fmt } from '@/lib/format'
+import type { Stock } from '@/types/stock'
 
 type Props = {
   stocks: Stock[]
-}
-
-function fmt(n: number) {
-  return n.toLocaleString('ja-JP')
-}
-
-function PnlBadge({ pnl, rate }: { pnl: number; rate: number }) {
-  const positive = pnl >= 0
-  const sign = positive ? '+' : ''
-  return (
-    <Badge variant={positive ? 'default' : 'destructive'} className="tabular-nums font-normal">
-      {sign}{fmt(pnl)}円 ({sign}{rate.toFixed(2)}%)
-    </Badge>
-  )
 }
 
 export function StockTable({ stocks }: Props) {
@@ -58,7 +45,7 @@ export function StockTable({ stocks }: Props) {
                 <td className="px-4 py-3 text-right tabular-nums">{fmt(s.currentPrice)}円</td>
                 <td className="px-4 py-3 text-right tabular-nums font-medium">{fmt(value)}円</td>
                 <td className="px-4 py-3 text-right">
-                  <PnlBadge pnl={pnl} rate={rate} />
+                  <PnlBadge value={pnl} rate={rate} />
                 </td>
               </tr>
             )

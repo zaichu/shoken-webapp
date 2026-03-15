@@ -1,4 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { PnlBadge } from '@/components/PnlBadge'
+import { fmt } from '@/lib/format'
 
 type Props = {
   totalValue: number
@@ -6,21 +8,6 @@ type Props = {
   totalPnl: number
   totalPnlRate: number
   stockCount: number
-}
-
-function fmt(n: number) {
-  return n.toLocaleString('ja-JP')
-}
-
-function PnlText({ value, rate }: { value: number; rate: number }) {
-  const positive = value >= 0
-  const color = positive ? 'text-emerald-600' : 'text-red-600'
-  const sign = positive ? '+' : ''
-  return (
-    <span className={color}>
-      {sign}{fmt(value)}円 ({sign}{rate.toFixed(2)}%)
-    </span>
-  )
 }
 
 export function PortfolioSummary({ totalValue, totalCost, totalPnl, totalPnlRate, stockCount }: Props) {
@@ -48,7 +35,7 @@ export function PortfolioSummary({ totalValue, totalCost, totalPnl, totalPnlRate
         <CardContent className="pt-5">
           <p className="text-xs text-gray-500 mb-1">評価損益</p>
           <p className="text-xl font-semibold tabular-nums">
-            <PnlText value={totalPnl} rate={totalPnlRate} />
+            <PnlBadge value={totalPnl} rate={totalPnlRate} variant="text" />
           </p>
         </CardContent>
       </Card>
