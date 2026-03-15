@@ -194,7 +194,7 @@ export function formatNumber(
       return formattedNumber;
     }
   } catch (error) {
-    console.error('数値のフォーマットに失敗しました:', error);
+    console.error('数値のフォーマットに失敗しました:', error instanceof Error ? error.message : String(error));
     return '-';
   }
 }
@@ -250,7 +250,7 @@ export function formatCurrency(
       return `${currency} ${formattedNumber}`;
     }
   } catch (error) {
-    console.error('通貨のフォーマットに失敗しました:', error);
+    console.error('通貨のフォーマットに失敗しました:', error instanceof Error ? error.message : String(error));
     return '-';
   }
 }
