@@ -1,16 +1,15 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import './App.css'
 import { STOCKS } from '@/data/stocks'
 import { PortfolioSummary } from '@/components/PortfolioSummary'
 import { StockTable } from '@/components/StockTable'
 import { FilterBar } from '@/components/FilterBar'
-import type { Stock } from '@/types/stock'
 
 function App() {
   const [filter, setFilter] = useState('')
 
   const filtered = useMemo(
-    () => STOCKS.filter((s: Stock) => s.name.includes(filter) || s.code.includes(filter)),
+    () => STOCKS.filter(s => s.name.includes(filter) || s.code.includes(filter)),
     [filter]
   )
 
@@ -21,10 +20,6 @@ function App() {
     const totalPnlRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0
     return { totalValue, totalCost, totalPnl, totalPnlRate }
   }, [filtered])
-
-  const handleFilterChange = useCallback((value: string) => {
-    setFilter(value)
-  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,7 +36,7 @@ function App() {
           stockCount={filtered.length}
         />
         <div className="space-y-3">
-          <FilterBar value={filter} onChange={handleFilterChange} />
+          <FilterBar value={filter} onChange={setFilter} />
           <StockTable stocks={filtered} />
         </div>
       </main>
