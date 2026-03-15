@@ -19,6 +19,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-slate-700 hover:underline"
+            aria-label={`${label}（新しいタブで開く）`}
           >
             {label}
           </a>

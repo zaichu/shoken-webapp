@@ -33,6 +33,7 @@ export const StockInfoLinks = ({ code }: StockInfoLinksProps) => {
           href={item.url.replace('{}', code)}
           target='_blank'
           rel="noopener noreferrer"
+          aria-label={`${item.name}（新しいタブで開く）`}
         >
           {item.name}
           <svg className="h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
