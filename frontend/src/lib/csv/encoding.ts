@@ -69,7 +69,7 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
       try {
         decoder = new TextDecoder(encoding, { fatal: false });
       } catch (e) {
-        console.warn(`エンコーディング ${encoding} はサポートされていません:`, e);
+        console.warn(`エンコーディング ${encoding} はサポートされていません:`, e instanceof Error ? e.message : String(e));
         continue;
       }
 
@@ -78,14 +78,14 @@ export const tryDecodeWithMultipleEncodings = (uint8Array: Uint8Array): DecodeRe
       try {
         text = decoder.decode(uint8Array);
       } catch (error) {
-        console.warn(`${encoding} でのデコードに失敗しました:`, error);
+        console.warn(`${encoding} でのデコードに失敗しました:`, error instanceof Error ? error.message : String(error));
         continue;
       }
 
       const confidence = calculateEncodingConfidence(text);
       results.push({ text, encoding, confidence });
     } catch (error) {
-      console.warn(`${encoding} でのデコードに失敗しました:`, error);
+      console.warn(`${encoding} でのデコードに失敗しました:`, error instanceof Error ? error.message : String(error));
     }
   }
 
