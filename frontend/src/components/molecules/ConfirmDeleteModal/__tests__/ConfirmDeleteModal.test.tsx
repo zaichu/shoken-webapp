@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { ConfirmDeleteModal } from '../ConfirmDeleteModal';
@@ -81,7 +81,9 @@ describe('ConfirmDeleteModal', () => {
 
     await user.tab();
     // Tab → 先頭要素（✕閉じるボタン）へ
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: '閉じる' }));
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: '閉じる' }));
+    });
   });
 
   it('dialog 自体にフォーカスがある状態で Shift+Tab を押すと末尾要素へ移動する', async () => {
@@ -93,7 +95,9 @@ describe('ConfirmDeleteModal', () => {
 
     await user.tab({ shift: true });
     // Shift+Tab → 末尾要素（削除ボタン）へ
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: '削除する' }));
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: '削除する' }));
+    });
   });
 
   it('キャンセルボタンクリックで onCancel が呼ばれる', () => {

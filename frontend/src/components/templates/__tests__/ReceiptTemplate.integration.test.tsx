@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { ReceiptTemplate } from '../ReceiptTemplate';
 import { ReceiptTable } from '../../organisms/ReceiptTable/ReceiptTable';
@@ -85,11 +85,6 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   test('SearchCard展開時にTableのforceResizeが更新される', async () => {
@@ -117,17 +112,15 @@ describe('ReceiptTemplate Context API統合テスト', () => {
 
     // SearchCardを展開する
     fireEvent.click(header!);
-    vi.advanceTimersByTime(100);
-
-    // コールバックが呼ばれることを確認（展開）
-    expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+    await waitFor(() => {
+      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+    });
 
     // SearchCardを折りたたむ
     fireEvent.click(header!);
-    vi.advanceTimersByTime(100);
-
-    // コールバックが呼ばれることを確認（折りたたみ）
-    expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
+    await waitFor(() => {
+      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
+    });
 
     // テーブルが正常に表示されることを確認
     expect(screen.getByText('商品A')).toBeInTheDocument();
@@ -185,13 +178,15 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     for (let i = 0; i < 3; i++) {
       // 展開
       fireEvent.click(header!);
-      vi.advanceTimersByTime(100);
-      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+      await waitFor(() => {
+        expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(true);
+      });
 
       // 折りたたみ
       fireEvent.click(header!);
-      vi.advanceTimersByTime(100);
-      expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
+      await waitFor(() => {
+        expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
+      });
     }
 
     // 各操作で適切にコールバックが呼ばれることを確認
@@ -259,7 +254,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
   });
 
-  test('複数のReceiptTableがある場合、全てにforceResizeが適用される', { timeout: 15000 }, () => {
+  test('複数のReceiptTableがある場合、全てにforceResizeが適用される', { timeout: 15000 }, async () => {
     const TestComponent = () => (
       <ReceiptTemplate
         onSearch={mockOnSearch}
@@ -291,8 +286,6 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     const header = screen.getByTestId('search-card-header');
     fireEvent.click(header!);
 
-    vi.advanceTimersByTime(100);
-
     // 両方のテーブルが正常に表示されることを確認
     expect(tables[0]).toBeInTheDocument();
     expect(tables[1]).toBeInTheDocument();
@@ -323,7 +316,6 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     // 例外が発生してもアプリケーションが正常に動作することを確認
     expect(() => {
       fireEvent.click(header!);
-      vi.advanceTimersByTime(100);
     }).not.toThrow();
 
     // 基本的な要素が表示されることを確認

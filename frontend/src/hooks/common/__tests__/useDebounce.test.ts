@@ -8,6 +8,10 @@ describe('useDebounce', () => {
   });
 
   afterEach(() => {
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -232,6 +236,10 @@ describe('useSimpleDebounce', () => {
   });
 
   afterEach(() => {
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 

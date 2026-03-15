@@ -1,10 +1,13 @@
 import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+
+beforeEach(() => {
+  vi.useRealTimers();
+});
 
 // テスト後のクリーンアップ
 afterEach(() => {
-  cleanup();
+  vi.useRealTimers();
 });
 
 // グローバルなモックや設定をここに追加できます
