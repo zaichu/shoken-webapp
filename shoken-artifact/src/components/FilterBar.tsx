@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 type Props = {
   value: string
@@ -15,13 +16,15 @@ export function FilterBar({ value, onChange }: Props) {
         className="max-w-xs"
       />
       {value && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
           onClick={() => onChange('')}
-          className="text-sm text-gray-400 hover:text-gray-600"
+          className="text-gray-400 hover:text-gray-600"
         >
           クリア
-        </button>
+        </Button>
       )}
     </div>
   )
