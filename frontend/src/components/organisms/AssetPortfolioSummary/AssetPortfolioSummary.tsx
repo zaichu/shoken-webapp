@@ -3,7 +3,12 @@ import { Card, CardBody } from '@/components/atoms/Card';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
 import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
-import { formatCurrency, formatPercentageValue, safeAdd } from '@/lib/utils/formatters';
+import {
+  formatCurrency,
+  formatPercentageValue,
+  normalizeSecurityName,
+  safeAdd,
+} from '@/lib/utils/formatters';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 
 interface AssetPortfolioSummaryProps {
@@ -58,7 +63,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
     return assetBalanceData
       .filter((item) => (item.total_purchase_amount || 0) > 0)
       .map((item) => ({
-        name: item.security_name || item.security_code,
+        name: normalizeSecurityName(item.security_name || item.security_code),
         value: item.total_purchase_amount || 0,
         securityCode: item.security_code,
         shares: item.shares,

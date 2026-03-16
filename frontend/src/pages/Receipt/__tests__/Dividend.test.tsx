@@ -159,7 +159,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認（初期状態は展開済み）
         await waitFor(() => {
-            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報')).toBeInTheDocument();
         });
 
         // 展開済みなのでembeddedモードの入力とStatItemが表示される
@@ -188,7 +188,7 @@ describe('Dividend', () => {
 
         // 初期状態は展開済み
         await waitFor(() => {
-            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報')).toBeInTheDocument();
         });
         expect(screen.getByText('平均取得価格')).toBeVisible();
 
@@ -221,7 +221,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報')).toBeInTheDocument();
         });
 
         // 検索をクリア
@@ -230,7 +230,6 @@ describe('Dividend', () => {
         // 通常の集計情報ヘッダーに戻ることを確認
         await waitFor(() => {
             expect(screen.getByText('集計情報')).toBeInTheDocument();
-            expect(screen.queryByText('集計情報 / 銘柄詳細')).not.toBeInTheDocument();
         });
     });
 
@@ -277,7 +276,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('集計情報 / 銘柄詳細')).toBeInTheDocument();
+            expect(screen.getByText('集計情報')).toBeInTheDocument();
         });
 
         // embedded モードでは read-only KPI カードが表示される

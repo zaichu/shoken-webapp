@@ -199,7 +199,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
             header={dividendData.length > 0 ? (
                 <ReceiptHeader
                     items={headerItems}
-                    title={isSecurityCodeSearch ? "集計情報 / 銘柄詳細" : "集計情報"}
+                    title="集計情報"
                     collapsible={isSecurityCodeSearch}
                     compact={Boolean(utilityRail)}
                 >

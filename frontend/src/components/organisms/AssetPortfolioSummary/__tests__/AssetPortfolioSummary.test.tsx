@@ -66,6 +66,18 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.queryByText('保有比率と配当効率をまとめて確認できます。')).not.toBeInTheDocument();
   });
 
+  it('全角英数字の銘柄名を半角に正規化して表示する', () => {
+    const mockData = createMockData([
+      { security_code: '9433', security_name: 'ＫＤＤＩ' },
+      { security_code: '1605', security_name: 'ＩＮＰＥＸ' },
+    ]);
+    render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+    expect(screen.getByText('KDDI')).toBeInTheDocument();
+    expect(screen.getByText('INPEX')).toBeInTheDocument();
+    expect(screen.queryByText('ＫＤＤＩ')).not.toBeInTheDocument();
+  });
+
   it('データがない場合は空状態が表示される', () => {
     render(<AssetPortfolioSummary assetBalanceData={[]} />);
 
