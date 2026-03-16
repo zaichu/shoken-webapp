@@ -20,7 +20,7 @@ cd frontend && npm install
 
 ### Lint
 ```bash
-cd frontend && npm run lint
+cd frontend && vp lint
 ```
 
 ### Lint 自動修正
@@ -45,15 +45,15 @@ cd frontend && npm run dev
 
 ### 本番ビルド
 ```bash
-cd frontend && npm run build
+cd frontend && vp build
 ```
 
 ## 推奨実行順序
 
-1. `npm run lint` - Lint
+1. `vp lint` - Lint
 2. `npx tsc --noEmit` - 型チェック
 3. `npm test` - テスト
-4. `npm run build` - ビルド
+4. `vp build` - ビルド
 
 ## よくあるエラー
 

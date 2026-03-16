@@ -33,10 +33,10 @@ Codex が実装して push した PR を Claude がレビューする。
 変更範囲に応じて実行:
 
 - フロントエンド変更がある場合:
-  - `cd frontend && npm run lint`
+  - `cd frontend && vp lint`
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm test`
-  - `cd frontend && npm run build`
+  - `cd frontend && vp build`
 - バックエンド変更がある場合:
   - `cd backend && cargo fmt --check`
   - `cd backend && cargo clippy --all-targets -- -D warnings`

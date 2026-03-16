@@ -152,6 +152,14 @@ npm test           # テスト実行
 npm run test:watch # ウォッチモード
 ```
 
+### 補助コマンド
+
+```bash
+vp dev   # 開発サーバー起動
+vp lint  # Lint 実行
+vp build # ビルド
+```
+
 ### 方針
 
 - テストファイルは各機能配下の `__tests__/` に配置する
