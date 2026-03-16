@@ -158,7 +158,7 @@ interface SearchCardProps {
     categories?: SearchCategories;
     onExpandToggle?: (isExpanded: boolean) => void; // 展開状態変更の通知
     value?: string; // 親の検索状態と同期（外部クリア対応）
-    defaultExpanded?: boolean; // 初期展開状態（デフォルト: true）
+    initialExpanded?: boolean; // 初期展開状態（デフォルト: true）
     compact?: boolean; // コンパクトモード: aside などで lg:grid-cols-4 を抑制する
 }
 
@@ -171,11 +171,11 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     categories,
     onExpandToggle,
     value,
-    defaultExpanded = true,
+    initialExpanded = true,
     compact = false,
 }) => {
 
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [isExpanded, setIsExpanded] = useState(initialExpanded);
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);

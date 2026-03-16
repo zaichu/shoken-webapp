@@ -45,7 +45,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       onSearch={onSearch}
       categories={searchCategories}
       onExpandToggle={handleSearchExpandToggle}
-      defaultExpanded={layout === 'workspace'}
+      initialExpanded={layout === 'workspace'}
       compact={layout === 'workspace'}
     />
   ) : null;
