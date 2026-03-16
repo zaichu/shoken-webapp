@@ -114,6 +114,7 @@ describe('vite.config.ts', () => {
     expect(manualChunks('/node_modules/react/index.js')).toBe('vendor');
     expect(manualChunks('/node_modules/react-dom/index.js')).toBe('vendor');
     expect(manualChunks('/node_modules/react-router-dom/index.js')).toBe('vendor');
+    expect(manualChunks('/node_modules/@vitejs/plugin-react/dist/index.js')).toBeUndefined();
     expect(manualChunks('/src/main.tsx')).toBeUndefined();
   });
 });
