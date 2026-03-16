@@ -38,6 +38,16 @@ export function normalizeSecurityCode(value: unknown): string {
   return token.replace(/\s+/g, '').toUpperCase();
 }
 
+/**
+ * 銘柄名の表示を正規化する
+ * - 全角英数字を半角に変換する
+ */
+export function normalizeSecurityName(name: string): string {
+  return name.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
+  );
+}
+
 // ==================== 日付関連 ====================
 
 /**
@@ -321,4 +331,3 @@ export function calculatePercentage(value: number, total: number, decimals = 2):
   if (total === 0) return 0;
   return Number(((value / total) * 100).toFixed(decimals));
 }
-

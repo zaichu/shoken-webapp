@@ -10,9 +10,13 @@ vi.mock('../../api/client', () => ({
   },
 }));
 
-vi.mock('@/lib/utils/formatters', () => ({
-  parseNumber: vi.fn(),
-}));
+vi.mock('@/lib/utils/formatters', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils/formatters')>();
+  return {
+    ...actual,
+    parseNumber: vi.fn(),
+  };
+});
 
 describe('useJQuantsDividendBatch', () => {
   beforeEach(() => {

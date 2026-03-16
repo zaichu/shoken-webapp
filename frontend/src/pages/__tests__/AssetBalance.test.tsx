@@ -10,12 +10,16 @@ vi.mock('@/components/atoms/SecurityCodeLink', () => ({
 }));
 
 // ユーティリティ関数のモック
-vi.mock('@/lib/utils/formatters', () => ({
-  formatCurrency: vi.fn().mockImplementation((value: number) => `¥${value.toLocaleString()}`),
-  formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
-  formatPercentageValue: vi.fn().mockImplementation((value: number) => `${value.toFixed(2)}%`),
-  safeAdd: vi.fn().mockImplementation((a: number, b: number) => a + b),
-}));
+vi.mock('@/lib/utils/formatters', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils/formatters')>();
+  return {
+    ...actual,
+    formatCurrency: vi.fn().mockImplementation((value: number) => `¥${value.toLocaleString()}`),
+    formatNumber: vi.fn().mockImplementation((value: number) => value.toLocaleString()),
+    formatPercentageValue: vi.fn().mockImplementation((value: number) => `${value.toFixed(2)}%`),
+    safeAdd: vi.fn().mockImplementation((a: number, b: number) => a + b),
+  };
+});
 
 const mockAssetBalanceData: AssetBalanceData[] = [
   {

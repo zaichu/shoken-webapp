@@ -16,7 +16,8 @@ import {
   safeDivide,
   calculatePercentage,
   TAX_RATE,
-  normalizeSecurityCode
+  normalizeSecurityCode,
+  normalizeSecurityName,
 } from '../formatters';
 
 describe('日付関連のフォーマット関数', () => {
@@ -114,6 +115,21 @@ describe('数値関連のフォーマット関数', () => {
 
     it('英字コードを大文字化する', () => {
       expect(normalizeSecurityCode('brk.b')).toBe('BRK.B');
+    });
+  });
+
+  describe('normalizeSecurityName', () => {
+    it('全角英字を半角英字に変換する', () => {
+      expect(normalizeSecurityName('ＫＤＤＩ')).toBe('KDDI');
+      expect(normalizeSecurityName('ＩＮＰＥＸ')).toBe('INPEX');
+    });
+
+    it('全角数字を半角数字に変換する', () => {
+      expect(normalizeSecurityName('ＡＢＣ１２３')).toBe('ABC123');
+    });
+
+    it('日本語や半角文字はそのまま保持する', () => {
+      expect(normalizeSecurityName('日本株ABC123')).toBe('日本株ABC123');
     });
   });
   describe('parseNumberString', () => {
