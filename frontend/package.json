@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vp": "vp dev",
     "build": "vite build",
+    "build:vp": "vp build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:vp": "vp lint",
     "preview": "vite preview",
     "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest",
     "test:watch": "NODE_OPTIONS='--max-old-space-size=8192' vitest --watch",

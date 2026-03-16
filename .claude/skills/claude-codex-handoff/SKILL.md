@@ -40,7 +40,7 @@ Codex が最短で実装に着手できる依頼文を作成し、`codex exec "<
 ## 確認コマンド
 ```bash
 # フロントエンド変更がある場合
-cd frontend && npm run lint && npm test && npm run build
+cd frontend && vp lint && npm test && vp build
 
 # バックエンド変更がある場合
 cd backend && cargo clippy --all-targets -- -D warnings && cargo test
@@ -76,7 +76,7 @@ PR #<番号> のレビュー指摘に対応する。各指摘に返信してか�
 ## 確認コマンド
 ```bash
 # フロントエンド変更がある場合
-cd frontend && npm run lint && npx tsc --noEmit && npm test -- --run && npm run build
+cd frontend && vp lint && npx tsc --noEmit && npm test -- --run && vp build
 
 # バックエンド変更がある場合
 cd backend && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test

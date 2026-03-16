@@ -13,10 +13,10 @@
 
 ## コマンド
 
-- `npm run dev` - 開発サーバー起動
-- `npm run lint` - Lint 実行
+- `vp dev` - 開発サーバー起動
+- `vp lint` - Lint 実行
 - `npm test` - テスト実行
-- `npm run build` - ビルド
+- `vp build` - ビルド
 
 ## 補足
 
