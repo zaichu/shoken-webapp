@@ -13,6 +13,10 @@ export async function fetchStockData(query: string): Promise<StockData> {
     const response = await apiClient.get<StockData>(`/stock/${query}`);
     return response;
   } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     if (axios.isAxiosError(error)) {
       throw ApiError.fromAxiosError(error);
     }

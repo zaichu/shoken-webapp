@@ -18,6 +18,16 @@ describe('Stock API', () => {
   });
 
   describe('fetchStockData', () => {
+    it('ApiErrorの場合、同じエラーをそのまま再スローする', async () => {
+      const apiError = new ApiError(ApiErrorType.NOT_FOUND_ERROR, 'リソースが見つかりません');
+      vi.mocked(axios.isAxiosError).mockReturnValue(false);
+      (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(apiError);
+      const fromAxiosErrorSpy = vi.spyOn(ApiError, 'fromAxiosError');
+
+      await expect(fetchStockData('1234')).rejects.toBe(apiError);
+      expect(fromAxiosErrorSpy).not.toHaveBeenCalled();
+    });
+
     it('Axiosエラーの場合、ApiErrorを投げる', async () => {
       const axiosError = new Error('Network Error');
       vi.mocked(axios.isAxiosError).mockReturnValue(true);
