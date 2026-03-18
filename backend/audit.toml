@@ -1,0 +1,6 @@
+[advisories]
+# RUSTSEC-2024-0436: paste クレートが unmaintained
+# utoipa-axum 0.2.0（最新版）の間接依存であり、直接除去できない。
+# paste は手続きマクロのみで、セキュリティリスクは低い。
+# utoipa-axum の後継バージョンで解消され次第、このエントリを削除する。
+ignore = ["RUSTSEC-2024-0436"]
