@@ -50,3 +50,32 @@ pub async fn delete_all_for_user(
     info!("[{}.delete_all] 完了: {}件削除", domain, deleted);
     Ok(deleted)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::BulkTimer;
+
+    #[test]
+    fn finish_sets_skipped_to_total_when_inserted_is_zero() {
+        let response = BulkTimer::new("test", 5).finish(0);
+
+        assert_eq!(response.inserted, 0);
+        assert_eq!(response.skipped, 5);
+    }
+
+    #[test]
+    fn finish_sets_skipped_to_zero_when_inserted_matches_total() {
+        let response = BulkTimer::new("test", 5).finish(5);
+
+        assert_eq!(response.inserted, 5);
+        assert_eq!(response.skipped, 0);
+    }
+
+    #[test]
+    fn finish_sets_skipped_to_difference_when_inserted_is_partial() {
+        let response = BulkTimer::new("test", 5).finish(3);
+
+        assert_eq!(response.inserted, 3);
+        assert_eq!(response.skipped, 2);
+    }
+}
