@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn test_stock_validation_valid() {
         let stock = Stock {
-            date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
+            date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
             code: "1234".to_string(),
             name: "テスト株式会社".to_string(),
             market_category: "プライム".to_string(),
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn test_stock_validation_invalid_code() {
         let stock = Stock {
-            date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
+            date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
             code: "".to_string(),
             name: "テスト株式会社".to_string(),
             market_category: "プライム".to_string(),
@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn test_stock_validation_invalid_name() {
         let stock = Stock {
-            date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
+            date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
             code: "1234".to_string(),
             name: "".to_string(),
             market_category: "プライム".to_string(),
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_stock_validation_invalid_market_category() {
         let stock = Stock {
-            date: NaiveDate::from_ymd_opt(2025, 3, 24).unwrap(),
+            date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
             code: "1234".to_string(),
             name: "テスト株式会社".to_string(),
             market_category: "".to_string(),

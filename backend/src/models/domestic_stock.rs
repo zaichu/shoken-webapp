@@ -71,8 +71,8 @@ mod tests {
     #[test]
     fn test_create_domestic_stock_request_validation() {
         let request = CreateDomesticStockRequest {
-            trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+            trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
+            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"),
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
             account: "特定".to_string(),
