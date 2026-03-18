@@ -50,3 +50,106 @@ pub async fn handle_upload_csv<D: CsvDomain>(
     let response = D::upload_csv(pool, user_id, &bytes).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::errors::ErrorResponse;
+    use axum::{
+        body::{to_bytes, Body},
+        extract::Multipart,
+        http::{Request, StatusCode},
+        routing::post,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    const BODY_LIMIT: usize = 1024 * 1024;
+
+    fn test_app() -> Router {
+        Router::new().route("/csv", post(csv_bytes_endpoint))
+    }
+
+    async fn csv_bytes_endpoint(multipart: Multipart) -> Result<Vec<u8>, ApiError> {
+        read_csv_file_bytes(multipart).await
+    }
+
+    fn multipart_request(field_name: &str, filename: Option<&str>, content: &str) -> Request<Body> {
+        let boundary = "boundary123";
+        let content_disposition = match filename {
+            Some(filename) => format!(
+                "Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n"
+            ),
+            None => format!("Content-Disposition: form-data; name=\"{field_name}\"\r\n"),
+        };
+        let body = format!(
+            "--{boundary}\r\n{content_disposition}Content-Type: text/csv\r\n\r\n{content}\r\n--{boundary}--\r\n"
+        );
+
+        Request::builder()
+            .method("POST")
+            .uri("/csv")
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={boundary}"),
+            )
+            .body(Body::from(body))
+            .unwrap()
+    }
+
+    async fn read_error_response(response: axum::response::Response) -> ErrorResponse {
+        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_read_csv_file_bytes_valid() {
+        let content = "symbol,amount\n7203,100\n";
+        let response = test_app()
+            .oneshot(multipart_request("file", Some("positions.csv"), content))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
+        assert_eq!(body.as_ref(), content.as_bytes());
+    }
+
+    #[tokio::test]
+    async fn test_read_csv_file_bytes_no_file_field() {
+        let response = test_app()
+            .oneshot(multipart_request("other", Some("positions.csv"), "dummy"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let error = read_error_response(response).await;
+        assert_eq!(error.error.code, "VALIDATION_ERROR");
+        assert!(error.error.message.contains("fileフィールド"));
+    }
+
+    #[tokio::test]
+    async fn test_read_csv_file_bytes_wrong_extension() {
+        let response = test_app()
+            .oneshot(multipart_request("file", Some("positions.txt"), "dummy"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let error = read_error_response(response).await;
+        assert_eq!(error.error.code, "VALIDATION_ERROR");
+        assert!(error.error.message.contains(".csv"));
+    }
+
+    #[tokio::test]
+    async fn test_read_csv_file_bytes_no_filename() {
+        let response = test_app()
+            .oneshot(multipart_request("file", Some(""), "dummy"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let error = read_error_response(response).await;
+        assert_eq!(error.error.code, "VALIDATION_ERROR");
+    }
+}

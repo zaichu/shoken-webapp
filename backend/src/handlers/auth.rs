@@ -259,3 +259,97 @@ pub async fn delete_account(
         Json(serde_json::json!({"message": "アカウントを削除しました"})),
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        config::Config,
+        db::connect_pool_lazy,
+        errors::ErrorResponse,
+        models::common::MessageResponse,
+        routes::app_router,
+        state::{AppState, Secrets},
+    };
+    use axum::{
+        body::{to_bytes, Body},
+        http::{Request, StatusCode},
+        Router,
+    };
+    use reqwest::Client;
+    use serde::de::DeserializeOwned;
+    use std::sync::{atomic::AtomicBool, Arc};
+    use tower::ServiceExt;
+
+    const BODY_LIMIT: usize = 1024 * 1024;
+
+    fn make_test_state() -> AppState {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        let pool = connect_pool_lazy(database_url, 1).expect("pool");
+        let secrets = Arc::new(Secrets {
+            database_url: database_url.to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+
+        AppState {
+            pool,
+            secrets,
+            client: Client::new(),
+            background_task_running: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    fn test_app() -> Router {
+        let config = Config {
+            auth_rate_limit_rps: 0,
+            jquants_rate_limit_rps: 0,
+            ..Config::default()
+        };
+
+        app_router(make_test_state(), &config)
+    }
+
+    async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
+        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_get_current_user_no_cookie() {
+        let response = test_app()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/auth/me")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let error: ErrorResponse = read_json_response(response).await;
+        assert_eq!(error.error.code, "UNAUTHORIZED");
+        assert!(error.error.message.contains("ログインが必要"));
+    }
+
+    #[tokio::test]
+    async fn test_logout_no_cookie() {
+        let response = test_app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/auth/logout")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let message: MessageResponse = read_json_response(response).await;
+        assert_eq!(message.message, "ログアウトしました");
+    }
+}
