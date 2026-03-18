@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from '../components/molecules/ErrorBoundary';
 import { ErrorPage } from '../components/templates/ErrorPage';
 import { Spinner } from '../components/atoms/Spinner';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const HomePage = lazy(() => import('../pages/Home').then(m => ({ default: m.HomePage })));
 const SearchPage = lazy(() => import('../pages/Search').then(m => ({ default: m.SearchPage })));
@@ -19,6 +20,20 @@ function PageLoader() {
   );
 }
 
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -31,11 +46,19 @@ const router = createBrowserRouter([
   },
   {
     path: "/receipts",
-    element: <Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>,
+    element: (
+      <ProtectedRoute>
+        <Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/assetbalance",
-    element: <Suspense fallback={<PageLoader />}><AssetBalancePage /></Suspense>,
+    element: (
+      <ProtectedRoute>
+        <Suspense fallback={<PageLoader />}><AssetBalancePage /></Suspense>
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/login",
