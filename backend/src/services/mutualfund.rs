@@ -113,6 +113,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    if bytes.is_empty() {
+        return Err(ApiError::ValidationError("CSVが空です".to_string()));
+    }
     build_preview(bytes, parse_mutualfund_row)
 }
 
@@ -179,4 +182,37 @@ fn parse_mutualfund_row(
 /// 認証ユーザーの投資信託を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     crate::services::shared::delete_all_for_user(pool, user_id, "mutualfunds", "mutualfund").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_preview_csv_valid() {
+        let csv = [
+            "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］",
+            "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 1);
+        assert_eq!(preview.valid_rows, 1);
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
+        assert_eq!(preview.rows.len(), 1);
+    }
+
+    #[test]
+    fn test_preview_csv_empty() {
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
+    }
 }

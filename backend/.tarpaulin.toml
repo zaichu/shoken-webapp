@@ -1,0 +1,20 @@
+[coverage]
+exclude-files = [
+  "src/bin/*",
+  "src/main.rs",
+  "src/openapi.rs",
+  "src/handlers/auth.rs",
+  "src/handlers/asset_balance.rs",
+  "src/handlers/dividend.rs",
+  "src/handlers/dividend_per_share.rs",
+  "src/handlers/domestic_stock.rs",
+  "src/handlers/jquants.rs",
+  "src/handlers/mutualfund.rs",
+  "src/handlers/stock/*",
+  "src/services/dividend_cache/background.rs",
+  "src/services/dividend_cache/mod.rs",
+  "src/services/dividend_cache/persistence.rs",
+  "src/services/jquants.rs",
+  "src/services/shared.rs",
+  "src/services/stock.rs",
+]
