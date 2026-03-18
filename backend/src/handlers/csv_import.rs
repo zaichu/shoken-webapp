@@ -55,14 +55,17 @@ pub async fn handle_upload_csv<D: CsvDomain>(
 mod tests {
     use super::*;
     use crate::errors::ErrorResponse;
+    use async_trait::async_trait;
     use axum::{
         body::{to_bytes, Body},
-        extract::Multipart,
+        extract::{Multipart, State},
         http::{Request, StatusCode},
         routing::post,
         Router,
     };
+    use sqlx::postgres::PgPoolOptions;
     use tower::ServiceExt;
+    use uuid::Uuid;
 
     const BODY_LIMIT: usize = 1024 * 1024;
 
@@ -72,6 +75,53 @@ mod tests {
 
     async fn csv_bytes_endpoint(multipart: Multipart) -> Result<Vec<u8>, ApiError> {
         read_csv_file_bytes(multipart).await
+    }
+
+    struct PreviewDomain;
+
+    #[async_trait]
+    impl CsvDomain for PreviewDomain {
+        fn preview_csv(
+            bytes: &[u8],
+        ) -> Result<crate::models::csv_import::CsvPreviewResponse, ApiError> {
+            Ok(crate::models::csv_import::CsvPreviewResponse {
+                total_rows: bytes.len(),
+                valid_rows: 1,
+                errors: vec![],
+                rows: vec![serde_json::json!({"ok": true})],
+            })
+        }
+
+        async fn upload_csv(
+            _pool: &sqlx::PgPool,
+            _user_id: Uuid,
+            _bytes: &[u8],
+        ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
+            unreachable!("preview test does not call upload")
+        }
+    }
+
+    struct UploadDomain;
+
+    #[async_trait]
+    impl CsvDomain for UploadDomain {
+        fn preview_csv(
+            _bytes: &[u8],
+        ) -> Result<crate::models::csv_import::CsvPreviewResponse, ApiError> {
+            unreachable!("upload test does not call preview")
+        }
+
+        async fn upload_csv(
+            _pool: &sqlx::PgPool,
+            _user_id: Uuid,
+            bytes: &[u8],
+        ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
+            Ok(crate::models::csv_import::CsvUploadResponse {
+                inserted: usize::from(!bytes.is_empty()),
+                skipped: 0,
+                errors: vec![],
+            })
+        }
     }
 
     fn multipart_request(field_name: &str, filename: Option<&str>, content: &str) -> Request<Body> {
@@ -100,6 +150,32 @@ mod tests {
     async fn read_error_response(response: axum::response::Response) -> ErrorResponse {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
         serde_json::from_slice(&body).unwrap()
+    }
+
+    fn preview_app() -> Router {
+        Router::new().route("/csv", post(preview_endpoint))
+    }
+
+    async fn preview_endpoint(multipart: Multipart) -> Result<impl IntoResponse, ApiError> {
+        handle_preview_csv::<PreviewDomain>(multipart).await
+    }
+
+    fn upload_app() -> Router {
+        let pool = PgPoolOptions::new()
+            .max_connections(1)
+            .connect_lazy("postgresql://user:password@localhost/test_db")
+            .unwrap();
+
+        Router::new()
+            .route("/csv", post(upload_endpoint))
+            .with_state(pool)
+    }
+
+    async fn upload_endpoint(
+        State(pool): State<sqlx::PgPool>,
+        multipart: Multipart,
+    ) -> Result<impl IntoResponse, ApiError> {
+        handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await
     }
 
     #[tokio::test]
@@ -151,5 +227,33 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let error = read_error_response(response).await;
         assert_eq!(error.error.code, "VALIDATION_ERROR");
+    }
+
+    #[tokio::test]
+    async fn test_handle_preview_csv_returns_json_preview() {
+        let response = preview_app()
+            .oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
+        let preview: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(preview["valid_rows"], 1);
+        assert_eq!(preview["rows"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_handle_upload_csv_returns_created_response() {
+        let response = upload_app()
+            .oneshot(multipart_request("file", Some("upload.csv"), "a,b\n1,2\n"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
+        let upload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(upload["inserted"], 1);
+        assert_eq!(upload["skipped"], 0);
     }
 }

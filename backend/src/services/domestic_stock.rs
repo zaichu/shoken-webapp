@@ -218,6 +218,42 @@ mod tests {
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
+    #[test]
+    fn test_preview_csv_valid() {
+        let csv = [
+            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
+            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 1);
+        assert_eq!(preview.valid_rows, 1);
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
+        assert_eq!(preview.rows.len(), 1);
+    }
+
+    #[test]
+    fn test_preview_csv_missing_column() {
+        let csv = [
+            "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
+            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 1);
+        assert_eq!(preview.valid_rows, 0);
+        assert_eq!(preview.errors.len(), 1);
+        assert!(preview.errors[0].message.contains("銘柄名"));
+    }
+
     fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),

@@ -132,3 +132,36 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     crate::services::shared::delete_all_for_user(pool, user_id, "asset_balances", "asset_balance")
         .await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_preview_csv_valid() {
+        let csv = [
+            "■現在の評価額合計［円］,,\"9,474,000\"",
+            "■評価損益合計,前日比［円］,\"288,000\"",
+            ",前月比［円］,\"-120,000\"",
+            ",評価損益［円］,\"2,005,900\"",
+            "■特定口座",
+            "",
+            "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］",
+            "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
+            "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
+            ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 2);
+        assert_eq!(preview.valid_rows, 2);
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
+        assert_eq!(preview.rows.len(), 2);
+    }
+}
