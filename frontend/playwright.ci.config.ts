@@ -4,12 +4,18 @@ import { defineConfig, devices } from '@playwright/test';
  * CI 用 Playwright 設定
  *
  * - Vite dev server を自動起動
- * - error-scenarios.spec.ts のみ実行（API モックのため認証不要）
+ * - API モック前提の E2E spec を実行
  * - 失敗時に trace / screenshot / HTML レポートを保存
  */
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['**/error-scenarios.spec.ts', '**/a11y.spec.ts'],
+  testMatch: [
+    '**/error-scenarios.spec.ts',
+    '**/a11y.spec.ts',
+    '**/auth-flow.spec.ts',
+    '**/receipt-flow.spec.ts',
+    '**/search-flow.spec.ts',
+  ],
   fullyParallel: false,
   forbidOnly: true,
   retries: 1,
@@ -35,6 +41,8 @@ export default defineConfig({
       // バックエンドは page.route() でモックするため実際に接続しない
       VITE_SHOKEN_WEBAPI_API_URL: 'http://localhost:3001',
       PLAYWRIGHT_TEST: '1',
+      // React Compiler を無効化（VITEST フラグを流用）
+      VITEST: '1',
     },
   },
 });

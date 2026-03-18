@@ -11,8 +11,8 @@ export default defineConfig({
     react({
       babel: {
         plugins: [
-          // Vitest 実行時は React Compiler を無効化（dev/prod のみ有効）
-          ...(process.env.VITEST ? [] : [['babel-plugin-react-compiler', {}] as const]),
+          // Vitest / Playwright 実行時は React Compiler を無効化（dev/prod のみ有効）
+          ...(process.env.VITEST || process.env.PLAYWRIGHT_TEST ? [] : [['babel-plugin-react-compiler', {}] as const]),
         ],
       },
     }),
