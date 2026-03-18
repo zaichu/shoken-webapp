@@ -13,6 +13,7 @@ import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useAssetBalanceDataSource } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 
@@ -64,6 +65,8 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
  * 保有銘柄管理ページコンポーネント
  */
 export function AssetBalancePage() {
+  usePageTitle('資産管理');
+
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
 
   const {
