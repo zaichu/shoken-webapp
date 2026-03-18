@@ -103,6 +103,9 @@ pub async fn bulk_create(
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
 /// 現在の取込対象形式では、先頭6行はメタデータのためスキップ
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    if bytes.is_empty() {
+        return Err(ApiError::ValidationError("CSVが空です".to_string()));
+    }
     let (items, errors) = parse_asset_balance_csv(bytes)?;
     let rows = items
         .iter()
@@ -163,5 +166,13 @@ mod tests {
             preview.errors
         );
         assert_eq!(preview.rows.len(), 2);
+    }
+
+    #[test]
+    fn test_preview_csv_empty() {
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 }

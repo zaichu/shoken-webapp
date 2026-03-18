@@ -161,6 +161,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    if bytes.is_empty() {
+        return Err(ApiError::ValidationError("CSVが空です".to_string()));
+    }
     build_preview(bytes, parse_domestic_stock_row)
 }
 
@@ -252,6 +255,14 @@ mod tests {
         assert_eq!(preview.valid_rows, 0);
         assert_eq!(preview.errors.len(), 1);
         assert!(preview.errors[0].message.contains("銘柄名"));
+    }
+
+    #[test]
+    fn test_preview_csv_empty() {
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 
     fn make_test_item() -> CreateDomesticStockRequest {

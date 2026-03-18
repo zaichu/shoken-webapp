@@ -113,6 +113,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    if bytes.is_empty() {
+        return Err(ApiError::ValidationError("CSVが空です".to_string()));
+    }
     build_preview(bytes, parse_mutualfund_row)
 }
 
@@ -203,5 +206,13 @@ mod tests {
             preview.errors
         );
         assert_eq!(preview.rows.len(), 1);
+    }
+
+    #[test]
+    fn test_preview_csv_empty() {
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 }
