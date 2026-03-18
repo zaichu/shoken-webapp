@@ -75,8 +75,8 @@ mod tests {
     #[test]
     fn test_create_mutualfund_request_validation() {
         let request = CreateMutualfundRequest {
-            trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 19).unwrap(),
+            trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
+            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 19).expect("有効な日付 2024-01-19"),
             fund_name: "テストファンド".to_string(),
             dividends: Some("再投資型".to_string()),
             account: "特定".to_string(),

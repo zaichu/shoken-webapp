@@ -25,8 +25,6 @@ export async function parseCSVFile(
     // エンコーディング検出とデコード
     const { text, encoding, confidence } = tryDecodeWithMultipleEncodings(uint8Array);
 
-    console.log(`CSVファイルを ${encoding} エンコーディングで読み込みました (信頼度: ${(confidence * 100).toFixed(1)}%)`);
-
     if (confidence < 0.7) {
       console.warn('エンコーディングの信頼度が低いため、文字化けの可能性があります');
     }

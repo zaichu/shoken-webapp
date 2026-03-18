@@ -487,7 +487,8 @@ mod tests {
             "DivAnn": "40.00"
         });
 
-        let fin_summary_data: FinSummaryData = serde_json::from_value(json_data).unwrap();
+        let fin_summary_data: FinSummaryData =
+            serde_json::from_value(json_data).expect("有効なテスト用 JSON");
 
         assert_eq!(fin_summary_data.disclosed_date, "2023-11-14");
         assert_eq!(fin_summary_data.local_code, "72030");
@@ -527,7 +528,8 @@ mod tests {
             ]
         });
 
-        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
+        let response: FinSummaryResponse =
+            serde_json::from_value(json_data).expect("有効なテスト用 JSON");
 
         assert_eq!(response.data.len(), 1);
         assert_eq!(response.data[0].disclosed_date, "2023-11-14");
@@ -537,7 +539,8 @@ mod tests {
     #[test]
     fn test_fin_summary_response_empty() {
         let json_data = json!({ "data": [] });
-        let response: FinSummaryResponse = serde_json::from_value(json_data).unwrap();
+        let response: FinSummaryResponse =
+            serde_json::from_value(json_data).expect("有効なテスト用 JSON");
 
         assert_eq!(response.data.len(), 0);
     }

@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_create_dividend_request_validation() {
         let request = CreateDividendRequest {
-            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             product: "国内株式".to_string(),
             account: "特定".to_string(),
             security_code: "1234".to_string(),
