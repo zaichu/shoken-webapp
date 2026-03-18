@@ -1,18 +1,17 @@
 use crate::models::csv_import::CsvRowError;
 use chrono::NaiveDate;
-use encoding_rs::{SHIFT_JIS, UTF_8};
+use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::str::FromStr;
 
 /// UTF-8 デコードを試み、失敗時は Shift-JIS にフォールバック
 pub fn decode_bytes(bytes: &[u8]) -> String {
-    // まず UTF-8 を試みる
-    let (result, _, had_errors) = UTF_8.decode(bytes);
-    if !had_errors {
-        return result.into_owned();
+    // std::str::from_utf8 はアロケーションなしで UTF-8 妥当性を検証する
+    if let Ok(s) = std::str::from_utf8(bytes) {
+        return s.strip_prefix('\u{FEFF}').unwrap_or(s).to_string();
     }
-    // Shift-JIS にフォールバック
+    // UTF-8 でない場合は Shift-JIS にフォールバック
     let (result, _, _) = SHIFT_JIS.decode(bytes);
     result.into_owned()
 }
@@ -214,6 +213,12 @@ mod tests {
     #[test]
     fn test_decode_bytes_utf8() {
         let input = "テスト".as_bytes();
+        assert_eq!(decode_bytes(input), "テスト");
+    }
+
+    #[test]
+    fn test_decode_bytes_utf8_with_bom() {
+        let input = b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88";
         assert_eq!(decode_bytes(input), "テスト");
     }
 
