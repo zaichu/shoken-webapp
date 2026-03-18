@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/templates/Layout';
 import { Card, CardBody } from '../components/atoms/Card';
 import { PageHeader } from '../components/atoms/PageHeader';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // クイックアクション（ショートカット）
 const QUICK_ACTIONS = [
@@ -47,6 +48,8 @@ const FEATURES = [
 ] as const;
 
 export function HomePage() {
+  usePageTitle();
+
   return (
     <Layout>
       <div className="page-surface">

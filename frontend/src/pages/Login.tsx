@@ -3,9 +3,12 @@ import { useAuth } from '../features/auth/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Card, CardBody } from '../components/atoms/Card';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Spinner } from '../components/atoms/Spinner';
 
 export function LoginPage() {
+  usePageTitle('ログイン');
+
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 

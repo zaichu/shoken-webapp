@@ -7,9 +7,12 @@ import { Alert } from '../components/atoms/Alert';
 import { EmptyState } from '../components/atoms/EmptyState';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
 export function SearchPage() {
+  usePageTitle('銘柄検索');
+
   const [searchParams] = useSearchParams();
   const codeParam = searchParams.get('code');
   const normalizedCodeParam = useMemo(() => {

@@ -1,7 +1,10 @@
 import { ErrorPage } from '../components/templates/ErrorPage';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Layout } from '../components/templates/Layout';
 
 export function NotFoundPage() {
+  usePageTitle('ページが見つかりません');
+
   return (
     <Layout>
       <ErrorPage

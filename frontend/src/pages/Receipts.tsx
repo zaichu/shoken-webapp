@@ -1,6 +1,7 @@
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { PageHeader } from '../components/atoms/PageHeader';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Spinner } from '@/components/atoms/Spinner';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Dividend } from './Receipt/Dividend';
@@ -22,6 +23,8 @@ import { ReceiptsAlerts } from './ReceiptsAlerts';
  * 明細種類ごとにCSVデータを管理するページコンポーネント
  */
 export function ReceiptsPage() {
+  usePageTitle('取引明細');
+
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
   const [state, dispatch] = useReducer(receiptsReducer, initialState);
   const { receiptsType, rawFiles, lastImportResults, showDeleteConfirm } = state;
