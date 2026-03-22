@@ -8,6 +8,7 @@ import { EmptyState } from '../components/atoms/EmptyState';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { useStockSearch } from '../features/stock/hooks/useStockSearch';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { ApiError } from '@/lib/types/api';
 import { SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
 export function SearchPage() {
@@ -62,7 +63,10 @@ export function SearchPage() {
 
         {isError && (
           <Alert variant="danger">
-            <strong>エラー:</strong> {error?.message || '銘柄情報の取得に失敗しました。'}
+            <strong>エラー:</strong>{' '}
+            {error instanceof ApiError
+              ? error.getUserMessage()
+              : (error?.message || '銘柄情報の取得に失敗しました。')}
           </Alert>
         )}
 
