@@ -24,6 +24,9 @@ const JQuantsBadge = () => (
   </a>
 );
 
+const ASSET_BALANCE_HINT = '資産管理にCSVを取り込むと表示されます';
+const JQUANTS_HINT = 'J-Quants APIから取得します';
+
 interface DividendInfoProps {
   searchQuery: string;
   securityCode?: string;
@@ -138,10 +141,13 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
             </p>
             <p
               className="text-2xl font-bold tabular-nums text-primary"
-              title={averageUnitPrice === undefined ? '資産管理にCSVを取り込むと表示されます' : undefined}
+              title={averageUnitPrice === undefined ? ASSET_BALANCE_HINT : undefined}
             >
               {averageUnitPrice !== undefined ? formatCurrency(averageUnitPrice) : '---'}
             </p>
+            {averageUnitPrice === undefined && (
+              <p className="mt-0.5 text-xs text-slate-400">{ASSET_BALANCE_HINT}</p>
+            )}
           </div>
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-600 mb-1">
@@ -149,10 +155,13 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
             </p>
             <p
               className="text-2xl font-bold tabular-nums text-primary"
-              title={holdingQuantity === undefined ? '資産管理にCSVを取り込むと表示されます' : undefined}
+              title={holdingQuantity === undefined ? ASSET_BALANCE_HINT : undefined}
             >
               {holdingQuantity !== undefined ? holdingQuantity.toLocaleString('ja-JP') : '---'}
             </p>
+            {holdingQuantity === undefined && (
+              <p className="mt-0.5 text-xs text-slate-400">{ASSET_BALANCE_HINT}</p>
+            )}
           </div>
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-600 mb-1">
@@ -161,6 +170,9 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
             <p className="text-2xl font-bold tabular-nums text-primary">
               {apiLoading ? '取得中...' : dividendPerShare !== undefined ? formatCurrency(dividendPerShare) : '---'}
             </p>
+            {!apiLoading && dividendPerShare === undefined && (
+              <p className="mt-0.5 text-xs text-slate-400">{JQUANTS_HINT}</p>
+            )}
           </div>
         </div>
 

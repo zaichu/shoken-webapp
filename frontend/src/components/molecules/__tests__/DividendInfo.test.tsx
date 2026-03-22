@@ -63,4 +63,13 @@ describe('DividendInfo', () => {
 
     expect(mockUseDividendBatch).toHaveBeenCalledWith(['7203'], true);
   });
+
+  it('embedded モードで未取得値にヒントを表示する', () => {
+    render(<DividendInfo embedded searchQuery="7203: トヨタ自動車" summary={[]} />);
+
+    expect(
+      screen.getAllByText('資産管理にCSVを取り込むと表示されます')
+    ).toHaveLength(2);
+    expect(screen.getByText('J-Quants APIから取得します')).toBeInTheDocument();
+  });
 });

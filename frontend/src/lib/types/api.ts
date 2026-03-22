@@ -95,6 +95,8 @@ export class ApiError extends Error {
         return '入力内容を確認してください';
       case ApiErrorType.SERVER_ERROR:
         return 'サーバーエラーが発生しました。しばらくしてから再度お試しください';
+      case ApiErrorType.DESERIALIZATION_ERROR:
+        return '銘柄情報の取得に失敗しました。時間をおいて再度お試しください。';
       default:
         return this.message;
     }
