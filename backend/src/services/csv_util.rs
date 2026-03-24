@@ -276,11 +276,11 @@ mod tests {
     /// CSV パース処理の所要時間を計測するタイミングテスト。
     /// 通常の `cargo test` では実行されない。以下で明示的に実行する:
     /// ```
-    /// cargo test --lib -- timing_csv_parse --ignored --nocapture
+    /// cargo test --lib -- timing_csv_util --ignored --nocapture
     /// ```
     #[test]
-    #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_parse --ignored --nocapture で実行"]
-    fn timing_csv_parse() {
+    #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
+    fn timing_csv_util() {
         use encoding_rs::SHIFT_JIS;
         use std::time::Instant;
 
