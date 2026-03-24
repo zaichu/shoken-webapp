@@ -1,6 +1,10 @@
-use axum::http::{HeaderValue, Method};
 use std::env;
-use tower_http::cors::CorsLayer;
+
+pub mod cors;
+pub mod environment;
+
+pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
+pub use environment::{backend_url, is_production_env, is_secure_cookie, server_addr};
 
 pub struct Config {
     pub cors_origins: Vec<String>,
@@ -59,110 +63,6 @@ impl Config {
 
         config
     }
-
-    pub fn build_cors_layer(&self) -> CorsLayer {
-        let allowed_headers = vec![
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::ACCEPT,
-            axum::http::header::ORIGIN,
-            axum::http::header::AUTHORIZATION,
-        ];
-
-        let allowed_methods = vec![
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-            Method::OPTIONS,
-        ];
-
-        let cors_origins = self.cors_origins.clone();
-
-        CorsLayer::new()
-            .allow_origin(tower_http::cors::AllowOrigin::predicate(
-                move |origin, _| {
-                    cors_origins.iter().any(|allowed_origin| {
-                        if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
-                            origin.eq(&header_value)
-                        } else {
-                            false
-                        }
-                    })
-                },
-            ))
-            .allow_methods(allowed_methods)
-            .allow_headers(allowed_headers)
-            .allow_credentials(true)
-    }
-}
-
-fn parse_cors_origins(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(|origin| origin.trim())
-        .filter(|origin| !origin.is_empty())
-        .map(|origin| origin.to_string())
-        .collect()
-}
-
-fn is_localhost_origin(origin: &str) -> bool {
-    let origin = origin.trim();
-    let origin = origin
-        .strip_prefix("http://")
-        .or_else(|| origin.strip_prefix("https://"))
-        .unwrap_or(origin);
-    let origin = origin.split('/').next().unwrap_or(origin);
-
-    if origin.starts_with('[') {
-        if let Some(end) = origin.find(']') {
-            let host = &origin[..=end];
-            return host == "[::1]" || host == "[0:0:0:0:0:0:0:1]";
-        }
-        return false;
-    }
-
-    let host = origin.split(':').next().unwrap_or(origin);
-    matches!(host, "localhost" | "localhost." | "127.0.0.1")
-}
-
-/// 本番環境かどうかを判定
-/// RUST_ENV=production または APP_ENV=production の場合に true
-/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
-pub fn is_production_env() -> bool {
-    if let Ok(v) = env::var("RUST_ENV") {
-        return v == "production";
-    }
-    if let Ok(v) = env::var("APP_ENV") {
-        return v == "production";
-    }
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
-}
-
-/// バックエンドのベースURLを取得
-pub fn backend_url() -> String {
-    env::var("BACKEND_URL").unwrap_or_else(|_| {
-        let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
-        format!("http://localhost:{}", port)
-    })
-}
-
-/// サーバーのバインドアドレスを取得
-pub fn server_addr() -> String {
-    let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
-    format!("0.0.0.0:{}", port)
-}
-
-/// CookieをSecureで発行するか判定
-/// BACKEND_URL が https:// で始まる場合、または SECURE_COOKIE=true の場合に true
-pub fn is_secure_cookie() -> bool {
-    if let Ok(secure) = env::var("SECURE_COOKIE") {
-        return secure == "true" || secure == "1";
-    }
-
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -226,7 +126,7 @@ mod tests {
     #[test]
     fn test_cors_layer_creation() {
         let config = Config::default();
-        let _cors_layer = config.build_cors_layer();
+        let _cors_layer = build_cors_layer(&config.cors_origins);
         // CORSレイヤーが正常に作成されることを確認
     }
 
@@ -247,15 +147,11 @@ mod tests {
     #[test]
     fn test_backend_url_returns_valid_url() {
         let url = backend_url();
-        // 環境変数の設定状況に応じて期待値を決定
         if let Ok(expected) = env::var("BACKEND_URL") {
-            // BACKEND_URL が設定されている場合はその値を返す
             assert_eq!(url, expected);
         } else if let Ok(port) = env::var("PORT") {
-            // PORT のみ設定されている場合はローカルホストURLを返す
             assert_eq!(url, format!("http://localhost:{}", port));
         } else {
-            // 何も設定されていない場合はデフォルトポート3001を使用
             assert_eq!(url, "http://localhost:3001");
         }
     }
@@ -263,17 +159,12 @@ mod tests {
     #[test]
     fn test_server_addr_format() {
         let addr = server_addr();
-        // 0.0.0.0:ポート番号 の形式であることを確認
         assert!(addr.starts_with("0.0.0.0:"));
     }
 
     #[test]
     fn test_is_secure_cookie_default() {
-        // 環境変数未設定時はfalse
-        // 注意: BACKEND_URL または SECURE_COOKIE が設定されている場合は
-        // その値に依存する
         let _ = is_secure_cookie();
-        // テストはパニックしないことを確認
     }
 
     #[tokio::test]
@@ -303,8 +194,6 @@ mod tests {
         assert_eq!(allowed_origin, None);
     }
 
-    /// CORS_ORIGINS で設定したオリジンが validate_origin ミドルウェアにも反映されることを確認する
-    /// （POST リクエストに対して Config::cors_origins と validate_origin が同一リストを参照する）
     #[tokio::test]
     async fn test_validate_origin_respects_cors_origins_env() {
         let _lock = ENV_MUTEX.lock().await;
@@ -317,7 +206,6 @@ mod tests {
         let config = Config::from_env();
         let app = build_test_app(&config);
 
-        // 許可オリジンからの POST → 通過（/health は GET のみだが validate_origin のチェックが目的）
         let req = Request::builder()
             .method(Method::POST)
             .uri("/health")
@@ -331,7 +219,6 @@ mod tests {
             "許可されたカスタムオリジンは通過すべき"
         );
 
-        // 許可されていないオリジンからの POST → 403
         let req = Request::builder()
             .method(Method::POST)
             .uri("/health")
@@ -363,7 +250,6 @@ mod tests {
         assert_eq!(allowed_origin, Some("http://localhost:8080"));
     }
 
-    /// 不正オリジンによる 403 にもセキュリティヘッダーが付くことを確認する
     #[tokio::test]
     async fn test_security_headers_on_403_response() {
         let _lock = ENV_MUTEX.lock().await;

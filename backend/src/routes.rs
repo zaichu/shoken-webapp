@@ -13,7 +13,7 @@ use tower_http::{
 use utoipa::OpenApi;
 
 use crate::{
-    config::Config,
+    config::{build_cors_layer, Config},
     handlers,
     middleware::{
         add_security_headers, build_keyed_rate_limiter, build_rate_limiter, keyed_rate_limit,
@@ -42,7 +42,7 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
             async move { validate_origin(origins, req, next).await }
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
-        .layer(config.build_cors_layer())
+        .layer(build_cors_layer(&config.cors_origins))
         // リクエストトレース（パスのみ記録：クエリパラメータの機密情報漏洩を防ぐ）
         .layer(TraceLayer::new_for_http().make_span_with(PathOnlyMakeSpan))
         // x-request-id をレスポンスに伝播
