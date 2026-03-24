@@ -4,8 +4,8 @@ use crate::services::jquants::JQuantsService;
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
-    routing::get,
     response::Json,
+    routing::get,
     Router,
 };
 

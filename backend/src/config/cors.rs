@@ -20,15 +20,17 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
     let cors_origins = cors_origins.to_vec();
 
     CorsLayer::new()
-        .allow_origin(tower_http::cors::AllowOrigin::predicate(move |origin, _| {
-            cors_origins.iter().any(|allowed_origin| {
-                if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
-                    origin.eq(&header_value)
-                } else {
-                    false
-                }
-            })
-        }))
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(
+            move |origin, _| {
+                cors_origins.iter().any(|allowed_origin| {
+                    if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
+                        origin.eq(&header_value)
+                    } else {
+                        false
+                    }
+                })
+            },
+        ))
         .allow_methods(allowed_methods)
         .allow_headers(allowed_headers)
         .allow_credentials(true)

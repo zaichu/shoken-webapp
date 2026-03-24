@@ -95,7 +95,7 @@ mod tests {
             pool,
             secrets,
             client,
-            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            dividend_cache: crate::state::DividendCacheState::default(),
         };
         app_router(state, config)
     }

@@ -11,9 +11,7 @@ use axum::{
     Router,
 };
 use axum_extra::extract::CookieJar;
-use oauth2::{
-    AuthorizationCode, CsrfToken, Scope, TokenResponse,
-};
+use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
@@ -21,7 +19,10 @@ const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo
 pub fn stock_routes() -> Router<AppState> {
     Router::new()
         .route("/stock", post(crate::handlers::stock::add_stock_info))
-        .route("/stock/{query}", get(crate::handlers::stock::select_stock_info))
+        .route(
+            "/stock/{query}",
+            get(crate::handlers::stock::select_stock_info),
+        )
 }
 
 pub fn auth_routes() -> Router<AppState> {
@@ -245,7 +246,7 @@ mod tests {
     };
     use reqwest::Client;
     use serde::de::DeserializeOwned;
-    use std::sync::{atomic::AtomicBool, Arc};
+    use std::sync::Arc;
     use tower::ServiceExt;
 
     const BODY_LIMIT: usize = 1024 * 1024;
@@ -265,7 +266,7 @@ mod tests {
             pool,
             secrets,
             client: Client::new(),
-            background_task_running: Arc::new(AtomicBool::new(false)),
+            dividend_cache: crate::state::DividendCacheState::default(),
         }
     }
 

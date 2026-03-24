@@ -121,7 +121,7 @@ async fn db_integration_with_docker_and_migrations() {
         pool,
         secrets,
         client,
-        background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        dividend_cache: backend::state::DividendCacheState::default(),
     };
 
     let config = Config::from_env();
@@ -493,7 +493,7 @@ async fn unauthenticated_requests_return_401() {
             frontend_url: "http://localhost:8080".to_string(),
         }),
         client: Client::new(),
-        background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        dividend_cache: backend::state::DividendCacheState::default(),
     };
     let app = app_router(state, &config);
 

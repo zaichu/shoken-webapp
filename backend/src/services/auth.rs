@@ -3,8 +3,8 @@ use axum_extra::extract::{
     CookieJar,
 };
 use oauth2::{
-    basic::BasicClient, AuthUrl, ClientId, ClientSecret, EndpointNotSet, EndpointSet,
-    RedirectUrl, TokenUrl,
+    basic::BasicClient, AuthUrl, ClientId, ClientSecret, EndpointNotSet, EndpointSet, RedirectUrl,
+    TokenUrl,
 };
 use sqlx::PgPool;
 
@@ -220,10 +220,8 @@ mod tests {
 
     fn test_state() -> AppState {
         AppState {
-            pool: sqlx::postgres::PgPoolOptions::new()
-                .max_connections(1)
-                .connect_lazy("postgresql://user:password@localhost/test_db")
-                .unwrap(),
+            pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+                .expect("pool"),
             secrets: Arc::new(Secrets {
                 database_url: "postgresql://user:password@localhost/test_db".to_string(),
                 jquants_api_key: None,
@@ -232,7 +230,7 @@ mod tests {
                 frontend_url: "http://localhost:8080".to_string(),
             }),
             client: reqwest::Client::new(),
-            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            dividend_cache: crate::state::DividendCacheState::default(),
         }
     }
 
@@ -321,8 +319,8 @@ mod tests {
         assert_eq!(OAUTH_STATE_COOKIE_NAME, "oauth_state");
     }
 
-    #[test]
-    fn test_create_oauth_client() {
+    #[tokio::test]
+    async fn test_create_oauth_client() {
         let state = test_state();
         let result = create_oauth_client(&state);
         assert!(result.is_ok());

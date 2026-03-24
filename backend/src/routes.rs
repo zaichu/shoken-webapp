@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use axum::{
-    middleware,
-    routing::get,
-    Json, Router,
-};
+use axum::{middleware, routing::get, Json, Router};
 use tower_http::{
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -43,10 +39,14 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
     domain_routes(jquants_limiter, auth_limiter)
-        .merge(Router::new().route("/health", get(|| async { "OK" })).route(
-            "/api-docs/openapi.json",
-            get(|| async { Json(ApiDoc::openapi()) }),
-        ))
+        .merge(
+            Router::new()
+                .route("/health", get(|| async { "OK" }))
+                .route(
+                    "/api-docs/openapi.json",
+                    get(|| async { Json(ApiDoc::openapi()) }),
+                ),
+        )
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, req, next).await }
@@ -117,7 +117,7 @@ mod tests {
             pool,
             secrets,
             client: reqwest::Client::new(),
-            background_task_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            dividend_cache: crate::state::DividendCacheState::default(),
         }
     }
 

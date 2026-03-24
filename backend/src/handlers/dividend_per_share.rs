@@ -33,7 +33,7 @@ pub async fn batch(
         &state.client,
         api_key,
         &data.security_codes,
-        &state.background_task_running,
+        &state.dividend_cache.running,
     )
     .await?;
 

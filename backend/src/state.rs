@@ -28,13 +28,18 @@ impl Secrets {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct DividendCacheState {
+    pub running: Arc<AtomicBool>,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub secrets: Arc<Secrets>,
     pub client: Client,
-    /// 配当キャッシュのバックグラウンド更新タスクが実行中かどうか（多重起動防止）
-    pub background_task_running: Arc<AtomicBool>,
+    /// 配当キャッシュのバックグラウンド更新状態（多重起動防止）
+    pub dividend_cache: DividendCacheState,
 }
 
 #[cfg(test)]
