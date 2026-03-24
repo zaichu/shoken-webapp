@@ -12,7 +12,7 @@ exclude-files = [
   "src/handlers/mutualfund.rs",
   "src/handlers/stock/*",
   "src/services/dividend_cache/background.rs",
-  "src/services/dividend_cache/mod.rs",
+  "src/services/dividend_cache.rs",
   "src/services/dividend_cache/persistence.rs",
   "src/services/jquants.rs",
   "src/services/shared.rs",
