@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
@@ -176,11 +176,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 }) => {
 
     const [isExpanded, setIsExpanded] = useState(initialExpanded);
-
     // layout 切り替えなどで initialExpanded が変化したときに展開状態を同期する
-    useEffect(() => {
+    // useEffect ではなくレンダー中に調整することで余分な再レンダーを防ぐ
+    const [prevInitialExpanded, setPrevInitialExpanded] = useState(initialExpanded);
+    if (prevInitialExpanded !== initialExpanded) {
+        setPrevInitialExpanded(initialExpanded);
         setIsExpanded(initialExpanded);
-    }, [initialExpanded]);
+    }
     const [searchQuery, setSearchQuery] = useState('');
     // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
     const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
