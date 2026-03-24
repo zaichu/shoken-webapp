@@ -1,7 +1,12 @@
 use crate::errors::ApiError;
 use crate::services::csv_domain::CsvDomain;
-use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
+use crate::state::AppState;
+use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json, Router};
 use uuid::Uuid;
+
+pub fn csv_import_routes() -> Router<AppState> {
+    Router::new()
+}
 
 /// マルチパートフォームから `file` フィールドのバイト列を取得する
 pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, ApiError> {

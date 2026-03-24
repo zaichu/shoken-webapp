@@ -2,13 +2,65 @@ use axum_extra::extract::{
     cookie::{Cookie, SameSite},
     CookieJar,
 };
+use oauth2::{
+    basic::BasicClient, AuthUrl, ClientId, ClientSecret, EndpointNotSet, EndpointSet, RedirectUrl,
+    TokenUrl,
+};
 use sqlx::PgPool;
 
+use crate::config;
 use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, User};
+use crate::state::AppState;
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
+
+const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+
+type GoogleOAuthClient = oauth2::Client<
+    oauth2::basic::BasicErrorResponse,
+    oauth2::basic::BasicTokenResponse,
+    oauth2::basic::BasicTokenIntrospectionResponse,
+    oauth2::StandardRevocableToken,
+    oauth2::basic::BasicRevocationErrorResponse,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
+
+pub fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
+    let client_id =
+        state.secrets.google_client_id.clone().ok_or_else(|| {
+            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
+        })?;
+
+    let client_secret = state.secrets.google_client_secret.clone().ok_or_else(|| {
+        ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
+    })?;
+
+    let redirect_url = format!("{}/auth/google/callback", config::backend_url());
+
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_client_secret(ClientSecret::new(client_secret))
+        .set_auth_uri(
+            AuthUrl::new(GOOGLE_AUTH_URL.to_string())
+                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
+        )
+        .set_token_uri(
+            TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
+                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {}", e)))?,
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_url)
+                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
+        );
+
+    Ok(client)
+}
 
 fn same_site(secure: bool) -> SameSite {
     if secure {
@@ -163,6 +215,24 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::Secrets;
+    use std::sync::Arc;
+
+    fn test_state() -> AppState {
+        AppState {
+            pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+                .expect("pool"),
+            secrets: Arc::new(Secrets {
+                database_url: "postgresql://user:password@localhost/test_db".to_string(),
+                jquants_api_key: None,
+                google_client_id: Some("client-id".to_string()),
+                google_client_secret: Some("client-secret".to_string()),
+                frontend_url: "http://localhost:8080".to_string(),
+            }),
+            client: reqwest::Client::new(),
+            dividend_cache: crate::state::DividendCacheState::default(),
+        }
+    }
 
     #[test]
     fn test_same_site_secure() {
@@ -247,5 +317,12 @@ mod tests {
     fn test_cookie_constants() {
         assert_eq!(SESSION_COOKIE_NAME, "session_token");
         assert_eq!(OAUTH_STATE_COOKIE_NAME, "oauth_state");
+    }
+
+    #[tokio::test]
+    async fn test_create_oauth_client() {
+        let state = test_state();
+        let result = create_oauth_client(&state);
+        assert!(result.is_ok());
     }
 }

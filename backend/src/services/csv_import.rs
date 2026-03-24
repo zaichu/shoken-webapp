@@ -1,7 +1,7 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv_parse::decode_bytes;
+use crate::services::csv_util::decode_bytes;
 use std::collections::HashMap;
 
 /// CSV bytes をデコードして行ごとにパース
@@ -88,8 +88,8 @@ pub fn finish_csv_upload(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::csv_parse::get_cell;
-    use crate::services::csv_parse::parse_required_string;
+    use crate::services::csv_util::get_cell;
+    use crate::services::csv_util::parse_required_string;
 
     #[test]
     fn test_parse_csv_ok() {

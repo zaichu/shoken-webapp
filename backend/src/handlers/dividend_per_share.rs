@@ -5,7 +5,11 @@ use crate::{
     services::dividend_cache as dividend_cache_service,
     AppState,
 };
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, routing::post, Json, Router};
+
+pub fn dividend_per_share_routes() -> Router<AppState> {
+    Router::new().route("/dividends/per-share/batch", post(batch))
+}
 
 /// 配当利回り一括取得（認証不要）
 #[utoipa::path(
@@ -29,7 +33,7 @@ pub async fn batch(
         &state.client,
         api_key,
         &data.security_codes,
-        &state.background_task_running,
+        &state.dividend_cache.running,
     )
     .await?;
 

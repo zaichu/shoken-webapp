@@ -3,7 +3,7 @@ use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::mutualfund::{CreateMutualfundRequest, Mutualfund};
 use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
-use crate::services::csv_parse::{
+use crate::services::csv_util::{
     compute_taxes, get_cell, parse_required_date, parse_required_number, parse_required_string,
 };
 use crate::services::shared::BulkTimer;

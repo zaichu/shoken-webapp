@@ -8,7 +8,22 @@ use crate::{
     services::domestic_stock as domestic_stock_service,
     state::AppState,
 };
-use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Multipart,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, post},
+    Json, Router,
+};
+
+pub fn domestic_stock_routes() -> Router<AppState> {
+    Router::new()
+        .route("/domestic-stocks", get(list))
+        .route("/domestic-stocks/csv", post(upload_csv))
+        .route("/domestic-stocks/csv/preview", post(preview_csv))
+        .route("/domestic-stocks/all", delete(delete_all))
+}
 
 /// 認証ユーザーの国内株式取引一覧を取得
 #[utoipa::path(

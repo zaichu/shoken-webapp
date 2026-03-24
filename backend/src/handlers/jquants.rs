@@ -5,7 +5,13 @@ use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::Json,
+    routing::get,
+    Router,
 };
+
+pub fn jquants_routes() -> Router<AppState> {
+    Router::new().route("/jquants/fins/statements", get(get_fin_summary))
+}
 
 /// 決算サマリーを取得（J-Quants API V2）
 /// V2では fins/statements → fins/summary に変更

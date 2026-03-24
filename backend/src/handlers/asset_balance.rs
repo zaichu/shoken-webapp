@@ -9,7 +9,23 @@ use crate::{
     services::csv_domain::AssetBalanceDomain,
     state::AppState,
 };
-use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Multipart,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, post},
+    Json, Router,
+};
+
+pub fn asset_balance_routes() -> Router<AppState> {
+    Router::new()
+        .route("/asset-balances", get(list))
+        .route("/asset-balances/bulk", post(bulk_create))
+        .route("/asset-balances/csv", post(upload_csv))
+        .route("/asset-balances/csv/preview", post(preview_csv))
+        .route("/asset-balances/all", delete(delete_all))
+}
 
 /// 認証ユーザーの保有銘柄一覧を取得
 #[utoipa::path(

@@ -2,73 +2,42 @@ use crate::config;
 use crate::errors::{ApiError, ErrorResponse};
 use crate::models::common::MessageResponse;
 use crate::models::user::{GoogleUserInfo, UserResponse};
-use crate::services::auth as auth_service;
+use crate::services::auth::{self as auth_service, create_oauth_client};
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Json, Redirect, Response},
+    routing::{delete, get, post},
+    Router,
 };
 use axum_extra::extract::CookieJar;
-use oauth2::{
-    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    EndpointNotSet, EndpointSet, RedirectUrl, Scope, TokenResponse, TokenUrl,
-};
+use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 
-const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
+
+pub fn stock_routes() -> Router<AppState> {
+    Router::new()
+        .route("/stock", post(crate::handlers::stock::add_stock_info))
+        .route(
+            "/stock/{query}",
+            get(crate::handlers::stock::select_stock_info),
+        )
+}
+
+pub fn auth_routes() -> Router<AppState> {
+    Router::new()
+        .route("/auth/google", get(google_auth))
+        .route("/auth/google/callback", get(google_callback))
+        .route("/auth/me", get(get_current_user))
+        .route("/auth/logout", post(logout))
+        .route("/auth/delete-account", delete(delete_account))
+}
 /// コールバック時のクエリパラメータ
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
     pub code: String,
     pub state: String,
-}
-
-/// OAuthクライアントの型エイリアス（oauth2 5.0.0 の新しい型システム対応）
-type GoogleOAuthClient = oauth2::Client<
-    oauth2::basic::BasicErrorResponse,
-    oauth2::basic::BasicTokenResponse,
-    oauth2::basic::BasicTokenIntrospectionResponse,
-    oauth2::StandardRevocableToken,
-    oauth2::basic::BasicRevocationErrorResponse,
-    EndpointSet,
-    EndpointNotSet,
-    EndpointNotSet,
-    EndpointNotSet,
-    EndpointSet,
->;
-
-/// OAuthクライアントを作成
-fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
-    let client_id =
-        state.secrets.google_client_id.clone().ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
-        })?;
-
-    let client_secret = state.secrets.google_client_secret.clone().ok_or_else(|| {
-        ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
-    })?;
-
-    let redirect_url = format!("{}/auth/google/callback", config::backend_url());
-
-    // oauth2 5.0.0 のビルダーパターンを使用
-    let client = BasicClient::new(ClientId::new(client_id))
-        .set_client_secret(ClientSecret::new(client_secret))
-        .set_auth_uri(
-            AuthUrl::new(GOOGLE_AUTH_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
-        )
-        .set_token_uri(
-            TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {}", e)))?,
-        )
-        .set_redirect_uri(
-            RedirectUrl::new(redirect_url)
-                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
-        );
-
-    Ok(client)
 }
 
 /// Google OAuth認証を開始（直接リダイレクト）
@@ -277,7 +246,7 @@ mod tests {
     };
     use reqwest::Client;
     use serde::de::DeserializeOwned;
-    use std::sync::{atomic::AtomicBool, Arc};
+    use std::sync::Arc;
     use tower::ServiceExt;
 
     const BODY_LIMIT: usize = 1024 * 1024;
@@ -297,7 +266,7 @@ mod tests {
             pool,
             secrets,
             client: Client::new(),
-            background_task_running: Arc::new(AtomicBool::new(false)),
+            dividend_cache: crate::state::DividendCacheState::default(),
         }
     }
 

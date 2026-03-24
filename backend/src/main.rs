@@ -19,8 +19,8 @@ use db::{connect_pool, run_migrations};
 use dotenvy::dotenv;
 use reqwest::Client;
 use routes::app_router;
-use state::{AppState, Secrets};
-use std::sync::{atomic::AtomicBool, Arc};
+use state::{AppState, DividendCacheState, Secrets};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -66,7 +66,7 @@ async fn main() {
         pool,
         secrets,
         client,
-        background_task_running: Arc::new(AtomicBool::new(false)),
+        dividend_cache: DividendCacheState::default(),
     };
 
     let router = app_router(state, &config);
