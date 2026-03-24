@@ -28,6 +28,19 @@ async fn main() {
     // 環境変数の読み込み
     dotenv().ok();
 
+    let _sentry_guard = std::env::var("SENTRY_DSN")
+        .ok()
+        .filter(|dsn| !dsn.is_empty())
+        .map(|dsn| {
+            sentry::init((
+                dsn,
+                sentry::ClientOptions {
+                    release: sentry::release_name!(),
+                    ..Default::default()
+                },
+            ))
+        });
+
     // ロギングの初期化
     logging::init_tracing();
 
