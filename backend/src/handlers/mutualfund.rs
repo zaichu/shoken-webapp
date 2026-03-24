@@ -8,7 +8,22 @@ use crate::{
     services::mutualfund as mutualfund_service,
     state::AppState,
 };
-use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Multipart,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, post},
+    Json, Router,
+};
+
+pub fn mutualfund_routes() -> Router<AppState> {
+    Router::new()
+        .route("/mutualfunds", get(list))
+        .route("/mutualfunds/csv", post(upload_csv))
+        .route("/mutualfunds/csv/preview", post(preview_csv))
+        .route("/mutualfunds/all", delete(delete_all))
+}
 
 /// 認証ユーザーの投資信託一覧を取得
 #[utoipa::path(

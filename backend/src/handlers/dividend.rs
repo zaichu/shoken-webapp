@@ -8,7 +8,22 @@ use crate::{
     services::dividend as dividend_service,
     state::AppState,
 };
-use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Multipart,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, post},
+    Json, Router,
+};
+
+pub fn dividend_routes() -> Router<AppState> {
+    Router::new()
+        .route("/dividends", get(list))
+        .route("/dividends/csv", post(upload_csv))
+        .route("/dividends/csv/preview", post(preview_csv))
+        .route("/dividends/all", delete(delete_all))
+}
 
 /// 認証ユーザーの配当金一覧を取得
 #[utoipa::path(

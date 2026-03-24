@@ -7,6 +7,8 @@ use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Json, Redirect, Response},
+    routing::{delete, get, post},
+    Router,
 };
 use axum_extra::extract::CookieJar;
 use oauth2::{
@@ -18,6 +20,21 @@ use serde::Deserialize;
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
+
+pub fn stock_routes() -> Router<AppState> {
+    Router::new()
+        .route("/stock", post(crate::handlers::stock::add_stock_info))
+        .route("/stock/{query}", get(crate::handlers::stock::select_stock_info))
+}
+
+pub fn auth_routes() -> Router<AppState> {
+    Router::new()
+        .route("/auth/google", get(google_auth))
+        .route("/auth/google/callback", get(google_callback))
+        .route("/auth/me", get(get_current_user))
+        .route("/auth/logout", post(logout))
+        .route("/auth/delete-account", delete(delete_account))
+}
 /// コールバック時のクエリパラメータ
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
