@@ -203,6 +203,11 @@ describe('数値関連のフォーマット関数', () => {
     it('無効な値でハイフンを返す', () => {
       expect(formatCurrency('abc')).toBe('-');
     });
+
+    it('文字列でも数値でもない値でハイフンを返す', () => {
+      expect(formatCurrency(true)).toBe('-');
+      expect(formatCurrency(null)).toBe('-');
+    });
   });
 
   describe('formatPercentage', () => {

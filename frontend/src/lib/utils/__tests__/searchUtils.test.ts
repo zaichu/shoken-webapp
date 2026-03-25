@@ -84,4 +84,55 @@ describe('filterByConfig', () => {
             expect(result).toHaveLength(3);
         });
     });
+
+    describe('dateField（日付検索）', () => {
+        it('yearSearchで年度検索できる', () => {
+            const config: FilterConfig<TestItem> = {
+                dateField: item => item.date,
+                yearSearch: true,
+            };
+            const result = filterByConfig(testData, '2023', config);
+            expect(result).toHaveLength(2);
+        });
+
+        it('yearMonthSearchで年月検索できる', () => {
+            const config: FilterConfig<TestItem> = {
+                dateField: item => item.date,
+                yearMonthSearch: true,
+            };
+            const result = filterByConfig(testData, '2023-01', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1234');
+        });
+
+        it('dateSearchで日付検索できる', () => {
+            const config: FilterConfig<TestItem> = {
+                dateField: item => item.date,
+                dateSearch: true,
+            };
+            const result = filterByConfig(testData, '2023-02-20', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('5678');
+        });
+    });
+
+    describe('amountFields（金額検索）', () => {
+        it('金額の部分一致で検索できる', () => {
+            const config: FilterConfig<TestItem> = {
+                amountFields: [item => item.amount],
+            };
+            // 100, 200 contains '00'
+            const result = filterByConfig(testData, '00', config);
+            expect(result).toHaveLength(3);
+        });
+
+        it('金額の完全一致でも検索できる', () => {
+            const config: FilterConfig<TestItem> = {
+                amountFields: [item => item.amount],
+            };
+            const result = filterByConfig(testData, '100', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].amount).toBe(100);
+        });
+    });
 });

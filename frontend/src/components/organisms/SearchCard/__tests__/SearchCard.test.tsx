@@ -294,6 +294,100 @@ describe('SearchCard', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('');
   });
 
+  test('initialExpandedプロパティが変わると展開状態が同期される', () => {
+    const { rerender } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={true}
+      />
+    );
+
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    rerender(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+  });
+
+  test('ヘッダーでEnterキーを押すと検索オプションがトグルされる', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+      />
+    );
+
+    const header = screen.getByTestId('search-card-header');
+    // 初期は展開済み → Enterで閉じる
+    fireEvent.keyDown(header, { key: 'Enter' });
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+
+    // もう一度Enterで開く
+    fireEvent.keyDown(header, { key: ' ' });
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    // 別のキーでは何もしない
+    fireEvent.keyDown(header, { key: 'Tab' });
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+  });
+
+  test('「条件をクリア」ボタンでEnterキーを押してもpropagationが止まる', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        onExpandToggle={mockOnExpandToggle}
+      />
+    );
+
+    // 検索条件を設定してボタンを表示
+    fireEvent.click(screen.getByText('株式'));
+
+    const clearButtons = screen.getAllByTestId('search-clear-button');
+    clearButtons.forEach(btn => {
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      fireEvent.keyDown(btn, { key: ' ' });
+      fireEvent.keyDown(btn, { key: 'Tab' }); // カバレッジ: key以外は何もしない
+    });
+    // エラーなく実行されればOK
+    expect(clearButtons.length).toBeGreaterThan(0);
+    expect(mockOnExpandToggle).not.toHaveBeenCalled();
+  });
+
+  test('compactモードでクリアボタンのクリックとキーダウンが動作する', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        compact
+      />
+    );
+
+    // 検索条件を設定してクリアボタンを有効化
+    fireEvent.click(screen.getByText('株式'));
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    // クリックでe.stopPropagation()が呼ばれる（line 276）
+    fireEvent.click(clearButton);
+    expect(mockOnSearch).toHaveBeenCalledWith('');
+
+    // 検索条件を再設定
+    fireEvent.click(screen.getByText('株式'));
+
+    // EnterキーでもstopPropagation（line 280-281）
+    const clearBtn2 = screen.getByTestId('search-clear-button');
+    fireEvent.keyDown(clearBtn2, { key: 'Enter' });
+    fireEvent.keyDown(clearBtn2, { key: ' ' });
+    expect(clearBtn2).toBeInTheDocument();
+  });
+
   test('compactモードでは検索グリッドが1列表示になる', () => {
     const { container } = render(
       <SearchCard

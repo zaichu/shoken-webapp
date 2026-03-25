@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useStockSearch } from '../useStockSearch';
 import { fetchStockData } from '../../api';
@@ -183,5 +183,22 @@ describe('useStockSearch', () => {
 
     expect(result.current.error).toEqual(mockError);
     expect(result.current.isError).toBe(true);
+  });
+
+  it('searchByCodeでstockCodeとsearchQueryを同時に設定する', async () => {
+    (fetchStockData as ReturnType<typeof vi.fn>).mockResolvedValue(mockStockData);
+
+    const { result } = renderHook(() => useStockSearch(), {
+      wrapper: createWrapper(),
+    });
+
+    act(() => {
+      result.current.searchByCode('7203');
+    });
+
+    expect(result.current.stockCode).toBe('7203');
+    await waitFor(() => {
+      expect(fetchStockData).toHaveBeenCalledWith('7203');
+    });
   });
 });
