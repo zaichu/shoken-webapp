@@ -109,6 +109,20 @@ describe('useDebounce', () => {
       // trailing=falseなので、updated2は反映されない
       expect(result.current).toBe('updated');
     });
+
+    it('trailing=false、leading=falseの場合、値が更新されない', () => {
+      const { result, rerender } = renderHook(
+        ({ value, delay }) => useDebounce(value, delay, { leading: false, trailing: false }),
+        { initialProps: { value: 'initial', delay: 500 } }
+      );
+
+      rerender({ value: 'updated', delay: 500 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      // leading=false、trailing=falseなので値は更新されない
+      expect(result.current).toBe('initial');
+    });
   });
 
   describe('maxWaitオプション', () => {
@@ -138,6 +152,28 @@ describe('useDebounce', () => {
       });
 
       // maxWaitを超えたので更新される
+      expect(result.current).toBe('update2');
+    });
+
+    it('remainingMaxWaitがdelayより短い場合、maxWaitタイマーが優先される', () => {
+      const { result, rerender } = renderHook(
+        ({ value, delay }) => useDebounce(value, delay, { maxWait: 500 }),
+        { initialProps: { value: 'initial', delay: 1000 } }
+      );
+
+      // 1回目の更新（lastCallTimeRef = now）
+      rerender({ value: 'update1', delay: 1000 });
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+
+      // 2回目の更新（timeSinceLastCall=100, remainingMaxWait=400 < delay=1000）
+      rerender({ value: 'update2', delay: 1000 });
+
+      // maxWaitタイマーで更新
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
       expect(result.current).toBe('update2');
     });
 

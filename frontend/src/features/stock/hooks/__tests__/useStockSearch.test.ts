@@ -184,4 +184,18 @@ describe('useStockSearch', () => {
     expect(result.current.error).toEqual(mockError);
     expect(result.current.isError).toBe(true);
   });
+
+  it('searchByCodeでstockCodeとsearchQueryを同時に設定する', async () => {
+    (fetchStockData as ReturnType<typeof vi.fn>).mockResolvedValue(mockStockData);
+
+    const { result } = renderHook(() => useStockSearch(), {
+      wrapper: createWrapper(),
+    });
+
+    act(() => {
+      result.current.searchByCode('7203');
+    });
+
+    expect(result.current.stockCode).toBe('7203');
+  });
 });

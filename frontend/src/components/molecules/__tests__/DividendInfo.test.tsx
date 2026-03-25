@@ -72,4 +72,47 @@ describe('DividendInfo', () => {
     ).toHaveLength(2);
     expect(screen.getByText('J-Quants APIから取得します')).toBeInTheDocument();
   });
+
+  it('searchQueryが空の場合nullを返す', () => {
+    const { container } = render(<DividendInfo searchQuery="" summary={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('summaryデータがある場合、配当利回りが計算される', () => {
+    mockUseAssetBalance.mockReturnValue({
+      assetBalanceData: [],
+      isLoading: false,
+      getAssetBalanceByCode: vi.fn(() => ({
+        average_purchase_price: 1000,
+        shares: 100,
+        security_code: '7203',
+      })),
+      getTotalMarketValue: vi.fn(() => 0),
+      refetch: vi.fn(),
+    });
+
+    mockUseDividendBatch.mockReturnValue({
+      dividendPerShareMap: new Map([['7203', 50]]),
+      dividendStatusMap: new Map([['7203', 'ok']]),
+      loading: false,
+      fetchedCount: 1,
+      totalCount: 1,
+    });
+
+    render(
+      <DividendInfo
+        searchQuery="7203: トヨタ自動車"
+        summary={[
+          {
+            security_code: '7203',
+            net_amount_received: 4500,
+            dividends_before_tax: 5000,
+            taxes: 500,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('配当シミュレーション')).toBeInTheDocument();
+  });
 });

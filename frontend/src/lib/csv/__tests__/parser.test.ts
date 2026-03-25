@@ -86,6 +86,20 @@ Jane,25,87.3,false`;
       expect(result.data[1].description).toBe('Quote: "Hello World"');
     });
 
+    it('パースエラーがある場合、errorsにマップされる', () => {
+      // TooManyFields エラーを誘発（ヘッダーより多いフィールド数の行）
+      const csv = `name,age\nJohn,30,Tokyo,Extra`;
+
+      const result = parseCSVString(csv);
+
+      // PapaParse が TooManyFields エラーを生成し、errors に含まれる
+      expect(result.errors.length).toBeGreaterThan(0);
+      const err = result.errors[0];
+      expect(err).toHaveProperty('type');
+      expect(err).toHaveProperty('code');
+      expect(err).toHaveProperty('message');
+    });
+
     it('異なるデリミタを使用できる', () => {
       const csv = `name;age;city
 John;30;Tokyo
@@ -145,6 +159,25 @@ Jane,25,Osaka`;
       });
 
       await expect(parseCSVFile(file)).rejects.toThrow('ファイルサイズが大きすぎます');
+    });
+
+    it('大きすぎるファイルをonErrorコールバックで通知する', async () => {
+      const file = createMockFile('a');
+      Object.defineProperty(file, 'size', {
+        value: 60 * 1024 * 1024,
+        writable: false
+      });
+
+      const callbacks: CSVParseCallbacks = {
+        onError: vi.fn(),
+        onComplete: vi.fn(),
+      };
+
+      await expect(parseCSVFile(file, undefined, callbacks)).rejects.toThrow();
+      expect(callbacks.onError).toHaveBeenCalledWith(
+        expect.stringContaining('ファイルサイズが大きすぎます')
+      );
+      expect(callbacks.onComplete).toHaveBeenCalled();
     });
 
     it('ヘッダー行をスキップできる', async () => {

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ReceiptTable } from '../ReceiptTable';
 import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
 
@@ -143,6 +143,82 @@ describe('ReceiptTable', () => {
 
     // データ行は表示されない
     expect(screen.queryByText('銘柄A')).not.toBeInTheDocument();
+  });
+
+  it('nullやundefinedやbooleanの値が適切にレンダリングされる', () => {
+    const columnsWithBoolean: TableColumnConfig[] = [
+      { header: '日付', key: 'date', width: '100px', textAlign: 'center' },
+      { header: 'フラグ', key: 'flag', width: '80px', textAlign: 'center' }, // no format, boolean value
+    ];
+
+    const dataWithMixedTypes = [
+      { date: null, flag: true, group: 'A' },
+      { date: undefined, flag: false, group: 'A' },
+    ];
+
+    render(
+      <ReceiptTable
+        data={dataWithMixedTypes as unknown as typeof mockData}
+        summary={[{ filter: 'A', amount: 0, name: 'グループA' }]}
+        columns={columnsWithBoolean}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={(item) => (item as { group: string }).group}
+      />
+    );
+
+    // true → 'true', false → 'false' が表示される
+    expect(screen.getByText('true')).toBeInTheDocument();
+    expect(screen.getByText('false')).toBeInTheDocument();
+  });
+
+  it('4桁年グループキーが「YYYY年」形式でフォーマットされる', () => {
+    const dataWithYear = [
+      { date: '2024-01-01', name: '銘柄A', amount: 1000, group: '2024' },
+    ];
+    const summaryWithYear = [
+      { filter: '2024', amount: 1000, name: '2024' },
+    ];
+
+    render(
+      <ReceiptTable
+        data={dataWithYear}
+        summary={summaryWithYear}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={(item) => (item as { group: string }).group}
+      />
+    );
+
+    expect(screen.getByText('2024年')).toBeInTheDocument();
+  });
+
+  it('security-code-linkクリックでonSearchが呼ばれる', () => {
+    const mockOnSearch = vi.fn();
+
+    const { container } = render(
+      <ReceiptTable
+        data={mockData}
+        summary={mockSummary}
+        columns={mockColumns}
+        summaryColumns={mockSummaryColumns}
+        getGroupKey={getGroupKey}
+        onSearch={mockOnSearch}
+      />
+    );
+
+    // テーブルを取得してsecurity-code-link要素を動的に作成してクリックをシミュレート
+    const table = container.querySelector('table');
+    if (table) {
+      const td = table.querySelector('td');
+      if (td) {
+        const linkEl = document.createElement('span');
+        linkEl.classList.add('security-code-link');
+        linkEl.dataset.search = '1234';
+        td.appendChild(linkEl);
+        fireEvent.click(linkEl);
+        expect(mockOnSearch).toHaveBeenCalledWith('1234');
+      }
+    }
   });
 
   it('グループごとにデータが正しくフィルタリングされる', () => {

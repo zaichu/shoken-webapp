@@ -45,4 +45,14 @@ describe('StockInfo', () => {
 
     expect(screen.getByText('プライム')).toBeInTheDocument();
   });
+
+  it('stockDataがnullの場合nullを返す', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <StockInfo stockData={null as unknown as typeof mockStockData} />
+      </MemoryRouter>
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
 });
