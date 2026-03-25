@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AssetBalancePage } from '../AssetBalance';
 import { assetBalanceQueryKeys } from '@/features/assetBalance/queryKeys';
+import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 
 // ────────────────────────────────────────────────────────
 // モック定義
@@ -135,8 +136,7 @@ function renderWithQuery(ui: React.ReactElement, qc?: QueryClient) {
 }
 
 // DBデータの型に合わせたモック行
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDbRow: any = {
+const mockDbRow: AssetBalanceData = {
   security_code: '7203',
   security_name: 'トヨタ自動車',
   shares: 100,
