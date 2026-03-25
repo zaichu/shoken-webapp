@@ -37,6 +37,9 @@ export default defineConfig({
           ) {
             return 'vendor';
           }
+          if (id.includes('/node_modules/@tanstack/')) {
+            return 'tanstack';
+          }
         },
       },
     },

@@ -23,7 +23,6 @@
     "generate:types": "npx openapi-typescript ../docs/openapi.json -o src/generated/api.ts"
   },
   "dependencies": {
-    "@sentry/react": "^10.45.0",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "5.95.2",
     "axios": "1.13.6",
