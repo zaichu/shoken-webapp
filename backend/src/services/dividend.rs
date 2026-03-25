@@ -198,4 +198,35 @@ mod tests {
             Err(ApiError::ValidationError(_))
         ));
     }
+
+    #[test]
+    fn test_preview_csv_blank_code_and_normalized_name() {
+        let csv = [
+            "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
+            "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"\",\"K D D I\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.valid_rows, 1);
+        assert_eq!(preview.rows[0]["security_code"], "");
+        assert_eq!(preview.rows[0]["security_name"], "KDDI");
+    }
+
+    #[test]
+    fn test_preview_csv_invalid_date_is_row_error() {
+        let csv = [
+            "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
+            "\"2025/13/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 1);
+        assert_eq!(preview.valid_rows, 0);
+        assert_eq!(preview.errors.len(), 1);
+        assert!(preview.errors[0].message.contains("入金日"));
+    }
 }

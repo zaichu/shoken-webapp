@@ -371,4 +371,26 @@ mod tests {
         assert_eq!(normalize_security_name("  KDDI  "), "KDDI");
         assert_eq!(normalize_security_name(""), "");
     }
+
+    #[test]
+    fn test_parse_required_number_empty_is_error() {
+        let record = csv::StringRecord::from(vec![""]);
+        let mut header_map = HashMap::new();
+        header_map.insert("required".to_string(), 0);
+
+        let err = parse_required_number(&record, &header_map, "required", 7).unwrap_err();
+        assert_eq!(err.row, 7);
+        assert!(err.message.contains("required"));
+    }
+
+    #[test]
+    fn test_parse_required_date_invalid_is_error() {
+        let record = csv::StringRecord::from(vec!["2024/13/40"]);
+        let mut header_map = HashMap::new();
+        header_map.insert("date".to_string(), 0);
+
+        let err = parse_required_date(&record, &header_map, "date", 9).unwrap_err();
+        assert_eq!(err.row, 9);
+        assert!(err.message.contains("date"));
+    }
 }
