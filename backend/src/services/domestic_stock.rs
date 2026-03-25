@@ -265,6 +265,41 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn test_preview_csv_normalizes_name_and_keeps_nisa_profit_untaxed() {
+        let csv = [
+            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
+            "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.valid_rows, 1);
+        assert_eq!(preview.rows[0]["security_name"], "KDDI");
+        assert_eq!(preview.rows[0]["taxes"], 0.0);
+        assert_eq!(
+            preview.rows[0]["realized_profit_and_loss_after_tax"],
+            9100.0
+        );
+    }
+
+    #[test]
+    fn test_preview_csv_invalid_realized_profit_is_row_error() {
+        let csv = [
+            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
+            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"",
+        ]
+        .join("\n");
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.total_rows, 1);
+        assert_eq!(preview.valid_rows, 0);
+        assert_eq!(preview.errors.len(), 1);
+        assert!(preview.errors[0].message.contains("実現損益[円]"));
+    }
+
     fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),

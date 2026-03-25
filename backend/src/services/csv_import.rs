@@ -133,6 +133,22 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_csv_collects_record_read_errors() {
+        let csv = "col_a,col_b\nfoo,123\nbar\nbaz,456\n";
+        let (items, errors) = parse_csv::<String, _>(csv.as_bytes(), |record, header_map, _row| {
+            let a = get_cell(record, header_map, "col_a").to_string();
+            let b = get_cell(record, header_map, "col_b").to_string();
+            Ok(format!("{}/{}", a, b))
+        })
+        .unwrap();
+
+        assert_eq!(items, vec!["foo/123", "baz/456"]);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].row, 2);
+        assert!(errors[0].message.contains("CSV行の読み込み"));
+    }
+
+    #[test]
     fn test_finish_csv_upload() {
         use crate::models::csv_import::CsvRowError;
         let result = crate::models::common::BulkCreateResponse {

@@ -215,4 +215,17 @@ mod tests {
             Err(ApiError::ValidationError(_))
         ));
     }
+
+    #[test]
+    fn test_preview_csv_empty_dividends() {
+        let csv = concat!(
+            "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+            "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+        );
+
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+
+        assert_eq!(preview.valid_rows, 1);
+        assert_eq!(preview.rows[0]["dividends"], serde_json::Value::Null);
+    }
 }

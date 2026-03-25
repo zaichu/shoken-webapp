@@ -220,6 +220,40 @@ fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
     }
 }
 
+fn make_mutualfund_csv() -> &'static str {
+    concat!(
+        "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+    )
+}
+
+fn make_dividend_csv() -> &'static str {
+    concat!(
+        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\""
+    )
+}
+
+fn make_domestic_stock_csv() -> &'static str {
+    concat!(
+        "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]\n",
+        "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\""
+    )
+}
+
+fn make_asset_balance_csv() -> &'static str {
+    concat!(
+        "■現在の評価額合計［円］,,\"1,100,000\"\n",
+        "■評価損益合計,前日比［円］,\"10,000\"\n",
+        ",前月比［円］,\"5,000\"\n",
+        ",評価損益［円］,\"100,000\"\n",
+        "■特定口座\n",
+        "\n",
+        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］\n",
+        "\"7203\",\"トヨタ自動車\",\"100\",\"-\",\"100\",\"0\",\"2500\",\"250000\",\"2650\",\"15\",\"265000\",\"6.0\""
+    )
+}
+
 /// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
 async fn start_test_pool() -> (PgPool, impl Drop) {
     let node = Postgres::default().start().await.unwrap();
@@ -240,6 +274,198 @@ async fn create_test_user(pool: &PgPool) -> Uuid {
         .await
         .expect("failed to insert test user");
     user_id
+}
+
+#[tokio::test]
+async fn service_coverage_all_domains() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    assert!(mutualfund_svc::list(&pool, user_id)
+        .await
+        .expect("initial mutualfund list failed")
+        .is_empty());
+    let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[])
+        .await
+        .expect("empty mutualfund bulk_create failed");
+    assert_eq!(mutualfund_empty.inserted, 0);
+    assert_eq!(mutualfund_empty.skipped, 0);
+
+    let mutualfund_items = vec![
+        make_mutualfund_item("テスト投信A"),
+        make_mutualfund_item("テスト投信B"),
+    ];
+    let mutualfund_created = mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items)
+        .await
+        .expect("mutualfund bulk_create failed");
+    assert_eq!(mutualfund_created.inserted, 2);
+    assert_eq!(mutualfund_created.skipped, 0);
+
+    let mutualfund_uploaded =
+        mutualfund_svc::upload_csv(&pool, user_id, make_mutualfund_csv().as_bytes())
+            .await
+            .expect("mutualfund upload_csv failed");
+    assert_eq!(mutualfund_uploaded.inserted, 1);
+    assert_eq!(mutualfund_uploaded.skipped, 0);
+    assert!(mutualfund_uploaded.errors.is_empty());
+
+    assert_eq!(
+        mutualfund_svc::list(&pool, user_id)
+            .await
+            .expect("mutualfund list failed")
+            .len(),
+        3
+    );
+    assert_eq!(
+        mutualfund_svc::delete_all(&pool, user_id)
+            .await
+            .expect("mutualfund delete_all failed"),
+        3
+    );
+    assert!(mutualfund_svc::list(&pool, user_id)
+        .await
+        .expect("mutualfund list after delete failed")
+        .is_empty());
+
+    assert!(dividend_svc::list(&pool, user_id)
+        .await
+        .expect("initial dividend list failed")
+        .is_empty());
+    let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[])
+        .await
+        .expect("empty dividend bulk_create failed");
+    assert_eq!(dividend_empty.inserted, 0);
+    assert_eq!(dividend_empty.skipped, 0);
+
+    let dividend_items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
+    let dividend_created = dividend_svc::bulk_create(&pool, user_id, &dividend_items)
+        .await
+        .expect("dividend bulk_create failed");
+    assert_eq!(dividend_created.inserted, 2);
+    assert_eq!(dividend_created.skipped, 0);
+
+    let dividend_uploaded =
+        dividend_svc::upload_csv(&pool, user_id, make_dividend_csv().as_bytes())
+            .await
+            .expect("dividend upload_csv failed");
+    assert_eq!(dividend_uploaded.inserted, 1);
+    assert_eq!(dividend_uploaded.skipped, 0);
+    assert!(dividend_uploaded.errors.is_empty());
+
+    assert_eq!(
+        dividend_svc::list(&pool, user_id)
+            .await
+            .expect("dividend list failed")
+            .len(),
+        3
+    );
+    assert_eq!(
+        dividend_svc::delete_all(&pool, user_id)
+            .await
+            .expect("dividend delete_all failed"),
+        3
+    );
+    assert!(dividend_svc::list(&pool, user_id)
+        .await
+        .expect("dividend list after delete failed")
+        .is_empty());
+
+    assert!(domestic_stock_svc::list(&pool, user_id)
+        .await
+        .expect("initial domestic_stock list failed")
+        .is_empty());
+    let domestic_stock_empty = domestic_stock_svc::bulk_create(&pool, user_id, &[])
+        .await
+        .expect("empty domestic_stock bulk_create failed");
+    assert_eq!(domestic_stock_empty.inserted, 0);
+    assert_eq!(domestic_stock_empty.skipped, 0);
+
+    let domestic_stock_items = vec![
+        make_domestic_stock_item("3001"),
+        make_domestic_stock_item("3002"),
+    ];
+    let domestic_stock_created =
+        domestic_stock_svc::bulk_create(&pool, user_id, &domestic_stock_items)
+            .await
+            .expect("domestic_stock bulk_create failed");
+    assert_eq!(domestic_stock_created.inserted, 2);
+    assert_eq!(domestic_stock_created.skipped, 0);
+
+    let domestic_stock_uploaded =
+        domestic_stock_svc::upload_csv(&pool, user_id, make_domestic_stock_csv().as_bytes())
+            .await
+            .expect("domestic_stock upload_csv failed");
+    assert_eq!(domestic_stock_uploaded.inserted, 1);
+    assert_eq!(domestic_stock_uploaded.skipped, 0);
+    assert!(domestic_stock_uploaded.errors.is_empty());
+
+    assert_eq!(
+        domestic_stock_svc::list(&pool, user_id)
+            .await
+            .expect("domestic_stock list failed")
+            .len(),
+        3
+    );
+    assert_eq!(
+        domestic_stock_svc::delete_all(&pool, user_id)
+            .await
+            .expect("domestic_stock delete_all failed"),
+        3
+    );
+    assert!(domestic_stock_svc::list(&pool, user_id)
+        .await
+        .expect("domestic_stock list after delete failed")
+        .is_empty());
+
+    assert!(asset_balance_svc::list(&pool, user_id)
+        .await
+        .expect("initial asset_balance list failed")
+        .is_empty());
+    let asset_balance_empty = asset_balance_svc::bulk_create(&pool, user_id, &[])
+        .await
+        .expect("empty asset_balance bulk_create failed");
+    assert_eq!(asset_balance_empty.inserted, 0);
+    assert_eq!(asset_balance_empty.skipped, 0);
+
+    let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("1605")];
+    let asset_balance_created =
+        asset_balance_svc::bulk_create(&pool, user_id, &asset_balance_items)
+            .await
+            .expect("asset_balance bulk_create failed");
+    assert_eq!(asset_balance_created.inserted, 2);
+    assert_eq!(asset_balance_created.skipped, 0);
+    assert_eq!(
+        asset_balance_svc::list(&pool, user_id)
+            .await
+            .expect("asset_balance list after bulk_create failed")
+            .len(),
+        2
+    );
+
+    let asset_balance_uploaded =
+        asset_balance_svc::upload_csv(&pool, user_id, make_asset_balance_csv().as_bytes())
+            .await
+            .expect("asset_balance upload_csv failed");
+    assert_eq!(asset_balance_uploaded.inserted, 1);
+    assert_eq!(asset_balance_uploaded.skipped, 0);
+    assert!(asset_balance_uploaded.errors.is_empty());
+
+    let asset_balance_rows = asset_balance_svc::list(&pool, user_id)
+        .await
+        .expect("asset_balance list failed");
+    assert_eq!(asset_balance_rows.len(), 1);
+    assert_eq!(asset_balance_rows[0].security_code, "7203");
+
+    assert_eq!(
+        asset_balance_svc::delete_all(&pool, user_id)
+            .await
+            .expect("asset_balance delete_all failed"),
+        1
+    );
+    assert!(asset_balance_svc::list(&pool, user_id)
+        .await
+        .expect("asset_balance list after delete failed")
+        .is_empty());
 }
 
 #[tokio::test]
