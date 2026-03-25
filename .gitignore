@@ -8,6 +8,7 @@ Secrets*.toml
 CLAUDE.local.md
 backend/CLAUDE.local.md
 frontend/CLAUDE.local.md
+.claude/settings.local.json
 docs/tasks/*.md
 !docs/tasks/TEMPLATE.md
 output/
