@@ -8,35 +8,6 @@ import {
 const toRecord = (value: unknown): Record<string, unknown> =>
   value as Record<string, unknown>;
 
-const createFilledInput = (shape: Record<string, unknown>) => {
-  const input: Record<string, unknown> = {};
-  let numberSeed = 1;
-  let dateSeed = 1;
-
-  for (const [key, value] of Object.entries(shape)) {
-    if (value instanceof Date) {
-      input[key] = `2024-02-${String(dateSeed).padStart(2, '0')}`;
-      dateSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'number') {
-      input[key] = String(200 + numberSeed);
-      numberSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'string') {
-      input[key] = `value-${key}`;
-      continue;
-    }
-
-    throw new Error(`Unexpected field type for ${key}`);
-  }
-
-  return input;
-};
-
 const createZeroLikeInput = (shape: Record<string, unknown>) => {
   const input: Record<string, unknown> = {};
 
@@ -85,28 +56,34 @@ describe('domesticStockParser', () => {
 
   describe('transformDBDomesticStock', () => {
     it('transforms record values into domestic stock data', () => {
-      const emptyShape = toRecord(transformDBDomesticStock({}));
-      const input = createFilledInput(emptyShape);
+      const input: Record<string, unknown> = {
+        trade_date: '2024-02-01',
+        settlement_date: '2024-02-05',
+        security_code: '1301',
+        security_name: 'test-security',
+        account: 'tokutei',
+        shares: '100',
+        asked_price: '200',
+        proceeds: '300',
+        purchase_price: '150',
+        realized_profit_and_loss: '150',
+        taxes: '30',
+        realized_profit_and_loss_after_tax: '120',
+      };
       const result = toRecord(transformDBDomesticStock(input));
 
-      for (const [key, defaultValue] of Object.entries(emptyShape)) {
-        if (defaultValue instanceof Date) {
-          expect(result[key]).toEqual(new Date(String(input[key])));
-          continue;
-        }
-
-        if (typeof defaultValue === 'number') {
-          expect(result[key]).toBe(Number(input[key]));
-          continue;
-        }
-
-        if (typeof defaultValue === 'string') {
-          expect(result[key]).toBe(String(input[key]));
-          continue;
-        }
-
-        throw new Error(`Unexpected field type for ${key}`);
-      }
+      expect(result.trade_date).toEqual(new Date('2024-02-01'));
+      expect(result.settlement_date).toEqual(new Date('2024-02-05'));
+      expect(result.security_code).toBe('1301');
+      expect(result.security_name).toBe('test-security');
+      expect(result.account).toBe('tokutei');
+      expect(result.shares).toBe(100);
+      expect(result.asked_price).toBe(200);
+      expect(result.proceeds).toBe(300);
+      expect(result.purchase_price).toBe(150);
+      expect(result.realized_profit_and_loss).toBe(150);
+      expect(result.taxes).toBe(30);
+      expect(result.realized_profit_and_loss_after_tax).toBe(120);
     });
 
     it('returns typed defaults when values are missing', () => {

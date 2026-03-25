@@ -343,6 +343,7 @@ describe('SearchCard', () => {
       <SearchCard
         onSearch={mockOnSearch}
         categories={defaultCategories}
+        onExpandToggle={mockOnExpandToggle}
       />
     );
 
@@ -357,6 +358,7 @@ describe('SearchCard', () => {
     });
     // エラーなく実行されればOK
     expect(clearButtons.length).toBeGreaterThan(0);
+    expect(mockOnExpandToggle).not.toHaveBeenCalled();
   });
 
   test('compactモードでクリアボタンのクリックとキーダウンが動作する', () => {

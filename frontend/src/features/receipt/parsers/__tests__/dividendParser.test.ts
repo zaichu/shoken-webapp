@@ -8,35 +8,6 @@ import {
 const toRecord = (value: unknown): Record<string, unknown> =>
   value as Record<string, unknown>;
 
-const createFilledInput = (shape: Record<string, unknown>) => {
-  const input: Record<string, unknown> = {};
-  let numberSeed = 1;
-  let dateSeed = 1;
-
-  for (const [key, value] of Object.entries(shape)) {
-    if (value instanceof Date) {
-      input[key] = `2024-01-${String(dateSeed).padStart(2, '0')}`;
-      dateSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'number') {
-      input[key] = String(100 + numberSeed);
-      numberSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'string') {
-      input[key] = `value-${key}`;
-      continue;
-    }
-
-    throw new Error(`Unexpected field type for ${key}`);
-  }
-
-  return input;
-};
-
 const createZeroLikeInput = (shape: Record<string, unknown>) => {
   const input: Record<string, unknown> = {};
 
@@ -85,28 +56,30 @@ describe('dividendParser', () => {
 
   describe('transformDBDividend', () => {
     it('transforms record values into dividend data', () => {
-      const emptyShape = toRecord(transformDBDividend({}));
-      const input = createFilledInput(emptyShape);
+      const input: Record<string, unknown> = {
+        settlement_date: '2024-01-31',
+        product: '株式数比例配分方式',
+        account: '特定',
+        security_code: '7203',
+        security_name: 'トヨタ自動車',
+        unit_price: '45',
+        shares: '100',
+        dividends_before_tax: '4500',
+        taxes: '913',
+        net_amount_received: '3587',
+      };
       const result = toRecord(transformDBDividend(input));
 
-      for (const [key, defaultValue] of Object.entries(emptyShape)) {
-        if (defaultValue instanceof Date) {
-          expect(result[key]).toEqual(new Date(String(input[key])));
-          continue;
-        }
-
-        if (typeof defaultValue === 'number') {
-          expect(result[key]).toBe(Number(input[key]));
-          continue;
-        }
-
-        if (typeof defaultValue === 'string') {
-          expect(result[key]).toBe(String(input[key]));
-          continue;
-        }
-
-        throw new Error(`Unexpected field type for ${key}`);
-      }
+      expect(result.settlement_date).toEqual(new Date('2024-01-31'));
+      expect(result.product).toBe('株式数比例配分方式');
+      expect(result.account).toBe('特定');
+      expect(result.security_code).toBe('7203');
+      expect(result.security_name).toBe('トヨタ自動車');
+      expect(result.unit_price).toBe(45);
+      expect(result.shares).toBe(100);
+      expect(result.dividends_before_tax).toBe(4500);
+      expect(result.taxes).toBe(913);
+      expect(result.net_amount_received).toBe(3587);
     });
 
     it('returns typed defaults when values are missing', () => {

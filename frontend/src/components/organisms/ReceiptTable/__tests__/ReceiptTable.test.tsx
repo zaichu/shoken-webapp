@@ -169,6 +169,8 @@ describe('ReceiptTable', () => {
     // true → 'true', false → 'false' が表示される
     expect(screen.getByText('true')).toBeInTheDocument();
     expect(screen.getByText('false')).toBeInTheDocument();
+    expect(screen.queryByText('null')).not.toBeInTheDocument();
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
   });
 
   it('4桁年グループキーが「YYYY年」形式でフォーマットされる', () => {
@@ -208,17 +210,16 @@ describe('ReceiptTable', () => {
 
     // テーブルを取得してsecurity-code-link要素を動的に作成してクリックをシミュレート
     const table = container.querySelector('table');
-    if (table) {
-      const td = table.querySelector('td');
-      if (td) {
-        const linkEl = document.createElement('span');
-        linkEl.classList.add('security-code-link');
-        linkEl.dataset.search = '1234';
-        td.appendChild(linkEl);
-        fireEvent.click(linkEl);
-        expect(mockOnSearch).toHaveBeenCalledWith('1234');
-      }
-    }
+    expect(table).not.toBeNull();
+    const td = table!.querySelector('td');
+    expect(td).not.toBeNull();
+
+    const linkEl = document.createElement('span');
+    linkEl.classList.add('security-code-link');
+    linkEl.dataset.search = '1234';
+    td!.appendChild(linkEl);
+    fireEvent.click(linkEl);
+    expect(mockOnSearch).toHaveBeenCalledWith('1234');
   });
 
   it('グループごとにデータが正しくフィルタリングされる', () => {

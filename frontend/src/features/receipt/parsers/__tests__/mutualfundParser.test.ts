@@ -8,35 +8,6 @@ import {
 const toRecord = (value: unknown): Record<string, unknown> =>
   value as Record<string, unknown>;
 
-const createFilledInput = (shape: Record<string, unknown>) => {
-  const input: Record<string, unknown> = {};
-  let numberSeed = 1;
-  let dateSeed = 1;
-
-  for (const [key, value] of Object.entries(shape)) {
-    if (value instanceof Date) {
-      input[key] = `2024-03-${String(dateSeed).padStart(2, '0')}`;
-      dateSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'number') {
-      input[key] = String(300 + numberSeed);
-      numberSeed += 1;
-      continue;
-    }
-
-    if (typeof value === 'string') {
-      input[key] = `value-${key}`;
-      continue;
-    }
-
-    throw new Error(`Unexpected field type for ${key}`);
-  }
-
-  return input;
-};
-
 const createZeroLikeInput = (shape: Record<string, unknown>) => {
   const input: Record<string, unknown> = {};
 
@@ -85,28 +56,36 @@ describe('mutualfundParser', () => {
 
   describe('transformDBMutualfund', () => {
     it('transforms record values into mutualfund data', () => {
-      const emptyShape = toRecord(transformDBMutualfund({}));
-      const input = createFilledInput(emptyShape);
+      const input: Record<string, unknown> = {
+        trade_date: '2024-03-01',
+        settlement_date: '2024-03-05',
+        fund_name: 'test-fund',
+        dividends: '0',
+        account: 'tokutei',
+        shares: '1000',
+        exchange_rate: '150',
+        cancellation_unit_price_yen: '12000',
+        cancellation_amount_yen: '12000000',
+        average_acquisition_price_yen: '11000',
+        realized_profit_and_loss: '1000000',
+        taxes: '203150',
+        realized_profit_and_loss_after_tax: '796850',
+      };
       const result = toRecord(transformDBMutualfund(input));
 
-      for (const [key, defaultValue] of Object.entries(emptyShape)) {
-        if (defaultValue instanceof Date) {
-          expect(result[key]).toEqual(new Date(String(input[key])));
-          continue;
-        }
-
-        if (typeof defaultValue === 'number') {
-          expect(result[key]).toBe(Number(input[key]));
-          continue;
-        }
-
-        if (typeof defaultValue === 'string') {
-          expect(result[key]).toBe(String(input[key]));
-          continue;
-        }
-
-        throw new Error(`Unexpected field type for ${key}`);
-      }
+      expect(result.trade_date).toEqual(new Date('2024-03-01'));
+      expect(result.settlement_date).toEqual(new Date('2024-03-05'));
+      expect(result.fund_name).toBe('test-fund');
+      expect(result.dividends).toBe('0');
+      expect(result.account).toBe('tokutei');
+      expect(result.shares).toBe(1000);
+      expect(result.exchange_rate).toBe(150);
+      expect(result.cancellation_unit_price_yen).toBe(12000);
+      expect(result.cancellation_amount_yen).toBe(12000000);
+      expect(result.average_acquisition_price_yen).toBe(11000);
+      expect(result.realized_profit_and_loss).toBe(1000000);
+      expect(result.taxes).toBe(203150);
+      expect(result.realized_profit_and_loss_after_tax).toBe(796850);
     });
 
     it('returns typed defaults when values are missing', () => {

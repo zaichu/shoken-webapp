@@ -104,6 +104,7 @@ describe('DividendInfo', () => {
         searchQuery="7203: トヨタ自動車"
         summary={[
           {
+            filter: '7203',
             security_code: '7203',
             net_amount_received: 4500,
             dividends_before_tax: 5000,
