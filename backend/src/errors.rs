@@ -251,4 +251,43 @@ mod tests {
         assert_eq!(details.message, "test message");
         assert!(details.details.is_none());
     }
+
+    #[test]
+    fn test_unauthorized_into_response() {
+        let error = ApiError::Unauthorized("認証が必要です".to_string());
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_network_error_into_response() {
+        let error = ApiError::NetworkError("接続エラー".to_string());
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[test]
+    fn test_api_error_variant_into_response() {
+        let error = ApiError::ApiError("API エラー".to_string());
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_serde_json_error_into_response() {
+        let serde_err: serde_json::Error =
+            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let error = ApiError::SerdeJsonError(serde_err);
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_database_error_other_variant_into_response() {
+        // RowNotFound 以外の sqlx::Error バリアントで catch-all ブランチをカバー
+        let sql_error = SqlxError::ColumnNotFound("test_column".to_string());
+        let error = ApiError::DatabaseError(sql_error);
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
 }
