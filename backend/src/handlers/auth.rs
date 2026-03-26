@@ -94,7 +94,7 @@ pub async fn google_callback(
         .request_async(&http_client)
         .await
         .map_err(|e| {
-            tracing::error!("OAuth token exchange error: {:?}", e);
+            tracing::error!("OAuth token exchange error: {}", e);
             ApiError::OAuthError(e.to_string())
         })?;
 
