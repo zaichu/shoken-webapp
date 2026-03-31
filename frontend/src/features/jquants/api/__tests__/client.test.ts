@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
 import { JQuantsApiClient } from '../client';
 import { apiClient } from '@/lib/api/client';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
@@ -9,8 +8,6 @@ vi.mock('@/lib/api/client', () => ({
     get: vi.fn(),
   },
 }));
-
-vi.mock('axios');
 
 describe('JQuantsApiClient', () => {
   let client: JQuantsApiClient;
@@ -48,21 +45,15 @@ describe('JQuantsApiClient', () => {
       });
     });
 
-    it('Axiosエラーの場合、ApiErrorを投げる', async () => {
-      const axiosError = new Error('Network Error');
-      vi.mocked(axios.isAxiosError).mockReturnValue(true);
-      (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
+    it('ApiErrorの場合、そのままスローする', async () => {
+      const apiError = new ApiError(ApiErrorType.NETWORK_ERROR, 'Network Error');
+      (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(apiError);
 
-      const mockApiError = new ApiError(ApiErrorType.NETWORK_ERROR, 'Network Error');
-      vi.spyOn(ApiError, 'fromAxiosError').mockReturnValue(mockApiError);
-
-      await expect(client.getStatements('1234')).rejects.toThrow(ApiError);
-      expect(ApiError.fromAxiosError).toHaveBeenCalledWith(axiosError);
+      await expect(client.getStatements('1234')).rejects.toBe(apiError);
     });
 
     it('その他のエラーの場合、デフォルトのApiErrorを投げる', async () => {
       const error = new Error('Unknown Error');
-      vi.mocked(axios.isAxiosError).mockReturnValue(false);
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(error);
 
       await expect(client.getStatements('1234')).rejects.toThrow('財務諸表の取得に失敗しました');

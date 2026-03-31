@@ -1,7 +1,6 @@
 import { JQuantsStatementsResponse } from './types';
 import { apiClient } from '@/lib/api/client';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
-import axios from 'axios';
 
 /**
  * J-Quants API クライアント（バックエンド経由）
@@ -31,8 +30,8 @@ export class JQuantsApiClient {
 
       return response;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw ApiError.fromAxiosError(error);
+      if (error instanceof ApiError) {
+        throw error;
       }
       throw new ApiError(
         ApiErrorType.DESERIALIZATION_ERROR,

@@ -43,7 +43,7 @@ describe('DividendInfo', () => {
     expect(screen.getByText('配当シミュレーション')).toBeInTheDocument();
   });
 
-  it('J-Quants バッジのリンクを表示する', () => {
+  it('一株配当データが取得された場合、その値が入力欄に反映される', () => {
     mockUseDividendBatch.mockReturnValue({
       dividendPerShareMap: new Map([['7203', 120]]),
       dividendStatusMap: new Map([['7203', 'ok']]),
@@ -54,8 +54,7 @@ describe('DividendInfo', () => {
 
     render(<DividendInfo searchQuery="7203: トヨタ自動車" summary={[]} />);
 
-    const link = screen.getByRole('link', { name: 'J-Quants' });
-    expect(link).toHaveAttribute('href', 'https://jpx-jquants.com/');
+    expect(screen.getByDisplayValue('120')).toBeInTheDocument();
   });
 
   it('searchQuery から銘柄コードを解決して useDividendBatch に渡す', () => {
@@ -70,7 +69,7 @@ describe('DividendInfo', () => {
     expect(
       screen.getAllByText('資産管理にCSVを取り込むと表示されます')
     ).toHaveLength(2);
-    expect(screen.getByText('J-Quants APIから取得します')).toBeInTheDocument();
+    expect(screen.getByText('自動で取得されます')).toBeInTheDocument();
   });
 
   it('searchQueryが空の場合nullを返す', () => {

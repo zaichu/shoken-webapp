@@ -1,7 +1,6 @@
 import { StockData } from './types';
 import { apiClient } from '../../lib/api/client';
 import { ApiError, ApiErrorType } from '../../lib/types/api';
-import axios from 'axios';
 
 /**
  * 銘柄データを取得する
@@ -17,13 +16,9 @@ export async function fetchStockData(query: string): Promise<StockData> {
       throw error;
     }
 
-    if (axios.isAxiosError(error)) {
-      throw ApiError.fromAxiosError(error);
-    }
-
     throw new ApiError(
       ApiErrorType.DESERIALIZATION_ERROR,
-      '銘柄データの読み込みに失敗しました。J-Quants API の応答形式が変更された可能性があります。'
+      '銘柄データの読み込みに失敗しました。データ形式が変更された可能性があります。'
     );
   }
 }
@@ -42,10 +37,6 @@ export async function apiRequest<T>(
   } catch (error) {
     if (error instanceof ApiError) {
       return { error };
-    }
-
-    if (axios.isAxiosError(error)) {
-      return { error: ApiError.fromAxiosError(error) };
     }
 
     const apiError = new ApiError(

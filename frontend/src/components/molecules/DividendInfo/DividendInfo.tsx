@@ -13,19 +13,8 @@ const AssetBadge = () => (
   </span>
 );
 
-const JQuantsBadge = () => (
-  <a
-    href="https://jpx-jquants.com/"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="ml-1 inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
-  >
-    J-Quants
-  </a>
-);
-
 const ASSET_BALANCE_HINT = '資産管理にCSVを取り込むと表示されます';
-const JQUANTS_HINT = 'J-Quants APIから取得します';
+const JQUANTS_HINT = '自動で取得されます';
 
 interface DividendInfoProps {
   searchQuery: string;
@@ -165,7 +154,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
           </div>
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-600 mb-1">
-              一株配当{dividendPerShare !== undefined && <JQuantsBadge />}
+              一株配当
             </p>
             <p className="text-2xl font-bold tabular-nums text-primary">
               {apiLoading ? '取得中...' : dividendPerShare !== undefined ? formatCurrency(dividendPerShare) : '---'}
@@ -235,7 +224,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
           </div>
           <div>
             <NumberInputField
-              label={<>一株配当{dividendPerShare !== undefined && <JQuantsBadge />}</>}
+              label={<>一株配当</>}
               value={dividendPerShare}
               onChange={setDividendPerShare}
               disabled={apiLoading}

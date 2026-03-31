@@ -1,174 +1,175 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import axios, { AxiosInstance } from 'axios';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createApiClient } from '../client';
+import { ApiError, ApiErrorType } from '../../types/api';
 
-// Axiosのモック
-vi.mock('axios', () => ({
-  default: {
-    create: vi.fn(),
-    isAxiosError: vi.fn(),
-  },
-}));
-
-interface MockAxiosInstance {
-  get: ReturnType<typeof vi.fn>;
-  post: ReturnType<typeof vi.fn>;
-  put: ReturnType<typeof vi.fn>;
-  patch: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-  interceptors: {
-    request: { use: ReturnType<typeof vi.fn> };
-    response: { use: ReturnType<typeof vi.fn> };
-  };
-  request: ReturnType<typeof vi.fn>;
-}
-
-const mockedAxiosCreate = axios.create as Mock;
-const mockedIsAxiosError = axios.isAxiosError as unknown as Mock;
+const mockFetch = vi.fn();
 
 describe('ApiClient', () => {
-  let mockAxiosInstance: MockAxiosInstance;
-
   beforeEach(() => {
-    vi.clearAllMocks();
-    
-    mockAxiosInstance = {
-      get: vi.fn(),
-      post: vi.fn(),
-      put: vi.fn(),
-      patch: vi.fn(),
-      delete: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-      request: vi.fn(),
-    };
-    
-    mockedAxiosCreate.mockReturnValue(mockAxiosInstance as unknown as AxiosInstance);
-    mockedIsAxiosError.mockReturnValue(false);
+    vi.stubGlobal('fetch', mockFetch);
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   describe('HTTPメソッド', () => {
     it('GETリクエストを送信できる', async () => {
       const mockData = { id: 1, name: 'Test' };
-      mockAxiosInstance.get.mockResolvedValue({ data: mockData });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockData)),
+      });
 
-      const client = createApiClient();
-      const result = await client.get('/test');
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test');
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result).toEqual(mockData);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/test', undefined);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test',
+        expect.objectContaining({ method: 'GET' })
+      );
     });
 
     it('POSTリクエストを送信できる', async () => {
       const mockData = { id: 1, name: 'Test' };
       const postData = { name: 'New Item' };
-      mockAxiosInstance.post.mockResolvedValue({ data: mockData });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockData)),
+      });
 
-      const client = createApiClient();
-      const result = await client.post('/test', postData);
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.post('/test', postData);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result).toEqual(mockData);
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/test', postData, undefined);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify(postData) })
+      );
     });
 
     it('PUTリクエストを送信できる', async () => {
       const mockData = { id: 1, name: 'Updated' };
       const putData = { name: 'Updated Item' };
-      mockAxiosInstance.put.mockResolvedValue({ data: mockData });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockData)),
+      });
 
-      const client = createApiClient();
-      const result = await client.put('/test/1', putData);
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.put('/test/1', putData);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result).toEqual(mockData);
-      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', putData, undefined);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test/1',
+        expect.objectContaining({ method: 'PUT' })
+      );
     });
 
     it('PATCHリクエストを送信できる', async () => {
       const mockData = { id: 1, name: 'Patched' };
       const patchData = { name: 'Patched Item' };
-      mockAxiosInstance.patch.mockResolvedValue({ data: mockData });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockData)),
+      });
 
-      const client = createApiClient();
-      const result = await client.patch('/test/1', patchData);
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.patch('/test/1', patchData);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result).toEqual(mockData);
-      expect(mockAxiosInstance.patch).toHaveBeenCalledWith('/test/1', patchData, undefined);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test/1',
+        expect.objectContaining({ method: 'PATCH' })
+      );
     });
 
     it('DELETEリクエストを送信できる', async () => {
       const mockData = { success: true };
-      mockAxiosInstance.delete.mockResolvedValue({ data: mockData });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockData)),
+      });
 
-      const client = createApiClient();
-      const result = await client.delete('/test/1');
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.delete('/test/1');
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result).toEqual(mockData);
-      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', undefined);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test/1',
+        expect.objectContaining({ method: 'DELETE' })
+      );
     });
   });
 
   describe('エラーハンドリング', () => {
     it('ネットワークエラーを適切に処理する', async () => {
-      const axiosError = {
-        code: 'ERR_NETWORK',
-        message: 'Network Error',
-        config: {},
-        isAxiosError: true,
-      };
+      mockFetch.mockRejectedValue(new TypeError('Failed to fetch'));
 
-      mockAxiosInstance.get.mockImplementation(() => {
-        throw axiosError;
-      });
-      mockedIsAxiosError.mockReturnValue(true);
+      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
 
-      const client = createApiClient({ retry: { maxRetries: 0 } });
-
-      // エラーがスローされることを確認
-      await expect(client.get('/test')).rejects.toThrow();
+      await expect(client.get('/test')).rejects.toBeInstanceOf(ApiError);
     });
 
-    it('タイムアウトエラーを適切に処理する', async () => {
-      const axiosError = {
-        code: 'ECONNABORTED',
-        message: 'Timeout',
-        config: {},
-        isAxiosError: true,
-        response: undefined,
-      };
-
-      const client = createApiClient({ retry: { maxRetries: 0 } });
-      
-      mockAxiosInstance.get.mockImplementation(() => {
-        throw axiosError;
+    it('HTTPステータスエラー(404)をApiErrorとして処理する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({}),
       });
-      mockedIsAxiosError.mockReturnValue(true);
 
-      // エラーがスローされることを確認
-      await expect(client.get('/test')).rejects.toThrow();
+      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
+
+      await expect(client.get('/test')).rejects.toMatchObject({
+        type: ApiErrorType.NOT_FOUND_ERROR,
+      });
     });
 
-    it('HTTPステータスエラーを適切に処理する', async () => {
-      const axiosError = {
-        response: { status: 404, data: {} },
-        config: {},
-        isAxiosError: true,
-      };
-
-      mockAxiosInstance.get.mockImplementation(() => {
-        throw axiosError;
+    it('HTTPステータスエラー(401)をApiErrorとして処理する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({}),
       });
-      mockedIsAxiosError.mockReturnValue(true);
 
-      const client = createApiClient({ retry: { maxRetries: 0 } });
+      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
 
-      // エラーがスローされることを確認
-      await expect(client.get('/test')).rejects.toThrow();
+      await expect(client.get('/test')).rejects.toMatchObject({
+        type: ApiErrorType.AUTHENTICATION_ERROR,
+      });
+    });
+
+    it('HTTPステータスエラー(500)をApiErrorとして処理する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({}),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
+
+      await expect(client.get('/test')).rejects.toMatchObject({
+        type: ApiErrorType.SERVER_ERROR,
+      });
     });
   });
 
@@ -178,32 +179,34 @@ describe('ApiClient', () => {
       const mockData2 = { id: 2 };
       const mockData3 = { id: 3 };
 
-      mockAxiosInstance.get
-        .mockResolvedValueOnce({ data: mockData1 })
-        .mockResolvedValueOnce({ data: mockData2 })
-        .mockResolvedValueOnce({ data: mockData3 });
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData1)) })
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData2)) })
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData3)) });
 
-      const client = createApiClient();
-      const results = await client.batch([
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultsPromise = client.batch([
         () => client.get('/test/1'),
         () => client.get('/test/2'),
         () => client.get('/test/3'),
       ]);
+      await vi.runAllTimersAsync();
+      const results = await resultsPromise;
 
       expect(results).toEqual([mockData1, mockData2, mockData3]);
-      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 
   describe('キャンセル可能なリクエスト', () => {
     it('リクエストをキャンセルできる', async () => {
-      const client = createApiClient();
+      const client = createApiClient({ baseURL: 'http://api.test' });
       const { promise, cancel } = client.createCancelableRequest(
         async (signal) => {
           // AbortSignalを使用したリクエストのシミュレーション
           return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => resolve('success'), 1000);
-            
+
             signal.addEventListener('abort', () => {
               clearTimeout(timeout);
               reject(new Error('Aborted'));
@@ -221,94 +224,102 @@ describe('ApiClient', () => {
   });
 
   describe('FormDataリクエスト', () => {
-    it('FormDataを送信するとき Content-Type ヘッダーを削除する', () => {
-      createApiClient();
+    it('FormDataを送信するとき Content-Type ヘッダーを含まない', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
 
-      const [requestFulfilled] = mockAxiosInstance.interceptors.request.use.mock.calls[0] as [
-        (config: { data: unknown; headers: Record<string, string> }) => { data: unknown; headers: Record<string, string> },
-      ];
-      const config = {
-        data: new FormData(),
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      };
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const formData = new FormData();
+      const resultPromise = client.post('/upload', formData);
+      await vi.runAllTimersAsync();
+      await resultPromise;
 
-      const result = requestFulfilled(config);
-
-      expect(result.headers['Content-Type']).toBeUndefined();
-      expect(result.headers['Accept']).toBe('application/json');
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = fetchOptions.headers as Record<string, string>;
+      expect(headers['Content-Type']).toBeUndefined();
+      expect(headers['Accept']).toBe('application/json');
     });
 
-    it('JSON送信のとき Content-Type: application/json を維持する', () => {
-      createApiClient();
+    it('JSON送信のとき Content-Type: application/json を維持する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
 
-      const [requestFulfilled] = mockAxiosInstance.interceptors.request.use.mock.calls[0] as [
-        (config: { data: unknown; headers: Record<string, string> }) => { data: unknown; headers: Record<string, string> },
-      ];
-      const config = {
-        data: { name: 'test' },
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      };
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.post('/test', { name: 'test' });
+      await vi.runAllTimersAsync();
+      await resultPromise;
 
-      const result = requestFulfilled(config);
-
-      expect(result.headers['Content-Type']).toBe('application/json');
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = fetchOptions.headers as Record<string, string>;
+      expect(headers['Content-Type']).toBe('application/json');
     });
   });
 
   describe('設定', () => {
-    it('カスタム設定でクライアントを作成できる', () => {
-      const customConfig = {
+    it('カスタム設定でクライアントを作成できる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({
         baseURL: 'https://custom-api.example.com',
         timeout: 5000,
-        headers: {
-          'X-Custom-Header': 'value',
-        },
-      };
-
-      createApiClient(customConfig);
-
-      expect(mockedAxiosCreate).toHaveBeenCalledWith({
-        baseURL: customConfig.baseURL,
-        timeout: customConfig.timeout,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Custom-Header': 'value',
-        },
+        headers: { 'X-Custom-Header': 'value' },
       });
+      const resultPromise = client.get('/test');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [url, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://custom-api.example.com/test');
+      const headers = fetchOptions.headers as Record<string, string>;
+      expect(headers['X-Custom-Header']).toBe('value');
     });
 
-    it('デフォルト設定を使用できる', () => {
-      createApiClient();
-
-      expect(mockedAxiosCreate).toHaveBeenCalledWith({
-        baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
-        timeout: 30000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+    it('デフォルト設定を使用できる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
       });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = fetchOptions.headers as Record<string, string>;
+      // GETリクエストはボディなし → Content-Type を付与しない（CORS preflight 防止）
+      expect(headers['Content-Type']).toBeUndefined();
+      expect(headers['Accept']).toBe('application/json');
     });
 
-    it('認証確認用にtimeout/retryをカスタマイズできる', () => {
-      createApiClient({
-        timeout: 5000,
-        retry: {
-          maxRetries: 1,
-          retryDelay: 500,
-          retryDelayMultiplier: 1,
-        },
+    it('認証確認用にtimeout/retryをカスタマイズできる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
       });
 
-      expect(mockedAxiosCreate).toHaveBeenCalledWith({
-        baseURL: import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
+      const client = createApiClient({
+        baseURL: 'http://api.test',
         timeout: 5000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        retry: { maxRetries: 1, retryDelay: 500, retryDelayMultiplier: 1 },
       });
+      const resultPromise = client.get('/test');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });
