@@ -1,5 +1,3 @@
-import { AxiosError, AxiosResponse } from 'axios';
-
 export enum ApiErrorType {
   REQUEST_ERROR = 'REQUEST_ERROR',
   NETWORK_ERROR = 'NETWORK_ERROR',
@@ -46,7 +44,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.requestUrl = requestUrl;
     this.requestMethod = requestMethod;
-    
+
     // スタックトレースを保持
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, ApiError);
@@ -58,21 +56,21 @@ export class ApiError extends Error {
    */
   public toDetailedString(): string {
     const parts = [`[${this.type}] ${this.message}`];
-    
+
     if (this.statusCode) {
       parts.push(`Status: ${this.statusCode}`);
     }
-    
+
     if (this.requestUrl) {
       parts.push(`URL: ${this.requestMethod || 'GET'} ${this.requestUrl}`);
     }
-    
+
     if (this.details) {
       parts.push(`Details: ${JSON.stringify(this.details)}`);
     }
-    
+
     parts.push(`Timestamp: ${this.timestamp.toISOString()}`);
-    
+
     return parts.join(' | ');
   }
 
@@ -103,44 +101,21 @@ export class ApiError extends Error {
   }
 
   /**
-   * AxiosErrorからApiErrorを生成
+   * HTTPレスポンスからApiErrorを生成
    */
-  static fromAxiosError(error: AxiosError): ApiError {
-    const response = error.response as AxiosResponse | undefined;
-    const request = error.config;
-    
-    // ネットワークエラー
-    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      return new ApiError(
-        ApiErrorType.TIMEOUT_ERROR,
-        'リクエストがタイムアウトしました',
-        undefined,
-        { code: error.code },
-        request?.url,
-        request?.method?.toUpperCase()
-      );
-    }
-    
-    if (error.code === 'ERR_NETWORK' || !response) {
-      return new ApiError(
-        ApiErrorType.NETWORK_ERROR,
-        'ネットワークエラーが発生しました',
-        undefined,
-        { code: error.code },
-        request?.url,
-        request?.method?.toUpperCase()
-      );
-    }
-    
-    // HTTPステータスコードに基づくエラー分類
-    const statusCode = response.status;
+  static fromHttpResponse(
+    status: number,
+    data: unknown,
+    url?: string,
+    method?: string
+  ): ApiError {
     let errorType: ApiErrorType;
     let message: string;
-    
-    switch (statusCode) {
+
+    switch (status) {
       case 400: {
         errorType = ApiErrorType.VALIDATION_ERROR;
-        const data400 = response.data as { error?: { message?: string } } | null;
+        const data400 = data as { error?: { message?: string } } | null;
         message = data400?.error?.message ?? 'リクエストが不正です';
         break;
       }
@@ -165,29 +140,19 @@ export class ApiError extends Error {
         break;
       default:
         errorType = ApiErrorType.RESPONSE_ERROR;
-        message = `エラーが発生しました (ステータス: ${statusCode})`;
+        message = `エラーが発生しました (ステータス: ${status})`;
     }
-    
-    // レスポンスボディからエラー詳細を抽出
+
     const details: ApiErrorDetails = {};
-    if (response.data) {
-      if (typeof response.data === 'object') {
-        Object.assign(details, response.data);
+    if (data) {
+      if (typeof data === 'object') {
+        Object.assign(details, data);
       } else {
-        details.context = { responseData: response.data };
+        details.context = { responseData: data };
       }
     }
-    
-    const apiError = new ApiError(
-      errorType, 
-      message, 
-      statusCode, 
-      details,
-      request?.url,
-      request?.method?.toUpperCase()
-    );
-    
-    return apiError;
+
+    return new ApiError(errorType, message, status, details, url, method);
   }
 
   /**

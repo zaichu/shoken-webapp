@@ -1,11 +1,10 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ApiError, ApiErrorType } from '../types/api';
 
-// Axiosの型拡張
-declare module 'axios' {
-  interface InternalAxiosRequestConfig {
-    metadata?: { startTime: number };
-  }
+export interface RequestConfig {
+  params?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
+  withCredentials?: boolean;
+  signal?: AbortSignal;
 }
 
 interface RetryConfig {
@@ -37,143 +36,168 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 class ApiClient {
-  private client: AxiosInstance;
+  private baseURL: string;
+  private timeout: number;
   private retryConfig: RetryConfig;
+  private defaultHeaders: Record<string, string>;
 
   constructor(config: ApiClientConfig = {}) {
     const {
-      baseURL = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL,
+      baseURL = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL ?? '',
       timeout = DEFAULT_TIMEOUT_MS,
       retry = {},
       headers = {},
     } = config;
 
+    this.baseURL = baseURL;
+    this.timeout = timeout;
     this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retry };
-
-    this.client = axios.create({
-      baseURL,
-      timeout,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...headers,
-      },
-    });
-
-    this.setupInterceptors();
+    this.defaultHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...headers,
+    };
   }
 
-  private setupInterceptors(): void {
-    // リクエストインターセプター
-    this.client.interceptors.request.use(
-      (config) => {
-        // リクエスト開始時刻を記録
-        config.metadata = { startTime: Date.now() };
-        // FormDataの場合はContent-Typeを削除し、axiosがboundary付きで自動設定するようにする
-        if (config.data instanceof FormData) {
-          delete config.headers['Content-Type'];
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(this.handleError(error));
+  private buildURL(path: string, params?: RequestConfig['params']): string {
+    const url = this.baseURL + path;
+    if (!params) return url;
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) {
+        searchParams.set(key, String(value));
       }
-    );
-
-    // レスポンスインターセプター
-    this.client.interceptors.response.use(
-      (response) => {
-        return response;
-      },
-      async (error) => {
-        const apiError = this.handleError(error);
-
-        // 再試行ロジック
-        if (this.shouldRetry(error.config, apiError)) {
-          return this.retryRequest(error.config, apiError);
-        }
-
-        return Promise.reject(apiError);
-      }
-    );
-  }
-
-  private handleError(error: unknown): ApiError {
-    if (axios.isAxiosError(error)) {
-      const apiError = ApiError.fromAxiosError(error);
-      return apiError;
     }
+    const qs = searchParams.toString();
+    return qs ? `${url}?${qs}` : url;
+  }
 
-    if (error instanceof Error) {
-      return new ApiError(
-        ApiErrorType.UNKNOWN_ERROR,
-        error.message
+  private async executeRequest<T>(
+    method: string,
+    path: string,
+    data?: unknown,
+    config: RequestConfig = {},
+    retryCount = 0
+  ): Promise<T> {
+    const { params, withCredentials, signal: externalSignal } = config;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort('timeout'), this.timeout);
+
+    // 外部シグナルが既にabort済みならすぐに中断
+    if (externalSignal?.aborted) {
+      clearTimeout(timeoutId);
+      throw new ApiError(
+        ApiErrorType.REQUEST_ERROR,
+        'リクエストがキャンセルされました',
+        undefined,
+        undefined,
+        path,
+        method
       );
     }
 
-    return new ApiError(
-      ApiErrorType.UNKNOWN_ERROR,
-      '不明なエラーが発生しました'
-    );
-  }
+    // 外部シグナルのabortをタイムアウトコントローラに伝播
+    const onExternalAbort = () => controller.abort(externalSignal?.reason);
+    externalSignal?.addEventListener('abort', onExternalAbort);
 
-  private shouldRetry(config: AxiosRequestConfig & { retryCount?: number }, error: ApiError): boolean {
-    if (!config || config.retryCount === undefined) {
-      config.retryCount = 0;
+    const headers: Record<string, string> = { ...this.defaultHeaders, ...(config.headers ?? {}) };
+    let body: BodyInit | undefined;
+
+    if (data instanceof FormData) {
+      // FormDataの場合はContent-Typeを削除し、ブラウザが自動設定するようにする
+      delete headers['Content-Type'];
+      body = data;
+    } else if (data !== undefined) {
+      body = JSON.stringify(data);
     }
 
-    return (
-      config.retryCount < this.retryConfig.maxRetries &&
-      this.retryConfig.shouldRetry!(error)
-    );
-  }
+    const url = this.buildURL(path, params);
 
-  private async retryRequest(
-    config: AxiosRequestConfig & { retryCount?: number },
-    error: ApiError
-  ): Promise<AxiosResponse> {
-    config.retryCount = (config.retryCount || 0) + 1;
-    
-    const delay = this.calculateRetryDelay(config.retryCount);
-    console.warn(`Retrying request (${config.retryCount}/${this.retryConfig.maxRetries}) after ${delay}ms:`, error.message);
-    
-    await this.sleep(delay);
-    
-    return this.client.request(config);
-  }
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body,
+        credentials: withCredentials ? 'include' : 'same-origin',
+        signal: controller.signal,
+      });
 
-  private calculateRetryDelay(retryCount: number): number {
-    return this.retryConfig.retryDelay * Math.pow(this.retryConfig.retryDelayMultiplier, retryCount - 1);
-  }
+      if (!response.ok) {
+        const responseData = await response.json().catch(() => null);
+        throw ApiError.fromHttpResponse(response.status, responseData, path, method);
+      }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+      // 204 No Content
+      if (response.status === 204) return undefined as T;
+
+      return (await response.json()) as T;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        // リトライ判定
+        if (
+          retryCount < this.retryConfig.maxRetries &&
+          this.retryConfig.shouldRetry!(error)
+        ) {
+          const delay = this.retryConfig.retryDelay *
+            Math.pow(this.retryConfig.retryDelayMultiplier, retryCount);
+          console.warn(
+            `Retrying request (${retryCount + 1}/${this.retryConfig.maxRetries}) after ${delay}ms:`,
+            error.message
+          );
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.executeRequest<T>(method, path, data, config, retryCount + 1);
+        }
+        throw error;
+      }
+
+      // AbortError: タイムアウトまたはキャンセル
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        const isTimeout = controller.signal.reason === 'timeout';
+        throw new ApiError(
+          isTimeout ? ApiErrorType.TIMEOUT_ERROR : ApiErrorType.REQUEST_ERROR,
+          isTimeout ? 'リクエストがタイムアウトしました' : 'リクエストがキャンセルされました',
+          undefined,
+          undefined,
+          path,
+          method
+        );
+      }
+
+      // ネットワークエラー
+      throw new ApiError(
+        ApiErrorType.NETWORK_ERROR,
+        'ネットワークエラーが発生しました',
+        undefined,
+        undefined,
+        path,
+        method
+      );
+    } finally {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', onExternalAbort);
+    }
   }
 
   // HTTPメソッド
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get<T>(url, config);
-    return response.data;
+  async get<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.executeRequest<T>('GET', url, undefined, config);
   }
 
-  async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post<T>(url, data, config);
-    return response.data;
+  async post<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.executeRequest<T>('POST', url, data, config);
   }
 
-  async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.put<T>(url, data, config);
-    return response.data;
+  async put<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.executeRequest<T>('PUT', url, data, config);
   }
 
-  async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.patch<T>(url, data, config);
-    return response.data;
+  async patch<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.executeRequest<T>('PATCH', url, data, config);
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete<T>(url, config);
-    return response.data;
+  async delete<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.executeRequest<T>('DELETE', url, undefined, config);
   }
 
   // バッチリクエスト
@@ -194,8 +218,7 @@ class ApiClient {
     cancel: () => void;
   } {
     const controller = new AbortController();
-    
-    // Axiosリクエストをキャンセル可能にするラッパー
+
     const wrappedPromise = requestFn(controller.signal).catch(error => {
       if (controller.signal.aborted) {
         throw new ApiError(
@@ -205,7 +228,7 @@ class ApiClient {
       }
       throw error;
     });
-    
+
     return {
       promise: wrappedPromise,
       cancel: () => controller.abort(),
@@ -225,11 +248,11 @@ function getApiClient(): ApiClient {
 
 // 後方互換性のため
 export const apiClient = {
-  get: <T>(url: string, config?: AxiosRequestConfig) => getApiClient().get<T>(url, config),
-  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().post<T>(url, data, config),
-  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().put<T>(url, data, config),
-  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) => getApiClient().patch<T>(url, data, config),
-  delete: <T>(url: string, config?: AxiosRequestConfig) => getApiClient().delete<T>(url, config),
+  get: <T>(url: string, config?: RequestConfig) => getApiClient().get<T>(url, config),
+  post: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().post<T>(url, data, config),
+  put: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().put<T>(url, data, config),
+  patch: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().patch<T>(url, data, config),
+  delete: <T>(url: string, config?: RequestConfig) => getApiClient().delete<T>(url, config),
   batch: <T extends readonly unknown[]>(requests: { [K in keyof T]: () => Promise<T[K]> }) => getApiClient().batch<T>(requests),
   createCancelableRequest: <T>(requestFn: (signal: AbortSignal) => Promise<T>) => getApiClient().createCancelableRequest<T>(requestFn),
 };
@@ -238,5 +261,3 @@ export const apiClient = {
 export function createApiClient(config?: ApiClientConfig): ApiClient {
   return new ApiClient(config);
 }
-
-// エクスポート
