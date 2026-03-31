@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createApiClient } from '../client';
+import { apiClient, createApiClient } from '../client';
 import { ApiError, ApiErrorType } from '../../types/api';
 
 const mockFetch = vi.fn();
@@ -119,6 +119,21 @@ describe('ApiClient', () => {
         expect.objectContaining({ method: 'DELETE' })
       );
     });
+
+    it('空ボディレスポンスのとき undefined を返す', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 204,
+        text: () => Promise.resolve(''),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/empty');
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result).toBeUndefined();
+    });
   });
 
   describe('エラーハンドリング', () => {
@@ -171,6 +186,100 @@ describe('ApiClient', () => {
         type: ApiErrorType.SERVER_ERROR,
       });
     });
+
+    it('タイムアウト時にTIMEOUT_ERRORをthrowする', async () => {
+      mockFetch.mockImplementation((_url: string, options?: RequestInit) => {
+        const signal = options?.signal as AbortSignal;
+
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            const err = new DOMException('AbortError', 'AbortError');
+            reject(err);
+          });
+        });
+      });
+
+      const client = createApiClient({
+        baseURL: 'http://api.test',
+        timeout: 100,
+        retry: { maxRetries: 0 },
+      });
+
+      const resultPromise = client.get('/timeout');
+      const expectation = expect(resultPromise).rejects.toMatchObject({
+        type: ApiErrorType.TIMEOUT_ERROR,
+      });
+      await vi.runAllTimersAsync();
+      await expectation;
+    });
+
+    it('外部シグナルでキャンセルされた場合はREQUEST_ERRORをthrowする', async () => {
+      mockFetch.mockImplementation((_url: string, options?: RequestInit) => {
+        const signal = options?.signal as AbortSignal;
+
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            const err = new DOMException('AbortError', 'AbortError');
+            reject(err);
+          });
+        });
+      });
+
+      const controller = new AbortController();
+      const client = createApiClient({
+        baseURL: 'http://api.test',
+        retry: { maxRetries: 0 },
+      });
+
+      const resultPromise = client.get('/cancel', { signal: controller.signal });
+      const expectation = expect(resultPromise).rejects.toMatchObject({
+        type: ApiErrorType.REQUEST_ERROR,
+      });
+      controller.abort();
+      await expectation;
+    });
+
+    it('外部シグナルが既にabort済みならfetch前にREQUEST_ERRORをthrowする', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      const client = createApiClient({
+        baseURL: 'http://api.test',
+        retry: { maxRetries: 0 },
+      });
+
+      await expect(client.get('/already-aborted', { signal: controller.signal })).rejects.toMatchObject({
+        type: ApiErrorType.REQUEST_ERROR,
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('ネットワークエラー時に成功するまでリトライする', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockData = { success: true };
+
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(mockData)),
+        });
+
+      const client = createApiClient({
+        baseURL: 'http://api.test',
+        retry: { maxRetries: 2, retryDelay: 100, retryDelayMultiplier: 1 },
+      });
+
+      const resultPromise = client.get('/retry');
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result).toEqual(mockData);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('バッチリクエスト', () => {
@@ -220,6 +329,17 @@ describe('ApiClient', () => {
 
       // キャンセルされたリクエストはエラーになるはず
       await expect(promise).rejects.toThrow();
+    });
+
+    it('abort以外のエラーはそのままrethrowする', async () => {
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const expectedError = new Error('Unexpected failure');
+
+      const { promise } = client.createCancelableRequest(async () => {
+        throw expectedError;
+      });
+
+      await expect(promise).rejects.toBe(expectedError);
     });
   });
 
@@ -320,6 +440,84 @@ describe('ApiClient', () => {
       await resultPromise;
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('baseURLに既存クエリがある場合は追加パラメータを&で連結する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test/test?existing=1' });
+      const resultPromise = client.get('', {
+        params: { key: 'value' },
+      });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test?existing=1&key=value',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+  });
+
+  describe('シングルトンAPIクライアント', () => {
+    it('apiClientの各メソッドを正常に呼び出せる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const getPromise = apiClient.get('/singleton-get');
+      const postPromise = apiClient.post('/singleton-post', { name: 'post' });
+      const putPromise = apiClient.put('/singleton-put', { name: 'put' });
+      const patchPromise = apiClient.patch('/singleton-patch', { name: 'patch' });
+      const deletePromise = apiClient.delete('/singleton-delete');
+      const batchPromise = apiClient.batch([
+        () => apiClient.get('/singleton-batch-1'),
+        () => apiClient.get('/singleton-batch-2'),
+      ] as const);
+      const cancelableRequest = apiClient.createCancelableRequest(async () => 'singleton');
+
+      await vi.runAllTimersAsync();
+
+      await expect(getPromise).resolves.toEqual({});
+      await expect(postPromise).resolves.toEqual({});
+      await expect(putPromise).resolves.toEqual({});
+      await expect(patchPromise).resolves.toEqual({});
+      await expect(deletePromise).resolves.toEqual({});
+      await expect(batchPromise).resolves.toEqual([{}, {}]);
+      await expect(cancelableRequest.promise).resolves.toBe('singleton');
+
+      expect(mockFetch).toHaveBeenCalledTimes(7);
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('/singleton-get'),
+        expect.objectContaining({ method: 'GET' })
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('/singleton-post'),
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        3,
+        expect.stringContaining('/singleton-put'),
+        expect.objectContaining({ method: 'PUT' })
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        4,
+        expect.stringContaining('/singleton-patch'),
+        expect.objectContaining({ method: 'PATCH' })
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        5,
+        expect.stringContaining('/singleton-delete'),
+        expect.objectContaining({ method: 'DELETE' })
+      );
     });
   });
 });
