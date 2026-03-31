@@ -43,7 +43,7 @@ describe('DividendInfo', () => {
     expect(screen.getByText('配当シミュレーション')).toBeInTheDocument();
   });
 
-  it('一株配当データが取得された場合、ラベルを表示する', () => {
+  it('一株配当データが取得された場合、その値が入力欄に反映される', () => {
     mockUseDividendBatch.mockReturnValue({
       dividendPerShareMap: new Map([['7203', 120]]),
       dividendStatusMap: new Map([['7203', 'ok']]),
@@ -54,7 +54,7 @@ describe('DividendInfo', () => {
 
     render(<DividendInfo searchQuery="7203: トヨタ自動車" summary={[]} />);
 
-    expect(screen.getByText('一株配当')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('120')).toBeInTheDocument();
   });
 
   it('searchQuery から銘柄コードを解決して useDividendBatch に渡す', () => {

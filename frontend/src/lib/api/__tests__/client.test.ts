@@ -22,7 +22,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockData),
+        text: () => Promise.resolve(JSON.stringify(mockData)),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -43,7 +43,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockData),
+        text: () => Promise.resolve(JSON.stringify(mockData)),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -64,7 +64,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockData),
+        text: () => Promise.resolve(JSON.stringify(mockData)),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -85,7 +85,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockData),
+        text: () => Promise.resolve(JSON.stringify(mockData)),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -105,7 +105,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockData),
+        text: () => Promise.resolve(JSON.stringify(mockData)),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -180,9 +180,9 @@ describe('ApiClient', () => {
       const mockData3 = { id: 3 };
 
       mockFetch
-        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve(mockData1) })
-        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve(mockData2) })
-        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve(mockData3) });
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData1)) })
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData2)) })
+        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData3)) });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
       const resultsPromise = client.batch([
@@ -228,7 +228,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('{}'),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -247,7 +247,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('{}'),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -266,7 +266,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('{}'),
       });
 
       const client = createApiClient({
@@ -288,7 +288,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('{}'),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test' });
@@ -298,7 +298,8 @@ describe('ApiClient', () => {
 
       const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
       const headers = fetchOptions.headers as Record<string, string>;
-      expect(headers['Content-Type']).toBe('application/json');
+      // GETリクエストはボディなし → Content-Type を付与しない（CORS preflight 防止）
+      expect(headers['Content-Type']).toBeUndefined();
       expect(headers['Accept']).toBe('application/json');
     });
 
@@ -306,7 +307,7 @@ describe('ApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('{}'),
       });
 
       const client = createApiClient({

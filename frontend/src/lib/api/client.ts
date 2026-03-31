@@ -53,7 +53,6 @@ class ApiClient {
     this.timeout = timeout;
     this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retry };
     this.defaultHeaders = {
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...headers,
     };
@@ -105,10 +104,11 @@ class ApiClient {
     let body: BodyInit | undefined;
 
     if (data instanceof FormData) {
-      // FormDataの場合はContent-Typeを削除し、ブラウザが自動設定するようにする
-      delete headers['Content-Type'];
+      // FormDataの場合はContent-Typeを設定せず、ブラウザが自動設定するようにする
       body = data;
     } else if (data !== undefined) {
+      // JSONボディがある場合のみContent-Typeを付与（GET/DELETEではpreflight防止のため付与しない）
+      headers['Content-Type'] = 'application/json';
       body = JSON.stringify(data);
     }
 
@@ -128,10 +128,8 @@ class ApiClient {
         throw ApiError.fromHttpResponse(response.status, responseData, path, method);
       }
 
-      // 204 No Content
-      if (response.status === 204) return undefined as T;
-
-      return (await response.json()) as T;
+      const text = await response.text();
+      return (text ? (JSON.parse(text) as T) : undefined as T);
     } catch (error) {
       if (error instanceof ApiError) {
         // リトライ判定
