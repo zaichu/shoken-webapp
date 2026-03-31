@@ -133,17 +133,6 @@ vi.mock('@/features/receipt/parsers', () => ({
   transformDBMutualfund: vi.fn((item: unknown) => item),
 }));
 
-vi.mock('@/hooks/useCSVReader', () => ({
-  useCSVReader: () => ({
-    parseCSV: vi.fn().mockResolvedValue([]),
-    isLoading: false,
-    error: null,
-    fileName: null,
-    resetError: vi.fn(),
-    reset: vi.fn(),
-  }),
-}));
-
 // useAuth: ログアウトコールバックをキャプチャ可能にする
 import * as authHook from '@/features/auth/hooks/useAuth';
 vi.mock('@/features/auth/hooks/useAuth');

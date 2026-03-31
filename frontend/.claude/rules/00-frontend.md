@@ -7,7 +7,6 @@
 - **Vite**: 7.x
 - **Tailwind CSS**: 4.x
 - **TanStack Query**: サーバー状態管理
-- **Axios**: HTTPクライアント
 - **Vitest**: テストフレームワーク
 
 ## Atomic Design
@@ -169,9 +168,9 @@ vp build # ビルド
 
 ## API通信
 
-### Axios ラッパー
+### API クライアント
 
-`lib/api/` に共通クライアントを配置:
+`lib/api/` に共通クライアント（native fetch ベース）を配置:
 
 - エラーハンドリング統一
 - 認証ヘッダー自動付与
@@ -181,12 +180,6 @@ vp build # ビルド
 
 - サーバー状態管理に使用
 - キャッシュ・再フェッチを自動管理
-
-## CSV処理
-
-- PapaParse を使用
-- エンコーディング自動検出対応
-- `lib/csv/` にユーティリティ配置
 
 ## J-Quants API
 
