@@ -68,7 +68,8 @@ class ApiClient {
       }
     }
     const qs = searchParams.toString();
-    return qs ? `${url}?${qs}` : url;
+    if (!qs) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}${qs}`;
   }
 
   private async executeRequest<T>(
@@ -131,28 +132,12 @@ class ApiClient {
       const text = await response.text();
       return (text ? (JSON.parse(text) as T) : undefined as T);
     } catch (error) {
+      let apiError: ApiError;
       if (error instanceof ApiError) {
-        // リトライ判定
-        if (
-          retryCount < this.retryConfig.maxRetries &&
-          this.retryConfig.shouldRetry!(error)
-        ) {
-          const delay = this.retryConfig.retryDelay *
-            Math.pow(this.retryConfig.retryDelayMultiplier, retryCount);
-          console.warn(
-            `Retrying request (${retryCount + 1}/${this.retryConfig.maxRetries}) after ${delay}ms:`,
-            error.message
-          );
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return this.executeRequest<T>(method, path, data, config, retryCount + 1);
-        }
-        throw error;
-      }
-
-      // AbortError: タイムアウトまたはキャンセル
-      if (error instanceof DOMException && error.name === 'AbortError') {
+        apiError = error;
+      } else if (error instanceof DOMException && error.name === 'AbortError') {
         const isTimeout = controller.signal.reason === 'timeout';
-        throw new ApiError(
+        apiError = new ApiError(
           isTimeout ? ApiErrorType.TIMEOUT_ERROR : ApiErrorType.REQUEST_ERROR,
           isTimeout ? 'リクエストがタイムアウトしました' : 'リクエストがキャンセルされました',
           undefined,
@@ -160,17 +145,32 @@ class ApiClient {
           path,
           method
         );
+      } else {
+        apiError = new ApiError(
+          ApiErrorType.NETWORK_ERROR,
+          'ネットワークエラーが発生しました',
+          undefined,
+          undefined,
+          path,
+          method
+        );
       }
 
-      // ネットワークエラー
-      throw new ApiError(
-        ApiErrorType.NETWORK_ERROR,
-        'ネットワークエラーが発生しました',
-        undefined,
-        undefined,
-        path,
-        method
-      );
+      // 統一リトライ判定
+      if (
+        retryCount < this.retryConfig.maxRetries &&
+        this.retryConfig.shouldRetry!(apiError)
+      ) {
+        const delay = this.retryConfig.retryDelay *
+          Math.pow(this.retryConfig.retryDelayMultiplier, retryCount);
+        console.warn(
+          `Retrying request (${retryCount + 1}/${this.retryConfig.maxRetries}) after ${delay}ms:`,
+          apiError.message
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.executeRequest<T>(method, path, data, config, retryCount + 1);
+      }
+      throw apiError;
     } finally {
       clearTimeout(timeoutId);
       externalSignal?.removeEventListener('abort', onExternalAbort);
