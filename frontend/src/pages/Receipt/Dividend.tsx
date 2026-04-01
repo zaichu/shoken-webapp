@@ -124,7 +124,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
     const searchSecurityCode = (() => {
         if (!searchQuery) return '';
         const normalizedQuery = searchQuery.toLowerCase();
-        const labelMatch = searchQuery.match(/^\\s*([0-9A-Za-z]+)\\s*[:：]/);
+        const labelMatch = searchQuery.match(/^\s*([0-9A-Za-z]+)\s*[:：]/);
         if (labelMatch) {
             return labelMatch[1];
         }

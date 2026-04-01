@@ -1,12 +1,17 @@
-import { describe, it, expect } from 'vitest';
-import { 
-  detectMojibake, 
-  calculateEncodingConfidence, 
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  detectMojibake,
+  calculateEncodingConfidence,
   removeBOM,
-  tryDecodeWithMultipleEncodings 
+  tryDecodeWithMultipleEncodings
 } from '../encoding';
 
 describe('encoding utilities', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   describe('detectMojibake', () => {
     it('文字化けを検出する', () => {
       expect(detectMojibake('正常なテキスト')).toBe(false);
@@ -138,5 +143,105 @@ describe('encoding utilities', () => {
       expect(result.text).toBeDefined();
     });
 
+    it('未サポートのエンコーディングはスキップして他の結果を使う', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder: TextDecoder;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          if (encoding === 'shift-jis') {
+            throw new TypeError('unsupported encoding');
+          }
+          this.decoder = new originalTextDecoder(encoding, options);
+        }
+
+        decode(input?: Uint8Array) {
+          return this.decoder.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('こんにちは世界'));
+
+      expect(result.encoding).toBe('utf-8');
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('decode で例外が発生したエンコーディングはスキップする', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder?: TextDecoder;
+        private readonly shouldThrow: boolean;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          this.shouldThrow = encoding === 'iso-8859-1';
+          if (!this.shouldThrow) {
+            this.decoder = new originalTextDecoder(encoding, options);
+          }
+        }
+
+        decode(input?: Uint8Array) {
+          if (this.shouldThrow) {
+            throw new TypeError('decode failed');
+          }
+          return this.decoder!.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('こんにちは世界'));
+
+      expect(result.encoding).toBe('utf-8');
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('予期しない例外は外側の catch で握りつぶして継続する', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(Math, 'max').mockImplementationOnce(() => {
+        throw new Error('unexpected failure');
+      });
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('hello'));
+
+      expect(result.text).toBeTruthy();
+      expect(warnSpy).toHaveBeenCalledWith(
+        'utf-8 でのデコードに失敗しました:',
+        'unexpected failure'
+      );
+    });
+
+    it('全エンコーディングの信頼度が低い場合は utf-8 fallback を返す', () => {
+      class MockTextDecoder {
+        decode() {
+          return '�\u0000';
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new Uint8Array([0x00]));
+
+      expect(result).toEqual({
+        text: '�\u0000',
+        encoding: 'utf-8',
+        confidence: 0.3
+      });
+    });
+
+    it('utf-8 fallback も失敗した場合はバイト列から文字列を組み立てる', () => {
+      const textDecoderMock = vi.fn().mockImplementation(() => {
+        throw new TypeError('always fail');
+      });
+      vi.stubGlobal('TextDecoder', textDecoderMock as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new Uint8Array([65, 66, 67]));
+
+      expect(result).toEqual({
+        text: 'ABC',
+        encoding: 'unknown',
+        confidence: 0.1
+      });
+    });
   });
 });
