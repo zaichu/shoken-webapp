@@ -6,7 +6,7 @@
  * - ReceiptsPage: タブ切替・ログアウト時データクリアの統合テスト
  */
 import React from 'react';
-import { screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { makeQueryClient, renderWithQuery, waitOpts } from '@/test/utils';
@@ -234,6 +234,26 @@ describe('ReceiptsPage', () => {
     vi.clearAllMocks();
   });
 
+  async function setupKeyboardNavigationTest() {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+
+    return {
+      user: userEvent.setup(),
+      getDividendTab: () => screen.getByRole('tab', { name: /^配当金/ }),
+      getDomesticStockTab: () => screen.getByRole('tab', { name: /^国内株式/ }),
+      getMutualfundTab: () => screen.getByRole('tab', { name: /^投資信託/ }),
+    };
+  }
+
   it('初期表示: 配当金タブが選択されている', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
 
@@ -270,6 +290,130 @@ describe('ReceiptsPage', () => {
 
     expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
+  });
+
+  describe('タブキーボードナビゲーション', () => {
+    it('ArrowRight でタブが次に移動する', async () => {
+      const { getDividendTab, getDomesticStockTab } = await setupKeyboardNavigationTest();
+
+      const dividendTab = getDividendTab();
+      dividendTab.focus();
+      fireEvent.keyDown(dividendTab, { key: 'ArrowRight' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^国内株式/ })).toBeInTheDocument();
+        expect(getDomesticStockTab()).toHaveFocus();
+      }, waitOpts);
+
+      expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
+      expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
+    });
+
+    it('ArrowLeft でタブが前に移動する', async () => {
+      const { user, getDividendTab, getDomesticStockTab } = await setupKeyboardNavigationTest();
+
+      await user.click(getDomesticStockTab());
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^国内株式/ })).toBeInTheDocument();
+      }, waitOpts);
+
+      const domesticStockTab = getDomesticStockTab();
+      domesticStockTab.focus();
+      fireEvent.keyDown(domesticStockTab, { key: 'ArrowLeft' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^配当金/ })).toBeInTheDocument();
+        expect(getDividendTab()).toHaveFocus();
+      }, waitOpts);
+
+      expect(screen.getByTestId('dividend-view')).toBeInTheDocument();
+      expect(screen.queryByTestId('domesticstock-view')).not.toBeInTheDocument();
+    });
+
+    it('ArrowRight が最後のタブでラップアラウンドする', async () => {
+      const { user, getDividendTab, getMutualfundTab } = await setupKeyboardNavigationTest();
+
+      await user.click(getMutualfundTab());
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^投資信託/ })).toBeInTheDocument();
+      }, waitOpts);
+
+      const mutualfundTab = getMutualfundTab();
+      mutualfundTab.focus();
+      fireEvent.keyDown(mutualfundTab, { key: 'ArrowRight' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^配当金/ })).toBeInTheDocument();
+        expect(getDividendTab()).toHaveFocus();
+      }, waitOpts);
+
+      expect(screen.getByTestId('dividend-view')).toBeInTheDocument();
+      expect(screen.queryByTestId('mutualfund-view')).not.toBeInTheDocument();
+    });
+
+    it('ArrowLeft が最初のタブでラップアラウンドする', async () => {
+      const { getDividendTab, getMutualfundTab } = await setupKeyboardNavigationTest();
+
+      const dividendTab = getDividendTab();
+      dividendTab.focus();
+      fireEvent.keyDown(dividendTab, { key: 'ArrowLeft' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^投資信託/ })).toBeInTheDocument();
+        expect(getMutualfundTab()).toHaveFocus();
+      }, waitOpts);
+
+      expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
+      expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
+    });
+
+    it('Home キーで最初のタブに移動する', async () => {
+      const { user, getDividendTab, getMutualfundTab } = await setupKeyboardNavigationTest();
+
+      await user.click(getMutualfundTab());
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^投資信託/ })).toBeInTheDocument();
+      }, waitOpts);
+
+      const mutualfundTab = getMutualfundTab();
+      mutualfundTab.focus();
+      fireEvent.keyDown(mutualfundTab, { key: 'Home' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^配当金/ })).toBeInTheDocument();
+        expect(getDividendTab()).toHaveFocus();
+      }, waitOpts);
+    });
+
+    it('End キーで最後のタブに移動する', async () => {
+      const { getDividendTab, getMutualfundTab } = await setupKeyboardNavigationTest();
+
+      const dividendTab = getDividendTab();
+      dividendTab.focus();
+      fireEvent.keyDown(dividendTab, { key: 'End' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^投資信託/ })).toBeInTheDocument();
+        expect(getMutualfundTab()).toHaveFocus();
+      }, waitOpts);
+    });
+
+    it('関係ないキーではタブが変わらない', async () => {
+      const { getDividendTab } = await setupKeyboardNavigationTest();
+
+      const dividendTab = getDividendTab();
+      dividendTab.focus();
+      fireEvent.keyDown(dividendTab, { key: 'Space' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { selected: true, name: /^配当金/ })).toBeInTheDocument();
+      }, waitOpts);
+
+      expect(getDividendTab()).toHaveFocus();
+      expect(screen.getByTestId('dividend-view')).toBeInTheDocument();
+      expect(screen.queryByTestId('domesticstock-view')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mutualfund-view')).not.toBeInTheDocument();
+    });
   });
 
   it('CSV読込→保存: uploadCsv API が呼ばれ保存ボタンが消える', async () => {
