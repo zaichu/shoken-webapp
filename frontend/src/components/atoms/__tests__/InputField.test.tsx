@@ -17,10 +17,12 @@ describe('InputField', () => {
   });
 
   it('ヘルプテキストを表示する', () => {
-    render(<InputField label="テスト項目" helpText="数値を入力してください" />);
+    render(<InputField id="amount" label="テスト項目" helpText="半角数字で入力" />);
     
-    expect(screen.getByText('数値を入力してください')).toBeInTheDocument();
-    expect(screen.getByText('数値を入力してください')).toHaveClass('text-secondary');
+    const input = screen.getByLabelText('テスト項目');
+    expect(screen.getByText('半角数字で入力')).toBeInTheDocument();
+    expect(screen.getByText('半角数字で入力')).toHaveClass('text-secondary');
+    expect(input).toHaveAttribute('aria-describedby', 'amount-help');
   });
 
   it('ヘルプテキストとしてReactコンポーネントを表示する', () => {
@@ -34,21 +36,34 @@ describe('InputField', () => {
   it('エラーとヘルプテキストの両方を表示する', () => {
     render(
       <InputField
+        id="amount"
         label="テスト項目"
         error="必須項目です"
-        helpText="数値を入力してください"
+        helpText="半角数字で入力"
       />
     );
     
+    const input = screen.getByLabelText('テスト項目');
     expect(screen.getByText('必須項目です')).toBeInTheDocument();
-    expect(screen.getByText('数値を入力してください')).toBeInTheDocument();
+    expect(screen.getByText('半角数字で入力')).toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-describedby', 'amount-error amount-help');
   });
 
   it('フルワイドオプションが動作する', () => {
     const { container } = render(<InputField label="テスト項目" fullWidth />);
     
     const wrapper = container.querySelector('div.w-full');
+    const input = screen.getByLabelText('テスト項目');
     expect(wrapper).toBeInTheDocument();
+    expect(input).toHaveClass('w-full');
+  });
+
+  it('fullWidth のデフォルト値では w-full クラスが付かない', () => {
+    const { container } = render(<InputField label="テスト項目" />);
+
+    const input = screen.getByLabelText('テスト項目');
+    expect(container.firstChild).not.toHaveClass('w-full');
+    expect(input).not.toHaveClass('w-full');
   });
 
   it('追加のクラス名が適用される', () => {

@@ -12,6 +12,7 @@ import { useAssetBalance } from '../useAssetBalance';
 import { assetBalanceQueryKeys } from '../../queryKeys';
 import * as assetBalanceApiModule from '@/features/assetBalance/api/assetBalanceApi';
 import * as authHook from '@/features/auth/hooks/useAuth';
+import type { AssetBalanceData } from '@/lib/interfaces/assetBalance';
 
 // ────────────────────────────────────────────────────────
 // モック
@@ -54,13 +55,31 @@ function makeWrapper(qc: QueryClient) {
   return Wrapper;
 }
 
+function makeAssetBalanceData(overrides: Partial<AssetBalanceData> = {}): AssetBalanceData {
+  return {
+    security_code: '7203',
+    security_name: 'トヨタ自動車',
+    shares: 100,
+    executing_shares: 0,
+    average_purchase_price: 2000,
+    total_purchase_amount: 200000,
+    current_price: 2100,
+    daily_change: 10,
+    market_value: 210000,
+    profit_loss_rate: 5,
+    ...overrides,
+  };
+}
+
 // ────────────────────────────────────────────────────────
 // テスト
 // ────────────────────────────────────────────────────────
 
-describe('useAssetBalance: ログアウト時キャッシュクリア', () => {
+describe('useAssetBalance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
   });
 
   it('onLogout コールバック実行で assetBalance キャッシュが除去される', async () => {
@@ -91,6 +110,81 @@ describe('useAssetBalance: ログアウト時キャッシュクリア', () => {
 
     await waitFor(() => {
       expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeUndefined();
+    });
+  });
+
+  it('getAssetBalanceByCode は空文字コードに undefined を返す', () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    expect(result.current.getAssetBalanceByCode('')).toBeUndefined();
+  });
+
+  it('getAssetBalanceByCode は正規化後に一致する銘柄を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
+      makeAssetBalanceData({ security_code: '7203' }),
+      makeAssetBalanceData({
+        security_code: '6758',
+        security_name: 'ソニーグループ',
+      }),
+    ]);
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.assetBalanceData).toHaveLength(2);
+    });
+
+    expect(result.current.getAssetBalanceByCode(' 7203 ')).toMatchObject({
+      security_code: '7203',
+      security_name: 'トヨタ自動車',
+    });
+  });
+
+  it('getTotalMarketValue は market_value の合計を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
+      makeAssetBalanceData({ security_code: '7203', market_value: 210000 }),
+      makeAssetBalanceData({
+        security_code: '6758',
+        security_name: 'ソニーグループ',
+        market_value: 180000,
+      }),
+    ]);
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.assetBalanceData).toHaveLength(2);
+    });
+
+    expect(result.current.getTotalMarketValue()).toBe(390000);
+  });
+
+  it('refetch は assetBalance クエリを invalidate する', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: assetBalanceQueryKeys.all('user-1'),
     });
   });
 });
