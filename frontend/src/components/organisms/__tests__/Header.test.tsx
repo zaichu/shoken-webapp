@@ -17,7 +17,7 @@ function createAuthState(overrides: Partial<AuthState> = {}): AuthState {
       id: '1',
       name: 'テストユーザー',
       email: 'test@example.com',
-      picture_url: null,
+      picture_url: undefined,
     },
     setUser: vi.fn(),
     login: vi.fn(),
@@ -216,7 +216,7 @@ describe('Header', () => {
           id: '1',
           name: '山田 太郎',
           email: 'yamada@example.com',
-          picture_url: null,
+          picture_url: undefined,
         },
       });
 
@@ -229,7 +229,7 @@ describe('Header', () => {
           id: '1',
           name: '田中',
           email: 'tanaka@example.com',
-          picture_url: null,
+          picture_url: undefined,
         },
       });
 
@@ -242,7 +242,7 @@ describe('Header', () => {
           id: '1',
           name: undefined,
           email: 'sample@example.com',
-          picture_url: null,
+          picture_url: undefined,
         },
       });
 
@@ -255,7 +255,7 @@ describe('Header', () => {
           id: '1',
           name: '',
           email: '',
-          picture_url: null,
+          picture_url: undefined,
         },
       });
 
