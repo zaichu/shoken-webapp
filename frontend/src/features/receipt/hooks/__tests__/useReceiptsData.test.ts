@@ -18,9 +18,24 @@ import * as authHook from '@/features/auth/hooks/useAuth';
 // ────────────────────────────────────────────────────────
 
 vi.mock('@/features/receipt/api/receiptApi', () => ({
-  dividendApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
-  domesticStockApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
-  mutualfundApi: { list: vi.fn().mockResolvedValue([]), deleteAll: vi.fn().mockResolvedValue({}) },
+  dividendApi: {
+    list: vi.fn().mockResolvedValue([]),
+    deleteAll: vi.fn().mockResolvedValue({}),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
+  },
+  domesticStockApi: {
+    list: vi.fn().mockResolvedValue([]),
+    deleteAll: vi.fn().mockResolvedValue({}),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
+  },
+  mutualfundApi: {
+    list: vi.fn().mockResolvedValue([]),
+    deleteAll: vi.fn().mockResolvedValue({}),
+    uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
+    previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
+  },
 }));
 
 vi.mock('@/features/receipt/parsers', () => ({
@@ -69,6 +84,47 @@ function makeWrapper(qc: QueryClient) {
 describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.dividendApi.deleteAll).mockResolvedValue({} as never);
+    vi.mocked(receiptApiModule.dividendApi.uploadCsv).mockResolvedValue({
+      inserted: 0,
+      skipped: 0,
+      errors: [],
+    } as never);
+    vi.mocked(receiptApiModule.dividendApi.previewCsv).mockResolvedValue({
+      total_rows: 0,
+      valid_rows: 0,
+      errors: [],
+      rows: [],
+    } as never);
+
+    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.domesticStockApi.deleteAll).mockResolvedValue({} as never);
+    vi.mocked(receiptApiModule.domesticStockApi.uploadCsv).mockResolvedValue({
+      inserted: 0,
+      skipped: 0,
+      errors: [],
+    } as never);
+    vi.mocked(receiptApiModule.domesticStockApi.previewCsv).mockResolvedValue({
+      total_rows: 0,
+      valid_rows: 0,
+      errors: [],
+      rows: [],
+    } as never);
+
+    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.mutualfundApi.deleteAll).mockResolvedValue({} as never);
+    vi.mocked(receiptApiModule.mutualfundApi.uploadCsv).mockResolvedValue({
+      inserted: 0,
+      skipped: 0,
+      errors: [],
+    } as never);
+    vi.mocked(receiptApiModule.mutualfundApi.previewCsv).mockResolvedValue({
+      total_rows: 0,
+      valid_rows: 0,
+      errors: [],
+      rows: [],
+    } as never);
   });
 
   it('未認証時: API フェッチが行われない', async () => {
@@ -166,5 +222,188 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
     expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
     expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
+  });
+
+  it('uploadCsv mutation: dividend で invalidate と onSuccess が実行される', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
+    const onSuccess = vi.fn();
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.uploadCsv).mockResolvedValue({
+      inserted: 2,
+      skipped: 1,
+      errors: [],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toEqual([]);
+    });
+
+    act(() => {
+      result.current.uploadCsv({
+        type: 'dividend',
+        file: new File([''], 'test.csv'),
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.dividendApi.uploadCsv).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({ inserted: 2, skipped: 1, errors: [] });
+    });
+    await waitFor(() => {
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: receiptQueryKeys.dividend('user-1'),
+      });
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('deleteAll mutation: domesticstock と mutualfund を削除できる', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.deleteAll('domesticstock');
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.deleteAll).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.deleteAll('mutualfund');
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.deleteAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('previewCsv mutation: dividend 成功時に整形済み結果を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const onSuccess = vi.fn();
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.previewCsv).mockResolvedValue({
+      total_rows: 3,
+      valid_rows: 3,
+      errors: [],
+      rows: [],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.previewCsv({
+        type: 'dividend',
+        file: new File([''], 'test.csv'),
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({
+        totalRows: 3,
+        validRows: 3,
+        errors: [],
+        rows: [],
+      });
+    });
+  });
+
+  it('previewCsv mutation: エラー時に onError が呼ばれる', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const onError = vi.fn();
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.previewCsv).mockRejectedValue(new Error('解析失敗'));
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.previewCsv({
+        type: 'dividend',
+        file: new File([''], 'test.csv'),
+        onError,
+      });
+    });
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith('解析失敗');
+    });
+  });
+
+  it('clearCache 実行で receipts キャッシュが消える', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
+      { id: '1', payment_date: '2023-01-01' } as never,
+    ]);
+    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue([
+      { id: '2', trade_date: '2023-01-02' } as never,
+    ]);
+    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue([
+      { id: '3', settlement_date: '2023-01-03' } as never,
+    ]);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeDefined();
+      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeDefined();
+      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeDefined();
+    });
+
+    act(() => {
+      result.current.clearCache();
+    });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
+      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
+      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
+    });
+  });
+
+  it('uploadCsv mutation エラー時: dbError に反映される', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.uploadCsv).mockRejectedValue(new Error('アップロード失敗'));
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.uploadCsv({
+        type: 'dividend',
+        file: new File([''], 'test.csv'),
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.dbError).toBe('アップロード失敗');
+    });
   });
 });
