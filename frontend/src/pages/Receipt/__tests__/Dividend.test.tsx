@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
+import * as receiptHooks from '@/hooks/receipt/useReceiptData';
 import { Dividend } from '../Dividend';
 
 // React Router DOM のモック
@@ -286,5 +287,91 @@ describe('Dividend', () => {
 
         // 入力フォーム（spinbutton）は表示されない（embedded モードは read-only）
         expect(screen.queryAllByRole('spinbutton').length).toBe(0);
+    });
+
+    it('商品で検索すると商品名でグループ化される', async () => {
+        const user = userEvent.setup();
+        render(<Dividend data={mockData} />);
+
+        await user.click(screen.getByTestId('search-card-header'));
+        await user.click(await screen.findByRole('button', { name: '株式' }));
+
+        await waitFor(() => {
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('株式');
+            expect(summaryCell).toHaveTextContent('2件');
+        });
+    });
+
+    it('口座で検索すると口座名でグループ化される', async () => {
+        const user = userEvent.setup();
+        render(<Dividend data={mockData} />);
+
+        await user.click(screen.getByTestId('search-card-header'));
+        await user.click(await screen.findByRole('button', { name: '特定口座' }));
+
+        await waitFor(() => {
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('特定口座');
+            expect(summaryCell).toHaveTextContent('2件');
+        });
+    });
+
+    it('年で検索すると年月単位のグループが維持される', async () => {
+        const user = userEvent.setup();
+        const { container } = render(<Dividend data={mockData} />);
+
+        const searchCardHeader = screen.getByTestId('search-card-header');
+        fireEvent.click(searchCardHeader);
+        await waitFor(() => {
+            expect(container.querySelector('#years-search')).toBeInTheDocument();
+        });
+
+        const yearSelect = container.querySelector('#years-search') as HTMLSelectElement;
+        await user.selectOptions(yearSelect, '2023');
+
+        await waitFor(() => {
+            expect(screen.getByText('2023年1月')).toBeInTheDocument();
+            expect(screen.getByText('2023年2月')).toBeInTheDocument();
+        });
+    });
+
+    it('年月検索クエリでは年月単位でグループ化される', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: '2023-01',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            expect(screen.getByText('2023年1月')).toBeInTheDocument();
+            expect(screen.queryByText('2023年2月')).not.toBeInTheDocument();
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
+    it('コード付きラベル形式の検索クエリでも銘柄詳細ヘッダーが表示される', async () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: '1234: テスト株式1',
+            setSearchQuery: vi.fn(),
+            filteredData: [],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            await waitFor(() => {
+                expect(screen.getByText('平均取得価格')).toBeVisible();
+                expect(screen.getByText('一株配当')).toBeVisible();
+                expect(screen.getByText('受取金額 (累積利回り)')).toBeVisible();
+            });
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
     });
 });
