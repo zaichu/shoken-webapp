@@ -326,6 +326,82 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
+  it('previewCsv mutation: domesticstock で previewCsv が呼ばれる', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const onSuccess = vi.fn();
+    const file = new File([''], 'domesticstock.csv');
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.domesticStockApi.previewCsv).mockResolvedValue({
+      total_rows: 2,
+      valid_rows: 1,
+      errors: [{ row: 2, message: 'invalid' }],
+      rows: [{ id: 'ds-1' }],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.previewCsv({
+        type: 'domesticstock',
+        file,
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.previewCsv).toHaveBeenCalledWith(file);
+    });
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({
+        totalRows: 2,
+        validRows: 1,
+        errors: [{ row: 2, message: 'invalid' }],
+        rows: [{ id: 'ds-1' }],
+      });
+    });
+  });
+
+  it('previewCsv mutation: mutualfund で previewCsv が呼ばれる', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const onSuccess = vi.fn();
+    const file = new File([''], 'mutualfund.csv');
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.mutualfundApi.previewCsv).mockResolvedValue({
+      total_rows: 3,
+      valid_rows: 3,
+      errors: [],
+      rows: [{ id: 'mf-1' }, { id: 'mf-2' }],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    act(() => {
+      result.current.previewCsv({
+        type: 'mutualfund',
+        file,
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.previewCsv).toHaveBeenCalledWith(file);
+    });
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({
+        totalRows: 3,
+        validRows: 3,
+        errors: [],
+        rows: [{ id: 'mf-1' }, { id: 'mf-2' }],
+      });
+    });
+  });
+
   it('previewCsv mutation: エラー時に onError が呼ばれる', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -404,6 +480,94 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
 
     await waitFor(() => {
       expect(result.current.dbError).toBe('アップロード失敗');
+    });
+  });
+
+  it('uploadCsv mutation: domesticstock で invalidate と onSuccess が実行される', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
+    const onSuccess = vi.fn();
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.domesticStockApi.uploadCsv).mockResolvedValue({
+      inserted: 4,
+      skipped: 1,
+      errors: [],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toEqual([]);
+    });
+
+    act(() => {
+      result.current.uploadCsv({
+        type: 'domesticstock',
+        file: new File([''], 'domesticstock.csv'),
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.uploadCsv).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({ inserted: 4, skipped: 1, errors: [] });
+    });
+    await waitFor(() => {
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: receiptQueryKeys.domesticstock('user-1'),
+      });
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('uploadCsv mutation: mutualfund で invalidate と onSuccess が実行される', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
+    const onSuccess = vi.fn();
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.mutualfundApi.uploadCsv).mockResolvedValue({
+      inserted: 5,
+      skipped: 0,
+      errors: [],
+    } as never);
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toEqual([]);
+    });
+
+    act(() => {
+      result.current.uploadCsv({
+        type: 'mutualfund',
+        file: new File([''], 'mutualfund.csv'),
+        onSuccess,
+      });
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.uploadCsv).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith({ inserted: 5, skipped: 0, errors: [] });
+    });
+    await waitFor(() => {
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: receiptQueryKeys.mutualfund('user-1'),
+      });
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(2);
     });
   });
 });

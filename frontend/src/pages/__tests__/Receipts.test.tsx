@@ -15,6 +15,7 @@ import { receiptsReducer, initialState } from '../receiptsReducer';
 import type { ReceiptsState } from '../receiptsReducer';
 import { ReceiptsPage } from '../Receipts';
 import { receiptQueryKeys } from '@/features/receipt/queryKeys';
+import * as receiptParsers from '@/features/receipt/parsers';
 
 // ────────────────────────────────────────────────────────
 // モック定義
@@ -54,13 +55,25 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
     isOpen,
     onConfirm,
     onCancel,
+    title,
+    description,
+    itemCount,
+    loading,
   }: {
     isOpen: boolean;
     onConfirm: () => void;
     onCancel: () => void;
+    title?: string;
+    description?: string;
+    itemCount?: number;
+    loading?: boolean;
   }) =>
     isOpen ? (
       <div data-testid="confirm-modal">
+        <div>{title}</div>
+        <div>{description}</div>
+        <div data-testid="confirm-item-count">{itemCount}</div>
+        <div data-testid="confirm-loading">{String(loading)}</div>
         <button data-testid="confirm-delete" onClick={onConfirm}>
           削除する
         </button>
@@ -73,28 +86,61 @@ vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
 
 // 子コンポーネント: data の長さ確認 + importResult が渡された場合は表示（回帰検知用）
 vi.mock('@/pages/Receipt/Dividend', () => ({
-  Dividend: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
+  Dividend: ({
+    data,
+    previewData,
+    importResult,
+    utilityRail,
+  }: {
+    data: unknown[];
+    previewData?: unknown[];
+    importResult?: { inserted: number };
+    utilityRail?: React.ReactNode;
+  }) => (
     <div data-testid="dividend-view">
       {utilityRail}
       {data.length}
+      {previewData && <span data-testid="dividend-preview-count">{previewData.length}</span>}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
   ),
 }));
 vi.mock('@/pages/Receipt/DomesticStock', () => ({
-  DomesticStock: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
+  DomesticStock: ({
+    data,
+    previewData,
+    importResult,
+    utilityRail,
+  }: {
+    data: unknown[];
+    previewData?: unknown[];
+    importResult?: { inserted: number };
+    utilityRail?: React.ReactNode;
+  }) => (
     <div data-testid="domesticstock-view">
       {utilityRail}
       {data.length}
+      {previewData && <span data-testid="domesticstock-preview-count">{previewData.length}</span>}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
   ),
 }));
 vi.mock('@/pages/Receipt/Mutualfund', () => ({
-  Mutualfund: ({ data, importResult, utilityRail }: { data: unknown[]; importResult?: { inserted: number }; utilityRail?: React.ReactNode }) => (
+  Mutualfund: ({
+    data,
+    previewData,
+    importResult,
+    utilityRail,
+  }: {
+    data: unknown[];
+    previewData?: unknown[];
+    importResult?: { inserted: number };
+    utilityRail?: React.ReactNode;
+  }) => (
     <div data-testid="mutualfund-view">
       {utilityRail}
       {data.length}
+      {previewData && <span data-testid="mutualfund-preview-count">{previewData.length}</span>}
       {importResult && <strong>{importResult.inserted}件登録</strong>}
     </div>
   ),
@@ -290,6 +336,124 @@ describe('ReceiptsPage', () => {
 
     expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
+  });
+
+  it('CSV preview: 配当金のプレビュー行を Dividend に渡す', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.previewCsv).mockResolvedValue({
+      total_rows: 2,
+      valid_rows: 2,
+      errors: [],
+      rows: [
+        { id: 'preview-dividend-1', payment_date: '2025-01-01' },
+        { id: 'preview-dividend-2', payment_date: '2025-02-01' },
+      ],
+    } as never);
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.previewCsv).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(vi.mocked(receiptParsers.transformDBDividend)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'preview-dividend-1' })
+      );
+      expect(vi.mocked(receiptParsers.transformDBDividend)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'preview-dividend-2' })
+      );
+    }, waitOpts);
+
+    expect(screen.getByTestId('dividend-preview-count')).toHaveTextContent('2');
+  });
+
+  it('CSV preview: 国内株式タブで DomesticStock コンポーネントにプレビューが渡る', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.previewCsv).mockResolvedValue({
+      total_rows: 1,
+      valid_rows: 1,
+      errors: [],
+      rows: [{ id: 'preview-domesticstock-1', trade_date: '2025-03-01' }],
+    } as never);
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: /^国内株式/ }));
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(receiptApi.domesticStockApi.previewCsv).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(vi.mocked(receiptParsers.transformDBDomesticStock)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'preview-domesticstock-1' })
+      );
+    }, waitOpts);
+
+    expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
+    expect(screen.getByTestId('domesticstock-preview-count')).toHaveTextContent('1');
+  });
+
+  it('CSV preview: 投資信託タブで Mutualfund コンポーネントにプレビューが渡る', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.mutualfundApi.previewCsv).mockResolvedValue({
+      total_rows: 1,
+      valid_rows: 1,
+      errors: [],
+      rows: [{ id: 'preview-mutualfund-1', trade_date: '2025-04-01' }],
+    } as never);
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: /^投資信託/ }));
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(receiptApi.mutualfundApi.previewCsv).toHaveBeenCalled();
+    }, waitOpts);
+    await waitFor(() => {
+      expect(vi.mocked(receiptParsers.transformDBMutualfund)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'preview-mutualfund-1' })
+      );
+    }, waitOpts);
+
+    expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
+    expect(screen.getByTestId('mutualfund-preview-count')).toHaveTextContent('1');
   });
 
   describe('タブキーボードナビゲーション', () => {
@@ -521,6 +685,10 @@ describe('ReceiptsPage', () => {
     const user = userEvent.setup();
     await user.click(screen.getByText(/全件削除/));
     expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    expect(screen.getByText('配当金データの全件削除')).toBeInTheDocument();
+    expect(screen.getByText('【配当金】のデータをすべて削除します。')).toBeInTheDocument();
+    expect(screen.getByTestId('confirm-item-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('confirm-loading')).toHaveTextContent('false');
 
     await user.click(screen.getByTestId('confirm-delete'));
 
