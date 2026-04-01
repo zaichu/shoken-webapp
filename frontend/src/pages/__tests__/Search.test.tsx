@@ -67,6 +67,53 @@ describe('SearchPage', () => {
     });
   });
 
+  it('有効な ?code= パラメータがある場合に searchByCode を呼ぶ', () => {
+    const searchByCode = vi.fn();
+
+    mockUseStockSearch.mockReturnValue({
+      stockCode: '',
+      setStockCode: vi.fn(),
+      stockData: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      handleSearch: vi.fn(),
+      searchByCode,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/search?code=7203']}>
+        <SearchPage />
+      </MemoryRouter>
+    );
+
+    expect(searchByCode).toHaveBeenCalledWith('7203');
+  });
+
+  it('無効な ?code= パラメータの場合は警告を表示し searchByCode を呼ばない', () => {
+    const searchByCode = vi.fn();
+
+    mockUseStockSearch.mockReturnValue({
+      stockCode: '',
+      setStockCode: vi.fn(),
+      stockData: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      handleSearch: vi.fn(),
+      searchByCode,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/search?code=12*4']}>
+        <SearchPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('不正な銘柄コードが指定されています。')).toBeInTheDocument();
+    expect(searchByCode).not.toHaveBeenCalled();
+  });
+
   it('ApiError のユーザー向けメッセージを表示する', () => {
     mockUseStockSearch.mockReturnValue({
       stockCode: '',
