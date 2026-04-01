@@ -3,6 +3,7 @@ import { UserInfo } from '../types';
 import { AuthContext } from './context';
 import { apiClient, createApiClient } from '@/lib/api/client';
 import { useIdleTimer } from '../hooks/useIdleTimer';
+import { locationAssigner } from './locationAssigner';
 
 // 認証確認専用クライアント設定
 // デフォルト設定(timeout=30s, retry=3回, 指数バックオフ)では
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // バックエンドの認証エンドポイントに直接リダイレクト
     // バックエンドがGoogleの認証ページにリダイレクトする
     const apiBaseUrl = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL;
-    window.location.assign(`${apiBaseUrl}/auth/google`);
+    locationAssigner.assign(`${apiBaseUrl}/auth/google`);
   };
 
   const logout = useCallback(async () => {

@@ -1,19 +1,21 @@
+import { useRef, useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../AuthContext';
+import { locationAssigner } from '../locationAssigner';
 import { useAuth } from '../../hooks/useAuth';
+import { useIdleTimer } from '../../hooks/useIdleTimer';
+import { apiClient } from '@/lib/api/client';
 
-// アイドルタイマーのモック
 vi.mock('../../hooks/useIdleTimer', () => ({
   useIdleTimer: vi.fn(),
 }));
 
-// vi.hoisted でモック関数をホイスティング対応にする
 const { mockGet } = vi.hoisted(() => ({
   mockGet: vi.fn(),
 }));
 
-// APIクライアントのモック
 vi.mock('@/lib/api/client', () => ({
   apiClient: {
     post: vi.fn(),
@@ -24,25 +26,106 @@ vi.mock('@/lib/api/client', () => ({
   }),
 }));
 
-// テスト用コンシューマーコンポーネント
-function TestConsumer() {
-  const { user, isLoading, isAuthenticated } = useAuth();
+const mockUser = {
+  id: '1',
+  email: 'test@example.com',
+  name: 'テストユーザー',
+};
+
+function TestConsumer({ onLogoutCallback }: { onLogoutCallback?: () => void }) {
+  const { user, isLoading, isAuthenticated, login, logout, deleteAccount, onLogout } = useAuth();
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const [error, setError] = useState('none');
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setError('none');
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      setError('none');
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+    }
+  };
+
   return (
     <div>
       <span data-testid="loading">{String(isLoading)}</span>
       <span data-testid="authenticated">{String(isAuthenticated)}</span>
       <span data-testid="user-name">{user?.name ?? 'none'}</span>
+      <span data-testid="error">{error}</span>
+      <button type="button" onClick={() => login()}>
+        login
+      </button>
+      <button type="button" onClick={handleLogout}>
+        logout
+      </button>
+      <button type="button" onClick={handleDeleteAccount}>
+        delete-account
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          cleanupRef.current = onLogout(() => onLogoutCallback?.());
+        }}
+      >
+        register-callback
+      </button>
+      <button type="button" onClick={() => cleanupRef.current?.()}>
+        unregister-callback
+      </button>
     </div>
   );
 }
 
+async function renderAuthProvider({
+  authenticated = true,
+  onLogoutCallback,
+}: {
+  authenticated?: boolean;
+  onLogoutCallback?: () => void;
+} = {}) {
+  if (authenticated) {
+    mockGet.mockResolvedValueOnce(mockUser);
+  } else {
+    mockGet.mockRejectedValueOnce(new Error('Unauthorized'));
+  }
+
+  const user = userEvent.setup();
+
+  render(
+    <AuthProvider>
+      <TestConsumer onLogoutCallback={onLogoutCallback} />
+    </AuthProvider>
+  );
+
+  await waitFor(() => {
+    expect(screen.getByTestId('loading').textContent).toBe('false');
+  });
+
+  return { user };
+}
+
 describe('AuthProvider', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    mockGet.mockReset();
+    vi.mocked(useIdleTimer).mockReset();
+    vi.mocked(apiClient.post).mockReset();
+    vi.mocked(apiClient.delete).mockReset();
+    vi.mocked(useIdleTimer).mockReturnValue({ resetTimer: vi.fn() });
+    vi.mocked(apiClient.post).mockResolvedValue(undefined);
+    vi.mocked(apiClient.delete).mockResolvedValue(undefined);
   });
 
   it('認証成功時にユーザー情報がセットされる', async () => {
-    const mockUser = { id: '1', email: 'test@example.com', name: 'テストユーザー' };
     mockGet.mockResolvedValueOnce(mockUser);
 
     render(
@@ -51,7 +134,6 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
-    // 初期状態: ローディング中
     expect(screen.getByTestId('loading').textContent).toBe('true');
 
     await waitFor(() => {
@@ -86,7 +168,6 @@ describe('AuthProvider', () => {
   });
 
   it('アンマウント時にAbortControllerでリクエストがキャンセルされる', async () => {
-    // signalのabortを検知するためのモック
     let capturedSignal: AbortSignal | undefined;
     mockGet.mockImplementation((_url: string, config?: { signal?: AbortSignal }) => {
       capturedSignal = config?.signal;
@@ -101,12 +182,10 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
-    // リクエスト発行を待つ
     await waitFor(() => {
       expect(mockGet).toHaveBeenCalled();
     });
 
-    // アンマウント時にabortされる
     unmount();
     expect(capturedSignal?.aborted).toBe(true);
   });
@@ -124,10 +203,114 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
     });
 
-    // createApiClientで生成されたクライアントのgetがsignal付きで呼ばれていること
     expect(mockGet).toHaveBeenCalledWith('/auth/me', expect.objectContaining({
       withCredentials: true,
       signal: expect.any(AbortSignal),
     }));
+  });
+
+  it('logoutがauth/logoutを呼びuserをnullにする', async () => {
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', {}, {
+        withCredentials: true,
+      });
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+    expect(screen.getByTestId('authenticated').textContent).toBe('false');
+  });
+
+  it('logoutがAPIエラーの場合はthrowしてcatch可能', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('logout failed'));
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('logout failed');
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+  });
+
+  it('deleteAccountがauth/delete-accountを呼びuserをnullにする', async () => {
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(() => {
+      expect(apiClient.delete).toHaveBeenCalledWith('/auth/delete-account', {
+        withCredentials: true,
+      });
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+    expect(screen.getByTestId('authenticated').textContent).toBe('false');
+  });
+
+  it('deleteAccountがAPIエラーの場合はthrowしてcatch可能', async () => {
+    vi.mocked(apiClient.delete).mockRejectedValueOnce(new Error('delete failed'));
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('delete failed');
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+  });
+
+  it('userがいる場合はアイドル時にlogoutが呼ばれる', async () => {
+    await renderAuthProvider();
+
+    await waitFor(() => {
+      expect(useIdleTimer).toHaveBeenLastCalledWith(expect.objectContaining({
+        timeout: expect.any(Number),
+        onIdle: expect.any(Function),
+        enabled: true,
+      }));
+    });
+
+    const idleOptions = vi.mocked(useIdleTimer).mock.lastCall?.[0];
+    idleOptions?.onIdle();
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', {}, {
+        withCredentials: true,
+      });
+    });
+  });
+
+  it('loginがwindow.location.assignを呼ぶ', async () => {
+    vi.stubEnv('VITE_SHOKEN_WEBAPI_API_URL', 'https://api.example.com');
+    const assignSpy = vi.spyOn(locationAssigner, 'assign').mockImplementation(vi.fn());
+    const { user } = await renderAuthProvider({ authenticated: false });
+
+    await user.click(screen.getByRole('button', { name: 'login' }));
+
+    expect(assignSpy).toHaveBeenCalledWith('https://api.example.com/auth/google');
+
+    assignSpy.mockRestore();
+  });
+
+  it('onLogoutでコールバックを登録解除できる', async () => {
+    const onLogoutCallback = vi.fn();
+    const { user } = await renderAuthProvider({ onLogoutCallback });
+
+    await user.click(screen.getByRole('button', { name: 'register-callback' }));
+    await user.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(onLogoutCallback).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole('button', { name: 'unregister-callback' }));
+    await user.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledTimes(2);
+    });
+    expect(onLogoutCallback).toHaveBeenCalledTimes(1);
   });
 });
