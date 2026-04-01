@@ -45,18 +45,59 @@ vi.mock('@/components/molecules/CSVFileInput', () => ({
   ),
 }));
 vi.mock('@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal', () => ({
-  ConfirmDeleteModal: ({ isOpen, onConfirm }: { isOpen: boolean; onConfirm: () => void }) =>
+  ConfirmDeleteModal: ({
+    isOpen,
+    onConfirm,
+    onCancel,
+  }: {
+    isOpen: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) =>
     isOpen ? (
-      <button data-testid="confirm-delete" onClick={onConfirm}>削除する</button>
+      <div data-testid="confirm-delete">
+        <button onClick={onConfirm}>削除する</button>
+        <button onClick={onCancel}>キャンセル</button>
+      </div>
     ) : null,
 }));
 vi.mock('@/components/organisms/AssetPortfolioSummary', () => ({
-  AssetPortfolioSummary: ({ assetBalanceData }: { assetBalanceData: unknown[] }) => (
-    <div data-testid="portfolio-summary">{assetBalanceData.length}</div>
+  AssetPortfolioSummary: ({
+    assetBalanceData,
+    totalCount,
+    isFiltered,
+    onClearFilter,
+  }: {
+    assetBalanceData: unknown[];
+    totalCount: number;
+    isFiltered: boolean;
+    onClearFilter?: () => void;
+  }) => (
+    <div>
+      <div data-testid="portfolio-summary">{`${assetBalanceData.length}/${totalCount}`}</div>
+      {isFiltered && onClearFilter ? (
+        <button data-testid="clear-filter" onClick={onClearFilter}>
+          条件をクリア
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 vi.mock('@/components/organisms/SearchCard/SearchCard', () => ({
-  SearchCard: () => <div data-testid="search-card" />,
+  SearchCard: ({
+    onSearch,
+    value,
+  }: {
+    onSearch: (query: string) => void;
+    value: string;
+  }) => (
+    <div data-testid="search-card">
+      <span data-testid="search-value">{value}</span>
+      <button data-testid="apply-search" onClick={() => onSearch('6758')}>
+        検索
+      </button>
+    </div>
+  ),
 }));
 
 // AssetBalance API
@@ -138,6 +179,12 @@ const mockDbRow: AssetBalanceData = {
   profit_loss_rate: 4.0,
 };
 
+const secondMockDbRow: AssetBalanceData = {
+  ...mockDbRow,
+  security_code: '6758',
+  security_name: 'ソニーグループ',
+};
+
 // ────────────────────────────────────────────────────────
 // テスト
 // ────────────────────────────────────────────────────────
@@ -146,6 +193,18 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockResolvedValue({
+      total_rows: 0,
+      valid_rows: 0,
+      errors: [],
+      rows: [],
+    } as never);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.uploadCsv).mockResolvedValue({
+      inserted: 0,
+      skipped: 0,
+      errors: [],
+    } as never);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.deleteAll).mockResolvedValue({} as never);
   });
 
   it('未認証時: ログインプロンプトが表示され API フェッチが行われない', async () => {
@@ -157,6 +216,15 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
       expect(screen.getByText(/ログインが必要です/)).toBeInTheDocument();
     });
     expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
+  });
+
+  it('認証確認中: スピナーと案内文が表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ authLoading: true }));
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+    expect(screen.getByText('認証状態を確認しています...')).toBeInTheDocument();
   });
 
   it('認証済み・DBデータあり: 全件削除ボタンが表示される', async () => {
@@ -224,6 +292,153 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     expect(screen.getByText('全件置換')).toBeInTheDocument();
     expect(screen.getByText('1件スキップ')).toBeInTheDocument();
     expect(screen.queryByText(/2件保存しました/)).not.toBeInTheDocument();
+  });
+
+  it('認証済み・一覧取得失敗時: エラーメッセージが表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockRejectedValue(new Error('取得失敗'));
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('取得失敗');
+    });
+  });
+
+  it('認証済み・DBデータあり: SearchCard が表示される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('search-card')).toBeInTheDocument();
+    });
+  });
+
+  it('検索操作: SearchCard から絞り込みとクリアができる', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow, secondMockDbRow]);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('portfolio-summary')).toHaveTextContent('2/2');
+    });
+
+    await user.click(screen.getByTestId('apply-search'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('search-value')).toHaveTextContent('6758');
+      expect(screen.getByTestId('portfolio-summary')).toHaveTextContent('1/2');
+      expect(screen.getByTestId('clear-filter')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('clear-filter'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('search-value')).toHaveTextContent('');
+      expect(screen.getByTestId('portfolio-summary')).toHaveTextContent('2/2');
+    });
+  });
+
+  it('削除確認フロー: モーダル経由で全件削除が実行される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /全件削除/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /全件削除/ }));
+    expect(screen.getByTestId('confirm-delete')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '削除する' }));
+
+    await waitFor(() => {
+      expect(assetBalanceApiModule.assetBalanceApi.deleteAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('削除確認フロー: キャンセルすると削除は実行されない', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /全件削除/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /全件削除/ }));
+    expect(screen.getByTestId('confirm-delete')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirm-delete')).not.toBeInTheDocument();
+    });
+    expect(assetBalanceApiModule.assetBalanceApi.deleteAll).not.toHaveBeenCalled();
+  });
+
+  it('保存中: スピナーテキストが表示される', async () => {
+    let resolveUpload!: (value: unknown) => void;
+
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockResolvedValue({
+      total_rows: 1,
+      valid_rows: 1,
+      errors: [],
+      rows: [mockDbRow],
+    } as never);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.uploadCsv).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpload = resolve;
+      }) as never
+    );
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('csv-file-input'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /全件置換で保存/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /全件置換で保存/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('データを保存しています...')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveUpload({ inserted: 1, skipped: 0, errors: [] });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('保存しました')).toBeInTheDocument();
+    });
   });
 
   it('ログアウト: onLogout コールバック実行でキャッシュが除去される', async () => {
