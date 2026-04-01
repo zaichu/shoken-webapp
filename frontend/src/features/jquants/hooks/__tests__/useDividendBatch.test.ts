@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useDividendBatch } from '../useDividendBatch';
 import * as api from '../../api/dividendPerShareApi';
 import { DividendPerShareItem } from '../../api/dividendPerShareApi';
@@ -19,12 +19,20 @@ const makeItem = (code: string, status: DividendPerShareItem['status'], div: num
   is_stale: false,
 });
 
+const flushAsyncUpdates = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
+
 describe('useDividendBatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -73,6 +81,57 @@ describe('useDividendBatch', () => {
     expect(result.current.fetchedCount).toBe(1);
     expect(result.current.totalCount).toBe(2);
     expect(result.current.dividendStatusMap.get('2222')).toBe('pending');
+  });
+
+  it('pending が返る場合はリトライタイマー経由で再フェッチする', async () => {
+    vi.useFakeTimers();
+
+    mockFetch
+      .mockResolvedValueOnce([makeItem('7203', 'pending', null)])
+      .mockResolvedValueOnce([makeItem('7203', 'ok', 50)]);
+
+    const { result } = renderHook(() => useDividendBatch(['7203'], true));
+
+    await flushAsyncUpdates();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(result.current.dividendStatusMap.get('7203')).toBe('pending');
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    await flushAsyncUpdates();
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.dividendStatusMap.get('7203')).toBe('ok');
+    expect(result.current.dividendPerShareMap.get('7203')).toBe(50);
+  });
+
+  it('pending が続いて maxRetries に達すると再フェッチを停止する', async () => {
+    vi.useFakeTimers();
+
+    mockFetch.mockResolvedValue([makeItem('7203', 'pending', null)]);
+
+    renderHook(() => useDividendBatch(['7203'], true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+
+    expect(mockFetch).toHaveBeenCalledTimes(5);
   });
 
   it('enabled=false のときは状態がクリアされ API が呼ばれない', async () => {
