@@ -181,6 +181,23 @@ describe('数値関連のフォーマット関数', () => {
       expect(formatNumber('abc')).toBe('-');
       expect(formatNumber(null)).toBe('-');
     });
+
+    it('フォーマット例外時に "-" を返す', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const numberFormatSpy = vi
+        .spyOn(Intl, 'NumberFormat')
+        .mockImplementationOnce(() => ({
+          format: () => {
+            throw new Error('format failed');
+          },
+        }) as unknown as Intl.NumberFormat);
+
+      expect(formatNumber(100)).toBe('-');
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      numberFormatSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('formatCurrency', () => {
@@ -207,6 +224,23 @@ describe('数値関連のフォーマット関数', () => {
     it('文字列でも数値でもない値でハイフンを返す', () => {
       expect(formatCurrency(true)).toBe('-');
       expect(formatCurrency(null)).toBe('-');
+    });
+
+    it('フォーマット例外時に "-" を返す', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const numberFormatSpy = vi
+        .spyOn(Intl, 'NumberFormat')
+        .mockImplementationOnce(() => ({
+          format: () => {
+            throw new Error('format failed');
+          },
+        }) as unknown as Intl.NumberFormat);
+
+      expect(formatCurrency(100)).toBe('-');
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      numberFormatSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 
