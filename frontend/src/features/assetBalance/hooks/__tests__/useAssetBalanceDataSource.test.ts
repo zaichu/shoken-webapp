@@ -63,6 +63,78 @@ function makeWrapper(qc: QueryClient) {
 // テスト
 // ────────────────────────────────────────────────────────
 
+describe('useAssetBalanceDataSource: 基本動作', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
+  });
+
+  it('未認証時はhandleSaveToDBが早期リターンする', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    act(() => { result.current.handleSaveToDB(); });
+
+    expect(assetBalanceApiModule.assetBalanceApi.uploadCsv).not.toHaveBeenCalled();
+  });
+
+  it('未認証時はhandleDeleteAllが早期リターンする', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    await act(async () => { await result.current.handleDeleteAll(); });
+
+    expect(assetBalanceApiModule.assetBalanceApi.deleteAll).not.toHaveBeenCalled();
+  });
+
+  it('rawFileなしではhandleSaveToDBが早期リターンする', () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    // rawFile=null（初期状態）でhanleSaveToDB呼び出し
+    act(() => { result.current.handleSaveToDB(); });
+
+    expect(assetBalanceApiModule.assetBalanceApi.uploadCsv).not.toHaveBeenCalled();
+  });
+
+  it('previewMutationエラー時にerrorが設定される', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockRejectedValueOnce(new Error('プレビュー失敗'));
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    await act(async () => {
+      result.current.handleFileSelect(new File([], 'test.csv'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+    });
+  });
+
+  it('deleteAll完了後にcacheキーが存在しない場合setQueryDataを呼ばない', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
+    // DBデータを読み込まない（queryStateがundefined）ままdeleteAllを呼ぶ
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.deleteAll).mockResolvedValue({} as never);
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    // クエリが実行される前にキャッシュを削除
+    qc.removeQueries();
+
+    await act(async () => { await result.current.handleDeleteAll(); });
+
+    // エラーなく完了することを確認
+    expect(result.current.error).toBeNull();
+  });
+});
+
 describe('useAssetBalanceDataSource: キャッシュ境界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
