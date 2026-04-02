@@ -17,24 +17,17 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
     sorted.sort_by(|a, b| b.disclosed_date.cmp(&a.disclosed_date));
 
     for summary in &sorted {
-        let raw = summary
-            .next_year_forecast_dividend_per_share_annual
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .or_else(|| {
-                summary
-                    .forecast_dividend_per_share_annual
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-            })
-            .or_else(|| {
-                summary
-                    .result_dividend_per_share_annual
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-            });
+        for raw in [
+            summary
+                .next_year_forecast_dividend_per_share_annual
+                .as_deref(),
+            summary.forecast_dividend_per_share_annual.as_deref(),
+            summary.result_dividend_per_share_annual.as_deref(),
+        ] {
+            let Some(val_str) = raw.filter(|s| !s.is_empty()) else {
+                continue;
+            };
 
-        if let Some(val_str) = raw {
             if let Ok(val) = val_str.parse::<f64>() {
                 let status = if val > 0.0 { "ok" } else { "zero" };
                 return (Some(val), status.to_string());
@@ -105,6 +98,30 @@ mod tests {
         let data = vec![make_summary("2024-01-01", None, None, Some("75.0"))];
         let (val, status) = extract_dividend(&data);
         assert_eq!(val, Some(75.0));
+        assert_eq!(status, "ok");
+    }
+
+    #[test]
+    fn test_extract_dividend_empty_nx_falls_back_to_f() {
+        let data = vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)];
+        let (val, status) = extract_dividend(&data);
+        assert_eq!(val, Some(100.0));
+        assert_eq!(status, "ok");
+    }
+
+    #[test]
+    fn test_extract_dividend_all_empty_strings_is_zero() {
+        let data = vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))];
+        let (val, status) = extract_dividend(&data);
+        assert_eq!(val, Some(0.0));
+        assert_eq!(status, "zero");
+    }
+
+    #[test]
+    fn test_extract_dividend_invalid_nx_falls_back_to_f() {
+        let data = vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)];
+        let (val, status) = extract_dividend(&data);
+        assert_eq!(val, Some(100.0));
         assert_eq!(status, "ok");
     }
 
