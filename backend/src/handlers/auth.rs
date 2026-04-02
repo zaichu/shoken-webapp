@@ -16,15 +16,6 @@ use serde::Deserialize;
 
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
 
-pub fn stock_routes() -> Router<AppState> {
-    Router::new()
-        .route("/stock", post(crate::handlers::stock::add_stock_info))
-        .route(
-            "/stock/{query}",
-            get(crate::handlers::stock::select_stock_info),
-        )
-}
-
 pub fn auth_routes() -> Router<AppState> {
     Router::new()
         .route("/auth/google", get(google_auth))

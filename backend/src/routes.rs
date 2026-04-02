@@ -87,7 +87,7 @@ fn domain_routes(
     };
 
     Router::new()
-        .merge(handlers::auth::stock_routes())
+        .merge(handlers::stock::stock_routes())
         .merge(jquants_routes)
         .merge(handlers::dividend_per_share::dividend_per_share_routes())
         .merge(auth_routes)
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_stock_routes_creation() {
-        let _router = handlers::auth::stock_routes();
+        let _router = handlers::stock::stock_routes();
     }
 
     #[test]
