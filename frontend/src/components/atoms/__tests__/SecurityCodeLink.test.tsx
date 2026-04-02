@@ -34,4 +34,14 @@ describe('SecurityCodeLink', () => {
     expect(screen.getByText('7203?')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '7203?' })).not.toBeInTheDocument();
   });
+
+  it('classNameを指定するとリンクに適用される', () => {
+    render(
+      <MemoryRouter>
+        <SecurityCodeLink value="7203" className="custom-class" />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: '7203' })).toHaveClass('custom-class');
+  });
 });

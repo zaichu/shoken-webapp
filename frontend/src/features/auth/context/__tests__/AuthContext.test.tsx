@@ -294,6 +294,86 @@ describe('AuthProvider', () => {
     assignSpy.mockRestore();
   });
 
+  it('setUserを呼ぶとユーザー情報が更新される', async () => {
+    mockGet.mockResolvedValueOnce(mockUser);
+
+    function SetUserConsumer() {
+      const { user, setUser } = useAuth();
+      return (
+        <div>
+          <span data-testid="name">{user?.name ?? 'none'}</span>
+          <button type="button" onClick={() => setUser({ id: '2', name: '更新ユーザー', email: 'new@example.com' })}>
+            setUser
+          </button>
+        </div>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <SetUserConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('name').textContent).toBe('テストユーザー');
+    });
+
+    await user.click(screen.getByRole('button', { name: 'setUser' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('name').textContent).toBe('更新ユーザー');
+    });
+  });
+
+  it('login=successパラメータがある場合にhistory.replaceStateでURLをクリアする', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState').mockImplementation(vi.fn());
+    // URLSearchParamsがlogin=successを返すようにsearch文字列を差し替え
+    const originalSearch = window.location.search;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      get: () => ({ search: '?login=success', pathname: '/home' }),
+    });
+
+    mockGet.mockResolvedValueOnce(mockUser);
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+
+    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', '/home');
+
+    // 後片付け
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      get: () => ({ search: originalSearch, pathname: '/' }),
+    });
+    replaceStateSpy.mockRestore();
+  });
+
+  it('userがnullの場合はアイドル時にlogoutが呼ばれない', async () => {
+    await renderAuthProvider({ authenticated: false });
+
+    await waitFor(() => {
+      expect(useIdleTimer).toHaveBeenLastCalledWith(expect.objectContaining({
+        enabled: false,
+      }));
+    });
+
+    const idleOptions = vi.mocked(useIdleTimer).mock.lastCall?.[0];
+    idleOptions?.onIdle();
+
+    // userがnullなのでlogoutは呼ばれない
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
   it('onLogoutでコールバックを登録解除できる', async () => {
     const onLogoutCallback = vi.fn();
     const { user } = await renderAuthProvider({ onLogoutCallback });

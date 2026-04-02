@@ -25,4 +25,10 @@ describe('EmptyState', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'トップ見出し' })).toBeInTheDocument();
   });
+
+  it('icon を表示する', () => {
+    render(<EmptyState title="データなし" icon={<span data-testid="empty-icon">📭</span>} />);
+
+    expect(screen.getByTestId('empty-icon')).toBeInTheDocument();
+  });
 });

@@ -163,4 +163,30 @@ describe('ReceiptHeader', () => {
     expect(grid).toHaveClass('sm:grid-cols-2');
     expect(grid).toHaveClass('xl:grid-cols-3');
   });
+
+  it('compactモード+collapsibleでもヘッダークリックで開閉できる', () => {
+    render(<ReceiptHeader items={defaultItems} compact collapsible />);
+
+    const header = screen.getByTestId('receipt-header');
+    expect(screen.getByText('テスト項目1')).toBeVisible();
+
+    fireEvent.click(header);
+    expect(screen.getByText('テスト項目1')).not.toBeVisible();
+  });
+
+  it('マイナス値のitemにdata-negative属性が付く', () => {
+    const itemsWithNegative = [
+      {
+        title: '損益',
+        value: -500,
+        format: (value: number) => `¥${value}`,
+      },
+    ];
+
+    const { container } = render(<ReceiptHeader items={itemsWithNegative} />);
+
+    const valueEl = container.querySelector('[data-negative="true"]');
+    expect(valueEl).toBeInTheDocument();
+    expect(valueEl).toHaveTextContent('¥-500');
+  });
 });

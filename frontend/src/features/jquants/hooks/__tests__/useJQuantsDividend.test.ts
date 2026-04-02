@@ -222,6 +222,50 @@ describe('useJQuantsDividend', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('DiscDateがないデータを含む場合でもソートが失敗しない', async () => {
+    const mockResponse = {
+      data: [
+        { NxFDivAnn: '40.00' }, // DiscDateなし
+        { NxFDivAnn: '50.00' }, // DiscDateなし
+      ],
+    };
+
+    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (parseNumber as Mock).mockReturnValue(40);
+
+    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.dividendPerShare).toBeDefined();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('アンマウント時にstateを更新しない', async () => {
+    let resolvePromise!: (value: { data: unknown[] }) => void;
+    const pendingPromise = new Promise<{ data: unknown[] }>((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    (jquantsApiClient.getStatements as Mock).mockReturnValue(pendingPromise);
+
+    const { result, unmount } = renderHook(() => useJQuantsDividend('1234', true));
+
+    expect(result.current.loading).toBe(true);
+
+    // アンマウント（isActive = false になる）
+    unmount();
+
+    // 非同期処理を解決してもstateは更新されない
+    resolvePromise({ data: [{ NxFDivAnn: '50.00' }] });
+
+    // stateが変わらないことを確認（エラー/警告なし）
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.loading).toBe(true); // unmount後は更新されない
+  });
+
   it('securityCodeが変更された場合、再取得する', async () => {
     const mockResponse = {
       data: [{ NxFDivAnn: '50.00' }],

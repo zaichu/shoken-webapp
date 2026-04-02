@@ -209,6 +209,73 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: '銘柄検索' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('ログインボタンをクリックするとloginが呼ばれる', async () => {
+    const login = vi.fn();
+    const { user } = renderHeader({ user: null, isAuthenticated: false, login });
+
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it('削除確認モーダルのバックドロップクリックでモーダルが閉じる', async () => {
+    const { user } = renderHeader();
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }));
+    await user.click(screen.getByRole('menuitem', { name: /アカウント削除/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'アカウント削除の確認' });
+    expect(dialog).toBeInTheDocument();
+
+    // バックドロップ（dialog要素自体）をクリック
+    await user.click(dialog);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'アカウント削除の確認' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('削除確認モーダルでEscapeキーを押すとモーダルが閉じる', async () => {
+    const { user } = renderHeader();
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }));
+    await user.click(screen.getByRole('menuitem', { name: /アカウント削除/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'アカウント削除の確認' });
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'アカウント削除の確認' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('削除確認モーダルの✕ボタンでモーダルが閉じる', async () => {
+    const { user } = renderHeader();
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }));
+    await user.click(screen.getByRole('menuitem', { name: /アカウント削除/ }));
+    await screen.findByRole('dialog', { name: 'アカウント削除の確認' });
+
+    await user.click(screen.getByRole('button', { name: '閉じる' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'アカウント削除の確認' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('削除確認モーダル内でEscape以外のキーはstopPropagationで処理される', async () => {
+    const { user } = renderHeader();
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }));
+    await user.click(screen.getByRole('menuitem', { name: /アカウント削除/ }));
+    await screen.findByRole('dialog', { name: 'アカウント削除の確認' });
+
+    // inner presentationにEnterキーを発火 → stopPropagation()パスが実行されモーダルは閉じない
+    const presentation = screen.getByRole('presentation');
+    fireEvent.keyDown(presentation, { key: 'Enter' });
+
+    expect(screen.getByRole('dialog', { name: 'アカウント削除の確認' })).toBeInTheDocument();
+  });
+
   describe('イニシャル表示', () => {
     it('スペース区切り2語の名前は実際の動作どおり2文字を表示する', () => {
       renderHeader({

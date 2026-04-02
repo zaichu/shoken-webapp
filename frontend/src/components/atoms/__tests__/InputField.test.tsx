@@ -75,8 +75,36 @@ describe('InputField', () => {
 
   it('disabledプロパティが動作する', () => {
     render(<InputField label="テスト項目" disabled />);
-    
+
     const input = screen.getByLabelText('テスト項目');
     expect(input).toBeDisabled();
+  });
+
+  it('variant=filledのスタイルが適用される', () => {
+    render(<InputField label="テスト項目" variant="filled" />);
+
+    const input = screen.getByLabelText('テスト項目');
+    expect(input).toHaveClass('bg-gray-100');
+  });
+
+  it('variant=standardのスタイルが適用される', () => {
+    render(<InputField label="テスト項目" variant="standard" />);
+
+    const input = screen.getByLabelText('テスト項目');
+    expect(input).toHaveClass('border-0');
+  });
+
+  it('required=trueのときラベルにアスタリスクが表示される', () => {
+    render(<InputField label="必須項目" required />);
+
+    expect(screen.getByText('*')).toBeInTheDocument();
+    expect(screen.getByText('*')).toHaveClass('text-danger');
+    expect(screen.getByRole('textbox')).toBeRequired();
+  });
+
+  it('labelなしでもinputがレンダリングされる', () => {
+    render(<InputField placeholder="ラベルなし" />);
+
+    expect(screen.getByPlaceholderText('ラベルなし')).toBeInTheDocument();
   });
 });
