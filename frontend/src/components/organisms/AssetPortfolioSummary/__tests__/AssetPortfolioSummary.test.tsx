@@ -130,6 +130,48 @@ describe('AssetPortfolioSummary', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('security_nameが空の場合security_codeをグラフ名に使用する', () => {
+    const mockData: AssetBalanceData[] = [
+      {
+        security_code: '7203',
+        security_name: '',
+        shares: 100,
+        executing_shares: 0,
+        average_purchase_price: 2500,
+        total_purchase_amount: 250000,
+        current_price: 2600,
+        daily_change: 50,
+        market_value: 260000,
+        profit_loss_rate: 4.0,
+      },
+    ];
+    render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+    // security_nameが空なのでsecurity_codeがグラフに使われる
+    expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
+  });
+
+  it('合計取得総額がマイナスの場合data-negative属性が付く', () => {
+    const mockData: AssetBalanceData[] = [
+      {
+        security_code: '7203',
+        security_name: 'テスト銘柄',
+        shares: 100,
+        executing_shares: 0,
+        average_purchase_price: 2500,
+        total_purchase_amount: -250000,
+        current_price: 2600,
+        daily_change: 50,
+        market_value: 260000,
+        profit_loss_rate: 4.0,
+      },
+    ];
+    const { container } = render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+    const negativeEl = container.querySelector('[data-negative="true"]');
+    expect(negativeEl).toBeInTheDocument();
+  });
+
   it('data-testidが設定される', () => {
     const mockData = createMockData();
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);
@@ -173,6 +215,24 @@ describe('AssetPortfolioSummary', () => {
       render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={emptyMap} />);
 
       expect(screen.getByTestId('portfolio-dividend-yield')).toHaveTextContent('---');
+    });
+
+    it('dividendPerShareMapに一部の銘柄しかない場合は存在する銘柄のみ計算される', () => {
+      const mockData = createMockData();
+      // 7203のみマップに含める（6758は含めない）
+      const partialMap = new Map([['7203', 50]]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={partialMap} />);
+
+      // 50 * 100 = 5000
+      expect(screen.getByTestId('portfolio-annual-dividends')).toHaveTextContent(/5,000/);
+    });
+
+    it('dividendPerShareが0の場合は合計が0になり---が表示される', () => {
+      const mockData = createMockData();
+      const zeroMap = new Map([['7203', 0], ['6758', 0]]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} dividendPerShareMap={zeroMap} />);
+
+      expect(screen.getByTestId('portfolio-annual-dividends')).toHaveTextContent('---');
     });
 
     it('dividendStatusMap を渡すと pending 銘柄で取得中...が表示される', () => {

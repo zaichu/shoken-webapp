@@ -26,4 +26,32 @@ describe('CSVFileInput', () => {
 
     expect(handleFileSelect).toHaveBeenCalledWith(file);
   });
+
+  it('disabled=trueのときファイル変更イベントが無視される', () => {
+    const handleFileSelect = vi.fn();
+    render(<CSVFileInput onFileSelect={handleFileSelect} disabled />);
+
+    const input = screen.getByLabelText('CSVファイルを選択') as HTMLInputElement;
+    const file = new File(['test'], 'receipts.csv', { type: 'text/csv' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(handleFileSelect).not.toHaveBeenCalled();
+  });
+
+  it('空のfilesリストではonFileSelectが呼ばれない', () => {
+    const handleFileSelect = vi.fn();
+    render(<CSVFileInput onFileSelect={handleFileSelect} />);
+
+    const input = screen.getByLabelText('CSVファイルを選択') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [] } });
+
+    expect(handleFileSelect).not.toHaveBeenCalled();
+  });
+
+  it('disabled=trueのとき不活性スタイルが適用される', () => {
+    render(<CSVFileInput onFileSelect={vi.fn()} disabled />);
+
+    expect(screen.getByTestId('csv-file-trigger')).toHaveClass('pointer-events-none');
+    expect(screen.getByTestId('csv-file-trigger')).toHaveClass('opacity-65');
+  });
 });

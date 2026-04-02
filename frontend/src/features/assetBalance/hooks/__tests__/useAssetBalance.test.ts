@@ -171,6 +171,36 @@ describe('useAssetBalance', () => {
     expect(result.current.getTotalMarketValue()).toBe(390000);
   });
 
+  it('未認証時はassetBalanceDataが空配列を返す', () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    expect(result.current.assetBalanceData).toEqual([]);
+  });
+
+  it('getTotalMarketValue は market_value が 0 のデータも正しく合計する', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
+      makeAssetBalanceData({ security_code: '7203', market_value: 100000 }),
+      makeAssetBalanceData({ security_code: '6758', market_value: 0 }),
+    ]);
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.assetBalanceData).toHaveLength(2);
+    });
+
+    expect(result.current.getTotalMarketValue()).toBe(100000);
+  });
+
   it('refetch は assetBalance クエリを invalidate する', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },

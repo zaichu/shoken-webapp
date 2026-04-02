@@ -225,6 +225,37 @@ describe('ReceiptTemplate', () => {
     expect(receiptContainer).toBeInTheDocument();
   });
 
+  test('utilityRailのみ指定時は自動的にworkspaceレイアウトになる', () => {
+    const railTools = <div data-testid="auto-rail">CSV操作</div>;
+
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        utilityRail={railTools}
+      />
+    );
+
+    // layoutPropなしでもworkspaceレイアウトが選択される
+    expect(screen.getByTestId('receipt-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('auto-rail')).toBeInTheDocument();
+  });
+
+  test('workspaceレイアウトでフッターが表示される', () => {
+    const footerContent = <div data-testid="workspace-footer">フッター</div>;
+    const railTools = <div data-testid="rail">サイド</div>;
+
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        utilityRail={railTools}
+        footer={footerContent}
+      />
+    );
+
+    expect(screen.getByTestId('workspace-footer')).toBeInTheDocument();
+  });
+
   test('workspaceレイアウトではヘッダーがmain stage上部に配置される', () => {
     const headerContent = <div data-testid="workspace-header">集計ヘッダー</div>;
     const railTools = <div data-testid="workspace-tools">CSV操作</div>;

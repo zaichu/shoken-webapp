@@ -46,6 +46,16 @@ describe('StockInfo', () => {
     expect(screen.getByText('プライム')).toBeInTheDocument();
   });
 
+  it('フィールドが空の場合は - を表示する', () => {
+    render(
+      <MemoryRouter>
+        <StockInfo stockData={{ ...mockStockData, size_category: '' }} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+  });
+
   it('stockDataがnullの場合nullを返す', () => {
     const { container } = render(
       <MemoryRouter>

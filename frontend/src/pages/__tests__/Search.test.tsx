@@ -114,6 +114,48 @@ describe('SearchPage', () => {
     expect(searchByCode).not.toHaveBeenCalled();
   });
 
+  it('通常のErrorオブジェクトのエラーメッセージを表示する', () => {
+    mockUseStockSearch.mockReturnValue({
+      stockCode: '',
+      setStockCode: vi.fn(),
+      stockData: undefined,
+      error: new Error('ネットワークエラーが発生しました'),
+      isLoading: false,
+      isError: true,
+      handleSearch: vi.fn(),
+      searchByCode: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <SearchPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('ネットワークエラーが発生しました')).toBeInTheDocument();
+  });
+
+  it('messageなしのエラーの場合はフォールバックメッセージを表示する', () => {
+    mockUseStockSearch.mockReturnValue({
+      stockCode: '',
+      setStockCode: vi.fn(),
+      stockData: undefined,
+      error: { message: '' },
+      isLoading: false,
+      isError: true,
+      handleSearch: vi.fn(),
+      searchByCode: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <SearchPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('銘柄情報の取得に失敗しました。')).toBeInTheDocument();
+  });
+
   it('ApiError のユーザー向けメッセージを表示する', () => {
     mockUseStockSearch.mockReturnValue({
       stockCode: '',
