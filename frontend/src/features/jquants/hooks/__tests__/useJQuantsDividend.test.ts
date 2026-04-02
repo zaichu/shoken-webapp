@@ -6,7 +6,7 @@ import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
   jquantsApiClient: {
-    getStatements: vi.fn(),
+    getSummary: vi.fn(),
   },
 }));
 
@@ -30,7 +30,7 @@ describe('useJQuantsDividend', () => {
     expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
+    expect(jquantsApiClient.getSummary).not.toHaveBeenCalled();
   });
 
   it('securityCodeが空の場合、配当情報を取得しない', () => {
@@ -39,7 +39,7 @@ describe('useJQuantsDividend', () => {
     expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(jquantsApiClient.getStatements).not.toHaveBeenCalled();
+    expect(jquantsApiClient.getSummary).not.toHaveBeenCalled();
   });
 
   it('最新の決算データから配当情報を取得する（開示日でソート）', async () => {
@@ -52,7 +52,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(70);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -64,7 +64,7 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('1234');
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('1234');
     // 最新データ（2024-07-15）の70.00が取得されること
     expect(parseNumber).toHaveBeenCalledWith('70.00');
     expect(result.current.dividendPerShare).toBe(70);
@@ -82,7 +82,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(45);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -107,7 +107,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(40);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -128,7 +128,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(50);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -151,7 +151,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(0);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -167,7 +167,7 @@ describe('useJQuantsDividend', () => {
   it('エラーが発生した場合、エラーメッセージを設定する', async () => {
     const mockError = new Error('API Error');
 
-    (jquantsApiClient.getStatements as Mock).mockRejectedValue(mockError);
+    (jquantsApiClient.getSummary as Mock).mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -180,7 +180,7 @@ describe('useJQuantsDividend', () => {
   });
 
   it('非Errorオブジェクトのエラーの場合、デフォルトメッセージを設定する', async () => {
-    (jquantsApiClient.getStatements as Mock).mockRejectedValue('string error');
+    (jquantsApiClient.getSummary as Mock).mockRejectedValue('string error');
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -195,7 +195,7 @@ describe('useJQuantsDividend', () => {
   it('response.dataがundefinedの場合、undefinedを返す', async () => {
     const mockResponse = { data: undefined };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -210,7 +210,7 @@ describe('useJQuantsDividend', () => {
   it('response.dataが配列でない場合、undefinedを返す', async () => {
     const mockResponse = { data: { some: 'object' } };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -230,7 +230,7 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(40);
 
     const { result } = renderHook(() => useJQuantsDividend('1234', true));
@@ -249,7 +249,7 @@ describe('useJQuantsDividend', () => {
       resolvePromise = resolve;
     });
 
-    (jquantsApiClient.getStatements as Mock).mockReturnValue(pendingPromise);
+    (jquantsApiClient.getSummary as Mock).mockReturnValue(pendingPromise);
 
     const { result, unmount } = renderHook(() => useJQuantsDividend('1234', true));
 
@@ -271,7 +271,7 @@ describe('useJQuantsDividend', () => {
       data: [{ NxFDivAnn: '50.00' }],
     };
 
-    (jquantsApiClient.getStatements as Mock).mockResolvedValue(mockResponse);
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(50);
 
     const { result, rerender } = renderHook(
@@ -283,14 +283,14 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     }, { timeout: 5000 });
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('1234');
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('1234');
     expect(result.current.dividendPerShare).toBe(50);
 
     // securityCodeを変更
     rerender({ code: '5678', enabled: true });
 
     await waitFor(() => {
-      expect(jquantsApiClient.getStatements).toHaveBeenCalledWith('5678');
+      expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('5678');
     }, { timeout: 5000 });
   }, 15000);
 });

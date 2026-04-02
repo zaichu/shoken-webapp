@@ -7,7 +7,7 @@ import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
   jquantsApiClient: {
-    getStatements: vi.fn(),
+    getSummary: vi.fn(),
   },
 }));
 
@@ -56,7 +56,7 @@ describe('useJQuantsDividendBatch', () => {
     let maxInFlight = 0;
     const resolvers: Array<() => void> = [];
 
-    (jquantsApiClient.getStatements as Mock).mockImplementation((code: string) => {
+    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) => {
       inFlight += 1;
       maxInFlight = Math.max(maxInFlight, inFlight);
       return new Promise((resolve) => {
@@ -72,13 +72,13 @@ describe('useJQuantsDividendBatch', () => {
     const { result } = renderHook(() => useJQuantsDividendBatch(codes, true));
 
     await waitFor(() => {
-      expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(3);
+      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(3);
     });
 
     resolvers.splice(0, 3).forEach((resolve) => resolve());
 
     await waitFor(() => {
-      expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(6);
+      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(6);
     });
 
     resolvers.splice(0).forEach((resolve) => resolve());
@@ -97,7 +97,7 @@ describe('useJQuantsDividendBatch', () => {
 
     const extractionCount: Record<string, number> = {};
 
-    (jquantsApiClient.getStatements as Mock).mockImplementation((code: string) =>
+    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) =>
       Promise.resolve({
         data: [{ DiscDate: '2025-01-01', NxFDivAnn: code === '1605' ? '30.0' : '15.5', Code: code }],
       })
@@ -115,7 +115,7 @@ describe('useJQuantsDividendBatch', () => {
 
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(2);
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(2);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -125,7 +125,7 @@ describe('useJQuantsDividendBatch', () => {
     });
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(4);
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(4);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('2933')).toBe(15.5);
   });
@@ -134,7 +134,7 @@ describe('useJQuantsDividendBatch', () => {
     vi.useFakeTimers();
     const codes = ['1605', '2933'];
 
-    (jquantsApiClient.getStatements as Mock).mockImplementation((code: string) =>
+    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) =>
       Promise.resolve({
         data: [{ DiscDate: '2025-01-01', NxFDivAnn: code === '1605' ? '30.0' : '15.5', Code: code }],
       })
@@ -151,7 +151,7 @@ describe('useJQuantsDividendBatch', () => {
 
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(2);
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(2);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -163,7 +163,7 @@ describe('useJQuantsDividendBatch', () => {
       await flushAsyncUpdates();
     }
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(8);
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(8);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -173,6 +173,6 @@ describe('useJQuantsDividendBatch', () => {
     });
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getStatements).toHaveBeenCalledTimes(8);
+    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(8);
   });
 });

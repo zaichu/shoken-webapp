@@ -775,12 +775,12 @@
         ]
       }
     },
-    "/jquants/fins/statements": {
+    "/jquants/fins/summary": {
       "get": {
         "tags": [
           "handlers::jquants"
         ],
-        "summary": "決算サマリーを取得（J-Quants API V2）\nV2では fins/statements → fins/summary に変更",
+        "summary": "決算サマリーを取得（J-Quants API V2）",
         "operationId": "jquants_fin_summary",
         "parameters": [
           {

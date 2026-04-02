@@ -143,8 +143,7 @@ export interface JQuantsStatementData {
  * J-Quants API V2 決算サマリーレスポンス
  * V2では fins/summary を使用し、ルートフィールドは "data"
  */
-export interface JQuantsStatementsResponse {
+export interface JQuantsFinSummaryResponse {
   data: JQuantsStatementData[];
   pagination_key?: string;
 }
-

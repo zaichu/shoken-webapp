@@ -1,4 +1,5 @@
 use crate::errors::{ApiError, ErrorResponse};
+use crate::extractors::auth::AuthenticatedUser;
 use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use crate::services::jquants::JQuantsService;
 use crate::state::AppState;
@@ -10,14 +11,13 @@ use axum::{
 };
 
 pub fn jquants_routes() -> Router<AppState> {
-    Router::new().route("/jquants/fins/statements", get(get_fin_summary))
+    Router::new().route("/jquants/fins/summary", get(get_fin_summary))
 }
 
 /// 決算サマリーを取得（J-Quants API V2）
-/// V2では fins/statements → fins/summary に変更
 #[utoipa::path(
     get,
-    path = "/jquants/fins/statements",
+    path = "/jquants/fins/summary",
     operation_id = "jquants_fin_summary",
     params(
         ("code" = String, Query, description = "銘柄コード"),
@@ -35,6 +35,7 @@ pub fn jquants_routes() -> Router<AppState> {
 )]
 pub async fn get_fin_summary(
     State(state): State<AppState>,
+    _auth_user: AuthenticatedUser,
     Query(params): Query<FinSummaryQuery>,
 ) -> Result<Json<FinSummaryResponse>, ApiError> {
     tracing::info!("決算サマリー取得パラメータ: {:?}", params);

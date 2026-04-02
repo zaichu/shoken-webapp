@@ -216,7 +216,7 @@ mod tests {
         // 1 回目は通過
         let req = Request::builder()
             .method(axum::http::Method::GET)
-            .uri("/jquants/fins/statements")
+            .uri("/jquants/fins/summary")
             .body(Body::empty())
             .unwrap();
         let resp = router.clone().oneshot(req).await.unwrap();
@@ -225,11 +225,34 @@ mod tests {
         // 2 回目は 429
         let req = Request::builder()
             .method(axum::http::Method::GET)
-            .uri("/jquants/fins/statements")
+            .uri("/jquants/fins/summary")
             .body(Body::empty())
             .unwrap();
         let resp = router.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    /// 未認証時に GET /jquants/fins/summary が 401 を返すことを確認
+    /// セッション Cookie なしでは認証エクストラクターが先に失敗するため DB クエリは発生しない
+    #[tokio::test]
+    async fn test_jquants_fin_summary_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app = handlers::jquants::jquants_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::GET)
+                    .uri("/jquants/fins/summary?code=7203")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
     }
 
     /// x-request-id がレスポンスに伝播されることを確認

@@ -1,4 +1,4 @@
-import { JQuantsStatementsResponse } from './types';
+import { JQuantsFinSummaryResponse } from './types';
 import { apiClient } from '@/lib/api/client';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
 
@@ -8,23 +8,23 @@ import { ApiError, ApiErrorType } from '@/lib/types/api';
  */
 export class JQuantsApiClient {
   /**
-   * 財務諸表を取得
+   * 決算サマリーを取得
    * @param code 銘柄コード
    * @param from 開始日付（YYYY-MM-DD形式）
    * @param to 終了日付（YYYY-MM-DD形式）
    */
-  async getStatements(
+  async getSummary(
     code: string,
     from?: string,
     to?: string
-  ): Promise<JQuantsStatementsResponse> {
+  ): Promise<JQuantsFinSummaryResponse> {
     try {
       const params: Record<string, string> = { code };
       if (from) params.from = from;
       if (to) params.to = to;
 
-      const response = await apiClient.get<JQuantsStatementsResponse>(
-        '/jquants/fins/statements',
+      const response = await apiClient.get<JQuantsFinSummaryResponse>(
+        '/jquants/fins/summary',
         { params }
       );
 
@@ -35,7 +35,7 @@ export class JQuantsApiClient {
       }
       throw new ApiError(
         ApiErrorType.DESERIALIZATION_ERROR,
-        '財務諸表の取得に失敗しました'
+        '決算サマリーの取得に失敗しました'
       );
     }
   }
