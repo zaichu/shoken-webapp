@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
 import { PortfolioPieChart, PortfolioItem } from '../PortfolioPieChart';
 
@@ -13,6 +14,19 @@ describe('PortfolioPieChart', () => {
     { name: 'ソニーグループ', value: 600000, securityCode: '6758', shares: 50, averagePrice: 12000 },
     { name: '任天堂', value: 150000, securityCode: '7974', shares: 30, averagePrice: 5000 },
   ];
+  const createLargeData = (count: number): PortfolioItem[] =>
+    Array.from({ length: count }, (_, index) => {
+      const itemNumber = index + 1;
+      const paddedNumber = String(itemNumber).padStart(2, '0');
+
+      return {
+        name: `銘柄${paddedNumber}`,
+        value: (count - index) * 1000,
+        securityCode: `${1000 + itemNumber}`,
+        shares: itemNumber * 10,
+        averagePrice: itemNumber * 100,
+      };
+    });
 
   it('横棒グラフが表示される', () => {
     render(<PortfolioPieChart data={mockData} />);
@@ -79,6 +93,40 @@ describe('PortfolioPieChart', () => {
 
     const chartContainer = screen.getByTestId('portfolio-pie-chart');
     expect(chartContainer).toHaveClass('custom-chart');
+  });
+
+  describe('上位20件表示トグル', () => {
+    it('21件以上のとき初期表示では上位20件とその他にまとめ、全件表示ボタンを出す', () => {
+      const largeData = createLargeData(21);
+
+      render(<PortfolioPieChart data={largeData} />);
+
+      expect(screen.getAllByTestId('portfolio-card-code')).toHaveLength(20);
+      expect(screen.getByText('その他 1銘柄')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '残り1銘柄を表示（全21）' })).toBeInTheDocument();
+      expect(screen.queryByText('銘柄21')).not.toBeInTheDocument();
+    });
+
+    it('全件表示ボタンのクリックで showAll が切り替わり、全件表示と折りたたみ表示を往復できる', async () => {
+      const largeData = createLargeData(21);
+      const user = userEvent.setup();
+
+      render(<PortfolioPieChart data={largeData} />);
+
+      await user.click(screen.getByRole('button', { name: '残り1銘柄を表示（全21）' }));
+
+      expect(screen.getAllByTestId('portfolio-card-code')).toHaveLength(21);
+      expect(screen.getByText('銘柄21')).toBeInTheDocument();
+      expect(screen.queryByText('その他 1銘柄')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '上位20件のみ表示' })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: '上位20件のみ表示' }));
+
+      expect(screen.getAllByTestId('portfolio-card-code')).toHaveLength(20);
+      expect(screen.queryByText('銘柄21')).not.toBeInTheDocument();
+      expect(screen.getByText('その他 1銘柄')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '残り1銘柄を表示（全21）' })).toBeInTheDocument();
+    });
   });
 
   describe('配当金額・配当利回り', () => {
