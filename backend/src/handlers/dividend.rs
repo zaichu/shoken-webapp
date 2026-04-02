@@ -20,9 +20,12 @@ use axum::{
 pub fn dividend_routes() -> Router<AppState> {
     Router::new()
         .route("/dividends", get(list))
-        .route("/dividends/csv", post(upload_csv))
         .route("/dividends/csv/preview", post(preview_csv))
         .route("/dividends/all", delete(delete_all))
+}
+
+pub fn dividend_csv_upload_routes() -> Router<AppState> {
+    Router::new().route("/dividends/csv", post(upload_csv))
 }
 
 /// 認証ユーザーの配当金一覧を取得

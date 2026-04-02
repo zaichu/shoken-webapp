@@ -20,9 +20,12 @@ use axum::{
 pub fn domestic_stock_routes() -> Router<AppState> {
     Router::new()
         .route("/domestic-stocks", get(list))
-        .route("/domestic-stocks/csv", post(upload_csv))
         .route("/domestic-stocks/csv/preview", post(preview_csv))
         .route("/domestic-stocks/all", delete(delete_all))
+}
+
+pub fn domestic_stock_csv_upload_routes() -> Router<AppState> {
+    Router::new().route("/domestic-stocks/csv", post(upload_csv))
 }
 
 /// 認証ユーザーの国内株式取引一覧を取得

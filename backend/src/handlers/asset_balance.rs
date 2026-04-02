@@ -22,9 +22,12 @@ pub fn asset_balance_routes() -> Router<AppState> {
     Router::new()
         .route("/asset-balances", get(list))
         .route("/asset-balances/bulk", post(bulk_create))
-        .route("/asset-balances/csv", post(upload_csv))
         .route("/asset-balances/csv/preview", post(preview_csv))
         .route("/asset-balances/all", delete(delete_all))
+}
+
+pub fn asset_balance_csv_upload_routes() -> Router<AppState> {
+    Router::new().route("/asset-balances/csv", post(upload_csv))
 }
 
 /// 認証ユーザーの保有銘柄一覧を取得

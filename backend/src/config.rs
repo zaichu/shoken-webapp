@@ -4,7 +4,9 @@ pub mod cors;
 pub mod environment;
 
 pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
-pub use environment::{backend_url, is_production_env, is_secure_cookie, server_addr};
+pub use environment::{
+    backend_url, csv_rate_limit_rps, is_production_env, is_secure_cookie, server_addr,
+};
 
 pub struct Config {
     pub cors_origins: Vec<String>,
@@ -13,6 +15,8 @@ pub struct Config {
     pub auth_rate_limit_rps: u32,
     /// `/jquants/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
     pub jquants_rate_limit_rps: u32,
+    /// CSV アップロードルートへの IP 単位レート制限（リクエスト/秒）。0 は無制限
+    pub csv_rate_limit_rps: u32,
 }
 
 impl Default for Config {
@@ -28,6 +32,7 @@ impl Default for Config {
             database_max_connections: 5,
             auth_rate_limit_rps: 10,
             jquants_rate_limit_rps: 5,
+            csv_rate_limit_rps: 2,
         }
     }
 }
@@ -54,6 +59,8 @@ impl Config {
                 config.jquants_rate_limit_rps = v;
             }
         }
+
+        config.csv_rate_limit_rps = csv_rate_limit_rps();
 
         if is_production_env() {
             config
@@ -115,6 +122,7 @@ mod tests {
     fn test_config_default() {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
+        assert_eq!(config.csv_rate_limit_rps, 2);
         assert!(config
             .cors_origins
             .contains(&"https://shoken-webapp.vercel.app".to_string()));
@@ -137,11 +145,23 @@ mod tests {
             database_max_connections: 10,
             auth_rate_limit_rps: 10,
             jquants_rate_limit_rps: 5,
+            csv_rate_limit_rps: 2,
         };
 
         assert_eq!(config.database_max_connections, 10);
         assert_eq!(config.cors_origins.len(), 1);
         assert_eq!(config.cors_origins[0], "http://example.com");
+        assert_eq!(config.csv_rate_limit_rps, 2);
+    }
+
+    #[tokio::test]
+    async fn test_config_from_env_reads_csv_rate_limit_rps() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
+
+        let config = Config::from_env();
+
+        assert_eq!(config.csv_rate_limit_rps, 7);
     }
 
     #[test]

@@ -20,9 +20,12 @@ use axum::{
 pub fn mutualfund_routes() -> Router<AppState> {
     Router::new()
         .route("/mutualfunds", get(list))
-        .route("/mutualfunds/csv", post(upload_csv))
         .route("/mutualfunds/csv/preview", post(preview_csv))
         .route("/mutualfunds/all", delete(delete_all))
+}
+
+pub fn mutualfund_csv_upload_routes() -> Router<AppState> {
+    Router::new().route("/mutualfunds/csv", post(upload_csv))
 }
 
 /// 認証ユーザーの投資信託一覧を取得
