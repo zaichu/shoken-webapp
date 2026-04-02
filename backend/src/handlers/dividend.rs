@@ -108,6 +108,8 @@ pub async fn delete_all(
     dividend_service::delete_all(&state.pool, auth_user.id()).await?;
     Ok((
         StatusCode::OK,
-        Json(serde_json::json!({"message": "全ての配当金データを削除しました"})),
+        Json(MessageResponse {
+            message: "全ての配当金データを削除しました".to_string(),
+        }),
     ))
 }
