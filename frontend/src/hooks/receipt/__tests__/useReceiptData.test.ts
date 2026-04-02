@@ -7,7 +7,7 @@ type Item = { id: number; name: string };
 
 const identity = (items: Item[]) => items;
 const filterConfig: FilterConfig<Item> = {
-  fields: ['name'],
+  stringFields: [(item: Item) => item.name],
 };
 
 describe('useReceiptBaseData', () => {
