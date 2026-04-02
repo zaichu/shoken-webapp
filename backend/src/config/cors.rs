@@ -63,3 +63,81 @@ pub fn is_localhost_origin(origin: &str) -> bool {
     let host = origin.split(':').next().unwrap_or(origin);
     matches!(host, "localhost" | "localhost." | "127.0.0.1")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{is_localhost_origin, parse_cors_origins};
+
+    #[test]
+    fn accepts_localhost_origin_variants() {
+        let cases = [
+            "http://localhost",
+            "https://localhost:3000",
+            "http://localhost.:5173",
+            "http://127.0.0.1:8080",
+            "https://[::1]:3000",
+            "http://[0:0:0:0:0:0:0:1]:5173/path",
+        ];
+
+        for origin in cases {
+            assert!(
+                is_localhost_origin(origin),
+                "expected {origin} to be treated as localhost"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_spoofed_and_production_origins() {
+        let cases = [
+            "https://localhost.example.com",
+            "https://127.0.0.1.example.com:3000",
+            "https://frontend.example.com",
+        ];
+
+        for origin in cases {
+            assert!(
+                !is_localhost_origin(origin),
+                "expected {origin} to be rejected as non-localhost"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_comma_separated_cors_origins() {
+        assert_eq!(
+            parse_cors_origins("https://app.example.com,http://localhost:3000"),
+            vec![
+                "https://app.example.com".to_string(),
+                "http://localhost:3000".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn trims_whitespace_when_parsing_cors_origins() {
+        assert_eq!(
+            parse_cors_origins(" https://app.example.com , http://localhost:3000 "),
+            vec![
+                "https://app.example.com".to_string(),
+                "http://localhost:3000".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn returns_empty_vec_for_empty_cors_origins() {
+        assert!(parse_cors_origins("").is_empty());
+    }
+
+    #[test]
+    fn ignores_trailing_commas_when_parsing_cors_origins() {
+        assert_eq!(
+            parse_cors_origins("https://app.example.com,http://localhost:3000,"),
+            vec![
+                "https://app.example.com".to_string(),
+                "http://localhost:3000".to_string(),
+            ]
+        );
+    }
+}
