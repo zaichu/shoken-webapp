@@ -660,6 +660,42 @@ describe('ReceiptsPage', () => {
     expect(screen.getAllByText('保存しました')).toHaveLength(1);
   }, 20000);
 
+  it('全削除: 確認モーダルを開いてキャンセルで閉じる', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true })
+    );
+
+    const mockDbRow = { id: '1', payment_date: '2023-01-01' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({});
+
+    renderWithQuery(<ReceiptsPage />);
+
+    await waitFor(() => {
+      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
+    }, waitOpts);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /全件削除/ })).toBeInTheDocument();
+    }, waitOpts);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /全件削除/ }));
+
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    expect(screen.getByText('配当金データの全件削除')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('cancel-delete'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
+    }, waitOpts);
+    expect(receiptApi.dividendApi.deleteAll).not.toHaveBeenCalled();
+  }, 20000);
+
   it('全削除: 確認モーダル経由で deleteAll API が呼ばれデータがクリアされる', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
