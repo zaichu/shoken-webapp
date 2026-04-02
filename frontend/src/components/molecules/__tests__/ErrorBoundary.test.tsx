@@ -1,11 +1,18 @@
+import { createRef } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ErrorBoundary, WithErrorBoundary } from '../ErrorBoundary';
 
 // エラーを発生させるコンポーネント
-const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
+const ThrowError = ({
+  shouldThrow,
+  message = 'Test error',
+}: {
+  shouldThrow: boolean;
+  message?: string;
+}) => {
   if (shouldThrow) {
-    throw new Error('Test error');
+    throw new Error(message);
   }
   return <div>No error</div>;
 };
@@ -152,23 +159,77 @@ describe('ErrorBoundary', () => {
       expect(screen.getByText('No error')).toBeInTheDocument();
     });
 
-    it('resetOnPropsChangeが有効な場合、子要素の変更でリセットされる', () => {
+    it('resetOnPropsChangeが有効な場合、子要素の変更でresetErrorBoundaryが呼ばれる', () => {
+      const boundaryRef = createRef<ErrorBoundary>();
       const { rerender } = render(
-        <ErrorBoundary resetOnPropsChange={true}>
+        <ErrorBoundary ref={boundaryRef} resetOnPropsChange={true}>
           <ThrowError shouldThrow={true} />
         </ErrorBoundary>
       );
 
       expect(screen.getByText('エラーが発生しました')).toBeInTheDocument();
+      const resetSpy = vi.spyOn(boundaryRef.current!, 'resetErrorBoundary');
 
       // 子要素を変更
       rerender(
-        <ErrorBoundary resetOnPropsChange={true}>
+        <ErrorBoundary ref={boundaryRef} resetOnPropsChange={true}>
           <div>New child</div>
         </ErrorBoundary>
       );
 
+      expect(resetSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText('New child')).toBeInTheDocument();
+    });
+
+    it('resetOnPropsChangeが無効な場合、子要素が変わってもリセットされない', () => {
+      const boundaryRef = createRef<ErrorBoundary>();
+      const { rerender } = render(
+        <ErrorBoundary ref={boundaryRef} resetOnPropsChange={false}>
+          <ThrowError shouldThrow={true} />
+        </ErrorBoundary>
+      );
+
+      expect(screen.getByText('エラーが発生しました')).toBeInTheDocument();
+      const resetSpy = vi.spyOn(boundaryRef.current!, 'resetErrorBoundary');
+
+      rerender(
+        <ErrorBoundary ref={boundaryRef} resetOnPropsChange={false}>
+          <div>New child</div>
+        </ErrorBoundary>
+      );
+
+      expect(resetSpy).not.toHaveBeenCalled();
+      expect(screen.getByText('エラーが発生しました')).toBeInTheDocument();
+      expect(screen.queryByText('New child')).not.toBeInTheDocument();
+    });
+
+    it('resetKeysが不足している場合、hasResetKeyChangedはfalseを返す', () => {
+      const boundaryRef = createRef<ErrorBoundary>();
+
+      render(
+        <ErrorBoundary ref={boundaryRef}>
+          <div>Child component</div>
+        </ErrorBoundary>
+      );
+
+      expect(boundaryRef.current?.hasResetKeyChanged(['key1'])).toBe(false);
+    });
+
+    it('resetTimeoutIdが設定されている状態でunmountするとclearTimeoutが呼ばれる', () => {
+      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+      const boundaryRef = createRef<ErrorBoundary>();
+      const { unmount } = render(
+        <ErrorBoundary ref={boundaryRef}>
+          <div>Child component</div>
+        </ErrorBoundary>
+      );
+      const timeoutId = window.setTimeout(() => undefined, 1000);
+
+      (boundaryRef.current as unknown as { resetTimeoutId: number | null }).resetTimeoutId = timeoutId;
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(timeoutId);
     });
   });
 
@@ -207,6 +268,53 @@ describe('ErrorBoundary', () => {
 
       expect(screen.getByText('エラーが頻発しています')).toBeInTheDocument();
       expect(screen.getByText('ページを再読み込み')).toBeInTheDocument();
+    });
+
+    it('ページ再読み込みボタンを押せる', () => {
+      const boundaryRef = createRef<ErrorBoundary>();
+
+      render(
+        <ErrorBoundary ref={boundaryRef}>
+          <div>Child component</div>
+        </ErrorBoundary>
+      );
+
+      act(() => {
+        boundaryRef.current?.setState({
+          hasError: true,
+          error: new Error('Too many errors'),
+          errorCount: 4,
+        });
+      });
+
+      expect(() => {
+        fireEvent.click(screen.getByText('ページを再読み込み'));
+      }).not.toThrow();
+    });
+  });
+
+  describe('追加のレンダリング分岐', () => {
+    it('isolateが有効な場合、デフォルトフォールバックにisolatedクラスが付く', () => {
+      render(
+        <ErrorBoundary isolate={true}>
+          <ThrowError shouldThrow={true} />
+        </ErrorBoundary>
+      );
+
+      expect(screen.getByRole('alert').parentElement).toHaveClass('isolated');
+    });
+
+    it('エラーメッセージが空文字の場合はUnknown errorをログ出力する', () => {
+      render(
+        <ErrorBoundary>
+          <ThrowError shouldThrow={true} message="" />
+        </ErrorBoundary>
+      );
+
+      expect(console.error).toHaveBeenCalledWith(
+        'ErrorBoundary caught an error:',
+        'Unknown error'
+      );
     });
   });
 
