@@ -14,16 +14,15 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 
 pub fn asset_balance_routes() -> Router<AppState> {
     Router::new()
-        .route("/asset-balances", get(list))
+        .route("/asset-balances", get(list).delete(delete_all))
         .route("/asset-balances/bulk", post(bulk_create))
         .route("/asset-balances/csv/preview", post(preview_csv))
-        .route("/asset-balances/all", delete(delete_all))
 }
 
 pub fn asset_balance_csv_upload_routes() -> Router<AppState> {
@@ -121,7 +120,7 @@ pub async fn upload_csv(
 /// 認証ユーザーの保有銘柄を全削除
 #[utoipa::path(
     delete,
-    path = "/asset-balances/all",
+    path = "/asset-balances",
     operation_id = "asset_balance_delete_all",
     responses(
         (status = 200, body = MessageResponse),

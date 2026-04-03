@@ -9,7 +9,7 @@ import { ApiError, ApiErrorType } from '../../lib/types/api';
  */
 export async function fetchStockData(query: string): Promise<StockData> {
   try {
-    const response = await apiClient.get<StockData>(`/stock/${query}`);
+    const response = await apiClient.get<StockData>(`/stocks/${query}`);
     return response;
   } catch (error) {
     if (error instanceof ApiError) {

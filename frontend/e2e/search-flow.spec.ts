@@ -22,7 +22,7 @@ const MOCK_STOCK = {
 const ROUTES = {
   authMe: /\/auth\/me$/,
   // API エンドポイントのみ一致させる（Vite のソースファイルパスと衝突しないよう末尾を限定）
-  stock: /\/stock\/\d+$/,
+  stock: /\/stocks\/\d+$/,
 };
 
 async function setupAuthMocks(page: Page) {

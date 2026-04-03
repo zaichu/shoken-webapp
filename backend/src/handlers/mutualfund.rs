@@ -13,15 +13,14 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 
 pub fn mutualfund_routes() -> Router<AppState> {
     Router::new()
-        .route("/mutualfunds", get(list))
+        .route("/mutualfunds", get(list).delete(delete_all))
         .route("/mutualfunds/csv/preview", post(preview_csv))
-        .route("/mutualfunds/all", delete(delete_all))
 }
 
 pub fn mutualfund_csv_upload_routes() -> Router<AppState> {
@@ -96,7 +95,7 @@ pub async fn upload_csv(
 /// 認証ユーザーの投資信託を全削除
 #[utoipa::path(
     delete,
-    path = "/mutualfunds/all",
+    path = "/mutualfunds",
     operation_id = "mutualfund_delete_all",
     responses(
         (status = 200, body = MessageResponse),

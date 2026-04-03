@@ -49,7 +49,7 @@ describe('assetBalanceApi', () => {
   it('deleteAll() は全件削除 API を呼ぶ', async () => {
     await assetBalanceApi.deleteAll();
 
-    expect(apiClient.delete).toHaveBeenCalledWith('/asset-balances/all', {
+    expect(apiClient.delete).toHaveBeenCalledWith('/asset-balances', {
       withCredentials: true,
     });
   });

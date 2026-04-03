@@ -46,9 +46,7 @@
             "cookieAuth": []
           }
         ]
-      }
-    },
-    "/asset-balances/all": {
+      },
       "delete": {
         "tags": [
           "handlers::asset_balance"
@@ -397,9 +395,7 @@
             "cookieAuth": []
           }
         ]
-      }
-    },
-    "/dividends/all": {
+      },
       "delete": {
         "tags": [
           "handlers::dividend"
@@ -625,9 +621,7 @@
             "cookieAuth": []
           }
         ]
-      }
-    },
-    "/domestic-stocks/all": {
+      },
       "delete": {
         "tags": [
           "handlers::domestic_stock"
@@ -907,9 +901,7 @@
             "cookieAuth": []
           }
         ]
-      }
-    },
-    "/mutualfunds/all": {
+      },
       "delete": {
         "tags": [
           "handlers::mutualfund"
@@ -1057,7 +1049,7 @@
         ]
       }
     },
-    "/stock": {
+    "/stocks": {
       "post": {
         "tags": [
           "handlers::stock"
@@ -1113,7 +1105,7 @@
         ]
       }
     },
-    "/stock/{query}": {
+    "/stocks/{query}": {
       "get": {
         "tags": [
           "handlers::stock"

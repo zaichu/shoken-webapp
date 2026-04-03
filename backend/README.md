@@ -33,22 +33,22 @@
 
 | メソッド | パス | 説明 | 認証 |
 |---------|------|------|------|
-| GET | `/stock/{query}` | 株式情報を検索 | 不要 |
-| POST | `/stock` | 株式情報を追加 | **必須** |
+| GET | `/stocks/{query}` | 株式情報を検索 | 不要 |
+| POST | `/stocks` | 株式情報を追加 | **必須** |
 
 ### データ管理（すべて認証必須）
 
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | `/dividends` | 配当金一覧を取得 |
-| DELETE | `/dividends/all` | 配当金を全削除 |
+| DELETE | `/dividends` | 配当金を全削除 |
 | GET | `/domestic-stocks` | 国内株式一覧を取得 |
-| DELETE | `/domestic-stocks/all` | 国内株式を全削除 |
+| DELETE | `/domestic-stocks` | 国内株式を全削除 |
 | GET | `/mutualfunds` | 投資信託一覧を取得 |
-| DELETE | `/mutualfunds/all` | 投資信託を全削除 |
+| DELETE | `/mutualfunds` | 投資信託を全削除 |
 | GET | `/asset-balances` | 保有銘柄一覧を取得 |
 | POST | `/asset-balances/bulk` | 保有銘柄を一括登録（全削除→再挿入） |
-| DELETE | `/asset-balances/all` | 保有銘柄を全削除 |
+| DELETE | `/asset-balances` | 保有銘柄を全削除 |
 
 ### J-Quants API
 

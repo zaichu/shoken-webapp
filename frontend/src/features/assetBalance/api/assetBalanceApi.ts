@@ -11,5 +11,5 @@ export const assetBalanceApi = {
   uploadCsv: (file: File) => uploadCsvFile('/asset-balances/csv', file),
 
   deleteAll: async () =>
-    apiClient.delete('/asset-balances/all', { withCredentials: true }),
+    apiClient.delete('/asset-balances', { withCredentials: true }),
 };

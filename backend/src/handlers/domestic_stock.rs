@@ -13,15 +13,14 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 
 pub fn domestic_stock_routes() -> Router<AppState> {
     Router::new()
-        .route("/domestic-stocks", get(list))
+        .route("/domestic-stocks", get(list).delete(delete_all))
         .route("/domestic-stocks/csv/preview", post(preview_csv))
-        .route("/domestic-stocks/all", delete(delete_all))
 }
 
 pub fn domestic_stock_csv_upload_routes() -> Router<AppState> {
@@ -96,7 +95,7 @@ pub async fn upload_csv(
 /// 認証ユーザーの国内株式取引を全削除
 #[utoipa::path(
     delete,
-    path = "/domestic-stocks/all",
+    path = "/domestic-stocks",
     operation_id = "domestic_stock_delete_all",
     responses(
         (status = 200, body = MessageResponse),
