@@ -74,7 +74,10 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'src/test/'],
       thresholds: {
-        lines: 70,
+        lines: 97,
+        statements: 97,
+        functions: 97,
+        branches: 90,
       },
     },
     pool: 'forks',

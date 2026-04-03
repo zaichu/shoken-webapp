@@ -22,11 +22,10 @@ use crate::{
 /// リクエストボディの上限サイズ（10MB）
 const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
-pub fn app_router(state: AppState, config: &Config) -> Router {
-    // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
-    let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
-    let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
-    if let Some(ref limiter) = auth_limiter {
+fn spawn_keyed_limiter_cleanup(
+    limiter: &Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+) {
+    if let Some(limiter) = limiter {
         let limiter = limiter.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
@@ -36,9 +35,18 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
             }
         });
     }
+}
+
+pub fn app_router(state: AppState, config: &Config) -> Router {
+    // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
+    let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
+    let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
+    let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
+    spawn_keyed_limiter_cleanup(&auth_limiter);
+    spawn_keyed_limiter_cleanup(&csv_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
-    domain_routes(jquants_limiter, auth_limiter)
+    domain_routes(jquants_limiter, auth_limiter, csv_limiter)
         .merge(
             Router::new()
                 .route("/health", get(|| async { "OK" }))
@@ -68,6 +76,7 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
 fn domain_routes(
     jquants_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
     auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+    csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
     let jquants_routes = if let Some(l) = jquants_limiter {
         handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| {
@@ -85,12 +94,21 @@ fn domain_routes(
     } else {
         handlers::auth::auth_routes()
     };
+    let csv_upload_routes = if let Some(l) = csv_limiter {
+        csv_upload_routes().layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
+    } else {
+        csv_upload_routes()
+    };
 
     Router::new()
         .merge(handlers::auth::stock_routes())
         .merge(jquants_routes)
         .merge(handlers::dividend_per_share::dividend_per_share_routes())
         .merge(auth_routes)
+        .merge(csv_upload_routes)
         .merge(handlers::dividend::dividend_routes())
         .merge(handlers::domestic_stock::domestic_stock_routes())
         .merge(handlers::mutualfund::mutualfund_routes())
@@ -98,9 +116,18 @@ fn domain_routes(
         .merge(handlers::csv_import::csv_import_routes())
 }
 
+fn csv_upload_routes() -> Router<AppState> {
+    Router::new()
+        .merge(handlers::dividend::dividend_csv_upload_routes())
+        .merge(handlers::domestic_stock::domestic_stock_csv_upload_routes())
+        .merge(handlers::mutualfund::mutualfund_csv_upload_routes())
+        .merge(handlers::asset_balance::asset_balance_csv_upload_routes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_env::{EnvGuard, ENV_MUTEX};
     use std::sync::Arc;
 
     fn make_test_state() -> AppState {
@@ -253,6 +280,58 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    /// CSV upload ルートだけが IP 単位レート制限の対象になることを確認
+    #[tokio::test]
+    async fn test_csv_upload_routes_rate_limit_returns_429() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let _lock = ENV_MUTEX.lock().await;
+        let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
+
+        for (path, ip) in [
+            ("/domestic-stocks/csv", "1.2.3.4"),
+            ("/dividends/csv", "1.2.3.5"),
+            ("/mutualfunds/csv", "1.2.3.6"),
+            ("/asset-balances/csv", "1.2.3.7"),
+        ] {
+            let state = make_test_state();
+            let config = Config::from_env();
+            let router = app_router(state, &config);
+
+            let req = Request::builder()
+                .method(axum::http::Method::POST)
+                .uri(path)
+                .header("fly-client-ip", ip)
+                .body(Body::empty())
+                .unwrap();
+            let resp = router.clone().oneshot(req).await.unwrap();
+            assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+
+            let req = Request::builder()
+                .method(axum::http::Method::POST)
+                .uri(path)
+                .header("fly-client-ip", ip)
+                .body(Body::empty())
+                .unwrap();
+            let resp = router.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+        }
+
+        let state = make_test_state();
+        let config = Config::from_env();
+        let router = app_router(state, &config);
+
+        let req = Request::builder()
+            .method(axum::http::Method::POST)
+            .uri("/domestic-stocks/csv/preview")
+            .header("fly-client-ip", "1.2.3.4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
     /// x-request-id がレスポンスに伝播されることを確認
