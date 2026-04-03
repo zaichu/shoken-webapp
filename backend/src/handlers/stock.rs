@@ -9,8 +9,15 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    routing::{get, post},
+    Json, Router,
 };
+
+pub fn stock_routes() -> Router<AppState> {
+    Router::new()
+        .route("/stock", post(create_stock))
+        .route("/stock/{query}", get(search_stock))
+}
 
 /// 銘柄情報を検索（コードまたは名前）
 #[utoipa::path(
@@ -25,7 +32,7 @@ use axum::{
         (status = 404, body = ErrorResponse),
     ),
 )]
-pub async fn select_stock_info(
+pub async fn search_stock(
     Path(search_query): Path<String>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -46,7 +53,7 @@ pub async fn select_stock_info(
     ),
     security(("cookieAuth" = []))
 )]
-pub async fn add_stock_info(
+pub async fn create_stock(
     State(state): State<AppState>,
     _auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<Stock>,

@@ -93,14 +93,14 @@ fn setup_test_app(pool: Pool<Postgres>) -> Router {
     };
 
     Router::new()
-        .route("/stock/{search_query}", get(select_stock_info))
-        .route("/stock", post(add_stock_info))
+        .route("/stock/{search_query}", get(search_stock))
+        .route("/stock", post(create_stock))
         .with_state(app_state)
 }
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn test_select_stock_info() {
+async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool);
 
@@ -160,7 +160,7 @@ async fn test_select_stock_info() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn test_add_stock_info() {
+async fn test_create_stock() {
     let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool.clone());
 
@@ -232,7 +232,7 @@ async fn test_add_stock_info() {
 /// 未認証時に POST /stock が 401 を返すことを確認
 /// セッション検証はハンドラー入口で実行され DB クエリは発生しないため DB 不要
 #[tokio::test]
-async fn test_add_stock_info_unauthorized() {
+async fn test_create_stock_unauthorized() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
     let app = setup_test_app(pool);
