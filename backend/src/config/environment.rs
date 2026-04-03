@@ -40,3 +40,11 @@ pub fn is_secure_cookie() -> bool {
         .map(|url| url.starts_with("https://"))
         .unwrap_or(false)
 }
+
+/// CSV アップロード系ルートへのレート制限（リクエスト/秒）。0 は無制限
+pub fn csv_rate_limit_rps() -> u32 {
+    env::var("CSV_RATE_LIMIT_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2)
+}
