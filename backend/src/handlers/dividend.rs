@@ -13,15 +13,14 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 
 pub fn dividend_routes() -> Router<AppState> {
     Router::new()
-        .route("/dividends", get(list))
+        .route("/dividends", get(list).delete(delete_all))
         .route("/dividends/csv/preview", post(preview_csv))
-        .route("/dividends/all", delete(delete_all))
 }
 
 pub fn dividend_csv_upload_routes() -> Router<AppState> {
@@ -96,7 +95,7 @@ pub async fn upload_csv(
 /// 認証ユーザーの配当金を全削除
 #[utoipa::path(
     delete,
-    path = "/dividends/all",
+    path = "/dividends",
     operation_id = "dividend_delete_all",
     responses(
         (status = 200, body = MessageResponse),

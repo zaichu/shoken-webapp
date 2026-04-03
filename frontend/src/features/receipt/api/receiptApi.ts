@@ -14,7 +14,7 @@ export const dividendApi = {
   uploadCsv: (file: File) => uploadCsvFile('/dividends/csv', file),
 
   deleteAll: async () =>
-    apiClient.delete('/dividends/all', { withCredentials: true }),
+    apiClient.delete('/dividends', { withCredentials: true }),
 };
 
 // 国内株式API
@@ -27,7 +27,7 @@ export const domesticStockApi = {
   uploadCsv: (file: File) => uploadCsvFile('/domestic-stocks/csv', file),
 
   deleteAll: async () =>
-    apiClient.delete('/domestic-stocks/all', { withCredentials: true }),
+    apiClient.delete('/domestic-stocks', { withCredentials: true }),
 };
 
 // 投資信託API
@@ -40,5 +40,5 @@ export const mutualfundApi = {
   uploadCsv: (file: File) => uploadCsvFile('/mutualfunds/csv', file),
 
   deleteAll: async () =>
-    apiClient.delete('/mutualfunds/all', { withCredentials: true }),
+    apiClient.delete('/mutualfunds', { withCredentials: true }),
 };

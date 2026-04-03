@@ -15,22 +15,6 @@ export interface paths {
         get: operations["asset_balance_list"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/asset-balances/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
         /** 認証ユーザーの保有銘柄を全削除 */
         delete: operations["asset_balance_delete_all"];
         options?: never;
@@ -154,22 +138,6 @@ export interface paths {
         get: operations["dividend_list"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dividends/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
         /** 認証ユーザーの配当金を全削除 */
         delete: operations["dividend_delete_all"];
         options?: never;
@@ -237,22 +205,6 @@ export interface paths {
         };
         /** 認証ユーザーの国内株式取引一覧を取得 */
         get: operations["domestic_stock_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/domestic-stocks/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         put?: never;
         post?: never;
         /** 認証ユーザーの国内株式取引を全削除 */
@@ -324,22 +276,6 @@ export interface paths {
         get: operations["mutualfund_list"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/mutualfunds/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
         /** 認証ユーザーの投資信託を全削除 */
         delete: operations["mutualfund_delete_all"];
         options?: never;
@@ -381,7 +317,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/stock": {
+    "/stocks": {
         parameters: {
             query?: never;
             header?: never;
@@ -398,7 +334,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/stock/{query}": {
+    "/stocks/{query}": {
         parameters: {
             query?: never;
             header?: never;

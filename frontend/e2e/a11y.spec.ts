@@ -18,7 +18,7 @@ const ROUTES = {
   domesticStocks: /\/domestic-stocks$/,
   mutualfunds: /\/mutualfunds$/,
   assetBalances: /\/asset-balances$/,
-  stock: /\/stock\/[^/]+$/,
+  stock: /\/stocks\/[^/]+$/,
 };
 
 async function setupAuthMocks(page: import('@playwright/test').Page) {

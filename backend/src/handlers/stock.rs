@@ -15,14 +15,14 @@ use axum::{
 
 pub fn stock_routes() -> Router<AppState> {
     Router::new()
-        .route("/stock", post(create_stock))
-        .route("/stock/{query}", get(search_stock))
+        .route("/stocks", post(create_stock))
+        .route("/stocks/{query}", get(search_stock))
 }
 
 /// 銘柄情報を検索（コードまたは名前）
 #[utoipa::path(
     get,
-    path = "/stock/{query}",
+    path = "/stocks/{query}",
     operation_id = "stock_search",
     params(
         ("query" = String, Path, description = "銘柄コードまたは銘柄名")
@@ -43,7 +43,7 @@ pub async fn search_stock(
 /// 銘柄情報を追加（認証必須）
 #[utoipa::path(
     post,
-    path = "/stock",
+    path = "/stocks",
     operation_id = "stock_create",
     request_body = Stock,
     responses(

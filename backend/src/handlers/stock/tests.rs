@@ -93,8 +93,8 @@ fn setup_test_app(pool: Pool<Postgres>) -> Router {
     };
 
     Router::new()
-        .route("/stock/{search_query}", get(search_stock))
-        .route("/stock", post(create_stock))
+        .route("/stocks/{search_query}", get(search_stock))
+        .route("/stocks", post(create_stock))
         .with_state(app_state)
 }
 
@@ -109,7 +109,7 @@ async fn test_search_stock() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/stock/1234")
+                .uri("/stocks/1234")
                 .method("GET")
                 .body(Body::empty())
                 .unwrap(),
@@ -132,7 +132,7 @@ async fn test_search_stock() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/stock/テスト")
+                .uri("/stocks/テスト")
                 .method("GET")
                 .body(Body::empty())
                 .unwrap(),
@@ -147,7 +147,7 @@ async fn test_search_stock() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/stock/9999")
+                .uri("/stocks/9999")
                 .method("GET")
                 .body(Body::empty())
                 .unwrap(),
@@ -181,7 +181,7 @@ async fn test_create_stock() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/stock")
+                .uri("/stocks")
                 .method("POST")
                 .header("content-type", "application/json")
                 .body(Body::from(stock_data.to_string()))
@@ -217,7 +217,7 @@ async fn test_create_stock() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/stock")
+                .uri("/stocks")
                 .method("POST")
                 .header("content-type", "application/json")
                 .body(Body::from(invalid_data.to_string()))
@@ -229,7 +229,7 @@ async fn test_create_stock() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
-/// 未認証時に POST /stock が 401 を返すことを確認
+/// 未認証時に POST /stocks が 401 を返すことを確認
 /// セッション検証はハンドラー入口で実行され DB クエリは発生しないため DB 不要
 #[tokio::test]
 async fn test_create_stock_unauthorized() {
@@ -254,7 +254,7 @@ async fn test_create_stock_unauthorized() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/stock")
+                .uri("/stocks")
                 .method("POST")
                 .header("content-type", "application/json")
                 .body(Body::from(stock_data.to_string()))
