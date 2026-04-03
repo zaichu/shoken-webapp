@@ -17,7 +17,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 
-// rechartsを含むコンポーネントを遅延読み込み（バンドルサイズ最適化）
+// PortfolioPieChartコンポーネントを遅延読み込み（バンドルサイズ最適化）
 const AssetPortfolioSummary = lazy(() =>
   import('@/components/organisms/AssetPortfolioSummary').then(module => ({
     default: module.AssetPortfolioSummary
