@@ -296,17 +296,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/jquants/fins/statements": {
+    "/jquants/fins/summary": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * 決算サマリーを取得（J-Quants API V2）
-         *     V2では fins/statements → fins/summary に変更
-         */
+        /** 決算サマリーを取得（J-Quants API V2） */
         get: operations["jquants_fin_summary"];
         put?: never;
         post?: never;

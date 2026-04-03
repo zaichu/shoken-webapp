@@ -42,7 +42,7 @@ export const useJQuantsDividendBatch = (
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fetchOneCode = async (code: string) => {
-      const response = await jquantsApiClient.getStatements(code);
+      const response = await jquantsApiClient.getSummary(code);
       if (!response?.data || !Array.isArray(response.data)) return { code, value: null };
 
       // 開示日で降順ソート（最新データを優先）

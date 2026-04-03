@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { jquantsApiClient } from '../api/client';
-import { JQuantsStatementData } from '../api/types';
+import { JQuantsFinSummaryResponse, JQuantsStatementData } from '../api/types';
 import { parseNumber } from '@/lib/utils/formatters';
 
 /**
@@ -50,7 +50,8 @@ export const useJQuantsDividend = (
 
       try {
         // V2 API では data フィールドを使用
-        const response = await jquantsApiClient.getStatements(securityCode);
+        const response: JQuantsFinSummaryResponse =
+          await jquantsApiClient.getSummary(securityCode);
         if (!isActive) return;
 
         // レスポンスの data フィールドが配列でない場合はスキップ
