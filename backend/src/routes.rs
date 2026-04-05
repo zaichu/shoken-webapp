@@ -127,8 +127,10 @@ fn csv_upload_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{body::Body, http::Request};
     use crate::test_env::{EnvGuard, ENV_MUTEX};
     use std::sync::Arc;
+    use tower::ServiceExt;
 
     fn make_test_state() -> AppState {
         let database_url = "postgresql://user:password@localhost/test_db";
@@ -186,9 +188,6 @@ mod tests {
     /// auth ルートが rps=1 制限を超えると 429 を返すことを確認
     #[tokio::test]
     async fn test_auth_routes_rate_limit_returns_429() {
-        use axum::{body::Body, http::Request};
-        use tower::ServiceExt;
-
         let limiter = crate::middleware::build_keyed_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
@@ -225,9 +224,6 @@ mod tests {
     /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
     #[tokio::test]
     async fn test_jquants_routes_rate_limit_returns_429() {
-        use axum::{body::Body, http::Request};
-        use tower::ServiceExt;
-
         let limiter = crate::middleware::build_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
@@ -261,9 +257,6 @@ mod tests {
 
     /// セッション Cookie なしでルーターにリクエストを送り、401 が返ることを検証するヘルパー
     async fn check_unauthorized(router: axum::Router, method: axum::http::Method, uri: &str) {
-        use axum::body::Body;
-        use axum::http::Request;
-        use tower::ServiceExt;
         let response = router
             .oneshot(
                 Request::builder()
@@ -431,9 +424,6 @@ mod tests {
     /// CSV upload ルートだけが IP 単位レート制限の対象になることを確認
     #[tokio::test]
     async fn test_csv_upload_routes_rate_limit_returns_429() {
-        use axum::{body::Body, http::Request};
-        use tower::ServiceExt;
-
         let _lock = ENV_MUTEX.lock().await;
         let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
 
@@ -483,8 +473,7 @@ mod tests {
     /// x-request-id がレスポンスに伝播されることを確認
     #[tokio::test]
     async fn test_request_id_propagated_to_response() {
-        use axum::{body::Body, http::Request, routing::get, Router};
-        use tower::ServiceExt;
+        use axum::{routing::get, Router};
         use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 
         let router: Router = Router::new()
