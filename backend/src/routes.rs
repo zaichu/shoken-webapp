@@ -282,6 +282,118 @@ mod tests {
         assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
     }
 
+    /// 未認証時に DELETE /dividends が 401 を返すことを確認
+    #[tokio::test]
+    async fn test_dividend_delete_all_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app = handlers::dividend::dividend_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::DELETE)
+                    .uri("/dividends")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    /// 未認証時に DELETE /domestic-stocks が 401 を返すことを確認
+    #[tokio::test]
+    async fn test_domestic_stock_delete_all_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app = handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::DELETE)
+                    .uri("/domestic-stocks")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    /// 未認証時に DELETE /mutualfunds が 401 を返すことを確認
+    #[tokio::test]
+    async fn test_mutualfund_delete_all_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app = handlers::mutualfund::mutualfund_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::DELETE)
+                    .uri("/mutualfunds")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    /// 未認証時に DELETE /asset-balances が 401 を返すことを確認
+    #[tokio::test]
+    async fn test_asset_balance_delete_all_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app = handlers::asset_balance::asset_balance_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::DELETE)
+                    .uri("/asset-balances")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    /// 未認証時に POST /dividends/per-share/batch が 401 を返すことを確認
+    #[tokio::test]
+    async fn test_dividend_per_share_batch_unauthorized() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let app =
+            handlers::dividend_per_share::dividend_per_share_routes().with_state(make_test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(axum::http::Method::POST)
+                    .uri("/dividends/per-share/batch")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"security_codes":["7203"]}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
     /// CSV upload ルートだけが IP 単位レート制限の対象になることを確認
     #[tokio::test]
     async fn test_csv_upload_routes_rate_limit_returns_429() {

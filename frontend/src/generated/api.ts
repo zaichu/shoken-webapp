@@ -188,7 +188,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 配当利回り一括取得（認証不要） */
+        /** 配当利回り一括取得 */
         post: operations["dividend_per_share_batch"];
         delete?: never;
         options?: never;
@@ -1229,6 +1229,14 @@ export interface operations {
                 };
             };
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
