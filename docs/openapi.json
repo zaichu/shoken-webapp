@@ -548,7 +548,7 @@
         "tags": [
           "handlers::dividend_per_share"
         ],
-        "summary": "配当利回り一括取得（認証不要）",
+        "summary": "配当利回り一括取得",
         "operationId": "dividend_per_share_batch",
         "requestBody": {
           "content": {
@@ -580,8 +580,23 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/domestic-stocks": {
