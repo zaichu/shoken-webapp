@@ -10,10 +10,10 @@ export default defineConfig({
   plugins: [
     react({
       babel: {
-        plugins: [
-          // Vitest / Playwright 実行時は React Compiler を無効化（dev/prod のみ有効）
-          ...(process.env.VITEST || process.env.PLAYWRIGHT_TEST ? [] : [['babel-plugin-react-compiler', {}] as const]),
-        ],
+        // Vitest / Playwright 実行時は React Compiler を無効化（dev/prod のみ有効）
+        plugins: process.env.VITEST || process.env.PLAYWRIGHT_TEST
+          ? []
+          : [['babel-plugin-react-compiler', {}] as const],
       },
     }),
     tailwindcss(),
