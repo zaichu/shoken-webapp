@@ -101,7 +101,7 @@ class ApiClient {
     const onExternalAbort = () => controller.abort(externalSignal?.reason);
     externalSignal?.addEventListener('abort', onExternalAbort);
 
-    const headers: Record<string, string> = { ...this.defaultHeaders, ...(config.headers ?? {}) };
+    const headers: Record<string, string> = { ...this.defaultHeaders, ...config.headers };
     let body: BodyInit | undefined;
 
     if (data instanceof FormData) {
