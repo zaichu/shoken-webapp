@@ -16,3 +16,4 @@ iteration	commit	metric	status	description
 14	1dba202	8216	kept	routes: unauthorized テスト一括統合で 56 行削減
 15	1f6c6b8	8207	kept	auth/jquants: テスト統合で 9 行削減
 16	117a16d	8204	kept	config: テスト統合で 3 行削減
+17	478483e	8289	kept	shared/dividend_cache: BulkTimer/compute_is_stale テスト統合で 23 行削減
