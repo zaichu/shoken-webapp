@@ -161,33 +161,21 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_number_normal() {
+    fn test_parse_utilities() {
         assert_eq!(parse_number("1,234").unwrap(), dec!(1234));
         assert_eq!(parse_number("500").unwrap(), dec!(500));
         assert_eq!(parse_number("(500)").unwrap(), dec!(-500));
         assert_eq!(parse_number("").unwrap(), Decimal::ZERO);
         // ハイフン単独は「値なし」として 0
         assert_eq!(parse_number("-").unwrap(), Decimal::ZERO);
-    }
-
-    #[test]
-    fn test_parse_optional_string() {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let mut header_map = HashMap::new();
         header_map.insert("empty".to_string(), 0);
         header_map.insert("filled".to_string(), 1);
-
         assert_eq!(parse_optional_string(&record, &header_map, "empty"), "");
-        assert_eq!(
-            parse_optional_string(&record, &header_map, "filled"),
-            "value"
-        );
+        assert_eq!(parse_optional_string(&record, &header_map, "filled"), "value");
         // 存在しない列は空文字
         assert_eq!(parse_optional_string(&record, &header_map, "missing"), "");
-    }
-
-    #[test]
-    fn test_parse_date() {
         assert_eq!(
             parse_date("2024/01/15").unwrap(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
@@ -224,22 +212,16 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_required_string_empty() {
+    fn test_parse_required() {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let mut header_map = HashMap::new();
         header_map.insert("col_a".to_string(), 0);
         header_map.insert("col_b".to_string(), 1);
-
         let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
         assert_eq!(err.row, 3);
         assert!(err.message.contains("col_a"));
-
         let ok = parse_required_string(&record, &header_map, "col_b", 1).unwrap();
         assert_eq!(ok, "value");
-    }
-
-    #[test]
-    fn test_parse_required_invalid() {
         let record = csv::StringRecord::from(vec!["abc", "1,234"]);
         let mut hm = HashMap::new();
         hm.insert("bad".to_string(), 0);
