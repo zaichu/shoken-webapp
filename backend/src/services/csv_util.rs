@@ -160,43 +160,48 @@ mod tests {
         println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0);
     }
 
+    fn make_header_map(cols: &[&str]) -> HashMap<String, usize> {
+        cols.iter()
+            .enumerate()
+            .map(|(i, col)| ((*col).to_string(), i))
+            .collect()
+    }
+
     #[test]
     fn test_parse_utilities() {
-        assert_eq!(parse_number("1,234").unwrap(), dec!(1234));
-        assert_eq!(parse_number("500").unwrap(), dec!(500));
-        assert_eq!(parse_number("(500)").unwrap(), dec!(-500));
-        assert_eq!(parse_number("").unwrap(), Decimal::ZERO);
-        // ハイフン単独は「値なし」として 0
-        assert_eq!(parse_number("-").unwrap(), Decimal::ZERO);
+        for (input, expected) in [
+            ("1,234", dec!(1234)),
+            ("500", dec!(500)),
+            ("(500)", dec!(-500)),
+            ("", Decimal::ZERO),
+            // ハイフン単独は「値なし」として 0
+            ("-", Decimal::ZERO),
+        ] {
+            assert_eq!(parse_number(input).unwrap(), expected);
+        }
+
         let record = csv::StringRecord::from(vec!["", "value"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("empty".to_string(), 0);
-        header_map.insert("filled".to_string(), 1);
-        assert_eq!(parse_optional_string(&record, &header_map, "empty"), "");
-        assert_eq!(parse_optional_string(&record, &header_map, "filled"), "value");
-        // 存在しない列は空文字
-        assert_eq!(parse_optional_string(&record, &header_map, "missing"), "");
-        assert_eq!(
-            parse_date("2024/01/15").unwrap(),
-            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
-        );
-        assert_eq!(
-            parse_date("2024-01-15").unwrap(),
-            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
-        );
+        let header_map = make_header_map(&["empty", "filled"]);
+        for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] {
+            assert_eq!(parse_optional_string(&record, &header_map, col), expected);
+        }
+
+        let expected_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        for input in ["2024/01/15", "2024-01-15"] {
+            assert_eq!(parse_date(input).unwrap(), expected_date);
+        }
     }
 
     #[test]
     fn test_compute_taxes() {
-        let (taxes, after) = compute_taxes("特定", dec!(10000));
-        assert_eq!(taxes, dec!(2031)); // floor(10000 * 0.20315)
-        assert_eq!(after, dec!(7969));
-        let (taxes, after) = compute_taxes("特定", dec!(-5000));
-        assert_eq!(taxes, Decimal::ZERO);
-        assert_eq!(after, dec!(-5000));
-        let (taxes, after) = compute_taxes("NISA", dec!(10000));
-        assert_eq!(taxes, Decimal::ZERO);
-        assert_eq!(after, dec!(10000));
+        for (account, realized_pnl, expected_taxes, expected_after) in [
+            ("特定", dec!(10000), dec!(2031), dec!(7969)), // floor(10000 * 0.20315)
+            ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)),
+            ("NISA", dec!(10000), Decimal::ZERO, dec!(10000)),
+        ] {
+            let (taxes, after) = compute_taxes(account, realized_pnl);
+            assert_eq!((taxes, after), (expected_taxes, expected_after));
+        }
     }
 
     #[test]
@@ -212,30 +217,53 @@ mod tests {
     }
 
     #[test]
+    fn test_get_cell() {
+        let record = csv::StringRecord::from(vec!["value"]);
+        let header_map = make_header_map(&["present"]);
+        assert_eq!(get_cell(&record, &header_map, "present"), "value");
+        assert_eq!(get_cell(&record, &header_map, "missing"), "");
+    }
+
+    #[test]
     fn test_parse_required() {
         let record = csv::StringRecord::from(vec!["", "value"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("col_a".to_string(), 0);
-        header_map.insert("col_b".to_string(), 1);
+        let header_map = make_header_map(&["col_a", "col_b"]);
         let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
         assert_eq!(err.row, 3);
         assert!(err.message.contains("col_a"));
         let ok = parse_required_string(&record, &header_map, "col_b", 1).unwrap();
         assert_eq!(ok, "value");
-        let record = csv::StringRecord::from(vec!["abc", "1,234"]);
-        let mut hm = HashMap::new();
-        hm.insert("bad".to_string(), 0);
-        hm.insert("good".to_string(), 1);
-        assert_eq!(parse_required_number(&record, &hm, "bad", 5).unwrap_err().row, 5);
-        assert_eq!(parse_required_number(&record, &hm, "good", 1).unwrap(), dec!(1234));
 
-        let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01"]);
-        let mut hm = HashMap::new();
-        hm.insert("bad".to_string(), 0);
-        hm.insert("good".to_string(), 1);
-        assert_eq!(parse_required_date(&record, &hm, "bad", 2).unwrap_err().row, 2);
-        let ok = parse_required_date(&record, &hm, "good", 1).unwrap();
+        let record = csv::StringRecord::from(vec!["abc", "1,234", ""]);
+        let hm = make_header_map(&["invalid", "valid", "empty"]);
+        assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5);
+        assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234));
+        let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
+        assert_eq!(err.row, 7);
+        assert!(err.message.contains("empty"));
+
+        let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]);
+        let hm = make_header_map(&["invalid", "valid", "out_of_range"]);
+        assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
+        let ok = parse_required_date(&record, &hm, "valid", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
+        let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
+        assert_eq!(err.row, 9);
+        assert!(err.message.contains("out_of_range"));
+    }
+
+    #[test]
+    fn test_normalize_security_name() {
+        for (input, expected) in [
+            ("K D D I", "KDDI"),
+            ("I N P E X", "INPEX"),
+            ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"),
+            ("任天堂", "任天堂"),
+            ("  KDDI  ", "KDDI"),
+            ("", ""),
+        ] {
+            assert_eq!(normalize_security_name(input), expected);
+        }
     }
 
     /// CSV パース処理の所要時間を計測するタイミングテスト。
@@ -276,35 +304,5 @@ mod tests {
         time_n("parse_date", 10_000, || {
             for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); }
         });
-    }
-
-    #[test]
-    fn test_normalize_security_name() {
-        assert_eq!(normalize_security_name("K D D I"), "KDDI");
-        assert_eq!(normalize_security_name("I N P E X"), "INPEX");
-        assert_eq!(
-            normalize_security_name("eMAXIS Slim 全世界株式"),
-            "eMAXIS Slim 全世界株式"
-        );
-        assert_eq!(normalize_security_name("任天堂"), "任天堂");
-        assert_eq!(normalize_security_name("  KDDI  "), "KDDI");
-        assert_eq!(normalize_security_name(""), "");
-    }
-
-    #[test]
-    fn test_parse_required_empty_or_invalid_is_error() {
-        let record = csv::StringRecord::from(vec![""]);
-        let mut hm = HashMap::new();
-        hm.insert("required".to_string(), 0);
-        let err = parse_required_number(&record, &hm, "required", 7).unwrap_err();
-        assert_eq!(err.row, 7);
-        assert!(err.message.contains("required"));
-
-        let record = csv::StringRecord::from(vec!["2024/13/40"]);
-        let mut hm = HashMap::new();
-        hm.insert("date".to_string(), 0);
-        let err = parse_required_date(&record, &hm, "date", 9).unwrap_err();
-        assert_eq!(err.row, 9);
-        assert!(err.message.contains("date"));
     }
 }
