@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_default() {
+    fn test_config_creation() {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
         assert_eq!(config.csv_rate_limit_rps, 2);
@@ -130,10 +130,7 @@ mod tests {
             .cors_origins
             .contains(&"http://localhost:8080".to_string()));
         let _cors_layer = build_cors_layer(&config.cors_origins);
-    }
 
-    #[test]
-    fn test_custom_config() {
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
