@@ -221,34 +221,42 @@ mod tests {
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
-    #[test]
-    fn test_preview_csv_basic() {
-        let csv = [
-            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
-        ]
-        .join("\n");
+    const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
+    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
+    const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
+    const MISSING_NAME_HEADER: &str = "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
+    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
+    const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
 
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+    fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse {
+        preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
+    }
 
-        assert_eq!(preview.total_rows, 1);
-        assert_eq!(preview.valid_rows, 1);
-        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
-        assert_eq!(preview.rows.len(), 1);
-        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
+    fn assert_preview_ok(row: &str) -> CsvPreviewResponse {
+        let preview = preview_with_header(HEADER, row);
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (1, 1, 1));
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
+        preview
+    }
+
+    fn assert_preview_error(header: &str, row: &str, expected_message: &str) {
+        let preview = preview_with_header(header, row);
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.len()), (1, 0, 1));
+        assert!(preview.errors[0].message.contains(expected_message));
     }
 
     #[test]
-    fn test_preview_csv_normalizes_name_and_keeps_nisa_profit_untaxed() {
-        let csv = [
-            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-            "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"",
-        ]
-        .join("\n");
+    fn test_preview_csv_valid_rows() {
+        assert_eq!(
+            assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
+            "ＥＮＥＯＳホールディングス"
+        );
 
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        assert_eq!(preview.valid_rows, 1);
+        let preview = assert_preview_ok(NISA_ROW);
         assert_eq!(preview.rows[0]["security_name"], "KDDI");
         assert_eq!(preview.rows[0]["taxes"], 0.0);
         assert_eq!(
@@ -259,28 +267,17 @@ mod tests {
 
     #[test]
     fn test_preview_csv_row_errors() {
-        let cases = [
-            (
-                "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-                "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
-                "銘柄名",
-            ),
-            (
-                "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-                "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"",
-                "実現損益[円]",
-            ),
-        ];
-
-        for (header, row, expected_message) in cases {
-            let csv = [header, row].join("\n");
-            let preview = preview_csv(csv.as_bytes()).unwrap();
-
-            assert_eq!(preview.total_rows, 1);
-            assert_eq!(preview.valid_rows, 0);
-            assert_eq!(preview.errors.len(), 1);
-            assert!(preview.errors[0].message.contains(expected_message));
+        for (header, row, expected_message) in [
+            (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
+            (HEADER, INVALID_PNL_ROW, "実現損益[円]"),
+        ] {
+            assert_preview_error(header, row, expected_message);
         }
+    }
+
+    #[test]
+    fn test_preview_csv_empty() {
+        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
 
     fn make_test_item() -> CreateDomesticStockRequest {
