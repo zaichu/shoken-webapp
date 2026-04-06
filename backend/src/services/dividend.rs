@@ -176,22 +176,6 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_missing_column() {
-        let csv = [
-            "入金日,商品,口座,銘柄コード,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
-            "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
-        ]
-        .join("\n");
-
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        assert_eq!(preview.total_rows, 1);
-        assert_eq!(preview.valid_rows, 0);
-        assert_eq!(preview.errors.len(), 1);
-        assert!(preview.errors[0].message.contains("銘柄"));
-    }
-
-    #[test]
     fn test_preview_csv_empty() {
         assert!(matches!(
             preview_csv(b""),
@@ -215,18 +199,28 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_invalid_date_is_row_error() {
-        let csv = [
-            "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
-            "\"2025/13/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"",
-        ]
-        .join("\n");
+    fn test_preview_csv_row_errors() {
+        let cases = [
+            (
+                "入金日,商品,口座,銘柄コード,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
+                "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
+                "銘柄",
+            ),
+            (
+                "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
+                "\"2025/13/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"",
+                "入金日",
+            ),
+        ];
 
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+        for (header, row, expected_message) in cases {
+            let csv = [header, row].join("\n");
+            let preview = preview_csv(csv.as_bytes()).unwrap();
 
-        assert_eq!(preview.total_rows, 1);
-        assert_eq!(preview.valid_rows, 0);
-        assert_eq!(preview.errors.len(), 1);
-        assert!(preview.errors[0].message.contains("入金日"));
+            assert_eq!(preview.total_rows, 1);
+            assert_eq!(preview.valid_rows, 0);
+            assert_eq!(preview.errors.len(), 1);
+            assert!(preview.errors[0].message.contains(expected_message));
+        }
     }
 }

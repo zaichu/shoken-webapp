@@ -151,6 +151,15 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
+    /// タイミング計測ヘルパー: `f` を `n` 回実行して経過時間をプリントする
+    fn time_n(label: &str, n: usize, mut f: impl FnMut()) {
+        let start = std::time::Instant::now();
+        for _ in 0..n {
+            f();
+        }
+        println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0);
+    }
+
     #[test]
     fn test_parse_number_normal() {
         assert_eq!(parse_number("1,234").unwrap(), dec!(1234));
@@ -190,42 +199,26 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_taxes_tokutei_profit() {
+    fn test_compute_taxes() {
         let (taxes, after) = compute_taxes("特定", dec!(10000));
         assert_eq!(taxes, dec!(2031)); // floor(10000 * 0.20315)
         assert_eq!(after, dec!(7969));
-    }
-
-    #[test]
-    fn test_compute_taxes_loss() {
         let (taxes, after) = compute_taxes("特定", dec!(-5000));
         assert_eq!(taxes, Decimal::ZERO);
         assert_eq!(after, dec!(-5000));
-    }
-
-    #[test]
-    fn test_compute_taxes_nisa() {
         let (taxes, after) = compute_taxes("NISA", dec!(10000));
         assert_eq!(taxes, Decimal::ZERO);
         assert_eq!(after, dec!(10000));
     }
 
     #[test]
-    fn test_decode_bytes_utf8() {
-        let input = "テスト".as_bytes();
-        assert_eq!(decode_bytes(input), "テスト");
-    }
-
-    #[test]
-    fn test_decode_bytes_utf8_with_bom() {
-        let input = b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88";
-        assert_eq!(decode_bytes(input), "テスト");
-    }
-
-    #[test]
-    fn test_decode_bytes_shift_jis() {
+    fn test_decode_bytes() {
         use encoding_rs::SHIFT_JIS;
-        // 証券会社の CSV は Shift-JIS で出力されることがあるため、フォールバック経路を確認
+        // UTF-8
+        assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
+        // UTF-8 with BOM
+        assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
+        // Shift-JIS フォールバック（証券会社の CSV で使われることがある）
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
     }
@@ -246,30 +239,20 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_required_number_invalid() {
+    fn test_parse_required_invalid() {
         let record = csv::StringRecord::from(vec!["abc", "1,234"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("bad".to_string(), 0);
-        header_map.insert("good".to_string(), 1);
+        let mut hm = HashMap::new();
+        hm.insert("bad".to_string(), 0);
+        hm.insert("good".to_string(), 1);
+        assert_eq!(parse_required_number(&record, &hm, "bad", 5).unwrap_err().row, 5);
+        assert_eq!(parse_required_number(&record, &hm, "good", 1).unwrap(), dec!(1234));
 
-        let err = parse_required_number(&record, &header_map, "bad", 5).unwrap_err();
-        assert_eq!(err.row, 5);
-
-        let ok = parse_required_number(&record, &header_map, "good", 1).unwrap();
-        assert_eq!(ok, dec!(1234));
-    }
-
-    #[test]
-    fn test_parse_required_date_invalid() {
         let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("bad".to_string(), 0);
-        header_map.insert("good".to_string(), 1);
-
-        let err = parse_required_date(&record, &header_map, "bad", 2).unwrap_err();
-        assert_eq!(err.row, 2);
-
-        let ok = parse_required_date(&record, &header_map, "good", 1).unwrap();
+        let mut hm = HashMap::new();
+        hm.insert("bad".to_string(), 0);
+        hm.insert("good".to_string(), 1);
+        assert_eq!(parse_required_date(&record, &hm, "bad", 2).unwrap_err().row, 2);
+        let ok = parse_required_date(&record, &hm, "good", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
     }
 
@@ -282,81 +265,35 @@ mod tests {
     #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
     fn timing_csv_util() {
         use encoding_rs::SHIFT_JIS;
-        use std::time::Instant;
 
         const ROWS: usize = 1_000;
 
-        // ── UTF-8 CSV（1,000 行）の decode_bytes タイミング ───────────────────
         let csv_utf8: String = {
             let mut s = String::from("日付,銘柄コード,金額\n");
             for i in 0..ROWS {
-                s.push_str(&format!(
-                    "2024/{:02}/{:02},1234,{}\n",
-                    (i % 12) + 1,
-                    (i % 28) + 1,
-                    i * 100
-                ));
+                s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100));
             }
             s
         };
         let bytes_utf8 = csv_utf8.as_bytes();
-
-        let start = Instant::now();
-        for _ in 0..10 {
-            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
-        }
-        let elapsed_decode_utf8 = start.elapsed();
-        println!(
-            "[timing] decode_bytes (UTF-8, {}行) × 10 回: {:.2}ms",
-            ROWS,
-            elapsed_decode_utf8.as_secs_f64() * 1000.0
-        );
-
-        // ── Shift-JIS CSV（1,000 行）の decode_bytes タイミング ──────────────
         // 証券会社の CSV は Shift-JIS の場合があるため、フォールバック経路を計測する
-        let (bytes_sjis, _, _) = SHIFT_JIS.encode(&csv_utf8);
-        let bytes_sjis = bytes_sjis.into_owned();
+        let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8);
+        let bytes_sjis = bytes_sjis_cow.into_owned();
 
-        let start = Instant::now();
-        for _ in 0..10 {
+        time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || {
+            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
+        });
+        time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || {
             std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
-        }
-        let elapsed_decode_sjis = start.elapsed();
-        println!(
-            "[timing] decode_bytes (Shift-JIS フォールバック, {}行) × 10 回: {:.2}ms",
-            ROWS,
-            elapsed_decode_sjis.as_secs_f64() * 1000.0
-        );
-
-        // ── parse_number タイミング ───────────────────────────────────────────
+        });
         let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
-        let start = Instant::now();
-        for _ in 0..10_000 {
-            for s in &samples {
-                let _ = std::hint::black_box(parse_number(std::hint::black_box(s)));
-            }
-        }
-        let elapsed_parse_number = start.elapsed();
-        println!(
-            "[timing] parse_number × {}回: {:.2}ms",
-            10_000 * samples.len(),
-            elapsed_parse_number.as_secs_f64() * 1000.0
-        );
-
-        // ── parse_date タイミング ─────────────────────────────────────────────
+        time_n("parse_number", 10_000, || {
+            for s in &samples { let _ = std::hint::black_box(parse_number(std::hint::black_box(s))); }
+        });
         let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"];
-        let start = Instant::now();
-        for _ in 0..10_000 {
-            for s in &date_samples {
-                let _ = std::hint::black_box(parse_date(std::hint::black_box(s)));
-            }
-        }
-        let elapsed_parse_date = start.elapsed();
-        println!(
-            "[timing] parse_date × {}回: {:.2}ms",
-            10_000 * date_samples.len(),
-            elapsed_parse_date.as_secs_f64() * 1000.0
-        );
+        time_n("parse_date", 10_000, || {
+            for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); }
+        });
     }
 
     #[test]
@@ -373,23 +310,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_required_number_empty_is_error() {
+    fn test_parse_required_empty_or_invalid_is_error() {
         let record = csv::StringRecord::from(vec![""]);
-        let mut header_map = HashMap::new();
-        header_map.insert("required".to_string(), 0);
-
-        let err = parse_required_number(&record, &header_map, "required", 7).unwrap_err();
+        let mut hm = HashMap::new();
+        hm.insert("required".to_string(), 0);
+        let err = parse_required_number(&record, &hm, "required", 7).unwrap_err();
         assert_eq!(err.row, 7);
         assert!(err.message.contains("required"));
-    }
 
-    #[test]
-    fn test_parse_required_date_invalid_is_error() {
         let record = csv::StringRecord::from(vec!["2024/13/40"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("date".to_string(), 0);
-
-        let err = parse_required_date(&record, &header_map, "date", 9).unwrap_err();
+        let mut hm = HashMap::new();
+        hm.insert("date".to_string(), 0);
+        let err = parse_required_date(&record, &hm, "date", 9).unwrap_err();
         assert_eq!(err.row, 9);
         assert!(err.message.contains("date"));
     }

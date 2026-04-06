@@ -511,7 +511,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fin_summary_response_deserialize_v2_format() {
+    fn test_fin_summary_response() {
         // V2 API では "data" フィールド名を使用
         let json_data = json!({
             "data": [
@@ -534,10 +534,7 @@ mod tests {
         assert_eq!(response.data.len(), 1);
         assert_eq!(response.data[0].disclosed_date, "2023-11-14");
         assert_eq!(response.data[0].local_code, "72030");
-    }
 
-    #[test]
-    fn test_fin_summary_response_empty() {
         let json_data = json!({ "data": [] });
         let response: FinSummaryResponse =
             serde_json::from_value(json_data).expect("有効なテスト用 JSON");

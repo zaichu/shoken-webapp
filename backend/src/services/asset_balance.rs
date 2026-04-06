@@ -305,22 +305,17 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_asset_balance_row_invalid_shares_is_error() {
+    fn test_parse_asset_balance_row_required_col_errors() {
+        // 不正な値
         let csv = make_csv(HEADER, "1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
         assert!(items.is_empty(), "不正行はアイテムに含まれてはいけない");
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("保有数量"));
-    }
-
-    #[test]
-    fn test_parse_asset_balance_row_dash_in_required_col_is_error() {
+        // 必須列が '-'
         let csv = make_csv(HEADER, "1234,テスト,-,-,1500,150000,1600,0,160000,0");
         let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
-        assert!(
-            items.is_empty(),
-            "必須列が '-' の行はアイテムに含まれてはいけない"
-        );
+        assert!(items.is_empty(), "必須列が '-' の行はアイテムに含まれてはいけない");
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("保有数量"));
     }
@@ -344,7 +339,8 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_asset_balance_csv_skips_empty_rows() {
+    fn test_parse_asset_balance_csv_skips_non_data_rows() {
+        // 空行をスキップするケース
         let csv = [
             "■現在の評価額合計［円］,,\"3,588,300\"",
             "■評価損益合計,前日比［円］,\"59,700\"",
@@ -358,17 +354,13 @@ mod tests {
             "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56",
         ]
         .join("\n");
-
         let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
-
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].security_code, "1234");
         assert_eq!(items[1].security_code, "5678");
-    }
 
-    #[test]
-    fn test_parse_asset_balance_csv_skips_account_summary_rows() {
+        // 口座合計行をスキップするケース
         let csv = [
             "■現在の評価額合計［円］,,\"9,474,000\"",
             "■評価損益合計,前日比［円］,\"288,000\"",
@@ -382,9 +374,7 @@ mod tests {
             ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
         ]
         .join("\n");
-
         let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
-
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].security_code, "1605");

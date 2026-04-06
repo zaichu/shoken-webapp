@@ -1,0 +1,19 @@
+iteration	commit	metric	status	description
+0	baseline	8733	baseline	Rust コード行数ベースライン
+1	3184602	8569	kept	routes.rs: check_unauthorized ヘルパー抽出で 164 行削減
+2	d162736	8558	kept	routes.rs: use 文をモジュール先頭に集約で 11 行削減
+3	d354328	8521	kept	csv_util: time_n ヘルパーでタイミングテスト 37 行削減
+4	97bb2c0	8460	kept	security.rs: oneshot_status ヘルパーで CSRF テスト 61 行削減
+5	53cf804	8423	kept	routes 作成テスト統合 + errors check_status ヘルパーで 37 行削減
+6	ef52172	8392	kept	csv_util・auth テスト統合で 31 行削減
+7	3d57d57	8377	kept	csv_util: required フィールドのエラーテスト統合で 15 行削減
+8	0f4fc17	8367	kept	asset_balance: 保有数量エラーとスキップ行テスト統合で 10 行削減
+9	5a04583	8355	kept	domestic_stock/dividend: row-error テスト統合で 12 行削減
+10	c9d6d83	8333	kept	auth/rate_limit: cookie・rate_limiter 構築テスト統合で 22 行削減
+11	5ba22ce	8318	kept	config: ユーティリティテスト統合で 15 行削減
+12	39773f5	8301	kept	security.rs: extract_origin テスト統合で 17 行削減
+13	622d720	8272	kept	errors: status チェックテスト一括統合で 29 行削減
+14	1dba202	8216	kept	routes: unauthorized テスト一括統合で 56 行削減
+15	1f6c6b8	8207	kept	auth/jquants: テスト統合で 9 行削減
+16	117a16d	8204	kept	config: テスト統合で 3 行削減
+17	478483e	8181	kept	shared/dividend_cache: BulkTimer/compute_is_stale テスト統合で 23 行削減

@@ -132,28 +132,11 @@ mod tests {
     use tower::ServiceExt;
 
     #[test]
-    fn test_extract_origin_with_path() {
-        assert_eq!(
-            extract_origin("http://localhost:8080/some/page"),
-            Some("http://localhost:8080")
-        );
-    }
-
-    #[test]
-    fn test_extract_origin_without_path() {
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app"),
-            Some("https://shoken-webapp.vercel.app")
-        );
-    }
-
-    #[test]
-    fn test_extract_origin_spoofed_domain() {
+    fn test_extract_origin() {
+        assert_eq!(extract_origin("http://localhost:8080/some/page"), Some("http://localhost:8080"));
+        assert_eq!(extract_origin("https://shoken-webapp.vercel.app"), Some("https://shoken-webapp.vercel.app"));
         // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
-            Some("https://shoken-webapp.vercel.app.evil.com")
-        );
+        assert_eq!(extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"), Some("https://shoken-webapp.vercel.app.evil.com"));
     }
 
     fn test_app() -> Router {
@@ -178,56 +161,35 @@ mod tests {
             .layer(middleware::from_fn(add_security_headers))
     }
 
+    /// app にリクエストを送り、レスポンスのステータスを返す
+    async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode {
+        let mut builder = Request::builder().method(method).uri("/test");
+        for (name, value) in headers {
+            builder = builder.header(*name, *value);
+        }
+        app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap().status()
+    }
+
     #[tokio::test]
     async fn test_get_request_passes() {
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::GET)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         // GET はルート定義がないので 405 だが、ミドルウェアは通過
-        assert_ne!(resp.status(), StatusCode::FORBIDDEN);
+        assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn test_post_with_allowed_origin() {
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("origin", "http://localhost:8080")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "http://localhost:8080")]).await, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn test_post_with_disallowed_origin() {
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("origin", "https://evil.example.com")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn test_post_without_origin() {
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         // Origin なしは同一オリジンとみなし通過
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[]).await, StatusCode::OK);
     }
 
     #[tokio::test]
@@ -239,70 +201,30 @@ mod tests {
                 let origins = allowed_origins.clone();
                 async move { validate_origin(origins, req, next).await }
             }));
-
-        let req = Request::builder()
-            .method(Method::DELETE)
-            .uri("/test")
-            .header("origin", "https://evil.example.com")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn test_post_with_allowed_referer_no_origin() {
         // Origin なし・許可済み Referer あり → 通過
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("referer", "http://localhost:8080/some/page")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "http://localhost:8080/some/page")]).await, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn test_post_with_disallowed_referer_no_origin() {
         // Origin なし・不正な Referer → 403
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("referer", "https://evil.example.com/attack")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "https://evil.example.com/attack")]).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn test_post_with_spoofed_referer_prefix_is_rejected() {
         // 許可オリジンを接頭辞に持つ偽装ドメイン → starts_with バイパスを防ぐ
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("referer", "https://shoken-webapp.vercel.app.evil.com/steal")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")]).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn test_post_with_production_origin() {
-        let app = test_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .header("origin", "https://shoken-webapp.vercel.app")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "https://shoken-webapp.vercel.app")]).await, StatusCode::OK);
     }
 
     #[tokio::test]

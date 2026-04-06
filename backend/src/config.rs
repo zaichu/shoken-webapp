@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_default() {
+    fn test_config_creation() {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
         assert_eq!(config.csv_rate_limit_rps, 2);
@@ -129,17 +129,8 @@ mod tests {
         assert!(config
             .cors_origins
             .contains(&"http://localhost:8080".to_string()));
-    }
-
-    #[test]
-    fn test_cors_layer_creation() {
-        let config = Config::default();
         let _cors_layer = build_cors_layer(&config.cors_origins);
-        // CORSレイヤーが正常に作成されることを確認
-    }
 
-    #[test]
-    fn test_custom_config() {
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
@@ -165,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_backend_url_returns_valid_url() {
+    fn test_utility_functions() {
         let url = backend_url();
         if let Ok(expected) = env::var("BACKEND_URL") {
             assert_eq!(url, expected);
@@ -174,16 +165,7 @@ mod tests {
         } else {
             assert_eq!(url, "http://localhost:3001");
         }
-    }
-
-    #[test]
-    fn test_server_addr_format() {
-        let addr = server_addr();
-        assert!(addr.starts_with("0.0.0.0:"));
-    }
-
-    #[test]
-    fn test_is_secure_cookie_default() {
+        assert!(server_addr().starts_with("0.0.0.0:"));
         let _ = is_secure_cookie();
     }
 

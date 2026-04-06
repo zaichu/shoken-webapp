@@ -86,13 +86,11 @@ mod tests {
     use tower::ServiceExt;
 
     #[test]
-    fn test_build_rate_limiter_zero_returns_none() {
+    fn test_build_rate_limiters() {
         assert!(build_rate_limiter(0).is_none());
-    }
-
-    #[test]
-    fn test_build_rate_limiter_nonzero_returns_some() {
         assert!(build_rate_limiter(10).is_some());
+        assert!(build_keyed_rate_limiter(0).is_none());
+        assert!(build_keyed_rate_limiter(10).is_some());
     }
 
     #[tokio::test]
@@ -142,16 +140,6 @@ mod tests {
             .unwrap();
         let resp = make_app().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
-    }
-
-    #[test]
-    fn test_build_keyed_rate_limiter_zero_returns_none() {
-        assert!(build_keyed_rate_limiter(0).is_none());
-    }
-
-    #[test]
-    fn test_build_keyed_rate_limiter_nonzero_returns_some() {
-        assert!(build_keyed_rate_limiter(10).is_some());
     }
 
     #[tokio::test]
