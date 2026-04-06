@@ -20,3 +20,4 @@ iteration	commit	metric	status	description
 18	5e4807d	8161	kept	dividend_cache: extract_dividend テスト統合で 20 行削減
 19	b0d7468	8109	kept	stock/query: テスト統合と make_stock ヘルパー抽出で 52 行削減
 20	9b11621	8086	kept	csv_domain/common: テスト統合で 23 行削減
+21	b37b829	8054	kept	char_width_converter/cors: テスト統合で 32 行削減
