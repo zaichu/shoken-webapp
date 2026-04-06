@@ -176,25 +176,7 @@ mod tests {
         }
         .with_state(state);
 
-        // 1 回目は通過（ルートが見つからず 200/401/500 になるが 429 ではない）
-        let req = Request::builder()
-            .method(axum::http::Method::GET)
-            .uri("/auth/me")
-            .header("fly-client-ip", "1.2.3.4")
-            .body(Body::empty())
-            .unwrap();
-        let resp = router.clone().oneshot(req).await.unwrap();
-        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
-
-        // 2 回目（同一 IP）は 429
-        let req = Request::builder()
-            .method(axum::http::Method::GET)
-            .uri("/auth/me")
-            .header("fly-client-ip", "1.2.3.4")
-            .body(Body::empty())
-            .unwrap();
-        let resp = router.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+        assert_rate_limited(router, axum::http::Method::GET, "/auth/me", Some("1.2.3.4")).await;
     }
 
     /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
@@ -211,23 +193,24 @@ mod tests {
             handlers::jquants::jquants_routes()
         }
         .with_state(state);
+        assert_rate_limited(router, axum::http::Method::GET, "/jquants/fins/summary", None).await;
+    }
 
-        // 1 回目は通過
-        let req = Request::builder()
-            .method(axum::http::Method::GET)
-            .uri("/jquants/fins/summary")
-            .body(Body::empty())
-            .unwrap();
-        let resp = router.clone().oneshot(req).await.unwrap();
+    /// rps=1 ルーターに同一条件で 2 回リクエストし、2 回目が 429 になることを検証するヘルパー
+    async fn assert_rate_limited(
+        router: axum::Router,
+        method: axum::http::Method,
+        uri: &str,
+        ip: Option<&str>,
+    ) {
+        let make_req = || {
+            let mut b = Request::builder().method(method.clone()).uri(uri);
+            if let Some(ip) = ip { b = b.header("fly-client-ip", ip); }
+            b.body(Body::empty()).unwrap()
+        };
+        let resp = router.clone().oneshot(make_req()).await.unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
-
-        // 2 回目は 429
-        let req = Request::builder()
-            .method(axum::http::Method::GET)
-            .uri("/jquants/fins/summary")
-            .body(Body::empty())
-            .unwrap();
-        let resp = router.oneshot(req).await.unwrap();
+        let resp = router.oneshot(make_req()).await.unwrap();
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
@@ -353,40 +336,18 @@ mod tests {
             ("/mutualfunds/csv", "1.2.3.6"),
             ("/asset-balances/csv", "1.2.3.7"),
         ] {
-            let state = make_test_state();
-            let config = Config::from_env();
-            let router = app_router(state, &config);
-
-            let req = Request::builder()
-                .method(axum::http::Method::POST)
-                .uri(path)
-                .header("fly-client-ip", ip)
-                .body(Body::empty())
-                .unwrap();
-            let resp = router.clone().oneshot(req).await.unwrap();
-            assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
-
-            let req = Request::builder()
-                .method(axum::http::Method::POST)
-                .uri(path)
-                .header("fly-client-ip", ip)
-                .body(Body::empty())
-                .unwrap();
-            let resp = router.oneshot(req).await.unwrap();
-            assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+            let router = app_router(make_test_state(), &Config::from_env());
+            assert_rate_limited(router, axum::http::Method::POST, path, Some(ip)).await;
         }
 
-        let state = make_test_state();
-        let config = Config::from_env();
-        let router = app_router(state, &config);
-
+        // プレビューエンドポイントはレート制限対象外
         let req = Request::builder()
             .method(axum::http::Method::POST)
             .uri("/domestic-stocks/csv/preview")
             .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
-        let resp = router.oneshot(req).await.unwrap();
+        let resp = app_router(make_test_state(), &Config::from_env()).oneshot(req).await.unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 

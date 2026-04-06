@@ -243,45 +243,67 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
-    fn make_csv(header: &str, row: &str) -> String {
-        format!("{}\n{}\n", header, row)
-    }
-
-    fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        parse_csv(make_csv(HEADER, row).as_bytes(), parse_asset_balance_row).unwrap()
-    }
-
     const HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
-    const ASSET_BALANCE_CSV_HEADER: &str =
-        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+    const ASSET_BALANCE_CSV_HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+    const TEST_ROW_1: &str =
+        "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67";
+    const TEST_ROW_2: &str =
+        "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56";
+    const INPEX_ROW: &str =
+        "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"";
+    const NINTENDO_ROW: &str =
+        "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
+    const ACCOUNT_SUMMARY_ROW: &str =
+        ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
+
+    fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
+        parse_csv(format!("{HEADER}\n{row}\n").as_bytes(), parse_asset_balance_row).unwrap()
+    }
+
+    fn make_asset_balance_csv(rows: &[&str]) -> String {
+        format!(
+            "■現在の評価額合計［円］,,\"9,474,000\"\n■評価損益合計,前日比［円］,\"288,000\"\n,前月比［円］,\"-120,000\"\n,評価損益［円］,\"2,005,900\"\n■特定口座\n\n{ASSET_BALANCE_CSV_HEADER}\n{}",
+            rows.join("\n")
+        )
+    }
+
+    fn assert_row_ok(row: &str, expected: (&str, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal)) {
+        let (items, errors) = parse_row_csv(row);
+        assert!(errors.is_empty(), "unexpected errors for {row}: {errors:?}");
+        assert_eq!(items.len(), 1, "row should produce one item: {row}");
+        let item = &items[0];
+        assert_eq!(
+            (
+                item.security_code.as_str(),
+                item.shares,
+                item.executing_shares,
+                item.average_purchase_price,
+                item.current_price,
+                item.daily_change,
+                item.profit_loss_rate,
+            ),
+            expected
+        );
+    }
+
+    fn assert_row_error(row: &str, expected_message: &str) {
+        let (items, errors) = parse_row_csv(row);
+        assert!(items.is_empty(), "invalid row must not be parsed: {row}");
+        assert_eq!(errors.len(), 1, "row should produce one error: {row}");
+        assert!(errors[0].message.contains(expected_message), "{errors:?}");
+    }
 
     #[test]
     fn test_preview_csv_valid() {
-        let csv = [
-            "■現在の評価額合計［円］,,\"9,474,000\"",
-            "■評価損益合計,前日比［円］,\"288,000\"",
-            ",前月比［円］,\"-120,000\"",
-            ",評価損益［円］,\"2,005,900\"",
-            "■特定口座",
-            "",
-            ASSET_BALANCE_CSV_HEADER,
-            "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
-            "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
-            ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
-        ]
-        .join("\n");
-
+        let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
         let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        assert_eq!(preview.total_rows, 2);
-        assert_eq!(preview.valid_rows, 2);
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (2, 2, 2));
         assert!(
             preview.errors.is_empty(),
             "unexpected errors: {:?}",
             preview.errors
         );
-        assert_eq!(preview.rows.len(), 2);
     }
 
     #[test]
@@ -294,82 +316,57 @@ mod tests {
 
     #[test]
     fn test_parse_asset_balance_row() {
-        // 正常行
-        let (items, errors) =
-            parse_row_csv("1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67");
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0].security_code, "1234");
-        assert_eq!(items[0].shares, dec!(100));
-        assert_eq!(items[0].executing_shares, Decimal::ZERO);
-        assert_eq!(items[0].average_purchase_price, dec!(1500));
-        assert_eq!(items[0].current_price, dec!(1600));
+        for (row, expected) in [
+            (
+                "1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67",
+                (
+                    "1234",
+                    dec!(100),
+                    Decimal::ZERO,
+                    dec!(1500),
+                    dec!(1600),
+                    dec!(10),
+                    dec!(6.67),
+                ),
+            ),
+            (
+                "5678,ファンド,50,-,2000,100000,2100,-,105000,-",
+                (
+                    "5678",
+                    dec!(50),
+                    Decimal::ZERO,
+                    dec!(2000),
+                    dec!(2100),
+                    Decimal::ZERO,
+                    Decimal::ZERO,
+                ),
+            ),
+        ] {
+            assert_row_ok(row, expected);
+        }
 
-        // 不正な値（保有数量 N/A）
-        let (items, errors) = parse_row_csv("1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
-        assert!(items.is_empty(), "不正行はアイテムに含まれてはいけない");
-        assert_eq!(errors.len(), 1);
-        assert!(errors[0].message.contains("保有数量"));
-
-        // 必須列が '-'
-        let (items, errors) = parse_row_csv("1234,テスト,-,-,1500,150000,1600,0,160000,0");
-        assert!(items.is_empty(), "必須列が '-' の行はアイテムに含まれてはいけない");
-        assert_eq!(errors.len(), 1);
-        assert!(errors[0].message.contains("保有数量"));
-
-        // 現在値が不正
-        let (items, errors) = parse_row_csv("1234,テスト,100,-,1500,150000,N/A,0,160000,0");
-        assert!(items.is_empty());
-        assert_eq!(errors.len(), 1);
-        assert!(errors[0].message.contains("現在値"));
-
-        // オプション列が '-' → Decimal::ZERO
-        let (items, errors) = parse_row_csv("5678,ファンド,50,-,2000,100000,2100,-,105000,-");
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-        assert_eq!(items[0].daily_change, Decimal::ZERO);
-        assert_eq!(items[0].profit_loss_rate, Decimal::ZERO);
+        for (row, expected_message) in [
+            ("1234,テスト,N/A,-,1500,150000,1600,0,160000,0", "保有数量"),
+            ("1234,テスト,-,-,1500,150000,1600,0,160000,0", "保有数量"),
+            ("1234,テスト,100,-,1500,150000,N/A,0,160000,0", "現在値"),
+        ] {
+            assert_row_error(row, expected_message);
+        }
     }
 
     #[test]
     fn test_parse_asset_balance_csv_skips_non_data_rows() {
-        // 空行をスキップするケース
-        let csv = [
-            "■現在の評価額合計［円］,,\"3,588,300\"",
-            "■評価損益合計,前日比［円］,\"59,700\"",
-            ",前月比［円］,\"45,000\"",
-            ",評価損益［円］,\"684,900\"",
-            "■特定口座",
-            "",
-            ASSET_BALANCE_CSV_HEADER,
-            "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67",
-            ",,,,,,,,,,,",
-            "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56",
-        ]
-        .join("\n");
-        let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0].security_code, "1234");
-        assert_eq!(items[1].security_code, "5678");
-
-        // 口座合計行をスキップするケース
-        let csv = [
-            "■現在の評価額合計［円］,,\"9,474,000\"",
-            "■評価損益合計,前日比［円］,\"288,000\"",
-            ",前月比［円］,\"-120,000\"",
-            ",評価損益［円］,\"2,005,900\"",
-            "■特定口座",
-            "",
-            ASSET_BALANCE_CSV_HEADER,
-            "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
-            "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
-            ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
-        ]
-        .join("\n");
-        let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0].security_code, "1605");
-        assert_eq!(items[1].security_code, "7974");
+        for (rows, expected_codes) in [
+            (&[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..], &["1234", "5678"][..]),
+            (&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..], &["1605", "7974"][..]),
+        ] {
+            let csv = make_asset_balance_csv(rows);
+            let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
+            assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+            assert_eq!(
+                items.iter().map(|item| item.security_code.as_str()).collect::<Vec<_>>(),
+                expected_codes
+            );
+        }
     }
 }
