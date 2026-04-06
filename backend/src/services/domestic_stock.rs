@@ -221,40 +221,58 @@ mod tests {
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
-    #[test]
-    fn test_preview_csv_basic() {
-        let csv = [
-            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
-        ]
-        .join("\n");
+    const PREVIEW_HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
+    fn preview_from_csv(header: &str, row: &str) -> CsvPreviewResponse {
+        preview_csv([header, row].join("\n").as_bytes()).unwrap()
+    }
 
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+    fn assert_valid_row(row: &str) -> CsvPreviewResponse {
+        let preview = preview_from_csv(PREVIEW_HEADER, row);
+        assert_eq!(
+            (
+                preview.total_rows,
+                preview.valid_rows,
+                preview.rows.len(),
+                preview.errors.len()
+            ),
+            (1, 1, 1, 0)
+        );
+        preview
+    }
 
-        assert_eq!(preview.total_rows, 1);
-        assert_eq!(preview.valid_rows, 1);
-        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
-        assert_eq!(preview.rows.len(), 1);
-        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
+    fn assert_single_row_error(header: &str, row: &str, expected_message: &str) {
+        let preview = preview_from_csv(header, row);
+        assert_eq!(
+            (preview.total_rows, preview.valid_rows, preview.errors.len()),
+            (1, 0, 1)
+        );
+        assert!(
+            preview.errors[0].message.contains(expected_message),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
     }
 
     #[test]
-    fn test_preview_csv_normalizes_name_and_keeps_nisa_profit_untaxed() {
-        let csv = [
-            "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
-            "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"",
-        ]
-        .join("\n");
-
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        assert_eq!(preview.valid_rows, 1);
-        assert_eq!(preview.rows[0]["security_name"], "KDDI");
-        assert_eq!(preview.rows[0]["taxes"], 0.0);
-        assert_eq!(
-            preview.rows[0]["realized_profit_and_loss_after_tax"],
-            9100.0
+    fn test_preview_csv_valid_rows() {
+        assert_valid_row(
+            "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
         );
+        let preview = assert_valid_row(
+            "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"",
+        );
+        let row = &preview.rows[0];
+        assert_eq!(row["security_name"], "KDDI");
+        assert_eq!(row["taxes"], 0.0);
+        assert_eq!(row["realized_profit_and_loss_after_tax"], 9100.0);
+    }
+
+    #[test]
+    fn test_preview_csv_empty_input() {
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 
     #[test]
@@ -266,42 +284,17 @@ mod tests {
                 "銘柄名",
             ),
             (
-                "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
+                PREVIEW_HEADER,
                 "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"",
                 "実現損益[円]",
             ),
         ];
 
         for (header, row, expected_message) in cases {
-            let csv = [header, row].join("\n");
-            let preview = preview_csv(csv.as_bytes()).unwrap();
-
-            assert_eq!(preview.total_rows, 1);
-            assert_eq!(preview.valid_rows, 0);
-            assert_eq!(preview.errors.len(), 1);
-            assert!(preview.errors[0].message.contains(expected_message));
+            assert_single_row_error(header, row, expected_message);
         }
     }
 
-    fn make_test_item() -> CreateDomesticStockRequest {
-        CreateDomesticStockRequest {
-            trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
-            settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
-            security_code: "9508".to_string(),
-            security_name: "九州電力".to_string(),
-            account: "特定".to_string(),
-            shares: dec!(100),
-            asked_price: dec!(1880),
-            proceeds: dec!(188000),
-            purchase_price: dec!(1770),
-            realized_profit_and_loss: dec!(11000),
-            taxes: dec!(2234),
-            realized_profit_and_loss_after_tax: dec!(8766),
-        }
-    }
-
-    /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
-    /// Docker が必要なため通常テストでは skip する（実行: cargo test -- --ignored）
     #[tokio::test]
     #[ignore = "requires Docker"]
     async fn test_bulk_create_reupload_deduplication() {
@@ -317,7 +310,6 @@ mod tests {
         let pool = sqlx::PgPool::connect(&url).await.unwrap();
         sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
-        // FK制約のためユーザーを事前作成
         let user_id = Uuid::new_v4();
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
@@ -327,16 +319,26 @@ mod tests {
             .await
             .unwrap();
 
-        let items = vec![make_test_item(); 5];
-
-        // 1回目: 全件挿入
+        let items = vec![
+            CreateDomesticStockRequest {
+                trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
+                settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
+                security_code: "9508".to_string(),
+                security_name: "九州電力".to_string(),
+                account: "特定".to_string(),
+                shares: dec!(100),
+                asked_price: dec!(1880),
+                proceeds: dec!(188000),
+                purchase_price: dec!(1770),
+                realized_profit_and_loss: dec!(11000),
+                taxes: dec!(2234),
+                realized_profit_and_loss_after_tax: dec!(8766),
+            };
+            5
+        ];
         let first = bulk_create(&pool, user_id, &items).await.unwrap();
-        assert_eq!(first.inserted, 5);
-        assert_eq!(first.skipped, 0);
-
-        // 2回目（同一CSV再アップロード）: 全件スキップ
+        assert_eq!((first.inserted, first.skipped), (5, 0));
         let second = bulk_create(&pool, user_id, &items).await.unwrap();
-        assert_eq!(second.inserted, 0);
-        assert_eq!(second.skipped, 5);
+        assert_eq!((second.inserted, second.skipped), (0, 5));
     }
 }
