@@ -18,3 +18,4 @@ iteration	commit	metric	status	description
 16	117a16d	8204	kept	config: テスト統合で 3 行削減
 17	478483e	8181	kept	shared/dividend_cache: BulkTimer/compute_is_stale テスト統合で 23 行削減
 18	5e4807d	8161	kept	dividend_cache: extract_dividend テスト統合で 20 行削減
+19	b0d7468	8109	kept	stock/query: テスト統合と make_stock ヘルパー抽出で 52 行削減
