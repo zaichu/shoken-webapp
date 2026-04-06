@@ -185,49 +185,53 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_error_into_response() {
-        let error = ApiError::ValidationError("必須フィールドが不足しています".to_string());
-        let response = error.into_response();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    }
-
-    #[test]
-    fn test_json_parse_error_into_response() {
+    fn test_all_error_status_codes() {
+        check_status(
+            ApiError::ValidationError("必須フィールドが不足しています".to_string()),
+            StatusCode::BAD_REQUEST,
+        );
         check_status(ApiError::JsonParseError, StatusCode::BAD_REQUEST);
-    }
-
-    #[test]
-    fn test_database_error_into_response() {
-        check_status(ApiError::DatabaseError(SqlxError::RowNotFound), StatusCode::NOT_FOUND);
-    }
-
-    #[test]
-    fn test_not_found_into_response() {
+        check_status(
+            ApiError::DatabaseError(SqlxError::RowNotFound),
+            StatusCode::NOT_FOUND,
+        );
+        check_status(
+            ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        );
         check_status(ApiError::NotFound, StatusCode::NOT_FOUND);
-    }
-
-    #[test]
-    fn test_env_var_error_into_response() {
-        check_status(ApiError::EnvVarError(VarError::NotPresent), StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[test]
-    fn test_rate_limit_error_into_response() {
+        check_status(
+            ApiError::EnvVarError(VarError::NotPresent),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        );
         check_status(
             ApiError::RateLimitError("Rate limit exceeded".to_string()),
             StatusCode::TOO_MANY_REQUESTS,
         );
-    }
-
-    #[test]
-    fn test_url_parse_error_into_response() {
-        check_status(ApiError::UrlParseError(ParseError::EmptyHost), StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[test]
-    fn test_oauth_error_into_response() {
+        check_status(
+            ApiError::UrlParseError(ParseError::EmptyHost),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        );
         check_status(
             ApiError::OAuthError("認証エラー".to_string()),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        );
+        let serde_err: serde_json::Error =
+            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        check_status(
+            ApiError::Unauthorized("認証が必要です".to_string()),
+            StatusCode::UNAUTHORIZED,
+        );
+        check_status(
+            ApiError::NetworkError("接続エラー".to_string()),
+            StatusCode::BAD_GATEWAY,
+        );
+        check_status(
+            ApiError::ApiError("API エラー".to_string()),
+            StatusCode::BAD_REQUEST,
+        );
+        check_status(
+            ApiError::SerdeJsonError(serde_err),
             StatusCode::INTERNAL_SERVER_ERROR,
         );
     }
@@ -243,38 +247,5 @@ mod tests {
         assert_eq!(details.code, "TEST_CODE");
         assert_eq!(details.message, "test message");
         assert!(details.details.is_none());
-    }
-
-    #[test]
-    fn test_unauthorized_into_response() {
-        check_status(ApiError::Unauthorized("認証が必要です".to_string()), StatusCode::UNAUTHORIZED);
-    }
-
-    #[test]
-    fn test_network_error_into_response() {
-        check_status(ApiError::NetworkError("接続エラー".to_string()), StatusCode::BAD_GATEWAY);
-    }
-
-    #[test]
-    fn test_api_error_variant_into_response() {
-        check_status(ApiError::ApiError("API エラー".to_string()), StatusCode::BAD_REQUEST);
-    }
-
-    #[test]
-    fn test_serde_json_error_into_response() {
-        let serde_err: serde_json::Error =
-            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        let error = ApiError::SerdeJsonError(serde_err);
-        let response = error.into_response();
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[test]
-    fn test_database_error_other_variant_into_response() {
-        // RowNotFound 以外の sqlx::Error バリアントで catch-all ブランチをカバー
-        let sql_error = SqlxError::ColumnNotFound("test_column".to_string());
-        let error = ApiError::DatabaseError(sql_error);
-        let response = error.into_response();
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }
