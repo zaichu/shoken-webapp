@@ -14,7 +14,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fin_summary_query_deserialize() {
+    fn test_fin_summary_query() {
         let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: Some("2023-01-01".to_string()),
@@ -24,10 +24,7 @@ mod tests {
         assert_eq!(query.code, "7203");
         assert_eq!(query.from.unwrap(), "2023-01-01");
         assert_eq!(query.to.unwrap(), "2023-12-31");
-    }
 
-    #[test]
-    fn test_fin_summary_query_optional_params() {
         let query = FinSummaryQuery {
             code: "7203".to_string(),
             from: None,

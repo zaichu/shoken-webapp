@@ -63,74 +63,65 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_dividend_ok() {
-        let data = vec![make_summary("2024-01-01", Some("100.0"), None, None)];
-        let (val, status) = extract_dividend(&data);
+    fn test_extract_dividend() {
+        // NxFDivAnn が存在する場合は ok
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", Some("100.0"), None, None)]);
         assert_eq!(val, Some(100.0));
         assert_eq!(status, "ok");
-    }
 
-    #[test]
-    fn test_extract_dividend_zero() {
-        let data = vec![make_summary("2024-01-01", Some("0.0"), None, None)];
-        let (val, status) = extract_dividend(&data);
+        // 0.0 は zero
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", Some("0.0"), None, None)]);
         assert_eq!(val, Some(0.0));
         assert_eq!(status, "zero");
-    }
 
-    #[test]
-    fn test_extract_dividend_priority_nx_over_f() {
         // NxFDivAnn が優先
-        let data = vec![make_summary(
+        let (val, status) = extract_dividend(&[make_summary(
             "2024-01-01",
             Some("200.0"),
             Some("100.0"),
             Some("50.0"),
-        )];
-        let (val, status) = extract_dividend(&data);
+        )]);
         assert_eq!(val, Some(200.0));
         assert_eq!(status, "ok");
-    }
 
-    #[test]
-    fn test_extract_dividend_falls_back_to_result() {
         // NxFDivAnn, FDivAnn が None → DivAnn を使用
-        let data = vec![make_summary("2024-01-01", None, None, Some("75.0"))];
-        let (val, status) = extract_dividend(&data);
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", None, None, Some("75.0"))]);
         assert_eq!(val, Some(75.0));
         assert_eq!(status, "ok");
-    }
 
-    #[test]
-    fn test_extract_dividend_empty_nx_falls_back_to_f() {
-        let data = vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)];
-        let (val, status) = extract_dividend(&data);
+        // NxFDivAnn が空文字 → FDivAnn にフォールバック
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", Some(""), Some("100.0"), None)]);
         assert_eq!(val, Some(100.0));
         assert_eq!(status, "ok");
-    }
 
-    #[test]
-    fn test_extract_dividend_all_empty_strings_is_zero() {
-        let data = vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))];
-        let (val, status) = extract_dividend(&data);
+        // 全フィールドが空文字 → zero
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", Some(""), Some(""), Some(""))]);
         assert_eq!(val, Some(0.0));
         assert_eq!(status, "zero");
-    }
 
-    #[test]
-    fn test_extract_dividend_invalid_nx_falls_back_to_f() {
-        let data = vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)];
-        let (val, status) = extract_dividend(&data);
+        // NxFDivAnn が無効値 → FDivAnn にフォールバック
+        let (val, status) =
+            extract_dividend(&[make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)]);
         assert_eq!(val, Some(100.0));
         assert_eq!(status, "ok");
-    }
 
-    #[test]
-    fn test_extract_dividend_empty_data() {
         // データなし → ゼロ配当
         let (val, status) = extract_dividend(&[]);
         assert_eq!(val, Some(0.0));
         assert_eq!(status, "zero");
+
+        // 開示日が新しいほうを優先
+        let data = vec![
+            make_summary("2023-01-01", None, None, Some("30.0")),
+            make_summary("2024-01-01", None, None, Some("60.0")),
+        ];
+        let (val, _) = extract_dividend(&data);
+        assert_eq!(val, Some(60.0));
     }
 
     #[test]
@@ -154,16 +145,5 @@ mod tests {
         ));
         // ok で stale_at=NULL → stale
         assert!(compute_is_stale("ok", None, now));
-    }
-
-    #[test]
-    fn test_extract_dividend_newest_first() {
-        // 開示日が新しいほうを優先
-        let data = vec![
-            make_summary("2023-01-01", None, None, Some("30.0")),
-            make_summary("2024-01-01", None, None, Some("60.0")),
-        ];
-        let (val, _) = extract_dividend(&data);
-        assert_eq!(val, Some(60.0));
     }
 }

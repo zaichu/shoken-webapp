@@ -155,7 +155,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_preview_csv_valid() {
+    fn test_preview_csv_basic() {
         let csv = [
             "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
             "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
@@ -167,20 +167,9 @@ mod tests {
 
         assert_eq!(preview.total_rows, 2);
         assert_eq!(preview.valid_rows, 2);
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
+        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
         assert_eq!(preview.rows.len(), 2);
-    }
-
-    #[test]
-    fn test_preview_csv_empty() {
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
 
     #[test]

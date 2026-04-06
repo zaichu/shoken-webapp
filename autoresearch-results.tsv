@@ -17,3 +17,9 @@ iteration	commit	metric	status	description
 15	1f6c6b8	8207	kept	auth/jquants: テスト統合で 9 行削減
 16	117a16d	8204	kept	config: テスト統合で 3 行削減
 17	478483e	8181	kept	shared/dividend_cache: BulkTimer/compute_is_stale テスト統合で 23 行削減
+18	5e4807d	8161	kept	dividend_cache: extract_dividend テスト統合で 20 行削減
+19	b0d7468	8109	kept	stock/query: テスト統合と make_stock ヘルパー抽出で 52 行削減
+20	9b11621	8086	kept	csv_domain/common: テスト統合で 23 行削減
+21	b37b829	8054	kept	char_width_converter/cors: テスト統合で 32 行削減
+22	b2d17db	8032	kept	csv_import/asset_balance: 行テスト統合で 22 行削減
+23	2972c40	7999	kept	domestic_stock/dividend/mutualfund: preview_csv 基本テスト統合で 33 行削減

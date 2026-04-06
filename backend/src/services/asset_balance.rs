@@ -247,6 +247,10 @@ mod tests {
         format!("{}\n{}\n", header, row)
     }
 
+    fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
+        parse_csv(make_csv(HEADER, row).as_bytes(), parse_asset_balance_row).unwrap()
+    }
+
     const HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
     const ASSET_BALANCE_CSV_HEADER: &str =
@@ -289,12 +293,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_asset_balance_row_ok() {
-        let csv = make_csv(
-            HEADER,
-            "1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67",
-        );
-        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+    fn test_parse_asset_balance_row() {
+        // 正常行
+        let (items, errors) =
+            parse_row_csv("1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67");
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].security_code, "1234");
@@ -302,37 +304,27 @@ mod tests {
         assert_eq!(items[0].executing_shares, Decimal::ZERO);
         assert_eq!(items[0].average_purchase_price, dec!(1500));
         assert_eq!(items[0].current_price, dec!(1600));
-    }
 
-    #[test]
-    fn test_parse_asset_balance_row_required_col_errors() {
-        // 不正な値
-        let csv = make_csv(HEADER, "1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
-        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        // 不正な値（保有数量 N/A）
+        let (items, errors) = parse_row_csv("1234,テスト,N/A,-,1500,150000,1600,0,160000,0");
         assert!(items.is_empty(), "不正行はアイテムに含まれてはいけない");
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("保有数量"));
+
         // 必須列が '-'
-        let csv = make_csv(HEADER, "1234,テスト,-,-,1500,150000,1600,0,160000,0");
-        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        let (items, errors) = parse_row_csv("1234,テスト,-,-,1500,150000,1600,0,160000,0");
         assert!(items.is_empty(), "必須列が '-' の行はアイテムに含まれてはいけない");
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("保有数量"));
-    }
 
-    #[test]
-    fn test_parse_asset_balance_row_invalid_price_is_error() {
-        let csv = make_csv(HEADER, "1234,テスト,100,-,1500,150000,N/A,0,160000,0");
-        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        // 現在値が不正
+        let (items, errors) = parse_row_csv("1234,テスト,100,-,1500,150000,N/A,0,160000,0");
         assert!(items.is_empty());
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("現在値"));
-    }
 
-    #[test]
-    fn test_parse_asset_balance_row_optional_zero_fields() {
-        let csv = make_csv(HEADER, "5678,ファンド,50,-,2000,100000,2100,-,105000,-");
-        let (items, errors) = parse_csv(csv.as_bytes(), parse_asset_balance_row).unwrap();
+        // オプション列が '-' → Decimal::ZERO
+        let (items, errors) = parse_row_csv("5678,ファンド,50,-,2000,100000,2100,-,105000,-");
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(items[0].daily_change, Decimal::ZERO);
         assert_eq!(items[0].profit_loss_rate, Decimal::ZERO);
