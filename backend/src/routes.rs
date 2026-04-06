@@ -151,38 +151,14 @@ mod tests {
     }
 
     #[test]
-    fn test_stock_routes_creation() {
-        let _router = handlers::stock::stock_routes();
-    }
-
-    #[test]
-    fn test_jquants_routes_creation() {
-        let _router = handlers::jquants::jquants_routes();
-    }
-
-    #[test]
-    fn test_auth_routes_creation() {
-        let _router = handlers::auth::auth_routes();
-    }
-
-    #[test]
-    fn test_dividend_routes_creation() {
-        let _router = handlers::dividend::dividend_routes();
-    }
-
-    #[test]
-    fn test_domestic_stock_routes_creation() {
-        let _router = handlers::domestic_stock::domestic_stock_routes();
-    }
-
-    #[test]
-    fn test_mutualfund_routes_creation() {
-        let _router = handlers::mutualfund::mutualfund_routes();
-    }
-
-    #[test]
-    fn test_asset_balance_routes_creation() {
-        let _router = handlers::asset_balance::asset_balance_routes();
+    fn test_all_routes_creation() {
+        let _ = handlers::stock::stock_routes();
+        let _ = handlers::jquants::jquants_routes();
+        let _ = handlers::auth::auth_routes();
+        let _ = handlers::dividend::dividend_routes();
+        let _ = handlers::domestic_stock::domestic_stock_routes();
+        let _ = handlers::mutualfund::mutualfund_routes();
+        let _ = handlers::asset_balance::asset_balance_routes();
     }
 
     /// auth ルートが rps=1 制限を超えると 429 を返すことを確認
