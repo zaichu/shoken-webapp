@@ -28,3 +28,5 @@ iteration	commit	metric	status	description
 26	c6e90af	7883	kept	asset_balance: テスト統合で 3 行削減
 27	f69c1b9	7885	reverted	domestic_stock: cherry-pick が逆に +2 行のためリバート（6f3ae50）
 28	840ed77	7881	kept	csv_util: テスト統合で 2 行削減
+29	20b7d2d	7878	kept	domestic_stock: テスト統合で 3 行削減
+30	956f903	7851	kept	rate_limit: テスト統合でさらに 27 行削減（172→145）
