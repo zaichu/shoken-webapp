@@ -222,7 +222,7 @@ mod tests {
     use rust_decimal_macros::dec;
 
     #[test]
-    fn test_preview_csv_valid() {
+    fn test_preview_csv_basic() {
         let csv = [
             "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
             "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
@@ -233,20 +233,9 @@ mod tests {
 
         assert_eq!(preview.total_rows, 1);
         assert_eq!(preview.valid_rows, 1);
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
+        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
         assert_eq!(preview.rows.len(), 1);
-    }
-
-    #[test]
-    fn test_preview_csv_empty() {
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
 
     #[test]
