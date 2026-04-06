@@ -29,7 +29,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
       security_codes: ['7203'],
-    });
+    }, { withCredentials: true });
     expect(result).toEqual(mockItems);
   });
 
@@ -40,7 +40,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
       security_codes: [],
-    });
+    }, { withCredentials: true });
     expect(result).toEqual([]);
   });
 
@@ -59,7 +59,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
       security_codes: securityCodes,
-    });
+    }, { withCredentials: true });
     expect(result).toEqual(mockItems);
   });
 });
