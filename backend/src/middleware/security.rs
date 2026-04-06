@@ -132,28 +132,11 @@ mod tests {
     use tower::ServiceExt;
 
     #[test]
-    fn test_extract_origin_with_path() {
-        assert_eq!(
-            extract_origin("http://localhost:8080/some/page"),
-            Some("http://localhost:8080")
-        );
-    }
-
-    #[test]
-    fn test_extract_origin_without_path() {
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app"),
-            Some("https://shoken-webapp.vercel.app")
-        );
-    }
-
-    #[test]
-    fn test_extract_origin_spoofed_domain() {
+    fn test_extract_origin() {
+        assert_eq!(extract_origin("http://localhost:8080/some/page"), Some("http://localhost:8080"));
+        assert_eq!(extract_origin("https://shoken-webapp.vercel.app"), Some("https://shoken-webapp.vercel.app"));
         // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
-            Some("https://shoken-webapp.vercel.app.evil.com")
-        );
+        assert_eq!(extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"), Some("https://shoken-webapp.vercel.app.evil.com"));
     }
 
     fn test_app() -> Router {
