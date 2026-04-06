@@ -134,39 +134,25 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_is_stale_pending_null_is_false() {
+    fn test_compute_is_stale() {
+        let now = Utc::now();
         // pending は stale_at=NULL でも is_stale=false（取得中のため）
-        let now = Utc::now();
         assert!(!compute_is_stale("pending", None, now));
-    }
-
-    #[test]
-    fn test_compute_is_stale_error_null_is_true() {
         // error は stale_at=NULL → 即再取得対象
-        let now = Utc::now();
         assert!(compute_is_stale("error", None, now));
-    }
-
-    #[test]
-    fn test_compute_is_stale_ok_past_is_true() {
         // ok で stale_at が過去 → stale
-        let now = Utc::now();
-        let past = now - chrono::Duration::hours(1);
-        assert!(compute_is_stale("ok", Some(past), now));
-    }
-
-    #[test]
-    fn test_compute_is_stale_ok_future_is_false() {
+        assert!(compute_is_stale(
+            "ok",
+            Some(now - chrono::Duration::hours(1)),
+            now
+        ));
         // ok で stale_at が未来 → 有効
-        let now = Utc::now();
-        let future = now + chrono::Duration::days(7);
-        assert!(!compute_is_stale("ok", Some(future), now));
-    }
-
-    #[test]
-    fn test_compute_is_stale_ok_null_is_true() {
+        assert!(!compute_is_stale(
+            "ok",
+            Some(now + chrono::Duration::days(7)),
+            now
+        ));
         // ok で stale_at=NULL → stale
-        let now = Utc::now();
         assert!(compute_is_stale("ok", None, now));
     }
 

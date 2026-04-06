@@ -56,25 +56,16 @@ mod tests {
     use super::BulkTimer;
 
     #[test]
-    fn finish_sets_skipped_to_total_when_inserted_is_zero() {
+    fn test_bulk_timer_finish() {
         let response = BulkTimer::new("test", 5).finish(0);
-
         assert_eq!(response.inserted, 0);
         assert_eq!(response.skipped, 5);
-    }
 
-    #[test]
-    fn finish_sets_skipped_to_zero_when_inserted_matches_total() {
         let response = BulkTimer::new("test", 5).finish(5);
-
         assert_eq!(response.inserted, 5);
         assert_eq!(response.skipped, 0);
-    }
 
-    #[test]
-    fn finish_sets_skipped_to_difference_when_inserted_is_partial() {
         let response = BulkTimer::new("test", 5).finish(3);
-
         assert_eq!(response.inserted, 3);
         assert_eq!(response.skipped, 2);
     }
