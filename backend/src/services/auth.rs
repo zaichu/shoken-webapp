@@ -235,12 +235,6 @@ mod tests {
     }
 
     #[test]
-    fn test_same_site() {
-        assert_eq!(same_site(true), SameSite::None);
-        assert_eq!(same_site(false), SameSite::Lax);
-    }
-
-    #[test]
     fn test_build_state_cookie() {
         for (secure, expected_secure) in [(true, true), (false, false)] {
             let cookie = build_state_cookie("test_state", secure);
@@ -273,14 +267,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_session_id_from_jar_invalid_inputs() {
+    fn test_get_session_id_from_jar() {
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
+
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"));
         assert!(get_session_id_from_jar(&jar).is_err());
-    }
 
-    #[test]
-    fn test_get_session_id_from_jar_valid() {
         let uuid = uuid::Uuid::new_v4();
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()));
         let result = get_session_id_from_jar(&jar);
@@ -289,7 +281,9 @@ mod tests {
     }
 
     #[test]
-    fn test_cookie_constants() {
+    fn test_simple_auth_functions() {
+        assert_eq!(same_site(true), SameSite::None);
+        assert_eq!(same_site(false), SameSite::Lax);
         assert_eq!(SESSION_COOKIE_NAME, "session_token");
         assert_eq!(OAUTH_STATE_COOKIE_NAME, "oauth_state");
     }
