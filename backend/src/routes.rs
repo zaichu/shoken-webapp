@@ -247,147 +247,91 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_jquants_fin_summary_unauthorized() {
+    async fn test_all_endpoints_require_auth() {
         check_unauthorized(
             handlers::jquants::jquants_routes().with_state(make_test_state()),
             axum::http::Method::GET,
             "/jquants/fins/summary?code=7203",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_dividend_delete_all_unauthorized() {
         check_unauthorized(
             handlers::dividend::dividend_routes().with_state(make_test_state()),
             axum::http::Method::DELETE,
             "/dividends",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_dividend_list_unauthorized() {
         check_unauthorized(
             handlers::dividend::dividend_routes().with_state(make_test_state()),
             axum::http::Method::GET,
             "/dividends",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_dividend_preview_csv_unauthorized() {
         check_unauthorized(
             handlers::dividend::dividend_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/dividends/csv/preview",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_domestic_stock_delete_all_unauthorized() {
         check_unauthorized(
             handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
             axum::http::Method::DELETE,
             "/domestic-stocks",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_domestic_stock_list_unauthorized() {
         check_unauthorized(
             handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
             axum::http::Method::GET,
             "/domestic-stocks",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_domestic_stock_preview_csv_unauthorized() {
         check_unauthorized(
             handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/domestic-stocks/csv/preview",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_mutualfund_delete_all_unauthorized() {
         check_unauthorized(
             handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
             axum::http::Method::DELETE,
             "/mutualfunds",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_mutualfund_list_unauthorized() {
         check_unauthorized(
             handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
             axum::http::Method::GET,
             "/mutualfunds",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_mutualfund_preview_csv_unauthorized() {
         check_unauthorized(
             handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/mutualfunds/csv/preview",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_asset_balance_delete_all_unauthorized() {
         check_unauthorized(
             handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
             axum::http::Method::DELETE,
             "/asset-balances",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_asset_balance_bulk_create_unauthorized() {
         check_unauthorized(
             handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/asset-balances/bulk",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_asset_balance_preview_csv_unauthorized() {
         check_unauthorized(
             handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/asset-balances/csv/preview",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_csv_upload_dividend_unauthorized() {
         check_unauthorized(
             csv_upload_routes().with_state(make_test_state()),
             axum::http::Method::POST,
             "/dividends/csv",
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn test_dividend_per_share_batch_unauthorized() {
         check_unauthorized(
             handlers::dividend_per_share::dividend_per_share_routes()
                 .with_state(make_test_state()),
