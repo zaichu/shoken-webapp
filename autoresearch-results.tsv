@@ -23,4 +23,8 @@ iteration	commit	metric	status	description
 21	b37b829	8054	kept	char_width_converter/cors: テスト統合で 32 行削減
 22	b2d17db	8032	kept	csv_import/asset_balance: 行テスト統合で 22 行削減
 23	2972c40	7999	kept	domestic_stock/dividend/mutualfund: preview_csv 基本テスト統合で 33 行削減
-24	-	8102	kept	csv_util: parse 系テストを 5→2 に統合し対象ファイル 18 行削減
+24	9484b2d	7981	kept	csv_util: parse 系テストを 5→2 に統合し対象ファイル 18 行削減
+25	16639ef	7886	kept	routes/rate_limit: assert_rate_limited ヘルパーでテスト 95 行削減
+26	c6e90af	7883	kept	asset_balance: テスト統合で 3 行削減
+27	f69c1b9	7885	reverted	domestic_stock: cherry-pick が逆に +2 行のためリバート（6f3ae50）
+28	840ed77	7881	kept	csv_util: テスト統合で 2 行削減
