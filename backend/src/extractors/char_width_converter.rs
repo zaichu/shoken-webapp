@@ -15,31 +15,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_halfwidth_to_fullwidth_lowercase() {
+    fn test_halfwidth_to_fullwidth() {
         assert_eq!(halfwidth_to_fullwidth('a'), 'ａ');
         assert_eq!(halfwidth_to_fullwidth('z'), 'ｚ');
-    }
-
-    #[test]
-    fn test_halfwidth_to_fullwidth_uppercase() {
         assert_eq!(halfwidth_to_fullwidth('A'), 'Ａ');
         assert_eq!(halfwidth_to_fullwidth('Z'), 'Ｚ');
-    }
-
-    #[test]
-    fn test_halfwidth_to_fullwidth_non_letter() {
         assert_eq!(halfwidth_to_fullwidth('1'), '1');
         assert_eq!(halfwidth_to_fullwidth('!'), '!');
         assert_eq!(halfwidth_to_fullwidth('あ'), 'あ');
     }
 
     #[test]
-    fn test_char_from_u32_with_default_valid() {
+    fn test_char_from_u32_with_default() {
         assert_eq!(char_from_u32_with_default(0x41, 'X'), 'A');
-    }
-
-    #[test]
-    fn test_char_from_u32_with_default_invalid() {
         assert_eq!(char_from_u32_with_default(0x110000, 'X'), 'X');
     }
 }

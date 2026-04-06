@@ -69,33 +69,25 @@ mod tests {
     use super::{is_localhost_origin, parse_cors_origins};
 
     #[test]
-    fn accepts_localhost_origin_variants() {
-        let cases = [
+    fn test_is_localhost_origin() {
+        for origin in [
             "http://localhost",
             "https://localhost:3000",
             "http://localhost.:5173",
             "http://127.0.0.1:8080",
             "https://[::1]:3000",
             "http://[0:0:0:0:0:0:0:1]:5173/path",
-        ];
-
-        for origin in cases {
+        ] {
             assert!(
                 is_localhost_origin(origin),
                 "expected {origin} to be treated as localhost"
             );
         }
-    }
-
-    #[test]
-    fn rejects_spoofed_and_production_origins() {
-        let cases = [
+        for origin in [
             "https://localhost.example.com",
             "https://127.0.0.1.example.com:3000",
             "https://frontend.example.com",
-        ];
-
-        for origin in cases {
+        ] {
             assert!(
                 !is_localhost_origin(origin),
                 "expected {origin} to be rejected as non-localhost"
@@ -104,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_comma_separated_cors_origins() {
+    fn test_parse_cors_origins() {
         assert_eq!(
             parse_cors_origins("https://app.example.com,http://localhost:3000"),
             vec![
@@ -112,10 +104,6 @@ mod tests {
                 "http://localhost:3000".to_string(),
             ]
         );
-    }
-
-    #[test]
-    fn trims_whitespace_when_parsing_cors_origins() {
         assert_eq!(
             parse_cors_origins(" https://app.example.com , http://localhost:3000 "),
             vec![
@@ -123,15 +111,7 @@ mod tests {
                 "http://localhost:3000".to_string(),
             ]
         );
-    }
-
-    #[test]
-    fn returns_empty_vec_for_empty_cors_origins() {
         assert!(parse_cors_origins("").is_empty());
-    }
-
-    #[test]
-    fn ignores_trailing_commas_when_parsing_cors_origins() {
         assert_eq!(
             parse_cors_origins("https://app.example.com,http://localhost:3000,"),
             vec![
