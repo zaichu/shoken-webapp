@@ -104,24 +104,20 @@ mod tests {
     }
 
     fn test_request(ip: Option<&str>) -> Request<Body> {
-        let mut req = Request::builder()
+        let req = Request::builder()
             .method(axum::http::Method::POST)
             .uri("/test");
-        if let Some(ip) = ip {
-            req = req.header("fly-client-ip", ip);
+        match ip {
+            Some(ip) => req.header("fly-client-ip", ip),
+            None => req,
         }
-        req.body(Body::empty()).unwrap()
+        .body(Body::empty())
+        .unwrap()
     }
 
-    async fn assert_not_rate_limited(router: Router, ip: Option<&str>) {
+    async fn assert_status(router: Router, ip: Option<&str>, expected: StatusCode) {
         let resp = router.oneshot(test_request(ip)).await.unwrap();
-        assert_ne!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
-    }
-
-    async fn assert_rate_limited(router: Router, ip: Option<&str>) {
-        assert_not_rate_limited(router.clone(), ip).await;
-        let resp = router.oneshot(test_request(ip)).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(resp.status(), expected);
     }
 
     #[test]
@@ -133,40 +129,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_rate_limit_allows_within_quota() {
-        assert_not_rate_limited(direct_app(build_rate_limiter(100).unwrap()), None).await;
+    async fn test_rate_limit() {
+        let router = direct_app(build_rate_limiter(1).unwrap());
+        assert_status(router.clone(), None, StatusCode::OK).await;
+        assert_status(router, None, StatusCode::TOO_MANY_REQUESTS).await;
     }
 
     #[tokio::test]
-    async fn test_rate_limit_blocks_excess_requests() {
-        // rps=1 で複数回リクエストを送ると 429 が返る
-        assert_rate_limited(direct_app(build_rate_limiter(1).unwrap()), None).await;
-    }
-
-    #[tokio::test]
-    async fn test_keyed_rate_limit_allows_within_quota() {
-        assert_not_rate_limited(
-            keyed_app(build_keyed_rate_limiter(100).unwrap()),
-            Some("1.2.3.4"),
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_keyed_rate_limit_blocks_same_ip() {
-        // rps=1: 同一 IP からの 2 回目は 429
-        assert_rate_limited(
-            keyed_app(build_keyed_rate_limiter(1).unwrap()),
-            Some("1.2.3.4"),
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_keyed_rate_limit_different_ips_independent() {
-        // rps=1: 異なる IP は独立したバケット
-        let limiter = build_keyed_rate_limiter(1).unwrap();
-        assert_not_rate_limited(keyed_app(limiter.clone()), Some("1.2.3.4")).await;
-        assert_not_rate_limited(keyed_app(limiter), Some("5.6.7.8")).await;
+    async fn test_keyed_rate_limit() {
+        let router = keyed_app(build_keyed_rate_limiter(1).unwrap());
+        assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await;
+        assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await;
+        assert_status(router, Some("1.2.3.4"), StatusCode::TOO_MANY_REQUESTS).await;
     }
 }
