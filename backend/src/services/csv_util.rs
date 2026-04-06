@@ -199,42 +199,26 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_taxes_tokutei_profit() {
+    fn test_compute_taxes() {
         let (taxes, after) = compute_taxes("特定", dec!(10000));
         assert_eq!(taxes, dec!(2031)); // floor(10000 * 0.20315)
         assert_eq!(after, dec!(7969));
-    }
-
-    #[test]
-    fn test_compute_taxes_loss() {
         let (taxes, after) = compute_taxes("特定", dec!(-5000));
         assert_eq!(taxes, Decimal::ZERO);
         assert_eq!(after, dec!(-5000));
-    }
-
-    #[test]
-    fn test_compute_taxes_nisa() {
         let (taxes, after) = compute_taxes("NISA", dec!(10000));
         assert_eq!(taxes, Decimal::ZERO);
         assert_eq!(after, dec!(10000));
     }
 
     #[test]
-    fn test_decode_bytes_utf8() {
-        let input = "テスト".as_bytes();
-        assert_eq!(decode_bytes(input), "テスト");
-    }
-
-    #[test]
-    fn test_decode_bytes_utf8_with_bom() {
-        let input = b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88";
-        assert_eq!(decode_bytes(input), "テスト");
-    }
-
-    #[test]
-    fn test_decode_bytes_shift_jis() {
+    fn test_decode_bytes() {
         use encoding_rs::SHIFT_JIS;
-        // 証券会社の CSV は Shift-JIS で出力されることがあるため、フォールバック経路を確認
+        // UTF-8
+        assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
+        // UTF-8 with BOM
+        assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
+        // Shift-JIS フォールバック（証券会社の CSV で使われることがある）
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
     }
