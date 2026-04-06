@@ -239,30 +239,20 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_required_number_invalid() {
+    fn test_parse_required_invalid() {
         let record = csv::StringRecord::from(vec!["abc", "1,234"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("bad".to_string(), 0);
-        header_map.insert("good".to_string(), 1);
+        let mut hm = HashMap::new();
+        hm.insert("bad".to_string(), 0);
+        hm.insert("good".to_string(), 1);
+        assert_eq!(parse_required_number(&record, &hm, "bad", 5).unwrap_err().row, 5);
+        assert_eq!(parse_required_number(&record, &hm, "good", 1).unwrap(), dec!(1234));
 
-        let err = parse_required_number(&record, &header_map, "bad", 5).unwrap_err();
-        assert_eq!(err.row, 5);
-
-        let ok = parse_required_number(&record, &header_map, "good", 1).unwrap();
-        assert_eq!(ok, dec!(1234));
-    }
-
-    #[test]
-    fn test_parse_required_date_invalid() {
         let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("bad".to_string(), 0);
-        header_map.insert("good".to_string(), 1);
-
-        let err = parse_required_date(&record, &header_map, "bad", 2).unwrap_err();
-        assert_eq!(err.row, 2);
-
-        let ok = parse_required_date(&record, &header_map, "good", 1).unwrap();
+        let mut hm = HashMap::new();
+        hm.insert("bad".to_string(), 0);
+        hm.insert("good".to_string(), 1);
+        assert_eq!(parse_required_date(&record, &hm, "bad", 2).unwrap_err().row, 2);
+        let ok = parse_required_date(&record, &hm, "good", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
     }
 
@@ -320,23 +310,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_required_number_empty_is_error() {
+    fn test_parse_required_empty_or_invalid_is_error() {
         let record = csv::StringRecord::from(vec![""]);
-        let mut header_map = HashMap::new();
-        header_map.insert("required".to_string(), 0);
-
-        let err = parse_required_number(&record, &header_map, "required", 7).unwrap_err();
+        let mut hm = HashMap::new();
+        hm.insert("required".to_string(), 0);
+        let err = parse_required_number(&record, &hm, "required", 7).unwrap_err();
         assert_eq!(err.row, 7);
         assert!(err.message.contains("required"));
-    }
 
-    #[test]
-    fn test_parse_required_date_invalid_is_error() {
         let record = csv::StringRecord::from(vec!["2024/13/40"]);
-        let mut header_map = HashMap::new();
-        header_map.insert("date".to_string(), 0);
-
-        let err = parse_required_date(&record, &header_map, "date", 9).unwrap_err();
+        let mut hm = HashMap::new();
+        hm.insert("date".to_string(), 0);
+        let err = parse_required_date(&record, &hm, "date", 9).unwrap_err();
         assert_eq!(err.row, 9);
         assert!(err.message.contains("date"));
     }
