@@ -123,12 +123,10 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.database_max_connections, 5);
         assert_eq!(config.csv_rate_limit_rps, 2);
-        assert!(config
-            .cors_origins
-            .contains(&"https://shoken-webapp.vercel.app".to_string()));
-        assert!(config
-            .cors_origins
-            .contains(&"http://localhost:8080".to_string()));
+        #[rustfmt::skip]
+        assert!(config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()));
+        #[rustfmt::skip]
+        assert!(config.cors_origins.contains(&"http://localhost:8080".to_string()));
         let _cors_layer = build_cors_layer(&config.cors_origins);
 
         let config = Config {
@@ -244,23 +242,15 @@ mod tests {
         let config = Config::from_env();
         let app = build_test_app(&config);
 
-        let response = preflight(app, "http://localhost:8080").await;
+        // 非本番環境では localhost が許可される
+        let response = preflight(app.clone(), "http://localhost:8080").await;
         let allowed_origin = response
             .headers()
             .get(ACCESS_CONTROL_ALLOW_ORIGIN)
             .and_then(|value| value.to_str().ok());
         assert_eq!(allowed_origin, Some("http://localhost:8080"));
-    }
 
-    #[tokio::test]
-    async fn test_security_headers_on_403_response() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _app_env = EnvGuard::set("APP_ENV", None);
-        let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
-
-        let config = Config::from_env();
-        let app = build_test_app(&config);
-
+        // 許可されていないオリジンは 403 + セキュリティヘッダーが付与される
         let req = Request::builder()
             .method(Method::POST)
             .uri("/health")

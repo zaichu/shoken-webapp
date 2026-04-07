@@ -235,19 +235,14 @@ mod tests {
     }
 
     #[test]
-    fn test_build_state_cookie() {
+    fn test_build_cookies() {
         for (secure, expected_secure) in [(true, true), (false, false)] {
             let cookie = build_state_cookie("test_state", secure);
             assert_eq!(cookie.name(), OAUTH_STATE_COOKIE_NAME);
             assert_eq!(cookie.value(), "test_state");
             assert_eq!(cookie.secure(), Some(expected_secure));
             assert_eq!(cookie.http_only(), Some(true));
-        }
-    }
 
-    #[test]
-    fn test_build_session_cookie() {
-        for (secure, expected_secure) in [(true, true), (false, false)] {
             let cookie = build_session_cookie("test_token", secure);
             assert_eq!(cookie.name(), SESSION_COOKIE_NAME);
             assert_eq!(cookie.value(), "test_token");
