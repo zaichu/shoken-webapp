@@ -177,19 +177,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_post_with_allowed_origin() {
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "http://localhost:8080")]).await, StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn test_post_with_disallowed_origin() {
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test]
-    async fn test_post_without_origin() {
-        // Origin なしは同一オリジンとみなし通過
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[]).await, StatusCode::OK);
+    async fn test_validate_origin() {
+        let cases: &[(&[(&str, &str)], StatusCode)] = &[
+            (&[("origin", "http://localhost:8080")], StatusCode::OK),
+            (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN),
+            (&[], StatusCode::OK), // Origin なしは同一オリジンとみなし通過
+            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), // Origin なし・許可済み Referer あり → 通過
+            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), // Origin なし・不正な Referer → 403
+            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), // 偽装ドメイン
+            (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK),
+        ];
+        for &(headers, expected) in cases { assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected); }
     }
 
     #[tokio::test]
@@ -202,29 +200,6 @@ mod tests {
                 async move { validate_origin(origins, req, next).await }
             }));
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test]
-    async fn test_post_with_allowed_referer_no_origin() {
-        // Origin なし・許可済み Referer あり → 通過
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "http://localhost:8080/some/page")]).await, StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn test_post_with_disallowed_referer_no_origin() {
-        // Origin なし・不正な Referer → 403
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "https://evil.example.com/attack")]).await, StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test]
-    async fn test_post_with_spoofed_referer_prefix_is_rejected() {
-        // 許可オリジンを接頭辞に持つ偽装ドメイン → starts_with バイパスを防ぐ
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")]).await, StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test]
-    async fn test_post_with_production_origin() {
-        assert_eq!(oneshot_status(test_app(), Method::POST, &[("origin", "https://shoken-webapp.vercel.app")]).await, StatusCode::OK);
     }
 
     #[tokio::test]
