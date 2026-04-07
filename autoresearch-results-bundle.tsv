@@ -1,0 +1,6 @@
+# metric_direction: lower_is_better
+iteration	commit	metric	delta	guard	status	description
+0	e46072c	169.30	0.0	-	baseline	変更前バンドルgzip合計
+1	-	155.22	-14.08	555 passed	keep	axios → native fetch（index chunk: 19.75 → 5.86 kB gzip）
+2	-	154.34	-0.88	555 passed	keep	terser: passes=3, drop_console=true, mangle.toplevel=true
+3	-	153.90	-0.44	555 passed	keep	react-router を vendor chunk に統合（react-dom との共通パターン圧縮）
