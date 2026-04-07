@@ -197,41 +197,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_read_csv_file_bytes_no_file_field() {
-        let response = test_app()
-            .oneshot(multipart_request("other", Some("positions.csv"), "dummy"))
-            .await
-            .unwrap();
+    async fn test_read_csv_file_bytes_validation_errors() {
+        for (field, filename, msg_fragment) in [
+            ("other", Some("positions.csv"), Some("fileフィールド")),
+            ("file", Some("positions.txt"), Some(".csv")),
+            ("file", Some(""), None),
+        ] {
+            let response = test_app()
+                .oneshot(multipart_request(field, filename, "dummy"))
+                .await
+                .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let error = read_error_response(response).await;
-        assert_eq!(error.error.code, "VALIDATION_ERROR");
-        assert!(error.error.message.contains("fileフィールド"));
-    }
-
-    #[tokio::test]
-    async fn test_read_csv_file_bytes_wrong_extension() {
-        let response = test_app()
-            .oneshot(multipart_request("file", Some("positions.txt"), "dummy"))
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let error = read_error_response(response).await;
-        assert_eq!(error.error.code, "VALIDATION_ERROR");
-        assert!(error.error.message.contains(".csv"));
-    }
-
-    #[tokio::test]
-    async fn test_read_csv_file_bytes_no_filename() {
-        let response = test_app()
-            .oneshot(multipart_request("file", Some(""), "dummy"))
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let error = read_error_response(response).await;
-        assert_eq!(error.error.code, "VALIDATION_ERROR");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            let error = read_error_response(response).await;
+            assert_eq!(error.error.code, "VALIDATION_ERROR");
+            if let Some(fragment) = msg_fragment {
+                assert!(error.error.message.contains(fragment));
+            }
+        }
     }
 
     #[tokio::test]
