@@ -85,13 +85,38 @@ cd backend && cargo fmt --check && cargo clippy --all-targets -- -D warnings && 
 
 ### 2. Codex に渡す
 
-依頼文を作成したら以下で実行:
+**worktree を使って独立した作業ディレクトリで実行する（並列実行・競合防止）:**
 
 ```bash
-codex exec --sandbox danger-full-access "<依頼文をここに貼る>"
+BRANCH="<branch-name>"           # 例: feature/add-login, fix/csv-parse
+WORKTREE="/tmp/codex-${BRANCH//\//-}"  # スラッシュをハイフンに変換
+
+# worktree 作成（main から新ブランチ）
+git worktree add "$WORKTREE" -b "$BRANCH" main
+
+# Codex を worktree で実行（バックグラウンド可）
+codex exec --sandbox danger-full-access -C "$WORKTREE" "<依頼文をここに貼る>" &
+
+# 完了後の後片付け（PR マージ後）
+# git worktree remove "$WORKTREE"
+# git branch -d "$BRANCH"
 ```
 
-非対話モードで実行するため `exec` サブコマンドを必ず使う（`codex "..."` は TTY なしで失敗する）。
+**複数タスクを並列実行する場合:**
+```bash
+# タスク1
+git worktree add /tmp/codex-task1 -b feature/task1 main
+codex exec --sandbox danger-full-access -C /tmp/codex-task1 "<依頼文1>" &
+
+# タスク2（同時に実行）
+git worktree add /tmp/codex-task2 -b fix/task2 main
+codex exec --sandbox danger-full-access -C /tmp/codex-task2 "<依頼文2>" &
+```
+
+**注意:**
+- worktree ごとに独立したファイル・git index を持つため競合しない
+- 各 Codex は worktree 内でブランチを作成・push・PR 作成まで完結する
+- 非対話モードで実行するため `exec` サブコマンドを必ず使う（`codex "..."` は TTY なしで失敗する）
 
 ## Rules
 - 曖昧語を避ける（「いい感じに」「必要なら」は禁止）
