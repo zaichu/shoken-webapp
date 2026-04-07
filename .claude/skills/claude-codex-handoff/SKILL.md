@@ -9,7 +9,7 @@ description: |
 # Claude Codex Handoff
 
 ## Goal
-Codex が最短で実装に着手できる依頼文を作成し、`codex exec "<依頼文>"` で渡す。
+Codex が最短で実装に着手できる依頼文を作成し、`codex exec --sandbox danger-full-access "<依頼文>"` で渡す。
 
 ## Workflow
 
@@ -88,7 +88,7 @@ cd backend && cargo fmt --check && cargo clippy --all-targets -- -D warnings && 
 依頼文を作成したら以下で実行:
 
 ```bash
-codex exec "<依頼文をここに貼る>"
+codex exec --sandbox danger-full-access "<依頼文をここに貼る>"
 ```
 
 非対話モードで実行するため `exec` サブコマンドを必ず使う（`codex "..."` は TTY なしで失敗する）。
