@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_valid() {
+    fn test_preview_csv() {
         let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
         let preview = preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
@@ -312,10 +312,7 @@ mod tests {
             "unexpected errors: {:?}",
             preview.errors
         );
-    }
 
-    #[test]
-    fn test_preview_csv_empty() {
         assert!(matches!(
             preview_csv(b""),
             Err(ApiError::ValidationError(_))

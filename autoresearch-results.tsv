@@ -37,4 +37,5 @@ iteration	commit	metric	status	description
 41	(no commit)	7857	reverted	security.rs: test_extract_origin のループ化は rustfmt 後に +4 行のため破棄
 42	e77e5e2	7852	kept	routes.rs: 認証必須テストの with_state をループ側へ集約して 5 行削減
 43	9e9cebc	7843	kept	csv_util.rs: 小さい純関数テストを既存ユーティリティテストへ統合して 9 行削減
-44	(pending)	7840	kept	domestic_stock.rs: preview_csv の異常系テストを統合して 3 行削減
+44	86814d7	7840	kept	domestic_stock.rs: preview_csv の異常系テストを統合して 3 行削減
+45	(pending)	7837	kept	asset_balance.rs: preview_csv の正常系と空入力テストを統合して 3 行削減
