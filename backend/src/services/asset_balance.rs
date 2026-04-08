@@ -312,10 +312,7 @@ mod tests {
             "unexpected errors: {:?}",
             preview.errors
         );
-    }
 
-    #[test]
-    fn test_preview_csv_empty() {
         assert!(matches!(
             preview_csv(b""),
             Err(ApiError::ValidationError(_))
