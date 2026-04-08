@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_valid_rows() {
+    fn test_preview_csv() {
         assert_eq!(
             assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
             "ＥＮＥＯＳホールディングス"
@@ -269,10 +269,6 @@ mod tests {
             preview.rows[0]["realized_profit_and_loss_after_tax"],
             9100.0
         );
-    }
-
-    #[test]
-    fn test_preview_csv_row_errors() {
         for (header, row, expected_message) in [
             (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
             (HEADER, INVALID_PNL_ROW, "実現損益[円]"),

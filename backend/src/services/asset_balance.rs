@@ -300,26 +300,6 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_valid() {
-        let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-        assert_eq!(
-            (preview.total_rows, preview.valid_rows, preview.rows.len()),
-            (2, 2, 2)
-        );
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
-
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
-    }
-
-    #[test]
     fn test_parse_asset_balance_row() {
         for (row, expected) in [
             (
@@ -357,6 +337,23 @@ mod tests {
         ] {
             assert_row_error(row, expected_message);
         }
+
+        let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
+        let preview = preview_csv(csv.as_bytes()).unwrap();
+        assert_eq!(
+            (preview.total_rows, preview.valid_rows, preview.rows.len()),
+            (2, 2, 2)
+        );
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
+
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
 
         for (rows, expected_codes) in [
             (

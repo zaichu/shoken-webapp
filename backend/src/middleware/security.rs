@@ -131,23 +131,6 @@ mod tests {
     use axum::{middleware, routing::post, Router};
     use tower::ServiceExt;
 
-    #[test]
-    fn test_extract_origin() {
-        assert_eq!(
-            extract_origin("http://localhost:8080/some/page"),
-            Some("http://localhost:8080")
-        );
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app"),
-            Some("https://shoken-webapp.vercel.app")
-        );
-        // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
-            Some("https://shoken-webapp.vercel.app.evil.com")
-        );
-    }
-
     fn test_app() -> Router {
         let allowed_origins = Arc::new(vec![
             "https://shoken-webapp.vercel.app".to_string(),
@@ -184,6 +167,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_origin() {
+        assert_eq!(
+            extract_origin("http://localhost:8080/some/page"),
+            Some("http://localhost:8080")
+        );
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app"),
+            Some("https://shoken-webapp.vercel.app")
+        );
+        // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
+            Some("https://shoken-webapp.vercel.app.evil.com")
+        );
+
         // GET はルート定義がないので 405 だが、ミドルウェアは通過（403 にならない）
         assert_ne!(
             oneshot_status(test_app(), Method::GET, &[]).await,
