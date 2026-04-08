@@ -276,40 +276,31 @@ mod tests {
         serde_json::from_slice(&body).unwrap()
     }
 
-    #[tokio::test]
-    async fn test_get_current_user_no_cookie() {
+    async fn request_json<T: DeserializeOwned>(method: &str, uri: &str) -> (StatusCode, T) {
         let response = test_app()
             .oneshot(
                 Request::builder()
-                    .method("GET")
-                    .uri("/auth/me")
+                    .method(method)
+                    .uri(uri)
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
-
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let error: ErrorResponse = read_json_response(response).await;
-        assert_eq!(error.error.code, "UNAUTHORIZED");
-        assert!(error.error.message.contains("ログインが必要"));
+        let status = response.status();
+        (status, read_json_response(response).await)
     }
 
     #[tokio::test]
-    async fn test_logout_no_cookie() {
-        let response = test_app()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/auth/logout")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+    async fn test_auth_endpoints_without_cookie() {
+        let (status, error): (StatusCode, ErrorResponse) = request_json("GET", "/auth/me").await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(error.error.code, "UNAUTHORIZED");
+        assert!(error.error.message.contains("ログインが必要"));
 
-        assert_eq!(response.status(), StatusCode::OK);
-        let message: MessageResponse = read_json_response(response).await;
+        let (status, message): (StatusCode, MessageResponse) =
+            request_json("POST", "/auth/logout").await;
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(message.message, "ログアウトしました");
     }
 }

@@ -17,6 +17,8 @@ use testcontainers_modules::postgres::Postgres as PgImage;
 use tokio::time::{sleep, timeout, Duration};
 use tower::ServiceExt;
 
+const BODY_LIMIT: usize = 100;
+
 /// testcontainers 経由で Postgres を起動し、マイグレーション + テストデータを投入する
 /// 戻り値: (pool, _node) で _node を drop すると停止する
 async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
@@ -98,6 +100,45 @@ fn setup_test_app(pool: Pool<Postgres>) -> Router {
         .with_state(app_state)
 }
 
+async fn call(
+    app: Router,
+    method: &str,
+    uri: &str,
+    body: Option<Value>,
+) -> axum::response::Response {
+    let mut request = Request::builder().method(method).uri(uri);
+    let body = if let Some(payload) = body {
+        request = request.header("content-type", "application/json");
+        Body::from(payload.to_string())
+    } else {
+        Body::empty()
+    };
+
+    app.oneshot(request.body(body).unwrap()).await.unwrap()
+}
+
+async fn read_json(response: axum::response::Response) -> Value {
+    let body = axum::body::to_bytes(response.into_body(), BODY_LIMIT)
+        .await
+        .unwrap();
+    serde_json::from_slice(&body).unwrap()
+}
+
+fn stock_payload(code: &str, name: &str) -> Value {
+    json!({
+        "date": "2025-03-25",
+        "code": code,
+        "name": name,
+        "market_category": "スタンダード",
+        "industry_code_33": "456",
+        "industry_category_33": "製造業",
+        "industry_code_17": "45",
+        "industry_category_17": "製造",
+        "size_code": "20",
+        "size_category": "中型株"
+    })
+}
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_search_stock() {
@@ -105,128 +146,51 @@ async fn test_search_stock() {
     let app = setup_test_app(pool);
 
     // コードによる検索テスト
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/stocks/1234")
-                .method("GET")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
+    let response = call(app.clone(), "GET", "/stocks/1234", None).await;
     assert_eq!(response.status(), StatusCode::OK);
-
-    let body = axum::body::to_bytes(response.into_body(), 100)
-        .await
-        .unwrap();
-    let stock: Value = serde_json::from_slice(&body).unwrap();
-
+    let stock = read_json(response).await;
     assert_eq!(stock["code"], "1234");
     assert_eq!(stock["name"], "テスト株式会社");
 
     // 銘柄名による検索テスト
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/stocks/テスト")
-                .method("GET")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // 存在しない銘柄コードのテスト
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/stocks/9999")
-                .method("GET")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    for (uri, expected_status) in [
+        ("/stocks/テスト", StatusCode::OK),
+        ("/stocks/9999", StatusCode::NOT_FOUND),
+    ] {
+        assert_eq!(
+            call(app.clone(), "GET", uri, None).await.status(),
+            expected_status
+        );
+    }
 }
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_create_stock() {
     let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool.clone());
+    let app = setup_test_app(pool);
 
-    let stock_data = json!({
-        "date": "2025-03-25",
-        "code": "5678",
-        "name": "新規テスト株式会社",
-        "market_category": "スタンダード",
-        "industry_code_33": "456",
-        "industry_category_33": "製造業",
-        "industry_code_17": "45",
-        "industry_category_17": "製造",
-        "size_code": "20",
-        "size_category": "中型株"
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/stocks")
-                .method("POST")
-                .header("content-type", "application/json")
-                .body(Body::from(stock_data.to_string()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let response = call(
+        app.clone(),
+        "POST",
+        "/stocks",
+        Some(stock_payload("5678", "新規テスト株式会社")),
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::CREATED);
-
-    let body = axum::body::to_bytes(response.into_body(), 100)
-        .await
-        .unwrap();
-    let stock: Value = serde_json::from_slice(&body).unwrap();
-
+    let stock = read_json(response).await;
     assert_eq!(stock["code"], "5678");
     assert_eq!(stock["name"], "新規テスト株式会社");
 
-    let invalid_data = json!({
-        "date": "2025-03-25",
-        "code": "",
-        "name": "新規テスト株式会社",
-        "market_category": "スタンダード",
-        "industry_code_33": "456",
-        "industry_category_33": "製造業",
-        "industry_code_17": "45",
-        "industry_category_17": "製造",
-        "size_code": "20",
-        "size_category": "中型株"
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/stocks")
-                .method("POST")
-                .header("content-type", "application/json")
-                .body(Body::from(invalid_data.to_string()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let mut invalid_data = stock_payload("5678", "新規テスト株式会社");
+    invalid_data["code"] = json!("");
+    assert_eq!(
+        call(app, "POST", "/stocks", Some(invalid_data))
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
 }
 
 /// 未認証時に POST /stocks が 401 を返すことを確認
@@ -237,31 +201,16 @@ async fn test_create_stock_unauthorized() {
         .unwrap();
     let app = setup_test_app(pool);
 
-    let stock_data = json!({
-        "date": "2025-03-25",
-        "code": "9999",
-        "name": "未認証テスト",
-        "market_category": "プライム",
-        "industry_code_33": null,
-        "industry_category_33": null,
-        "industry_code_17": null,
-        "industry_category_17": null,
-        "size_code": null,
-        "size_category": null
-    });
-
     // セッション Cookie なしでリクエスト
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/stocks")
-                .method("POST")
-                .header("content-type", "application/json")
-                .body(Body::from(stock_data.to_string()))
-                .unwrap(),
+    assert_eq!(
+        call(
+            app,
+            "POST",
+            "/stocks",
+            Some(stock_payload("9999", "未認証テスト"))
         )
         .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        .status(),
+        StatusCode::UNAUTHORIZED
+    );
 }

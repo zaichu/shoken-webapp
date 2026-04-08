@@ -30,3 +30,12 @@ iteration	commit	metric	status	description
 28	840ed77	7881	kept	csv_util: テスト統合で 2 行削減
 29	20b7d2d	7878	kept	domestic_stock: テスト統合で 3 行削減
 30	956f903	7851	kept	rate_limit: テスト統合でさらに 27 行削減（172→145）
+31	ae39702	7743	kept	stock: リクエスト/JSON ヘルパー抽出で 51 行削減
+32	f1b1a04	7734	kept	auth handler: 未認証テスト統合で 9 行削減
+33	437921a	7723	kept	config: CORS テスト共通化で 11 行削減
+34	747138e	7712	kept	routes: 認証必須テスト配列化で 11 行削減
+35	-	7716	reverted	errors: status コード表の配列化で 4 行増のためリバート
+36	-	7720	reverted	security: ヘッダー検証共通化で 8 行増のためリバート
+37	98233e3	7707	kept	auth service: cookie テスト統合で 5 行削減
+38	540e0e1	7706	kept	csv_import: JSON レスポンス読み出し共通化で 1 行削減
+END	-	7706	done	削減候補が1行削減のみになったため終了

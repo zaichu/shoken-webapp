@@ -118,6 +118,23 @@ mod tests {
         app.oneshot(req).await.unwrap()
     }
 
+    async fn post_with_origin(app: Router, origin: &str) -> axum::response::Response {
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/health")
+            .header("origin", origin)
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap()
+    }
+
+    fn allowed_origin(response: &axum::response::Response) -> Option<&str> {
+        response
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok())
+    }
+
     #[test]
     fn test_config_creation() {
         let config = Config::default();
@@ -179,19 +196,11 @@ mod tests {
         let config = Config::from_env();
         let app = build_test_app(&config);
 
-        let response = preflight(app.clone(), "https://shoken-webapp.vercel.app").await;
-        let allowed_origin = response
-            .headers()
-            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
-            .and_then(|value| value.to_str().ok());
-        assert_eq!(allowed_origin, Some("https://shoken-webapp.vercel.app"));
-
-        let response = preflight(app, "http://localhost:8080").await;
-        let allowed_origin = response
-            .headers()
-            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
-            .and_then(|value| value.to_str().ok());
-        assert_eq!(allowed_origin, None);
+        assert_eq!(
+            allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
+            Some("https://shoken-webapp.vercel.app")
+        );
+        assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None);
     }
 
     #[tokio::test]
@@ -206,26 +215,14 @@ mod tests {
         let config = Config::from_env();
         let app = build_test_app(&config);
 
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/health")
-            .header("origin", "http://custom-origin.example.com:8080")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.clone().oneshot(req).await.unwrap();
+        let resp = post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
         assert_ne!(
             resp.status(),
             StatusCode::FORBIDDEN,
             "許可されたカスタムオリジンは通過すべき"
         );
 
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/health")
-            .header("origin", "http://disallowed-origin.example.com")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
+        let resp = post_with_origin(app, "http://disallowed-origin.example.com").await;
         assert_eq!(
             resp.status(),
             StatusCode::FORBIDDEN,
@@ -243,21 +240,13 @@ mod tests {
         let app = build_test_app(&config);
 
         // 非本番環境では localhost が許可される
-        let response = preflight(app.clone(), "http://localhost:8080").await;
-        let allowed_origin = response
-            .headers()
-            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
-            .and_then(|value| value.to_str().ok());
-        assert_eq!(allowed_origin, Some("http://localhost:8080"));
+        assert_eq!(
+            allowed_origin(&preflight(app.clone(), "http://localhost:8080").await),
+            Some("http://localhost:8080")
+        );
 
         // 許可されていないオリジンは 403 + セキュリティヘッダーが付与される
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/health")
-            .header("origin", "http://evil.example.com")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
+        let resp = post_with_origin(app, "http://evil.example.com").await;
         assert_eq!(resp.status(), StatusCode::FORBIDDEN);
         assert_eq!(
             resp.headers().get("X-Content-Type-Options").unwrap(),

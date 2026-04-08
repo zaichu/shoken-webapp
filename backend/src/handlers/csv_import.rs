@@ -68,6 +68,7 @@ mod tests {
         routing::post,
         Router,
     };
+    use serde::de::DeserializeOwned;
     use sqlx::postgres::PgPoolOptions;
     use tower::ServiceExt;
     use uuid::Uuid;
@@ -152,7 +153,7 @@ mod tests {
             .unwrap()
     }
 
-    async fn read_error_response(response: axum::response::Response) -> ErrorResponse {
+    async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
         serde_json::from_slice(&body).unwrap()
     }
@@ -209,7 +210,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-            let error = read_error_response(response).await;
+            let error: ErrorResponse = read_json_response(response).await;
             assert_eq!(error.error.code, "VALIDATION_ERROR");
             if let Some(fragment) = msg_fragment {
                 assert!(error.error.message.contains(fragment));
@@ -225,8 +226,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
-        let preview: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let preview: serde_json::Value = read_json_response(response).await;
         assert_eq!(preview["valid_rows"], 1);
         assert_eq!(preview["rows"].as_array().unwrap().len(), 1);
     }
@@ -239,8 +239,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::CREATED);
-        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
-        let upload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let upload: serde_json::Value = read_json_response(response).await;
         assert_eq!(upload["inserted"], 1);
         assert_eq!(upload["skipped"], 0);
     }
