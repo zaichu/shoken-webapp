@@ -132,11 +132,7 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].row, 2);
         assert!(errors[0].message.contains("CSV行の読み込み"));
-    }
 
-    #[test]
-    fn test_finish_csv_upload() {
-        use crate::models::csv_import::CsvRowError;
         let result = crate::models::common::BulkCreateResponse {
             inserted: 3,
             skipped: 1,

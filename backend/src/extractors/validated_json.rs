@@ -82,10 +82,7 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-    }
 
-    #[tokio::test]
-    async fn test_invalid_json_syntax() {
         let body = Body::from(r#"{"name": "テストユーザー", age: 30}"#);
         let request = Request::builder()
             .header("content-type", "application/json")
@@ -101,10 +98,7 @@ mod tests {
             Err(ApiError::JsonParseError) => (),
             _ => panic!("Expected JsonParseError"),
         }
-    }
 
-    #[tokio::test]
-    async fn test_invalid_validation() {
         let json_data = TestData {
             name: "".to_string(),
             age: 30,
