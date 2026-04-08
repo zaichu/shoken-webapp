@@ -369,12 +369,20 @@ mod tests {
 
         // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
         let resp = router.clone().oneshot(health_req(None)).await.unwrap();
-        assert!(resp.headers().contains_key("x-request-id"), "x-request-id should be auto-generated");
+        assert!(
+            resp.headers().contains_key("x-request-id"),
+            "x-request-id should be auto-generated"
+        );
 
         // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
-        let resp = router.oneshot(health_req(Some("my-custom-id"))).await.unwrap();
+        let resp = router
+            .oneshot(health_req(Some("my-custom-id")))
+            .await
+            .unwrap();
         assert_eq!(
-            resp.headers().get("x-request-id").and_then(|v| v.to_str().ok()),
+            resp.headers()
+                .get("x-request-id")
+                .and_then(|v| v.to_str().ok()),
             Some("my-custom-id"),
             "existing x-request-id should be propagated unchanged"
         );
