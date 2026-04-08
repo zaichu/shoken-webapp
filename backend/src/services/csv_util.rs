@@ -220,6 +220,16 @@ mod tests {
         let header_map = make_header_map(&["present"]);
         assert_eq!(get_cell(&record, &header_map, "present"), "value");
         assert_eq!(get_cell(&record, &header_map, "missing"), "");
+        for (input, expected) in [
+            ("K D D I", "KDDI"),
+            ("I N P E X", "INPEX"),
+            ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"),
+            ("任天堂", "任天堂"),
+            ("  KDDI  ", "KDDI"),
+            ("", ""),
+        ] {
+            assert_eq!(normalize_security_name(input), expected);
+        }
     }
 
     #[test]
@@ -262,21 +272,6 @@ mod tests {
         assert_eq!(err.row, 9);
         assert!(err.message.contains("out_of_range"));
     }
-
-    #[test]
-    fn test_normalize_security_name() {
-        for (input, expected) in [
-            ("K D D I", "KDDI"),
-            ("I N P E X", "INPEX"),
-            ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"),
-            ("任天堂", "任天堂"),
-            ("  KDDI  ", "KDDI"),
-            ("", ""),
-        ] {
-            assert_eq!(normalize_security_name(input), expected);
-        }
-    }
-
     /// CSV パース処理の所要時間を計測するタイミングテスト。
     /// 通常の `cargo test` では実行されない。以下で明示的に実行する:
     /// ```
