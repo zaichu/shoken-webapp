@@ -127,7 +127,7 @@ fn csv_upload_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request};
+    use axum::{body::Body, http::{Method, Request}};
     use crate::test_env::{EnvGuard, ENV_MUTEX};
     use std::sync::Arc;
     use tower::ServiceExt;
@@ -176,7 +176,7 @@ mod tests {
         }
         .with_state(state);
 
-        assert_rate_limited(router, axum::http::Method::GET, "/auth/me", Some("1.2.3.4")).await;
+        assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
     }
 
     /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
@@ -193,13 +193,13 @@ mod tests {
             handlers::jquants::jquants_routes()
         }
         .with_state(state);
-        assert_rate_limited(router, axum::http::Method::GET, "/jquants/fins/summary", None).await;
+        assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
     }
 
     /// rps=1 ルーターに同一条件で 2 回リクエストし、2 回目が 429 になることを検証するヘルパー
     async fn assert_rate_limited(
         router: axum::Router,
-        method: axum::http::Method,
+        method: Method,
         uri: &str,
         ip: Option<&str>,
     ) {
@@ -215,7 +215,7 @@ mod tests {
     }
 
     /// セッション Cookie なしでルーターにリクエストを送り、401 が返ることを検証するヘルパー
-    async fn check_unauthorized(router: axum::Router, method: axum::http::Method, uri: &str) {
+    async fn check_unauthorized(router: axum::Router, method: Method, uri: &str) {
         let response = router
             .oneshot(
                 Request::builder()
@@ -231,97 +231,86 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {
-        check_unauthorized(
-            handlers::jquants::jquants_routes().with_state(make_test_state()),
-            axum::http::Method::GET,
-            "/jquants/fins/summary?code=7203",
-        )
-        .await;
-        check_unauthorized(
-            handlers::dividend::dividend_routes().with_state(make_test_state()),
-            axum::http::Method::DELETE,
-            "/dividends",
-        )
-        .await;
-        check_unauthorized(
-            handlers::dividend::dividend_routes().with_state(make_test_state()),
-            axum::http::Method::GET,
-            "/dividends",
-        )
-        .await;
-        check_unauthorized(
-            handlers::dividend::dividend_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/dividends/csv/preview",
-        )
-        .await;
-        check_unauthorized(
-            handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
-            axum::http::Method::DELETE,
-            "/domestic-stocks",
-        )
-        .await;
-        check_unauthorized(
-            handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
-            axum::http::Method::GET,
-            "/domestic-stocks",
-        )
-        .await;
-        check_unauthorized(
-            handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/domestic-stocks/csv/preview",
-        )
-        .await;
-        check_unauthorized(
-            handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
-            axum::http::Method::DELETE,
-            "/mutualfunds",
-        )
-        .await;
-        check_unauthorized(
-            handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
-            axum::http::Method::GET,
-            "/mutualfunds",
-        )
-        .await;
-        check_unauthorized(
-            handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/mutualfunds/csv/preview",
-        )
-        .await;
-        check_unauthorized(
-            handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
-            axum::http::Method::DELETE,
-            "/asset-balances",
-        )
-        .await;
-        check_unauthorized(
-            handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/asset-balances/bulk",
-        )
-        .await;
-        check_unauthorized(
-            handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/asset-balances/csv/preview",
-        )
-        .await;
-        check_unauthorized(
-            csv_upload_routes().with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/dividends/csv",
-        )
-        .await;
-        check_unauthorized(
-            handlers::dividend_per_share::dividend_per_share_routes()
-                .with_state(make_test_state()),
-            axum::http::Method::POST,
-            "/dividends/per-share/batch",
-        )
-        .await;
+        for (router, method, uri) in [
+            (
+                handlers::jquants::jquants_routes().with_state(make_test_state()),
+                Method::GET,
+                "/jquants/fins/summary?code=7203",
+            ),
+            (
+                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                Method::DELETE,
+                "/dividends",
+            ),
+            (
+                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                Method::GET,
+                "/dividends",
+            ),
+            (
+                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                Method::POST,
+                "/dividends/csv/preview",
+            ),
+            (
+                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                Method::DELETE,
+                "/domestic-stocks",
+            ),
+            (
+                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                Method::GET,
+                "/domestic-stocks",
+            ),
+            (
+                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                Method::POST,
+                "/domestic-stocks/csv/preview",
+            ),
+            (
+                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                Method::DELETE,
+                "/mutualfunds",
+            ),
+            (
+                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                Method::GET,
+                "/mutualfunds",
+            ),
+            (
+                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                Method::POST,
+                "/mutualfunds/csv/preview",
+            ),
+            (
+                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                Method::DELETE,
+                "/asset-balances",
+            ),
+            (
+                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                Method::POST,
+                "/asset-balances/bulk",
+            ),
+            (
+                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                Method::POST,
+                "/asset-balances/csv/preview",
+            ),
+            (
+                csv_upload_routes().with_state(make_test_state()),
+                Method::POST,
+                "/dividends/csv",
+            ),
+            (
+                handlers::dividend_per_share::dividend_per_share_routes()
+                    .with_state(make_test_state()),
+                Method::POST,
+                "/dividends/per-share/batch",
+            ),
+        ] {
+            check_unauthorized(router, method, uri).await;
+        }
     }
 
     /// CSV upload ルートだけが IP 単位レート制限の対象になることを確認
@@ -337,12 +326,12 @@ mod tests {
             ("/asset-balances/csv", "1.2.3.7"),
         ] {
             let router = app_router(make_test_state(), &Config::from_env());
-            assert_rate_limited(router, axum::http::Method::POST, path, Some(ip)).await;
+            assert_rate_limited(router, Method::POST, path, Some(ip)).await;
         }
 
         // プレビューエンドポイントはレート制限対象外
         let req = Request::builder()
-            .method(axum::http::Method::POST)
+            .method(Method::POST)
             .uri("/domestic-stocks/csv/preview")
             .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
@@ -364,7 +353,7 @@ mod tests {
 
         // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
         let req = Request::builder()
-            .method(axum::http::Method::GET)
+            .method(Method::GET)
             .uri("/health")
             .body(Body::empty())
             .unwrap();
@@ -376,7 +365,7 @@ mod tests {
 
         // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
         let req = Request::builder()
-            .method(axum::http::Method::GET)
+            .method(Method::GET)
             .uri("/health")
             .header("x-request-id", "my-custom-id")
             .body(Body::empty())
