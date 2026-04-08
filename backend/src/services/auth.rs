@@ -252,16 +252,6 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_cookies() {
-        let s = clear_state_cookie(true);
-        assert_eq!(s.name(), OAUTH_STATE_COOKIE_NAME);
-        assert_eq!(s.value(), "");
-        let c = clear_session_cookie(true);
-        assert_eq!(c.name(), SESSION_COOKIE_NAME);
-        assert_eq!(c.value(), "");
-    }
-
-    #[test]
     fn test_get_session_id_from_jar() {
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
 
@@ -270,13 +260,18 @@ mod tests {
 
         let uuid = uuid::Uuid::new_v4();
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()));
-        let result = get_session_id_from_jar(&jar);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), uuid);
+        assert_eq!(get_session_id_from_jar(&jar).unwrap(), uuid);
     }
 
     #[test]
-    fn test_simple_auth_functions() {
+    fn test_cookie_helpers_and_constants() {
+        for (cookie, expected_name) in [
+            (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
+            (clear_session_cookie(true), SESSION_COOKIE_NAME),
+        ] {
+            assert_eq!(cookie.name(), expected_name);
+            assert_eq!(cookie.value(), "");
+        }
         assert_eq!(same_site(true), SameSite::None);
         assert_eq!(same_site(false), SameSite::Lax);
         assert_eq!(SESSION_COOKIE_NAME, "session_token");
