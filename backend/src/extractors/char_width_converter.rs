@@ -23,10 +23,6 @@ mod tests {
         assert_eq!(halfwidth_to_fullwidth('1'), '1');
         assert_eq!(halfwidth_to_fullwidth('!'), '!');
         assert_eq!(halfwidth_to_fullwidth('あ'), 'あ');
-    }
-
-    #[test]
-    fn test_char_from_u32_with_default() {
         assert_eq!(char_from_u32_with_default(0x41, 'X'), 'A');
         assert_eq!(char_from_u32_with_default(0x110000, 'X'), 'X');
     }

@@ -120,23 +120,17 @@ mod tests {
         assert_eq!(resp.status(), expected);
     }
 
-    #[test]
-    fn test_build_rate_limiters() {
+    #[tokio::test]
+    async fn test_rate_limiters() {
         assert!(build_rate_limiter(0).is_none());
         assert!(build_rate_limiter(10).is_some());
         assert!(build_keyed_rate_limiter(0).is_none());
         assert!(build_keyed_rate_limiter(10).is_some());
-    }
 
-    #[tokio::test]
-    async fn test_rate_limit() {
         let router = direct_app(build_rate_limiter(1).unwrap());
         assert_status(router.clone(), None, StatusCode::OK).await;
         assert_status(router, None, StatusCode::TOO_MANY_REQUESTS).await;
-    }
 
-    #[tokio::test]
-    async fn test_keyed_rate_limit() {
         let router = keyed_app(build_keyed_rate_limiter(1).unwrap());
         assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await;
         assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await;

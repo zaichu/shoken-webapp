@@ -93,10 +93,6 @@ mod tests {
                 "expected {origin} to be rejected as non-localhost"
             );
         }
-    }
-
-    #[test]
-    fn test_parse_cors_origins() {
         assert_eq!(
             parse_cors_origins("https://app.example.com,http://localhost:3000"),
             vec![
