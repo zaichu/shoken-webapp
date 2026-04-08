@@ -157,7 +157,12 @@ mod tests {
         for _ in 0..n {
             f();
         }
-        println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0);
+        println!(
+            "[timing] {} × {}回: {:.2}ms",
+            label,
+            n,
+            start.elapsed().as_secs_f64() * 1000.0
+        );
     }
 
     fn make_header_map(cols: &[&str]) -> HashMap<String, usize> {
@@ -210,7 +215,10 @@ mod tests {
         // UTF-8
         assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
         // UTF-8 with BOM
-        assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
+        assert_eq!(
+            decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"),
+            "テスト"
+        );
         // Shift-JIS フォールバック（証券会社の CSV で使われることがある）
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
@@ -236,15 +244,28 @@ mod tests {
 
         let record = csv::StringRecord::from(vec!["abc", "1,234", ""]);
         let hm = make_header_map(&["invalid", "valid", "empty"]);
-        assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5);
-        assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234));
+        assert_eq!(
+            parse_required_number(&record, &hm, "invalid", 5)
+                .unwrap_err()
+                .row,
+            5
+        );
+        assert_eq!(
+            parse_required_number(&record, &hm, "valid", 1).unwrap(),
+            dec!(1234)
+        );
         let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
         assert_eq!(err.row, 7);
         assert!(err.message.contains("empty"));
 
         let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]);
         let hm = make_header_map(&["invalid", "valid", "out_of_range"]);
-        assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
+        assert_eq!(
+            parse_required_date(&record, &hm, "invalid", 2)
+                .unwrap_err()
+                .row,
+            2
+        );
         let ok = parse_required_date(&record, &hm, "valid", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
         let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
@@ -281,7 +302,12 @@ mod tests {
         let csv_utf8: String = {
             let mut s = String::from("日付,銘柄コード,金額\n");
             for i in 0..ROWS {
-                s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100));
+                s.push_str(&format!(
+                    "2024/{:02}/{:02},1234,{}\n",
+                    (i % 12) + 1,
+                    (i % 28) + 1,
+                    i * 100
+                ));
             }
             s
         };
@@ -293,16 +319,24 @@ mod tests {
         time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || {
             std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
         });
-        time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || {
-            std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
-        });
+        time_n(
+            &format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS),
+            10,
+            || {
+                std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
+            },
+        );
         let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
         time_n("parse_number", 10_000, || {
-            for s in &samples { let _ = std::hint::black_box(parse_number(std::hint::black_box(s))); }
+            for s in &samples {
+                let _ = std::hint::black_box(parse_number(std::hint::black_box(s)));
+            }
         });
         let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"];
         time_n("parse_date", 10_000, || {
-            for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); }
+            for s in &date_samples {
+                let _ = std::hint::black_box(parse_date(std::hint::black_box(s)));
+            }
         });
     }
 }

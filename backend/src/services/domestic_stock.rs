@@ -234,7 +234,10 @@ mod tests {
 
     fn assert_preview_ok(row: &str) -> CsvPreviewResponse {
         let preview = preview_with_header(HEADER, row);
-        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (1, 1, 1));
+        assert_eq!(
+            (preview.total_rows, preview.valid_rows, preview.rows.len()),
+            (1, 1, 1)
+        );
         assert!(
             preview.errors.is_empty(),
             "unexpected errors: {:?}",
@@ -245,7 +248,10 @@ mod tests {
 
     fn assert_preview_error(header: &str, row: &str, expected_message: &str) {
         let preview = preview_with_header(header, row);
-        assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.len()), (1, 0, 1));
+        assert_eq!(
+            (preview.total_rows, preview.valid_rows, preview.errors.len()),
+            (1, 0, 1)
+        );
         assert!(preview.errors[0].message.contains(expected_message));
     }
 
@@ -277,7 +283,10 @@ mod tests {
 
     #[test]
     fn test_preview_csv_empty() {
-        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 
     fn make_test_item() -> CreateDomesticStockRequest {

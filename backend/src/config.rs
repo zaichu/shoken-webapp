@@ -200,7 +200,10 @@ mod tests {
             allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
             Some("https://shoken-webapp.vercel.app")
         );
-        assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None);
+        assert_eq!(
+            allowed_origin(&preflight(app, "http://localhost:8080").await),
+            None
+        );
     }
 
     #[tokio::test]

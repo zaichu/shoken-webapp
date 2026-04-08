@@ -216,8 +216,7 @@ mod tests {
             ApiError::OAuthError("認証エラー".to_string()),
             StatusCode::INTERNAL_SERVER_ERROR,
         );
-        let serde_err: serde_json::Error =
-            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
         check_status(
             ApiError::Unauthorized("認証が必要です".to_string()),
             StatusCode::UNAUTHORIZED,

@@ -49,8 +49,12 @@ mod tests {
 
     #[test]
     fn test_stock_validation() {
-        assert!(make_stock("1234", "テスト株式会社", "プライム").validate().is_ok());
-        assert!(make_stock("", "テスト株式会社", "プライム").validate().is_err());
+        assert!(make_stock("1234", "テスト株式会社", "プライム")
+            .validate()
+            .is_ok());
+        assert!(make_stock("", "テスト株式会社", "プライム")
+            .validate()
+            .is_err());
         assert!(make_stock("1234", "", "プライム").validate().is_err());
         assert!(make_stock("1234", "テスト株式会社", "").validate().is_err());
     }
