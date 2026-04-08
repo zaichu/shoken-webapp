@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_taxes() {
+    fn test_csv_utils() {
         for (account, realized_pnl, expected_taxes, expected_after) in [
             ("特定", dec!(10000), dec!(2031), dec!(7969)), // floor(10000 * 0.20315)
             ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)),
@@ -207,10 +207,7 @@ mod tests {
             let (taxes, after) = compute_taxes(account, realized_pnl);
             assert_eq!((taxes, after), (expected_taxes, expected_after));
         }
-    }
 
-    #[test]
-    fn test_decode_bytes() {
         use encoding_rs::SHIFT_JIS;
         // UTF-8
         assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
@@ -222,10 +219,6 @@ mod tests {
         // Shift-JIS フォールバック（証券会社の CSV で使われることがある）
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
-    }
-
-    #[test]
-    fn test_get_cell() {
         let record = csv::StringRecord::from(vec!["value"]);
         let header_map = make_header_map(&["present"]);
         assert_eq!(get_cell(&record, &header_map, "present"), "value");

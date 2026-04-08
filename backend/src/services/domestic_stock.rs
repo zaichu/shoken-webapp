@@ -279,10 +279,7 @@ mod tests {
         ] {
             assert_preview_error(header, row, expected_message);
         }
-    }
 
-    #[test]
-    fn test_preview_csv_empty() {
         assert!(matches!(
             preview_csv(b""),
             Err(ApiError::ValidationError(_))
