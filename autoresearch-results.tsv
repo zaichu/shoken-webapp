@@ -35,4 +35,5 @@ iteration	commit	metric	status	description
 39	98f63f9	7691	kept	security: ヘッダーテストのリクエスト構築共通化で 15 行削減
 40	(pending)	7857	fmt-cleanup	cargo fmt 正規化: 過去の assert 一行化を展開。errors.rs serde_err 型注釈削除で 1 行削減
 41	(no commit)	7857	reverted	security.rs: test_extract_origin のループ化は rustfmt 後に +4 行のため破棄
-42	(pending)	7852	kept	routes.rs: 認証必須テストの with_state をループ側へ集約して 5 行削減
+42	e77e5e2	7852	kept	routes.rs: 認証必須テストの with_state をループ側へ集約して 5 行削減
+43	(pending)	7843	kept	csv_util.rs: 小さい純関数テストを既存ユーティリティテストへ統合して 9 行削減
