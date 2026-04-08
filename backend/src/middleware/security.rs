@@ -183,16 +183,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_request_passes() {
-        // GET はルート定義がないので 405 だが、ミドルウェアは通過
-        assert_ne!(
-            oneshot_status(test_app(), Method::GET, &[]).await,
-            StatusCode::FORBIDDEN
-        );
-    }
-
-    #[tokio::test]
     async fn test_validate_origin() {
+        // GET はルート定義がないので 405 だが、ミドルウェアは通過（403 にならない）
+        assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
+
         let cases: &[(&[(&str, &str)], StatusCode)] = &[
             (&[("origin", "http://localhost:8080")], StatusCode::OK),
             (
