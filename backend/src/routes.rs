@@ -238,83 +238,78 @@ mod tests {
     async fn test_all_endpoints_require_auth() {
         for (router, method, uri) in [
             (
-                handlers::jquants::jquants_routes().with_state(make_test_state()),
+                handlers::jquants::jquants_routes(),
                 Method::GET,
                 "/jquants/fins/summary?code=7203",
             ),
             (
-                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                handlers::dividend::dividend_routes(),
                 Method::DELETE,
                 "/dividends",
             ),
             (
-                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                handlers::dividend::dividend_routes(),
                 Method::GET,
                 "/dividends",
             ),
             (
-                handlers::dividend::dividend_routes().with_state(make_test_state()),
+                handlers::dividend::dividend_routes(),
                 Method::POST,
                 "/dividends/csv/preview",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                handlers::domestic_stock::domestic_stock_routes(),
                 Method::DELETE,
                 "/domestic-stocks",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                handlers::domestic_stock::domestic_stock_routes(),
                 Method::GET,
                 "/domestic-stocks",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes().with_state(make_test_state()),
+                handlers::domestic_stock::domestic_stock_routes(),
                 Method::POST,
                 "/domestic-stocks/csv/preview",
             ),
             (
-                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                handlers::mutualfund::mutualfund_routes(),
                 Method::DELETE,
                 "/mutualfunds",
             ),
             (
-                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                handlers::mutualfund::mutualfund_routes(),
                 Method::GET,
                 "/mutualfunds",
             ),
             (
-                handlers::mutualfund::mutualfund_routes().with_state(make_test_state()),
+                handlers::mutualfund::mutualfund_routes(),
                 Method::POST,
                 "/mutualfunds/csv/preview",
             ),
             (
-                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                handlers::asset_balance::asset_balance_routes(),
                 Method::DELETE,
                 "/asset-balances",
             ),
             (
-                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                handlers::asset_balance::asset_balance_routes(),
                 Method::POST,
                 "/asset-balances/bulk",
             ),
             (
-                handlers::asset_balance::asset_balance_routes().with_state(make_test_state()),
+                handlers::asset_balance::asset_balance_routes(),
                 Method::POST,
                 "/asset-balances/csv/preview",
             ),
+            (csv_upload_routes(), Method::POST, "/dividends/csv"),
             (
-                csv_upload_routes().with_state(make_test_state()),
-                Method::POST,
-                "/dividends/csv",
-            ),
-            (
-                handlers::dividend_per_share::dividend_per_share_routes()
-                    .with_state(make_test_state()),
+                handlers::dividend_per_share::dividend_per_share_routes(),
                 Method::POST,
                 "/dividends/per-share/batch",
             ),
         ] {
-            check_unauthorized(router, method, uri).await;
+            check_unauthorized(router.with_state(make_test_state()), method, uri).await;
         }
     }
 
