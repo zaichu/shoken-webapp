@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_preview_csv_returns_json_preview() {
+    async fn test_handle_csv_endpoints() {
         let response = preview_app()
             .oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n"))
             .await
@@ -229,10 +229,7 @@ mod tests {
         let preview: serde_json::Value = read_json_response(response).await;
         assert_eq!(preview["valid_rows"], 1);
         assert_eq!(preview["rows"].as_array().unwrap().len(), 1);
-    }
 
-    #[tokio::test]
-    async fn test_handle_upload_csv_returns_created_response() {
         let response = upload_app()
             .oneshot(multipart_request("file", Some("upload.csv"), "a,b\n1,2\n"))
             .await

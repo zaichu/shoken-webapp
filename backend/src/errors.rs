@@ -233,10 +233,6 @@ mod tests {
             ApiError::SerdeJsonError(serde_err),
             StatusCode::INTERNAL_SERVER_ERROR,
         );
-    }
-
-    #[test]
-    fn test_simple_error_helper() {
         let (status, details) = simple_error(
             StatusCode::BAD_REQUEST,
             "TEST_CODE",

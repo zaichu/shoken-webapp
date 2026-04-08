@@ -154,20 +154,7 @@ mod tests {
         assert_eq!(config.cors_origins.len(), 1);
         assert_eq!(config.cors_origins[0], "http://example.com");
         assert_eq!(config.csv_rate_limit_rps, 2);
-    }
 
-    #[tokio::test]
-    async fn test_config_from_env_reads_csv_rate_limit_rps() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
-
-        let config = Config::from_env();
-
-        assert_eq!(config.csv_rate_limit_rps, 7);
-    }
-
-    #[test]
-    fn test_utility_functions() {
         let url = backend_url();
         if let Ok(expected) = env::var("BACKEND_URL") {
             assert_eq!(url, expected);
@@ -178,6 +165,16 @@ mod tests {
         }
         assert!(server_addr().starts_with("0.0.0.0:"));
         let _ = is_secure_cookie();
+    }
+
+    #[tokio::test]
+    async fn test_config_from_env_reads_csv_rate_limit_rps() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
+
+        let config = Config::from_env();
+
+        assert_eq!(config.csv_rate_limit_rps, 7);
     }
 
     #[tokio::test]
