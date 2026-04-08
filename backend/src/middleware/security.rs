@@ -202,36 +202,31 @@ mod tests {
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
 
+    async fn security_headers_response() -> axum::response::Response {
+        security_headers_app()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn test_security_headers_present() {
         let _lock = ENV_MUTEX.lock().await;
         let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
         let _backend_url = EnvGuard::set("BACKEND_URL", None);
 
-        let app = security_headers_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(
-            resp.headers().get("X-Content-Type-Options").unwrap(),
-            "nosniff"
-        );
+        let resp = security_headers_response().await;
+        assert_eq!(resp.headers().get("X-Content-Type-Options").unwrap(), "nosniff");
         assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
-        assert_eq!(
-            resp.headers().get("Referrer-Policy").unwrap(),
-            "strict-origin-when-cross-origin"
-        );
-        assert_eq!(
-            resp.headers().get("Content-Security-Policy").unwrap(),
-            "default-src 'none'"
-        );
-        assert!(
-            resp.headers().get("Strict-Transport-Security").is_none(),
-            "secure cookie 無効時は HSTS を付与しない"
-        );
+        assert_eq!(resp.headers().get("Referrer-Policy").unwrap(), "strict-origin-when-cross-origin");
+        assert_eq!(resp.headers().get("Content-Security-Policy").unwrap(), "default-src 'none'");
+        assert!(resp.headers().get("Strict-Transport-Security").is_none(), "secure cookie 無効時は HSTS を付与しない");
     }
 
     #[tokio::test]
@@ -239,17 +234,7 @@ mod tests {
         let _lock = ENV_MUTEX.lock().await;
         let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true"));
 
-        let app = security_headers_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-
-        assert_eq!(
-            resp.headers().get("Strict-Transport-Security").unwrap(),
-            "max-age=31536000; includeSubDomains"
-        );
+        let resp = security_headers_response().await;
+        assert_eq!(resp.headers().get("Strict-Transport-Security").unwrap(), "max-age=31536000; includeSubDomains");
     }
 }
