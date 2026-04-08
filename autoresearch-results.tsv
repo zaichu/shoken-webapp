@@ -41,3 +41,4 @@ iteration	commit	metric	status	description
 45	cceded7	7827	kept	security: GET テストを test_validate_origin に統合し 6 行削減
 46	e1a39d7	7842	fmt-cleanup	cargo fmt 正規化: iter 43-45 の一行化を展開（+15 行、実行削減数は -15）
 47	59ae913	7824	kept	routes/csv_util/domestic_stock/asset_balance: テスト統合で 18 行削減
+48	eab4d45	7815	kept	csv_util/dividend/mutualfund: テスト統合で 9 行削減
