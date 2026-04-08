@@ -195,10 +195,7 @@ mod tests {
         for input in ["2024/01/15", "2024-01-15"] {
             assert_eq!(parse_date(input).unwrap(), expected_date);
         }
-    }
 
-    #[test]
-    fn test_csv_utils() {
         for (account, realized_pnl, expected_taxes, expected_after) in [
             ("特定", dec!(10000), dec!(2031), dec!(7969)), // floor(10000 * 0.20315)
             ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)),
