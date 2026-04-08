@@ -35,4 +35,7 @@ iteration	commit	metric	status	description
 39	98f63f9	7691	kept	security: ヘッダーテストのリクエスト構築共通化で 15 行削減
 40	e0829b4	7857	fmt-cleanup	cargo fmt 正規化: 過去の assert 一行化を展開。errors.rs serde_err 型注釈削除で 1 行削減
 41	cded4d0	7855	kept	security: 2 つのヘッダーテストを 1 つに統合で 2 行削減
-42	(pending)	7849	kept	dividend_cache: past/future 変数抽出で compute_is_stale テスト 6 行削減
+42	8f7f74f	7849	kept	dividend_cache: past/future 変数抽出で compute_is_stale テスト 6 行削減
+43	c365d77	7841	kept	routes: request_id テストに closure 抽出で 8 行削減
+44	12d83a2	7833	kept	config: from_env レート制限パースを closure で圧縮し 8 行削減
+45	cceded7	7827	kept	security: GET テストを test_validate_origin に統合し 6 行削減
