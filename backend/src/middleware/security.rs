@@ -133,10 +133,19 @@ mod tests {
 
     #[test]
     fn test_extract_origin() {
-        assert_eq!(extract_origin("http://localhost:8080/some/page"), Some("http://localhost:8080"));
-        assert_eq!(extract_origin("https://shoken-webapp.vercel.app"), Some("https://shoken-webapp.vercel.app"));
+        assert_eq!(
+            extract_origin("http://localhost:8080/some/page"),
+            Some("http://localhost:8080")
+        );
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app"),
+            Some("https://shoken-webapp.vercel.app")
+        );
         // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
-        assert_eq!(extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"), Some("https://shoken-webapp.vercel.app.evil.com"));
+        assert_eq!(
+            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
+            Some("https://shoken-webapp.vercel.app.evil.com")
+        );
     }
 
     fn test_app() -> Router {
@@ -167,27 +176,53 @@ mod tests {
         for (name, value) in headers {
             builder = builder.header(*name, *value);
         }
-        app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap().status()
+        app.oneshot(builder.body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+            .status()
     }
 
     #[tokio::test]
     async fn test_get_request_passes() {
         // GET はルート定義がないので 405 だが、ミドルウェアは通過
-        assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
+        assert_ne!(
+            oneshot_status(test_app(), Method::GET, &[]).await,
+            StatusCode::FORBIDDEN
+        );
     }
 
     #[tokio::test]
     async fn test_validate_origin() {
         let cases: &[(&[(&str, &str)], StatusCode)] = &[
             (&[("origin", "http://localhost:8080")], StatusCode::OK),
-            (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN),
+            (
+                &[("origin", "https://evil.example.com")],
+                StatusCode::FORBIDDEN,
+            ),
             (&[], StatusCode::OK), // Origin なしは同一オリジンとみなし通過
-            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), // Origin なし・許可済み Referer あり → 通過
-            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), // Origin なし・不正な Referer → 403
-            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), // 偽装ドメイン
-            (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK),
+            (
+                &[("referer", "http://localhost:8080/some/page")],
+                StatusCode::OK,
+            ), // Origin なし・許可済み Referer あり → 通過
+            (
+                &[("referer", "https://evil.example.com/attack")],
+                StatusCode::FORBIDDEN,
+            ), // Origin なし・不正な Referer → 403
+            (
+                &[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")],
+                StatusCode::FORBIDDEN,
+            ), // 偽装ドメイン
+            (
+                &[("origin", "https://shoken-webapp.vercel.app")],
+                StatusCode::OK,
+            ),
         ];
-        for &(headers, expected) in cases { assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected); }
+        for &(headers, expected) in cases {
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, headers).await,
+                expected
+            );
+        }
     }
 
     #[tokio::test]
@@ -199,7 +234,28 @@ mod tests {
                 let origins = allowed_origins.clone();
                 async move { validate_origin(origins, req, next).await }
             }));
-        assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
+        assert_eq!(
+            oneshot_status(
+                app,
+                Method::DELETE,
+                &[("origin", "https://evil.example.com")]
+            )
+            .await,
+            StatusCode::FORBIDDEN
+        );
+    }
+
+    async fn security_headers_response() -> axum::response::Response {
+        security_headers_app()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -208,13 +264,7 @@ mod tests {
         let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
         let _backend_url = EnvGuard::set("BACKEND_URL", None);
 
-        let app = security_headers_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
+        let resp = security_headers_response().await;
         assert_eq!(
             resp.headers().get("X-Content-Type-Options").unwrap(),
             "nosniff"
@@ -239,14 +289,7 @@ mod tests {
         let _lock = ENV_MUTEX.lock().await;
         let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true"));
 
-        let app = security_headers_app();
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-
+        let resp = security_headers_response().await;
         assert_eq!(
             resp.headers().get("Strict-Transport-Security").unwrap(),
             "max-age=31536000; includeSubDomains"

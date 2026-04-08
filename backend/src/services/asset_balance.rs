@@ -246,10 +246,8 @@ mod tests {
     const HEADER: &str =
         "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
     const ASSET_BALANCE_CSV_HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
-    const TEST_ROW_1: &str =
-        "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67";
-    const TEST_ROW_2: &str =
-        "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56";
+    const TEST_ROW_1: &str = "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67";
+    const TEST_ROW_2: &str = "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56";
     const INPEX_ROW: &str =
         "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"";
     const NINTENDO_ROW: &str =
@@ -258,7 +256,11 @@ mod tests {
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        parse_csv(format!("{HEADER}\n{row}\n").as_bytes(), parse_asset_balance_row).unwrap()
+        parse_csv(
+            format!("{HEADER}\n{row}\n").as_bytes(),
+            parse_asset_balance_row,
+        )
+        .unwrap()
     }
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
@@ -268,7 +270,10 @@ mod tests {
         )
     }
 
-    fn assert_row_ok(row: &str, expected: (&str, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal)) {
+    fn assert_row_ok(
+        row: &str,
+        expected: (&str, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal),
+    ) {
         let (items, errors) = parse_row_csv(row);
         assert!(errors.is_empty(), "unexpected errors for {row}: {errors:?}");
         assert_eq!(items.len(), 1, "row should produce one item: {row}");
@@ -298,7 +303,10 @@ mod tests {
     fn test_preview_csv_valid() {
         let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
         let preview = preview_csv(csv.as_bytes()).unwrap();
-        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (2, 2, 2));
+        assert_eq!(
+            (preview.total_rows, preview.valid_rows, preview.rows.len()),
+            (2, 2, 2)
+        );
         assert!(
             preview.errors.is_empty(),
             "unexpected errors: {:?}",
@@ -357,14 +365,23 @@ mod tests {
     #[test]
     fn test_parse_asset_balance_csv_skips_non_data_rows() {
         for (rows, expected_codes) in [
-            (&[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..], &["1234", "5678"][..]),
-            (&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..], &["1605", "7974"][..]),
+            (
+                &[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..],
+                &["1234", "5678"][..],
+            ),
+            (
+                &[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..],
+                &["1605", "7974"][..],
+            ),
         ] {
             let csv = make_asset_balance_csv(rows);
             let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
             assert_eq!(
-                items.iter().map(|item| item.security_code.as_str()).collect::<Vec<_>>(),
+                items
+                    .iter()
+                    .map(|item| item.security_code.as_str())
+                    .collect::<Vec<_>>(),
                 expected_codes
             );
         }

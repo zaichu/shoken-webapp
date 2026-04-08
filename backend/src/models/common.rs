@@ -20,14 +20,19 @@ mod tests {
 
     #[test]
     fn test_serde_round_trips() {
-        let r = BulkCreateResponse { inserted: 3, skipped: 2 };
+        let r = BulkCreateResponse {
+            inserted: 3,
+            skipped: 2,
+        };
         let json = serde_json::to_string(&r).expect("BulkCreateResponse should serialize");
         let d: BulkCreateResponse =
             serde_json::from_str(&json).expect("BulkCreateResponse should deserialize");
         assert_eq!(d.inserted, r.inserted);
         assert_eq!(d.skipped, r.skipped);
 
-        let r = MessageResponse { message: "ok".to_string() };
+        let r = MessageResponse {
+            message: "ok".to_string(),
+        };
         let json = serde_json::to_string(&r).expect("MessageResponse should serialize");
         let d: MessageResponse =
             serde_json::from_str(&json).expect("MessageResponse should deserialize");

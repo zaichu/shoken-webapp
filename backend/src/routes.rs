@@ -127,8 +127,11 @@ fn csv_upload_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::{Method, Request}};
     use crate::test_env::{EnvGuard, ENV_MUTEX};
+    use axum::{
+        body::Body,
+        http::{Method, Request},
+    };
     use std::sync::Arc;
     use tower::ServiceExt;
 
@@ -205,7 +208,9 @@ mod tests {
     ) {
         let make_req = || {
             let mut b = Request::builder().method(method.clone()).uri(uri);
-            if let Some(ip) = ip { b = b.header("fly-client-ip", ip); }
+            if let Some(ip) = ip {
+                b = b.header("fly-client-ip", ip);
+            }
             b.body(Body::empty()).unwrap()
         };
         let resp = router.clone().oneshot(make_req()).await.unwrap();
@@ -336,7 +341,10 @@ mod tests {
             .header("fly-client-ip", "1.2.3.4")
             .body(Body::empty())
             .unwrap();
-        let resp = app_router(make_test_state(), &Config::from_env()).oneshot(req).await.unwrap();
+        let resp = app_router(make_test_state(), &Config::from_env())
+            .oneshot(req)
+            .await
+            .unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 

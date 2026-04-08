@@ -200,9 +200,16 @@ mod tests {
 
         assert_eq!(preview.total_rows, 1);
         assert_eq!(preview.valid_rows, 1);
-        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
+        assert!(
+            preview.errors.is_empty(),
+            "unexpected errors: {:?}",
+            preview.errors
+        );
         assert_eq!(preview.rows.len(), 1);
-        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
+        assert!(matches!(
+            preview_csv(b""),
+            Err(ApiError::ValidationError(_))
+        ));
     }
 
     #[test]

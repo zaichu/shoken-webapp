@@ -110,7 +110,12 @@ mod tests {
                 "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
             ]
             .join("\n");
-            assert_eq!(DividendDomain::preview_csv(csv.as_bytes()).unwrap().valid_rows, 1);
+            assert_eq!(
+                DividendDomain::preview_csv(csv.as_bytes())
+                    .unwrap()
+                    .valid_rows,
+                1
+            );
         }
         {
             let csv = [
@@ -131,7 +136,12 @@ mod tests {
                 "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"",
             ]
             .join("\n");
-            assert_eq!(MutualfundDomain::preview_csv(csv.as_bytes()).unwrap().valid_rows, 1);
+            assert_eq!(
+                MutualfundDomain::preview_csv(csv.as_bytes())
+                    .unwrap()
+                    .valid_rows,
+                1
+            );
         }
         {
             let csv = [
@@ -147,7 +157,12 @@ mod tests {
                 ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
             ]
             .join("\n");
-            assert_eq!(AssetBalanceDomain::preview_csv(csv.as_bytes()).unwrap().valid_rows, 2);
+            assert_eq!(
+                AssetBalanceDomain::preview_csv(csv.as_bytes())
+                    .unwrap()
+                    .valid_rows,
+                2
+            );
         }
     }
 }
