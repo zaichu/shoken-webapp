@@ -127,22 +127,16 @@ mod tests {
     #[test]
     fn test_compute_is_stale() {
         let now = Utc::now();
+        let past = Some(now - chrono::Duration::hours(1));
+        let future = Some(now + chrono::Duration::days(7));
         // pending は stale_at=NULL でも is_stale=false（取得中のため）
         assert!(!compute_is_stale("pending", None, now));
         // error は stale_at=NULL → 即再取得対象
         assert!(compute_is_stale("error", None, now));
         // ok で stale_at が過去 → stale
-        assert!(compute_is_stale(
-            "ok",
-            Some(now - chrono::Duration::hours(1)),
-            now
-        ));
+        assert!(compute_is_stale("ok", past, now));
         // ok で stale_at が未来 → 有効
-        assert!(!compute_is_stale(
-            "ok",
-            Some(now + chrono::Duration::days(7)),
-            now
-        ));
+        assert!(!compute_is_stale("ok", future, now));
         // ok で stale_at=NULL → stale
         assert!(compute_is_stale("ok", None, now));
     }
