@@ -508,10 +508,7 @@ mod tests {
             fin_summary_data.result_dividend_per_share_annual,
             Some("40.00".to_string())
         );
-    }
 
-    #[test]
-    fn test_fin_summary_response() {
         // V2 API では "data" フィールド名を使用
         let json_data = json!({
             "data": [

@@ -122,10 +122,7 @@ mod tests {
         ];
         let (val, _) = extract_dividend(&data);
         assert_eq!(val, Some(60.0));
-    }
 
-    #[test]
-    fn test_compute_is_stale() {
         let now = Utc::now();
         let past = Some(now - chrono::Duration::hours(1));
         let future = Some(now + chrono::Duration::days(7));
