@@ -272,17 +272,14 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_csv_row_errors() {
+    fn test_preview_csv_invalid_inputs() {
         for (header, row, expected_message) in [
             (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
             (HEADER, INVALID_PNL_ROW, "実現損益[円]"),
         ] {
             assert_preview_error(header, row, expected_message);
         }
-    }
 
-    #[test]
-    fn test_preview_csv_empty() {
         assert!(matches!(
             preview_csv(b""),
             Err(ApiError::ValidationError(_))
