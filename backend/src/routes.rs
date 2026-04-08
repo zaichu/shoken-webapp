@@ -359,26 +359,26 @@ mod tests {
             .layer(PropagateRequestIdLayer::x_request_id())
             .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
 
+        let health_req = |id: Option<&str>| {
+            let mut b = Request::builder().method(Method::GET).uri("/health");
+            if let Some(id) = id {
+                b = b.header("x-request-id", id);
+            }
+            b.body(Body::empty()).unwrap()
+        };
+
         // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
-        let req = Request::builder()
-            .method(Method::GET)
-            .uri("/health")
-            .body(Body::empty())
-            .unwrap();
-        let resp = router.clone().oneshot(req).await.unwrap();
+        let resp = router.clone().oneshot(health_req(None)).await.unwrap();
         assert!(
             resp.headers().contains_key("x-request-id"),
             "x-request-id should be auto-generated"
         );
 
         // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
-        let req = Request::builder()
-            .method(Method::GET)
-            .uri("/health")
-            .header("x-request-id", "my-custom-id")
-            .body(Body::empty())
+        let resp = router
+            .oneshot(health_req(Some("my-custom-id")))
+            .await
             .unwrap();
-        let resp = router.oneshot(req).await.unwrap();
         assert_eq!(
             resp.headers()
                 .get("x-request-id")

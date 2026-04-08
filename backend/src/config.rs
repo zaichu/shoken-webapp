@@ -48,16 +48,12 @@ impl Config {
             }
         }
 
-        if let Ok(rps) = env::var("AUTH_RATE_LIMIT_RPS") {
-            if let Ok(v) = rps.parse::<u32>() {
-                config.auth_rate_limit_rps = v;
-            }
+        let parse_rps = |var: &str| env::var(var).ok().and_then(|v| v.parse::<u32>().ok());
+        if let Some(v) = parse_rps("AUTH_RATE_LIMIT_RPS") {
+            config.auth_rate_limit_rps = v;
         }
-
-        if let Ok(rps) = env::var("JQUANTS_RATE_LIMIT_RPS") {
-            if let Ok(v) = rps.parse::<u32>() {
-                config.jquants_rate_limit_rps = v;
-            }
+        if let Some(v) = parse_rps("JQUANTS_RATE_LIMIT_RPS") {
+            config.jquants_rate_limit_rps = v;
         }
 
         config.csv_rate_limit_rps = csv_rate_limit_rps();
