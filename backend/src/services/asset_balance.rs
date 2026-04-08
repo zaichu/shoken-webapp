@@ -357,10 +357,7 @@ mod tests {
         ] {
             assert_row_error(row, expected_message);
         }
-    }
 
-    #[test]
-    fn test_parse_asset_balance_csv_skips_non_data_rows() {
         for (rows, expected_codes) in [
             (
                 &[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..],
