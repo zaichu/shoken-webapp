@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_cookies() {
+    fn test_auth_helpers() {
         for (secure, expected_secure) in [(true, true), (false, false)] {
             let cookie = build_state_cookie("test_state", secure);
             assert_eq!(cookie.name(), OAUTH_STATE_COOKIE_NAME);
@@ -249,22 +249,12 @@ mod tests {
             assert_eq!(cookie.secure(), Some(expected_secure));
             assert_eq!(cookie.http_only(), Some(true));
         }
-    }
-
-    #[test]
-    fn test_get_session_id_from_jar() {
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
-
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"));
         assert!(get_session_id_from_jar(&jar).is_err());
-
         let uuid = uuid::Uuid::new_v4();
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()));
         assert_eq!(get_session_id_from_jar(&jar).unwrap(), uuid);
-    }
-
-    #[test]
-    fn test_cookie_helpers_and_constants() {
         for (cookie, expected_name) in [
             (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
             (clear_session_cookie(true), SESSION_COOKIE_NAME),

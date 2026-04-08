@@ -217,10 +217,6 @@ mod tests {
                 expected
             );
         }
-    }
-
-    #[tokio::test]
-    async fn test_delete_with_disallowed_origin() {
         let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]);
         let app = Router::new()
             .route("/test", axum::routing::delete(|| async { "ok" }))
