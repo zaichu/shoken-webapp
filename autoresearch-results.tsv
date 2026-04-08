@@ -30,3 +30,4 @@ iteration	commit	metric	status	description
 28	840ed77	7881	kept	csv_util: テスト統合で 2 行削減
 29	20b7d2d	7878	kept	domestic_stock: テスト統合で 3 行削減
 30	956f903	7851	kept	rate_limit: テスト統合でさらに 27 行削減（172→145）
+31	ae39702	7743	kept	stock: リクエスト/JSON ヘルパー抽出で 51 行削減
