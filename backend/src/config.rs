@@ -69,24 +69,19 @@ impl Config {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    #[rustfmt::skip]
     use {super::*, crate::{routes::app_router, state::AppState, test_env::{EnvGuard, ENV_MUTEX}}, axum::{body::Body, http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode}, Router}, reqwest::Client, std::sync::Arc, tower::ServiceExt};
 
-    #[rustfmt::skip]
     fn build_test_app(config: &Config) -> Router { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("Failed to create connection pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); app_router(AppState { pool, secrets, client: Client::new(), dividend_cache: crate::state::DividendCacheState::default() }, config) }
 
-    #[rustfmt::skip]
     async fn preflight(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::OPTIONS).uri("/health").header("origin", origin).header("access-control-request-method", "GET").body(Body::empty()).unwrap()).await.unwrap() }
 
-    #[rustfmt::skip]
     async fn post_with_origin(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::POST).uri("/health").header("origin", origin).body(Body::empty()).unwrap()).await.unwrap() }
 
-    #[rustfmt::skip]
     fn allowed_origin(response: &axum::response::Response) -> Option<&str> { response.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).and_then(|value| value.to_str().ok()) }
 
     #[test]
-    #[rustfmt::skip]
     fn test_config_creation() {
         let config = Config::default(); assert_eq!((config.database_max_connections, config.csv_rate_limit_rps, config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()), config.cors_origins.contains(&"http://localhost:8080".to_string())), (5, 2, true, true)); let _cors_layer = build_cors_layer(&config.cors_origins);
         let config = Config { cors_origins: vec!["http://example.com".to_string()], database_max_connections: 10, auth_rate_limit_rps: 10, jquants_rate_limit_rps: 5, csv_rate_limit_rps: 2 }; assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
@@ -94,7 +89,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
         { let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7")); assert_eq!(Config::from_env().csv_rate_limit_rps, 7); }
