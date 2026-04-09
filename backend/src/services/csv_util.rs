@@ -169,8 +169,8 @@ mod tests {
             assert_eq!(parse_number(input).unwrap(), expected);
         }
 
-        let record = csv::StringRecord::from(vec!["", "value"]);
-        let header_map = make_header_map(&["empty", "filled"]);
+        #[rustfmt::skip]
+        let (record, header_map) = (csv::StringRecord::from(vec!["", "value"]), make_header_map(&["empty", "filled"]));
         for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] {
             assert_eq!(parse_optional_string(&record, &header_map, col), expected);
         }
@@ -195,8 +195,8 @@ mod tests {
         assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
-        let record = csv::StringRecord::from(vec!["value"]);
-        let header_map = make_header_map(&["present"]);
+        #[rustfmt::skip]
+        let (record, header_map) = (csv::StringRecord::from(vec!["value"]), make_header_map(&["present"]));
         assert_eq!(get_cell(&record, &header_map, "present"), "value");
         assert_eq!(get_cell(&record, &header_map, "missing"), "");
         for (input, expected) in [
@@ -210,15 +210,15 @@ mod tests {
             assert_eq!(normalize_security_name(input), expected);
         }
 
-        let record = csv::StringRecord::from(vec!["", "value"]);
-        let header_map = make_header_map(&["col_a", "col_b"]);
+        #[rustfmt::skip]
+        let (record, header_map) = (csv::StringRecord::from(vec!["", "value"]), make_header_map(&["col_a", "col_b"]));
         let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
         assert_eq!((err.row, err.message.contains("col_a")), (3, true));
         #[rustfmt::skip]
         assert_eq!(parse_required_string(&record, &header_map, "col_b", 1).unwrap(), "value");
 
-        let record = csv::StringRecord::from(vec!["abc", "1,234", ""]);
-        let hm = make_header_map(&["invalid", "valid", "empty"]);
+        #[rustfmt::skip]
+        let (record, hm) = (csv::StringRecord::from(vec!["abc", "1,234", ""]), make_header_map(&["invalid", "valid", "empty"]));
         #[rustfmt::skip]
         assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5);
         #[rustfmt::skip]
@@ -226,8 +226,8 @@ mod tests {
         let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
         assert_eq!((err.row, err.message.contains("empty")), (7, true));
 
-        let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]);
-        let hm = make_header_map(&["invalid", "valid", "out_of_range"]);
+        #[rustfmt::skip]
+        let (record, hm) = (csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]), make_header_map(&["invalid", "valid", "out_of_range"]));
         #[rustfmt::skip]
         assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
         #[rustfmt::skip]

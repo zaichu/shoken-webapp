@@ -222,19 +222,10 @@ pub async fn delete_account(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        config::Config,
-        db::connect_pool_lazy,
-        errors::ErrorResponse,
-        models::common::MessageResponse,
-        routes::app_router,
-        state::{AppState, Secrets},
-    };
-    use axum::{
-        body::{to_bytes, Body},
-        http::{Request, StatusCode},
-        Router,
-    };
+    #[rustfmt::skip]
+    use crate::{config::Config, db::connect_pool_lazy, errors::ErrorResponse, models::common::MessageResponse, routes::app_router, state::{AppState, Secrets}};
+    #[rustfmt::skip]
+    use axum::{body::{to_bytes, Body}, http::{Request, StatusCode}, Router};
     use reqwest::Client;
     use serde::de::DeserializeOwned;
     use std::sync::Arc;
