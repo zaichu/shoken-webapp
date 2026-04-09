@@ -68,13 +68,7 @@ pub fn is_localhost_origin(origin: &str) -> bool {
     use super::{is_localhost_origin, parse_cors_origins};
     fn strings(origins: &[&str]) -> Vec<String> { origins.iter().map(|origin| (*origin).to_string()).collect() }
     #[test] fn test_is_localhost_origin() {
-        let localhost_cases = [("http://localhost", true), ("https://localhost:3000", true), ("http://localhost.:5173", true), ("http://127.0.0.1:8080", true), ("https://[::1]:3000", true), ("http://[0:0:0:0:0:0:0:1]:5173/path", true), ("https://localhost.example.com", false), ("https://127.0.0.1.example.com:3000", false), ("https://frontend.example.com", false)];
-        for (origin, expected) in localhost_cases {
-            assert_eq!(is_localhost_origin(origin), expected, "unexpected localhost classification: {origin}");
-        }
-        let parse_cases = [("https://app.example.com,http://localhost:3000", &["https://app.example.com", "http://localhost:3000"][..]), (" https://app.example.com , http://localhost:3000 ", &["https://app.example.com", "http://localhost:3000"][..]), ("", &[][..]), ("https://app.example.com,http://localhost:3000,", &["https://app.example.com", "http://localhost:3000"][..])];
-        for (input, expected) in parse_cases {
-            assert_eq!(parse_cors_origins(input), strings(expected));
-        }
+        for (origin, expected) in [("http://localhost", true), ("https://localhost:3000", true), ("http://localhost.:5173", true), ("http://127.0.0.1:8080", true), ("https://[::1]:3000", true), ("http://[0:0:0:0:0:0:0:1]:5173/path", true), ("https://localhost.example.com", false), ("https://127.0.0.1.example.com:3000", false), ("https://frontend.example.com", false)] { assert_eq!(is_localhost_origin(origin), expected, "unexpected localhost classification: {origin}"); }
+        for (input, expected) in [("https://app.example.com,http://localhost:3000", &["https://app.example.com", "http://localhost:3000"][..]), (" https://app.example.com , http://localhost:3000 ", &["https://app.example.com", "http://localhost:3000"][..]), ("", &[][..]), ("https://app.example.com,http://localhost:3000,", &["https://app.example.com", "http://localhost:3000"][..])] { assert_eq!(parse_cors_origins(input), strings(expected)); }
     }
 }
