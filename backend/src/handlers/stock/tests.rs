@@ -2,12 +2,8 @@ use std::sync::Arc;
 
 use super::*;
 use crate::state::Secrets;
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-    routing::{get, post},
-    Router,
-};
+#[rustfmt::skip]
+use axum::{body::Body, http::{Request, StatusCode}, routing::{get, post}, Router};
 use chrono::NaiveDate;
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -111,8 +107,8 @@ async fn test_create_stock() {
 
 #[tokio::test]
 async fn test_create_stock_unauthorized() {
-    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
-        .unwrap();
+    #[rustfmt::skip]
+    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1).unwrap();
     let app = setup_test_app(pool);
 
     #[rustfmt::skip]

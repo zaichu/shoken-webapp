@@ -128,10 +128,8 @@ fn csv_upload_routes() -> Router<AppState> {
 mod tests {
     use super::*;
     use crate::test_env::{EnvGuard, ENV_MUTEX};
-    use axum::{
-        body::Body,
-        http::{Method, Request},
-    };
+    #[rustfmt::skip]
+    use axum::{body::Body, http::{Method, Request}};
     use std::sync::Arc;
     use tower::ServiceExt;
 
