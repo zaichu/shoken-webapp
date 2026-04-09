@@ -97,15 +97,11 @@ impl CsvDomain for AssetBalanceDomain {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    #[rustfmt::skip]
     use super::{AssetBalanceDomain, CsvDomain, DividendDomain, DomesticStockDomain, MutualfundDomain};
-
-    #[rustfmt::skip]
     fn assert_valid_rows<D: CsvDomain>(lines: &[&str], expected_valid_rows: usize) { let csv = lines.join("\n"); assert_eq!(D::preview_csv(csv.as_bytes()).unwrap().valid_rows, expected_valid_rows); }
-
     #[test]
-    #[rustfmt::skip]
     fn test_domain_preview_csv_delegates() {
         assert_valid_rows::<DividendDomain>(&["入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]", "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\""], 1);
         assert_valid_rows::<DomesticStockDomain>(&["約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]", "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\""], 1);

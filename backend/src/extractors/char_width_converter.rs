@@ -11,19 +11,9 @@ pub fn char_from_u32_with_default(i: u32, def: char) -> char {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
-
     #[test]
-    fn test_halfwidth_to_fullwidth() {
-        assert_eq!(halfwidth_to_fullwidth('a'), 'ａ');
-        assert_eq!(halfwidth_to_fullwidth('z'), 'ｚ');
-        assert_eq!(halfwidth_to_fullwidth('A'), 'Ａ');
-        assert_eq!(halfwidth_to_fullwidth('Z'), 'Ｚ');
-        assert_eq!(halfwidth_to_fullwidth('1'), '1');
-        assert_eq!(halfwidth_to_fullwidth('!'), '!');
-        assert_eq!(halfwidth_to_fullwidth('あ'), 'あ');
-        assert_eq!(char_from_u32_with_default(0x41, 'X'), 'A');
-        assert_eq!(char_from_u32_with_default(0x110000, 'X'), 'X');
-    }
+    fn test_halfwidth_to_fullwidth() { for (input, expected) in [('a', 'ａ'), ('z', 'ｚ'), ('A', 'Ａ'), ('Z', 'Ｚ'), ('1', '1'), ('!', '!'), ('あ', 'あ')] { assert_eq!(halfwidth_to_fullwidth(input), expected); } for (input, default, expected) in [(0x41, 'X', 'A'), (0x110000, 'X', 'X')] { assert_eq!(char_from_u32_with_default(input, default), expected); } }
 }

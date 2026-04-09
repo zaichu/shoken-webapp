@@ -1,54 +1,16 @@
-use std::sync::Arc;
-
-use super::*;
-use crate::state::Secrets;
 #[rustfmt::skip]
-use axum::{body::Body, http::{Request, StatusCode}, routing::{get, post}, Router};
-use chrono::NaiveDate;
-use reqwest::Client;
-use serde_json::{json, Value};
-use sqlx::{Pool, Postgres};
-use testcontainers::runners::AsyncRunner;
-use testcontainers_modules::postgres::Postgres as PgImage;
-use tokio::time::{sleep, timeout, Duration};
-use tower::ServiceExt;
-
+use {super::*, crate::state::Secrets, axum::{body::Body, http::{Request, StatusCode}, routing::{get, post}, Router}, chrono::NaiveDate, reqwest::Client, serde_json::{json, Value}, sqlx::{Pool, Postgres}, std::sync::Arc, testcontainers::runners::AsyncRunner, testcontainers_modules::postgres::Postgres as PgImage, tokio::time::{sleep, timeout, Duration}, tower::ServiceExt};
 const BODY_LIMIT: usize = 100;
 
+#[rustfmt::skip]
 async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
     let node = PgImage::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
-
-    let pool = {
-        let mut last_error = None;
-        let mut pool_ok = None;
-        for _ in 0..20 {
-            let attempt = timeout(
-                Duration::from_secs(2),
-                sqlx::postgres::PgPoolOptions::new().connect(&database_url),
-            )
-            .await;
-            match attempt {
-                Ok(Ok(p)) => {
-                    pool_ok = Some(p);
-                    break;
-                }
-                Ok(Err(e)) => last_error = Some(e),
-                Err(_) => {}
-            }
-            sleep(Duration::from_millis(500)).await;
-        }
-        pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {:?}", last_error))
-    };
-
-    crate::db::run_migrations(&pool)
-        .await
-        .expect("マイグレーション失敗");
-
+    let pool = { let mut last_error = None; let mut pool_ok = None; for _ in 0..20 { match timeout(Duration::from_secs(2), sqlx::postgres::PgPoolOptions::new().connect(&database_url)).await { Ok(Ok(p)) => { pool_ok = Some(p); break; } Ok(Err(e)) => last_error = Some(e), Err(_) => {} } sleep(Duration::from_millis(500)).await; } pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {:?}", last_error)) };
+    crate::db::run_migrations(&pool).await.expect("マイグレーション失敗");
     #[rustfmt::skip]
     sqlx::query(r#"INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#).bind(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()).bind("1234").bind("テスト株式会社").bind("プライム").bind(Option::<String>::Some("123".to_string())).bind(Option::<String>::Some("情報・通信業".to_string())).bind(Option::<String>::Some("12".to_string())).bind(Option::<String>::Some("情報通信".to_string())).bind(Option::<String>::Some("10".to_string())).bind(Option::<String>::Some("大型株".to_string())).execute(&pool).await.expect("テストデータ投入失敗");
-
     (pool, node)
 }
 

@@ -80,3 +80,4 @@ iteration	commit	metric	status	description
 86	4913d2b	6103	kept	use圧縮/csv_util/ignored テスト共通化で 72 行削減
 87	1eaab4e	6028	kept	rustfmt::skip 重複削除で 75 行削減
 88	6f6aed8	5966	kept	テスト空行削除で 62 行削減
+89	8b8ae0e	5800	kept	auth/stock/user/asset_balance/shared: テスト圧縮で 166 行削減
