@@ -102,49 +102,34 @@ mod tests {
         AssetBalanceDomain, CsvDomain, DividendDomain, DomesticStockDomain, MutualfundDomain,
     };
 
+    #[rustfmt::skip]
+    fn assert_valid_rows<D: CsvDomain>(lines: &[&str], expected_valid_rows: usize) { let csv = lines.join("\n"); assert_eq!(D::preview_csv(csv.as_bytes()).unwrap().valid_rows, expected_valid_rows); }
+
     #[test]
     fn test_domain_preview_csv_delegates() {
-        {
-            let csv = [
+        assert_valid_rows::<DividendDomain>(
+            &[
                 "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
                 "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
-            ]
-            .join("\n");
-            assert_eq!(
-                DividendDomain::preview_csv(csv.as_bytes())
-                    .unwrap()
-                    .valid_rows,
-                1
-            );
-        }
-        {
-            let csv = [
+            ],
+            1,
+        );
+        assert_valid_rows::<DomesticStockDomain>(
+            &[
                 "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]",
                 "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"",
-            ]
-            .join("\n");
-            assert_eq!(
-                DomesticStockDomain::preview_csv(csv.as_bytes())
-                    .unwrap()
-                    .valid_rows,
-                1
-            );
-        }
-        {
-            let csv = [
+            ],
+            1,
+        );
+        assert_valid_rows::<MutualfundDomain>(
+            &[
                 "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］",
                 "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"",
-            ]
-            .join("\n");
-            assert_eq!(
-                MutualfundDomain::preview_csv(csv.as_bytes())
-                    .unwrap()
-                    .valid_rows,
-                1
-            );
-        }
-        {
-            let csv = [
+            ],
+            1,
+        );
+        assert_valid_rows::<AssetBalanceDomain>(
+            &[
                 "■現在の評価額合計［円］,,\"9,474,000\"",
                 "■評価損益合計,前日比［円］,\"288,000\"",
                 ",前月比［円］,\"-120,000\"",
@@ -155,14 +140,8 @@ mod tests {
                 "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"",
                 "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"",
                 ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"",
-            ]
-            .join("\n");
-            assert_eq!(
-                AssetBalanceDomain::preview_csv(csv.as_bytes())
-                    .unwrap()
-                    .valid_rows,
-                2
-            );
-        }
+            ],
+            2,
+        );
     }
 }
