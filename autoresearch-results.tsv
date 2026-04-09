@@ -54,3 +54,4 @@ iteration	commit	metric	status	description
 60	e77748e	7689	reverted	dividend: プレビュー件数の集約は rustfmt 後に行数改善が出ずリバート
 61	e77748e	7692	reverted	csv_import: 長い tuple 比較は rustfmt 展開で 3 行増えたためリバート
 62	acacae3	7685	kept	csv_import: テスト内容と重複するコメント削除で 4 行削減
+63	8b0fcb5	7680	kept	config: 環境別 CORS テストのコメント削除で 5 行削減
