@@ -102,13 +102,11 @@ mod tests {
 
     #[test]
     fn test_parse_csv() {
-        // 正常行のパース
         let csv = "col_a,col_b\nfoo,123\nbar,456\n";
         let (items, errors) = parse_pair_csv(csv);
         assert_eq!(items, vec!["foo/123", "bar/456"]);
         assert!(errors.is_empty());
 
-        // name が空の行（2行目）はエラーとして収集され、items には含まれない
         let csv = "name,id\ngood,1\n,2\nbad,3\n";
         let (items, errors) =
             parse_csv::<String, _>(csv.as_bytes(), |record, header_map, row_num| {
@@ -119,13 +117,11 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].row, 2);
 
-        // 全列が空の行はスキップされる
         let csv = "col_a,col_b\nfoo,123\n,\nbar,456\n";
         let (items, errors) = parse_pair_csv(csv);
         assert_eq!(items, vec!["foo/123", "bar/456"]);
         assert!(errors.is_empty());
 
-        // フィールド数が不一致の行は CSV 読み込みエラーとして収集される
         let csv = "col_a,col_b\nfoo,123\nbar\nbaz,456\n";
         let (items, errors) = parse_pair_csv(csv);
         assert_eq!(items, vec!["foo/123", "baz/456"]);
