@@ -66,51 +66,27 @@ fn stock_payload(code: &str, name: &str) -> Value { json!({ "date": "2025-03-25"
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+#[rustfmt::skip]
 async fn test_search_stock() {
-    let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool);
-
-    let response = call(app.clone(), "GET", "/stocks/1234", None).await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let stock = read_json(response).await;
-    #[rustfmt::skip]
+    let (pool, _node) = setup_test_db().await; let app = setup_test_app(pool);
+    let response = call(app.clone(), "GET", "/stocks/1234", None).await; assert_eq!(response.status(), StatusCode::OK); let stock = read_json(response).await;
     assert_eq!((stock["code"].as_str(), stock["name"].as_str()), (Some("1234"), Some("テスト株式会社")));
-
-    for (uri, expected_status) in [
-        ("/stocks/テスト", StatusCode::OK),
-        ("/stocks/9999", StatusCode::NOT_FOUND),
-    ] {
-        #[rustfmt::skip]
-        assert_eq!(call(app.clone(), "GET", uri, None).await.status(), expected_status);
-    }
+    for (uri, expected_status) in [("/stocks/テスト", StatusCode::OK), ("/stocks/9999", StatusCode::NOT_FOUND)] { assert_eq!(call(app.clone(), "GET", uri, None).await.status(), expected_status); }
 }
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+#[rustfmt::skip]
 async fn test_create_stock() {
-    let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool);
-
-    #[rustfmt::skip]
-    let response = call(app.clone(), "POST", "/stocks", Some(stock_payload("5678", "新規テスト株式会社"))).await;
-
-    assert_eq!(response.status(), StatusCode::CREATED);
-    let stock = read_json(response).await;
-    #[rustfmt::skip]
+    let (pool, _node) = setup_test_db().await; let app = setup_test_app(pool);
+    let response = call(app.clone(), "POST", "/stocks", Some(stock_payload("5678", "新規テスト株式会社"))).await; assert_eq!(response.status(), StatusCode::CREATED); let stock = read_json(response).await;
     assert_eq!((stock["code"].as_str(), stock["name"].as_str()), (Some("5678"), Some("新規テスト株式会社")));
-
-    let mut invalid_data = stock_payload("5678", "新規テスト株式会社");
-    invalid_data["code"] = json!("");
-    #[rustfmt::skip]
-    assert_eq!(call(app, "POST", "/stocks", Some(invalid_data)).await.status(), StatusCode::BAD_REQUEST);
+    let mut invalid_data = stock_payload("5678", "新規テスト株式会社"); invalid_data["code"] = json!(""); assert_eq!(call(app, "POST", "/stocks", Some(invalid_data)).await.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
+#[rustfmt::skip]
 async fn test_create_stock_unauthorized() {
-    #[rustfmt::skip]
-    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1).unwrap();
-    let app = setup_test_app(pool);
-
-    #[rustfmt::skip]
+    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1).unwrap(); let app = setup_test_app(pool);
     assert_eq!(call(app, "POST", "/stocks", Some(stock_payload("9999", "未認証テスト"))).await.status(), StatusCode::UNAUTHORIZED);
 }

@@ -120,41 +120,13 @@ mod tests {
     async fn upload_endpoint(State(pool): State<sqlx::PgPool>, multipart: Multipart) -> Result<impl IntoResponse, ApiError> { handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_csv_handler() {
         let content = "symbol,amount\n7203,100\n";
-        #[rustfmt::skip]
         let response = test_app().oneshot(multipart_request("file", Some("positions.csv"), content)).await.unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
-        assert_eq!(body.as_ref(), content.as_bytes());
-        for (field, filename, msg_fragment) in [
-            ("other", Some("positions.csv"), Some("fileフィールド")),
-            ("file", Some("positions.txt"), Some(".csv")),
-            ("file", Some(""), None),
-        ] {
-            #[rustfmt::skip]
-            let response = test_app().oneshot(multipart_request(field, filename, "dummy")).await.unwrap();
-
-            let status = response.status();
-            let error: ErrorResponse = read_json_response(response).await;
-            #[rustfmt::skip]
-            assert_eq!((status, error.error.code.as_str(), msg_fragment.map_or(true, |fragment| error.error.message.contains(fragment))), (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", true));
-        }
-        #[rustfmt::skip]
-        let response = preview_app().oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n")).await.unwrap();
-
-        let status = response.status();
-        let preview: serde_json::Value = read_json_response(response).await;
-        #[rustfmt::skip]
-        assert_eq!((status, preview["valid_rows"].as_i64(), preview["rows"].as_array().map(Vec::len)), (StatusCode::OK, Some(1), Some(1)));
-
-        #[rustfmt::skip]
-        let response = upload_app().oneshot(multipart_request("file", Some("upload.csv"), "a,b\n1,2\n")).await.unwrap();
-
-        let status = response.status();
-        let upload: serde_json::Value = read_json_response(response).await;
-        #[rustfmt::skip]
-        assert_eq!((status, upload["inserted"].as_i64(), upload["skipped"].as_i64()), (StatusCode::CREATED, Some(1), Some(0)));
+        assert_eq!(response.status(), StatusCode::OK); assert_eq!(to_bytes(response.into_body(), BODY_LIMIT).await.unwrap().as_ref(), content.as_bytes());
+        for (field, filename, msg_fragment) in [("other", Some("positions.csv"), Some("fileフィールド")), ("file", Some("positions.txt"), Some(".csv")), ("file", Some(""), None)] { let response = test_app().oneshot(multipart_request(field, filename, "dummy")).await.unwrap(); let status = response.status(); let error: ErrorResponse = read_json_response(response).await; assert_eq!((status, error.error.code.as_str(), msg_fragment.map_or(true, |fragment| error.error.message.contains(fragment))), (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", true)); }
+        let response = preview_app().oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n")).await.unwrap(); let status = response.status(); let preview: serde_json::Value = read_json_response(response).await; assert_eq!((status, preview["valid_rows"].as_i64(), preview["rows"].as_array().map(Vec::len)), (StatusCode::OK, Some(1), Some(1)));
+        let response = upload_app().oneshot(multipart_request("file", Some("upload.csv"), "a,b\n1,2\n")).await.unwrap(); let status = response.status(); let upload: serde_json::Value = read_json_response(response).await; assert_eq!((status, upload["inserted"].as_i64(), upload["skipped"].as_i64()), (StatusCode::CREATED, Some(1), Some(0)));
     }
 }

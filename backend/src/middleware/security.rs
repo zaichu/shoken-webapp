@@ -126,10 +126,8 @@ pub async fn validate_origin(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::test_env::{EnvGuard, ENV_MUTEX};
-    use axum::{middleware, routing::post, Router};
-    use tower::ServiceExt;
+    #[rustfmt::skip]
+    use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{middleware, routing::post, Router}, tower::ServiceExt};
 
     #[rustfmt::skip]
     fn test_app() -> Router { let allowed_origins = Arc::new(vec!["https://shoken-webapp.vercel.app".to_string(), "http://localhost:8080".to_string(), "http://127.0.0.1:8080".to_string(), "http://[::1]:8080".to_string(), "http://localhost.:8080".to_string()]); Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } })) }
@@ -167,26 +165,9 @@ mod tests {
     async fn security_headers_response() -> axum::response::Response { security_headers_app().oneshot(Request::builder().method(Method::POST).uri("/test").body(Body::empty()).unwrap()).await.unwrap() }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_security_headers() {
-        {
-            let _lock = ENV_MUTEX.lock().await;
-            let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            let resp = security_headers_response().await;
-            #[rustfmt::skip]
-            let header_cases = [("X-Content-Type-Options", "nosniff"), ("X-Frame-Options", "DENY"), ("Referrer-Policy", "strict-origin-when-cross-origin"), ("Content-Security-Policy", "default-src 'none'")];
-            for (name, expected) in header_cases {
-                assert_eq!(resp.headers().get(name).unwrap(), expected);
-            }
-            #[rustfmt::skip]
-            assert!(resp.headers().get("Strict-Transport-Security").is_none(), "secure cookie 無効時は HSTS を付与しない");
-        }
-        {
-            let _lock = ENV_MUTEX.lock().await;
-            let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true"));
-            let resp = security_headers_response().await;
-            #[rustfmt::skip]
-            assert_eq!(resp.headers().get("Strict-Transport-Security").unwrap(), "max-age=31536000; includeSubDomains");
-        }
+        { let _lock = ENV_MUTEX.lock().await; let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None); let _backend_url = EnvGuard::set("BACKEND_URL", None); let resp = security_headers_response().await; for (name, expected) in [("X-Content-Type-Options", "nosniff"), ("X-Frame-Options", "DENY"), ("Referrer-Policy", "strict-origin-when-cross-origin"), ("Content-Security-Policy", "default-src 'none'")] { assert_eq!(resp.headers().get(name).unwrap(), expected); } assert!(resp.headers().get("Strict-Transport-Security").is_none(), "secure cookie 無効時は HSTS を付与しない"); }
+        { let _lock = ENV_MUTEX.lock().await; let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true")); let resp = security_headers_response().await; assert_eq!(resp.headers().get("Strict-Transport-Security").unwrap(), "max-age=31536000; includeSubDomains"); }
     }
 }
