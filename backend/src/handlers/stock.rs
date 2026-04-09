@@ -62,5 +62,4 @@ pub async fn create_stock(
     Ok((StatusCode::CREATED, Json(stock)))
 }
 
-#[cfg(test)]
-mod tests;
+#[cfg(test)] #[rustfmt::skip] mod tests;

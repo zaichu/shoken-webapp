@@ -11,8 +11,7 @@ pub mod routes;
 pub mod services;
 pub mod state;
 
-#[cfg(test)]
-pub mod test_env;
+#[cfg(test)] #[rustfmt::skip] pub mod test_env;
 
 pub use config::Config;
 pub use errors::ApiError;

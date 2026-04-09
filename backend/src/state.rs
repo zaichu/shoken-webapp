@@ -44,8 +44,7 @@ pub struct AppState {
 
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}};
-    #[tokio::test]
-    async fn test_secrets_from_env() {
+    #[tokio::test] async fn test_secrets_from_env() {
         let _lock = ENV_MUTEX.lock().await;
         { let _db = EnvGuard::set("DATABASE_URL", None); let err_msg = Secrets::from_env().unwrap_err(); assert!(err_msg.contains("DATABASE_URL"), "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"); }
         { let _db = EnvGuard::set("DATABASE_URL", Some("postgresql://user:password@localhost/test")); let _fe = EnvGuard::set("FRONTEND_URL", None); assert_eq!(Secrets::from_env().unwrap().frontend_url, "http://localhost:8080"); }

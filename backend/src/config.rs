@@ -74,14 +74,12 @@ impl Config {
     async fn preflight(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::OPTIONS).uri("/health").header("origin", origin).header("access-control-request-method", "GET").body(Body::empty()).unwrap()).await.unwrap() }
     async fn post_with_origin(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::POST).uri("/health").header("origin", origin).body(Body::empty()).unwrap()).await.unwrap() }
     fn allowed_origin(response: &axum::response::Response) -> Option<&str> { response.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).and_then(|value| value.to_str().ok()) }
-    #[test]
-    fn test_config_creation() {
+    #[test] fn test_config_creation() {
         let config = Config::default(); assert_eq!((config.database_max_connections, config.csv_rate_limit_rps, config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()), config.cors_origins.contains(&"http://localhost:8080".to_string())), (5, 2, true, true)); let _cors_layer = build_cors_layer(&config.cors_origins);
         let config = Config { cors_origins: vec!["http://example.com".to_string()], database_max_connections: 10, auth_rate_limit_rps: 10, jquants_rate_limit_rps: 5, csv_rate_limit_rps: 2 }; assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
         let url = backend_url(); let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| env::var("PORT").map(|port| format!("http://localhost:{port}")).unwrap_or_else(|_| "http://localhost:3001".to_string())); assert_eq!(url, expected_url); assert!(server_addr().starts_with("0.0.0.0:")); let _ = is_secure_cookie();
     }
-    #[tokio::test]
-    async fn test_config_from_env() {
+    #[tokio::test] async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
         { let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7")); assert_eq!(Config::from_env().csv_rate_limit_rps, 7); }
         { let _app_env = EnvGuard::set("APP_ENV", Some("production")); let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app,http://localhost:8080")); let app = build_test_app(&Config::from_env()); assert_eq!(allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await), Some("https://shoken-webapp.vercel.app")); assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None); }

@@ -47,6 +47,5 @@ pub struct GoogleUserInfo {
 
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
-    #[test]
-    fn test_user_response_from_user() { let user = User { id: Uuid::new_v4(), google_id: "google123".to_string(), email: "test@example.com".to_string(), name: Some("テストユーザー".to_string()), picture_url: Some("https://example.com/photo.jpg".to_string()), created_at: Utc::now(), updated_at: Utc::now() }; let response: UserResponse = user.clone().into(); assert_eq!((response.id, response.email, response.name, response.picture_url), (user.id.to_string(), user.email, user.name, user.picture_url)); }
+    #[test] fn test_user_response_from_user() { let user = User { id: Uuid::new_v4(), google_id: "google123".to_string(), email: "test@example.com".to_string(), name: Some("テストユーザー".to_string()), picture_url: Some("https://example.com/photo.jpg".to_string()), created_at: Utc::now(), updated_at: Utc::now() }; let response: UserResponse = user.clone().into(); assert_eq!((response.id, response.email, response.name, response.picture_url), (user.id.to_string(), user.email, user.name, user.picture_url)); }
 }

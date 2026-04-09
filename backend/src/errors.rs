@@ -175,8 +175,7 @@ where
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::http::StatusCode, oauth2::url::ParseError, sqlx::Error as SqlxError, std::env::VarError};
     fn check_status(error: ApiError, expected: StatusCode) { assert_eq!(error.into_response().status(), expected); }
-    #[test]
-    fn test_all_error_status_codes() {
+    #[test] fn test_all_error_status_codes() {
         let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
         let cases = [(ApiError::ValidationError("必須フィールドが不足しています".to_string()), StatusCode::BAD_REQUEST), (ApiError::JsonParseError, StatusCode::BAD_REQUEST), (ApiError::DatabaseError(SqlxError::RowNotFound), StatusCode::NOT_FOUND), (ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::NotFound, StatusCode::NOT_FOUND), (ApiError::EnvVarError(VarError::NotPresent), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::RateLimitError("Rate limit exceeded".to_string()), StatusCode::TOO_MANY_REQUESTS), (ApiError::UrlParseError(ParseError::EmptyHost), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::OAuthError("認証エラー".to_string()), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::Unauthorized("認証が必要です".to_string()), StatusCode::UNAUTHORIZED), (ApiError::NetworkError("接続エラー".to_string()), StatusCode::BAD_GATEWAY), (ApiError::ApiError("API エラー".to_string()), StatusCode::BAD_REQUEST), (ApiError::SerdeJsonError(serde_err), StatusCode::INTERNAL_SERVER_ERROR)];
         for (error, expected) in cases {

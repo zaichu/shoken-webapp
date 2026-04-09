@@ -91,10 +91,6 @@ impl JQuantsService {
     async fn fetch_fin_summary(code: &str) -> FinSummaryResponse { let api_key = std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません"); let params = FinSummaryQuery { code: code.to_string(), from: None, to: None }; JQuantsService::get_fin_summary(&Client::new(), params, &api_key).await.unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e)) }
     fn log_summary_overview(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); if let Some(first) = response.data.first() { println!("銘柄コード: {}", first.local_code); println!("開示日: {}", first.disclosed_date); println!("書類種別: {}", first.type_of_document); println!("当期種別: {:?}", first.type_of_current_period); println!("当期開始日: {:?}", first.current_period_start_date); println!("当期終了日: {:?}", first.current_period_end_date); } }
     fn log_dividend_summaries(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); for summary in &response.data { println!("---"); println!("開示日: {}", summary.disclosed_date); println!("書類種別: {}", summary.type_of_document); println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual); println!("年間配当予想(FDivAnn): {:?}", summary.forecast_dividend_per_share_annual); println!("年間配当来期予想(NxFDivAnn): {:?}", summary.next_year_forecast_dividend_per_share_annual); } }
-    #[tokio::test]
-    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
-    async fn test_get_fin_summary_real_api() { let response = fetch_fin_summary("7203").await; log_summary_overview(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
-    #[tokio::test]
-    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
-    async fn test_get_nintendo_dividend() { let response = fetch_fin_summary("7974").await; log_dividend_summaries(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
+    #[tokio::test] #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"] async fn test_get_fin_summary_real_api() { let response = fetch_fin_summary("7203").await; log_summary_overview(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
+    #[tokio::test] #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"] async fn test_get_nintendo_dividend() { let response = fetch_fin_summary("7974").await; log_dividend_summaries(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
 }
