@@ -143,11 +143,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_origin() {
         #[rustfmt::skip]
-        let origin_cases = [
-            ("http://localhost:8080/some/page", Some("http://localhost:8080")),
-            ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")),
-            ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com")),
-        ];
+        let origin_cases = [("http://localhost:8080/some/page", Some("http://localhost:8080")), ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")), ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com"))];
         for (input, expected) in origin_cases {
             assert_eq!(extract_origin(input), expected);
         }
@@ -155,15 +151,7 @@ mod tests {
         assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
 
         #[rustfmt::skip]
-        let cases: &[(&[(&str, &str)], StatusCode)] = &[
-            (&[("origin", "http://localhost:8080")], StatusCode::OK),
-            (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN),
-            (&[], StatusCode::OK),
-            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK),
-            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN),
-            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN),
-            (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK),
-        ];
+        let cases: &[(&[(&str, &str)], StatusCode)] = &[(&[("origin", "http://localhost:8080")], StatusCode::OK), (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN), (&[], StatusCode::OK), (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK)];
         for &(headers, expected) in cases {
             #[rustfmt::skip]
             assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected);
@@ -186,19 +174,12 @@ mod tests {
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
             let resp = security_headers_response().await;
             #[rustfmt::skip]
-            let header_cases = [
-                ("X-Content-Type-Options", "nosniff"),
-                ("X-Frame-Options", "DENY"),
-                ("Referrer-Policy", "strict-origin-when-cross-origin"),
-                ("Content-Security-Policy", "default-src 'none'"),
-            ];
+            let header_cases = [("X-Content-Type-Options", "nosniff"), ("X-Frame-Options", "DENY"), ("Referrer-Policy", "strict-origin-when-cross-origin"), ("Content-Security-Policy", "default-src 'none'")];
             for (name, expected) in header_cases {
                 assert_eq!(resp.headers().get(name).unwrap(), expected);
             }
-            assert!(
-                resp.headers().get("Strict-Transport-Security").is_none(),
-                "secure cookie 無効時は HSTS を付与しない"
-            );
+            #[rustfmt::skip]
+            assert!(resp.headers().get("Strict-Transport-Security").is_none(), "secure cookie 無効時は HSTS を付与しない");
         }
         {
             let _lock = ENV_MUTEX.lock().await;

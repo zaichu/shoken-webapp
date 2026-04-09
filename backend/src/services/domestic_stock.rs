@@ -245,10 +245,9 @@ mod tests {
         let preview = assert_preview_ok(NISA_ROW);
         #[rustfmt::skip]
         assert_eq!((preview.rows[0]["security_name"].as_str(), preview.rows[0]["taxes"].as_f64(), preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64()), (Some("KDDI"), Some(0.0), Some(9100.0)));
-        for (header, row, expected_message) in [
-            (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
-            (HEADER, INVALID_PNL_ROW, "実現損益[円]"),
-        ] {
+        #[rustfmt::skip]
+        let error_cases = [(MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"), (HEADER, INVALID_PNL_ROW, "実現損益[円]")];
+        for (header, row, expected_message) in error_cases {
             assert_preview_error(header, row, expected_message);
         }
 
