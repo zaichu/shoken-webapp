@@ -95,17 +95,8 @@ mod tests {
     fn log_dividend_summaries(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); for summary in &response.data { println!("---"); println!("開示日: {}", summary.disclosed_date); println!("書類種別: {}", summary.type_of_document); println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual); println!("年間配当予想(FDivAnn): {:?}", summary.forecast_dividend_per_share_annual); println!("年間配当来期予想(NxFDivAnn): {:?}", summary.next_year_forecast_dividend_per_share_annual); } }
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
-    async fn test_get_fin_summary_real_api() {
-        let response = fetch_fin_summary("7203").await;
-        log_summary_overview(&response);
-        assert!(!response.data.is_empty(), "データが取得できること");
-    }
-
+    async fn test_get_fin_summary_real_api() { let response = fetch_fin_summary("7203").await; log_summary_overview(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
-    async fn test_get_nintendo_dividend() {
-        let response = fetch_fin_summary("7974").await;
-        log_dividend_summaries(&response);
-        assert!(!response.data.is_empty(), "データが取得できること");
-    }
+    async fn test_get_nintendo_dividend() { let response = fetch_fin_summary("7974").await; log_dividend_summaries(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
 }
