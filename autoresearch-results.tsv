@@ -47,3 +47,12 @@ iteration	commit	metric	status	description
 51	975070f	7773	kept	auth/security/csv_util: テスト統合で 19 行削減
 52	7cd899a	7749	kept	char_width/cors/rate_limit/csv_import/validated_json: テスト統合で 24 行削減
 53	8cf63c3	7733	kept	db/dividend/dividend_cache/jquants_response: テスト統合で 16 行削減
+56	01ae56c	7706	reverted	routes: 関数ポインタ化と一時変数削減は rustfmt 後に 9 行増で悪化したためリバート
+57	b14d0fc	7696	kept	config: rustfmt 再整形で CORS テストの改行を 1 行削減
+58	e77748e	7689	kept	shared: BulkTimer テストを tuple 比較に寄せて 7 行削減
+59	ab86da7	7690	reverted	mutualfund: tuple 比較化は rustfmt 後に 1 行増えたためコミットを巻き戻し
+60	e77748e	7689	reverted	dividend: プレビュー件数の集約は rustfmt 後に行数改善が出ずリバート
+61	e77748e	7692	reverted	csv_import: 長い tuple 比較は rustfmt 展開で 3 行増えたためリバート
+62	acacae3	7685	kept	csv_import: テスト内容と重複するコメント削除で 4 行削減
+63	8b0fcb5	7680	kept	config: 環境別 CORS テストのコメント削除で 5 行削減
+64	919097e	7675	kept	stock/tests: 重複コメント削除で 5 行削減

@@ -57,16 +57,9 @@ mod tests {
 
     #[test]
     fn test_bulk_timer_finish() {
-        let response = BulkTimer::new("test", 5).finish(0);
-        assert_eq!(response.inserted, 0);
-        assert_eq!(response.skipped, 5);
-
-        let response = BulkTimer::new("test", 5).finish(5);
-        assert_eq!(response.inserted, 5);
-        assert_eq!(response.skipped, 0);
-
-        let response = BulkTimer::new("test", 5).finish(3);
-        assert_eq!(response.inserted, 3);
-        assert_eq!(response.skipped, 2);
+        for (inserted, expected) in [(0, (0, 5)), (5, (5, 0)), (3, (3, 2))] {
+            let response = BulkTimer::new("test", 5).finish(inserted);
+            assert_eq!((response.inserted, response.skipped), expected);
+        }
     }
 }

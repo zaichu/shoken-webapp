@@ -145,14 +145,12 @@ async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool);
 
-    // コードによる検索テスト
     let response = call(app.clone(), "GET", "/stocks/1234", None).await;
     assert_eq!(response.status(), StatusCode::OK);
     let stock = read_json(response).await;
     assert_eq!(stock["code"], "1234");
     assert_eq!(stock["name"], "テスト株式会社");
 
-    // 銘柄名による検索テスト
     for (uri, expected_status) in [
         ("/stocks/テスト", StatusCode::OK),
         ("/stocks/9999", StatusCode::NOT_FOUND),
@@ -193,15 +191,12 @@ async fn test_create_stock() {
     );
 }
 
-/// 未認証時に POST /stocks が 401 を返すことを確認
-/// セッション検証はハンドラー入口で実行され DB クエリは発生しないため DB 不要
 #[tokio::test]
 async fn test_create_stock_unauthorized() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
     let app = setup_test_app(pool);
 
-    // セッション Cookie なしでリクエスト
     assert_eq!(
         call(
             app,
