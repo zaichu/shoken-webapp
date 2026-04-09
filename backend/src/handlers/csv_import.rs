@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_read_csv_file_bytes() {
+    async fn test_csv_handler() {
         let content = "symbol,amount\n7203,100\n";
         let response = test_app()
             .oneshot(multipart_request("file", Some("positions.csv"), content))
@@ -212,10 +212,6 @@ mod tests {
                 assert!(error.error.message.contains(fragment));
             }
         }
-    }
-
-    #[tokio::test]
-    async fn test_handle_csv_endpoints() {
         let response = preview_app()
             .oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n"))
             .await

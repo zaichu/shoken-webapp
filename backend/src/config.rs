@@ -168,86 +168,73 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_config_from_env_reads_csv_rate_limit_rps() {
+    async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
-        let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
-
-        let config = Config::from_env();
-
-        assert_eq!(config.csv_rate_limit_rps, 7);
-    }
-
-    #[tokio::test]
-    async fn test_cors_filters_localhost_in_production() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-        let _cors_origins = EnvGuard::set(
-            "CORS_ORIGINS",
-            Some("https://shoken-webapp.vercel.app,http://localhost:8080"),
-        );
-
-        let config = Config::from_env();
-        let app = build_test_app(&config);
-
-        assert_eq!(
-            allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
-            Some("https://shoken-webapp.vercel.app")
-        );
-        assert_eq!(
-            allowed_origin(&preflight(app, "http://localhost:8080").await),
-            None
-        );
-    }
-
-    #[tokio::test]
-    async fn test_validate_origin_respects_cors_origins_env() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _app_env = EnvGuard::set("APP_ENV", None);
-        let _cors_origins = EnvGuard::set(
-            "CORS_ORIGINS",
-            Some("http://custom-origin.example.com:8080"),
-        );
-
-        let config = Config::from_env();
-        let app = build_test_app(&config);
-
-        let resp = post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
-        assert_ne!(
-            resp.status(),
-            StatusCode::FORBIDDEN,
-            "許可されたカスタムオリジンは通過すべき"
-        );
-
-        let resp = post_with_origin(app, "http://disallowed-origin.example.com").await;
-        assert_eq!(
-            resp.status(),
-            StatusCode::FORBIDDEN,
-            "許可されていないオリジンは拒否すべき"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_cors_allows_localhost_in_non_production() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _app_env = EnvGuard::set("APP_ENV", None);
-        let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
-
-        let config = Config::from_env();
-        let app = build_test_app(&config);
-
-        // 非本番環境では localhost が許可される
-        assert_eq!(
-            allowed_origin(&preflight(app.clone(), "http://localhost:8080").await),
-            Some("http://localhost:8080")
-        );
-
-        // 許可されていないオリジンは 403 + セキュリティヘッダーが付与される
-        let resp = post_with_origin(app, "http://evil.example.com").await;
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-        assert_eq!(
-            resp.headers().get("X-Content-Type-Options").unwrap(),
-            "nosniff"
-        );
-        assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
+        {
+            // CSV_RATE_LIMIT_RPS が config に反映される
+            let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
+            let config = Config::from_env();
+            assert_eq!(config.csv_rate_limit_rps, 7);
+        }
+        {
+            // 本番環境では localhost が CORS から除外される
+            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
+            let _cors_origins = EnvGuard::set(
+                "CORS_ORIGINS",
+                Some("https://shoken-webapp.vercel.app,http://localhost:8080"),
+            );
+            let config = Config::from_env();
+            let app = build_test_app(&config);
+            assert_eq!(
+                allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
+                Some("https://shoken-webapp.vercel.app")
+            );
+            assert_eq!(
+                allowed_origin(&preflight(app, "http://localhost:8080").await),
+                None
+            );
+        }
+        {
+            // CORS_ORIGINS 環境変数が validate_origin に反映される
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _cors_origins = EnvGuard::set(
+                "CORS_ORIGINS",
+                Some("http://custom-origin.example.com:8080"),
+            );
+            let config = Config::from_env();
+            let app = build_test_app(&config);
+            let resp =
+                post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
+            assert_ne!(
+                resp.status(),
+                StatusCode::FORBIDDEN,
+                "許可されたカスタムオリジンは通過すべき"
+            );
+            let resp = post_with_origin(app, "http://disallowed-origin.example.com").await;
+            assert_eq!(
+                resp.status(),
+                StatusCode::FORBIDDEN,
+                "許可されていないオリジンは拒否すべき"
+            );
+        }
+        {
+            // 非本番環境では localhost が許可される
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
+            let config = Config::from_env();
+            let app = build_test_app(&config);
+            assert_eq!(
+                allowed_origin(&preflight(app.clone(), "http://localhost:8080").await),
+                Some("http://localhost:8080")
+            );
+            // 許可されていないオリジンは 403 + セキュリティヘッダーが付与される
+            let resp = post_with_origin(app, "http://evil.example.com").await;
+            assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                resp.headers().get("X-Content-Type-Options").unwrap(),
+                "nosniff"
+            );
+            assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
+        }
     }
 }
