@@ -165,10 +165,8 @@ mod tests {
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
-    async fn check_unauthorized(router: axum::Router, method: Method, uri: &str) {
-        #[rustfmt::skip]
-        assert_eq!(router.oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap().status(), axum::http::StatusCode::UNAUTHORIZED);
-    }
+    #[rustfmt::skip]
+    async fn check_unauthorized(router: axum::Router, method: Method, uri: &str) { assert_eq!(router.oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap().status(), axum::http::StatusCode::UNAUTHORIZED); }
 
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {

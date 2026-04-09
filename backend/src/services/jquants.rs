@@ -90,19 +90,8 @@ impl JQuantsService {
 mod tests {
     use super::*;
 
-    async fn fetch_fin_summary(code: &str) -> FinSummaryResponse {
-        let api_key =
-            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
-        let params = FinSummaryQuery {
-            code: code.to_string(),
-            from: None,
-            to: None,
-        };
-
-        JQuantsService::get_fin_summary(&Client::new(), params, &api_key)
-            .await
-            .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
-    }
+    #[rustfmt::skip]
+    async fn fetch_fin_summary(code: &str) -> FinSummaryResponse { let api_key = std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません"); let params = FinSummaryQuery { code: code.to_string(), from: None, to: None }; JQuantsService::get_fin_summary(&Client::new(), params, &api_key).await.unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e)) }
 
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
@@ -131,18 +120,12 @@ mod tests {
             println!("---");
             println!("開示日: {}", summary.disclosed_date);
             println!("書類種別: {}", summary.type_of_document);
-            println!(
-                "年間配当実績(DivAnn): {:?}",
-                summary.result_dividend_per_share_annual
-            );
-            println!(
-                "年間配当予想(FDivAnn): {:?}",
-                summary.forecast_dividend_per_share_annual
-            );
-            println!(
-                "年間配当来期予想(NxFDivAnn): {:?}",
-                summary.next_year_forecast_dividend_per_share_annual
-            );
+            #[rustfmt::skip]
+            println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual);
+            #[rustfmt::skip]
+            println!("年間配当予想(FDivAnn): {:?}", summary.forecast_dividend_per_share_annual);
+            #[rustfmt::skip]
+            println!("年間配当来期予想(NxFDivAnn): {:?}", summary.next_year_forecast_dividend_per_share_annual);
         }
         assert!(!response.data.is_empty(), "データが取得できること");
     }

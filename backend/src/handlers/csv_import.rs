@@ -63,10 +63,8 @@ mod tests {
     use async_trait::async_trait;
     #[rustfmt::skip]
     use axum::{body::{to_bytes, Body}, extract::{Multipart, State}, http::{Request, StatusCode}, routing::post, Router};
-    use serde::de::DeserializeOwned;
-    use sqlx::postgres::PgPoolOptions;
-    use tower::ServiceExt;
-    use uuid::Uuid;
+    #[rustfmt::skip]
+    use {serde::de::DeserializeOwned, sqlx::postgres::PgPoolOptions, tower::ServiceExt, uuid::Uuid};
 
     const BODY_LIMIT: usize = 1024 * 1024;
 

@@ -183,16 +183,10 @@ mod tests {
         ];
 
         for (header, row, expected_message) in cases {
-            let csv = [header, row].join("\n");
-            let preview = preview_csv(csv.as_bytes()).unwrap();
-            assert_eq!(
-                (
-                    preview.total_rows,
-                    preview.valid_rows,
-                    matches!(preview.errors.as_slice(), [error] if error.message.contains(expected_message))
-                ),
-                (1, 0, true)
-            );
+            #[rustfmt::skip]
+            let preview = { let csv = [header, row].join("\n"); preview_csv(csv.as_bytes()).unwrap() };
+            #[rustfmt::skip]
+            assert_eq!((preview.total_rows, preview.valid_rows, matches!(preview.errors.as_slice(), [error] if error.message.contains(expected_message))), (1, 0, true));
         }
     }
 }

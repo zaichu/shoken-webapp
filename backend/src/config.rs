@@ -108,13 +108,9 @@ mod tests {
         assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
 
         let url = backend_url();
-        if let Ok(expected) = env::var("BACKEND_URL") {
-            assert_eq!(url, expected);
-        } else if let Ok(port) = env::var("PORT") {
-            assert_eq!(url, format!("http://localhost:{}", port));
-        } else {
-            assert_eq!(url, "http://localhost:3001");
-        }
+        #[rustfmt::skip]
+        let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| env::var("PORT").map(|port| format!("http://localhost:{port}")).unwrap_or_else(|_| "http://localhost:3001".to_string()));
+        assert_eq!(url, expected_url);
         assert!(server_addr().starts_with("0.0.0.0:"));
         let _ = is_secure_cookie();
     }

@@ -214,9 +214,8 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::state::Secrets;
-    use std::sync::Arc;
+    #[rustfmt::skip]
+    use {super::*, crate::state::Secrets, std::sync::Arc};
 
     #[rustfmt::skip]
     fn test_state() -> AppState { AppState { pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1).expect("pool"), secrets: Arc::new(Secrets { database_url: "postgresql://user:password@localhost/test_db".to_string(), jquants_api_key: None, google_client_id: Some("client-id".to_string()), google_client_secret: Some("client-secret".to_string()), frontend_url: "http://localhost:8080".to_string() }), client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
