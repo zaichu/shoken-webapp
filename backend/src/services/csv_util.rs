@@ -235,7 +235,6 @@ mod tests {
         let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
         assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
-    /// `cargo test --lib -- timing_csv_util --ignored --nocapture` で実行する。
     #[test]
     #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
     fn timing_csv_util() {
@@ -243,44 +242,22 @@ mod tests {
 
         const ROWS: usize = 1_000;
 
-        let csv_utf8: String = {
-            let mut s = String::from("日付,銘柄コード,金額\n");
-            for i in 0..ROWS {
-                s.push_str(&format!(
-                    "2024/{:02}/{:02},1234,{}\n",
-                    (i % 12) + 1,
-                    (i % 28) + 1,
-                    i * 100
-                ));
-            }
-            s
-        };
+        #[rustfmt::skip]
+        let csv_utf8: String = { let mut s = String::from("日付,銘柄コード,金額\n"); for i in 0..ROWS { s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100)); } s };
         let bytes_utf8 = csv_utf8.as_bytes();
-        // 証券会社の CSV は Shift-JIS の場合があるため、フォールバック経路を計測する
         let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8);
         let bytes_sjis = bytes_sjis_cow.into_owned();
 
         time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || {
             std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
         });
-        time_n(
-            &format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS),
-            10,
-            || {
-                std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));
-            },
-        );
+        #[rustfmt::skip]
+        time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice()))); });
         let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
-        time_n("parse_number", 10_000, || {
-            for s in &samples {
-                let _ = std::hint::black_box(parse_number(std::hint::black_box(s)));
-            }
-        });
+        #[rustfmt::skip]
+        time_n("parse_number", 10_000, || { for s in &samples { let _ = std::hint::black_box(parse_number(std::hint::black_box(s))); } });
         let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"];
-        time_n("parse_date", 10_000, || {
-            for s in &date_samples {
-                let _ = std::hint::black_box(parse_date(std::hint::black_box(s)));
-            }
-        });
+        #[rustfmt::skip]
+        time_n("parse_date", 10_000, || { for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); } });
     }
 }

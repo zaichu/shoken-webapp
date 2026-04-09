@@ -169,12 +169,8 @@ mod tests {
             assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected);
         }
         let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]);
-        let app = Router::new()
-            .route("/test", axum::routing::delete(|| async { "ok" }))
-            .layer(middleware::from_fn(move |req, next| {
-                let origins = allowed_origins.clone();
-                async move { validate_origin(origins, req, next).await }
-            }));
+        #[rustfmt::skip]
+        let app = Router::new().route("/test", axum::routing::delete(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } }));
         #[rustfmt::skip]
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }

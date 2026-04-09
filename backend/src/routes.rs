@@ -153,29 +153,15 @@ mod tests {
     async fn test_routes_rate_limit_returns_429() {
         let limiter = crate::middleware::build_keyed_rate_limiter(1);
         let state = make_test_state();
-        let router = if let Some(l) = limiter {
-            handlers::auth::auth_routes().layer(middleware::from_fn(move |req, next| {
-                let l = l.clone();
-                async move { keyed_rate_limit(l, req, next).await }
-            }))
-        } else {
-            handlers::auth::auth_routes()
-        }
-        .with_state(state);
+        #[rustfmt::skip]
+        let router = if let Some(l) = limiter { handlers::auth::auth_routes().layer(middleware::from_fn(move |req, next| { let l = l.clone(); async move { keyed_rate_limit(l, req, next).await } })) } else { handlers::auth::auth_routes() }.with_state(state);
 
         assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
 
         let limiter = crate::middleware::build_rate_limiter(1);
         let state = make_test_state();
-        let router = if let Some(l) = limiter {
-            handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| {
-                let l = l.clone();
-                async move { rate_limit(l, req, next).await }
-            }))
-        } else {
-            handlers::jquants::jquants_routes()
-        }
-        .with_state(state);
+        #[rustfmt::skip]
+        let router = if let Some(l) = limiter { handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| { let l = l.clone(); async move { rate_limit(l, req, next).await } })) } else { handlers::jquants::jquants_routes() }.with_state(state);
         assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
     }
 
@@ -243,10 +229,8 @@ mod tests {
         use axum::{routing::get, Router};
         use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 
-        let router: Router = Router::new()
-            .route("/health", get(|| async { "OK" }))
-            .layer(PropagateRequestIdLayer::x_request_id())
-            .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
+        #[rustfmt::skip]
+        let router: Router = Router::new().route("/health", get(|| async { "OK" })).layer(PropagateRequestIdLayer::x_request_id()).layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
 
         #[rustfmt::skip]
         let health_req = |id: Option<&str>| { let mut b = Request::builder().method(Method::GET).uri("/health"); if let Some(id) = id { b = b.header("x-request-id", id); } b.body(Body::empty()).unwrap() };
