@@ -92,69 +92,20 @@ mod tests {
     fn allowed_origin(response: &axum::response::Response) -> Option<&str> { response.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).and_then(|value| value.to_str().ok()) }
 
     #[test]
+    #[rustfmt::skip]
     fn test_config_creation() {
-        let config = Config::default();
-        #[rustfmt::skip]
-        assert_eq!((config.database_max_connections, config.csv_rate_limit_rps), (5, 2));
-        #[rustfmt::skip]
-        assert!(config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()));
-        #[rustfmt::skip]
-        assert!(config.cors_origins.contains(&"http://localhost:8080".to_string()));
-        let _cors_layer = build_cors_layer(&config.cors_origins);
-
-        #[rustfmt::skip]
-        let config = Config { cors_origins: vec!["http://example.com".to_string()], database_max_connections: 10, auth_rate_limit_rps: 10, jquants_rate_limit_rps: 5, csv_rate_limit_rps: 2 };
-        #[rustfmt::skip]
-        assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
-
-        let url = backend_url();
-        #[rustfmt::skip]
-        let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| env::var("PORT").map(|port| format!("http://localhost:{port}")).unwrap_or_else(|_| "http://localhost:3001".to_string()));
-        assert_eq!(url, expected_url);
-        assert!(server_addr().starts_with("0.0.0.0:"));
-        let _ = is_secure_cookie();
+        let config = Config::default(); assert_eq!((config.database_max_connections, config.csv_rate_limit_rps, config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()), config.cors_origins.contains(&"http://localhost:8080".to_string())), (5, 2, true, true)); let _cors_layer = build_cors_layer(&config.cors_origins);
+        let config = Config { cors_origins: vec!["http://example.com".to_string()], database_max_connections: 10, auth_rate_limit_rps: 10, jquants_rate_limit_rps: 5, csv_rate_limit_rps: 2 }; assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
+        let url = backend_url(); let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| env::var("PORT").map(|port| format!("http://localhost:{port}")).unwrap_or_else(|_| "http://localhost:3001".to_string())); assert_eq!(url, expected_url); assert!(server_addr().starts_with("0.0.0.0:")); let _ = is_secure_cookie();
     }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
-        {
-            let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
-            let config = Config::from_env();
-            assert_eq!(config.csv_rate_limit_rps, 7);
-        }
-        {
-            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-            #[rustfmt::skip]
-            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app,http://localhost:8080"));
-            let config = Config::from_env();
-            let app = build_test_app(&config);
-            #[rustfmt::skip]
-            assert_eq!(allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await), Some("https://shoken-webapp.vercel.app"));
-            #[rustfmt::skip]
-            assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None);
-        }
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            #[rustfmt::skip]
-            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://custom-origin.example.com:8080"));
-            let config = Config::from_env();
-            let app = build_test_app(&config);
-            #[rustfmt::skip]
-            assert_ne!(post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await.status(), StatusCode::FORBIDDEN, "許可されたカスタムオリジンは通過すべき");
-            #[rustfmt::skip]
-            assert_eq!(post_with_origin(app, "http://disallowed-origin.example.com").await.status(), StatusCode::FORBIDDEN, "許可されていないオリジンは拒否すべき");
-        }
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
-            let config = Config::from_env();
-            let app = build_test_app(&config);
-            #[rustfmt::skip]
-            assert_eq!(allowed_origin(&preflight(app.clone(), "http://localhost:8080").await), Some("http://localhost:8080"));
-            let resp = post_with_origin(app, "http://evil.example.com").await;
-            #[rustfmt::skip]
-            assert_eq!((resp.status(), resp.headers().get("X-Content-Type-Options").and_then(|v| v.to_str().ok()), resp.headers().get("X-Frame-Options").and_then(|v| v.to_str().ok())), (StatusCode::FORBIDDEN, Some("nosniff"), Some("DENY")));
-        }
+        { let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7")); assert_eq!(Config::from_env().csv_rate_limit_rps, 7); }
+        { let _app_env = EnvGuard::set("APP_ENV", Some("production")); let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app,http://localhost:8080")); let app = build_test_app(&Config::from_env()); assert_eq!(allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await), Some("https://shoken-webapp.vercel.app")); assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None); }
+        { let _app_env = EnvGuard::set("APP_ENV", None); let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://custom-origin.example.com:8080")); let app = build_test_app(&Config::from_env()); assert_ne!(post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await.status(), StatusCode::FORBIDDEN, "許可されたカスタムオリジンは通過すべき"); assert_eq!(post_with_origin(app, "http://disallowed-origin.example.com").await.status(), StatusCode::FORBIDDEN, "許可されていないオリジンは拒否すべき"); }
+        { let _app_env = EnvGuard::set("APP_ENV", None); let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080")); let app = build_test_app(&Config::from_env()); assert_eq!(allowed_origin(&preflight(app.clone(), "http://localhost:8080").await), Some("http://localhost:8080")); let resp = post_with_origin(app, "http://evil.example.com").await; assert_eq!((resp.status(), resp.headers().get("X-Content-Type-Options").and_then(|v| v.to_str().ok()), resp.headers().get("X-Frame-Options").and_then(|v| v.to_str().ok())), (StatusCode::FORBIDDEN, Some("nosniff"), Some("DENY"))); }
     }
 }

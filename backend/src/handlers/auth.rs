@@ -246,13 +246,9 @@ mod tests {
     async fn request_json<T: DeserializeOwned>(method: &str, uri: &str) -> (StatusCode, T) { let response = test_app().oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap(); let status = response.status(); (status, read_json_response(response).await) }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_auth_endpoints_without_cookie() {
-        let (status, error) = request_json::<ErrorResponse>("GET", "/auth/me").await;
-        #[rustfmt::skip]
-        assert_eq!((status, error.error.code.as_str(), error.error.message.contains("ログインが必要")), (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", true));
-
-        let (status, message) = request_json::<MessageResponse>("POST", "/auth/logout").await;
-        #[rustfmt::skip]
-        assert_eq!((status, message.message.as_str()), (StatusCode::OK, "ログアウトしました"));
+        let (status, error) = request_json::<ErrorResponse>("GET", "/auth/me").await; assert_eq!((status, error.error.code.as_str(), error.error.message.contains("ログインが必要")), (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", true));
+        let (status, message) = request_json::<MessageResponse>("POST", "/auth/logout").await; assert_eq!((status, message.message.as_str()), (StatusCode::OK, "ログアウトしました"));
     }
 }
