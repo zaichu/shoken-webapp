@@ -131,17 +131,10 @@ pub async fn validate_origin(
     async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode { let builder = headers.iter().fold(Request::builder().method(method).uri("/test"), |builder, (name, value)| builder.header(*name, *value)); app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap().status() }
     #[tokio::test]
     async fn test_validate_origin() {
-        let origin_cases = [("http://localhost:8080/some/page", Some("http://localhost:8080")), ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")), ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com"))];
-        for (input, expected) in origin_cases {
-            assert_eq!(extract_origin(input), expected);
-        }
+        for (input, expected) in [("http://localhost:8080/some/page", Some("http://localhost:8080")), ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")), ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com"))] { assert_eq!(extract_origin(input), expected); }
         assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
-        let cases: &[(&[(&str, &str)], StatusCode)] = &[(&[("origin", "http://localhost:8080")], StatusCode::OK), (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN), (&[], StatusCode::OK), (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK)];
-        for &(headers, expected) in cases {
-            assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected);
-        }
-        let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]);
-        let app = Router::new().route("/test", axum::routing::delete(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } }));
+        for &(headers, expected) in &[(&[("origin", "http://localhost:8080")][..], StatusCode::OK), (&[("origin", "https://evil.example.com")][..], StatusCode::FORBIDDEN), (&[][..], StatusCode::OK), (&[("referer", "http://localhost:8080/some/page")][..], StatusCode::OK), (&[("referer", "https://evil.example.com/attack")][..], StatusCode::FORBIDDEN), (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")][..], StatusCode::FORBIDDEN), (&[("origin", "https://shoken-webapp.vercel.app")][..], StatusCode::OK)] { assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected); }
+        let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]); let app = Router::new().route("/test", axum::routing::delete(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } }));
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
     async fn security_headers_response() -> axum::response::Response { security_headers_app().oneshot(Request::builder().method(Method::POST).uri("/test").body(Body::empty()).unwrap()).await.unwrap() }
