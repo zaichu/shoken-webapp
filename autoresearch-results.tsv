@@ -91,3 +91,4 @@ iteration	commit	metric	status	description
 97	ff0d386	5346	kept	config/routes/security/stock/csv_util: テスト圧縮で 57 行削減
 98	406c6d2	5311	kept	テスト圧縮で 35 行削減
 99	6470bf8	5275	kept	テスト周辺の空行削除で 36 行削減
+100	1dcc258	5245	kept	csv_util/csv_import/stock/tests: テスト圧縮で 30 行削減
