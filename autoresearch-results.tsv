@@ -86,3 +86,4 @@ iteration	commit	metric	status	description
 92	6995e21	5619	kept	test_env/dividend_cache/response/cors/security: テスト圧縮で 37 行削減
 93	96688cb	5535	kept	テスト属性圧縮で 84 行削減
 94	6179a50	5502	kept	routes/csv_import/asset_balance/domestic_stock/csv_util/auth: テスト整形で 33 行削減
+95	c47bcfc	5434	kept	テスト定数・テーブル・helper 圧縮で 68 行削減

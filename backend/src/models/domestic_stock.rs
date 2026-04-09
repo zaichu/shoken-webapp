@@ -65,6 +65,5 @@ pub struct CreateDomesticStockRequest {
 
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, rust_decimal_macros::dec};
-    #[test]
-    fn test_create_domestic_stock_request_validation() { assert!(CreateDomesticStockRequest { trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"), settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"), security_code: "1234".to_string(), security_name: "テスト株式会社".to_string(), account: "特定".to_string(), shares: dec!(100), asked_price: dec!(1500), proceeds: dec!(150000), purchase_price: dec!(1400), realized_profit_and_loss: dec!(10000), taxes: dec!(2000), realized_profit_and_loss_after_tax: dec!(8000) }.validate().is_ok()); }
+    #[test] fn test_create_domestic_stock_request_validation() { assert!(CreateDomesticStockRequest { trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"), settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"), security_code: "1234".to_string(), security_name: "テスト株式会社".to_string(), account: "特定".to_string(), shares: dec!(100), asked_price: dec!(1500), proceeds: dec!(150000), purchase_price: dec!(1400), realized_profit_and_loss: dec!(10000), taxes: dec!(2000), realized_profit_and_loss_after_tax: dec!(8000) }.validate().is_ok()); }
 }

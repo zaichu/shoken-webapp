@@ -89,8 +89,7 @@ pub fn finish_csv_upload(
     use {super::*, crate::services::csv_util::{get_cell, parse_required_string}};
     fn parse_pair_csv(csv: &str) -> (Vec<String>, Vec<CsvRowError>) { parse_csv::<String, _>(csv.as_bytes(), |record, header_map, _row| { let a = get_cell(record, header_map, "col_a").to_string(); let b = get_cell(record, header_map, "col_b").to_string(); Ok(format!("{a}/{b}")) }).unwrap() }
     fn strings(values: &[&str]) -> Vec<String> { values.iter().map(|value| (*value).to_string()).collect() }
-    #[test]
-    fn test_parse_csv() {
+    #[test] fn test_parse_csv() {
         let (items, errors) = parse_pair_csv("col_a,col_b\nfoo,123\nbar,456\n"); assert_eq!((items, errors.is_empty()), (strings(&["foo/123", "bar/456"]), true));
         let (items, errors) = parse_csv::<String, _>("name,id\ngood,1\n,2\nbad,3\n".as_bytes(), |record, header_map, row_num| parse_required_string(record, header_map, "name", row_num)).unwrap(); assert_eq!((items, errors.len(), errors.first().map(|error| error.row)), (strings(&["good", "bad"]), 1, Some(2)));
         let (items, errors) = parse_pair_csv("col_a,col_b\nfoo,123\n,\nbar,456\n"); assert_eq!((items, errors.is_empty()), (strings(&["foo/123", "bar/456"]), true));
