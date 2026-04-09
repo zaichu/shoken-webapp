@@ -85,55 +85,26 @@ mod tests {
     use axum::{middleware, routing::post, Router};
     use tower::ServiceExt;
 
-    fn test_route() -> Router {
-        Router::new().route("/test", post(|| async { "ok" }))
-    }
+    #[rustfmt::skip]
+    fn test_route() -> Router { Router::new().route("/test", post(|| async { "ok" })) }
 
-    fn direct_app(limiter: Arc<DefaultDirectRateLimiter>) -> Router {
-        test_route().layer(middleware::from_fn(move |req, next| {
-            let limiter = limiter.clone();
-            async move { rate_limit(limiter, req, next).await }
-        }))
-    }
+    #[rustfmt::skip]
+    fn direct_app(limiter: Arc<DefaultDirectRateLimiter>) -> Router { test_route().layer(middleware::from_fn(move |req, next| { let limiter = limiter.clone(); async move { rate_limit(limiter, req, next).await } })) }
 
-    fn keyed_app(limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>) -> Router {
-        test_route().layer(middleware::from_fn(move |req, next| {
-            let limiter = limiter.clone();
-            async move { keyed_rate_limit(limiter, req, next).await }
-        }))
-    }
+    #[rustfmt::skip]
+    fn keyed_app(limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>) -> Router { test_route().layer(middleware::from_fn(move |req, next| { let limiter = limiter.clone(); async move { keyed_rate_limit(limiter, req, next).await } })) }
 
-    fn test_request(ip: Option<&str>) -> Request<Body> {
-        let req = Request::builder()
-            .method(axum::http::Method::POST)
-            .uri("/test");
-        match ip {
-            Some(ip) => req.header("fly-client-ip", ip),
-            None => req,
-        }
-        .body(Body::empty())
-        .unwrap()
-    }
+    #[rustfmt::skip]
+    fn test_request(ip: Option<&str>) -> Request<Body> { let req = Request::builder().method(axum::http::Method::POST).uri("/test"); match ip { Some(ip) => req.header("fly-client-ip", ip), None => req }.body(Body::empty()).unwrap() }
 
-    async fn assert_status(router: Router, ip: Option<&str>, expected: StatusCode) {
-        let resp = router.oneshot(test_request(ip)).await.unwrap();
-        assert_eq!(resp.status(), expected);
-    }
+    #[rustfmt::skip]
+    async fn assert_status(router: Router, ip: Option<&str>, expected: StatusCode) { assert_eq!(router.oneshot(test_request(ip)).await.unwrap().status(), expected); }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_rate_limiters() {
-        assert!(build_rate_limiter(0).is_none());
-        assert!(build_rate_limiter(10).is_some());
-        assert!(build_keyed_rate_limiter(0).is_none());
-        assert!(build_keyed_rate_limiter(10).is_some());
-
-        let router = direct_app(build_rate_limiter(1).unwrap());
-        assert_status(router.clone(), None, StatusCode::OK).await;
-        assert_status(router, None, StatusCode::TOO_MANY_REQUESTS).await;
-
-        let router = keyed_app(build_keyed_rate_limiter(1).unwrap());
-        assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await;
-        assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await;
-        assert_status(router, Some("1.2.3.4"), StatusCode::TOO_MANY_REQUESTS).await;
+        assert_eq!((build_rate_limiter(0).is_none(), build_rate_limiter(10).is_some(), build_keyed_rate_limiter(0).is_none(), build_keyed_rate_limiter(10).is_some()), (true, true, true, true));
+        let router = direct_app(build_rate_limiter(1).unwrap()); assert_status(router.clone(), None, StatusCode::OK).await; assert_status(router, None, StatusCode::TOO_MANY_REQUESTS).await;
+        let router = keyed_app(build_keyed_rate_limiter(1).unwrap()); assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await; assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await; assert_status(router, Some("1.2.3.4"), StatusCode::TOO_MANY_REQUESTS).await;
     }
 }
