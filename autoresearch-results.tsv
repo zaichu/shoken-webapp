@@ -64,3 +64,4 @@ iteration	commit	metric	status	description
 70	37dc704	7554	kept	errors/auth/csv_import/response/csv_util: テスト圧縮で 31 行削減
 71	d3e10b0	7472	kept	domestic_stock/csv_import/csv_domain: テスト圧縮で 82 行削減
 72	7fc6cd4	7397	kept	stock/tests/dividend/jquants: テスト圧縮で 75 行削減
+73	017a44f	7234	kept	routes/security/asset_balance/auth/csv_util/csv_import: テスト圧縮で 163 行削減
