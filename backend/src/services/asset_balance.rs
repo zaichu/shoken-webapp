@@ -255,13 +255,8 @@ mod tests {
     const ACCOUNT_SUMMARY_ROW: &str =
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
 
-    fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        parse_csv(
-            format!("{HEADER}\n{row}\n").as_bytes(),
-            parse_asset_balance_row,
-        )
-        .unwrap()
-    }
+    #[rustfmt::skip]
+    fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) { parse_csv(format!("{HEADER}\n{row}\n").as_bytes(), parse_asset_balance_row).unwrap() }
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
         format!(
@@ -278,18 +273,8 @@ mod tests {
         assert!(errors.is_empty(), "unexpected errors for {row}: {errors:?}");
         assert_eq!(items.len(), 1, "row should produce one item: {row}");
         let item = &items[0];
-        assert_eq!(
-            (
-                item.security_code.as_str(),
-                item.shares,
-                item.executing_shares,
-                item.average_purchase_price,
-                item.current_price,
-                item.daily_change,
-                item.profit_loss_rate,
-            ),
-            expected
-        );
+        #[rustfmt::skip]
+        assert_eq!((item.security_code.as_str(), item.shares, item.executing_shares, item.average_purchase_price, item.current_price, item.daily_change, item.profit_loss_rate), expected);
     }
 
     fn assert_row_error(row: &str, expected_message: &str) {
@@ -322,16 +307,11 @@ mod tests {
         let preview = preview_csv(csv.as_bytes()).unwrap();
         #[rustfmt::skip]
         assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (2, 2, 2));
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
+        #[rustfmt::skip]
+        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
 
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        #[rustfmt::skip]
+        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
 
         #[rustfmt::skip]
         let parse_cases = [

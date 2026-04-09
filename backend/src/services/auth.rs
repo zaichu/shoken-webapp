@@ -244,20 +244,7 @@ mod tests {
             ];
             for (cookie, expected_name, expected_value) in cookies {
                 #[rustfmt::skip]
-                assert_eq!(
-                    (
-                        cookie.name(),
-                        cookie.value(),
-                        cookie.secure(),
-                        cookie.http_only()
-                    ),
-                    (
-                        expected_name,
-                        expected_value,
-                        Some(expected_secure),
-                        Some(true)
-                    )
-                );
+                assert_eq!((cookie.name(), cookie.value(), cookie.secure(), cookie.http_only()), (expected_name, expected_value, Some(expected_secure), Some(true)));
             }
         }
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
@@ -273,20 +260,7 @@ mod tests {
             assert_eq!((cookie.name(), cookie.value()), (expected_name, ""));
         }
         #[rustfmt::skip]
-        assert_eq!(
-            (
-                same_site(true),
-                same_site(false),
-                SESSION_COOKIE_NAME,
-                OAUTH_STATE_COOKIE_NAME
-            ),
-            (
-                SameSite::None,
-                SameSite::Lax,
-                "session_token",
-                "oauth_state"
-            )
-        );
+        assert_eq!((same_site(true), same_site(false), SESSION_COOKIE_NAME, OAUTH_STATE_COOKIE_NAME), (SameSite::None, SameSite::Lax, "session_token", "oauth_state"));
     }
 
     #[tokio::test]

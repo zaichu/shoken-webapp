@@ -160,11 +160,8 @@ mod tests {
         println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0);
     }
 
-    fn make_header_map(cols: &[&str]) -> HashMap<String, usize> {
-        #[rustfmt::skip]
-        let header_map = cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect();
-        header_map
-    }
+    #[rustfmt::skip]
+    fn make_header_map(cols: &[&str]) -> HashMap<String, usize> { cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect() }
 
     #[test]
     fn test_parse_utilities() {
@@ -222,10 +219,9 @@ mod tests {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let header_map = make_header_map(&["col_a", "col_b"]);
         let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
-        assert_eq!(err.row, 3);
-        assert!(err.message.contains("col_a"));
-        let ok = parse_required_string(&record, &header_map, "col_b", 1).unwrap();
-        assert_eq!(ok, "value");
+        assert_eq!((err.row, err.message.contains("col_a")), (3, true));
+        #[rustfmt::skip]
+        assert_eq!(parse_required_string(&record, &header_map, "col_b", 1).unwrap(), "value");
 
         let record = csv::StringRecord::from(vec!["abc", "1,234", ""]);
         let hm = make_header_map(&["invalid", "valid", "empty"]);
@@ -234,18 +230,16 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234));
         let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
-        assert_eq!(err.row, 7);
-        assert!(err.message.contains("empty"));
+        assert_eq!((err.row, err.message.contains("empty")), (7, true));
 
         let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]);
         let hm = make_header_map(&["invalid", "valid", "out_of_range"]);
         #[rustfmt::skip]
         assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
-        let ok = parse_required_date(&record, &hm, "valid", 1).unwrap();
-        assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
+        #[rustfmt::skip]
+        assert_eq!(parse_required_date(&record, &hm, "valid", 1).unwrap(), NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
         let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
-        assert_eq!(err.row, 9);
-        assert!(err.message.contains("out_of_range"));
+        assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
     /// `cargo test --lib -- timing_csv_util --ignored --nocapture` で実行する。
     #[test]

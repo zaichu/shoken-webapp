@@ -164,10 +164,8 @@ mod tests {
         let _ = handlers::asset_balance::asset_balance_routes();
     }
 
-    /// auth/jquants ルートが rps=1 制限を超えると 429 を返すことを確認
     #[tokio::test]
     async fn test_routes_rate_limit_returns_429() {
-        // auth: キー付きレート制限（IP ごと）
         let limiter = crate::middleware::build_keyed_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
@@ -182,7 +180,6 @@ mod tests {
 
         assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
 
-        // jquants: グローバルレート制限
         let limiter = crate::middleware::build_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
@@ -197,7 +194,6 @@ mod tests {
         assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
     }
 
-    /// rps=1 ルーターに同一条件で 2 回リクエストし、2 回目が 429 になることを検証するヘルパー
     async fn assert_rate_limited(
         router: axum::Router,
         method: Method,
@@ -217,101 +213,36 @@ mod tests {
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
-    /// セッション Cookie なしでルーターにリクエストを送り、401 が返ることを検証するヘルパー
     async fn check_unauthorized(router: axum::Router, method: Method, uri: &str) {
-        let response = router
-            .oneshot(
-                Request::builder()
-                    .method(method)
-                    .uri(uri)
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+        #[rustfmt::skip]
+        assert_eq!(router.oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap().status(), axum::http::StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {
-        for (router, method, uri) in [
-            (
-                handlers::jquants::jquants_routes(),
-                Method::GET,
-                "/jquants/fins/summary?code=7203",
-            ),
-            (
-                handlers::dividend::dividend_routes(),
-                Method::DELETE,
-                "/dividends",
-            ),
-            (
-                handlers::dividend::dividend_routes(),
-                Method::GET,
-                "/dividends",
-            ),
-            (
-                handlers::dividend::dividend_routes(),
-                Method::POST,
-                "/dividends/csv/preview",
-            ),
-            (
-                handlers::domestic_stock::domestic_stock_routes(),
-                Method::DELETE,
-                "/domestic-stocks",
-            ),
-            (
-                handlers::domestic_stock::domestic_stock_routes(),
-                Method::GET,
-                "/domestic-stocks",
-            ),
-            (
-                handlers::domestic_stock::domestic_stock_routes(),
-                Method::POST,
-                "/domestic-stocks/csv/preview",
-            ),
-            (
-                handlers::mutualfund::mutualfund_routes(),
-                Method::DELETE,
-                "/mutualfunds",
-            ),
-            (
-                handlers::mutualfund::mutualfund_routes(),
-                Method::GET,
-                "/mutualfunds",
-            ),
-            (
-                handlers::mutualfund::mutualfund_routes(),
-                Method::POST,
-                "/mutualfunds/csv/preview",
-            ),
-            (
-                handlers::asset_balance::asset_balance_routes(),
-                Method::DELETE,
-                "/asset-balances",
-            ),
-            (
-                handlers::asset_balance::asset_balance_routes(),
-                Method::POST,
-                "/asset-balances/bulk",
-            ),
-            (
-                handlers::asset_balance::asset_balance_routes(),
-                Method::POST,
-                "/asset-balances/csv/preview",
-            ),
+        #[rustfmt::skip]
+        let unauthorized_cases = [
+            (handlers::jquants::jquants_routes(), Method::GET, "/jquants/fins/summary?code=7203"),
+            (handlers::dividend::dividend_routes(), Method::DELETE, "/dividends"),
+            (handlers::dividend::dividend_routes(), Method::GET, "/dividends"),
+            (handlers::dividend::dividend_routes(), Method::POST, "/dividends/csv/preview"),
+            (handlers::domestic_stock::domestic_stock_routes(), Method::DELETE, "/domestic-stocks"),
+            (handlers::domestic_stock::domestic_stock_routes(), Method::GET, "/domestic-stocks"),
+            (handlers::domestic_stock::domestic_stock_routes(), Method::POST, "/domestic-stocks/csv/preview"),
+            (handlers::mutualfund::mutualfund_routes(), Method::DELETE, "/mutualfunds"),
+            (handlers::mutualfund::mutualfund_routes(), Method::GET, "/mutualfunds"),
+            (handlers::mutualfund::mutualfund_routes(), Method::POST, "/mutualfunds/csv/preview"),
+            (handlers::asset_balance::asset_balance_routes(), Method::DELETE, "/asset-balances"),
+            (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/bulk"),
+            (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/csv/preview"),
             (csv_upload_routes(), Method::POST, "/dividends/csv"),
-            (
-                handlers::dividend_per_share::dividend_per_share_routes(),
-                Method::POST,
-                "/dividends/per-share/batch",
-            ),
-        ] {
+            (handlers::dividend_per_share::dividend_per_share_routes(), Method::POST, "/dividends/per-share/batch"),
+        ];
+        for (router, method, uri) in unauthorized_cases {
             check_unauthorized(router.with_state(make_test_state()), method, uri).await;
         }
     }
 
-    /// CSV upload ルートだけが IP 単位レート制限の対象になることを確認
     #[tokio::test]
     async fn test_csv_upload_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await;
@@ -327,21 +258,11 @@ mod tests {
             assert_rate_limited(router, Method::POST, path, Some(ip)).await;
         }
 
-        // プレビューエンドポイントはレート制限対象外
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/domestic-stocks/csv/preview")
-            .header("fly-client-ip", "1.2.3.4")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app_router(make_test_state(), &Config::from_env())
-            .oneshot(req)
-            .await
-            .unwrap();
+        #[rustfmt::skip]
+        let resp = app_router(make_test_state(), &Config::from_env()).oneshot(Request::builder().method(Method::POST).uri("/domestic-stocks/csv/preview").header("fly-client-ip", "1.2.3.4").body(Body::empty()).unwrap()).await.unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
-    /// x-request-id がレスポンスに伝播されることを確認
     #[tokio::test]
     async fn test_request_id_propagated_to_response() {
         use axum::{routing::get, Router};
@@ -360,11 +281,9 @@ mod tests {
             b.body(Body::empty()).unwrap()
         };
 
-        // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
         #[rustfmt::skip]
         assert!(router.clone().oneshot(health_req(None)).await.unwrap().headers().contains_key("x-request-id"), "x-request-id should be auto-generated");
 
-        // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
         #[rustfmt::skip]
         assert_eq!(router.oneshot(health_req(Some("my-custom-id"))).await.unwrap().headers().get("x-request-id").and_then(|v| v.to_str().ok()), Some("my-custom-id"), "existing x-request-id should be propagated unchanged");
     }
