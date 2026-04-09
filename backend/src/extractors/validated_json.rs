@@ -39,27 +39,13 @@ where
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    use super::*;
-    #[rustfmt::skip]
-    use axum::{body::Body, extract::FromRequest, http::{Request, StatusCode}};
-    use serde::{Deserialize, Serialize};
-    use tower::ServiceExt;
-    use validator::Validate;
-
+    use {super::*, axum::{body::Body, extract::FromRequest, http::{Request, StatusCode}}, serde::{Deserialize, Serialize}, tower::ServiceExt, validator::Validate};
     #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-    struct TestData {
-        #[validate(length(min = 1, max = 50))]
-        name: String,
-        #[validate(range(min = 1, max = 150))]
-        age: u8,
-    }
-
-    #[rustfmt::skip]
+    struct TestData { #[validate(length(min = 1, max = 50))] name: String, #[validate(range(min = 1, max = 150))] age: u8 }
     fn json_request(body: impl Into<Body>) -> Request<Body> { Request::builder().header("content-type", "application/json").method("POST").uri("/test").body(body.into()).unwrap() }
-
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_valid_json() {
         let json_data = TestData { name: "テストユーザー".to_string(), age: 30 };
         let app = tower::service_fn(|req: Request<Body>| async { let ValidatedJson(data) = ValidatedJson::<TestData>::from_request(req, &()).await.unwrap(); assert_eq!(data, json_data); Ok::<_, hyper::Error>(axum::response::Response::new(Body::empty())) });
