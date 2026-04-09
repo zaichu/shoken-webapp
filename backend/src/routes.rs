@@ -361,23 +361,11 @@ mod tests {
         };
 
         // x-request-id ヘッダーなし → 自動生成されてレスポンスに付与される
-        let resp = router.clone().oneshot(health_req(None)).await.unwrap();
-        assert!(
-            resp.headers().contains_key("x-request-id"),
-            "x-request-id should be auto-generated"
-        );
+        #[rustfmt::skip]
+        assert!(router.clone().oneshot(health_req(None)).await.unwrap().headers().contains_key("x-request-id"), "x-request-id should be auto-generated");
 
         // x-request-id ヘッダーあり → 既存値がそのままレスポンスに伝播される
-        let resp = router
-            .oneshot(health_req(Some("my-custom-id")))
-            .await
-            .unwrap();
-        assert_eq!(
-            resp.headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok()),
-            Some("my-custom-id"),
-            "existing x-request-id should be propagated unchanged"
-        );
+        #[rustfmt::skip]
+        assert_eq!(router.oneshot(health_req(Some("my-custom-id"))).await.unwrap().headers().get("x-request-id").and_then(|v| v.to_str().ok()), Some("my-custom-id"), "existing x-request-id should be propagated unchanged");
     }
 }

@@ -183,14 +183,10 @@ mod tests {
             );
             let config = Config::from_env();
             let app = build_test_app(&config);
-            assert_eq!(
-                allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
-                Some("https://shoken-webapp.vercel.app")
-            );
-            assert_eq!(
-                allowed_origin(&preflight(app, "http://localhost:8080").await),
-                None
-            );
+            #[rustfmt::skip]
+            assert_eq!(allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await), Some("https://shoken-webapp.vercel.app"));
+            #[rustfmt::skip]
+            assert_eq!(allowed_origin(&preflight(app, "http://localhost:8080").await), None);
         }
         {
             let _app_env = EnvGuard::set("APP_ENV", None);
@@ -200,34 +196,22 @@ mod tests {
             );
             let config = Config::from_env();
             let app = build_test_app(&config);
-            let resp = post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
-            assert_ne!(
-                resp.status(),
-                StatusCode::FORBIDDEN,
-                "許可されたカスタムオリジンは通過すべき"
-            );
-            let resp = post_with_origin(app, "http://disallowed-origin.example.com").await;
-            assert_eq!(
-                resp.status(),
-                StatusCode::FORBIDDEN,
-                "許可されていないオリジンは拒否すべき"
-            );
+            #[rustfmt::skip]
+            assert_ne!(post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await.status(), StatusCode::FORBIDDEN, "許可されたカスタムオリジンは通過すべき");
+            #[rustfmt::skip]
+            assert_eq!(post_with_origin(app, "http://disallowed-origin.example.com").await.status(), StatusCode::FORBIDDEN, "許可されていないオリジンは拒否すべき");
         }
         {
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
             let config = Config::from_env();
             let app = build_test_app(&config);
-            assert_eq!(
-                allowed_origin(&preflight(app.clone(), "http://localhost:8080").await),
-                Some("http://localhost:8080")
-            );
+            #[rustfmt::skip]
+            assert_eq!(allowed_origin(&preflight(app.clone(), "http://localhost:8080").await), Some("http://localhost:8080"));
             let resp = post_with_origin(app, "http://evil.example.com").await;
             assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-            assert_eq!(
-                resp.headers().get("X-Content-Type-Options").unwrap(),
-                "nosniff"
-            );
+            #[rustfmt::skip]
+            assert_eq!(resp.headers().get("X-Content-Type-Options").unwrap(), "nosniff");
             assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
         }
     }

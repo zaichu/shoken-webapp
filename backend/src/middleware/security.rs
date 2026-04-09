@@ -182,34 +182,18 @@ mod tests {
         );
 
         // GET はルート定義がないので 405 だが、ミドルウェアは通過（403 にならない）
-        assert_ne!(
-            oneshot_status(test_app(), Method::GET, &[]).await,
-            StatusCode::FORBIDDEN
-        );
+        #[rustfmt::skip]
+        assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
 
+        #[rustfmt::skip]
         let cases: &[(&[(&str, &str)], StatusCode)] = &[
             (&[("origin", "http://localhost:8080")], StatusCode::OK),
-            (
-                &[("origin", "https://evil.example.com")],
-                StatusCode::FORBIDDEN,
-            ),
+            (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN),
             (&[], StatusCode::OK), // Origin なしは同一オリジンとみなし通過
-            (
-                &[("referer", "http://localhost:8080/some/page")],
-                StatusCode::OK,
-            ), // Origin なし・許可済み Referer あり → 通過
-            (
-                &[("referer", "https://evil.example.com/attack")],
-                StatusCode::FORBIDDEN,
-            ), // Origin なし・不正な Referer → 403
-            (
-                &[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")],
-                StatusCode::FORBIDDEN,
-            ), // 偽装ドメイン
-            (
-                &[("origin", "https://shoken-webapp.vercel.app")],
-                StatusCode::OK,
-            ),
+            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), // Origin なし・許可済み Referer あり → 通過
+            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), // Origin なし・不正な Referer → 403
+            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), // 偽装ドメイン
+            (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK),
         ];
         for &(headers, expected) in cases {
             assert_eq!(
@@ -224,15 +208,8 @@ mod tests {
                 let origins = allowed_origins.clone();
                 async move { validate_origin(origins, req, next).await }
             }));
-        assert_eq!(
-            oneshot_status(
-                app,
-                Method::DELETE,
-                &[("origin", "https://evil.example.com")]
-            )
-            .await,
-            StatusCode::FORBIDDEN
-        );
+        #[rustfmt::skip]
+        assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
 
     async fn security_headers_response() -> axum::response::Response {

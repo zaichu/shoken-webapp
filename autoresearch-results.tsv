@@ -56,3 +56,8 @@ iteration	commit	metric	status	description
 62	acacae3	7685	kept	csv_import: テスト内容と重複するコメント削除で 4 行削減
 63	8b0fcb5	7680	kept	config: 環境別 CORS テストのコメント削除で 5 行削減
 64	919097e	7675	kept	stock/tests: 重複コメント削除で 5 行削減
+65	07a07fe	7659	kept	config: CORS テストの長いアサートを圧縮して 16 行削減
+66	7e4451b	7647	kept	routes: request_id テストのレスポンス検証を圧縮して 12 行削減
+67	e821f09	7624	kept	security: origin 検証ケース表を圧縮して 23 行削減
+68	5352815	7593	kept	asset_balance: テスト期待値テーブルを圧縮して 31 行削減
+69	16424e3	7585	kept	mutualfund: CSV テストの文字列生成と集約アサートを圧縮して 8 行削減
