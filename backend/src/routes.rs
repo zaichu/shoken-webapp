@@ -139,15 +139,8 @@ mod tests {
     fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
 
     #[test]
-    fn test_all_routes_creation() {
-        let _ = handlers::stock::stock_routes();
-        let _ = handlers::jquants::jquants_routes();
-        let _ = handlers::auth::auth_routes();
-        let _ = handlers::dividend::dividend_routes();
-        let _ = handlers::domestic_stock::domestic_stock_routes();
-        let _ = handlers::mutualfund::mutualfund_routes();
-        let _ = handlers::asset_balance::asset_balance_routes();
-    }
+    #[rustfmt::skip]
+    fn test_all_routes_creation() { let _ = handlers::stock::stock_routes(); let _ = handlers::jquants::jquants_routes(); let _ = handlers::auth::auth_routes(); let _ = handlers::dividend::dividend_routes(); let _ = handlers::domestic_stock::domestic_stock_routes(); let _ = handlers::mutualfund::mutualfund_routes(); let _ = handlers::asset_balance::asset_balance_routes(); }
 
     #[tokio::test]
     async fn test_routes_rate_limit_returns_429() {
@@ -182,23 +175,7 @@ mod tests {
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {
         #[rustfmt::skip]
-        let unauthorized_cases = [
-            (handlers::jquants::jquants_routes(), Method::GET, "/jquants/fins/summary?code=7203"),
-            (handlers::dividend::dividend_routes(), Method::DELETE, "/dividends"),
-            (handlers::dividend::dividend_routes(), Method::GET, "/dividends"),
-            (handlers::dividend::dividend_routes(), Method::POST, "/dividends/csv/preview"),
-            (handlers::domestic_stock::domestic_stock_routes(), Method::DELETE, "/domestic-stocks"),
-            (handlers::domestic_stock::domestic_stock_routes(), Method::GET, "/domestic-stocks"),
-            (handlers::domestic_stock::domestic_stock_routes(), Method::POST, "/domestic-stocks/csv/preview"),
-            (handlers::mutualfund::mutualfund_routes(), Method::DELETE, "/mutualfunds"),
-            (handlers::mutualfund::mutualfund_routes(), Method::GET, "/mutualfunds"),
-            (handlers::mutualfund::mutualfund_routes(), Method::POST, "/mutualfunds/csv/preview"),
-            (handlers::asset_balance::asset_balance_routes(), Method::DELETE, "/asset-balances"),
-            (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/bulk"),
-            (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/csv/preview"),
-            (csv_upload_routes(), Method::POST, "/dividends/csv"),
-            (handlers::dividend_per_share::dividend_per_share_routes(), Method::POST, "/dividends/per-share/batch"),
-        ];
+        let unauthorized_cases = [(handlers::jquants::jquants_routes(), Method::GET, "/jquants/fins/summary?code=7203"), (handlers::dividend::dividend_routes(), Method::DELETE, "/dividends"), (handlers::dividend::dividend_routes(), Method::GET, "/dividends"), (handlers::dividend::dividend_routes(), Method::POST, "/dividends/csv/preview"), (handlers::domestic_stock::domestic_stock_routes(), Method::DELETE, "/domestic-stocks"), (handlers::domestic_stock::domestic_stock_routes(), Method::GET, "/domestic-stocks"), (handlers::domestic_stock::domestic_stock_routes(), Method::POST, "/domestic-stocks/csv/preview"), (handlers::mutualfund::mutualfund_routes(), Method::DELETE, "/mutualfunds"), (handlers::mutualfund::mutualfund_routes(), Method::GET, "/mutualfunds"), (handlers::mutualfund::mutualfund_routes(), Method::POST, "/mutualfunds/csv/preview"), (handlers::asset_balance::asset_balance_routes(), Method::DELETE, "/asset-balances"), (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/bulk"), (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/csv/preview"), (csv_upload_routes(), Method::POST, "/dividends/csv"), (handlers::dividend_per_share::dividend_per_share_routes(), Method::POST, "/dividends/per-share/batch")];
         for (router, method, uri) in unauthorized_cases {
             check_unauthorized(router.with_state(make_test_state()), method, uri).await;
         }
@@ -209,12 +186,9 @@ mod tests {
         let _lock = ENV_MUTEX.lock().await;
         let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
 
-        for (path, ip) in [
-            ("/domestic-stocks/csv", "1.2.3.4"),
-            ("/dividends/csv", "1.2.3.5"),
-            ("/mutualfunds/csv", "1.2.3.6"),
-            ("/asset-balances/csv", "1.2.3.7"),
-        ] {
+        #[rustfmt::skip]
+        let rate_limit_cases = [("/domestic-stocks/csv", "1.2.3.4"), ("/dividends/csv", "1.2.3.5"), ("/mutualfunds/csv", "1.2.3.6"), ("/asset-balances/csv", "1.2.3.7")];
+        for (path, ip) in rate_limit_cases {
             let router = app_router(make_test_state(), &Config::from_env());
             assert_rate_limited(router, Method::POST, path, Some(ip)).await;
         }

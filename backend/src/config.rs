@@ -97,10 +97,8 @@ mod tests {
     #[test]
     fn test_config_creation() {
         let config = Config::default();
-        assert_eq!(
-            (config.database_max_connections, config.csv_rate_limit_rps),
-            (5, 2)
-        );
+        #[rustfmt::skip]
+        assert_eq!((config.database_max_connections, config.csv_rate_limit_rps), (5, 2));
         #[rustfmt::skip]
         assert!(config.cors_origins.contains(&"https://shoken-webapp.vercel.app".to_string()));
         #[rustfmt::skip]
@@ -109,15 +107,8 @@ mod tests {
 
         #[rustfmt::skip]
         let config = Config { cors_origins: vec!["http://example.com".to_string()], database_max_connections: 10, auth_rate_limit_rps: 10, jquants_rate_limit_rps: 5, csv_rate_limit_rps: 2 };
-        assert_eq!(
-            (
-                config.database_max_connections,
-                config.cors_origins.len(),
-                config.cors_origins[0].as_str(),
-                config.csv_rate_limit_rps
-            ),
-            (10, 1, "http://example.com", 2)
-        );
+        #[rustfmt::skip]
+        assert_eq!((config.database_max_connections, config.cors_origins.len(), config.cors_origins[0].as_str(), config.csv_rate_limit_rps), (10, 1, "http://example.com", 2));
 
         let url = backend_url();
         if let Ok(expected) = env::var("BACKEND_URL") {
@@ -173,18 +164,8 @@ mod tests {
             #[rustfmt::skip]
             assert_eq!(allowed_origin(&preflight(app.clone(), "http://localhost:8080").await), Some("http://localhost:8080"));
             let resp = post_with_origin(app, "http://evil.example.com").await;
-            assert_eq!(
-                (
-                    resp.status(),
-                    resp.headers()
-                        .get("X-Content-Type-Options")
-                        .and_then(|v| v.to_str().ok()),
-                    resp.headers()
-                        .get("X-Frame-Options")
-                        .and_then(|v| v.to_str().ok())
-                ),
-                (StatusCode::FORBIDDEN, Some("nosniff"), Some("DENY"))
-            );
+            #[rustfmt::skip]
+            assert_eq!((resp.status(), resp.headers().get("X-Content-Type-Options").and_then(|v| v.to_str().ok()), resp.headers().get("X-Frame-Options").and_then(|v| v.to_str().ok())), (StatusCode::FORBIDDEN, Some("nosniff"), Some("DENY")));
         }
     }
 }
