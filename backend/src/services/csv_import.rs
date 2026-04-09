@@ -85,9 +85,7 @@ pub fn finish_csv_upload(
     }
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::services::csv_util::{get_cell, parse_required_string}};
     fn parse_pair_csv(csv: &str) -> (Vec<String>, Vec<CsvRowError>) { parse_csv::<String, _>(csv.as_bytes(), |record, header_map, _row| { let a = get_cell(record, header_map, "col_a").to_string(); let b = get_cell(record, header_map, "col_b").to_string(); Ok(format!("{a}/{b}")) }).unwrap() }
     fn strings(values: &[&str]) -> Vec<String> { values.iter().map(|value| (*value).to_string()).collect() }

@@ -79,9 +79,7 @@ pub async fn keyed_rate_limit(
     next.run(req).await
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::{middleware, routing::post, Router}, tower::ServiceExt};
     fn test_route() -> Router { Router::new().route("/test", post(|| async { "ok" })) }
     fn direct_app(limiter: Arc<DefaultDirectRateLimiter>) -> Router { test_route().layer(middleware::from_fn(move |req, next| { let limiter = limiter.clone(); async move { rate_limit(limiter, req, next).await } })) }

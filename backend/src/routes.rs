@@ -124,9 +124,7 @@ fn csv_upload_routes() -> Router<AppState> {
         .merge(handlers::asset_balance::asset_balance_csv_upload_routes())
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{body::Body, http::{Method, Request}}, std::sync::Arc, tower::ServiceExt};
     fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
     #[test]

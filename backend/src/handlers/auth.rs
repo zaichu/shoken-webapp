@@ -220,9 +220,7 @@ pub async fn delete_account(
     ))
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use crate::{config::Config, db::connect_pool_lazy, errors::ErrorResponse, models::common::MessageResponse, routes::app_router, state::{AppState, Secrets}};
     use axum::{body::{to_bytes, Body}, http::{Request, StatusCode}, Router};
     use {reqwest::Client, serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
