@@ -301,32 +301,12 @@ mod tests {
 
     #[test]
     fn test_parse_asset_balance_row() {
-        for (row, expected) in [
-            (
-                "1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67",
-                (
-                    "1234",
-                    dec!(100),
-                    Decimal::ZERO,
-                    dec!(1500),
-                    dec!(1600),
-                    dec!(10),
-                    dec!(6.67),
-                ),
-            ),
-            (
-                "5678,ファンド,50,-,2000,100000,2100,-,105000,-",
-                (
-                    "5678",
-                    dec!(50),
-                    Decimal::ZERO,
-                    dec!(2000),
-                    dec!(2100),
-                    Decimal::ZERO,
-                    Decimal::ZERO,
-                ),
-            ),
-        ] {
+        #[rustfmt::skip]
+        let ok_cases = [
+            ("1234,テスト株式会社,100,-,1500,150000,1600,10,160000,6.67", ("1234", dec!(100), Decimal::ZERO, dec!(1500), dec!(1600), dec!(10), dec!(6.67))),
+            ("5678,ファンド,50,-,2000,100000,2100,-,105000,-", ("5678", dec!(50), Decimal::ZERO, dec!(2000), dec!(2100), Decimal::ZERO, Decimal::ZERO)),
+        ];
+        for (row, expected) in ok_cases {
             assert_row_ok(row, expected);
         }
 
@@ -340,10 +320,8 @@ mod tests {
 
         let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
         let preview = preview_csv(csv.as_bytes()).unwrap();
-        assert_eq!(
-            (preview.total_rows, preview.valid_rows, preview.rows.len()),
-            (2, 2, 2)
-        );
+        #[rustfmt::skip]
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (2, 2, 2));
         assert!(
             preview.errors.is_empty(),
             "unexpected errors: {:?}",
@@ -355,26 +333,17 @@ mod tests {
             Err(ApiError::ValidationError(_))
         ));
 
-        for (rows, expected_codes) in [
-            (
-                &[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..],
-                &["1234", "5678"][..],
-            ),
-            (
-                &[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..],
-                &["1605", "7974"][..],
-            ),
-        ] {
+        #[rustfmt::skip]
+        let parse_cases = [
+            (&[TEST_ROW_1, ",,,,,,,,,,,", TEST_ROW_2][..], &["1234", "5678"][..]),
+            (&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..], &["1605", "7974"][..]),
+        ];
+        for (rows, expected_codes) in parse_cases {
             let csv = make_asset_balance_csv(rows);
             let (items, errors) = parse_asset_balance_csv(csv.as_bytes()).unwrap();
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-            assert_eq!(
-                items
-                    .iter()
-                    .map(|item| item.security_code.as_str())
-                    .collect::<Vec<_>>(),
-                expected_codes
-            );
+            #[rustfmt::skip]
+            assert_eq!(items.iter().map(|item| item.security_code.as_str()).collect::<Vec<_>>(), expected_codes);
         }
     }
 }
