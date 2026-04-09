@@ -146,9 +146,7 @@ pub fn parse_required_date(
     })
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, rust_decimal_macros::dec};
     fn time_n(label: &str, n: usize, mut f: impl FnMut()) { let start = std::time::Instant::now(); for _ in 0..n { f(); } println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0); }
     fn make_header_map(cols: &[&str]) -> HashMap<String, usize> { cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect() }

@@ -20,9 +20,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
     sqlx::migrate!().run(pool).await
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
     #[tokio::test]
     async fn test_connect_pool_lazy() { let database_url = "postgresql://user:password@localhost/test_db"; assert!(connect_pool_lazy(database_url, 5).is_ok()); assert!(connect_pool_lazy(database_url, 10).is_ok()); }

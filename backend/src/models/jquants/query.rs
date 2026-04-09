@@ -9,9 +9,7 @@ pub struct FinSummaryQuery {
     pub to: Option<String>,
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
     #[test]
     fn test_fin_summary_query() {

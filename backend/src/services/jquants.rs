@@ -86,9 +86,7 @@ impl JQuantsService {
     }
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
     async fn fetch_fin_summary(code: &str) -> FinSummaryResponse { let api_key = std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません"); let params = FinSummaryQuery { code: code.to_string(), from: None, to: None }; JQuantsService::get_fin_summary(&Client::new(), params, &api_key).await.unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e)) }
     fn log_summary_overview(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); if let Some(first) = response.data.first() { println!("銘柄コード: {}", first.local_code); println!("開示日: {}", first.disclosed_date); println!("書類種別: {}", first.type_of_document); println!("当期種別: {:?}", first.type_of_current_period); println!("当期開始日: {:?}", first.current_period_start_date); println!("当期終了日: {:?}", first.current_period_end_date); } }

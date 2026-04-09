@@ -96,9 +96,7 @@ impl CsvDomain for AssetBalanceDomain {
     }
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use super::{AssetBalanceDomain, CsvDomain, DividendDomain, DomesticStockDomain, MutualfundDomain};
     fn assert_valid_rows<D: CsvDomain>(lines: &[&str], expected_valid_rows: usize) { let csv = lines.join("\n"); assert_eq!(D::preview_csv(csv.as_bytes()).unwrap().valid_rows, expected_valid_rows); }
     #[test]

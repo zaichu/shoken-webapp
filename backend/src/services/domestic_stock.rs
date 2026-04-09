@@ -215,9 +215,7 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
         .await
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, chrono::NaiveDate, rust_decimal_macros::dec};
     const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
     const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";

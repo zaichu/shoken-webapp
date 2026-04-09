@@ -42,9 +42,7 @@ pub struct AppState {
     pub dividend_cache: DividendCacheState,
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}};
     #[tokio::test]
     async fn test_secrets_from_env() {

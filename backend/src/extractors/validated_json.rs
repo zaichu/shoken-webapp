@@ -38,9 +38,7 @@ where
     }
 }
 
-#[cfg(test)]
-#[rustfmt::skip]
-mod tests {
+#[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::{body::Body, extract::FromRequest, http::{Request, StatusCode}}, serde::{Deserialize, Serialize}, tower::ServiceExt, validator::Validate};
     #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
     struct TestData { #[validate(length(min = 1, max = 50))] name: String, #[validate(range(min = 1, max = 150))] age: u8 }
