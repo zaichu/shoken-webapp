@@ -165,14 +165,8 @@ mod tests {
 
         let preview = preview_csv(csv.as_bytes()).unwrap();
 
-        assert_eq!(preview.total_rows, 2);
-        assert_eq!(preview.valid_rows, 2);
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
-        assert_eq!(preview.rows.len(), 2);
+        #[rustfmt::skip]
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.is_empty(), preview.rows.len()), (2, 2, true, 2));
         assert!(matches!(
             preview_csv(b""),
             Err(ApiError::ValidationError(_))
@@ -186,31 +180,23 @@ mod tests {
 
         let preview = preview_csv(csv.as_bytes()).unwrap();
 
-        assert_eq!(preview.valid_rows, 1);
-        assert_eq!(preview.rows[0]["security_code"], "");
-        assert_eq!(preview.rows[0]["security_name"], "KDDI");
+        #[rustfmt::skip]
+        assert_eq!((preview.valid_rows, preview.rows[0]["security_code"].as_str(), preview.rows[0]["security_name"].as_str()), (1, Some(""), Some("KDDI")));
 
+        #[rustfmt::skip]
         let cases = [
-            (
-                "入金日,商品,口座,銘柄コード,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
-                "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
-                "銘柄",
-            ),
-            (
-                "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
-                "\"2025/13/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"",
-                "入金日",
-            ),
+            ("入金日,商品,口座,銘柄コード,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]", "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"", "銘柄"),
+            ("入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]", "\"2025/13/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"", "入金日"),
         ];
 
         for (header, row, expected_message) in cases {
             let csv = [header, row].join("\n");
             let preview = preview_csv(csv.as_bytes()).unwrap();
 
-            assert_eq!(preview.total_rows, 1);
-            assert_eq!(preview.valid_rows, 0);
-            assert_eq!(preview.errors.len(), 1);
-            assert!(preview.errors[0].message.contains(expected_message));
+            assert_eq!((preview.total_rows, preview.valid_rows), (1, 0));
+            assert!(
+                matches!(preview.errors.as_slice(), [error] if error.message.contains(expected_message))
+            );
         }
     }
 }
