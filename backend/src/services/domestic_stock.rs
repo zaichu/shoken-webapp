@@ -218,25 +218,20 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, chrono::NaiveDate, rust_decimal_macros::dec};
     const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
+    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\""; const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
     const MISSING_NAME_HEADER: &str = "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
+    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\""; const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
     fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse { preview_csv(format!("{header}\n{row}").as_bytes()).unwrap() }
     fn assert_preview_ok(row: &str) -> CsvPreviewResponse { let preview = preview_with_header(HEADER, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len(), preview.errors.is_empty()), (1, 1, 1, true), "unexpected errors: {:?}", preview.errors); preview }
     fn assert_preview_error(header: &str, row: &str, expected_message: &str) { let preview = preview_with_header(header, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.len(), preview.errors.first().is_some_and(|error| error.message.contains(expected_message))), (1, 0, 1, true)); }
-    #[test]
-    fn test_preview_csv() {
+    #[test] fn test_preview_csv() {
         assert_eq!(assert_preview_ok(BASIC_ROW).rows[0]["security_name"], "ＥＮＥＯＳホールディングス");
         let preview = assert_preview_ok(NISA_ROW); assert_eq!((preview.rows[0]["security_name"].as_str(), preview.rows[0]["taxes"].as_f64(), preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64()), (Some("KDDI"), Some(0.0), Some(9100.0)));
         for (header, row, expected_message) in [(MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"), (HEADER, INVALID_PNL_ROW, "実現損益[円]")] { assert_preview_error(header, row, expected_message); }
         assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
     fn make_test_item() -> CreateDomesticStockRequest { CreateDomesticStockRequest { trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(), settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(), security_code: "9508".to_string(), security_name: "九州電力".to_string(), account: "特定".to_string(), shares: dec!(100), asked_price: dec!(1880), proceeds: dec!(188000), purchase_price: dec!(1770), realized_profit_and_loss: dec!(11000), taxes: dec!(2234), realized_profit_and_loss_after_tax: dec!(8766) } }
-    #[tokio::test]
-    #[ignore = "requires Docker"]
-    async fn test_bulk_create_reupload_deduplication() {
+    #[tokio::test] #[ignore = "requires Docker"] async fn test_bulk_create_reupload_deduplication() {
         use {testcontainers::runners::AsyncRunner, testcontainers_modules::postgres::Postgres};
         let container = Postgres::default().start().await.unwrap();
         let url = format!("postgres://postgres:postgres@{}:{}/postgres", container.get_host().await.unwrap(), container.get_host_port_ipv4(5432).await.unwrap()); let pool = sqlx::PgPool::connect(&url).await.unwrap(); sqlx::migrate!("./migrations").run(&pool).await.unwrap();
