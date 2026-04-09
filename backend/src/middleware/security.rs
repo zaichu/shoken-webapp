@@ -153,7 +153,6 @@ mod tests {
             .layer(middleware::from_fn(add_security_headers))
     }
 
-    /// app にリクエストを送り、レスポンスのステータスを返す
     async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode {
         let mut builder = Request::builder().method(method).uri("/test");
         for (name, value) in headers {
@@ -167,21 +166,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_origin() {
-        assert_eq!(
-            extract_origin("http://localhost:8080/some/page"),
-            Some("http://localhost:8080")
-        );
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app"),
-            Some("https://shoken-webapp.vercel.app")
-        );
-        // 許可ドメインを接頭辞に持つ偽装ドメインは別オリジンとして抽出される
-        assert_eq!(
-            extract_origin("https://shoken-webapp.vercel.app.evil.com/steal"),
-            Some("https://shoken-webapp.vercel.app.evil.com")
-        );
-
-        // GET はルート定義がないので 405 だが、ミドルウェアは通過（403 にならない）
+        #[rustfmt::skip]
+        let origin_cases = [
+            ("http://localhost:8080/some/page", Some("http://localhost:8080")),
+            ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")),
+            ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com")),
+        ];
+        for (input, expected) in origin_cases {
+            assert_eq!(extract_origin(input), expected);
+        }
         #[rustfmt::skip]
         assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
 
@@ -189,17 +182,15 @@ mod tests {
         let cases: &[(&[(&str, &str)], StatusCode)] = &[
             (&[("origin", "http://localhost:8080")], StatusCode::OK),
             (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN),
-            (&[], StatusCode::OK), // Origin なしは同一オリジンとみなし通過
-            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), // Origin なし・許可済み Referer あり → 通過
-            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), // Origin なし・不正な Referer → 403
-            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), // 偽装ドメイン
+            (&[], StatusCode::OK),
+            (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK),
+            (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN),
+            (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN),
             (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK),
         ];
         for &(headers, expected) in cases {
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, headers).await,
-                expected
-            );
+            #[rustfmt::skip]
+            assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected);
         }
         let allowed_origins = Arc::new(vec!["http://localhost:8080".to_string()]);
         let app = Router::new()
@@ -212,18 +203,8 @@ mod tests {
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
 
-    async fn security_headers_response() -> axum::response::Response {
-        security_headers_app()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap()
-    }
+    #[rustfmt::skip]
+    async fn security_headers_response() -> axum::response::Response { security_headers_app().oneshot(Request::builder().method(Method::POST).uri("/test").body(Body::empty()).unwrap()).await.unwrap() }
 
     #[tokio::test]
     async fn test_security_headers() {
@@ -232,19 +213,16 @@ mod tests {
             let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
             let resp = security_headers_response().await;
-            assert_eq!(
-                resp.headers().get("X-Content-Type-Options").unwrap(),
-                "nosniff"
-            );
-            assert_eq!(resp.headers().get("X-Frame-Options").unwrap(), "DENY");
-            assert_eq!(
-                resp.headers().get("Referrer-Policy").unwrap(),
-                "strict-origin-when-cross-origin"
-            );
-            assert_eq!(
-                resp.headers().get("Content-Security-Policy").unwrap(),
-                "default-src 'none'"
-            );
+            #[rustfmt::skip]
+            let header_cases = [
+                ("X-Content-Type-Options", "nosniff"),
+                ("X-Frame-Options", "DENY"),
+                ("Referrer-Policy", "strict-origin-when-cross-origin"),
+                ("Content-Security-Policy", "default-src 'none'"),
+            ];
+            for (name, expected) in header_cases {
+                assert_eq!(resp.headers().get(name).unwrap(), expected);
+            }
             assert!(
                 resp.headers().get("Strict-Transport-Security").is_none(),
                 "secure cookie 無効時は HSTS を付与しない"
@@ -254,10 +232,8 @@ mod tests {
             let _lock = ENV_MUTEX.lock().await;
             let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true"));
             let resp = security_headers_response().await;
-            assert_eq!(
-                resp.headers().get("Strict-Transport-Security").unwrap(),
-                "max-age=31536000; includeSubDomains"
-            );
+            #[rustfmt::skip]
+            assert_eq!(resp.headers().get("Strict-Transport-Security").unwrap(), "max-age=31536000; includeSubDomains");
         }
     }
 }

@@ -132,12 +132,8 @@ mod tests {
 
     fn multipart_request(field_name: &str, filename: Option<&str>, content: &str) -> Request<Body> {
         let boundary = "boundary123";
-        let content_disposition = match filename {
-            Some(filename) => format!(
-                "Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n"
-            ),
-            None => format!("Content-Disposition: form-data; name=\"{field_name}\"\r\n"),
-        };
+        #[rustfmt::skip]
+        let content_disposition = filename.map_or_else(|| format!("Content-Disposition: form-data; name=\"{field_name}\"\r\n"), |filename| format!("Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n"));
         let body = format!(
             "--{boundary}\r\n{content_disposition}Content-Type: text/csv\r\n\r\n{content}\r\n--{boundary}--\r\n"
         );
@@ -167,10 +163,8 @@ mod tests {
     }
 
     fn upload_app() -> Router {
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy("postgresql://user:password@localhost/test_db")
-            .unwrap();
+        #[rustfmt::skip]
+        let pool = PgPoolOptions::new().max_connections(1).connect_lazy("postgresql://user:password@localhost/test_db").unwrap();
 
         Router::new()
             .route("/csv", post(upload_endpoint))
