@@ -240,10 +240,9 @@ mod tests {
         let uuid = uuid::Uuid::new_v4();
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()));
         assert_eq!(get_session_id_from_jar(&jar).unwrap(), uuid);
-        for (cookie, expected_name) in [
-            (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
-            (clear_session_cookie(true), SESSION_COOKIE_NAME),
-        ] {
+        #[rustfmt::skip]
+        let clear_cookie_cases = [(clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME), (clear_session_cookie(true), SESSION_COOKIE_NAME)];
+        for (cookie, expected_name) in clear_cookie_cases {
             assert_eq!((cookie.name(), cookie.value()), (expected_name, ""));
         }
         #[rustfmt::skip]

@@ -278,20 +278,16 @@ mod tests {
             assert_row_ok(row, expected);
         }
 
-        for (row, expected_message) in [
-            ("1234,テスト,N/A,-,1500,150000,1600,0,160000,0", "保有数量"),
-            ("1234,テスト,-,-,1500,150000,1600,0,160000,0", "保有数量"),
-            ("1234,テスト,100,-,1500,150000,N/A,0,160000,0", "現在値"),
-        ] {
+        #[rustfmt::skip]
+        let error_cases = [("1234,テスト,N/A,-,1500,150000,1600,0,160000,0", "保有数量"), ("1234,テスト,-,-,1500,150000,1600,0,160000,0", "保有数量"), ("1234,テスト,100,-,1500,150000,N/A,0,160000,0", "現在値")];
+        for (row, expected_message) in error_cases {
             assert_row_error(row, expected_message);
         }
 
         let csv = make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]);
         let preview = preview_csv(csv.as_bytes()).unwrap();
         #[rustfmt::skip]
-        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (2, 2, 2));
-        #[rustfmt::skip]
-        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
+        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len(), preview.errors.is_empty()), (2, 2, 2, true), "unexpected errors: {:?}", preview.errors);
 
         #[rustfmt::skip]
         assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
