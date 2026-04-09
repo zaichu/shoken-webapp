@@ -66,3 +66,4 @@ iteration	commit	metric	status	description
 72	7fc6cd4	7397	kept	stock/tests/dividend/jquants: テスト圧縮で 75 行削減
 73	017a44f	7234	kept	routes/security/asset_balance/auth/csv_util/csv_import: テスト圧縮で 163 行削減
 74	4b83367	7137	kept	response/auth/domestic_stock/mutualfund: テスト圧縮で 97 行削減
+75	281f9db	7089	kept	asset_balance/auth/csv_util/domestic_stock/errors: テスト圧縮で 48 行削減
