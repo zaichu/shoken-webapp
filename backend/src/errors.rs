@@ -186,61 +186,40 @@ mod tests {
 
     #[test]
     fn test_all_error_status_codes() {
-        check_status(
-            ApiError::ValidationError("必須フィールドが不足しています".to_string()),
-            StatusCode::BAD_REQUEST,
-        );
-        check_status(ApiError::JsonParseError, StatusCode::BAD_REQUEST);
-        check_status(
-            ApiError::DatabaseError(SqlxError::RowNotFound),
-            StatusCode::NOT_FOUND,
-        );
-        check_status(
-            ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        );
-        check_status(ApiError::NotFound, StatusCode::NOT_FOUND);
-        check_status(
-            ApiError::EnvVarError(VarError::NotPresent),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        );
-        check_status(
-            ApiError::RateLimitError("Rate limit exceeded".to_string()),
-            StatusCode::TOO_MANY_REQUESTS,
-        );
-        check_status(
-            ApiError::UrlParseError(ParseError::EmptyHost),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        );
-        check_status(
-            ApiError::OAuthError("認証エラー".to_string()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        );
         let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        check_status(
-            ApiError::Unauthorized("認証が必要です".to_string()),
-            StatusCode::UNAUTHORIZED,
-        );
-        check_status(
-            ApiError::NetworkError("接続エラー".to_string()),
-            StatusCode::BAD_GATEWAY,
-        );
-        check_status(
-            ApiError::ApiError("API エラー".to_string()),
-            StatusCode::BAD_REQUEST,
-        );
-        check_status(
-            ApiError::SerdeJsonError(serde_err),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        );
+        #[rustfmt::skip]
+        let cases = [
+            (ApiError::ValidationError("必須フィールドが不足しています".to_string()), StatusCode::BAD_REQUEST),
+            (ApiError::JsonParseError, StatusCode::BAD_REQUEST),
+            (ApiError::DatabaseError(SqlxError::RowNotFound), StatusCode::NOT_FOUND),
+            (ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())), StatusCode::INTERNAL_SERVER_ERROR),
+            (ApiError::NotFound, StatusCode::NOT_FOUND),
+            (ApiError::EnvVarError(VarError::NotPresent), StatusCode::INTERNAL_SERVER_ERROR),
+            (ApiError::RateLimitError("Rate limit exceeded".to_string()), StatusCode::TOO_MANY_REQUESTS),
+            (ApiError::UrlParseError(ParseError::EmptyHost), StatusCode::INTERNAL_SERVER_ERROR),
+            (ApiError::OAuthError("認証エラー".to_string()), StatusCode::INTERNAL_SERVER_ERROR),
+            (ApiError::Unauthorized("認証が必要です".to_string()), StatusCode::UNAUTHORIZED),
+            (ApiError::NetworkError("接続エラー".to_string()), StatusCode::BAD_GATEWAY),
+            (ApiError::ApiError("API エラー".to_string()), StatusCode::BAD_REQUEST),
+            (ApiError::SerdeJsonError(serde_err), StatusCode::INTERNAL_SERVER_ERROR),
+        ];
+        for (error, expected) in cases {
+            check_status(error, expected);
+        }
         let (status, details) = simple_error(
             StatusCode::BAD_REQUEST,
             "TEST_CODE",
             "test message".to_string(),
         );
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(details.code, "TEST_CODE");
-        assert_eq!(details.message, "test message");
-        assert!(details.details.is_none());
+        #[rustfmt::skip]
+        assert_eq!(
+            (status, details.code, details.message, details.details),
+            (
+                StatusCode::BAD_REQUEST,
+                "TEST_CODE".to_string(),
+                "test message".to_string(),
+                None
+            )
+        );
     }
 }
