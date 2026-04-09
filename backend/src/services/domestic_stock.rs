@@ -253,10 +253,8 @@ mod tests {
             assert_preview_error(header, row, expected_message);
         }
 
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        #[rustfmt::skip]
+        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
 
     #[rustfmt::skip]
@@ -275,13 +273,8 @@ mod tests {
         sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
         let user_id = Uuid::new_v4();
-        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
-            .bind(user_id)
-            .bind(format!("test_google_{user_id}"))
-            .bind(format!("test_{user_id}@example.com"))
-            .execute(&pool)
-            .await
-            .unwrap();
+        #[rustfmt::skip]
+        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)").bind(user_id).bind(format!("test_google_{user_id}")).bind(format!("test_{user_id}@example.com")).execute(&pool).await.unwrap();
 
         let items = vec![make_test_item(); 5];
         let first = bulk_create(&pool, user_id, &items).await.unwrap();

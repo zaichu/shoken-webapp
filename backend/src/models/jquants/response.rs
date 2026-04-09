@@ -466,74 +466,24 @@ mod tests {
 
     #[test]
     fn test_fin_summary_data_deserialize_v2_format() {
-        let json_data = json!({
-            "DiscDate": "2023-11-14",
-            "DiscTime": "15:00:00",
-            "Code": "72030",
-            "DiscNo": "20231114502171",
-            "DocType": "決算短信",
-            "CurPerType": "2Q",
-            "CurPerSt": "2023-04-01",
-            "CurPerEn": "2023-09-30",
-            "CurFYSt": "2023-04-01",
-            "CurFYEn": "2024-03-31",
-            "NxtFYSt": "2024-04-01",
-            "NxtFYEn": "2025-03-31",
-            "Sales": "18733067000000",
-            "OP": "1686297000000",
-            "NxFDivAnn": "50.00",
-            "FDivAnn": "45.00",
-            "DivAnn": "40.00"
-        });
+        #[rustfmt::skip]
+        let json_data = json!({"DiscDate":"2023-11-14","DiscTime":"15:00:00","Code":"72030","DiscNo":"20231114502171","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31","NxtFYSt":"2024-04-01","NxtFYEn":"2025-03-31","Sales":"18733067000000","OP":"1686297000000","NxFDivAnn":"50.00","FDivAnn":"45.00","DivAnn":"40.00"});
 
         let fin_summary_data: FinSummaryData =
             serde_json::from_value(json_data).expect("有効なテスト用 JSON");
 
-        assert_eq!(fin_summary_data.disclosed_date, "2023-11-14");
-        assert_eq!(fin_summary_data.local_code, "72030");
         #[rustfmt::skip]
-        let cases = [
-            (fin_summary_data.net_sales.as_deref(), Some("18733067000000")),
-            (fin_summary_data.next_year_forecast_dividend_per_share_annual.as_deref(), Some("50.00")),
-            (fin_summary_data.forecast_dividend_per_share_annual.as_deref(), Some("45.00")),
-            (fin_summary_data.result_dividend_per_share_annual.as_deref(), Some("40.00")),
-        ];
-        for (actual, expected) in cases {
-            assert_eq!(actual, expected);
-        }
+        assert_eq!((fin_summary_data.disclosed_date.as_str(), fin_summary_data.local_code.as_str(), fin_summary_data.net_sales.as_deref(), fin_summary_data.next_year_forecast_dividend_per_share_annual.as_deref(), fin_summary_data.forecast_dividend_per_share_annual.as_deref(), fin_summary_data.result_dividend_per_share_annual.as_deref()), ("2023-11-14", "72030", Some("18733067000000"), Some("50.00"), Some("45.00"), Some("40.00")));
 
-        let json_data = json!({
-            "data": [
-                {
-                    "DiscDate": "2023-11-14",
-                    "Code": "72030",
-                    "DocType": "決算短信",
-                    "CurPerType": "2Q",
-                    "CurPerSt": "2023-04-01",
-                    "CurPerEn": "2023-09-30",
-                    "CurFYSt": "2023-04-01",
-                    "CurFYEn": "2024-03-31"
-                }
-            ]
-        });
+        #[rustfmt::skip]
+        let json_data = json!({"data":[{"DiscDate":"2023-11-14","Code":"72030","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31"}]});
 
         let response: FinSummaryResponse =
             serde_json::from_value(json_data).expect("有効なテスト用 JSON");
         let item = &response.data[0];
         #[rustfmt::skip]
-        assert_eq!(
-            (
-                response.data.len(),
-                item.disclosed_date.as_str(),
-                item.local_code.as_str()
-            ),
-            (1, "2023-11-14", "72030")
-        );
-
-        let json_data = json!({ "data": [] });
-        let response: FinSummaryResponse =
-            serde_json::from_value(json_data).expect("有効なテスト用 JSON");
-
-        assert!(response.data.is_empty());
+        assert_eq!((response.data.len(), item.disclosed_date.as_str(), item.local_code.as_str()), (1, "2023-11-14", "72030"));
+        #[rustfmt::skip]
+        assert!(serde_json::from_value::<FinSummaryResponse>(json!({"data":[]})).expect("有効なテスト用 JSON").data.is_empty());
     }
 }

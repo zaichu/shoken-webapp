@@ -197,11 +197,8 @@ mod tests {
 
         #[rustfmt::skip]
         assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (1, 1, 1));
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
+        #[rustfmt::skip]
+        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
         #[rustfmt::skip]
         assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
 
@@ -210,7 +207,7 @@ mod tests {
 
         let preview = preview_csv(csv.as_bytes()).unwrap();
 
-        assert_eq!(preview.valid_rows, 1);
-        assert_eq!(preview.rows[0]["dividends"], serde_json::Value::Null);
+        #[rustfmt::skip]
+        assert_eq!((preview.valid_rows, preview.rows[0]["dividends"].is_null()), (1, true));
     }
 }
