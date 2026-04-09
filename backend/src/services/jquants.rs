@@ -89,88 +89,61 @@ impl JQuantsService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::jquants::FinSummaryQuery;
 
-    /// 実際のJ-Quants APIを呼び出すテスト
-    /// 実行には環境変数 JQUANTS_API_KEY が必要
-    /// cargo test test_get_fin_summary_real_api -- --ignored
+    async fn fetch_fin_summary(code: &str) -> FinSummaryResponse {
+        let api_key =
+            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let params = FinSummaryQuery {
+            code: code.to_string(),
+            from: None,
+            to: None,
+        };
+
+        JQuantsService::get_fin_summary(&Client::new(), params, &api_key)
+            .await
+            .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
+    }
+
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_fin_summary_real_api() {
-        let api_key =
-            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let response = fetch_fin_summary("7203").await;
 
-        let client = Client::new();
-        let params = FinSummaryQuery {
-            code: "7203".to_string(), // トヨタ自動車
-            from: None,
-            to: None,
-        };
-
-        let result = JQuantsService::get_fin_summary(&client, params, &api_key).await;
-
-        match result {
-            Ok(response) => {
-                println!("取得件数: {}", response.data.len());
-                if let Some(first) = response.data.first() {
-                    println!("銘柄コード: {}", first.local_code);
-                    println!("開示日: {}", first.disclosed_date);
-                    println!("書類種別: {}", first.type_of_document);
-                    println!("当期種別: {:?}", first.type_of_current_period);
-                    println!("当期開始日: {:?}", first.current_period_start_date);
-                    println!("当期終了日: {:?}", first.current_period_end_date);
-                }
-                assert!(!response.data.is_empty(), "データが取得できること");
-            }
-            Err(e) => {
-                panic!("API呼び出しエラー: {:?}", e);
-            }
+        println!("取得件数: {}", response.data.len());
+        if let Some(first) = response.data.first() {
+            println!("銘柄コード: {}", first.local_code);
+            println!("開示日: {}", first.disclosed_date);
+            println!("書類種別: {}", first.type_of_document);
+            println!("当期種別: {:?}", first.type_of_current_period);
+            println!("当期開始日: {:?}", first.current_period_start_date);
+            println!("当期終了日: {:?}", first.current_period_end_date);
         }
+        assert!(!response.data.is_empty(), "データが取得できること");
     }
 
-    /// 任天堂（7974）の配当情報取得テスト
-    /// 実行には環境変数 JQUANTS_API_KEY が必要
-    /// cargo test test_get_nintendo_dividend -- --ignored --nocapture
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_nintendo_dividend() {
-        let api_key =
-            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let response = fetch_fin_summary("7974").await;
 
-        let client = Client::new();
-        let params = FinSummaryQuery {
-            code: "7974".to_string(), // 任天堂
-            from: None,
-            to: None,
-        };
-
-        let result = JQuantsService::get_fin_summary(&client, params, &api_key).await;
-
-        match result {
-            Ok(response) => {
-                println!("取得件数: {}", response.data.len());
-                for summary in &response.data {
-                    println!("---");
-                    println!("開示日: {}", summary.disclosed_date);
-                    println!("書類種別: {}", summary.type_of_document);
-                    println!(
-                        "年間配当実績(DivAnn): {:?}",
-                        summary.result_dividend_per_share_annual
-                    );
-                    println!(
-                        "年間配当予想(FDivAnn): {:?}",
-                        summary.forecast_dividend_per_share_annual
-                    );
-                    println!(
-                        "年間配当来期予想(NxFDivAnn): {:?}",
-                        summary.next_year_forecast_dividend_per_share_annual
-                    );
-                }
-                assert!(!response.data.is_empty(), "データが取得できること");
-            }
-            Err(e) => {
-                panic!("API呼び出しエラー: {:?}", e);
-            }
+        println!("取得件数: {}", response.data.len());
+        for summary in &response.data {
+            println!("---");
+            println!("開示日: {}", summary.disclosed_date);
+            println!("書類種別: {}", summary.type_of_document);
+            println!(
+                "年間配当実績(DivAnn): {:?}",
+                summary.result_dividend_per_share_annual
+            );
+            println!(
+                "年間配当予想(FDivAnn): {:?}",
+                summary.forecast_dividend_per_share_annual
+            );
+            println!(
+                "年間配当来期予想(NxFDivAnn): {:?}",
+                summary.next_year_forecast_dividend_per_share_annual
+            );
         }
+        assert!(!response.data.is_empty(), "データが取得できること");
     }
 }
