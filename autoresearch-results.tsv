@@ -53,3 +53,4 @@ iteration	commit	metric	status	description
 59	ab86da7	7690	reverted	mutualfund: tuple 比較化は rustfmt 後に 1 行増えたためコミットを巻き戻し
 60	e77748e	7689	reverted	dividend: プレビュー件数の集約は rustfmt 後に行数改善が出ずリバート
 61	e77748e	7692	reverted	csv_import: 長い tuple 比較は rustfmt 展開で 3 行増えたためリバート
+62	acacae3	7685	kept	csv_import: テスト内容と重複するコメント削除で 4 行削減

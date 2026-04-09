@@ -171,13 +171,11 @@ mod tests {
     async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
         {
-            // CSV_RATE_LIMIT_RPS が config に反映される
             let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("7"));
             let config = Config::from_env();
             assert_eq!(config.csv_rate_limit_rps, 7);
         }
         {
-            // 本番環境では localhost が CORS から除外される
             let _app_env = EnvGuard::set("APP_ENV", Some("production"));
             let _cors_origins = EnvGuard::set(
                 "CORS_ORIGINS",
@@ -195,7 +193,6 @@ mod tests {
             );
         }
         {
-            // CORS_ORIGINS 環境変数が validate_origin に反映される
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _cors_origins = EnvGuard::set(
                 "CORS_ORIGINS",
@@ -217,7 +214,6 @@ mod tests {
             );
         }
         {
-            // 非本番環境では localhost が許可される
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
             let config = Config::from_env();
@@ -226,7 +222,6 @@ mod tests {
                 allowed_origin(&preflight(app.clone(), "http://localhost:8080").await),
                 Some("http://localhost:8080")
             );
-            // 許可されていないオリジンは 403 + セキュリティヘッダーが付与される
             let resp = post_with_origin(app, "http://evil.example.com").await;
             assert_eq!(resp.status(), StatusCode::FORBIDDEN);
             assert_eq!(
