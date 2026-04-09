@@ -164,9 +164,10 @@ mod tests {
         let _ = handlers::asset_balance::asset_balance_routes();
     }
 
-    /// auth ルートが rps=1 制限を超えると 429 を返すことを確認
+    /// auth/jquants ルートが rps=1 制限を超えると 429 を返すことを確認
     #[tokio::test]
-    async fn test_auth_routes_rate_limit_returns_429() {
+    async fn test_routes_rate_limit_returns_429() {
+        // auth: キー付きレート制限（IP ごと）
         let limiter = crate::middleware::build_keyed_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
@@ -180,11 +181,8 @@ mod tests {
         .with_state(state);
 
         assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
-    }
 
-    /// jquants ルートが rps=1 制限を超えると 429 を返すことを確認
-    #[tokio::test]
-    async fn test_jquants_routes_rate_limit_returns_429() {
+        // jquants: グローバルレート制限
         let limiter = crate::middleware::build_rate_limiter(1);
         let state = make_test_state();
         let router = if let Some(l) = limiter {
