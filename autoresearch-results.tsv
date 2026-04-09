@@ -77,3 +77,4 @@ iteration	commit	metric	status	description
 83	c152190	6388	kept	config/routes/asset_balance/domestic_stock/auth/csv_import/mutualfund: テスト圧縮で 183 行削減
 84	0b5db86	6285	kept	csv_domain/csv_import/security/stock/tests: テスト圧縮で 103 行削減
 85	c0c8194	6175	kept	テスト圧縮で 110 行削減
+86	4913d2b	6103	kept	use圧縮/csv_util/ignored テスト共通化で 72 行削減
