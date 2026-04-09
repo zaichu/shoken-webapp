@@ -189,25 +189,9 @@ mod tests {
     use super::*;
 
     #[test]
+    #[rustfmt::skip]
     fn test_preview_csv_basic() {
-        #[rustfmt::skip]
-        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"");
-
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        #[rustfmt::skip]
-        assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len()), (1, 1, 1));
-        #[rustfmt::skip]
-        assert!(preview.errors.is_empty(), "unexpected errors: {:?}", preview.errors);
-        #[rustfmt::skip]
-        assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
-
-        #[rustfmt::skip]
-        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"");
-
-        let preview = preview_csv(csv.as_bytes()).unwrap();
-
-        #[rustfmt::skip]
-        assert_eq!((preview.valid_rows, preview.rows[0]["dividends"].is_null()), (1, true));
+        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\""); let preview = preview_csv(csv.as_bytes()).unwrap(); assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len(), preview.errors.is_empty(), matches!(preview_csv(b""), Err(ApiError::ValidationError(_)))), (1, 1, 1, true, true));
+        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""); let preview = preview_csv(csv.as_bytes()).unwrap(); assert_eq!((preview.valid_rows, preview.rows[0]["dividends"].is_null()), (1, true));
     }
 }

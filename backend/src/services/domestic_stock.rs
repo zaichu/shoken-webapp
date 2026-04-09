@@ -238,20 +238,11 @@ mod tests {
     fn assert_preview_error(header: &str, row: &str, expected_message: &str) { let preview = preview_with_header(header, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.len(), preview.errors.first().is_some_and(|error| error.message.contains(expected_message))), (1, 0, 1, true)); }
 
     #[test]
+    #[rustfmt::skip]
     fn test_preview_csv() {
-        #[rustfmt::skip]
         assert_eq!(assert_preview_ok(BASIC_ROW).rows[0]["security_name"], "ＥＮＥＯＳホールディングス");
-
-        let preview = assert_preview_ok(NISA_ROW);
-        #[rustfmt::skip]
-        assert_eq!((preview.rows[0]["security_name"].as_str(), preview.rows[0]["taxes"].as_f64(), preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64()), (Some("KDDI"), Some(0.0), Some(9100.0)));
-        #[rustfmt::skip]
-        let error_cases = [(MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"), (HEADER, INVALID_PNL_ROW, "実現損益[円]")];
-        for (header, row, expected_message) in error_cases {
-            assert_preview_error(header, row, expected_message);
-        }
-
-        #[rustfmt::skip]
+        let preview = assert_preview_ok(NISA_ROW); assert_eq!((preview.rows[0]["security_name"].as_str(), preview.rows[0]["taxes"].as_f64(), preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64()), (Some("KDDI"), Some(0.0), Some(9100.0)));
+        for (header, row, expected_message) in [(MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"), (HEADER, INVALID_PNL_ROW, "実現損益[円]")] { assert_preview_error(header, row, expected_message); }
         assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));
     }
 
@@ -260,27 +251,15 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires Docker"]
+    #[rustfmt::skip]
     async fn test_bulk_create_reupload_deduplication() {
         use testcontainers::runners::AsyncRunner;
         use testcontainers_modules::postgres::Postgres;
 
         let container = Postgres::default().start().await.unwrap();
-        #[rustfmt::skip]
-        let url = format!("postgres://postgres:postgres@{}:{}/postgres", container.get_host().await.unwrap(), container.get_host_port_ipv4(5432).await.unwrap());
-        let pool = sqlx::PgPool::connect(&url).await.unwrap();
-        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
-
-        let user_id = Uuid::new_v4();
-        #[rustfmt::skip]
-        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)").bind(user_id).bind(format!("test_google_{user_id}")).bind(format!("test_{user_id}@example.com")).execute(&pool).await.unwrap();
-
-        let items = vec![make_test_item(); 5];
-        let first = bulk_create(&pool, user_id, &items).await.unwrap();
-        #[rustfmt::skip]
-        assert_eq!((first.inserted, first.skipped), (5, 0));
-
-        let second = bulk_create(&pool, user_id, &items).await.unwrap();
-        #[rustfmt::skip]
-        assert_eq!((second.inserted, second.skipped), (0, 5));
+        let url = format!("postgres://postgres:postgres@{}:{}/postgres", container.get_host().await.unwrap(), container.get_host_port_ipv4(5432).await.unwrap()); let pool = sqlx::PgPool::connect(&url).await.unwrap(); sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        let user_id = Uuid::new_v4(); sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)").bind(user_id).bind(format!("test_google_{user_id}")).bind(format!("test_{user_id}@example.com")).execute(&pool).await.unwrap();
+        let items = vec![make_test_item(); 5]; let first = bulk_create(&pool, user_id, &items).await.unwrap(); assert_eq!((first.inserted, first.skipped), (5, 0));
+        let second = bulk_create(&pool, user_id, &items).await.unwrap(); assert_eq!((second.inserted, second.skipped), (0, 5));
     }
 }
