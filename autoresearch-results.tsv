@@ -47,3 +47,4 @@ iteration	commit	metric	status	description
 51	975070f	7773	kept	auth/security/csv_util: テスト統合で 19 行削減
 52	7cd899a	7749	kept	char_width/cors/rate_limit/csv_import/validated_json: テスト統合で 24 行削減
 53	8cf63c3	7733	kept	db/dividend/dividend_cache/jquants_response: テスト統合で 16 行削減
+56	01ae56c	7706	reverted	routes: 関数ポインタ化と一時変数削減は rustfmt 後に 9 行増で悪化したためリバート

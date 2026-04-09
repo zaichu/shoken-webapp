@@ -203,8 +203,7 @@ mod tests {
             );
             let config = Config::from_env();
             let app = build_test_app(&config);
-            let resp =
-                post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
+            let resp = post_with_origin(app.clone(), "http://custom-origin.example.com:8080").await;
             assert_ne!(
                 resp.status(),
                 StatusCode::FORBIDDEN,
