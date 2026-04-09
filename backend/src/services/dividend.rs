@@ -189,10 +189,7 @@ mod tests {
         assert_eq!(preview.valid_rows, 1);
         assert_eq!(preview.rows[0]["security_code"], "");
         assert_eq!(preview.rows[0]["security_name"], "KDDI");
-    }
 
-    #[test]
-    fn test_preview_csv_row_errors() {
         let cases = [
             (
                 "入金日,商品,口座,銘柄コード,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]",
