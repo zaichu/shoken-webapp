@@ -126,12 +126,8 @@ fn csv_upload_routes() -> Router<AppState> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::test_env::{EnvGuard, ENV_MUTEX};
     #[rustfmt::skip]
-    use axum::{body::Body, http::{Method, Request}};
-    use std::sync::Arc;
-    use tower::ServiceExt;
+    use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{body::Body, http::{Method, Request}}, std::sync::Arc, tower::ServiceExt};
 
     #[rustfmt::skip]
     fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
@@ -179,8 +175,7 @@ mod tests {
     #[tokio::test]
     #[rustfmt::skip]
     async fn test_request_id_propagated_to_response() {
-        use axum::{routing::get, Router};
-        use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
+        use {axum::{routing::get, Router}, tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer}};
 
         let router: Router = Router::new().route("/health", get(|| async { "OK" })).layer(PropagateRequestIdLayer::x_request_id()).layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
         let health_req = |id: Option<&str>| { let mut b = Request::builder().method(Method::GET).uri("/health"); if let Some(id) = id { b = b.header("x-request-id", id); } b.body(Body::empty()).unwrap() };

@@ -240,8 +240,7 @@ pub(crate) fn parse_asset_balance_row(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use rust_decimal_macros::dec;
+    use {super::*, rust_decimal_macros::dec};
 
     #[rustfmt::skip]
     const HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
