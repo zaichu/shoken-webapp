@@ -228,9 +228,8 @@ mod tests {
     const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
     const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
 
-    fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse {
-        preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
-    }
+    #[rustfmt::skip]
+    fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse { preview_csv(format!("{header}\n{row}").as_bytes()).unwrap() }
 
     #[rustfmt::skip]
     fn assert_preview_ok(row: &str) -> CsvPreviewResponse { let preview = preview_with_header(HEADER, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len(), preview.errors.is_empty()), (1, 1, 1, true), "unexpected errors: {:?}", preview.errors); preview }

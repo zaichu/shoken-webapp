@@ -180,9 +180,8 @@ mod tests {
     use sqlx::Error as SqlxError;
     use std::env::VarError;
 
-    fn check_status(error: ApiError, expected: StatusCode) {
-        assert_eq!(error.into_response().status(), expected);
-    }
+    #[rustfmt::skip]
+    fn check_status(error: ApiError, expected: StatusCode) { assert_eq!(error.into_response().status(), expected); }
 
     #[test]
     fn test_all_error_status_codes() {
@@ -212,14 +211,6 @@ mod tests {
             "test message".to_string(),
         );
         #[rustfmt::skip]
-        assert_eq!(
-            (status, details.code, details.message, details.details),
-            (
-                StatusCode::BAD_REQUEST,
-                "TEST_CODE".to_string(),
-                "test message".to_string(),
-                None
-            )
-        );
+        assert_eq!((status, details.code, details.message, details.details), (StatusCode::BAD_REQUEST, "TEST_CODE".to_string(), "test message".to_string(), None));
     }
 }
