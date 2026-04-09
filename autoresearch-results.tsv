@@ -87,3 +87,4 @@ iteration	commit	metric	status	description
 93	96688cb	5535	kept	テスト属性圧縮で 84 行削減
 94	6179a50	5502	kept	routes/csv_import/asset_balance/domestic_stock/csv_util/auth: テスト整形で 33 行削減
 95	c47bcfc	5434	kept	テスト定数・テーブル・helper 圧縮で 68 行削減
+96	1da5293	5403	kept	テスト宣言行の改行詰めで 31 行削減
