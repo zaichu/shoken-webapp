@@ -68,18 +68,12 @@ pub async fn handle_upload_csv<D: CsvDomain>(
         fn preview_csv(_bytes: &[u8]) -> Result<crate::models::csv_import::CsvPreviewResponse, ApiError> { unreachable!("upload test does not call preview") }
         async fn upload_csv(_pool: &sqlx::PgPool, _user_id: Uuid, bytes: &[u8]) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> { Ok(crate::models::csv_import::CsvUploadResponse { inserted: usize::from(!bytes.is_empty()), skipped: 0, errors: vec![] }) }
     }
-    fn multipart_request(field_name: &str, filename: Option<&str>, content: &str) -> Request<Body> {
-        let boundary = "boundary123";
-        let content_disposition = filename.map_or_else(|| format!("Content-Disposition: form-data; name=\"{field_name}\"\r\n"), |filename| format!("Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n"));
-        let body = format!("--{boundary}\r\n{content_disposition}Content-Type: text/csv\r\n\r\n{content}\r\n--{boundary}--\r\n");
-        Request::builder().method("POST").uri("/csv").header("content-type", format!("multipart/form-data; boundary={boundary}")).body(Body::from(body)).unwrap()
-    }
+    fn multipart_request(field_name: &str, filename: Option<&str>, content: &str) -> Request<Body> { let boundary = "boundary123"; let content_disposition = filename.map_or_else(|| format!("Content-Disposition: form-data; name=\"{field_name}\"\r\n"), |filename| format!("Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n")); let body = format!("--{boundary}\r\n{content_disposition}Content-Type: text/csv\r\n\r\n{content}\r\n--{boundary}--\r\n"); Request::builder().method("POST").uri("/csv").header("content-type", format!("multipart/form-data; boundary={boundary}")).body(Body::from(body)).unwrap() }
     async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T { let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap(); serde_json::from_slice(&body).unwrap() }
     fn preview_app() -> Router { Router::new().route("/csv", post(preview_endpoint)) } async fn preview_endpoint(multipart: Multipart) -> Result<impl IntoResponse, ApiError> { handle_preview_csv::<PreviewDomain>(multipart).await }
     fn upload_app() -> Router { let pool = PgPoolOptions::new().max_connections(1).connect_lazy("postgresql://user:password@localhost/test_db").unwrap(); Router::new().route("/csv", post(upload_endpoint)).with_state(pool) } async fn upload_endpoint(State(pool): State<sqlx::PgPool>, multipart: Multipart) -> Result<impl IntoResponse, ApiError> { handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await }
     #[tokio::test] async fn test_csv_handler() {
-        let content = "symbol,amount\n7203,100\n";
-        let response = test_app().oneshot(multipart_request("file", Some("positions.csv"), content)).await.unwrap();
+        let content = "symbol,amount\n7203,100\n"; let response = test_app().oneshot(multipart_request("file", Some("positions.csv"), content)).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK); assert_eq!(to_bytes(response.into_body(), BODY_LIMIT).await.unwrap().as_ref(), content.as_bytes());
         for (field, filename, msg_fragment) in [("other", Some("positions.csv"), Some("fileフィールド")), ("file", Some("positions.txt"), Some(".csv")), ("file", Some(""), None)] { let response = test_app().oneshot(multipart_request(field, filename, "dummy")).await.unwrap(); let status = response.status(); let error: ErrorResponse = read_json_response(response).await; assert_eq!((status, error.error.code.as_str(), msg_fragment.map_or(true, |fragment| error.error.message.contains(fragment))), (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", true)); }
         let response = preview_app().oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n")).await.unwrap(); let status = response.status(); let preview: serde_json::Value = read_json_response(response).await; assert_eq!((status, preview["valid_rows"].as_i64(), preview["rows"].as_array().map(Vec::len)), (StatusCode::OK, Some(1), Some(1)));

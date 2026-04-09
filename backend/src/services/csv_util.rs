@@ -155,11 +155,7 @@ pub fn parse_required_date(
         for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] { assert_eq!(parse_optional_string(&record, &header_map, col), expected); }
         let expected_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(); for input in ["2024/01/15", "2024-01-15"] { assert_eq!(parse_date(input).unwrap(), expected_date); }
         for (account, realized_pnl, expected_taxes, expected_after) in [("特定", dec!(10000), dec!(2031), dec!(7969)), ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)), ("NISA", dec!(10000), Decimal::ZERO, dec!(10000))] { assert_eq!(compute_taxes(account, realized_pnl), (expected_taxes, expected_after)); }
-        use encoding_rs::SHIFT_JIS;
-        assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
-        assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
-        let (bytes, _, _) = SHIFT_JIS.encode("テスト");
-        assert_eq!(decode_bytes(&bytes), "テスト");
+        use encoding_rs::SHIFT_JIS; assert_eq!(decode_bytes("テスト".as_bytes()), "テスト"); assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト"); let (bytes, _, _) = SHIFT_JIS.encode("テスト"); assert_eq!(decode_bytes(&bytes), "テスト");
         let (record, header_map) = (csv::StringRecord::from(vec!["value"]), make_header_map(&["present"]));
         assert_eq!(get_cell(&record, &header_map, "present"), "value"); assert_eq!(get_cell(&record, &header_map, "missing"), "");
         for (input, expected) in [("K D D I", "KDDI"), ("I N P E X", "INPEX"), ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"), ("任天堂", "任天堂"), ("  KDDI  ", "KDDI"), ("", "")] { assert_eq!(normalize_security_name(input), expected); }
@@ -172,12 +168,8 @@ pub fn parse_required_date(
     }
     #[test] #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"] fn timing_csv_util() {
         use encoding_rs::SHIFT_JIS; const ROWS: usize = 1_000; let csv_utf8: String = { let mut s = String::from("日付,銘柄コード,金額\n"); for i in 0..ROWS { s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100)); } s };
-        let bytes_utf8 = csv_utf8.as_bytes(); let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8); let bytes_sjis = bytes_sjis_cow.into_owned();
-        time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8))); });
-        time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice()))); });
-        let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
-        time_n("parse_number", 10_000, || { for s in &samples { let _ = std::hint::black_box(parse_number(std::hint::black_box(s))); } });
-        let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"];
-        time_n("parse_date", 10_000, || { for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); } });
+        let bytes_utf8 = csv_utf8.as_bytes(); let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8); let bytes_sjis = bytes_sjis_cow.into_owned(); time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8))); }); time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice()))); });
+        let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"]; time_n("parse_number", 10_000, || { for s in &samples { let _ = std::hint::black_box(parse_number(std::hint::black_box(s))); } });
+        let date_samples = ["2024/03/01", "2024-12-31", "2023/01/01"]; time_n("parse_date", 10_000, || { for s in &date_samples { let _ = std::hint::black_box(parse_date(std::hint::black_box(s))); } });
     }
 }

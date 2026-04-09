@@ -217,12 +217,8 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
     fn test_state() -> AppState { AppState { pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1).expect("pool"), secrets: Arc::new(Secrets { database_url: "postgresql://user:password@localhost/test_db".to_string(), jquants_api_key: None, google_client_id: Some("client-id".to_string()), google_client_secret: Some("client-secret".to_string()), frontend_url: "http://localhost:8080".to_string() }), client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
     #[test] fn test_auth_helpers() {
         for (secure, expected_secure) in [(true, true), (false, false)] { for (cookie, expected_name, expected_value) in [(build_state_cookie("test_state", secure), OAUTH_STATE_COOKIE_NAME, "test_state"), (build_session_cookie("test_token", secure), SESSION_COOKIE_NAME, "test_token")] { assert_eq!((cookie.name(), cookie.value(), cookie.secure(), cookie.http_only()), (expected_name, expected_value, Some(expected_secure), Some(true))); } }
-        assert!(get_session_id_from_jar(&CookieJar::new()).is_err()); assert!(get_session_id_from_jar(&CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))).is_err());
-        let uuid = uuid::Uuid::new_v4(); assert_eq!(get_session_id_from_jar(&CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()))).unwrap(), uuid);
-        for (cookie, expected_name) in [(clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME), (clear_session_cookie(true), SESSION_COOKIE_NAME)] { assert_eq!((cookie.name(), cookie.value()), (expected_name, "")); }
-        assert_eq!((same_site(true), same_site(false), SESSION_COOKIE_NAME, OAUTH_STATE_COOKIE_NAME), (SameSite::None, SameSite::Lax, "session_token", "oauth_state"));
+        assert!(get_session_id_from_jar(&CookieJar::new()).is_err()); assert!(get_session_id_from_jar(&CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))).is_err()); let uuid = uuid::Uuid::new_v4(); assert_eq!(get_session_id_from_jar(&CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()))).unwrap(), uuid);
+        for (cookie, expected_name) in [(clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME), (clear_session_cookie(true), SESSION_COOKIE_NAME)] { assert_eq!((cookie.name(), cookie.value()), (expected_name, "")); } assert_eq!((same_site(true), same_site(false), SESSION_COOKIE_NAME, OAUTH_STATE_COOKIE_NAME), (SameSite::None, SameSite::Lax, "session_token", "oauth_state"));
     }
-    #[tokio::test] async fn test_create_oauth_client() {
-        assert!(create_oauth_client(&test_state()).is_ok());
-    }
+    #[tokio::test] async fn test_create_oauth_client() { assert!(create_oauth_client(&test_state()).is_ok()); }
 }
