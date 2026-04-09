@@ -82,54 +82,17 @@ mod tests {
     use std::sync::Arc;
     use tower::ServiceExt;
 
-    fn build_test_app(config: &Config) -> Router {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = crate::db::connect_pool_lazy(database_url, 1)
-            .expect("Failed to create connection pool");
-        let secrets = Arc::new(crate::state::Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
-        let client = Client::new();
-        let state = AppState {
-            pool,
-            secrets,
-            client,
-            dividend_cache: crate::state::DividendCacheState::default(),
-        };
-        app_router(state, config)
-    }
+    #[rustfmt::skip]
+    fn build_test_app(config: &Config) -> Router { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("Failed to create connection pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); app_router(AppState { pool, secrets, client: Client::new(), dividend_cache: crate::state::DividendCacheState::default() }, config) }
 
-    async fn preflight(app: Router, origin: &str) -> axum::response::Response {
-        let req = Request::builder()
-            .method(Method::OPTIONS)
-            .uri("/health")
-            .header("origin", origin)
-            .header("access-control-request-method", "GET")
-            .body(Body::empty())
-            .unwrap();
-        app.oneshot(req).await.unwrap()
-    }
+    #[rustfmt::skip]
+    async fn preflight(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::OPTIONS).uri("/health").header("origin", origin).header("access-control-request-method", "GET").body(Body::empty()).unwrap()).await.unwrap() }
 
-    async fn post_with_origin(app: Router, origin: &str) -> axum::response::Response {
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/health")
-            .header("origin", origin)
-            .body(Body::empty())
-            .unwrap();
-        app.oneshot(req).await.unwrap()
-    }
+    #[rustfmt::skip]
+    async fn post_with_origin(app: Router, origin: &str) -> axum::response::Response { app.oneshot(Request::builder().method(Method::POST).uri("/health").header("origin", origin).body(Body::empty()).unwrap()).await.unwrap() }
 
-    fn allowed_origin(response: &axum::response::Response) -> Option<&str> {
-        response
-            .headers()
-            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
-            .and_then(|value| value.to_str().ok())
-    }
+    #[rustfmt::skip]
+    fn allowed_origin(response: &axum::response::Response) -> Option<&str> { response.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).and_then(|value| value.to_str().ok()) }
 
     #[test]
     fn test_config_creation() {

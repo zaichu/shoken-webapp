@@ -135,23 +135,8 @@ mod tests {
     use std::sync::Arc;
     use tower::ServiceExt;
 
-    fn make_test_state() -> AppState {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool");
-        let secrets = Arc::new(crate::state::Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
-        AppState {
-            pool,
-            secrets,
-            client: reqwest::Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        }
-    }
+    #[rustfmt::skip]
+    fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
 
     #[test]
     fn test_all_routes_creation() {
@@ -194,19 +179,9 @@ mod tests {
         assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
     }
 
-    async fn assert_rate_limited(
-        router: axum::Router,
-        method: Method,
-        uri: &str,
-        ip: Option<&str>,
-    ) {
-        let make_req = || {
-            let mut b = Request::builder().method(method.clone()).uri(uri);
-            if let Some(ip) = ip {
-                b = b.header("fly-client-ip", ip);
-            }
-            b.body(Body::empty()).unwrap()
-        };
+    #[rustfmt::skip]
+    async fn assert_rate_limited(router: axum::Router, method: Method, uri: &str, ip: Option<&str>) {
+        let make_req = || { let mut b = Request::builder().method(method.clone()).uri(uri); if let Some(ip) = ip { b = b.header("fly-client-ip", ip); } b.body(Body::empty()).unwrap() };
         let resp = router.clone().oneshot(make_req()).await.unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
         let resp = router.oneshot(make_req()).await.unwrap();
@@ -273,13 +248,8 @@ mod tests {
             .layer(PropagateRequestIdLayer::x_request_id())
             .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));
 
-        let health_req = |id: Option<&str>| {
-            let mut b = Request::builder().method(Method::GET).uri("/health");
-            if let Some(id) = id {
-                b = b.header("x-request-id", id);
-            }
-            b.body(Body::empty()).unwrap()
-        };
+        #[rustfmt::skip]
+        let health_req = |id: Option<&str>| { let mut b = Request::builder().method(Method::GET).uri("/health"); if let Some(id) = id { b = b.header("x-request-id", id); } b.body(Body::empty()).unwrap() };
 
         #[rustfmt::skip]
         assert!(router.clone().oneshot(health_req(None)).await.unwrap().headers().contains_key("x-request-id"), "x-request-id should be auto-generated");
