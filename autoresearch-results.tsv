@@ -71,3 +71,4 @@ iteration	commit	metric	status	description
 77	604a3eb	6936	kept	cors/stock/dividend_cache: テスト圧縮で 141 行削減
 78	ae86dc0	6793	kept	routes/config/csv_import/security: テストヘルパー圧縮で 143 行削減
 79	703ee46	6755	kept	routes/csv_util/dividend/config/security: テスト圧縮で 38 行削減
+80	db47030	6690	kept	config/security/routes/domestic_stock: テスト圧縮で 65 行削減
