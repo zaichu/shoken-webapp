@@ -237,17 +237,28 @@ mod tests {
     #[test]
     fn test_auth_helpers() {
         for (secure, expected_secure) in [(true, true), (false, false)] {
-            let cookie = build_state_cookie("test_state", secure);
-            assert_eq!(cookie.name(), OAUTH_STATE_COOKIE_NAME);
-            assert_eq!(cookie.value(), "test_state");
-            assert_eq!(cookie.secure(), Some(expected_secure));
-            assert_eq!(cookie.http_only(), Some(true));
-
-            let cookie = build_session_cookie("test_token", secure);
-            assert_eq!(cookie.name(), SESSION_COOKIE_NAME);
-            assert_eq!(cookie.value(), "test_token");
-            assert_eq!(cookie.secure(), Some(expected_secure));
-            assert_eq!(cookie.http_only(), Some(true));
+            #[rustfmt::skip]
+            let cookies = [
+                (build_state_cookie("test_state", secure), OAUTH_STATE_COOKIE_NAME, "test_state"),
+                (build_session_cookie("test_token", secure), SESSION_COOKIE_NAME, "test_token"),
+            ];
+            for (cookie, expected_name, expected_value) in cookies {
+                #[rustfmt::skip]
+                assert_eq!(
+                    (
+                        cookie.name(),
+                        cookie.value(),
+                        cookie.secure(),
+                        cookie.http_only()
+                    ),
+                    (
+                        expected_name,
+                        expected_value,
+                        Some(expected_secure),
+                        Some(true)
+                    )
+                );
+            }
         }
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
         let jar = CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"));
@@ -259,13 +270,23 @@ mod tests {
             (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
             (clear_session_cookie(true), SESSION_COOKIE_NAME),
         ] {
-            assert_eq!(cookie.name(), expected_name);
-            assert_eq!(cookie.value(), "");
+            assert_eq!((cookie.name(), cookie.value()), (expected_name, ""));
         }
-        assert_eq!(same_site(true), SameSite::None);
-        assert_eq!(same_site(false), SameSite::Lax);
-        assert_eq!(SESSION_COOKIE_NAME, "session_token");
-        assert_eq!(OAUTH_STATE_COOKIE_NAME, "oauth_state");
+        #[rustfmt::skip]
+        assert_eq!(
+            (
+                same_site(true),
+                same_site(false),
+                SESSION_COOKIE_NAME,
+                OAUTH_STATE_COOKIE_NAME
+            ),
+            (
+                SameSite::None,
+                SameSite::Lax,
+                "session_token",
+                "oauth_state"
+            )
+        );
     }
 
     #[tokio::test]

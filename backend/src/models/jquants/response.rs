@@ -466,7 +466,6 @@ mod tests {
 
     #[test]
     fn test_fin_summary_data_deserialize_v2_format() {
-        // V2 API の省略形フィールド名でテスト
         let json_data = json!({
             "DiscDate": "2023-11-14",
             "DiscTime": "15:00:00",
@@ -492,24 +491,17 @@ mod tests {
 
         assert_eq!(fin_summary_data.disclosed_date, "2023-11-14");
         assert_eq!(fin_summary_data.local_code, "72030");
-        assert_eq!(
-            fin_summary_data.net_sales,
-            Some("18733067000000".to_string())
-        );
-        assert_eq!(
-            fin_summary_data.next_year_forecast_dividend_per_share_annual,
-            Some("50.00".to_string())
-        );
-        assert_eq!(
-            fin_summary_data.forecast_dividend_per_share_annual,
-            Some("45.00".to_string())
-        );
-        assert_eq!(
-            fin_summary_data.result_dividend_per_share_annual,
-            Some("40.00".to_string())
-        );
+        #[rustfmt::skip]
+        let cases = [
+            (fin_summary_data.net_sales.as_deref(), Some("18733067000000")),
+            (fin_summary_data.next_year_forecast_dividend_per_share_annual.as_deref(), Some("50.00")),
+            (fin_summary_data.forecast_dividend_per_share_annual.as_deref(), Some("45.00")),
+            (fin_summary_data.result_dividend_per_share_annual.as_deref(), Some("40.00")),
+        ];
+        for (actual, expected) in cases {
+            assert_eq!(actual, expected);
+        }
 
-        // V2 API では "data" フィールド名を使用
         let json_data = json!({
             "data": [
                 {
@@ -527,15 +519,21 @@ mod tests {
 
         let response: FinSummaryResponse =
             serde_json::from_value(json_data).expect("有効なテスト用 JSON");
-
-        assert_eq!(response.data.len(), 1);
-        assert_eq!(response.data[0].disclosed_date, "2023-11-14");
-        assert_eq!(response.data[0].local_code, "72030");
+        let item = &response.data[0];
+        #[rustfmt::skip]
+        assert_eq!(
+            (
+                response.data.len(),
+                item.disclosed_date.as_str(),
+                item.local_code.as_str()
+            ),
+            (1, "2023-11-14", "72030")
+        );
 
         let json_data = json!({ "data": [] });
         let response: FinSummaryResponse =
             serde_json::from_value(json_data).expect("有効なテスト用 JSON");
 
-        assert_eq!(response.data.len(), 0);
+        assert!(response.data.is_empty());
     }
 }

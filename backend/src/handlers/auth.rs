@@ -294,13 +294,12 @@ mod tests {
     #[tokio::test]
     async fn test_auth_endpoints_without_cookie() {
         let (status, error): (StatusCode, ErrorResponse) = request_json("GET", "/auth/me").await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
-        assert_eq!(error.error.code, "UNAUTHORIZED");
-        assert!(error.error.message.contains("ログインが必要"));
+        #[rustfmt::skip]
+        assert_eq!((status, error.error.code.as_str(), error.error.message.contains("ログインが必要")), (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", true));
 
         let (status, message): (StatusCode, MessageResponse) =
             request_json("POST", "/auth/logout").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(message.message, "ログアウトしました");
+        #[rustfmt::skip]
+        assert_eq!((status, message.message.as_str()), (StatusCode::OK, "ログアウトしました"));
     }
 }

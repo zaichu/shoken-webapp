@@ -151,25 +151,19 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
-    /// タイミング計測ヘルパー: `f` を `n` 回実行して経過時間をプリントする
     fn time_n(label: &str, n: usize, mut f: impl FnMut()) {
         let start = std::time::Instant::now();
         for _ in 0..n {
             f();
         }
-        println!(
-            "[timing] {} × {}回: {:.2}ms",
-            label,
-            n,
-            start.elapsed().as_secs_f64() * 1000.0
-        );
+        #[rustfmt::skip]
+        println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0);
     }
 
     fn make_header_map(cols: &[&str]) -> HashMap<String, usize> {
-        cols.iter()
-            .enumerate()
-            .map(|(i, col)| ((*col).to_string(), i))
-            .collect()
+        #[rustfmt::skip]
+        let header_map = cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect();
+        header_map
     }
 
     #[test]
@@ -179,7 +173,6 @@ mod tests {
             ("500", dec!(500)),
             ("(500)", dec!(-500)),
             ("", Decimal::ZERO),
-            // ハイフン単独は「値なし」として 0
             ("-", Decimal::ZERO),
         ] {
             assert_eq!(parse_number(input).unwrap(), expected);
@@ -206,14 +199,9 @@ mod tests {
         }
 
         use encoding_rs::SHIFT_JIS;
-        // UTF-8
         assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
-        // UTF-8 with BOM
-        assert_eq!(
-            decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"),
-            "テスト"
-        );
-        // Shift-JIS フォールバック（証券会社の CSV で使われることがある）
+        #[rustfmt::skip]
+        assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
         let record = csv::StringRecord::from(vec!["value"]);
@@ -241,39 +229,25 @@ mod tests {
 
         let record = csv::StringRecord::from(vec!["abc", "1,234", ""]);
         let hm = make_header_map(&["invalid", "valid", "empty"]);
-        assert_eq!(
-            parse_required_number(&record, &hm, "invalid", 5)
-                .unwrap_err()
-                .row,
-            5
-        );
-        assert_eq!(
-            parse_required_number(&record, &hm, "valid", 1).unwrap(),
-            dec!(1234)
-        );
+        #[rustfmt::skip]
+        assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5);
+        #[rustfmt::skip]
+        assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234));
         let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
         assert_eq!(err.row, 7);
         assert!(err.message.contains("empty"));
 
         let record = csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]);
         let hm = make_header_map(&["invalid", "valid", "out_of_range"]);
-        assert_eq!(
-            parse_required_date(&record, &hm, "invalid", 2)
-                .unwrap_err()
-                .row,
-            2
-        );
+        #[rustfmt::skip]
+        assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
         let ok = parse_required_date(&record, &hm, "valid", 1).unwrap();
         assert_eq!(ok, NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
         let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
         assert_eq!(err.row, 9);
         assert!(err.message.contains("out_of_range"));
     }
-    /// CSV パース処理の所要時間を計測するタイミングテスト。
-    /// 通常の `cargo test` では実行されない。以下で明示的に実行する:
-    /// ```
-    /// cargo test --lib -- timing_csv_util --ignored --nocapture
-    /// ```
+    /// `cargo test --lib -- timing_csv_util --ignored --nocapture` で実行する。
     #[test]
     #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
     fn timing_csv_util() {

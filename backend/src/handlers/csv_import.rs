@@ -205,31 +205,29 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            let status = response.status();
             let error: ErrorResponse = read_json_response(response).await;
-            assert_eq!(error.error.code, "VALIDATION_ERROR");
-            if let Some(fragment) = msg_fragment {
-                assert!(error.error.message.contains(fragment));
-            }
+            #[rustfmt::skip]
+            assert_eq!((status, error.error.code.as_str(), msg_fragment.map_or(true, |fragment| error.error.message.contains(fragment))), (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", true));
         }
         let response = preview_app()
             .oneshot(multipart_request("file", Some("preview.csv"), "a,b\n1,2\n"))
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK);
+        let status = response.status();
         let preview: serde_json::Value = read_json_response(response).await;
-        assert_eq!(preview["valid_rows"], 1);
-        assert_eq!(preview["rows"].as_array().unwrap().len(), 1);
+        #[rustfmt::skip]
+        assert_eq!((status, preview["valid_rows"].as_i64(), preview["rows"].as_array().map(Vec::len)), (StatusCode::OK, Some(1), Some(1)));
 
         let response = upload_app()
             .oneshot(multipart_request("file", Some("upload.csv"), "a,b\n1,2\n"))
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::CREATED);
+        let status = response.status();
         let upload: serde_json::Value = read_json_response(response).await;
-        assert_eq!(upload["inserted"], 1);
-        assert_eq!(upload["skipped"], 0);
+        #[rustfmt::skip]
+        assert_eq!((status, upload["inserted"].as_i64(), upload["skipped"].as_i64()), (StatusCode::CREATED, Some(1), Some(0)));
     }
 }
