@@ -73,11 +73,8 @@ mod tests {
     use super::*;
     use crate::test_env::{EnvGuard, ENV_MUTEX};
     use crate::{routes::app_router, state::AppState};
-    use axum::{
-        body::Body,
-        http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
-        Router,
-    };
+    #[rustfmt::skip]
+    use axum::{body::Body, http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode}, Router};
     use reqwest::Client;
     use std::sync::Arc;
     use tower::ServiceExt;
@@ -132,10 +129,8 @@ mod tests {
         }
         {
             let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-            let _cors_origins = EnvGuard::set(
-                "CORS_ORIGINS",
-                Some("https://shoken-webapp.vercel.app,http://localhost:8080"),
-            );
+            #[rustfmt::skip]
+            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app,http://localhost:8080"));
             let config = Config::from_env();
             let app = build_test_app(&config);
             #[rustfmt::skip]
@@ -145,10 +140,8 @@ mod tests {
         }
         {
             let _app_env = EnvGuard::set("APP_ENV", None);
-            let _cors_origins = EnvGuard::set(
-                "CORS_ORIGINS",
-                Some("http://custom-origin.example.com:8080"),
-            );
+            #[rustfmt::skip]
+            let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://custom-origin.example.com:8080"));
             let config = Config::from_env();
             let app = build_test_app(&config);
             #[rustfmt::skip]
