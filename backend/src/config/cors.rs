@@ -63,7 +63,6 @@ pub fn is_localhost_origin(origin: &str) -> bool {
     let host = origin.split(':').next().unwrap_or(origin);
     matches!(host, "localhost" | "localhost." | "127.0.0.1")
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::{is_localhost_origin, parse_cors_origins};
     fn strings(origins: &[&str]) -> Vec<String> { origins.iter().map(|origin| (*origin).to_string()).collect() }

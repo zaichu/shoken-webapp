@@ -61,5 +61,4 @@ pub async fn create_stock(
     let stock = stock_service::create(&state.pool, &data).await?;
     Ok((StatusCode::CREATED, Json(stock)))
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests;

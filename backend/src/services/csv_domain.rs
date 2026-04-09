@@ -95,7 +95,6 @@ impl CsvDomain for AssetBalanceDomain {
         crate::services::asset_balance::upload_csv(pool, user_id, bytes).await
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::{AssetBalanceDomain, CsvDomain, DividendDomain, DomesticStockDomain, MutualfundDomain};
     fn assert_valid_rows<D: CsvDomain>(lines: &[&str], expected_valid_rows: usize) { let csv = lines.join("\n"); assert_eq!(D::preview_csv(csv.as_bytes()).unwrap().valid_rows, expected_valid_rows); }

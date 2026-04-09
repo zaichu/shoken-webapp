@@ -458,7 +458,6 @@ pub struct FinSummaryData {
     #[serde(rename = "NxFNCEPS", default)]
     pub next_year_forecast_non_consolidated_earnings_per_share: Option<String>,
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, serde_json::json};
     #[test] fn test_fin_summary_data_deserialize_v2_format() {

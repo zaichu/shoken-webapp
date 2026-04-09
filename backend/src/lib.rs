@@ -10,7 +10,6 @@ pub mod openapi;
 pub mod routes;
 pub mod services;
 pub mod state;
-
 #[cfg(test)] #[rustfmt::skip] pub mod test_env;
 
 pub use config::Config;
