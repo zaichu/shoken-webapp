@@ -85,7 +85,6 @@ impl JQuantsService {
         Ok(fin_summary_response)
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
     async fn fetch_fin_summary(code: &str) -> FinSummaryResponse { let api_key = std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません"); let params = FinSummaryQuery { code: code.to_string(), from: None, to: None }; JQuantsService::get_fin_summary(&Client::new(), params, &api_key).await.unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e)) }

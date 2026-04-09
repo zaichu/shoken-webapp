@@ -149,7 +149,6 @@ fn parse_dividend_row(
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     crate::services::shared::delete_all_for_user(pool, user_id, "dividends", "dividend").await
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::*;
     #[test] fn test_preview_csv_basic() {

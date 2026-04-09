@@ -123,7 +123,6 @@ pub async fn validate_origin(
         }
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{middleware, routing::post, Router}, tower::ServiceExt};
     fn test_app() -> Router { let allowed_origins = Arc::new(vec!["https://shoken-webapp.vercel.app".to_string(), "http://localhost:8080".to_string(), "http://127.0.0.1:8080".to_string(), "http://[::1]:8080".to_string(), "http://localhost.:8080".to_string()]); Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } })) }

@@ -66,7 +66,6 @@ pub struct BulkCreateAssetBalanceRequest {
     #[validate(length(min = 1))]
     pub items: Vec<CreateAssetBalanceRequest>,
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, rust_decimal_macros::dec};
     #[test] fn test_create_asset_balance_request_validation() { assert!(CreateAssetBalanceRequest { security_code: "1234".to_string(), security_name: "テスト株式会社".to_string(), shares: dec!(100), executing_shares: dec!(0), average_purchase_price: dec!(1500), total_purchase_amount: dec!(150000), current_price: dec!(1600), daily_change: dec!(10), market_value: dec!(160000), profit_loss_rate: dec!(6.67) }.validate().is_ok()); }

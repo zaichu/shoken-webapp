@@ -219,7 +219,6 @@ pub async fn delete_account(
         Json(serde_json::json!({"message": "アカウントを削除しました"})),
     ))
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use crate::{config::Config, db::connect_pool_lazy, errors::ErrorResponse, models::common::MessageResponse, routes::app_router, state::{AppState, Secrets}};
     use axum::{body::{to_bytes, Body}, http::{Request, StatusCode}, Router};

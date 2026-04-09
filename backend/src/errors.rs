@@ -171,7 +171,6 @@ where
         ApiError::OAuthError(err.to_string())
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::http::StatusCode, oauth2::url::ParseError, sqlx::Error as SqlxError, std::env::VarError};
     fn check_status(error: ApiError, expected: StatusCode) { assert_eq!(error.into_response().status(), expected); }

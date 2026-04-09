@@ -37,7 +37,6 @@ where
         Ok(ValidatedJson(value))
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::{body::Body, extract::FromRequest, http::{Request, StatusCode}}, serde::{Deserialize, Serialize}, tower::ServiceExt, validator::Validate};
     #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]

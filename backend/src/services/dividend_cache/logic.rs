@@ -38,7 +38,6 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
     // 配当情報が見つからない → ゼロ配当として扱う
     (Some(0.0), "zero".to_string())
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::models::jquants::FinSummaryData};
     fn make_summary(disc_date: &str, nx_div: Option<&str>, f_div: Option<&str>, div: Option<&str>) -> FinSummaryData { serde_json::from_value(serde_json::json!({ "DiscDate": disc_date, "Code": "1234", "DocType": "test", "NxFDivAnn": nx_div, "FDivAnn": f_div, "DivAnn": div, })).expect("FinSummaryData のパースに失敗") }

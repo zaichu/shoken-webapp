@@ -67,7 +67,6 @@ impl Config {
         config
     }
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::{routes::app_router, state::AppState, test_env::{EnvGuard, ENV_MUTEX}}, axum::{body::Body, http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode}, Router}, reqwest::Client, std::sync::Arc, tower::ServiceExt};
     fn build_test_app(config: &Config) -> Router { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("Failed to create connection pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); app_router(AppState { pool, secrets, client: Client::new(), dividend_cache: crate::state::DividendCacheState::default() }, config) }

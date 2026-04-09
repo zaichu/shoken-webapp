@@ -55,7 +55,6 @@ pub async fn handle_upload_csv<D: CsvDomain>(
     let response = D::upload_csv(pool, user_id, &bytes).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, crate::errors::ErrorResponse, async_trait::async_trait, axum::{body::{to_bytes, Body}, extract::{Multipart, State}, http::{Request, StatusCode}, routing::post, Router}, serde::de::DeserializeOwned, sqlx::postgres::PgPoolOptions, tower::ServiceExt, uuid::Uuid};
     const BODY_LIMIT: usize = 1024 * 1024; fn test_app() -> Router { Router::new().route("/csv", post(csv_bytes_endpoint)) }

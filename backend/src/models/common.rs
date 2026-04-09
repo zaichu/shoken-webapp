@@ -13,7 +13,6 @@ pub struct BulkCreateResponse {
 pub struct MessageResponse {
     pub message: String,
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use super::{BulkCreateResponse, MessageResponse};
     #[test] fn test_serde_round_trips() {

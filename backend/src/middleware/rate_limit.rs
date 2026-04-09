@@ -78,7 +78,6 @@ pub async fn keyed_rate_limit(
     }
     next.run(req).await
 }
-
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, axum::{middleware, routing::post, Router}, tower::ServiceExt};
     fn test_route() -> Router { Router::new().route("/test", post(|| async { "ok" })) }
