@@ -232,43 +232,20 @@ mod tests {
         preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
     }
 
-    fn assert_preview_ok(row: &str) -> CsvPreviewResponse {
-        let preview = preview_with_header(HEADER, row);
-        assert_eq!(
-            (preview.total_rows, preview.valid_rows, preview.rows.len()),
-            (1, 1, 1)
-        );
-        assert!(
-            preview.errors.is_empty(),
-            "unexpected errors: {:?}",
-            preview.errors
-        );
-        preview
-    }
+    #[rustfmt::skip]
+    fn assert_preview_ok(row: &str) -> CsvPreviewResponse { let preview = preview_with_header(HEADER, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.rows.len(), preview.errors.is_empty()), (1, 1, 1, true), "unexpected errors: {:?}", preview.errors); preview }
 
-    fn assert_preview_error(header: &str, row: &str, expected_message: &str) {
-        let preview = preview_with_header(header, row);
-        assert_eq!(
-            (preview.total_rows, preview.valid_rows, preview.errors.len()),
-            (1, 0, 1)
-        );
-        assert!(preview.errors[0].message.contains(expected_message));
-    }
+    #[rustfmt::skip]
+    fn assert_preview_error(header: &str, row: &str, expected_message: &str) { let preview = preview_with_header(header, row); assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.len(), preview.errors.first().is_some_and(|error| error.message.contains(expected_message))), (1, 0, 1, true)); }
 
     #[test]
     fn test_preview_csv() {
-        assert_eq!(
-            assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
-            "ＥＮＥＯＳホールディングス"
-        );
+        #[rustfmt::skip]
+        assert_eq!(assert_preview_ok(BASIC_ROW).rows[0]["security_name"], "ＥＮＥＯＳホールディングス");
 
         let preview = assert_preview_ok(NISA_ROW);
-        assert_eq!(preview.rows[0]["security_name"], "KDDI");
-        assert_eq!(preview.rows[0]["taxes"], 0.0);
-        assert_eq!(
-            preview.rows[0]["realized_profit_and_loss_after_tax"],
-            9100.0
-        );
+        #[rustfmt::skip]
+        assert_eq!((preview.rows[0]["security_name"].as_str(), preview.rows[0]["taxes"].as_f64(), preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64()), (Some("KDDI"), Some(0.0), Some(9100.0)));
         for (header, row, expected_message) in [
             (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
             (HEADER, INVALID_PNL_ROW, "実現損益[円]"),
@@ -282,25 +259,9 @@ mod tests {
         ));
     }
 
-    fn make_test_item() -> CreateDomesticStockRequest {
-        CreateDomesticStockRequest {
-            trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
-            settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
-            security_code: "9508".to_string(),
-            security_name: "九州電力".to_string(),
-            account: "特定".to_string(),
-            shares: dec!(100),
-            asked_price: dec!(1880),
-            proceeds: dec!(188000),
-            purchase_price: dec!(1770),
-            realized_profit_and_loss: dec!(11000),
-            taxes: dec!(2234),
-            realized_profit_and_loss_after_tax: dec!(8766),
-        }
-    }
+    #[rustfmt::skip]
+    fn make_test_item() -> CreateDomesticStockRequest { CreateDomesticStockRequest { trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(), settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(), security_code: "9508".to_string(), security_name: "九州電力".to_string(), account: "特定".to_string(), shares: dec!(100), asked_price: dec!(1880), proceeds: dec!(188000), purchase_price: dec!(1770), realized_profit_and_loss: dec!(11000), taxes: dec!(2234), realized_profit_and_loss_after_tax: dec!(8766) } }
 
-    /// 1回目アップロード → 全件挿入、2回目同一CSV → 全件スキップ（再アップロード防止）
-    /// Docker が必要なため通常テストでは skip する（実行: cargo test -- --ignored）
     #[tokio::test]
     #[ignore = "requires Docker"]
     async fn test_bulk_create_reupload_deduplication() {
@@ -308,15 +269,11 @@ mod tests {
         use testcontainers_modules::postgres::Postgres;
 
         let container = Postgres::default().start().await.unwrap();
-        let url = format!(
-            "postgres://postgres:postgres@{}:{}/postgres",
-            container.get_host().await.unwrap(),
-            container.get_host_port_ipv4(5432).await.unwrap(),
-        );
+        #[rustfmt::skip]
+        let url = format!("postgres://postgres:postgres@{}:{}/postgres", container.get_host().await.unwrap(), container.get_host_port_ipv4(5432).await.unwrap());
         let pool = sqlx::PgPool::connect(&url).await.unwrap();
         sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
-        // FK制約のためユーザーを事前作成
         let user_id = Uuid::new_v4();
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
@@ -327,15 +284,12 @@ mod tests {
             .unwrap();
 
         let items = vec![make_test_item(); 5];
-
-        // 1回目: 全件挿入
         let first = bulk_create(&pool, user_id, &items).await.unwrap();
-        assert_eq!(first.inserted, 5);
-        assert_eq!(first.skipped, 0);
+        #[rustfmt::skip]
+        assert_eq!((first.inserted, first.skipped), (5, 0));
 
-        // 2回目（同一CSV再アップロード）: 全件スキップ
         let second = bulk_create(&pool, user_id, &items).await.unwrap();
-        assert_eq!(second.inserted, 0);
-        assert_eq!(second.skipped, 5);
+        #[rustfmt::skip]
+        assert_eq!((second.inserted, second.skipped), (0, 5));
     }
 }
