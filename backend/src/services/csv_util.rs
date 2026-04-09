@@ -158,6 +158,7 @@ mod tests {
     fn make_header_map(cols: &[&str]) -> HashMap<String, usize> { cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect() }
 
     #[test]
+    #[rustfmt::skip]
     fn test_parse_utilities() {
         for (input, expected) in [
             ("1,234", dec!(1234)),
@@ -169,36 +170,27 @@ mod tests {
             assert_eq!(parse_number(input).unwrap(), expected);
         }
 
-        #[rustfmt::skip]
         let (record, header_map) = (csv::StringRecord::from(vec!["", "value"]), make_header_map(&["empty", "filled"]));
-        for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] {
-            assert_eq!(parse_optional_string(&record, &header_map, col), expected);
-        }
+        for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] { assert_eq!(parse_optional_string(&record, &header_map, col), expected); }
 
         let expected_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
-        for input in ["2024/01/15", "2024-01-15"] {
-            assert_eq!(parse_date(input).unwrap(), expected_date);
-        }
+        for input in ["2024/01/15", "2024-01-15"] { assert_eq!(parse_date(input).unwrap(), expected_date); }
 
         for (account, realized_pnl, expected_taxes, expected_after) in [
             ("特定", dec!(10000), dec!(2031), dec!(7969)), // floor(10000 * 0.20315)
             ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)),
             ("NISA", dec!(10000), Decimal::ZERO, dec!(10000)),
         ] {
-            let (taxes, after) = compute_taxes(account, realized_pnl);
-            assert_eq!((taxes, after), (expected_taxes, expected_after));
+            assert_eq!(compute_taxes(account, realized_pnl), (expected_taxes, expected_after));
         }
 
         use encoding_rs::SHIFT_JIS;
         assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
-        #[rustfmt::skip]
         assert_eq!(decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"), "テスト");
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
-        #[rustfmt::skip]
         let (record, header_map) = (csv::StringRecord::from(vec!["value"]), make_header_map(&["present"]));
-        assert_eq!(get_cell(&record, &header_map, "present"), "value");
-        assert_eq!(get_cell(&record, &header_map, "missing"), "");
+        assert_eq!(get_cell(&record, &header_map, "present"), "value"); assert_eq!(get_cell(&record, &header_map, "missing"), "");
         for (input, expected) in [
             ("K D D I", "KDDI"),
             ("I N P E X", "INPEX"),
@@ -210,30 +202,14 @@ mod tests {
             assert_eq!(normalize_security_name(input), expected);
         }
 
-        #[rustfmt::skip]
         let (record, header_map) = (csv::StringRecord::from(vec!["", "value"]), make_header_map(&["col_a", "col_b"]));
-        let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
-        assert_eq!((err.row, err.message.contains("col_a")), (3, true));
-        #[rustfmt::skip]
-        assert_eq!(parse_required_string(&record, &header_map, "col_b", 1).unwrap(), "value");
+        let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err(); assert_eq!((err.row, err.message.contains("col_a")), (3, true)); assert_eq!(parse_required_string(&record, &header_map, "col_b", 1).unwrap(), "value");
 
-        #[rustfmt::skip]
         let (record, hm) = (csv::StringRecord::from(vec!["abc", "1,234", ""]), make_header_map(&["invalid", "valid", "empty"]));
-        #[rustfmt::skip]
-        assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5);
-        #[rustfmt::skip]
-        assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234));
-        let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
-        assert_eq!((err.row, err.message.contains("empty")), (7, true));
+        assert_eq!(parse_required_number(&record, &hm, "invalid", 5).unwrap_err().row, 5); assert_eq!(parse_required_number(&record, &hm, "valid", 1).unwrap(), dec!(1234)); let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err(); assert_eq!((err.row, err.message.contains("empty")), (7, true));
 
-        #[rustfmt::skip]
         let (record, hm) = (csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]), make_header_map(&["invalid", "valid", "out_of_range"]));
-        #[rustfmt::skip]
-        assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2);
-        #[rustfmt::skip]
-        assert_eq!(parse_required_date(&record, &hm, "valid", 1).unwrap(), NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
-        let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
-        assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
+        assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2); assert_eq!(parse_required_date(&record, &hm, "valid", 1).unwrap(), NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()); let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err(); assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
     #[test]
     #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]

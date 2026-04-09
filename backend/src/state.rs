@@ -48,39 +48,11 @@ mod tests {
     use crate::test_env::{EnvGuard, ENV_MUTEX};
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_secrets_from_env() {
         let _lock = ENV_MUTEX.lock().await;
-        {
-            let _db = EnvGuard::set("DATABASE_URL", None);
-            let result = Secrets::from_env();
-            assert!(result.is_err());
-            let err_msg = result.unwrap_err();
-            assert!(
-                err_msg.contains("DATABASE_URL"),
-                "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"
-            );
-        }
-        {
-            // FRONTEND_URL 未設定時はデフォルト値 "http://localhost:8080" を使用する
-            let _db = EnvGuard::set(
-                "DATABASE_URL",
-                Some("postgresql://user:password@localhost/test"),
-            );
-            let _fe = EnvGuard::set("FRONTEND_URL", None);
-            let result = Secrets::from_env();
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap().frontend_url, "http://localhost:8080");
-        }
-        {
-            // JQUANTS_API_KEY は省略可能で None になる
-            let _db = EnvGuard::set(
-                "DATABASE_URL",
-                Some("postgresql://user:password@localhost/test"),
-            );
-            let _jq = EnvGuard::set("JQUANTS_API_KEY", None);
-            let result = Secrets::from_env();
-            assert!(result.is_ok());
-            assert!(result.unwrap().jquants_api_key.is_none());
-        }
+        { let _db = EnvGuard::set("DATABASE_URL", None); let err_msg = Secrets::from_env().unwrap_err(); assert!(err_msg.contains("DATABASE_URL"), "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"); }
+        { let _db = EnvGuard::set("DATABASE_URL", Some("postgresql://user:password@localhost/test")); let _fe = EnvGuard::set("FRONTEND_URL", None); assert_eq!(Secrets::from_env().unwrap().frontend_url, "http://localhost:8080"); }
+        { let _db = EnvGuard::set("DATABASE_URL", Some("postgresql://user:password@localhost/test")); let _jq = EnvGuard::set("JQUANTS_API_KEY", None); assert!(Secrets::from_env().unwrap().jquants_api_key.is_none()); }
     }
 }

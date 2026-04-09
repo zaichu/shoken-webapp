@@ -59,18 +59,12 @@ mod tests {
     fn json_request(body: impl Into<Body>) -> Request<Body> { Request::builder().header("content-type", "application/json").method("POST").uri("/test").body(body.into()).unwrap() }
 
     #[tokio::test]
+    #[rustfmt::skip]
     async fn test_valid_json() {
-        #[rustfmt::skip]
         let json_data = TestData { name: "テストユーザー".to_string(), age: 30 };
-        #[rustfmt::skip]
         let app = tower::service_fn(|req: Request<Body>| async { let ValidatedJson(data) = ValidatedJson::<TestData>::from_request(req, &()).await.unwrap(); assert_eq!(data, json_data); Ok::<_, hyper::Error>(axum::response::Response::new(Body::empty())) });
-        #[rustfmt::skip]
         assert_eq!(app.oneshot(json_request(serde_json::to_string(&json_data).unwrap())).await.unwrap().status(), StatusCode::OK);
-        #[rustfmt::skip]
-        let parse_err = ValidatedJson::<TestData>::from_request(json_request(r#"{"name": "テストユーザー", age: 30}"#), &()).await.unwrap_err();
-        assert!(matches!(parse_err, ApiError::JsonParseError));
-        #[rustfmt::skip]
-        let validation_err = ValidatedJson::<TestData>::from_request(json_request(serde_json::to_string(&TestData { name: "".to_string(), age: 30 }).unwrap()), &()).await.unwrap_err();
-        assert!(matches!(validation_err, ApiError::ValidationError(_)));
+        assert!(matches!(ValidatedJson::<TestData>::from_request(json_request(r#"{"name": "テストユーザー", age: 30}"#), &()).await.unwrap_err(), ApiError::JsonParseError));
+        assert!(matches!(ValidatedJson::<TestData>::from_request(json_request(serde_json::to_string(&TestData { name: "".to_string(), age: 30 }).unwrap()), &()).await.unwrap_err(), ApiError::ValidationError(_)));
     }
 }
