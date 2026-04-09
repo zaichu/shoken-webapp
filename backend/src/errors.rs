@@ -173,17 +173,15 @@ where
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    #[rustfmt::skip]
     use {super::*, axum::http::StatusCode, oauth2::url::ParseError, sqlx::Error as SqlxError, std::env::VarError};
 
-    #[rustfmt::skip]
     fn check_status(error: ApiError, expected: StatusCode) { assert_eq!(error.into_response().status(), expected); }
 
     #[test]
     fn test_all_error_status_codes() {
         let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        #[rustfmt::skip]
         let cases = [
             (ApiError::ValidationError("必須フィールドが不足しています".to_string()), StatusCode::BAD_REQUEST),
             (ApiError::JsonParseError, StatusCode::BAD_REQUEST),
@@ -202,9 +200,7 @@ mod tests {
         for (error, expected) in cases {
             check_status(error, expected);
         }
-        #[rustfmt::skip]
         let (status, details) = simple_error(StatusCode::BAD_REQUEST, "TEST_CODE", "test message".to_string());
-        #[rustfmt::skip]
         assert_eq!((status, details.code, details.message, details.details), (StatusCode::BAD_REQUEST, "TEST_CODE".to_string(), "test message".to_string(), None));
     }
 }

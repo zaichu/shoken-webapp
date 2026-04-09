@@ -125,25 +125,21 @@ fn csv_upload_routes() -> Router<AppState> {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    #[rustfmt::skip]
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{body::Body, http::{Method, Request}}, std::sync::Arc, tower::ServiceExt};
 
-    #[rustfmt::skip]
     fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(crate::state::Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: reqwest::Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
 
     #[test]
-    #[rustfmt::skip]
     fn test_all_routes_creation() { let _ = handlers::stock::stock_routes(); let _ = handlers::jquants::jquants_routes(); let _ = handlers::auth::auth_routes(); let _ = handlers::dividend::dividend_routes(); let _ = handlers::domestic_stock::domestic_stock_routes(); let _ = handlers::mutualfund::mutualfund_routes(); let _ = handlers::asset_balance::asset_balance_routes(); }
 
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_routes_rate_limit_returns_429() {
         let router = if let Some(l) = crate::middleware::build_keyed_rate_limiter(1) { handlers::auth::auth_routes().layer(middleware::from_fn(move |req, next| { let l = l.clone(); async move { keyed_rate_limit(l, req, next).await } })) } else { handlers::auth::auth_routes() }.with_state(make_test_state()); assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
         let router = if let Some(l) = crate::middleware::build_rate_limiter(1) { handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| { let l = l.clone(); async move { rate_limit(l, req, next).await } })) } else { handlers::jquants::jquants_routes() }.with_state(make_test_state()); assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
     }
 
-    #[rustfmt::skip]
     async fn assert_rate_limited(router: axum::Router, method: Method, uri: &str, ip: Option<&str>) {
         let make_req = || { let mut b = Request::builder().method(method.clone()).uri(uri); if let Some(ip) = ip { b = b.header("fly-client-ip", ip); } b.body(Body::empty()).unwrap() };
         let resp = router.clone().oneshot(make_req()).await.unwrap();
@@ -152,12 +148,10 @@ mod tests {
         assert_eq!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 
-    #[rustfmt::skip]
     async fn check_unauthorized(router: axum::Router, method: Method, uri: &str) { assert_eq!(router.oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap().status(), axum::http::StatusCode::UNAUTHORIZED); }
 
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {
-        #[rustfmt::skip]
         let unauthorized_cases = [(handlers::jquants::jquants_routes(), Method::GET, "/jquants/fins/summary?code=7203"), (handlers::dividend::dividend_routes(), Method::DELETE, "/dividends"), (handlers::dividend::dividend_routes(), Method::GET, "/dividends"), (handlers::dividend::dividend_routes(), Method::POST, "/dividends/csv/preview"), (handlers::domestic_stock::domestic_stock_routes(), Method::DELETE, "/domestic-stocks"), (handlers::domestic_stock::domestic_stock_routes(), Method::GET, "/domestic-stocks"), (handlers::domestic_stock::domestic_stock_routes(), Method::POST, "/domestic-stocks/csv/preview"), (handlers::mutualfund::mutualfund_routes(), Method::DELETE, "/mutualfunds"), (handlers::mutualfund::mutualfund_routes(), Method::GET, "/mutualfunds"), (handlers::mutualfund::mutualfund_routes(), Method::POST, "/mutualfunds/csv/preview"), (handlers::asset_balance::asset_balance_routes(), Method::DELETE, "/asset-balances"), (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/bulk"), (handlers::asset_balance::asset_balance_routes(), Method::POST, "/asset-balances/csv/preview"), (csv_upload_routes(), Method::POST, "/dividends/csv"), (handlers::dividend_per_share::dividend_per_share_routes(), Method::POST, "/dividends/per-share/batch")];
         for (router, method, uri) in unauthorized_cases {
             check_unauthorized(router.with_state(make_test_state()), method, uri).await;
@@ -165,7 +159,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_csv_upload_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await; let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
         for (path, ip) in [("/domestic-stocks/csv", "1.2.3.4"), ("/dividends/csv", "1.2.3.5"), ("/mutualfunds/csv", "1.2.3.6"), ("/asset-balances/csv", "1.2.3.7")] { assert_rate_limited(app_router(make_test_state(), &Config::from_env()), Method::POST, path, Some(ip)).await; }
@@ -173,7 +166,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_request_id_propagated_to_response() {
         use {axum::{routing::get, Router}, tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer}};
 

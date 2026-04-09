@@ -151,11 +151,11 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
 
     #[test]
-    #[rustfmt::skip]
     fn test_preview_csv_basic() {
         let preview = preview_csv(["入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]", "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"", "\"2025/12/10\",\"国内株式\",\"特定・一般\",\"8306\",\"三菱ＵＦＪフィナンシャル・グループ\",\"円\",\"50.00\",\"300\",\"15,000\",\"3,047\",\"11,953\""].join("\n").as_bytes()).unwrap();
         assert_eq!((preview.total_rows, preview.valid_rows, preview.errors.is_empty(), preview.rows.len()), (2, 2, true, 2)); assert!(matches!(preview_csv(b""), Err(ApiError::ValidationError(_))));

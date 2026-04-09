@@ -40,16 +40,15 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
     use crate::models::jquants::FinSummaryData;
 
-    #[rustfmt::skip]
     fn make_summary(disc_date: &str, nx_div: Option<&str>, f_div: Option<&str>, div: Option<&str>) -> FinSummaryData { serde_json::from_value(serde_json::json!({ "DiscDate": disc_date, "Code": "1234", "DocType": "test", "NxFDivAnn": nx_div, "FDivAnn": f_div, "DivAnn": div, })).expect("FinSummaryData のパースに失敗") }
 
     #[test]
     fn test_extract_dividend() {
-        #[rustfmt::skip]
         let dividend_cases = [
             (vec![make_summary("2024-01-01", Some("100.0"), None, None)], (Some(100.0), "ok")),
             (vec![make_summary("2024-01-01", Some("0.0"), None, None)], (Some(0.0), "zero")),
@@ -65,7 +64,6 @@ mod tests {
             assert_eq!((value, status.as_str()), expected);
         }
 
-        #[rustfmt::skip]
         assert_eq!(extract_dividend(&[make_summary("2023-01-01", None, None, Some("30.0")), make_summary("2024-01-01", None, None, Some("60.0"))]).0, Some(60.0));
 
         let now = Utc::now();
