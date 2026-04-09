@@ -62,3 +62,4 @@ iteration	commit	metric	status	description
 68	5352815	7593	kept	asset_balance: テスト期待値テーブルを圧縮して 31 行削減
 69	16424e3	7585	kept	mutualfund: CSV テストの文字列生成と集約アサートを圧縮して 8 行削減
 70	37dc704	7554	kept	errors/auth/csv_import/response/csv_util: テスト圧縮で 31 行削減
+71	d3e10b0	7472	kept	domestic_stock/csv_import/csv_domain: テスト圧縮で 82 行削減
