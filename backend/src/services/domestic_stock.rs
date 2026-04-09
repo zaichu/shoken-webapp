@@ -217,9 +217,7 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use chrono::NaiveDate;
-    use rust_decimal_macros::dec;
+    use {super::*, chrono::NaiveDate, rust_decimal_macros::dec};
 
     const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
     const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
@@ -253,8 +251,7 @@ mod tests {
     #[ignore = "requires Docker"]
     #[rustfmt::skip]
     async fn test_bulk_create_reupload_deduplication() {
-        use testcontainers::runners::AsyncRunner;
-        use testcontainers_modules::postgres::Postgres;
+        use {testcontainers::runners::AsyncRunner, testcontainers_modules::postgres::Postgres};
 
         let container = Postgres::default().start().await.unwrap();
         let url = format!("postgres://postgres:postgres@{}:{}/postgres", container.get_host().await.unwrap(), container.get_host_port_ipv4(5432).await.unwrap()); let pool = sqlx::PgPool::connect(&url).await.unwrap(); sqlx::migrate!("./migrations").run(&pool).await.unwrap();

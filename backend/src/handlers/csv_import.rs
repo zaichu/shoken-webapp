@@ -58,13 +58,8 @@ pub async fn handle_upload_csv<D: CsvDomain>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::errors::ErrorResponse;
-    use async_trait::async_trait;
     #[rustfmt::skip]
-    use axum::{body::{to_bytes, Body}, extract::{Multipart, State}, http::{Request, StatusCode}, routing::post, Router};
-    #[rustfmt::skip]
-    use {serde::de::DeserializeOwned, sqlx::postgres::PgPoolOptions, tower::ServiceExt, uuid::Uuid};
+    use {super::*, crate::errors::ErrorResponse, async_trait::async_trait, axum::{body::{to_bytes, Body}, extract::{Multipart, State}, http::{Request, StatusCode}, routing::post, Router}, serde::de::DeserializeOwned, sqlx::postgres::PgPoolOptions, tower::ServiceExt, uuid::Uuid};
 
     const BODY_LIMIT: usize = 1024 * 1024;
 

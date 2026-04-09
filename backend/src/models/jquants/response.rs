@@ -461,8 +461,7 @@ pub struct FinSummaryData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use serde_json::json;
+    use {super::*, serde_json::json};
 
     #[test]
     fn test_fin_summary_data_deserialize_v2_format() {
@@ -474,9 +473,8 @@ mod tests {
 
         #[rustfmt::skip]
         let response: FinSummaryResponse = serde_json::from_value(json!({"data":[{"DiscDate":"2023-11-14","Code":"72030","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31"}]})).expect("有効なテスト用 JSON");
-        let item = &response.data[0];
         #[rustfmt::skip]
-        assert_eq!((response.data.len(), item.disclosed_date.as_str(), item.local_code.as_str()), (1, "2023-11-14", "72030"));
+        assert_eq!((response.data.len(), response.data[0].disclosed_date.as_str(), response.data[0].local_code.as_str()), (1, "2023-11-14", "72030"));
         #[rustfmt::skip]
         assert!(serde_json::from_value::<FinSummaryResponse>(json!({"data":[]})).expect("有効なテスト用 JSON").data.is_empty());
     }
