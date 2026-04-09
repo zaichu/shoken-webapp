@@ -44,97 +44,41 @@ mod tests {
     use super::*;
     use crate::models::jquants::FinSummaryData;
 
-    fn make_summary(
-        disc_date: &str,
-        nx_div: Option<&str>,
-        f_div: Option<&str>,
-        div: Option<&str>,
-    ) -> FinSummaryData {
-        // FinSummaryData のデフォルト値を生成するためにデシリアライズを利用
-        let json = serde_json::json!({
-            "DiscDate": disc_date,
-            "Code": "1234",
-            "DocType": "test",
-            "NxFDivAnn": nx_div,
-            "FDivAnn": f_div,
-            "DivAnn": div,
-        });
-        serde_json::from_value(json).expect("FinSummaryData のパースに失敗")
-    }
+    #[rustfmt::skip]
+    fn make_summary(disc_date: &str, nx_div: Option<&str>, f_div: Option<&str>, div: Option<&str>) -> FinSummaryData { serde_json::from_value(serde_json::json!({ "DiscDate": disc_date, "Code": "1234", "DocType": "test", "NxFDivAnn": nx_div, "FDivAnn": f_div, "DivAnn": div, })).expect("FinSummaryData のパースに失敗") }
 
     #[test]
     fn test_extract_dividend() {
-        // NxFDivAnn が存在する場合は ok
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", Some("100.0"), None, None)]);
-        assert_eq!(val, Some(100.0));
-        assert_eq!(status, "ok");
-
-        // 0.0 は zero
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", Some("0.0"), None, None)]);
-        assert_eq!(val, Some(0.0));
-        assert_eq!(status, "zero");
-
-        // NxFDivAnn が優先
-        let (val, status) = extract_dividend(&[make_summary(
-            "2024-01-01",
-            Some("200.0"),
-            Some("100.0"),
-            Some("50.0"),
-        )]);
-        assert_eq!(val, Some(200.0));
-        assert_eq!(status, "ok");
-
-        // NxFDivAnn, FDivAnn が None → DivAnn を使用
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", None, None, Some("75.0"))]);
-        assert_eq!(val, Some(75.0));
-        assert_eq!(status, "ok");
-
-        // NxFDivAnn が空文字 → FDivAnn にフォールバック
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", Some(""), Some("100.0"), None)]);
-        assert_eq!(val, Some(100.0));
-        assert_eq!(status, "ok");
-
-        // 全フィールドが空文字 → zero
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", Some(""), Some(""), Some(""))]);
-        assert_eq!(val, Some(0.0));
-        assert_eq!(status, "zero");
-
-        // NxFDivAnn が無効値 → FDivAnn にフォールバック
-        let (val, status) =
-            extract_dividend(&[make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)]);
-        assert_eq!(val, Some(100.0));
-        assert_eq!(status, "ok");
-
-        // データなし → ゼロ配当
-        let (val, status) = extract_dividend(&[]);
-        assert_eq!(val, Some(0.0));
-        assert_eq!(status, "zero");
-
-        // 開示日が新しいほうを優先
-        let data = vec![
-            make_summary("2023-01-01", None, None, Some("30.0")),
-            make_summary("2024-01-01", None, None, Some("60.0")),
+        #[rustfmt::skip]
+        let dividend_cases = [
+            (vec![make_summary("2024-01-01", Some("100.0"), None, None)], (Some(100.0), "ok")),
+            (vec![make_summary("2024-01-01", Some("0.0"), None, None)], (Some(0.0), "zero")),
+            (vec![make_summary("2024-01-01", Some("200.0"), Some("100.0"), Some("50.0"))], (Some(200.0), "ok")),
+            (vec![make_summary("2024-01-01", None, None, Some("75.0"))], (Some(75.0), "ok")),
+            (vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)], (Some(100.0), "ok")),
+            (vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))], (Some(0.0), "zero")),
+            (vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)], (Some(100.0), "ok")),
+            (vec![], (Some(0.0), "zero")),
         ];
-        let (val, _) = extract_dividend(&data);
-        assert_eq!(val, Some(60.0));
+        for (data, expected) in dividend_cases {
+            let (value, status) = extract_dividend(&data);
+            assert_eq!((value, status.as_str()), expected);
+        }
+
+        #[rustfmt::skip]
+        assert_eq!(extract_dividend(&[make_summary("2023-01-01", None, None, Some("30.0")), make_summary("2024-01-01", None, None, Some("60.0"))]).0, Some(60.0));
 
         let now = Utc::now();
         let past = Some(now - chrono::Duration::hours(1));
         let future = Some(now + chrono::Duration::days(7));
-        // pending は stale_at=NULL でも is_stale=false（取得中のため）
-        assert!(!compute_is_stale("pending", None, now));
-        // error は stale_at=NULL → 即再取得対象
-        assert!(compute_is_stale("error", None, now));
-        // ok で stale_at が過去 → stale
-        assert!(compute_is_stale("ok", past, now));
-        // ok で stale_at が未来 → 有効
-        assert!(!compute_is_stale("ok", future, now));
-        // ok で stale_at=NULL → stale
-        assert!(compute_is_stale("ok", None, now));
+        for (status, stale_at, expected) in [
+            ("pending", None, false),
+            ("error", None, true),
+            ("ok", past, true),
+            ("ok", future, false),
+            ("ok", None, true),
+        ] {
+            assert_eq!(compute_is_stale(status, stale_at, now), expected);
+        }
     }
 }
