@@ -78,3 +78,4 @@ iteration	commit	metric	status	description
 84	0b5db86	6285	kept	csv_domain/csv_import/security/stock/tests: テスト圧縮で 103 行削減
 85	c0c8194	6175	kept	テスト圧縮で 110 行削減
 86	4913d2b	6103	kept	use圧縮/csv_util/ignored テスト共通化で 72 行削減
+87	1eaab4e	6028	kept	rustfmt::skip 重複削除で 75 行削減

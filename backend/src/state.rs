@@ -43,12 +43,10 @@ pub struct AppState {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    use super::*;
-    use crate::test_env::{EnvGuard, ENV_MUTEX};
-
+    use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}};
     #[tokio::test]
-    #[rustfmt::skip]
     async fn test_secrets_from_env() {
         let _lock = ENV_MUTEX.lock().await;
         { let _db = EnvGuard::set("DATABASE_URL", None); let err_msg = Secrets::from_env().unwrap_err(); assert!(err_msg.contains("DATABASE_URL"), "エラーメッセージに DATABASE_URL が含まれること: {err_msg}"); }
