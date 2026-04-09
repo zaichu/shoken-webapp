@@ -242,54 +242,17 @@ mod tests {
 
     const BODY_LIMIT: usize = 1024 * 1024;
 
-    fn make_test_state() -> AppState {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = connect_pool_lazy(database_url, 1).expect("pool");
-        let secrets = Arc::new(Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
+    #[rustfmt::skip]
+    fn make_test_state() -> AppState { let database_url = "postgresql://user:password@localhost/test_db"; let pool = connect_pool_lazy(database_url, 1).expect("pool"); let secrets = Arc::new(Secrets { database_url: database_url.to_string(), jquants_api_key: None, google_client_id: None, google_client_secret: None, frontend_url: "http://localhost:8080".to_string() }); AppState { pool, secrets, client: Client::new(), dividend_cache: crate::state::DividendCacheState::default() } }
 
-        AppState {
-            pool,
-            secrets,
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        }
-    }
+    #[rustfmt::skip]
+    fn test_app() -> Router { let config = Config { auth_rate_limit_rps: 0, jquants_rate_limit_rps: 0, ..Config::default() }; app_router(make_test_state(), &config) }
 
-    fn test_app() -> Router {
-        let config = Config {
-            auth_rate_limit_rps: 0,
-            jquants_rate_limit_rps: 0,
-            ..Config::default()
-        };
+    #[rustfmt::skip]
+    async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T { let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap(); serde_json::from_slice(&body).unwrap() }
 
-        app_router(make_test_state(), &config)
-    }
-
-    async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
-        let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
-        serde_json::from_slice(&body).unwrap()
-    }
-
-    async fn request_json<T: DeserializeOwned>(method: &str, uri: &str) -> (StatusCode, T) {
-        let response = test_app()
-            .oneshot(
-                Request::builder()
-                    .method(method)
-                    .uri(uri)
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let status = response.status();
-        (status, read_json_response(response).await)
-    }
+    #[rustfmt::skip]
+    async fn request_json<T: DeserializeOwned>(method: &str, uri: &str) -> (StatusCode, T) { let response = test_app().oneshot(Request::builder().method(method).uri(uri).body(Body::empty()).unwrap()).await.unwrap(); let status = response.status(); (status, read_json_response(response).await) }
 
     #[tokio::test]
     async fn test_auth_endpoints_without_cookie() {
