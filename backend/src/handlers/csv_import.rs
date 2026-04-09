@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_read_csv_file_bytes_valid() {
+    async fn test_read_csv_file_bytes() {
         let content = "symbol,amount\n7203,100\n";
         let response = test_app()
             .oneshot(multipart_request("file", Some("positions.csv"), content))
@@ -195,10 +195,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
         assert_eq!(body.as_ref(), content.as_bytes());
-    }
-
-    #[tokio::test]
-    async fn test_read_csv_file_bytes_validation_errors() {
         for (field, filename, msg_fragment) in [
             ("other", Some("positions.csv"), Some("fileフィールド")),
             ("file", Some("positions.txt"), Some(".csv")),

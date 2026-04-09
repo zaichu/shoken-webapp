@@ -230,10 +230,7 @@ mod tests {
         ] {
             assert_eq!(normalize_security_name(input), expected);
         }
-    }
 
-    #[test]
-    fn test_parse_required() {
         let record = csv::StringRecord::from(vec!["", "value"]);
         let header_map = make_header_map(&["col_a", "col_b"]);
         let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
