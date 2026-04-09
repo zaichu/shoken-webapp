@@ -55,3 +55,4 @@ iteration	commit	metric	status	description
 61	e77748e	7692	reverted	csv_import: 長い tuple 比較は rustfmt 展開で 3 行増えたためリバート
 62	acacae3	7685	kept	csv_import: テスト内容と重複するコメント削除で 4 行削減
 63	8b0fcb5	7680	kept	config: 環境別 CORS テストのコメント削除で 5 行削減
+64	919097e	7675	kept	stock/tests: 重複コメント削除で 5 行削減
