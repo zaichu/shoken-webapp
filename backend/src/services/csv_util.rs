@@ -148,10 +148,8 @@ pub fn parse_required_date(
 
 #[cfg(test)] #[rustfmt::skip] mod tests {
     use {super::*, rust_decimal_macros::dec};
-    fn time_n(label: &str, n: usize, mut f: impl FnMut()) { let start = std::time::Instant::now(); for _ in 0..n { f(); } println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0); }
-    fn make_header_map(cols: &[&str]) -> HashMap<String, usize> { cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect() }
-    #[test]
-    fn test_parse_utilities() {
+    fn time_n(label: &str, n: usize, mut f: impl FnMut()) { let start = std::time::Instant::now(); for _ in 0..n { f(); } println!("[timing] {} × {}回: {:.2}ms", label, n, start.elapsed().as_secs_f64() * 1000.0); } fn make_header_map(cols: &[&str]) -> HashMap<String, usize> { cols.iter().enumerate().map(|(i, col)| ((*col).to_string(), i)).collect() }
+    #[test] fn test_parse_utilities() {
         for (input, expected) in [("1,234", dec!(1234)), ("500", dec!(500)), ("(500)", dec!(-500)), ("", Decimal::ZERO), ("-", Decimal::ZERO)] { assert_eq!(parse_number(input).unwrap(), expected); }
         let (record, header_map) = (csv::StringRecord::from(vec!["", "value"]), make_header_map(&["empty", "filled"]));
         for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] { assert_eq!(parse_optional_string(&record, &header_map, col), expected); }
@@ -172,14 +170,9 @@ pub fn parse_required_date(
         let (record, hm) = (csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]), make_header_map(&["invalid", "valid", "out_of_range"]));
         assert_eq!(parse_required_date(&record, &hm, "invalid", 2).unwrap_err().row, 2); assert_eq!(parse_required_date(&record, &hm, "valid", 1).unwrap(), NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()); let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err(); assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
-    #[test]
-    #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
-    fn timing_csv_util() {
-        use encoding_rs::SHIFT_JIS; const ROWS: usize = 1_000;
-        let csv_utf8: String = { let mut s = String::from("日付,銘柄コード,金額\n"); for i in 0..ROWS { s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100)); } s };
-        let bytes_utf8 = csv_utf8.as_bytes();
-        let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8);
-        let bytes_sjis = bytes_sjis_cow.into_owned();
+    #[test] #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"] fn timing_csv_util() {
+        use encoding_rs::SHIFT_JIS; const ROWS: usize = 1_000; let csv_utf8: String = { let mut s = String::from("日付,銘柄コード,金額\n"); for i in 0..ROWS { s.push_str(&format!("2024/{:02}/{:02},1234,{}\n", (i % 12) + 1, (i % 28) + 1, i * 100)); } s };
+        let bytes_utf8 = csv_utf8.as_bytes(); let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8); let bytes_sjis = bytes_sjis_cow.into_owned();
         time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8))); });
         time_n(&format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS), 10, || { std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice()))); });
         let samples = ["1,234,567", "0", "(1,000)", "3.14159", "-"];
