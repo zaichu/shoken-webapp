@@ -82,3 +82,4 @@ iteration	commit	metric	status	description
 88	6f6aed8	5966	kept	テスト空行削除で 62 行削減
 89	8b8ae0e	5800	kept	auth/stock/user/asset_balance/shared: テスト圧縮で 166 行削減
 90	0edd7fb	5690	kept	stock/tests/validated_json/errors: テスト圧縮で 110 行削減
+91	db0f51a	5656	kept	config/stock/csv_util/jquants: テスト圧縮で 34 行削減
