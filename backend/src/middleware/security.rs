@@ -128,13 +128,9 @@ pub async fn validate_origin(
 #[rustfmt::skip]
 mod tests {
     use {super::*, crate::test_env::{EnvGuard, ENV_MUTEX}, axum::{middleware, routing::post, Router}, tower::ServiceExt};
-
     fn test_app() -> Router { let allowed_origins = Arc::new(vec!["https://shoken-webapp.vercel.app".to_string(), "http://localhost:8080".to_string(), "http://127.0.0.1:8080".to_string(), "http://[::1]:8080".to_string(), "http://localhost.:8080".to_string()]); Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } })) }
-
     fn security_headers_app() -> Router { Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(add_security_headers)) }
-
     async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode { let builder = headers.iter().fold(Request::builder().method(method).uri("/test"), |builder, (name, value)| builder.header(*name, *value)); app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap().status() }
-
     #[tokio::test]
     async fn test_validate_origin() {
         let origin_cases = [("http://localhost:8080/some/page", Some("http://localhost:8080")), ("https://shoken-webapp.vercel.app", Some("https://shoken-webapp.vercel.app")), ("https://shoken-webapp.vercel.app.evil.com/steal", Some("https://shoken-webapp.vercel.app.evil.com"))];
@@ -151,9 +147,7 @@ mod tests {
         let app = Router::new().route("/test", axum::routing::delete(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } }));
         assert_eq!(oneshot_status(app, Method::DELETE, &[("origin", "https://evil.example.com")]).await, StatusCode::FORBIDDEN);
     }
-
     async fn security_headers_response() -> axum::response::Response { security_headers_app().oneshot(Request::builder().method(Method::POST).uri("/test").body(Body::empty()).unwrap()).await.unwrap() }
-
     #[tokio::test]
     async fn test_security_headers() {
         { let _lock = ENV_MUTEX.lock().await; let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None); let _backend_url = EnvGuard::set("BACKEND_URL", None); let resp = security_headers_response().await; for (name, expected) in [("X-Content-Type-Options", "nosniff"), ("X-Frame-Options", "DENY"), ("Referrer-Policy", "strict-origin-when-cross-origin"), ("Content-Security-Policy", "default-src 'none'")] { assert_eq!(resp.headers().get(name).unwrap(), expected); } assert!(resp.headers().get("Strict-Transport-Security").is_none(), "secure cookie 無効時は HSTS を付与しない"); }
