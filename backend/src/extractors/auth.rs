@@ -51,26 +51,9 @@ where
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
-    use super::AuthenticatedUser;
-    use crate::models::user::User;
-    use chrono::Utc;
-    use uuid::Uuid;
-
+    use {super::AuthenticatedUser, crate::models::user::User, chrono::Utc, uuid::Uuid};
     #[test]
-    fn id_returns_wrapped_user_id() {
-        let user = User {
-            id: Uuid::new_v4(),
-            google_id: "google-123".to_string(),
-            email: "test@example.com".to_string(),
-            name: Some("Test User".to_string()),
-            picture_url: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
-        let authenticated_user = AuthenticatedUser(user.clone());
-
-        assert_eq!(authenticated_user.id(), user.id);
-    }
+    fn id_returns_wrapped_user_id() { let user = User { id: Uuid::new_v4(), google_id: "google-123".to_string(), email: "test@example.com".to_string(), name: Some("Test User".to_string()), picture_url: None, created_at: Utc::now(), updated_at: Utc::now() }; assert_eq!(AuthenticatedUser(user.clone()).id(), user.id); }
 }
