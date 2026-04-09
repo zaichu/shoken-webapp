@@ -131,38 +131,14 @@ mod tests {
     use axum::{middleware, routing::post, Router};
     use tower::ServiceExt;
 
-    fn test_app() -> Router {
-        let allowed_origins = Arc::new(vec![
-            "https://shoken-webapp.vercel.app".to_string(),
-            "http://localhost:8080".to_string(),
-            "http://127.0.0.1:8080".to_string(),
-            "http://[::1]:8080".to_string(),
-            "http://localhost.:8080".to_string(),
-        ]);
-        Router::new()
-            .route("/test", post(|| async { "ok" }))
-            .layer(middleware::from_fn(move |req, next| {
-                let origins = allowed_origins.clone();
-                async move { validate_origin(origins, req, next).await }
-            }))
-    }
+    #[rustfmt::skip]
+    fn test_app() -> Router { let allowed_origins = Arc::new(vec!["https://shoken-webapp.vercel.app".to_string(), "http://localhost:8080".to_string(), "http://127.0.0.1:8080".to_string(), "http://[::1]:8080".to_string(), "http://localhost.:8080".to_string()]); Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(move |req, next| { let origins = allowed_origins.clone(); async move { validate_origin(origins, req, next).await } })) }
 
-    fn security_headers_app() -> Router {
-        Router::new()
-            .route("/test", post(|| async { "ok" }))
-            .layer(middleware::from_fn(add_security_headers))
-    }
+    #[rustfmt::skip]
+    fn security_headers_app() -> Router { Router::new().route("/test", post(|| async { "ok" })).layer(middleware::from_fn(add_security_headers)) }
 
-    async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode {
-        let mut builder = Request::builder().method(method).uri("/test");
-        for (name, value) in headers {
-            builder = builder.header(*name, *value);
-        }
-        app.oneshot(builder.body(Body::empty()).unwrap())
-            .await
-            .unwrap()
-            .status()
-    }
+    #[rustfmt::skip]
+    async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode { let builder = headers.iter().fold(Request::builder().method(method).uri("/test"), |builder, (name, value)| builder.header(*name, *value)); app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap().status() }
 
     #[tokio::test]
     async fn test_validate_origin() {
