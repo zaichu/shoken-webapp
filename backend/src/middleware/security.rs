@@ -138,7 +138,6 @@ mod tests {
             assert_eq!(extract_origin(input), expected);
         }
         assert_ne!(oneshot_status(test_app(), Method::GET, &[]).await, StatusCode::FORBIDDEN);
-
         let cases: &[(&[(&str, &str)], StatusCode)] = &[(&[("origin", "http://localhost:8080")], StatusCode::OK), (&[("origin", "https://evil.example.com")], StatusCode::FORBIDDEN), (&[], StatusCode::OK), (&[("referer", "http://localhost:8080/some/page")], StatusCode::OK), (&[("referer", "https://evil.example.com/attack")], StatusCode::FORBIDDEN), (&[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")], StatusCode::FORBIDDEN), (&[("origin", "https://shoken-webapp.vercel.app")], StatusCode::OK)];
         for &(headers, expected) in cases {
             assert_eq!(oneshot_status(test_app(), Method::POST, headers).await, expected);

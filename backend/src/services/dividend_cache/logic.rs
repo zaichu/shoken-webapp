@@ -44,9 +44,7 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
 mod tests {
     use super::*;
     use crate::models::jquants::FinSummaryData;
-
     fn make_summary(disc_date: &str, nx_div: Option<&str>, f_div: Option<&str>, div: Option<&str>) -> FinSummaryData { serde_json::from_value(serde_json::json!({ "DiscDate": disc_date, "Code": "1234", "DocType": "test", "NxFDivAnn": nx_div, "FDivAnn": f_div, "DivAnn": div, })).expect("FinSummaryData のパースに失敗") }
-
     #[test]
     fn test_extract_dividend() {
         let dividend_cases = [
@@ -63,12 +61,8 @@ mod tests {
             let (value, status) = extract_dividend(&data);
             assert_eq!((value, status.as_str()), expected);
         }
-
         assert_eq!(extract_dividend(&[make_summary("2023-01-01", None, None, Some("30.0")), make_summary("2024-01-01", None, None, Some("60.0"))]).0, Some(60.0));
-
-        let now = Utc::now();
-        let past = Some(now - chrono::Duration::hours(1));
-        let future = Some(now + chrono::Duration::days(7));
+        let now = Utc::now(); let past = Some(now - chrono::Duration::hours(1)); let future = Some(now + chrono::Duration::days(7));
         for (status, stale_at, expected) in [
             ("pending", None, false),
             ("error", None, true),
