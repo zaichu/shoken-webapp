@@ -1,13 +1,13 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
-import { DividendData } from '@/lib/interfaces/dividend';
-import { DomesticStockData } from '@/lib/interfaces/domesticStock';
-import { MutualfundData } from '@/lib/interfaces/mutualfund';
+import type { DividendApiData } from '@/lib/interfaces/dividend';
+import type { DomesticStockApiData } from '@/lib/interfaces/domesticStock';
+import type { MutualfundApiData } from '@/lib/interfaces/mutualfund';
 
 // 配当金API
 export const dividendApi = {
   list: () =>
-    apiClient.get<DividendData[]>('/dividends', { withCredentials: true }),
+    apiClient.get<DividendApiData[]>('/dividends', { withCredentials: true }),
 
   previewCsv: (file: File) => previewCsvFile('/dividends/csv/preview', file),
 
@@ -20,7 +20,7 @@ export const dividendApi = {
 // 国内株式API
 export const domesticStockApi = {
   list: () =>
-    apiClient.get<DomesticStockData[]>('/domestic-stocks', { withCredentials: true }),
+    apiClient.get<DomesticStockApiData[]>('/domestic-stocks', { withCredentials: true }),
 
   previewCsv: (file: File) => previewCsvFile('/domestic-stocks/csv/preview', file),
 
@@ -33,7 +33,7 @@ export const domesticStockApi = {
 // 投資信託API
 export const mutualfundApi = {
   list: () =>
-    apiClient.get<MutualfundData[]>('/mutualfunds', { withCredentials: true }),
+    apiClient.get<MutualfundApiData[]>('/mutualfunds', { withCredentials: true }),
 
   previewCsv: (file: File) => previewCsvFile('/mutualfunds/csv/preview', file),
 
