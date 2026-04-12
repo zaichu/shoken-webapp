@@ -21,8 +21,11 @@ vi.mock('@/lib/utils/formatters', async (importOriginal) => {
   };
 });
 
-const mockAssetBalanceData: AssetBalanceData[] = [
-  {
+function makeAssetBalanceData(overrides: Partial<AssetBalanceData> = {}): AssetBalanceData {
+  return {
+    id: 'asset-balance-1',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
     security_code: '7203',
     security_name: 'トヨタ自動車',
     shares: 100,
@@ -33,19 +36,24 @@ const mockAssetBalanceData: AssetBalanceData[] = [
     daily_change: 50,
     market_value: 260000,
     profit_loss_rate: 4.0,
-  },
-  {
+    ...overrides,
+  };
+}
+
+const mockAssetBalanceData: AssetBalanceData[] = [
+  makeAssetBalanceData(),
+  makeAssetBalanceData({
+    id: 'asset-balance-2',
     security_code: '6758',
     security_name: 'ソニーグループ',
     shares: 50,
-    executing_shares: 0,
     average_purchase_price: 12000,
     total_purchase_amount: 600000,
     current_price: 11500,
     daily_change: -100,
     market_value: 575000,
     profit_loss_rate: -4.17,
-  },
+  }),
 ];
 
 

@@ -11,6 +11,9 @@ vi.mock('@/components/atoms/SecurityCodeLink', () => ({
 const createMockData = (overrides: Partial<AssetBalanceData>[] = []): AssetBalanceData[] => {
   const defaults: AssetBalanceData[] = [
     {
+      id: 'asset-balance-1',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
       security_code: '7203',
       security_name: 'トヨタ自動車',
       shares: 100,
@@ -23,6 +26,9 @@ const createMockData = (overrides: Partial<AssetBalanceData>[] = []): AssetBalan
       profit_loss_rate: 4.0,
     },
     {
+      id: 'asset-balance-2',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
       security_code: '6758',
       security_name: 'ソニーグループ',
       shares: 50,
@@ -98,6 +104,9 @@ describe('AssetPortfolioSummary', () => {
   it('取得総額がnull/undefinedの場合は0として扱う', () => {
     const mockData: AssetBalanceData[] = [
       {
+        id: 'asset-balance-1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         security_code: '7203',
         security_name: 'トヨタ自動車',
         shares: 100,
@@ -110,6 +119,9 @@ describe('AssetPortfolioSummary', () => {
         profit_loss_rate: 4.0,
       },
       {
+        id: 'asset-balance-2',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         security_code: '6758',
         security_name: 'ソニーグループ',
         shares: 50,
@@ -133,6 +145,9 @@ describe('AssetPortfolioSummary', () => {
   it('security_nameが空の場合security_codeをグラフ名に使用する', () => {
     const mockData: AssetBalanceData[] = [
       {
+        id: 'asset-balance-1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         security_code: '7203',
         security_name: '',
         shares: 100,
@@ -154,6 +169,9 @@ describe('AssetPortfolioSummary', () => {
   it('合計取得総額がマイナスの場合data-negative属性が付く', () => {
     const mockData: AssetBalanceData[] = [
       {
+        id: 'asset-balance-1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         security_code: '7203',
         security_name: 'テスト銘柄',
         shares: 100,

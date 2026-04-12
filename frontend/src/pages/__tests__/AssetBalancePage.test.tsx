@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AssetBalancePage } from '../AssetBalance';
 import { assetBalanceQueryKeys } from '@/features/assetBalance/queryKeys';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData, AssetBalanceData } from '@/lib/interfaces/assetBalance';
 
 // ────────────────────────────────────────────────────────
 // モック定義
@@ -166,7 +166,10 @@ function renderWithQuery(ui: React.ReactElement, qc?: QueryClient) {
 }
 
 // DBデータの型に合わせたモック行
-const mockDbRow: AssetBalanceData = {
+const mockPreviewRow: AssetBalanceData = {
+  id: 'asset-balance-preview-1',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
   security_code: '7203',
   security_name: 'トヨタ自動車',
   shares: 100,
@@ -179,7 +182,14 @@ const mockDbRow: AssetBalanceData = {
   profit_loss_rate: 4.0,
 };
 
-const secondMockDbRow: AssetBalanceData = {
+const mockDbRow: AssetBalanceApiData = {
+  ...mockPreviewRow,
+  id: 'asset-balance-1',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
+
+const secondMockDbRow: AssetBalanceApiData = {
   ...mockDbRow,
   security_code: '6758',
   security_name: 'ソニーグループ',
@@ -265,7 +275,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
       total_rows: 2,
       valid_rows: 2,
       errors: [],
-      rows: [mockDbRow, { ...mockDbRow, security_code: '6758' }],
+      rows: [mockPreviewRow, { ...mockPreviewRow, security_code: '6758' }],
     } as never);
     vi.mocked(assetBalanceApiModule.assetBalanceApi.uploadCsv).mockResolvedValue({
       inserted: 2,
@@ -409,7 +419,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
       total_rows: 1,
       valid_rows: 1,
       errors: [],
-      rows: [mockDbRow],
+      rows: [mockPreviewRow],
     } as never);
     vi.mocked(assetBalanceApiModule.assetBalanceApi.uploadCsv).mockReturnValue(
       new Promise((resolve) => {

@@ -1,28 +1,25 @@
-import { ReceiptBase, TaxCalculations } from './receipt';
+import type { components } from '@/generated/api';
 
-export interface DomesticStockData extends ReceiptBase {
-    trade_date: Date;
-    security_code: string;
-    security_name: string;
-    account: string;
-    shares: number;
-    asked_price: number;
-    proceeds: number;
-    purchase_price: number;
-    realized_profit_and_loss: number;
-    taxes: number;
-    realized_profit_and_loss_after_tax: number;
-    // インデックスシグネチャを追加して汎用的なアクセスを許可
-    [key: string]: unknown;
+import type { ReceiptBase, TaxCalculations } from './receipt';
+
+export type DomesticStockApiData = components['schemas']['DomesticStock'];
+
+export interface DomesticStockData
+  extends Omit<
+      DomesticStockApiData,
+      'trade_date' | 'settlement_date' | 'id' | 'created_at' | 'updated_at'
+    >,
+    ReceiptBase {
+  trade_date: Date;
+  [key: string]: unknown;
 }
 
 export interface DomesticStockCalculations extends TaxCalculations {
-    total_realized_profit_and_loss: number;
-    total_realized_profit_and_loss_after_tax: number;
+  total_realized_profit_and_loss: number;
+  total_realized_profit_and_loss_after_tax: number;
 }
 
 export interface DomesticStockSummary extends DomesticStockCalculations {
-    filter: string;
-    // インデックスシグネチャを追加して汎用的なアクセスを許可
-    [key: string]: unknown;
+  filter: string;
+  [key: string]: unknown;
 }

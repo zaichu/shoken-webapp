@@ -1,10 +1,10 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData } from '@/lib/interfaces/assetBalance';
 
 export const assetBalanceApi = {
   list: () =>
-    apiClient.get<AssetBalanceData[]>('/asset-balances', { withCredentials: true }),
+    apiClient.get<AssetBalanceApiData[]>('/asset-balances', { withCredentials: true }),
 
   previewCsv: (file: File) => previewCsvFile('/asset-balances/csv/preview', file),
 

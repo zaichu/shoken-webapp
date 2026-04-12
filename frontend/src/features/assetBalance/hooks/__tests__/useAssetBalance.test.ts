@@ -12,7 +12,7 @@ import { useAssetBalance } from '../useAssetBalance';
 import { assetBalanceQueryKeys } from '../../queryKeys';
 import * as assetBalanceApiModule from '@/features/assetBalance/api/assetBalanceApi';
 import * as authHook from '@/features/auth/hooks/useAuth';
-import type { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData } from '@/lib/interfaces/assetBalance';
 
 // ────────────────────────────────────────────────────────
 // モック
@@ -55,8 +55,11 @@ function makeWrapper(qc: QueryClient) {
   return Wrapper;
 }
 
-function makeAssetBalanceData(overrides: Partial<AssetBalanceData> = {}): AssetBalanceData {
+function makeAssetBalanceData(overrides: Partial<AssetBalanceApiData> = {}): AssetBalanceApiData {
   return {
+    id: 'asset-balance-1',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
     security_code: '7203',
     security_name: 'トヨタ自動車',
     shares: 100,
@@ -131,6 +134,7 @@ describe('useAssetBalance', () => {
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
       makeAssetBalanceData({ security_code: '7203' }),
       makeAssetBalanceData({
+        id: 'asset-balance-2',
         security_code: '6758',
         security_name: 'ソニーグループ',
       }),
@@ -156,6 +160,7 @@ describe('useAssetBalance', () => {
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
       makeAssetBalanceData({ security_code: '7203', market_value: 210000 }),
       makeAssetBalanceData({
+        id: 'asset-balance-2',
         security_code: '6758',
         security_name: 'ソニーグループ',
         market_value: 180000,
@@ -189,7 +194,7 @@ describe('useAssetBalance', () => {
 
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
       makeAssetBalanceData({ security_code: '7203', market_value: 100000 }),
-      makeAssetBalanceData({ security_code: '6758', market_value: 0 }),
+      makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', market_value: 0 }),
     ]);
 
     const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
