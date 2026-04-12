@@ -1,4 +1,4 @@
-import { MutualfundData, MutualfundCalculations } from '@/lib/interfaces/mutualfund';
+import type { MutualfundCalculations, MutualfundData } from '@/features/receipt/types';
 
 /**
  * 投資信託データの合計を計算

@@ -1,4 +1,4 @@
-import type { DividendApiData, DividendData } from '@/lib/interfaces/dividend';
+import type { DividendApiData, DividendData } from '@/features/receipt/types';
 
 type DividendSource = Partial<DividendApiData> | Record<string, unknown>;
 

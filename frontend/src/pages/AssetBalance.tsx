@@ -8,7 +8,7 @@ import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceData } from '@/types/api';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useAssetBalanceDataSource } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';

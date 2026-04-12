@@ -5,7 +5,7 @@ import { formatCurrency, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { useAssetBalance } from '@/features/assetBalance/hooks/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
-import { DividendData } from '@/lib/interfaces/dividend';
+import type { DividendData } from '@/features/receipt/types';
 
 const AssetBadge = () => (
   <span className="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">

@@ -1,4 +1,4 @@
-import type { DomesticStockApiData, DomesticStockData } from '@/lib/interfaces/domesticStock';
+import type { DomesticStockApiData, DomesticStockData } from '@/features/receipt/types';
 
 type DomesticStockSource = Partial<DomesticStockApiData> | Record<string, unknown>;
 

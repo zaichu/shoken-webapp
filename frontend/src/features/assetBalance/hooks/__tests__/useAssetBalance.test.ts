@@ -12,7 +12,7 @@ import { useAssetBalance } from '../useAssetBalance';
 import { assetBalanceQueryKeys } from '../../queryKeys';
 import * as assetBalanceApiModule from '@/features/assetBalance/api/assetBalanceApi';
 import * as authHook from '@/features/auth/hooks/useAuth';
-import type { AssetBalanceApiData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData } from '@/types/api';
 
 // ────────────────────────────────────────────────────────
 // モック

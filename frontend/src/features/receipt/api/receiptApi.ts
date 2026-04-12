@@ -1,8 +1,10 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
-import type { DividendApiData } from '@/lib/interfaces/dividend';
-import type { DomesticStockApiData } from '@/lib/interfaces/domesticStock';
-import type { MutualfundApiData } from '@/lib/interfaces/mutualfund';
+import type {
+  DividendApiData,
+  DomesticStockApiData,
+  MutualfundApiData,
+} from '@/features/receipt/types';
 
 // 配当金API
 export const dividendApi = {

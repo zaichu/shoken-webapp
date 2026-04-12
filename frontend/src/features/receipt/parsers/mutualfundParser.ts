@@ -1,4 +1,4 @@
-import type { MutualfundApiData, MutualfundData } from '@/lib/interfaces/mutualfund';
+import type { MutualfundApiData, MutualfundData } from '@/features/receipt/types';
 
 type MutualfundSource = Partial<MutualfundApiData> | Record<string, unknown>;
 

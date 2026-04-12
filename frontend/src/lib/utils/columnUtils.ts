@@ -1,4 +1,4 @@
-import { TableColumnConfig } from '@/lib/interfaces/receipt';
+import type { TableColumnConfig } from '@/features/receipt/types';
 
 /**
  * 列の前面配置ルール

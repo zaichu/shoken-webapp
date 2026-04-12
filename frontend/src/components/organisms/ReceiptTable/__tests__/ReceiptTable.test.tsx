@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ReceiptTable } from '../ReceiptTable';
-import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 
 // ResizeObserver のモック（class形式で定義）
 class MockResizeObserver {

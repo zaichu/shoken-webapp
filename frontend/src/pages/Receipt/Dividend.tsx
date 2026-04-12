@@ -3,8 +3,11 @@ import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeade
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import React from 'react';
-import { DividendData } from '@/lib/interfaces/dividend';
-import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import type {
+    DividendData,
+    SummaryColumnConfig,
+    TableColumnConfig
+} from '@/features/receipt/types';
 import {
     createSearchOptions,
     groupAndSummarizeData

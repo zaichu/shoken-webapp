@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MutualfundData } from '@/lib/interfaces/mutualfund';
+import type { MutualfundData } from '@/features/receipt/types';
 
 import { calculateMutualfund } from '../mutualfundCalculations';
 
