@@ -1,8 +1,8 @@
 import {
-    DomesticStockData,
     DomesticStockCalculations,
+    DomesticStockData,
     DomesticStockSummary
-} from '@/lib/interfaces/domesticStock';
+} from '@/features/receipt/types';
 import { TAX_RATE, createISODateKey } from '@/lib/utils/formatters';
 
 /**

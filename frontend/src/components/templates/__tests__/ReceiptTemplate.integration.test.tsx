@@ -3,7 +3,7 @@ import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { ReceiptTemplate } from '../ReceiptTemplate';
 import { ReceiptTable } from '../../organisms/ReceiptTable/ReceiptTable';
-import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 
 // ResizeObserverのモック（class形式で定義）
 class MockResizeObserver {

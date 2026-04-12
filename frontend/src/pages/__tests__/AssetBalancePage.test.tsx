@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AssetBalancePage } from '../AssetBalance';
 import { assetBalanceQueryKeys } from '@/features/assetBalance/queryKeys';
-import type { AssetBalanceApiData, AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData, AssetBalanceData } from '@/types/api';
 
 // ────────────────────────────────────────────────────────
 // モック定義

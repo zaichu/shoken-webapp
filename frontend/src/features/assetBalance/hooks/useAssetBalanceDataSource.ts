@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';

@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
-import type { AssetBalanceApiData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceApiData } from '@/types/api';
 
 export const assetBalanceApi = {
   list: () =>

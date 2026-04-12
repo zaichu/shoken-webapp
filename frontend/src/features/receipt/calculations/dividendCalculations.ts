@@ -1,4 +1,4 @@
-import { DividendData, DividendCalculations } from '@/lib/interfaces/dividend';
+import type { DividendCalculations, DividendData } from '@/features/receipt/types';
 
 /**
  * 配当データの合計を計算

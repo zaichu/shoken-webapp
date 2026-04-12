@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceData } from '@/types/api';
 import { AssetBalanceInfo } from '../AssetBalance';
 import { waitOpts } from '@/test/utils';
 

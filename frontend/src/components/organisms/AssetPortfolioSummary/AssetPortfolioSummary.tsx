@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardBody } from '@/components/atoms/Card';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceData } from '@/types/api';
 import {
   formatCurrency,
   formatPercentageValue,

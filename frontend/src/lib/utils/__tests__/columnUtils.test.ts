@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { reorderColumnsBySearch, ColumnReorderRule } from '../columnUtils';
-import { TableColumnConfig } from '@/lib/interfaces/receipt';
+import type { TableColumnConfig } from '@/features/receipt/types';
 
 interface TestItem {
     id: number;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/atoms/Table';
-import { TableColumnConfig, SummaryColumnConfig } from '@/lib/interfaces/receipt';
+import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 import { useForceResize } from '@/hooks/common/useResize';
 import { cn } from '@/lib/utils/classNames';
 

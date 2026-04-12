@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomesticStockData, DomesticStockSummary } from '@/lib/interfaces/domesticStock';
+import type { DomesticStockData, DomesticStockSummary } from '@/features/receipt/types';
 
 import {
   calculateDailyData,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DividendData } from '@/lib/interfaces/dividend';
+import type { DividendData } from '@/features/receipt/types';
 
 import { calculateDividends } from '../dividendCalculations';
 

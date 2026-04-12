@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import { AssetPortfolioSummary } from '../AssetPortfolioSummary';
-import { AssetBalanceData } from '@/lib/interfaces/assetBalance';
+import type { AssetBalanceData } from '@/types/api';
 
 // SecurityCodeLinkのモック
 vi.mock('@/components/atoms/SecurityCodeLink', () => ({
