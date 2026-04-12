@@ -1,5 +1,5 @@
 import { Alert } from '@/components/atoms/Alert';
-import { type CsvPreview } from './receiptsReducer';
+import type { CsvPreview } from '../reducer';
 
 interface ReceiptsAlertsProps {
   dbError: string | null | undefined;
@@ -34,8 +34,10 @@ export function ReceiptsAlerts({
             </p>
             {csvPreview.errors.length > 0 && (
               <ul className="mt-2 list-disc list-inside text-sm space-y-1">
-                {csvPreview.errors.map((e) => (
-                  <li key={e.row}>{e.row}行目: {e.message}</li>
+                {csvPreview.errors.map((error) => (
+                  <li key={error.row}>
+                    {error.row}行目: {error.message}
+                  </li>
                 ))}
               </ul>
             )}

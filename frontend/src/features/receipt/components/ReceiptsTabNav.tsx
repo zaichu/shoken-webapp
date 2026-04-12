@@ -1,5 +1,5 @@
 import React from 'react';
-import { type ReceiptsType } from './receiptsReducer';
+import type { ReceiptsType } from '../reducer';
 
 const TAB_LABEL: Record<ReceiptsType, string> = {
   dividend: '配当金',
@@ -13,7 +13,7 @@ interface ReceiptsTabNavProps {
   receiptsType: ReceiptsType;
   tablistRef: React.RefObject<HTMLDivElement | null>;
   onTabChange: (tab: ReceiptsType) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
   counts: Record<ReceiptsType, number>;
 }
 
@@ -54,7 +54,9 @@ export function ReceiptsTabNav({
               <span
                 data-testid={`tab-count-${tab}`}
                 className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  isActive ? 'border border-slate-200 bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-500'
+                  isActive
+                    ? 'border border-slate-200 bg-slate-100 text-slate-700'
+                    : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {counts[tab]}

@@ -11,8 +11,8 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { makeQueryClient, renderWithQuery, waitOpts } from '@/test/utils';
 
-import { receiptsReducer, initialState } from '../receiptsReducer';
-import type { ReceiptsState } from '../receiptsReducer';
+import { initialState, receiptsReducer } from '@/features/receipt/reducer';
+import type { ReceiptsState } from '@/features/receipt/reducer';
 import { ReceiptsPage } from '../Receipts';
 import { receiptQueryKeys } from '@/features/receipt/queryKeys';
 import * as receiptParsers from '@/features/receipt/parsers';
