@@ -3,7 +3,7 @@ import { CsvSaveResultNotice } from '@/components/molecules/CsvSaveResultNotice'
 import { Button } from '@/components/atoms/Button';
 import type { CsvUploadResult } from '@/lib/csvImport';
 
-interface DataActionRailProps {
+export interface DataActionRailProps {
   // ファイル入力
   onFileSelect: (file: File) => void;
   selectedFileName?: string;

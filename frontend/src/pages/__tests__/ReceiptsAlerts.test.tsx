@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ReceiptsAlerts } from '../ReceiptsAlerts';
-import type { CsvPreview } from '../receiptsReducer';
+import { ReceiptsAlerts } from '@/features/receipt/components/ReceiptsAlerts';
+import type { CsvPreview } from '@/features/receipt/reducer';
 
 function makeCsvPreview(overrides: Partial<CsvPreview> = {}): CsvPreview {
   return {

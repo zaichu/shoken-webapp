@@ -31,7 +31,7 @@ export interface ReceiptsState {
   showDeleteConfirm: boolean;
 }
 
-type ReceiptsAction =
+export type ReceiptsAction =
   | { type: 'SET_RECEIPTS_TYPE'; payload: ReceiptsType }
   | { type: 'SET_RAW_FILE'; receiptsType: ReceiptsType; payload: File | null }
   | { type: 'SET_CSV_PREVIEW'; receiptsType: ReceiptsType; payload: CsvPreview | null }
@@ -48,7 +48,10 @@ export const initialState: ReceiptsState = {
   showDeleteConfirm: false,
 };
 
-export function receiptsReducer(state: ReceiptsState, action: ReceiptsAction): ReceiptsState {
+export function receiptsReducer(
+  state: ReceiptsState,
+  action: ReceiptsAction,
+): ReceiptsState {
   switch (action.type) {
     case 'SET_RECEIPTS_TYPE':
       return { ...state, receiptsType: action.payload };
@@ -56,7 +59,6 @@ export function receiptsReducer(state: ReceiptsState, action: ReceiptsAction): R
       return {
         ...state,
         rawFiles: { ...state.rawFiles, [action.receiptsType]: action.payload },
-        // 新しいファイルを選択したら前回の結果とプレビューをクリア
         csvPreviews: { ...state.csvPreviews, [action.receiptsType]: null },
         lastImportResults: { ...state.lastImportResults, [action.receiptsType]: null },
       };

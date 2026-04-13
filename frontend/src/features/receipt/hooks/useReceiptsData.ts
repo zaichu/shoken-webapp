@@ -7,7 +7,7 @@ import {
   transformDBMutualfund,
 } from '../parsers';
 import { receiptQueryKeys, clearReceiptsCache } from '../queryKeys';
-import { type ReceiptsType } from '@/pages/receiptsReducer';
+import { type ReceiptsType } from '../reducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
