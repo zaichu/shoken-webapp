@@ -7,7 +7,15 @@ import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 import type { CsvUploadResult } from '@/lib/csvImport';
 
-interface UseAssetBalanceDataSourceResult {
+interface AssetBalanceDataSourceAuthContext {
+  isAuthenticated: boolean;
+  authLoading: boolean;
+  onLogout: ReturnType<typeof useAuth>['onLogout'];
+  userId: string;
+  registerLogoutReset?: boolean;
+}
+
+export interface UseAssetBalanceDataSourceResult {
   // データ
   dbData: AssetBalanceData[];
   previewRows: AssetBalanceData[];
@@ -26,16 +34,21 @@ interface UseAssetBalanceDataSourceResult {
   handleFileSelect: (file: File) => void;
   handleSaveToDB: () => void;
   handleDeleteAll: () => Promise<void>;
+  resetState: () => void;
 }
 
 /**
  * 保有銘柄データソースを TanStack Query で管理するフック
  * ファイル選択時にバックエンドプレビューAPIを呼び出し、行データを取得する
  */
-export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
-  const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
+export function useAssetBalanceDataSourceCore({
+  isAuthenticated,
+  authLoading,
+  onLogout,
+  userId,
+  registerLogoutReset = true,
+}: AssetBalanceDataSourceAuthContext): UseAssetBalanceDataSourceResult {
   const queryClient = useQueryClient();
-  const userId = user?.id ?? '';
 
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [previewRows, setPreviewRows] = useState<AssetBalanceData[]>([]);
@@ -77,14 +90,22 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     },
   });
 
+  const resetState = useCallback(() => {
+    clearAssetBalanceCache(queryClient);
+    setRawFile(null);
+    setPreviewRows([]);
+    setLastSavedResult(null);
+  }, [queryClient]);
+
   useEffect(() => {
+    if (!registerLogoutReset) {
+      return;
+    }
+
     return onLogout(() => {
-      clearAssetBalanceCache(queryClient);
-      setRawFile(null);
-      setPreviewRows([]);
-      setLastSavedResult(null);
+      resetState();
     });
-  }, [onLogout, queryClient]);
+  }, [onLogout, registerLogoutReset, resetState]);
 
   const handleFileSelect = useCallback((file: File) => {
     setRawFile(file);
@@ -127,5 +148,17 @@ export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
     handleFileSelect,
     handleSaveToDB,
     handleDeleteAll,
+    resetState,
   };
+}
+
+export function useAssetBalanceDataSource(): UseAssetBalanceDataSourceResult {
+  const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
+
+  return useAssetBalanceDataSourceCore({
+    isAuthenticated,
+    authLoading,
+    onLogout,
+    userId: user?.id ?? '',
+  });
 }

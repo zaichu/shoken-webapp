@@ -1,20 +1,15 @@
-import React, { useState, useMemo, useCallback, Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { Layout } from '../components/templates/Layout';
 import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
-import { DataActionRail } from '@/components/organisms/DataActionRail/DataActionRail';
 import { PageHeader } from '../components/atoms/PageHeader';
 import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
-import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
-import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { AssetBalanceData } from '@/types/api';
-import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
-import { useAssetBalanceDataSource } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
-import { createSearchOptions } from '@/lib/utils/dataTransformer';
+import { AssetBalanceUtilityRail } from '@/features/assetBalance/components/AssetBalanceUtilityRail';
+import { useAssetBalanceState } from '@/features/assetBalance/hooks/useAssetBalanceState';
 import { usePageTitle } from '../hooks/usePageTitle';
-import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 
 // PortfolioPieChartコンポーネントを遅延読み込み（バンドルサイズ最適化）
@@ -37,14 +32,14 @@ interface AssetBalanceInfoProps {
 /**
  * 保有銘柄データを表示するコンポーネント（概要重視）
  */
-export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
+export function AssetBalanceInfo({
   assetBalanceData,
   filteredData,
   searchQuery,
   onClearFilter,
   dividendPerShareMap,
   dividendStatusMap,
-}) => {
+}: AssetBalanceInfoProps) {
   const isFiltered = searchQuery !== '';
 
   return (
@@ -59,7 +54,7 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
       />
     </Suspense>
   );
-};
+}
 
 /**
  * 保有銘柄管理ページコンポーネント
@@ -67,68 +62,25 @@ export const AssetBalanceInfo: React.FC<AssetBalanceInfoProps> = ({
 export function AssetBalancePage() {
   usePageTitle('資産管理');
 
-  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
-
   const {
-    dbData,
-    previewRows,
-    loading,
-    error,
-    saving,
-    deleting,
-    previewing,
-    lastSavedResult,
-    hasCsvFile,
-    hasDbData,
-    csvFileName,
-    handleFileSelect,
-    handleSaveToDB,
-    handleDeleteAll,
-  } = useAssetBalanceDataSource();
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleConfirmDelete = useCallback(async () => {
-    setShowDeleteConfirm(false);
-    await handleDeleteAll();
-  }, [handleDeleteAll]);
-
-  // CSVプレビュー行 > DBデータ の優先順位でテーブルデータを決定
-  const assetBalanceData = useMemo(() => {
-    if (previewRows.length > 0) return previewRows;
-    if (dbData.length > 0) return dbData;
-    return [];
-  }, [previewRows, dbData]);
-
-  // J-Quants APIから1株配当を一括取得
-  const securityCodes = useMemo(
-    () => (saving || loading) ? [] : assetBalanceData.map(item => item.security_code),
-    [saving, loading, assetBalanceData]
-  );
-  const { dividendPerShareMap, dividendStatusMap } = useDividendBatch(securityCodes, isAuthenticated);
-
-  const searchCategories = useMemo(() => ({
-    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true)
-  }), [assetBalanceData]);
-
-  const filterConfig: FilterConfig<AssetBalanceData> = useMemo(() => ({
-    partialStringFields: [
-      item => item.security_code,
-      item => item.security_name,
-    ],
-  }), []);
-
-  const filteredData = useMemo(
-    () => filterByConfig(assetBalanceData, searchQuery, filterConfig),
-    [assetBalanceData, searchQuery, filterConfig]
-  );
-
-  const isProcessing = loading || saving || deleting || previewing || authLoading;
-
-  const saveLabel = previewRows.length > 0
-    ? `${previewRows.length}件 全件置換で保存`
-    : '全件置換で保存';
+    isAuthenticated,
+    authLoading,
+    login,
+    assetBalanceData,
+    filteredData,
+    clearSearch,
+    utilityRailProps,
+    showDeleteConfirm,
+    closeDeleteConfirm,
+    confirmDeleteAll,
+    dbDataCount,
+    deleteModalLoading,
+    showPortfolioSummary,
+    mainStatusMessage,
+    workspaceBusy,
+    dividendPerShareMap,
+    dividendStatusMap,
+  } = useAssetBalanceState();
 
   return (
     <Layout>
@@ -136,7 +88,7 @@ export function AssetBalancePage() {
         title="資産管理"
         description="保有している銘柄の一覧と評価額を確認できます。"
       />
-      <div className="mt-2" aria-busy={isProcessing}>
+      <div className="mt-2" aria-busy={workspaceBusy}>
         {/* 認証確認中 */}
         {authLoading && (
           <div className="status-message" role="status" aria-live="polite">
@@ -168,79 +120,38 @@ export function AssetBalancePage() {
               main={
                 <>
                   <div aria-live="polite" aria-atomic="true">
-                    {(loading || saving || deleting || previewing) && (
+                    {mainStatusMessage && (
                       <div className="status-message" role="status">
                         <Spinner size="md" className="text-primary" />
-                        <p className="text-sm text-secondary">
-                          {loading && 'データを読み込んでいます...'}
-                          {saving && 'データを保存しています...'}
-                          {deleting && 'データを削除しています...'}
-                          {previewing && 'CSVファイルを解析しています...'}
-                        </p>
+                        <p className="text-sm text-secondary">{mainStatusMessage}</p>
                       </div>
                     )}
                   </div>
 
                   {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
-                  {!loading && !previewing && (
+                  {showPortfolioSummary && (
                     <AssetBalanceInfo
                       assetBalanceData={assetBalanceData}
                       filteredData={filteredData}
-                      searchQuery={searchQuery}
-                      onClearFilter={() => setSearchQuery('')}
+                      searchQuery={utilityRailProps.searchCardProps.value}
+                      onClearFilter={clearSearch}
                       dividendPerShareMap={dividendPerShareMap}
                       dividendStatusMap={dividendStatusMap}
                     />
                   )}
                 </>
               }
-              rail={
-                <>
-                  <DataActionRail
-                    onFileSelect={handleFileSelect}
-                    selectedFileName={csvFileName ?? ''}
-                    fileInputDisabled={loading || saving || deleting || previewing}
-                    hasCsvFile={hasCsvFile}
-                    saveLabel={saving ? '保存中...' : previewing ? '解析中...' : saveLabel}
-                    onSave={handleSaveToDB}
-                    saveDisabled={saving || deleting || previewing || previewRows.length === 0}
-                    hasDbData={hasDbData}
-                    deleteLabel={deleting ? '削除中...' : `全件削除 (${dbData.length}件)`}
-                    onDeleteRequest={() => setShowDeleteConfirm(true)}
-                    deleteDisabled={saving || deleting || loading}
-                    saveResult={lastSavedResult}
-                    saveModeLabel="全件置換"
-                  />
-
-                  {error && (
-                    <div className="px-5 py-4">
-                      <Alert variant="danger" role="alert" aria-live="assertive">
-                        <strong>エラー:</strong> {error}
-                      </Alert>
-                    </div>
-                  )}
-
-                  {/* 検索カード（データがある場合のみ表示） */}
-                  {assetBalanceData.length > 0 && (
-                    <SearchCard
-                      onSearch={query => setSearchQuery(query)}
-                      categories={searchCategories}
-                      value={searchQuery}
-                      compact
-                    />
-                  )}
-                </>
-              }
+              rail={<AssetBalanceUtilityRail {...utilityRailProps} />}
             />
 
             <ConfirmDeleteModal
               isOpen={showDeleteConfirm}
-              onConfirm={handleConfirmDelete}
-              onCancel={() => setShowDeleteConfirm(false)}
+              onConfirm={confirmDeleteAll}
+              onCancel={closeDeleteConfirm}
               title="資産管理データの全件削除"
               description="保存された資産管理データをすべて削除します。"
-              itemCount={dbData.length}
-              loading={deleting}
+              itemCount={dbDataCount}
+              loading={deleteModalLoading}
             />
           </>
         )}
