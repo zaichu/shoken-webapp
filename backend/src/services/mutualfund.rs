@@ -2,16 +2,35 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::mutualfund::{CreateMutualfundRequest, Mutualfund};
-use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
+use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    compute_taxes, get_cell, parse_required_date, parse_required_number, parse_required_string,
+    compute_taxes, get_row_cell, parse_required_date_row, parse_required_number_row,
+    parse_required_string_row,
 };
 use crate::services::shared::BulkTimer;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use tracing::info;
 use uuid::Uuid;
+
+const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+    skip_header_rows: 0,
+    exclude_row_fn: None,
+    required_columns: &[
+        "約定日",
+        "受渡日",
+        "ファンド名",
+        "分配金",
+        "口座",
+        "数量[口]",
+        "為替レート［円］",
+        "解約単価［円］",
+        "解約額［円］",
+        "平均取得価額［円］",
+        "実現損益［円］",
+    ],
+};
 
 /// 認証ユーザーの投資信託一覧を取得
 pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<Mutualfund>, ApiError> {
@@ -113,10 +132,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    if bytes.is_empty() {
-        return Err(ApiError::ValidationError("CSVが空です".to_string()));
-    }
-    build_preview(bytes, parse_mutualfund_row)
+    let rows = parse_mutualfund_csv(bytes)?;
+    let (items, errors) = transform_mutualfund_rows(&rows);
+    Ok(build_preview_response(&items, errors))
 }
 
 /// CSV バイト列から投資信託をパースして一括挿入
@@ -125,23 +143,31 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let (items, errors) = parse_csv(bytes, parse_mutualfund_row)?;
+    let rows = parse_mutualfund_csv(bytes)?;
+    let (items, errors) = transform_mutualfund_rows(&rows);
     let result = bulk_create(pool, user_id, &items).await?;
     Ok(finish_csv_upload(result, errors))
 }
 
-fn parse_mutualfund_row(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+fn parse_mutualfund_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
+    parse_csv_with_config(bytes, &MUTUALFUND_CSV_CONFIG)
+}
+
+fn transform_mutualfund_rows(rows: &[CsvRow]) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(rows, transform_mutualfund_row)
+}
+
+fn transform_mutualfund_row(
+    row: &CsvRow,
     row_num: usize,
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
-    let trade_date = parse_required_date(record, header_map, "約定日", row_num)?;
-    let settlement_date = parse_required_date(record, header_map, "受渡日", row_num)?;
-    let account = parse_required_string(record, header_map, "口座", row_num)?;
-    let realized_pnl = parse_required_number(record, header_map, "実現損益［円］", row_num)?;
+    let trade_date = parse_required_date_row(row, "約定日", row_num)?;
+    let settlement_date = parse_required_date_row(row, "受渡日", row_num)?;
+    let account = parse_required_string_row(row, "口座", row_num)?;
+    let realized_pnl = parse_required_number_row(row, "実現損益［円］", row_num)?;
     let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
     // 分配金フィールドは空文字を None に変換
-    let dividends_raw = get_cell(record, header_map, "分配金");
+    let dividends_raw = get_row_cell(row, "分配金");
     let dividends = if dividends_raw.trim().is_empty() {
         None
     } else {
@@ -150,26 +176,15 @@ fn parse_mutualfund_row(
     Ok(CreateMutualfundRequest {
         trade_date,
         settlement_date,
-        fund_name: parse_required_string(record, header_map, "ファンド名", row_num)?,
+        fund_name: parse_required_string_row(row, "ファンド名", row_num)?,
         dividends,
         account,
-        shares: parse_required_number(record, header_map, "数量[口]", row_num)?,
-        exchange_rate: parse_required_number(record, header_map, "為替レート［円］", row_num)?,
-        cancellation_unit_price_yen: parse_required_number(
-            record,
-            header_map,
-            "解約単価［円］",
-            row_num,
-        )?,
-        cancellation_amount_yen: parse_required_number(
-            record,
-            header_map,
-            "解約額［円］",
-            row_num,
-        )?,
-        average_acquisition_price_yen: parse_required_number(
-            record,
-            header_map,
+        shares: parse_required_number_row(row, "数量[口]", row_num)?,
+        exchange_rate: parse_required_number_row(row, "為替レート［円］", row_num)?,
+        cancellation_unit_price_yen: parse_required_number_row(row, "解約単価［円］", row_num)?,
+        cancellation_amount_yen: parse_required_number_row(row, "解約額［円］", row_num)?,
+        average_acquisition_price_yen: parse_required_number_row(
+            row,
             "平均取得価額［円］",
             row_num,
         )?,

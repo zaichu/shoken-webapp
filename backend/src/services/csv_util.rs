@@ -61,6 +61,7 @@ pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal)
 }
 
 /// レコードから指定列の値を取得（列が存在しない場合は空文字）
+#[cfg(test)]
 pub fn get_cell<'a>(
     record: &'a csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -72,7 +73,13 @@ pub fn get_cell<'a>(
         .unwrap_or("")
 }
 
+/// 行マップから指定列の値を取得（列が存在しない場合は空文字）
+pub fn get_row_cell<'a>(row: &'a HashMap<String, String>, name: &str) -> &'a str {
+    row.get(name).map(String::as_str).unwrap_or("")
+}
+
 /// オプション文字列フィールドを取得（空の場合は空文字列）
+#[cfg(test)]
 pub fn parse_optional_string(
     record: &csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -81,7 +88,13 @@ pub fn parse_optional_string(
     get_cell(record, header_map, col).to_string()
 }
 
+/// 行マップからオプション文字列フィールドを取得（空の場合は空文字列）
+pub fn parse_optional_string_row(row: &HashMap<String, String>, col: &str) -> String {
+    get_row_cell(row, col).to_string()
+}
+
 /// 必須文字列フィールドを取得（空の場合はエラー）
+#[cfg(test)]
 pub fn parse_required_string(
     record: &csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -89,6 +102,22 @@ pub fn parse_required_string(
     row_num: usize,
 ) -> Result<String, CsvRowError> {
     let val = get_cell(record, header_map, col);
+    if val.trim().is_empty() {
+        return Err(CsvRowError {
+            row: row_num,
+            message: format!("必須列 '{}' が空または存在しません", col),
+        });
+    }
+    Ok(val.to_string())
+}
+
+/// 行マップから必須文字列フィールドを取得（空の場合はエラー）
+pub fn parse_required_string_row(
+    row: &HashMap<String, String>,
+    col: &str,
+    row_num: usize,
+) -> Result<String, CsvRowError> {
+    let val = get_row_cell(row, col);
     if val.trim().is_empty() {
         return Err(CsvRowError {
             row: row_num,
@@ -113,6 +142,7 @@ pub fn normalize_security_name(name: &str) -> String {
 }
 
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
+#[cfg(test)]
 pub fn parse_required_number(
     record: &csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -132,7 +162,27 @@ pub fn parse_required_number(
     })
 }
 
+/// 行マップから必須数値フィールドを取得（空またはパース失敗でエラー）
+pub fn parse_required_number_row(
+    row: &HashMap<String, String>,
+    col: &str,
+    row_num: usize,
+) -> Result<Decimal, CsvRowError> {
+    let raw = get_row_cell(row, col);
+    if raw.trim().is_empty() {
+        return Err(CsvRowError {
+            row: row_num,
+            message: format!("必須列 '{}' が空または存在しません", col),
+        });
+    }
+    parse_number(raw).map_err(|e| CsvRowError {
+        row: row_num,
+        message: format!("{}: {}", col, e),
+    })
+}
+
 /// 必須日付フィールドを取得（パース失敗でエラー）
+#[cfg(test)]
 pub fn parse_required_date(
     record: &csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -140,6 +190,19 @@ pub fn parse_required_date(
     row_num: usize,
 ) -> Result<NaiveDate, CsvRowError> {
     let raw = get_cell(record, header_map, col);
+    parse_date(raw).map_err(|e| CsvRowError {
+        row: row_num,
+        message: format!("{}: {}", col, e),
+    })
+}
+
+/// 行マップから必須日付フィールドを取得（パース失敗でエラー）
+pub fn parse_required_date_row(
+    row: &HashMap<String, String>,
+    col: &str,
+    row_num: usize,
+) -> Result<NaiveDate, CsvRowError> {
+    let raw = get_row_cell(row, col);
     parse_date(raw).map_err(|e| CsvRowError {
         row: row_num,
         message: format!("{}: {}", col, e),

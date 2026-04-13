@@ -2,6 +2,7 @@ pub mod asset_balance;
 pub mod auth;
 pub mod csv_domain;
 pub mod csv_import;
+pub mod csv_pipeline;
 pub mod csv_util;
 pub mod dividend;
 pub mod dividend_cache;
