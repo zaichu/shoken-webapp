@@ -2,17 +2,34 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
-use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
+use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    normalize_security_name, parse_optional_string, parse_required_date, parse_required_number,
-    parse_required_string,
+    normalize_security_name, parse_optional_string_row, parse_required_date_row,
+    parse_required_number_row, parse_required_string_row,
 };
 use crate::services::shared::BulkTimer;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use tracing::info;
 use uuid::Uuid;
+
+const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+    skip_header_rows: 0,
+    exclude_row_fn: None,
+    required_columns: &[
+        "入金日",
+        "商品",
+        "口座",
+        "銘柄コード",
+        "銘柄",
+        "単価[円/現地通貨]",
+        "数量[株/口]",
+        "配当・分配金合計（税引前）[円/現地通貨]",
+        "税額合計[円/現地通貨]",
+        "受取金額[円/現地通貨]",
+    ],
+};
 
 /// 認証ユーザーの配当金一覧を取得
 pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<Dividend>, ApiError> {
@@ -97,10 +114,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    if bytes.is_empty() {
-        return Err(ApiError::ValidationError("CSVが空です".to_string()));
-    }
-    build_preview(bytes, parse_dividend_row)
+    let rows = parse_dividend_csv(bytes)?;
+    let (items, errors) = transform_dividend_rows(&rows);
+    Ok(build_preview_response(&items, errors))
 }
 
 /// CSV バイト列から配当金をパースして一括挿入
@@ -109,39 +125,39 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let (items, errors) = parse_csv(bytes, parse_dividend_row)?;
+    let rows = parse_dividend_csv(bytes)?;
+    let (items, errors) = transform_dividend_rows(&rows);
     let result = bulk_create(pool, user_id, &items).await?;
     Ok(finish_csv_upload(result, errors))
 }
 
-fn parse_dividend_row(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+fn parse_dividend_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
+    parse_csv_with_config(bytes, &DIVIDEND_CSV_CONFIG)
+}
+
+fn transform_dividend_rows(rows: &[CsvRow]) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(rows, transform_dividend_row)
+}
+
+fn transform_dividend_row(
+    row: &CsvRow,
     row_num: usize,
 ) -> Result<CreateDividendRequest, CsvRowError> {
     Ok(CreateDividendRequest {
-        settlement_date: parse_required_date(record, header_map, "入金日", row_num)?,
-        product: parse_required_string(record, header_map, "商品", row_num)?,
-        account: parse_required_string(record, header_map, "口座", row_num)?,
-        security_code: parse_optional_string(record, header_map, "銘柄コード"),
-        security_name: normalize_security_name(&parse_required_string(
-            record, header_map, "銘柄", row_num,
-        )?),
-        unit_price: parse_required_number(record, header_map, "単価[円/現地通貨]", row_num)?,
-        shares: parse_required_number(record, header_map, "数量[株/口]", row_num)?,
-        dividends_before_tax: parse_required_number(
-            record,
-            header_map,
+        settlement_date: parse_required_date_row(row, "入金日", row_num)?,
+        product: parse_required_string_row(row, "商品", row_num)?,
+        account: parse_required_string_row(row, "口座", row_num)?,
+        security_code: parse_optional_string_row(row, "銘柄コード"),
+        security_name: normalize_security_name(&parse_required_string_row(row, "銘柄", row_num)?),
+        unit_price: parse_required_number_row(row, "単価[円/現地通貨]", row_num)?,
+        shares: parse_required_number_row(row, "数量[株/口]", row_num)?,
+        dividends_before_tax: parse_required_number_row(
+            row,
             "配当・分配金合計（税引前）[円/現地通貨]",
             row_num,
         )?,
-        taxes: parse_required_number(record, header_map, "税額合計[円/現地通貨]", row_num)?,
-        net_amount_received: parse_required_number(
-            record,
-            header_map,
-            "受取金額[円/現地通貨]",
-            row_num,
-        )?,
+        taxes: parse_required_number_row(row, "税額合計[円/現地通貨]", row_num)?,
+        net_amount_received: parse_required_number_row(row, "受取金額[円/現地通貨]", row_num)?,
     })
 }
 

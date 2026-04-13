@@ -1,11 +1,16 @@
-use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::services::csv_pipeline::CsvRow;
+#[cfg(test)]
+use crate::errors::ApiError;
+#[cfg(test)]
 use crate::services::csv_util::decode_bytes;
+#[cfg(test)]
 use std::collections::HashMap;
 
 /// CSV bytes をデコードして行ごとにパース
 /// parse_row が Err を返した行はエラーとして収集し、items には含めない
+#[cfg(test)]
 pub fn parse_csv<T, F>(bytes: &[u8], parse_row: F) -> Result<(Vec<T>, Vec<CsvRowError>), ApiError>
 where
     F: Fn(&csv::StringRecord, &HashMap<String, usize>, usize) -> Result<T, CsvRowError>,
@@ -50,27 +55,44 @@ where
     Ok((items, errors))
 }
 
+#[cfg(test)]
 fn is_all_empty_record(record: &csv::StringRecord) -> bool {
     record.iter().all(|value| value.trim().is_empty())
 }
 
-/// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
-pub fn build_preview<T, F>(bytes: &[u8], parse_row: F) -> Result<CsvPreviewResponse, ApiError>
+pub fn validate_csv_rows<T, F>(rows: &[CsvRow], transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
+where
+    F: Fn(&CsvRow, usize) -> Result<T, CsvRowError>,
+{
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+
+    for (index, row) in rows.iter().enumerate() {
+        let row_num = index + 1;
+        match transform_row(row, row_num) {
+            Ok(item) => items.push(item),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    (items, errors)
+}
+
+pub fn build_preview_response<T>(items: &[T], errors: Vec<CsvRowError>) -> CsvPreviewResponse
 where
     T: serde::Serialize,
-    F: Fn(&csv::StringRecord, &HashMap<String, usize>, usize) -> Result<T, CsvRowError>,
 {
-    let (items, errors) = parse_csv(bytes, parse_row)?;
     let rows = items
         .iter()
         .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
         .collect();
-    Ok(CsvPreviewResponse {
+
+    CsvPreviewResponse {
         total_rows: items.len() + errors.len(),
         valid_rows: items.len(),
         errors,
         rows,
-    })
+    }
 }
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築

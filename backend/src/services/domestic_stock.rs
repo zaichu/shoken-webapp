@@ -2,17 +2,34 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::domestic_stock::{CreateDomesticStockRequest, DomesticStock};
-use crate::services::csv_import::{build_preview, finish_csv_upload, parse_csv};
+use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    compute_taxes, normalize_security_name, parse_required_date, parse_required_number,
-    parse_required_string,
+    compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
+    parse_required_string_row,
 };
 use crate::services::shared::BulkTimer;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use tracing::info;
 use uuid::Uuid;
+
+const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+    skip_header_rows: 0,
+    exclude_row_fn: None,
+    required_columns: &[
+        "約定日",
+        "受渡日",
+        "銘柄コード",
+        "銘柄名",
+        "口座",
+        "数量[株]",
+        "売却/決済単価[円]",
+        "売却/決済額[円]",
+        "平均取得価額[円]",
+        "実現損益[円]",
+    ],
+};
 
 /// 認証ユーザーの国内株式取引一覧を取得
 pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<DomesticStock>, ApiError> {
@@ -161,10 +178,9 @@ pub async fn bulk_create(
 
 /// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    if bytes.is_empty() {
-        return Err(ApiError::ValidationError("CSVが空です".to_string()));
-    }
-    build_preview(bytes, parse_domestic_stock_row)
+    let rows = parse_domestic_stock_csv(bytes)?;
+    let (items, errors) = transform_domestic_stock_rows(&rows);
+    Ok(build_preview_response(&items, errors))
 }
 
 /// CSV バイト列から国内株式取引をパースして一括挿入
@@ -173,36 +189,41 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let (items, errors) = parse_csv(bytes, parse_domestic_stock_row)?;
+    let rows = parse_domestic_stock_csv(bytes)?;
+    let (items, errors) = transform_domestic_stock_rows(&rows);
     let result = bulk_create(pool, user_id, &items).await?;
     Ok(finish_csv_upload(result, errors))
 }
 
-fn parse_domestic_stock_row(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+fn parse_domestic_stock_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
+    parse_csv_with_config(bytes, &DOMESTIC_STOCK_CSV_CONFIG)
+}
+
+fn transform_domestic_stock_rows(
+    rows: &[CsvRow],
+) -> (Vec<CreateDomesticStockRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(rows, transform_domestic_stock_row)
+}
+
+fn transform_domestic_stock_row(
+    row: &CsvRow,
     row_num: usize,
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
-    let trade_date = parse_required_date(record, header_map, "約定日", row_num)?;
-    let settlement_date = parse_required_date(record, header_map, "受渡日", row_num)?;
-    let account = parse_required_string(record, header_map, "口座", row_num)?;
-    let realized_pnl = parse_required_number(record, header_map, "実現損益[円]", row_num)?;
+    let trade_date = parse_required_date_row(row, "約定日", row_num)?;
+    let settlement_date = parse_required_date_row(row, "受渡日", row_num)?;
+    let account = parse_required_string_row(row, "口座", row_num)?;
+    let realized_pnl = parse_required_number_row(row, "実現損益[円]", row_num)?;
     let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
     Ok(CreateDomesticStockRequest {
         trade_date,
         settlement_date,
-        security_code: parse_required_string(record, header_map, "銘柄コード", row_num)?,
-        security_name: normalize_security_name(&parse_required_string(
-            record,
-            header_map,
-            "銘柄名",
-            row_num,
-        )?),
+        security_code: parse_required_string_row(row, "銘柄コード", row_num)?,
+        security_name: normalize_security_name(&parse_required_string_row(row, "銘柄名", row_num)?),
         account,
-        shares: parse_required_number(record, header_map, "数量[株]", row_num)?,
-        asked_price: parse_required_number(record, header_map, "売却/決済単価[円]", row_num)?,
-        proceeds: parse_required_number(record, header_map, "売却/決済額[円]", row_num)?,
-        purchase_price: parse_required_number(record, header_map, "平均取得価額[円]", row_num)?,
+        shares: parse_required_number_row(row, "数量[株]", row_num)?,
+        asked_price: parse_required_number_row(row, "売却/決済単価[円]", row_num)?,
+        proceeds: parse_required_number_row(row, "売却/決済額[円]", row_num)?,
+        purchase_price: parse_required_number_row(row, "平均取得価額[円]", row_num)?,
         realized_profit_and_loss: realized_pnl,
         taxes,
         realized_profit_and_loss_after_tax: realized_pnl_after_tax,

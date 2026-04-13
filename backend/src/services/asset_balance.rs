@@ -2,17 +2,33 @@ use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv_import::{finish_csv_upload, parse_csv};
+use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    decode_bytes, normalize_security_name, parse_number, parse_optional_string,
+    get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
 use crate::services::shared::BulkTimer;
-use csv::StringRecord;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use tracing::info;
 use uuid::Uuid;
+
+const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+    skip_header_rows: 6,
+    exclude_row_fn: Some(is_account_summary_row),
+    required_columns: &[
+        "銘柄コード",
+        "銘柄名",
+        "保有数量［株］",
+        "執行中［株］",
+        "平均取得価額［円］",
+        "取得総額［円］",
+        "現在値［円］",
+        "現在値（前日比）［円］",
+        "時価評価額［円］",
+        "評価損益［％］",
+    ],
+};
 
 /// 認証ユーザーの保有銘柄一覧を取得
 pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<AssetBalance>, ApiError> {
@@ -107,20 +123,9 @@ pub async fn bulk_create(
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
 /// 現在の取込対象形式では、先頭6行はメタデータのためスキップ
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    if bytes.is_empty() {
-        return Err(ApiError::ValidationError("CSVが空です".to_string()));
-    }
-    let (items, errors) = parse_asset_balance_csv(bytes)?;
-    let rows = items
-        .iter()
-        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
-        .collect();
-    Ok(CsvPreviewResponse {
-        total_rows: items.len() + errors.len(),
-        valid_rows: items.len(),
-        errors,
-        rows,
-    })
+    let rows = parse_asset_balance_csv(bytes)?;
+    let (items, errors) = transform_asset_balance_rows(&rows);
+    Ok(build_preview_response(&items, errors))
 }
 
 /// CSV bytes をパースして保有銘柄を一括登録
@@ -129,7 +134,8 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let (items, errors) = parse_asset_balance_csv(bytes)?;
+    let rows = parse_asset_balance_csv(bytes)?;
+    let (items, errors) = transform_asset_balance_rows(&rows);
     let result = bulk_create(pool, user_id, &items).await?;
     Ok(finish_csv_upload(result, errors))
 }
@@ -140,42 +146,29 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
         .await
 }
 
-/// 保有銘柄 CSV bytes をデコード・ヘッダースキップ・パース・フィルタして返す
-/// preview / upload の共通前処理経路
-pub(crate) fn parse_asset_balance_csv(
-    bytes: &[u8],
-) -> Result<(Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>), ApiError> {
-    let content = decode_bytes(bytes);
-    let stripped = strip_asset_balance_csv_metadata(&content);
-    let filtered = strip_account_summary_rows(&stripped);
-    let (items, errors) = parse_csv(filtered.as_bytes(), parse_asset_balance_row)?;
+/// 保有銘柄 CSV bytes をパース段階まで共通化して返す
+fn parse_asset_balance_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
+    parse_csv_with_config(bytes, &ASSET_BALANCE_CSV_CONFIG)
+}
+
+fn transform_asset_balance_rows(
+    rows: &[CsvRow],
+) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
+    let (items, errors) = validate_csv_rows(rows, transform_asset_balance_row);
     let items = items
         .into_iter()
         .filter(|i| !i.security_code.is_empty())
         .collect();
-    Ok((items, errors))
-}
-
-/// 保有銘柄 CSV の先頭6行（メタデータ）をスキップした文字列を返す
-fn strip_asset_balance_csv_metadata(content: &str) -> String {
-    let lines: Vec<&str> = content.lines().collect();
-    if lines.len() > 6 {
-        lines[6..].join("\n")
-    } else {
-        String::new()
-    }
+    (items, errors)
 }
 
 /// 保有銘柄 CSV に混ざる「特定口座合計」などの口座集計行を除外する
 ///
 /// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
 /// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
-fn strip_account_summary_rows(content: &str) -> String {
-    content
-        .lines()
-        .filter(|line| !(line.starts_with(',') && line.contains("口座合計")))
-        .collect::<Vec<_>>()
-        .join("\n")
+fn is_account_summary_row(row: &CsvRow) -> bool {
+    get_row_cell(row, "銘柄コード").trim().is_empty()
+        && row.values().any(|value| value.contains("口座合計"))
 }
 
 /// 保有銘柄 CSV の1行をパースして CreateAssetBalanceRequest に変換
@@ -185,13 +178,12 @@ fn strip_account_summary_rows(content: &str) -> String {
 ///   - 執行中: 執行中の注文がなければ "-" または空欄
 ///   - 現在値（前日比）: 変動なし時は 0 または "-"
 ///   - 評価損益（%）: NISA 等で表示されない場合に "-"
-pub(crate) fn parse_asset_balance_row(
-    record: &StringRecord,
-    header_map: &HashMap<String, usize>,
+fn transform_asset_balance_row(
+    row: &CsvRow,
     row_num: usize,
 ) -> Result<CreateAssetBalanceRequest, CsvRowError> {
     let num = |col: &str| {
-        let raw = parse_optional_string(record, header_map, col);
+        let raw = parse_optional_string_row(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             return Err(CsvRowError {
@@ -205,36 +197,24 @@ pub(crate) fn parse_asset_balance_row(
         })
     };
 
-    let security_code = parse_optional_string(record, header_map, "銘柄コード").replace('"', "");
+    let security_code = parse_optional_string_row(row, "銘柄コード").replace('"', "");
     Ok(CreateAssetBalanceRequest {
         security_code,
-        security_name: normalize_security_name(&parse_optional_string(
-            record,
-            header_map,
-            "銘柄名",
-        )),
+        security_name: normalize_security_name(&parse_optional_string_row(row, "銘柄名")),
         shares: num("保有数量［株］")?,
         // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
-        executing_shares: parse_number(&parse_optional_string(record, header_map, "執行中［株］"))
+        executing_shares: parse_number(&parse_optional_string_row(row, "執行中［株］"))
             .unwrap_or(Decimal::ZERO),
         average_purchase_price: num("平均取得価額［円］")?,
         total_purchase_amount: num("取得総額［円］")?,
         current_price: num("現在値［円］")?,
         // 前日比は変動なし時に 0 または "-" が仕様上ありうるため 0.0 フォールバック
-        daily_change: parse_number(&parse_optional_string(
-            record,
-            header_map,
-            "現在値（前日比）［円］",
-        ))
-        .unwrap_or(Decimal::ZERO),
+        daily_change: parse_number(&parse_optional_string_row(row, "現在値（前日比）［円］"))
+            .unwrap_or(Decimal::ZERO),
         market_value: num("時価評価額［円］")?,
         // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
-        profit_loss_rate: parse_number(&parse_optional_string(
-            record,
-            header_map,
-            "評価損益［％］",
-        ))
-        .unwrap_or(Decimal::ZERO),
+        profit_loss_rate: parse_number(&parse_optional_string_row(row, "評価損益［％］"))
+            .unwrap_or(Decimal::ZERO),
     })
 }
 #[cfg(test)]
@@ -267,11 +247,17 @@ mod tests {
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        parse_csv(
+        let rows = parse_csv_with_config(
             format!("{HEADER}\n{row}\n").as_bytes(),
-            parse_asset_balance_row,
+            &CsvParserConfig {
+                skip_header_rows: 0,
+                exclude_row_fn: None,
+                required_columns: ASSET_BALANCE_CSV_CONFIG.required_columns,
+            },
         )
-        .unwrap()
+        .unwrap();
+
+        transform_asset_balance_rows(&rows)
     }
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
@@ -385,8 +371,8 @@ mod tests {
                 &["1605", "7974"][..],
             ),
         ] {
-            let (items, errors) =
-                parse_asset_balance_csv(make_asset_balance_csv(rows).as_bytes()).unwrap();
+            let rows = parse_asset_balance_csv(make_asset_balance_csv(rows).as_bytes()).unwrap();
+            let (items, errors) = transform_asset_balance_rows(&rows);
 
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
             assert_eq!(
