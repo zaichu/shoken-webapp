@@ -1,8 +1,8 @@
+#[cfg(test)]
+use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_pipeline::CsvRow;
-#[cfg(test)]
-use crate::errors::ApiError;
 #[cfg(test)]
 use crate::services::csv_util::decode_bytes;
 #[cfg(test)]
