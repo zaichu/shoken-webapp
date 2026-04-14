@@ -13,6 +13,7 @@ export default defineConfig({
     '**/error-scenarios.spec.ts',
     '**/a11y.spec.ts',
     '**/auth-flow.spec.ts',
+    '**/assetbalance-flow.spec.ts',
     '**/receipt-flow.spec.ts',
     '**/search-flow.spec.ts',
   ],
