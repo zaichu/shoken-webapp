@@ -38,11 +38,105 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
     // 配当情報が見つからない → ゼロ配当として扱う
     (Some(0.0), "zero".to_string())
 }
-#[cfg(test)] #[rustfmt::skip] mod tests {
-    use {super::*, crate::models::jquants::FinSummaryData};
-    fn make_summary(disc_date: &str, nx_div: Option<&str>, f_div: Option<&str>, div: Option<&str>) -> FinSummaryData { serde_json::from_value(serde_json::json!({ "DiscDate": disc_date, "Code": "1234", "DocType": "test", "NxFDivAnn": nx_div, "FDivAnn": f_div, "DivAnn": div, })).expect("FinSummaryData のパースに失敗") }
-    #[test] fn test_extract_dividend() {
-        for (data, expected) in [(vec![make_summary("2024-01-01", Some("100.0"), None, None)], (Some(100.0), "ok")), (vec![make_summary("2024-01-01", Some("0.0"), None, None)], (Some(0.0), "zero")), (vec![make_summary("2024-01-01", Some("200.0"), Some("100.0"), Some("50.0"))], (Some(200.0), "ok")), (vec![make_summary("2024-01-01", None, None, Some("75.0"))], (Some(75.0), "ok")), (vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)], (Some(100.0), "ok")), (vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))], (Some(0.0), "zero")), (vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)], (Some(100.0), "ok")), (vec![], (Some(0.0), "zero"))] { let (value, status) = extract_dividend(&data); assert_eq!((value, status.as_str()), expected); } assert_eq!(extract_dividend(&[make_summary("2023-01-01", None, None, Some("30.0")), make_summary("2024-01-01", None, None, Some("60.0"))]).0, Some(60.0));
-        let now = Utc::now(); let past = Some(now - chrono::Duration::hours(1)); let future = Some(now + chrono::Duration::days(7)); for (status, stale_at, expected) in [("pending", None, false), ("error", None, true), ("ok", past, true), ("ok", future, false), ("ok", None, true)] { assert_eq!(compute_is_stale(status, stale_at, now), expected); }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::jquants::FinSummaryData;
+
+    fn make_summary(
+        disc_date: &str,
+        nx_div: Option<&str>,
+        f_div: Option<&str>,
+        div: Option<&str>,
+    ) -> FinSummaryData {
+        serde_json::from_value(serde_json::json!({
+            "DiscDate": disc_date,
+            "Code": "1234",
+            "DocType": "test",
+            "NxFDivAnn": nx_div,
+            "FDivAnn": f_div,
+            "DivAnn": div,
+        }))
+        .expect("FinSummaryData のパースに失敗")
+    }
+
+    #[test]
+    fn test_extract_dividend() {
+        for (data, expected_value, expected_status) in [
+            (
+                vec![make_summary("2024-01-01", Some("100.0"), None, None)],
+                Some(100.0),
+                "ok",
+            ),
+            (
+                vec![make_summary("2024-01-01", Some("0.0"), None, None)],
+                Some(0.0),
+                "zero",
+            ),
+            (
+                vec![make_summary(
+                    "2024-01-01",
+                    Some("200.0"),
+                    Some("100.0"),
+                    Some("50.0"),
+                )],
+                Some(200.0),
+                "ok",
+            ),
+            (
+                vec![make_summary("2024-01-01", None, None, Some("75.0"))],
+                Some(75.0),
+                "ok",
+            ),
+            (
+                vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)],
+                Some(100.0),
+                "ok",
+            ),
+            (
+                vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))],
+                Some(0.0),
+                "zero",
+            ),
+            (
+                vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)],
+                Some(100.0),
+                "ok",
+            ),
+            (vec![], Some(0.0), "zero"),
+        ] {
+            let (value, status) = extract_dividend(&data);
+
+            assert_eq!(value, expected_value);
+            assert_eq!(status, expected_status);
+        }
+
+        let (value, status) = extract_dividend(&[
+            make_summary("2023-01-01", None, None, Some("30.0")),
+            make_summary("2024-01-01", None, None, Some("60.0")),
+        ]);
+
+        assert_eq!(value, Some(60.0));
+        assert_eq!(status, "ok");
+    }
+
+    #[test]
+    fn test_compute_is_stale() {
+        let now = DateTime::parse_from_rfc3339("2024-01-10T00:00:00Z")
+            .expect("固定時刻のパースに失敗")
+            .with_timezone(&Utc);
+        let past = Some(now - chrono::Duration::hours(1));
+        let future = Some(now + chrono::Duration::days(7));
+
+        for (status, stale_at, expected) in [
+            ("pending", None, false),
+            ("error", None, true),
+            ("ok", past, true),
+            ("ok", future, false),
+            ("ok", None, true),
+        ] {
+            assert_eq!(compute_is_stale(status, stale_at, now), expected);
+        }
     }
 }
