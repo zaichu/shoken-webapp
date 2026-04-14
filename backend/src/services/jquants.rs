@@ -2,6 +2,8 @@ use crate::errors::ApiError;
 use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use reqwest::Client;
 
+pub const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
+
 pub struct JQuantsService;
 
 impl JQuantsService {
@@ -11,9 +13,8 @@ impl JQuantsService {
         client: &Client,
         params: FinSummaryQuery,
         api_key: &str,
+        base_url: &str,
     ) -> Result<FinSummaryResponse, ApiError> {
-        let base_url = "https://api.jquants.com/v2/fins/summary";
-
         // クエリパラメータを構築（reqwest が自動でエンコード）
         let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
         let from_str;
@@ -85,11 +86,177 @@ impl JQuantsService {
         Ok(fin_summary_response)
     }
 }
-#[cfg(test)] #[rustfmt::skip] mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
-    async fn fetch_fin_summary(code: &str) -> FinSummaryResponse { let api_key = std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません"); let params = FinSummaryQuery { code: code.to_string(), from: None, to: None }; JQuantsService::get_fin_summary(&Client::new(), params, &api_key).await.unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e)) }
-    fn log_summary_overview(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); if let Some(first) = response.data.first() { println!("銘柄コード: {}", first.local_code); println!("開示日: {}", first.disclosed_date); println!("書類種別: {}", first.type_of_document); println!("当期種別: {:?}", first.type_of_current_period); println!("当期開始日: {:?}", first.current_period_start_date); println!("当期終了日: {:?}", first.current_period_end_date); } }
-    fn log_dividend_summaries(response: &FinSummaryResponse) { println!("取得件数: {}", response.data.len()); for summary in &response.data { println!("---"); println!("開示日: {}", summary.disclosed_date); println!("書類種別: {}", summary.type_of_document); println!("年間配当実績(DivAnn): {:?}", summary.result_dividend_per_share_annual); println!("年間配当予想(FDivAnn): {:?}", summary.forecast_dividend_per_share_annual); println!("年間配当来期予想(NxFDivAnn): {:?}", summary.next_year_forecast_dividend_per_share_annual); } }
-    #[tokio::test] #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"] async fn test_get_fin_summary_real_api() { let response = fetch_fin_summary("7203").await; log_summary_overview(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
-    #[tokio::test] #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"] async fn test_get_nintendo_dividend() { let response = fetch_fin_summary("7974").await; log_dividend_summaries(&response); assert!(!response.data.is_empty(), "データが取得できること"); }
+    use serde_json::json;
+    use wiremock::{
+        matchers::{header, method, path, query_param},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    async fn fetch_fin_summary(base_url: &str, code: &str) -> FinSummaryResponse {
+        let api_key =
+            std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
+        let params = FinSummaryQuery {
+            code: code.to_string(),
+            from: None,
+            to: None,
+        };
+
+        JQuantsService::get_fin_summary(&Client::new(), params, &api_key, base_url)
+            .await
+            .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
+    }
+
+    async fn fetch_mock_fin_summary(server: &MockServer) -> Result<FinSummaryResponse, ApiError> {
+        let params = FinSummaryQuery {
+            code: "7203".to_string(),
+            from: None,
+            to: None,
+        };
+        let base_url = format!("{}/v2/fins/summary", server.uri());
+
+        JQuantsService::get_fin_summary(&Client::new(), params, "test-api-key", &base_url).await
+    }
+
+    fn log_summary_overview(response: &FinSummaryResponse) {
+        println!("取得件数: {}", response.data.len());
+        if let Some(first) = response.data.first() {
+            println!("銘柄コード: {}", first.local_code);
+            println!("開示日: {}", first.disclosed_date);
+            println!("書類種別: {}", first.type_of_document);
+            println!("当期種別: {:?}", first.type_of_current_period);
+            println!("当期開始日: {:?}", first.current_period_start_date);
+            println!("当期終了日: {:?}", first.current_period_end_date);
+        }
+    }
+
+    fn log_dividend_summaries(response: &FinSummaryResponse) {
+        println!("取得件数: {}", response.data.len());
+        for summary in &response.data {
+            println!("---");
+            println!("開示日: {}", summary.disclosed_date);
+            println!("書類種別: {}", summary.type_of_document);
+            println!(
+                "年間配当実績(DivAnn): {:?}",
+                summary.result_dividend_per_share_annual
+            );
+            println!(
+                "年間配当予想(FDivAnn): {:?}",
+                summary.forecast_dividend_per_share_annual
+            );
+            println!(
+                "年間配当来期予想(NxFDivAnn): {:?}",
+                summary.next_year_forecast_dividend_per_share_annual
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_success() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/v2/fins/summary"))
+            .and(query_param("code", "7203"))
+            .and(header("x-api-key", "test-api-key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "data": [
+                    {
+                        "DiscDate": "2024-05-10",
+                        "Code": "7203",
+                        "DocType": "FY"
+                    }
+                ]
+            })))
+            .mount(&server)
+            .await;
+
+        let response = fetch_mock_fin_summary(&server)
+            .await
+            .expect("モック API から正常レスポンスを取得できること");
+
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].local_code, "7203");
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_rate_limit() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/v2/fins/summary"))
+            .and(query_param("code", "7203"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("rate limited"))
+            .mount(&server)
+            .await;
+
+        let error = fetch_mock_fin_summary(&server)
+            .await
+            .expect_err("429 では RateLimitError を返すこと");
+
+        assert!(matches!(
+            error,
+            ApiError::RateLimitError(message) if message.contains("rate limited")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_api_error() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/v2/fins/summary"))
+            .and(query_param("code", "7203"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("upstream failed"))
+            .mount(&server)
+            .await;
+
+        let error = fetch_mock_fin_summary(&server)
+            .await
+            .expect_err("非 2xx では ApiError を返すこと");
+
+        assert!(matches!(
+            error,
+            ApiError::ApiError(message) if message.contains("upstream failed")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_deserialize_error() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/v2/fins/summary"))
+            .and(query_param("code", "7203"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{invalid"))
+            .mount(&server)
+            .await;
+
+        let error = fetch_mock_fin_summary(&server)
+            .await
+            .expect_err("不正 JSON では NetworkError を返すこと");
+
+        assert!(matches!(
+            error,
+            ApiError::NetworkError(message) if message.contains("解析エラー")
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
+    async fn test_get_fin_summary_real_api() {
+        let response = fetch_fin_summary("https://api.jquants.com/v2/fins/summary", "7203").await;
+        log_summary_overview(&response);
+        assert!(!response.data.is_empty(), "データが取得できること");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
+    async fn test_get_nintendo_dividend() {
+        let response = fetch_fin_summary("https://api.jquants.com/v2/fins/summary", "7974").await;
+        log_dividend_summaries(&response);
+        assert!(!response.data.is_empty(), "データが取得できること");
+    }
 }

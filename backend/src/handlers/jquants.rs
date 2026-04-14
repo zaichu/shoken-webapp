@@ -1,7 +1,7 @@
 use crate::errors::{ApiError, ErrorResponse};
 use crate::extractors::auth::AuthenticatedUser;
 use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
-use crate::services::jquants::JQuantsService;
+use crate::services::jquants::{JQuantsService, FIN_SUMMARY_URL};
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
@@ -45,6 +45,7 @@ pub async fn get_fin_summary(
             ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string())
         })?;
 
-    let response = JQuantsService::get_fin_summary(&state.client, params, api_key).await?;
+    let response =
+        JQuantsService::get_fin_summary(&state.client, params, api_key, FIN_SUMMARY_URL).await?;
     Ok(Json(response))
 }

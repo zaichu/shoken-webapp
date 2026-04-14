@@ -44,3 +44,4 @@ sentry-tower = "0.47"
 tokio-test = "0.4.5"
 testcontainers = "0.27.2"
 testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
+wiremock = "0.6"
