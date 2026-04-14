@@ -10,7 +10,8 @@ mod openapi;
 mod routes;
 mod services;
 mod state;
-#[cfg(test)] #[rustfmt::skip] mod test_env;
+#[cfg(test)]
+mod test_env;
 
 use config::Config;
 use db::{connect_pool, run_migrations};

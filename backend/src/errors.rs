@@ -171,12 +171,81 @@ where
         ApiError::OAuthError(err.to_string())
     }
 }
-#[cfg(test)] #[rustfmt::skip] mod tests {
-    use {super::*, axum::http::StatusCode, oauth2::url::ParseError, sqlx::Error as SqlxError, std::env::VarError};
-    fn check_status(error: ApiError, expected: StatusCode) { assert_eq!(error.into_response().status(), expected); }
-    #[test] fn test_all_error_status_codes() {
+#[cfg(test)]
+mod tests {
+    use {
+        super::*, axum::http::StatusCode, oauth2::url::ParseError, sqlx::Error as SqlxError,
+        std::env::VarError,
+    };
+    fn check_status(error: ApiError, expected: StatusCode) {
+        assert_eq!(error.into_response().status(), expected);
+    }
+    #[test]
+    fn test_all_error_status_codes() {
         let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        for (error, expected) in [(ApiError::ValidationError("必須フィールドが不足しています".to_string()), StatusCode::BAD_REQUEST), (ApiError::JsonParseError, StatusCode::BAD_REQUEST), (ApiError::DatabaseError(SqlxError::RowNotFound), StatusCode::NOT_FOUND), (ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::NotFound, StatusCode::NOT_FOUND), (ApiError::EnvVarError(VarError::NotPresent), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::RateLimitError("Rate limit exceeded".to_string()), StatusCode::TOO_MANY_REQUESTS), (ApiError::UrlParseError(ParseError::EmptyHost), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::OAuthError("認証エラー".to_string()), StatusCode::INTERNAL_SERVER_ERROR), (ApiError::Unauthorized("認証が必要です".to_string()), StatusCode::UNAUTHORIZED), (ApiError::NetworkError("接続エラー".to_string()), StatusCode::BAD_GATEWAY), (ApiError::ApiError("API エラー".to_string()), StatusCode::BAD_REQUEST), (ApiError::SerdeJsonError(serde_err), StatusCode::INTERNAL_SERVER_ERROR)] { check_status(error, expected); }
-        let (status, details) = simple_error(StatusCode::BAD_REQUEST, "TEST_CODE", "test message".to_string()); assert_eq!((status, details.code, details.message, details.details), (StatusCode::BAD_REQUEST, "TEST_CODE".to_string(), "test message".to_string(), None));
+        for (error, expected) in [
+            (
+                ApiError::ValidationError("必須フィールドが不足しています".to_string()),
+                StatusCode::BAD_REQUEST,
+            ),
+            (ApiError::JsonParseError, StatusCode::BAD_REQUEST),
+            (
+                ApiError::DatabaseError(SqlxError::RowNotFound),
+                StatusCode::NOT_FOUND,
+            ),
+            (
+                ApiError::DatabaseError(SqlxError::ColumnNotFound("test_column".to_string())),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (ApiError::NotFound, StatusCode::NOT_FOUND),
+            (
+                ApiError::EnvVarError(VarError::NotPresent),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                ApiError::RateLimitError("Rate limit exceeded".to_string()),
+                StatusCode::TOO_MANY_REQUESTS,
+            ),
+            (
+                ApiError::UrlParseError(ParseError::EmptyHost),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                ApiError::OAuthError("認証エラー".to_string()),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                ApiError::Unauthorized("認証が必要です".to_string()),
+                StatusCode::UNAUTHORIZED,
+            ),
+            (
+                ApiError::NetworkError("接続エラー".to_string()),
+                StatusCode::BAD_GATEWAY,
+            ),
+            (
+                ApiError::ApiError("API エラー".to_string()),
+                StatusCode::BAD_REQUEST,
+            ),
+            (
+                ApiError::SerdeJsonError(serde_err),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+        ] {
+            check_status(error, expected);
+        }
+        let (status, details) = simple_error(
+            StatusCode::BAD_REQUEST,
+            "TEST_CODE",
+            "test message".to_string(),
+        );
+        assert_eq!(
+            (status, details.code, details.message, details.details),
+            (
+                StatusCode::BAD_REQUEST,
+                "TEST_CODE".to_string(),
+                "test message".to_string(),
+                None
+            )
+        );
     }
 }

@@ -63,11 +63,47 @@ pub fn is_localhost_origin(origin: &str) -> bool {
     let host = origin.split(':').next().unwrap_or(origin);
     matches!(host, "localhost" | "localhost." | "127.0.0.1")
 }
-#[cfg(test)] #[rustfmt::skip] mod tests {
+#[cfg(test)]
+mod tests {
     use super::{is_localhost_origin, parse_cors_origins};
-    fn strings(origins: &[&str]) -> Vec<String> { origins.iter().map(|origin| (*origin).to_string()).collect() }
-    #[test] fn test_is_localhost_origin() {
-        for (origin, expected) in [("http://localhost", true), ("https://localhost:3000", true), ("http://localhost.:5173", true), ("http://127.0.0.1:8080", true), ("https://[::1]:3000", true), ("http://[0:0:0:0:0:0:0:1]:5173/path", true), ("https://localhost.example.com", false), ("https://127.0.0.1.example.com:3000", false), ("https://frontend.example.com", false)] { assert_eq!(is_localhost_origin(origin), expected, "unexpected localhost classification: {origin}"); }
-        for (input, expected) in [("https://app.example.com,http://localhost:3000", &["https://app.example.com", "http://localhost:3000"][..]), (" https://app.example.com , http://localhost:3000 ", &["https://app.example.com", "http://localhost:3000"][..]), ("", &[][..]), ("https://app.example.com,http://localhost:3000,", &["https://app.example.com", "http://localhost:3000"][..])] { assert_eq!(parse_cors_origins(input), strings(expected)); }
+    fn strings(origins: &[&str]) -> Vec<String> {
+        origins.iter().map(|origin| (*origin).to_string()).collect()
+    }
+    #[test]
+    fn test_is_localhost_origin() {
+        for (origin, expected) in [
+            ("http://localhost", true),
+            ("https://localhost:3000", true),
+            ("http://localhost.:5173", true),
+            ("http://127.0.0.1:8080", true),
+            ("https://[::1]:3000", true),
+            ("http://[0:0:0:0:0:0:0:1]:5173/path", true),
+            ("https://localhost.example.com", false),
+            ("https://127.0.0.1.example.com:3000", false),
+            ("https://frontend.example.com", false),
+        ] {
+            assert_eq!(
+                is_localhost_origin(origin),
+                expected,
+                "unexpected localhost classification: {origin}"
+            );
+        }
+        for (input, expected) in [
+            (
+                "https://app.example.com,http://localhost:3000",
+                &["https://app.example.com", "http://localhost:3000"][..],
+            ),
+            (
+                " https://app.example.com , http://localhost:3000 ",
+                &["https://app.example.com", "http://localhost:3000"][..],
+            ),
+            ("", &[][..]),
+            (
+                "https://app.example.com,http://localhost:3000,",
+                &["https://app.example.com", "http://localhost:3000"][..],
+            ),
+        ] {
+            assert_eq!(parse_cors_origins(input), strings(expected));
+        }
     }
 }
