@@ -92,10 +92,13 @@ export function useAssetBalanceDataSourceCore({
 
   const resetState = useCallback(() => {
     clearAssetBalanceCache(queryClient);
+    previewMutation.reset();
+    uploadCsvMutation.reset();
+    deleteAllMutation.reset();
     setRawFile(null);
     setPreviewRows([]);
     setLastSavedResult(null);
-  }, [queryClient]);
+  }, [deleteAllMutation, previewMutation, queryClient, uploadCsvMutation]);
 
   useEffect(() => {
     if (!registerLogoutReset) {

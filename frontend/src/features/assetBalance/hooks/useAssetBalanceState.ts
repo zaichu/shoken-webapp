@@ -125,14 +125,8 @@ export function useAssetBalanceState() {
   }, [closeDeleteConfirm, deleteAll]);
 
   const assetBalanceData = useMemo(() => {
-    if (previewRows.length > 0) {
-      return previewRows;
-    }
-    if (dbData.length > 0) {
-      return dbData;
-    }
-    return [];
-  }, [previewRows, dbData]);
+    return hasCsvFile ? previewRows : dbData;
+  }, [hasCsvFile, previewRows, dbData]);
 
   const securityCodes = useMemo(
     () => (saving || loading ? [] : assetBalanceData.map((item) => item.security_code)),
