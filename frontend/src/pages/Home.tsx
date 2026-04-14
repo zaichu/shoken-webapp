@@ -6,9 +6,9 @@ import { usePageTitle } from '../hooks/usePageTitle';
 
 // クイックアクション（ショートカット）
 const QUICK_ACTIONS = [
-  { label: '配当金を確認', to: '/receipts', icon: '💰' },
-  { label: '資産管理を確認', to: '/assetbalance', icon: '📊' },
-  { label: '銘柄を検索', to: '/search', icon: '🔍' },
+  { label: '取引明細', to: '/receipts', icon: '💰' },
+  { label: '資産管理', to: '/assetbalance', icon: '📊' },
+  { label: '銘柄検索', to: '/search', icon: '🔍' },
 ] as const;
 
 const FEATURES = [
@@ -48,7 +48,7 @@ const FEATURES = [
 ] as const;
 
 export function HomePage() {
-  usePageTitle();
+  usePageTitle('ホーム');
 
   return (
     <Layout>
