@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::jquants::FinSummaryQuery;
-use crate::services::jquants::JQuantsService;
+use crate::services::jquants::{JQuantsService, FIN_SUMMARY_URL};
 use reqwest::Client;
 use sqlx::PgPool;
 
@@ -19,7 +19,8 @@ pub async fn fetch_and_cache(
         to: None,
     };
 
-    let response = JQuantsService::get_fin_summary(client, params, api_key).await?;
+    let response =
+        JQuantsService::get_fin_summary(client, params, api_key, FIN_SUMMARY_URL).await?;
 
     let (dividend_per_share, status) = extract_dividend(&response.data);
 
