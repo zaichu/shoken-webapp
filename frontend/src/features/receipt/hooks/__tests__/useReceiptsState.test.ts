@@ -17,7 +17,7 @@ vi.mock('../useReceiptsData');
 // useReceiptsState が useEffect 内で onLogout を呼ぶため、
 // クリーンアップ関数を返すモックを用意する
 function makeOnLogoutMock() {
-  return vi.fn((_cb: () => void) => () => {});
+  return vi.fn((_cb: () => void) => () => {}); // eslint-disable-line @typescript-eslint/no-unused-vars
 }
 
 const mockUploadCsv = vi.fn();
