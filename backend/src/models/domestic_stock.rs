@@ -65,9 +65,9 @@ pub struct CreateDomesticStockRequest {
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
-    #[test]
-    fn test_create_domestic_stock_request_validation() {
-        assert!(CreateDomesticStockRequest {
+
+    fn base() -> CreateDomesticStockRequest {
+        CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"),
             security_code: "1234".to_string(),
@@ -79,9 +79,36 @@ mod tests {
             purchase_price: dec!(1400),
             realized_profit_and_loss: dec!(10000),
             taxes: dec!(2000),
-            realized_profit_and_loss_after_tax: dec!(8000)
+            realized_profit_and_loss_after_tax: dec!(8000),
+        }
+    }
+
+    #[test]
+    fn test_create_domestic_stock_request_validation() {
+        assert!(base().validate().is_ok());
+
+        // security_code は max=10 のため 11 文字は NG
+        assert!(CreateDomesticStockRequest {
+            security_code: "12345678901".to_string(),
+            ..base()
         }
         .validate()
-        .is_ok());
+        .is_err());
+
+        // security_name は min=1 のため空文字は NG
+        assert!(CreateDomesticStockRequest {
+            security_name: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // account は min=1 のため空文字は NG
+        assert!(CreateDomesticStockRequest {
+            account: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
     }
 }

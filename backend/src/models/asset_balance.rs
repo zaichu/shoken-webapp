@@ -69,9 +69,9 @@ pub struct BulkCreateAssetBalanceRequest {
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
-    #[test]
-    fn test_create_asset_balance_request_validation() {
-        assert!(CreateAssetBalanceRequest {
+
+    fn base() -> CreateAssetBalanceRequest {
+        CreateAssetBalanceRequest {
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
             shares: dec!(100),
@@ -81,7 +81,49 @@ mod tests {
             current_price: dec!(1600),
             daily_change: dec!(10),
             market_value: dec!(160000),
-            profit_loss_rate: dec!(6.67)
+            profit_loss_rate: dec!(6.67),
+        }
+    }
+
+    #[test]
+    fn test_create_asset_balance_request_validation() {
+        assert!(base().validate().is_ok());
+
+        // security_code は max=10 のため 11 文字は NG
+        assert!(CreateAssetBalanceRequest {
+            security_code: "12345678901".to_string(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // security_code は min=1 のため空文字は NG
+        assert!(CreateAssetBalanceRequest {
+            security_code: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // security_name は min=1 のため空文字は NG
+        assert!(CreateAssetBalanceRequest {
+            security_name: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+    }
+
+    #[test]
+    fn test_bulk_create_asset_balance_request_validation() {
+        // items が空の場合は NG（min=1）
+        assert!(BulkCreateAssetBalanceRequest { items: vec![] }
+            .validate()
+            .is_err());
+
+        // items が 1 件以上なら OK
+        assert!(BulkCreateAssetBalanceRequest {
+            items: vec![base()]
         }
         .validate()
         .is_ok());

@@ -69,9 +69,9 @@ pub struct CreateMutualfundRequest {
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
-    #[test]
-    fn test_create_mutualfund_request_validation() {
-        assert!(CreateMutualfundRequest {
+
+    fn base() -> CreateMutualfundRequest {
+        CreateMutualfundRequest {
             trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 19).expect("有効な日付 2024-01-19"),
             fund_name: "テストファンド".to_string(),
@@ -84,7 +84,42 @@ mod tests {
             average_acquisition_price_yen: dec!(14000),
             realized_profit_and_loss: dec!(10000),
             taxes: dec!(2000),
-            realized_profit_and_loss_after_tax: dec!(8000)
+            realized_profit_and_loss_after_tax: dec!(8000),
+        }
+    }
+
+    #[test]
+    fn test_create_mutualfund_request_validation() {
+        assert!(base().validate().is_ok());
+
+        // fund_name は min=1 のため空文字は NG
+        assert!(CreateMutualfundRequest {
+            fund_name: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // account は min=1 のため空文字は NG
+        assert!(CreateMutualfundRequest {
+            account: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // dividends は max=100 のため 101 文字は NG
+        assert!(CreateMutualfundRequest {
+            dividends: Some("あ".repeat(101)),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // dividends は None でも OK
+        assert!(CreateMutualfundRequest {
+            dividends: None,
+            ..base()
         }
         .validate()
         .is_ok());

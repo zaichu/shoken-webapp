@@ -58,9 +58,8 @@ pub struct CreateDividendRequest {
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
-    #[test]
-    fn test_create_dividend_request_validation() {
-        assert!(CreateDividendRequest {
+    fn base() -> CreateDividendRequest {
+        CreateDividendRequest {
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             product: "国内株式".to_string(),
             account: "特定".to_string(),
@@ -70,7 +69,50 @@ mod tests {
             shares: dec!(100),
             dividends_before_tax: dec!(1000),
             taxes: dec!(200),
-            net_amount_received: dec!(800)
+            net_amount_received: dec!(800),
+        }
+    }
+
+    #[test]
+    fn test_create_dividend_request_validation() {
+        assert!(base().validate().is_ok());
+
+        // security_code は max=10 のため 11 文字は NG
+        assert!(CreateDividendRequest {
+            security_code: "12345678901".to_string(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // product は min=1 のため空文字は NG
+        assert!(CreateDividendRequest {
+            product: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // account は min=1 のため空文字は NG
+        assert!(CreateDividendRequest {
+            account: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // security_name は min=1 のため空文字は NG
+        assert!(CreateDividendRequest {
+            security_name: String::new(),
+            ..base()
+        }
+        .validate()
+        .is_err());
+
+        // security_code は空文字でも OK（max=10 のみ）
+        assert!(CreateDividendRequest {
+            security_code: String::new(),
+            ..base()
         }
         .validate()
         .is_ok());
