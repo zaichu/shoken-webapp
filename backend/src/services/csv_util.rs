@@ -328,6 +328,96 @@ mod tests {
         let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
         assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
+    fn make_row(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn test_decode_bytes() {
+        use encoding_rs::SHIFT_JIS;
+        // UTF-8 バイト列はそのまま返る
+        assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
+        // BOM 付き UTF-8 は BOM が除去される
+        assert_eq!(
+            decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"),
+            "テスト"
+        );
+        // Shift-JIS バイト列は UTF-8 文字列に変換される
+        let (bytes, _, _) = SHIFT_JIS.encode("テスト");
+        assert_eq!(decode_bytes(&bytes), "テスト");
+    }
+
+    #[test]
+    fn test_normalize_security_name() {
+        // 通常の文字列は trim されて返る
+        assert_eq!(normalize_security_name("  任天堂  "), "任天堂");
+        // 全角1文字ずつのスペース区切りは結合される
+        assert_eq!(normalize_security_name("Ａ Ｂ Ｃ"), "ＡＢＣ");
+        // 全角カナ1文字ずつのスペース区切りは結合される
+        assert_eq!(normalize_security_name("ト ヨ タ"), "トヨタ");
+        // 複数文字トークンが含まれる場合はそのまま
+        assert_eq!(normalize_security_name("トヨタ 自動車"), "トヨタ 自動車");
+    }
+
+    #[test]
+    fn test_parse_optional_string_row() {
+        let row = make_row(&[("名前", "テスト")]);
+        // 存在するカラムは値を返す
+        assert_eq!(parse_optional_string_row(&row, "名前"), "テスト");
+        // 存在しないカラムは空文字を返す
+        assert_eq!(parse_optional_string_row(&row, "missing"), "");
+    }
+
+    #[test]
+    fn test_parse_required_string_row() {
+        let row = make_row(&[("名前", "テスト"), ("空欄", "")]);
+        // 存在するカラムで値あり → Ok(値)
+        assert_eq!(
+            parse_required_string_row(&row, "名前", 1).unwrap(),
+            "テスト"
+        );
+        // 空のカラム → Err(CsvRowError)
+        let err = parse_required_string_row(&row, "空欄", 2).unwrap_err();
+        assert_eq!((err.row, err.message.contains("空欄")), (2, true));
+        // 存在しないカラム → Err(CsvRowError)
+        let err = parse_required_string_row(&row, "missing", 3).unwrap_err();
+        assert_eq!((err.row, err.message.contains("missing")), (3, true));
+    }
+
+    #[test]
+    fn test_parse_required_number_row() {
+        let row = make_row(&[("数値", "1,234"), ("空欄", ""), ("不正", "abc")]);
+        // 有効な数値 "1,234" → Ok(dec!(1234))
+        assert_eq!(
+            parse_required_number_row(&row, "数値", 1).unwrap(),
+            dec!(1234)
+        );
+        // 空文字 → Err
+        let err = parse_required_number_row(&row, "空欄", 2).unwrap_err();
+        assert_eq!((err.row, err.message.contains("空欄")), (2, true));
+        // 不正な文字列 "abc" → Err
+        assert_eq!(
+            parse_required_number_row(&row, "不正", 3).unwrap_err().row,
+            3
+        );
+    }
+
+    #[test]
+    fn test_parse_required_date_row() {
+        let row = make_row(&[("日付", "2024/01/15"), ("不正", "not-a-date")]);
+        // 有効な日付 "2024/01/15" → Ok
+        assert_eq!(
+            parse_required_date_row(&row, "日付", 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
+        );
+        // 不正な文字列 "not-a-date" → Err
+        let err = parse_required_date_row(&row, "不正", 2).unwrap_err();
+        assert_eq!((err.row, err.message.contains("不正")), (2, true));
+    }
+
     #[test]
     #[ignore = "タイミング計測専用。cargo test --lib -- timing_csv_util --ignored --nocapture で実行"]
     fn timing_csv_util() {
