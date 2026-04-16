@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { filterByConfig, FilterConfig } from '../searchUtils';
+import {
+    filterByConfig,
+    FilterConfig,
+    createYearOptions,
+    getUniqueValues,
+    matchesYear,
+    matchesYearMonth,
+} from '../searchUtils';
 
 interface TestItem {
     code: string;
@@ -134,5 +141,70 @@ describe('filterByConfig', () => {
             expect(result).toHaveLength(1);
             expect(result[0].amount).toBe(100);
         });
+    });
+});
+
+describe('createYearOptions', () => {
+    it('重複排除した年オプションを年昇順で返す', () => {
+        const data = [
+            { date: new Date('2024-03-01') },
+            { date: new Date('2023-12-15') },
+            { date: new Date('2024-07-01') },
+        ];
+
+        const options = createYearOptions(data, item => item.date);
+
+        expect(options).toEqual([
+            { value: '2023', label: '2023年' },
+            { value: '2024', label: '2024年' },
+        ]);
+    });
+
+    it('空配列の場合は空を返す', () => {
+        expect(createYearOptions([], () => new Date())).toEqual([]);
+    });
+});
+
+describe('getUniqueValues', () => {
+    it('重複と空文字を除いたユニーク値を返す', () => {
+        const data = [
+            { category: '特定' },
+            { category: 'NISA' },
+            { category: '特定' },
+            { category: '' },
+        ];
+
+        const values = getUniqueValues(data, item => item.category);
+
+        expect(values).toEqual(['特定', 'NISA']);
+    });
+
+    it('空配列の場合は空を返す', () => {
+        expect(getUniqueValues([], (item: { v: string }) => item.v)).toEqual([]);
+    });
+});
+
+describe('matchesYear', () => {
+    it('年が一致する場合 true を返す', () => {
+        expect(matchesYear(new Date('2024-06-15'), '2024')).toBe(true);
+    });
+
+    it('年が一致しない場合 false を返す', () => {
+        expect(matchesYear(new Date('2024-06-15'), '2023')).toBe(false);
+    });
+});
+
+describe('matchesYearMonth', () => {
+    it('年月が YYYY-MM 形式で一致する場合 true を返す', () => {
+        expect(matchesYearMonth(new Date('2024-03-15'), '2024-03')).toBe(true);
+    });
+
+    it('1桁の月はゼロ埋めして比較する', () => {
+        expect(matchesYearMonth(new Date('2024-01-05'), '2024-01')).toBe(true);
+        expect(matchesYearMonth(new Date('2024-01-05'), '2024-1')).toBe(false);
+    });
+
+    it('年月が一致しない場合 false を返す', () => {
+        expect(matchesYearMonth(new Date('2024-03-15'), '2024-04')).toBe(false);
     });
 });
