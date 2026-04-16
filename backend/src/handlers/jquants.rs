@@ -49,3 +49,51 @@ pub async fn get_fin_summary(
         JQuantsService::get_fin_summary(&state.client, params, api_key, FIN_SUMMARY_URL).await?;
     Ok(Json(response))
 }
+
+#[cfg(test)]
+mod tests {
+    use {
+        super::*,
+        axum::{
+            body::Body,
+            http::{Request, StatusCode},
+        },
+        reqwest::Client,
+        std::sync::Arc,
+        tower::ServiceExt,
+    };
+
+    fn setup_test_app() -> Router<()> {
+        let pool =
+            crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
+                .unwrap();
+        jquants_routes().with_state(crate::AppState {
+            pool,
+            secrets: Arc::new(crate::state::Secrets {
+                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+                jquants_api_key: None,
+                google_client_id: None,
+                google_client_secret: None,
+                frontend_url: "http://localhost:8080".to_string(),
+            }),
+            client: Client::new(),
+            dividend_cache: crate::state::DividendCacheState::default(),
+        })
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_unauthorized() {
+        let app = setup_test_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/jquants/fins/summary?code=1234")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
