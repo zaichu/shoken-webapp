@@ -461,4 +461,22 @@ mod tests {
             }
         });
     }
+
+    #[test]
+    fn test_compute_taxes() {
+        assert_eq!(
+            compute_taxes("特定口座", dec!(10000)),
+            (dec!(2031), dec!(7969))
+        );
+        assert_eq!(compute_taxes("特定口座", dec!(0)), (dec!(0), dec!(0)));
+        assert_eq!(compute_taxes("特定口座", dec!(-500)), (dec!(0), dec!(-500)));
+        assert_eq!(
+            compute_taxes("NISA口座", dec!(10000)),
+            (dec!(0), dec!(10000))
+        );
+        assert_eq!(
+            compute_taxes("一般口座", dec!(10000)),
+            (dec!(0), dec!(10000))
+        );
+    }
 }
