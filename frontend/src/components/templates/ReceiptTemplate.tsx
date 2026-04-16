@@ -67,7 +67,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
           main={<>{header}{mainCard}</>}
           rail={<>{utilityRail}{searchCard}</>}
         />
-        {footer && <div>{footer}</div>}
+        {footer ? <div>{footer}</div> : null}
       </div>
     );
   }
@@ -75,9 +75,9 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   return (
     <div className="space-y-2" data-testid="receipt-container">
       {searchCard}
-      {header && <div className="mt-1">{header}</div>}
+      {header ? <div className="mt-1">{header}</div> : null}
       {mainCard}
-      {footer && <div>{footer}</div>}
+      {footer ? <div>{footer}</div> : null}
     </div >
   );
 };

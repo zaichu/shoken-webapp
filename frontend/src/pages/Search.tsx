@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/templates/Layout';
 import { SearchForm } from '../components/organisms/SearchForm';
@@ -16,11 +16,11 @@ export function SearchPage() {
 
   const [searchParams] = useSearchParams();
   const codeParam = searchParams.get('code');
-  const normalizedCodeParam = useMemo(() => {
+  const normalizedCodeParam = (() => {
     if (!codeParam) return '';
     const trimmed = codeParam.trim();
     return SECURITY_CODE_REGEX.test(trimmed) ? trimmed : '';
-  }, [codeParam]);
+  })();
   const hasInvalidCodeParam = !!codeParam && !normalizedCodeParam;
 
   const {

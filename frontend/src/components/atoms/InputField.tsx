@@ -56,7 +56,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
     const labelElement = label && (
       <label htmlFor={inputId} className="block mb-1 text-sm font-medium text-dark">
         {label}
-        {required && <span className="text-danger ml-1">*</span>}
+        {required ? <span className="text-danger ml-1">*</span> : null}
       </label>
     );
 

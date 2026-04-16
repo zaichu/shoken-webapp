@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import type { DataActionRailProps } from '@/components/organisms/DataActionRail/DataActionRail';
 import type { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
@@ -103,101 +103,67 @@ export function useAssetBalanceState() {
     });
   }, [onLogout, resetState]);
 
-  const handleSearch = useCallback((query: string) => {
+  const handleSearch = (query: string) => {
     dispatch({ type: 'SET_SEARCH_QUERY', payload: query });
-  }, []);
+  };
 
-  const clearSearch = useCallback(() => {
+  const clearSearch = () => {
     dispatch({ type: 'SET_SEARCH_QUERY', payload: '' });
-  }, []);
+  };
 
-  const openDeleteConfirm = useCallback(() => {
+  const openDeleteConfirm = () => {
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true });
-  }, []);
+  };
 
-  const closeDeleteConfirm = useCallback(() => {
+  const closeDeleteConfirm = () => {
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
-  }, []);
+  };
 
   const confirmDeleteAll = useCallback(async () => {
     closeDeleteConfirm();
     await deleteAll();
   }, [closeDeleteConfirm, deleteAll]);
 
-  const assetBalanceData = useMemo(() => {
-    return hasCsvFile ? previewRows : dbData;
-  }, [hasCsvFile, previewRows, dbData]);
-
-  const securityCodes = useMemo(
-    () => (saving || loading ? [] : assetBalanceData.map((item) => item.security_code)),
-    [saving, loading, assetBalanceData]
-  );
+  const assetBalanceData = hasCsvFile ? previewRows : dbData;
+  const securityCodes = saving || loading ? [] : assetBalanceData.map((item) => item.security_code);
 
   const { dividendPerShareMap, dividendStatusMap } = useDividendBatch(securityCodes, isAuthenticated);
 
-  const filteredData = useMemo(
-    () => filterByConfig(assetBalanceData, state.searchQuery, filterConfig),
-    [assetBalanceData, state.searchQuery]
-  );
-
-  const searchCategories = useMemo<SearchCategories>(
-    () => ({
-      securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true),
-    }),
-    [assetBalanceData]
-  );
+  const filteredData = filterByConfig(assetBalanceData, state.searchQuery, filterConfig);
+  const searchCategories: SearchCategories = {
+    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true),
+  };
 
   const saveLabel = previewRows.length > 0
     ? `${previewRows.length}件 全件置換で保存`
     : '全件置換で保存';
 
-  const actionRailProps = useMemo<DataActionRailProps>(
-    () => ({
-      onFileSelect: selectFile,
-      selectedFileName: csvFileName ?? undefined,
-      fileInputDisabled: loading || saving || deleting || previewing,
-      hasCsvFile,
-      saveLabel: saving ? '保存中...' : previewing ? '解析中...' : saveLabel,
-      onSave: saveToDB,
-      saveDisabled: saving || deleting || previewing || previewRows.length === 0,
-      hasDbData,
-      deleteLabel: deleting ? '削除中...' : `全件削除 (${dbData.length}件)`,
-      onDeleteRequest: openDeleteConfirm,
-      deleteDisabled: saving || deleting || loading,
-      saveResult: lastSavedResult,
-      saveModeLabel: '全件置換',
-    }),
-    [
-      selectFile,
-      csvFileName,
-      loading,
-      saving,
-      deleting,
-      previewing,
-      hasCsvFile,
-      saveLabel,
-      saveToDB,
-      previewRows.length,
-      hasDbData,
-      dbData.length,
-      openDeleteConfirm,
-      lastSavedResult,
-    ]
-  );
+  const actionRailProps: DataActionRailProps = {
+    onFileSelect: selectFile,
+    selectedFileName: csvFileName ?? undefined,
+    fileInputDisabled: loading || saving || deleting || previewing,
+    hasCsvFile,
+    saveLabel: saving ? '保存中...' : previewing ? '解析中...' : saveLabel,
+    onSave: saveToDB,
+    saveDisabled: saving || deleting || previewing || previewRows.length === 0,
+    hasDbData,
+    deleteLabel: deleting ? '削除中...' : `全件削除 (${dbData.length}件)`,
+    onDeleteRequest: openDeleteConfirm,
+    deleteDisabled: saving || deleting || loading,
+    saveResult: lastSavedResult,
+    saveModeLabel: '全件置換',
+  };
 
-  const utilityRailProps = useMemo<AssetBalanceUtilityRailProps>(
-    () => ({
-      actionRailProps,
-      error,
-      searchCardProps: {
-        visible: assetBalanceData.length > 0,
-        categories: searchCategories,
-        value: state.searchQuery,
-        onSearch: handleSearch,
-      },
-    }),
-    [actionRailProps, error, assetBalanceData.length, searchCategories, state.searchQuery, handleSearch]
-  );
+  const utilityRailProps: AssetBalanceUtilityRailProps = {
+    actionRailProps,
+    error,
+    searchCardProps: {
+      visible: assetBalanceData.length > 0,
+      categories: searchCategories,
+      value: state.searchQuery,
+      onSearch: handleSearch,
+    },
+  };
 
   const mainStatusMessage = getMainStatusMessage({ loading, saving, deleting, previewing });
 
