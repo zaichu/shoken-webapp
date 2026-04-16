@@ -35,9 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user = session.user;
   const isLoading = session.isLoading;
   // コンテキスト互換のsetUserラッパー（単一のstate更新でカスケードを防止）
-  const setUser = useCallback((u: UserInfo | null) => {
+  const setUser = (u: UserInfo | null) => {
     setSession(s => ({ ...s, user: u }));
-  }, []);
+  };
   // ログアウト時に呼び出されるコールバックのリスト
   const logoutCallbacksRef = useRef<Set<() => void>>(new Set());
   // 初期化時にバックエンドからセッションを確認
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     locationAssigner.assign(`${apiBaseUrl}/auth/google`);
   };
 
-  const logout = useCallback(async () => {
+  const logout = async () => {
     // 登録されたコールバックを先に実行（状態クリア用）
     logoutCallbacksRef.current.forEach(callback => callback());
     let hasError = false;
@@ -98,18 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (hasError) {
       throw caughtError;
     }
-  }, []);
+  };
 
   // ログアウト時のコールバック登録
-  const onLogout = useCallback((callback: () => void) => {
+  const onLogout = (callback: () => void) => {
     logoutCallbacksRef.current.add(callback);
     // クリーンアップ関数を返す
     return () => {
       logoutCallbacksRef.current.delete(callback);
     };
-  }, []);
+  };
 
-  const deleteAccount = useCallback(async () => {
+  const deleteAccount = async () => {
     // 登録されたコールバックを先に実行（状態クリア用）
     logoutCallbacksRef.current.forEach(callback => callback());
     let hasError = false;
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (hasError) {
       throw caughtError;
     }
-  }, []);
+  };
 
   // 自動ログアウト処理
   const handleIdle = useCallback(() => {

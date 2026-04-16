@@ -49,7 +49,7 @@ export function EmptyState({
       {description && (
         <p className="mt-1.5 max-w-md text-sm text-slate-600">{description}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }

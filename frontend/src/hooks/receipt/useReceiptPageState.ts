@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { filterByConfig, FilterConfig } from '@/lib/utils/searchUtils';
 
 /**
@@ -11,9 +11,6 @@ export function useReceiptPageState<T>(
     filterConfig: FilterConfig<T>
 ) {
     const [searchQuery, setSearchQuery] = useState('');
-    const filteredData = useMemo(
-        () => filterByConfig(data, searchQuery, filterConfig),
-        [data, searchQuery, filterConfig]
-    );
+    const filteredData = filterByConfig(data, searchQuery, filterConfig);
     return { searchQuery, setSearchQuery, filteredData } as const;
 }

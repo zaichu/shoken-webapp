@@ -25,15 +25,15 @@ export function useStockSearch(initialCode?: string) {
   }, [stockCode]);
 
   // 検索を直接実行（URLパラメータからの自動検索用）
-  const searchByCode = useCallback((code: string) => {
+  const searchByCode = (code: string) => {
     setStockCode(code);
     setSearchQuery(code);
-  }, []);
+  };
 
-  const resetSearch = useCallback(() => {
+  const resetSearch = () => {
     setStockCode('');
     setSearchQuery('');
-  }, []);
+  };
 
   return {
     stockCode,

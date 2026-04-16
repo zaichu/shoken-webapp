@@ -23,7 +23,7 @@ export function useReceiptBaseData<T>(
   filterConfig: FilterConfig<T>,
 ) {
   const displayData = previewData && previewData.length > 0 ? previewData : data;
-  const sortedData = useMemo(() => sort(displayData), [sort, displayData]);
+  const sortedData = sort(displayData);
   const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(sortedData, filterConfig);
   return { sortedData, searchQuery, setSearchQuery, filteredData };
 }

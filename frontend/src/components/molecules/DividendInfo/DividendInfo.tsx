@@ -16,6 +16,84 @@ const AssetBadge = () => (
 const ASSET_BALANCE_HINT = '資産管理にCSVを取り込むと表示されます';
 const JQUANTS_HINT = '自動で取得されます';
 
+interface DividendSimulationFormProps {
+  hasAssetBalanceData: boolean;
+  initialAverageUnitPrice: number | undefined;
+  initialHoldingQuantity: number | undefined;
+  initialDividendPerShare: number | undefined;
+  totalNetAmountReceived: number;
+  apiLoading: boolean;
+}
+
+const DividendSimulationForm: React.FC<DividendSimulationFormProps> = ({
+  hasAssetBalanceData,
+  initialAverageUnitPrice,
+  initialHoldingQuantity,
+  initialDividendPerShare,
+  totalNetAmountReceived,
+  apiLoading,
+}) => {
+  const [averageUnitPrice, setAverageUnitPrice] = useState(initialAverageUnitPrice);
+  const [holdingQuantity, setHoldingQuantity] = useState(initialHoldingQuantity);
+  const [dividendPerShare, setDividendPerShare] = useState(initialDividendPerShare);
+
+  const dividendYield = (() => {
+    if (averageUnitPrice && dividendPerShare) {
+      return (dividendPerShare / averageUnitPrice) * 100;
+    }
+    return 0;
+  })();
+
+  const annualDividendAmount = parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
+  const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
+  const dividendReturnRate = (() => {
+    if (totalInvestment > 0 && totalNetAmountReceived > 0) {
+      return (totalNetAmountReceived / totalInvestment) * 100;
+    }
+    return 0;
+  })();
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
+      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg">
+        <h5 className="text-sm font-medium">配当シミュレーション</h5>
+      </div>
+      <div className="p-3">
+        <div className="stat-grid">
+          <div>
+            <NumberInputField
+              label={<>平均取得価格{hasAssetBalanceData ? <AssetBadge /> : null}</>}
+              value={averageUnitPrice}
+              onChange={setAverageUnitPrice}
+            />
+          </div>
+          <div>
+            <NumberInputField
+              label={<>保有数量(株){hasAssetBalanceData ? <AssetBadge /> : null}</>}
+              value={holdingQuantity}
+              onChange={setHoldingQuantity}
+            />
+          </div>
+          <div>
+            <NumberInputField
+              label={<>一株配当</>}
+              value={dividendPerShare}
+              onChange={setDividendPerShare}
+              disabled={apiLoading}
+              placeholder={apiLoading ? 'データ取得中...' : ''}
+            />
+          </div>
+        </div>
+        <div className="stat-grid mt-4">
+          <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
+          <StatItemWithRate title="合計受取金額 (累積利回り)" value={totalNetAmountReceived} rate={dividendReturnRate} format={formatCurrency} />
+          <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface DividendInfoProps {
   searchQuery: string;
   securityCode?: string;
@@ -29,72 +107,32 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
   summary,
   embedded = false
 }) => {
-  const [averageUnitPrice, setAverageUnitPrice] = useState<number | undefined>(undefined);
-  const [holdingQuantity, setHoldingQuantity] = useState<number | undefined>(undefined);
-  const [dividendPerShare, setDividendPerShare] = useState<number | undefined>(undefined);
-  const effectiveSecurityCode = React.useMemo(() => {
+  const effectiveSecurityCode = (() => {
     if (securityCode) return normalizeSecurityCode(securityCode);
     const match = searchQuery.match(/^\\s*([0-9A-Za-z]+)\\s*[:：]/);
     return normalizeSecurityCode(match?.[1] || searchQuery);
-  }, [securityCode, searchQuery]);
-
-  const isValidSecurityCode = React.useMemo(() => {
-    return !!effectiveSecurityCode && SECURITY_CODE_REGEX.test(effectiveSecurityCode);
-  }, [effectiveSecurityCode]);
-
-  const { assetBalanceData: assetBalances, getAssetBalanceByCode } = useAssetBalance({ enabled: isValidSecurityCode });
-
-  const dividendBatchCodes = React.useMemo(
-    () => (isValidSecurityCode ? [effectiveSecurityCode] : []),
-    [effectiveSecurityCode, isValidSecurityCode]
-  );
-  const { dividendPerShareMap, loading: apiLoading } = useDividendBatch(dividendBatchCodes, isValidSecurityCode);
-  const apiDividendPerShare = dividendPerShareMap.get(effectiveSecurityCode);
-
-  React.useEffect(() => {
-    if (isValidSecurityCode) {
-      const assetBalanceData = getAssetBalanceByCode(effectiveSecurityCode);
-      if (assetBalanceData) {
-        setAverageUnitPrice(assetBalanceData.average_purchase_price);
-        setHoldingQuantity(assetBalanceData.shares);
-      } else {
-        setAverageUnitPrice(undefined);
-        setHoldingQuantity(undefined);
-      }
-    } else {
-      setAverageUnitPrice(undefined);
-      setHoldingQuantity(undefined);
-    }
-  }, [effectiveSecurityCode, isValidSecurityCode, getAssetBalanceByCode, assetBalances]);
-
-  React.useEffect(() => {
-    setDividendPerShare(undefined);
-    if (isValidSecurityCode && apiDividendPerShare !== undefined && apiDividendPerShare > 0) {
-      setDividendPerShare(apiDividendPerShare);
-    }
-  }, [apiDividendPerShare, isValidSecurityCode]);
-
-  const dividendYield = (() => {
-    if (averageUnitPrice && dividendPerShare) {
-      return (dividendPerShare / averageUnitPrice) * 100;
-    }
-    return 0;
   })();
 
-  const annualDividendAmount = parseNumber(holdingQuantity) * parseNumber(dividendPerShare);
+  const isValidSecurityCode = !!effectiveSecurityCode && SECURITY_CODE_REGEX.test(effectiveSecurityCode);
+
+  const { getAssetBalanceByCode } = useAssetBalance({ enabled: isValidSecurityCode });
+
+  const dividendBatchCodes = isValidSecurityCode ? [effectiveSecurityCode] : [];
+  const { dividendPerShareMap, loading: apiLoading } = useDividendBatch(dividendBatchCodes, isValidSecurityCode);
+  const apiDividendPerShare = dividendPerShareMap.get(effectiveSecurityCode);
+  const assetBalanceData = isValidSecurityCode
+    ? getAssetBalanceByCode(effectiveSecurityCode)
+    : undefined;
+  const averageUnitPrice = assetBalanceData?.average_purchase_price;
+  const holdingQuantity = assetBalanceData?.shares;
+  const dividendPerShare = isValidSecurityCode && apiDividendPerShare !== undefined && apiDividendPerShare > 0
+    ? apiDividendPerShare
+    : undefined;
   const totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity);
 
-  const totalNetAmountReceived = React.useMemo(() => {
-    return summary.reduce((sum, item) => sum + (item.net_amount_received || 0), 0);
-  }, [summary]);
-
-  const totalDividendsBeforeTax = React.useMemo(() => {
-    return summary.reduce((sum, item) => sum + (item.dividends_before_tax || 0), 0);
-  }, [summary]);
-
-  const totalTaxes = React.useMemo(() => {
-    return summary.reduce((sum, item) => sum + (item.taxes || 0), 0);
-  }, [summary]);
+  const totalNetAmountReceived = summary.reduce((sum, item) => sum + (item.net_amount_received || 0), 0);
+  const totalDividendsBeforeTax = summary.reduce((sum, item) => sum + (item.dividends_before_tax || 0), 0);
+  const totalTaxes = summary.reduce((sum, item) => sum + (item.taxes || 0), 0);
 
   const grossDividendReturnRate = (() => {
     if (totalInvestment > 0 && totalDividendsBeforeTax > 0) {
@@ -114,10 +152,6 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
     return null;
   }
 
-  const assetBalanceData = isValidSecurityCode
-    ? getAssetBalanceByCode(effectiveSecurityCode)
-    : undefined;
-
   // embedded モード: 資産管理・J-Quants データを read-only KPI カードで表示
   if (embedded) {
     return (
@@ -126,7 +160,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-600 mb-1">
-              平均取得価格{assetBalanceData && <AssetBadge />}
+              平均取得価格{assetBalanceData ? <AssetBadge /> : null}
             </p>
             <p
               className="text-2xl font-bold tabular-nums text-primary"
@@ -140,7 +174,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
           </div>
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-600 mb-1">
-              保有数量(株){assetBalanceData && <AssetBadge />}
+              保有数量(株){assetBalanceData ? <AssetBadge /> : null}
             </p>
             <p
               className="text-2xl font-bold tabular-nums text-primary"
@@ -202,42 +236,14 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
 
   // standalone モード: シミュレーション（入力フォーム）
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-border mt-1">
-      <div className="bg-slate-600 text-white px-3 py-1.5 rounded-t-lg">
-        <h5 className="text-sm font-medium">配当シミュレーション</h5>
-      </div>
-      <div className="p-3">
-        <div className="stat-grid">
-          <div>
-            <NumberInputField
-              label={<>平均取得価格{assetBalanceData && <AssetBadge />}</>}
-              value={averageUnitPrice}
-              onChange={setAverageUnitPrice}
-            />
-          </div>
-          <div>
-            <NumberInputField
-              label={<>保有数量(株){assetBalanceData && <AssetBadge />}</>}
-              value={holdingQuantity}
-              onChange={setHoldingQuantity}
-            />
-          </div>
-          <div>
-            <NumberInputField
-              label={<>一株配当</>}
-              value={dividendPerShare}
-              onChange={setDividendPerShare}
-              disabled={apiLoading}
-              placeholder={apiLoading ? "データ取得中..." : ""}
-            />
-          </div>
-        </div>
-        <div className="stat-grid mt-4">
-          <StatItem title="取得総額" value={formatCurrency(totalInvestment)} />
-          <StatItemWithRate title="合計受取金額 (累積利回り)" value={totalNetAmountReceived} rate={dividendReturnRate} format={formatCurrency} />
-          <StatItemWithRate title="年間配当金額 (配当利回り)" value={annualDividendAmount} rate={dividendYield} format={formatCurrency} />
-        </div>
-      </div>
-    </div>
+    <DividendSimulationForm
+      key={`${effectiveSecurityCode}:${averageUnitPrice ?? ''}:${holdingQuantity ?? ''}:${dividendPerShare ?? ''}`}
+      hasAssetBalanceData={!!assetBalanceData}
+      initialAverageUnitPrice={averageUnitPrice}
+      initialHoldingQuantity={holdingQuantity}
+      initialDividendPerShare={dividendPerShare}
+      totalNetAmountReceived={totalNetAmountReceived}
+      apiLoading={apiLoading}
+    />
   );
 };

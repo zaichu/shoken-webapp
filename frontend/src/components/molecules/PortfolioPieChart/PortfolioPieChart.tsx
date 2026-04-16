@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber, formatPercentageValue } from '@/lib/utils/formatters';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
@@ -192,26 +192,26 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   const [showAll, setShowAll] = useState(false);
 
   // パーセンテージを計算してデータに追加（降順ソート済み）
-  const chartData: ChartDataItem[] = useMemo(() => {
+  const chartData: ChartDataItem[] = (() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     if (total === 0) return [];
 
     return data
       .map((item) => ({ ...item, percentage: (item.value / total) * 100 }))
       .sort((a, b) => b.percentage - a.percentage);
-  }, [data]);
+  })();
 
   // 表示データ（Top N または全件）
-  const displayData = useMemo(() => {
+  const displayData = (() => {
     if (showAll || chartData.length <= TOP_N) return chartData;
     return chartData.slice(0, TOP_N);
-  }, [chartData, showAll]);
+  })();
 
   // その他の合計（Top N以外）
-  const othersPercentage = useMemo(() => {
+  const othersPercentage = (() => {
     if (showAll || chartData.length <= TOP_N) return 0;
     return chartData.slice(TOP_N).reduce((sum, item) => sum + item.percentage, 0);
-  }, [chartData, showAll]);
+  })();
 
   if (chartData.length === 0) return null;
 

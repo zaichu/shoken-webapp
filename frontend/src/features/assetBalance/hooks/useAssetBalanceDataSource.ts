@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
@@ -127,7 +127,7 @@ export function useAssetBalanceDataSourceCore({
     await deleteAllMutation.mutateAsync();
   }, [deleteAllMutation, isAuthenticated]);
 
-  const dbData = useMemo(() => dbQuery.data ?? [], [dbQuery.data]);
+  const dbData = dbQuery.data ?? [];
   const queryError = dbQuery.error;
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error ?? previewMutation.error;
   const error = queryError

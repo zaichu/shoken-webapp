@@ -18,11 +18,11 @@ export function PageHeader({ title, description, actions, className }: PageHeade
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-          {description && (
+          {description ? (
             <p className="mt-0.5 text-sm text-slate-600">{description}</p>
-          )}
+          ) : null}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </div>
     </div>
   );

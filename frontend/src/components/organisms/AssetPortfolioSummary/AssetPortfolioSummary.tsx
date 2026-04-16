@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, CardBody } from '@/components/atoms/Card';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
@@ -33,16 +33,14 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   dividendStatusMap,
 }) => {
   // 合計取得総額を計算（null/undefinedは0として扱う）
-  const totalPurchaseAmount = useMemo(() => {
-    return assetBalanceData.reduce(
-      (sum, item) => safeAdd(sum, item.total_purchase_amount || 0),
-      0
-    );
-  }, [assetBalanceData]);
+  const totalPurchaseAmount = assetBalanceData.reduce(
+    (sum, item) => safeAdd(sum, item.total_purchase_amount || 0),
+    0
+  );
 
   // ポートフォリオ全体の年間配当金額と配当利回り（%）
   // 年間配当 = Σ(1株配当 × 保有株数)、配当利回り = 年間配当 / 取得総額 × 100
-  const { totalAnnualDividends, portfolioDividendYield } = useMemo(() => {
+  const { totalAnnualDividends, portfolioDividendYield } = (() => {
     if (!dividendPerShareMap || dividendPerShareMap.size === 0) {
       return { totalAnnualDividends: null, portfolioDividendYield: null };
     }
@@ -56,21 +54,19 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
     if (total === 0) return { totalAnnualDividends: null, portfolioDividendYield: null };
     const yieldValue = totalPurchaseAmount > 0 ? (total / totalPurchaseAmount) * 100 : null;
     return { totalAnnualDividends: total, portfolioDividendYield: yieldValue };
-  }, [dividendPerShareMap, assetBalanceData, totalPurchaseAmount]);
+  })();
 
   // 横棒グラフ用データを生成（詳細情報付き）
-  const chartData: PortfolioItem[] = useMemo(() => {
-    return assetBalanceData
-      .filter((item) => (item.total_purchase_amount || 0) > 0)
-      .map((item) => ({
-        name: normalizeSecurityName(item.security_name || item.security_code),
-        value: item.total_purchase_amount || 0,
-        securityCode: item.security_code,
-        shares: item.shares,
-        averagePrice: item.average_purchase_price,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [assetBalanceData]);
+  const chartData: PortfolioItem[] = assetBalanceData
+    .filter((item) => (item.total_purchase_amount || 0) > 0)
+    .map((item) => ({
+      name: normalizeSecurityName(item.security_name || item.security_code),
+      value: item.total_purchase_amount || 0,
+      securityCode: item.security_code,
+      shares: item.shares,
+      averagePrice: item.average_purchase_price,
+    }))
+    .sort((a, b) => b.value - a.value);
 
   const displayCount = assetBalanceData.length;
   const actualTotalCount = totalCount ?? displayCount;
@@ -118,12 +114,12 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
           <div>
             <h2 className="text-sm font-semibold text-slate-800">資産サマリー</h2>
           </div>
-          {isFiltered && (
+          {isFiltered ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                 絞り込み中: {displayCount}/{actualTotalCount}件
               </span>
-              {onClearFilter && (
+              {onClearFilter ? (
                 <button
                   type="button"
                   onClick={onClearFilter}
@@ -131,9 +127,9 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
                 >
                   解除
                 </button>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]">
