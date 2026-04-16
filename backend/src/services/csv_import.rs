@@ -178,4 +178,76 @@ mod tests {
             (3, 1, 1, Some(5))
         );
     }
+
+    #[test]
+    fn test_validate_csv_rows() {
+        let rows: Vec<CsvRow> = vec![
+            [("key".to_string(), "a".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
+            [("key".to_string(), "b".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
+        ];
+        let (items, errors): (Vec<String>, _) = validate_csv_rows(&rows, |row, _row_num| {
+            Ok(row.get("key").cloned().unwrap_or_default())
+        });
+        assert_eq!((items, errors.is_empty()), (strings(&["a", "b"]), true));
+
+        let rows: Vec<CsvRow> = vec![
+            [("key".to_string(), "ok".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
+            [("key".to_string(), "bad".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
+        ];
+        let (items, errors): (Vec<String>, _) = validate_csv_rows(&rows, |row, row_num| {
+            let value = row.get("key").cloned().unwrap_or_default();
+            if value == "bad" {
+                Err(CsvRowError {
+                    row: row_num,
+                    message: "invalid".to_string(),
+                })
+            } else {
+                Ok(value)
+            }
+        });
+        assert_eq!(items, strings(&["ok"]));
+        assert_eq!(
+            (errors.len(), errors.first().map(|error| error.row)),
+            (1, Some(2))
+        );
+
+        let (items, errors): (Vec<String>, _) = validate_csv_rows(&[], |_, _| Ok("".to_string()));
+        assert_eq!((items.is_empty(), errors.is_empty()), (true, true));
+    }
+
+    #[test]
+    fn test_build_preview_response() {
+        let items = vec!["alpha", "beta"];
+        let errors = vec![CsvRowError {
+            row: 3,
+            message: "error".to_string(),
+        }];
+        let response = build_preview_response(&items, errors);
+        assert_eq!(
+            (
+                response.total_rows,
+                response.valid_rows,
+                response.errors.len(),
+                response.rows.len()
+            ),
+            (3, 2, 1, 2)
+        );
+        assert_eq!(response.errors[0].row, 3);
+
+        let empty: Vec<String> = vec![];
+        let response = build_preview_response(&empty, vec![]);
+        assert_eq!((response.total_rows, response.valid_rows), (0, 0));
+    }
 }
