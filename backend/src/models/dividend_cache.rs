@@ -52,3 +52,39 @@ pub struct DividendPerShareItem {
 pub struct DividendPerShareBatchResponse {
     pub items: Vec<DividendPerShareItem>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dividend_per_share_batch_request_validation() {
+        // 1件は OK（min = 1）
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["1234".to_string()],
+        }
+        .validate()
+        .is_ok());
+
+        // 100件は OK（max = 100）
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["1234".to_string(); 100],
+        }
+        .validate()
+        .is_ok());
+
+        // 0件は NG（min = 1）
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec![],
+        }
+        .validate()
+        .is_err());
+
+        // 101件は NG（max = 100）
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["1234".to_string(); 101],
+        }
+        .validate()
+        .is_err());
+    }
+}
