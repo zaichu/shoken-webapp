@@ -48,24 +48,26 @@ pub async fn fetch_and_cache(
     Ok(status)
 }
 
+/// エラーメッセージを最大 200 文字に切り捨てる（マルチバイト文字境界を考慮）
+fn truncate_error_message(msg: &str) -> &str {
+    if msg.len() <= 200 {
+        return msg;
+    }
+    let end = msg
+        .char_indices()
+        .nth(200)
+        .map(|(i, _)| i)
+        .unwrap_or(msg.len());
+    &msg[..end]
+}
+
 /// エラー情報をキャッシュに記録する
 pub async fn update_cache_error(
     pool: &PgPool,
     code: &str,
     error_msg: &str,
 ) -> Result<(), ApiError> {
-    // エラーメッセージは最大 200 文字に切り捨て（機密情報混入を防ぐため短く保つ）
-    // char_indices で文字境界を求めてスライスし、マルチバイト文字での panic を防ぐ
-    let truncated = if error_msg.len() > 200 {
-        let end = error_msg
-            .char_indices()
-            .nth(200)
-            .map(|(i, _)| i)
-            .unwrap_or(error_msg.len());
-        &error_msg[..end]
-    } else {
-        error_msg
-    };
+    let truncated = truncate_error_message(error_msg);
 
     sqlx::query(
         r#"
@@ -85,4 +87,34 @@ pub async fn update_cache_error(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_error_message() {
+        // 200文字以下はそのまま
+        let short = "エラー";
+        assert_eq!(truncate_error_message(short), short);
+
+        // 200文字ちょうどもそのまま
+        let exact = "a".repeat(200);
+        assert_eq!(truncate_error_message(&exact), exact);
+
+        // 201文字は200文字に切り捨て
+        let long = "a".repeat(201);
+        assert_eq!(truncate_error_message(&long), "a".repeat(200));
+
+        // マルチバイト文字（3バイト）は文字境界で切り捨て
+        // 'あ' は3バイトなので len() > 200 になるが、200文字目で正しく切る
+        let japanese = "あ".repeat(201);
+        let result = truncate_error_message(&japanese);
+        assert_eq!(result.chars().count(), 200);
+        assert!(result.is_char_boundary(result.len()));
+
+        // 空文字はそのまま
+        assert_eq!(truncate_error_message(""), "");
+    }
 }
