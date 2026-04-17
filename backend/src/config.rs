@@ -180,6 +180,16 @@ mod tests {
         assert!(server_addr().starts_with("0.0.0.0:"));
         let _ = is_secure_cookie();
     }
+    #[test]
+    fn test_config_from_env_jquants_rps() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        let _env = EnvGuard::set("JQUANTS_RATE_LIMIT_RPS", Some("7"));
+        let _env2 = EnvGuard::set("FRONTEND_URL", None);
+        let _env3 = EnvGuard::set("BACKEND_URL", None);
+
+        let config = Config::from_env();
+        assert_eq!(config.jquants_rate_limit_rps, 7);
+    }
     #[tokio::test]
     async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
