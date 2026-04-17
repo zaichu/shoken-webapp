@@ -33,7 +33,7 @@ Codex が実装して push した PR を Claude がレビューする。
 変更範囲に応じて実行:
 
 - フロントエンド変更がある場合:
-  - `cd frontend && vp lint`
+  - `cd frontend && npm run lint`
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm test`
   - `cd frontend && vp build`
