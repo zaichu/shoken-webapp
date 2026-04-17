@@ -78,6 +78,7 @@ mod tests {
             ("http://127.0.0.1:8080", true),
             ("https://[::1]:3000", true),
             ("http://[0:0:0:0:0:0:0:1]:5173/path", true),
+            ("http://[::1", false),
             ("https://localhost.example.com", false),
             ("https://127.0.0.1.example.com:3000", false),
             ("https://frontend.example.com", false),

@@ -181,6 +181,16 @@ mod tests {
         assert_eq!(error.into_response().status(), expected);
     }
     #[test]
+    fn test_from_request_token_error() {
+        let io_err = std::io::Error::other("test oauth error");
+        let token_err: RequestTokenError<
+            std::io::Error,
+            StandardErrorResponse<BasicErrorResponseType>,
+        > = RequestTokenError::Request(io_err);
+        let api_err: ApiError = token_err.into();
+        assert!(matches!(api_err, ApiError::OAuthError(_)));
+    }
+    #[test]
     fn test_all_error_status_codes() {
         let serde_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
         for (error, expected) in [
