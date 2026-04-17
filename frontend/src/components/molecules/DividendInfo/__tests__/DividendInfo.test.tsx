@@ -96,6 +96,54 @@ describe('DividendInfo', () => {
     expect(screen.getByText('取得中...')).toBeInTheDocument();
   });
 
+  it('standalone モードで一株配当取得中に入力欄が disabled になりプレースホルダーを表示する', async () => {
+    const { useDividendBatch } = await import('@/features/jquants/hooks/useDividendBatch');
+    vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
+      loading: true,
+    }));
+
+    render(
+      <DividendInfo searchQuery="1234" summary={emptySummary} />
+    );
+    const input = screen.getByPlaceholderText('データ取得中...');
+    expect(input).toBeDisabled();
+  });
+
+  it('standalone モードで一株配当と平均取得価格が揃ったとき配当利回りを計算して表示する', async () => {
+    const { useDividendBatch } = await import('@/features/jquants/hooks/useDividendBatch');
+    vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
+      dividendPerShareMap: new Map([['1234', 30]]),
+    }));
+    const { useAssetBalance } = await import('@/features/assetBalance/hooks/useAssetBalance');
+    vi.mocked(useAssetBalance).mockReturnValueOnce({
+      assetBalanceData: [],
+      isLoading: false,
+      getAssetBalanceByCode: vi.fn(() => ({
+        average_purchase_price: 1000,
+        created_at: '2024-01-01T00:00:00Z',
+        current_price: 1100,
+        daily_change: 0.5,
+        executing_shares: 0,
+        id: '00000000-0000-0000-0000-000000000001',
+        market_value: 110000,
+        profit_loss_rate: 10,
+        shares: 100,
+        security_code: '1234',
+        security_name: 'テスト株式会社',
+        total_purchase_amount: 100000,
+        updated_at: '2024-01-01T00:00:00Z',
+      })),
+      getTotalMarketValue: vi.fn(() => 0),
+      refetch: vi.fn(),
+    });
+
+    render(
+      <DividendInfo searchQuery="1234" summary={emptySummary} />
+    );
+    // dividendYield = 30 / 1000 * 100 = 3%, annualDividendAmount = 100 * 30 = ¥ 3,000
+    expect(screen.getByText('¥ 3,000 (3.00%)')).toBeInTheDocument();
+  });
+
   it('summary データがある場合 embedded モードで集計金額を表示する', () => {
     const summary: ComponentProps<typeof DividendInfo>['summary'] = [
       {

@@ -65,3 +65,27 @@ pub fn spawn_background_refresh(
         tracing::info!("配当キャッシュ バックグラウンド更新完了");
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_spawn_skips_if_already_running() {
+        let pool =
+            crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
+                .unwrap();
+        let running = Arc::new(AtomicBool::new(true));
+
+        spawn_background_refresh(
+            pool,
+            Client::new(),
+            "dummy_key".to_string(),
+            vec!["1234".to_string()],
+            Arc::clone(&running),
+        );
+
+        // 既に実行中のためタスクを起動せず、フラグは true のまま
+        assert!(running.load(Ordering::SeqCst));
+    }
+}
