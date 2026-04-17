@@ -65,10 +65,47 @@ pub fn is_localhost_origin(origin: &str) -> bool {
 }
 #[cfg(test)]
 mod tests {
-    use super::{is_localhost_origin, parse_cors_origins};
+    use {
+        super::{build_cors_layer, is_localhost_origin, parse_cors_origins},
+        crate::state::AppState,
+        axum::{
+            body::Body,
+            http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request},
+            routing::get,
+            Router,
+        },
+        reqwest::Client,
+        std::sync::Arc,
+        tower::ServiceExt,
+    };
+
     fn strings(origins: &[&str]) -> Vec<String> {
         origins.iter().map(|origin| (*origin).to_string()).collect()
     }
+
+    fn build_test_app(cors_origins: &[String]) -> Router {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        let pool = crate::db::connect_pool_lazy(database_url, 1)
+            .expect("Failed to create connection pool");
+        let secrets = Arc::new(crate::state::Secrets {
+            database_url: database_url.to_string(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+
+        Router::new()
+            .route("/health", get(|| async { "OK" }))
+            .layer(build_cors_layer(cors_origins))
+            .with_state(AppState {
+                pool,
+                secrets,
+                client: Client::new(),
+                dividend_cache: crate::state::DividendCacheState::default(),
+            })
+    }
+
     #[test]
     fn test_is_localhost_origin() {
         for (origin, expected) in [
@@ -106,5 +143,28 @@ mod tests {
         ] {
             assert_eq!(parse_cors_origins(input), strings(expected));
         }
+    }
+
+    #[tokio::test]
+    async fn test_cors_predicate_with_invalid_configured_origin() {
+        let app = build_test_app(&["https://frontend.example.com\n".to_string()]);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/health")
+                    .header("origin", "https://frontend.example.com")
+                    .header("access-control-request-method", "GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(response.status().is_success());
+        assert!(response
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none());
     }
 }
