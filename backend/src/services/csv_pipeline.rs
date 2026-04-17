@@ -105,6 +105,20 @@ mod tests {
         row.get("name").is_some_and(|name| name.contains("合計"))
     }
 
+    // `parse_csv_with_config` always hands csv::Reader valid UTF-8 bytes from an in-memory
+    // buffer. Combined with `flexible(true)`, we could not reproduce header/record read errors
+    // in a unit test, including inputs containing `\0`, so only the empty-input edge case is
+    // covered here.
+    #[test]
+    fn test_parse_csv_empty_bytes() {
+        let result = parse_csv_with_config(b"", &BASIC_CONFIG);
+
+        assert!(matches!(
+            result,
+            Err(ApiError::ValidationError(msg)) if msg == "CSVが空です"
+        ));
+    }
+
     #[test]
     fn test_parse_csv_with_config() {
         let rows = parse_csv_with_config(
