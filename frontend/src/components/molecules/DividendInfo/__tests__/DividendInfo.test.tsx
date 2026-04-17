@@ -117,13 +117,24 @@ describe('DividendInfo', () => {
     const { useAssetBalance } = await import('@/features/assetBalance/hooks/useAssetBalance');
     vi.mocked(useAssetBalance).mockReturnValueOnce({
       assetBalanceData: [],
+      isLoading: false,
       getAssetBalanceByCode: vi.fn(() => ({
         average_purchase_price: 1000,
+        created_at: '2024-01-01T00:00:00Z',
+        current_price: 1100,
+        daily_change: 0.5,
+        executing_shares: 0,
+        id: '00000000-0000-0000-0000-000000000001',
+        market_value: 110000,
+        profit_loss_rate: 10,
         shares: 100,
         security_code: '1234',
         security_name: 'テスト株式会社',
-        total_purchase_price: 100000,
+        total_purchase_amount: 100000,
+        updated_at: '2024-01-01T00:00:00Z',
       })),
+      getTotalMarketValue: vi.fn(() => 0),
+      refetch: vi.fn(),
     });
 
     render(
