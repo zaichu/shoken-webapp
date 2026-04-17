@@ -115,9 +115,9 @@ export function useAssetBalanceState() {
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: true });
   };
 
-  const closeDeleteConfirm = () => {
+  const closeDeleteConfirm = useCallback(() => {
     dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', payload: false });
-  };
+  }, []);
 
   const confirmDeleteAll = useCallback(async () => {
     closeDeleteConfirm();

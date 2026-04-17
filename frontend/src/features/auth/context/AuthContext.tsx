@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     locationAssigner.assign(`${apiBaseUrl}/auth/google`);
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     // 登録されたコールバックを先に実行（状態クリア用）
     logoutCallbacksRef.current.forEach(callback => callback());
     let hasError = false;
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (hasError) {
       throw caughtError;
     }
-  };
+  }, []);
 
   // ログアウト時のコールバック登録
   const onLogout = (callback: () => void) => {
