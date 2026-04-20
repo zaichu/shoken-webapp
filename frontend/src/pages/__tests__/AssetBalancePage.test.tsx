@@ -228,6 +228,22 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
   });
 
+  it('未認証時: ログインボタンを押すとログイン処理が呼ばれる', async () => {
+    const login = vi.fn();
+    vi.mocked(authHook.useAuth).mockReturnValue({
+      ...makeAuthMock({}),
+      login,
+    });
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+
+    expect(login).toHaveBeenCalledTimes(1);
+    expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
+  });
+
   it('認証確認中: スピナーと案内文が表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ authLoading: true }));
 

@@ -354,6 +354,24 @@ describe('Dividend', () => {
         }
     });
 
+    it('検索種別に一致しないクエリでも年月単位でグループ化される', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: '該当なし',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            expect(screen.getByText('2023年1月')).toBeInTheDocument();
+            expect(screen.queryByText('2023年2月')).not.toBeInTheDocument();
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
     it('コード付きラベル形式の検索クエリでも銘柄詳細ヘッダーが表示される', async () => {
         const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
             sortedData: mockData,
