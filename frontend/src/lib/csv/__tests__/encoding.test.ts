@@ -243,5 +243,78 @@ describe('encoding utilities', () => {
         confidence: 0.1
       });
     });
+
+    it('TextDecoder コンストラクタが非 Error 値を投げた場合は String() で警告する', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          if (encoding === 'shift-jis') {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            throw 'non-error string';
+          }
+          return new originalTextDecoder(encoding, options);
+        }
+        decode(input?: Uint8Array) {
+          return new originalTextDecoder('utf-8').decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('hello'));
+
+      expect(result.encoding).toBe('utf-8');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('はサポートされていません'),
+        'non-error string'
+      );
+    });
+
+    it('decode() が非 Error 値を投げた場合は String() で警告する', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder?: TextDecoder;
+        private readonly shouldThrow: boolean;
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          this.shouldThrow = encoding === 'iso-8859-1';
+          if (!this.shouldThrow) {
+            this.decoder = new originalTextDecoder(encoding, options);
+          }
+        }
+        decode(input?: Uint8Array) {
+          if (this.shouldThrow) {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            throw 'decode-non-error';
+          }
+          return this.decoder!.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('hello'));
+
+      expect(result.encoding).toBe('utf-8');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('でのデコードに失敗しました'),
+        'decode-non-error'
+      );
+    });
+
+    it('外側 catch が非 Error 値を受け取った場合は String() で警告する', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(Math, 'max').mockImplementationOnce(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
+        throw 'outer-non-error';
+      });
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('hello'));
+
+      expect(result.text).toBeTruthy();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('でのデコードに失敗しました'),
+        'outer-non-error'
+      );
+    });
   });
 });
