@@ -221,4 +221,13 @@ describe('NumberInputField', () => {
     fireEvent.blur(input);
     expect(input.value).toBe('abc');
   });
+
+  it('changeで非数値入力の場合はNaN分岐に入りonChangeが呼ばれない', () => {
+    const handleChange = vi.fn();
+    render(<NumberInputField {...defaultProps} onChange={handleChange} />);
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    input.type = 'text';
+    fireEvent.change(input, { target: { value: 'abc' } });
+    expect(handleChange).not.toHaveBeenCalled();
+  });
 });
