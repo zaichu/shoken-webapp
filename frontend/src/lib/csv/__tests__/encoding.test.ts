@@ -250,7 +250,6 @@ describe('encoding utilities', () => {
       class MockTextDecoder {
         constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
           if (encoding === 'shift-jis') {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw 'non-error string';
           }
           return new originalTextDecoder(encoding, options);
@@ -284,7 +283,6 @@ describe('encoding utilities', () => {
         }
         decode(input?: Uint8Array) {
           if (this.shouldThrow) {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw 'decode-non-error';
           }
           return this.decoder!.decode(input);
@@ -304,7 +302,6 @@ describe('encoding utilities', () => {
     it('外側 catch が非 Error 値を受け取った場合は String() で警告する', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.spyOn(Math, 'max').mockImplementationOnce(() => {
-        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'outer-non-error';
       });
 
