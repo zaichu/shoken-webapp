@@ -184,4 +184,26 @@ describe('SearchPage', () => {
       screen.queryByText('J-Quants API の応答形式が変更された可能性があります')
     ).not.toBeInTheDocument();
   });
+
+  it('検索結果がある場合は銘柄情報を表示する', () => {
+    mockUseStockSearch.mockReturnValue({
+      stockCode: '7203',
+      setStockCode: vi.fn(),
+      stockData: { code: '7203', name: 'トヨタ自動車' },
+      error: null,
+      isLoading: false,
+      isError: false,
+      handleSearch: vi.fn(),
+      searchByCode: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <SearchPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('StockInfo')).toBeInTheDocument();
+    expect(screen.queryByText('銘柄を検索')).not.toBeInTheDocument();
+  });
 });
