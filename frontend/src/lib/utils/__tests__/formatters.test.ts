@@ -100,6 +100,10 @@ describe('日付関連のフォーマット関数', () => {
       const date = new Date(2023, 0, 5);
       expect(createISODateKey(date)).toBe('2023-01-05');
     });
+
+    it('無効な日付は空文字を返す', () => {
+      expect(createISODateKey(new Date('invalid'))).toBe('');
+    });
   });
 });
 

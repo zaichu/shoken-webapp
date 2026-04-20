@@ -39,6 +39,22 @@ describe('ApiError', () => {
       expect(error.requestMethod).toBe('POST');
     });
 
+    it('Error.captureStackTrace が存在しない環境ではスキップされる', () => {
+      const originalCaptureStackTrace = Error.captureStackTrace;
+      Object.defineProperty(Error, 'captureStackTrace', {
+        value: undefined,
+        configurable: true,
+      });
+      try {
+        expect(() => new ApiError(ApiErrorType.REQUEST_ERROR, 'test')).not.toThrow();
+      } finally {
+        Object.defineProperty(Error, 'captureStackTrace', {
+          value: originalCaptureStackTrace,
+          configurable: true,
+        });
+      }
+    });
+
     const captureStackTraceIt =
       typeof Error.captureStackTrace === 'function' ? it : it.skip;
 
@@ -94,6 +110,19 @@ describe('ApiError', () => {
       );
 
       expect(error.toDetailedString()).toContain('URL: POST /api/test');
+    });
+
+    it('requestUrl があり requestMethod が未指定の場合は GET を使う', () => {
+      const error = new ApiError(
+        ApiErrorType.REQUEST_ERROR,
+        'リクエストに失敗しました',
+        undefined,
+        undefined,
+        '/api/test',
+        undefined
+      );
+
+      expect(error.toDetailedString()).toContain('URL: GET /api/test');
     });
 
     it('details がある場合は Details を含む', () => {
