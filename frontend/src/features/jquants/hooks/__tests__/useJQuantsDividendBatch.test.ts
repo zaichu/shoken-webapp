@@ -175,4 +175,27 @@ describe('useJQuantsDividendBatch', () => {
 
     expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(8);
   });
+
+  it('アンマウント時にリトライタイマーがクリアされる', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    (jquantsApiClient.getSummary as Mock).mockResolvedValue({ data: [] });
+
+    try {
+      const codes = ['1605'];
+      const { result, unmount } = renderHook(() => useJQuantsDividendBatch(codes, true));
+
+      await flushAsyncUpdates();
+
+      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(1);
+      expect(result.current.loading).toBe(false);
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    } finally {
+      clearTimeoutSpy.mockRestore();
+    }
+  });
 });
