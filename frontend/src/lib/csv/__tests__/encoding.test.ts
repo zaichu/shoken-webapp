@@ -168,6 +168,35 @@ describe('encoding utilities', () => {
       expect(warnSpy).toHaveBeenCalled();
     });
 
+    it('先頭エンコーディングの TextDecoder コンストラクタが例外を投げる場合はスキップする', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder: TextDecoder;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          if (encoding === 'utf-8') {
+            throw 'unsupported encoding';
+          }
+          this.decoder = new originalTextDecoder(encoding, options);
+        }
+
+        decode(input?: Uint8Array) {
+          return this.decoder.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new Uint8Array([0xB1, 0xB2, 0xB3]));
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).toBe('ｱｲｳ');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'エンコーディング utf-8 はサポートされていません:',
+        'unsupported encoding'
+      );
+    });
+
     it('decode で例外が発生したエンコーディングはスキップする', () => {
       const originalTextDecoder = TextDecoder;
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -195,6 +224,52 @@ describe('encoding utilities', () => {
 
       expect(result.encoding).toBe('utf-8');
       expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('先頭エンコーディングの decode が例外を投げる場合はスキップする', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder: TextDecoder;
+        private readonly encoding: string;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          this.encoding = encoding;
+          this.decoder = new originalTextDecoder(encoding, options);
+        }
+
+        decode(input?: Uint8Array) {
+          if (this.encoding === 'utf-8') {
+            throw 'decode failed';
+          }
+          return this.decoder.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      const result = tryDecodeWithMultipleEncodings(new Uint8Array([0xB1, 0xB2, 0xB3]));
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).toBe('ｱｲｳ');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'utf-8 でのデコードに失敗しました:',
+        'decode failed'
+      );
+    });
+
+    it('Error 以外の予期しない例外も外側の catch で握りつぶして継続する', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(Math, 'max').mockImplementationOnce(() => {
+        throw 'unexpected failure';
+      });
+
+      const result = tryDecodeWithMultipleEncodings(new TextEncoder().encode('hello'));
+
+      expect(result.text).toBeTruthy();
+      expect(warnSpy).toHaveBeenCalledWith(
+        'utf-8 でのデコードに失敗しました:',
+        'unexpected failure'
+      );
     });
 
     it('予期しない例外は外側の catch で握りつぶして継続する', () => {

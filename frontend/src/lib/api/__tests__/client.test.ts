@@ -382,6 +382,30 @@ describe('ApiClient', () => {
   });
 
   describe('設定', () => {
+    it('baseURL 省略時は環境変数または空文字を使う', async () => {
+      vi.stubEnv('VITE_SHOKEN_WEBAPI_API_URL', undefined);
+
+      try {
+        mockFetch.mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve('null'),
+        });
+
+        const client = createApiClient();
+        const resultPromise = client.get('/default-base');
+        await vi.runAllTimersAsync();
+        await resultPromise;
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/default-base',
+          expect.objectContaining({ method: 'GET' })
+        );
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
     it('カスタム設定でクライアントを作成できる', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -423,6 +447,38 @@ describe('ApiClient', () => {
       expect(headers['Accept']).toBe('application/json');
     });
 
+    it('withCredentials 省略時は same-origin になる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/credentials');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(fetchOptions.credentials).toBe('same-origin');
+    });
+
+    it('withCredentials が true のときは include になる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/credentials', { withCredentials: true });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(fetchOptions.credentials).toBe('include');
+    });
+
     it('認証確認用にtimeout/retryをカスタマイズできる', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -460,6 +516,51 @@ describe('ApiClient', () => {
         'http://api.test/test?existing=1&key=value',
         expect.objectContaining({ method: 'GET' })
       );
+    });
+
+    it('params に undefined 値があるときはクエリから除外される', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/search', {
+        params: {
+          foo: 'bar',
+          baz: undefined,
+          page: 2,
+          active: false,
+        },
+      });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://api.test/search?foo=bar&page=2&active=false');
+      expect(url).not.toContain('baz');
+    });
+
+    it('params がすべて undefined のときはクエリを付与しない', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/search', {
+        params: {
+          foo: undefined,
+          bar: undefined,
+        },
+      });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://api.test/search');
     });
   });
 
