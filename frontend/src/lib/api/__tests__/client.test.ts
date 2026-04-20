@@ -520,6 +520,76 @@ describe('ApiClient', () => {
       );
     });
   });
+
+  describe('カバレッジ補完', () => {
+    it('baseURL 省略時は VITE_SHOKEN_WEBAPI_API_URL または空文字を使う', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('null'),
+      });
+      const client = createApiClient({});
+      const resultPromise = client.get('/health');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/health'),
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('params に undefined 値があるときはクエリから除外される', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test', {
+        params: { foo: 'bar', baz: undefined },
+      });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test?foo=bar',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('params がすべて undefined のときはクエリなしの URL になる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test', {
+        params: { foo: undefined },
+      });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api.test/test',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('withCredentials 省略時は credentials が same-origin になる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test');
+      await vi.runAllTimersAsync();
+      await resultPromise;
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ credentials: 'same-origin' })
+      );
+    });
+  });
 });
 
 // Rustテスト
