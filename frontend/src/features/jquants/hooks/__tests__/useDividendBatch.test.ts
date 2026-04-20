@@ -134,6 +134,40 @@ describe('useDividendBatch', () => {
     expect(mockFetch).toHaveBeenCalledTimes(5);
   });
 
+  it('pending 時は重複排除したコードで件数とリトライ上限を計算する', async () => {
+    vi.useFakeTimers();
+
+    mockFetch.mockResolvedValue([
+      makeItem('3001', 'pending', null),
+      makeItem('3002', 'pending', null),
+    ]);
+
+    const codes = ['3002', '3001', '3001'];
+    const { result } = renderHook(() => useDividendBatch(codes, true));
+
+    await flushAsyncUpdates();
+
+    expect(mockFetch).toHaveBeenCalledWith(['3001', '3002']);
+    expect(result.current.totalCount).toBe(2);
+    expect(result.current.fetchedCount).toBe(0);
+
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+  });
+
   it('enabled=false のときは状態がクリアされ API が呼ばれない', async () => {
     // 安定参照を使う（インライン配列だと毎レンダーで新参照が生成され無限ループになる）
     const codes = ['1234'];
@@ -145,6 +179,47 @@ describe('useDividendBatch', () => {
     expect(result.current.dividendPerShareMap.size).toBe(0);
     expect(result.current.dividendStatusMap.size).toBe(0);
     expect(result.current.totalCount).toBe(0);
+  });
+
+  it('enabled=false に切り替わるとマップをリセットして再取得しない', async () => {
+    mockFetch.mockResolvedValue([makeItem('1234', 'ok', 45)]);
+
+    let enabled = true;
+    const codes = ['1234'];
+    const { result, rerender } = renderHook(() => useDividendBatch(codes, enabled));
+
+    await waitFor(() => expect(result.current.loading).toBe(false), waitOpts);
+    expect(result.current.dividendPerShareMap.get('1234')).toBe(45);
+    expect(result.current.dividendStatusMap.get('1234')).toBe('ok');
+
+    enabled = false;
+    rerender();
+
+    await waitFor(() => expect(result.current.dividendPerShareMap.size).toBe(0), waitOpts);
+    expect(result.current.dividendStatusMap.size).toBe(0);
+    expect(result.current.fetchedCount).toBe(0);
+    expect(result.current.totalCount).toBe(0);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('securityCodes が空配列になるとマップをリセットする', async () => {
+    mockFetch.mockResolvedValue([makeItem('7203', 'ok', 50)]);
+
+    const { result, rerender } = renderHook(
+      ({ codes }: { codes: string[] }) => useDividendBatch(codes, true),
+      { initialProps: { codes: ['7203'] } }
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false), waitOpts);
+    expect(result.current.dividendPerShareMap.get('7203')).toBe(50);
+
+    rerender({ codes: [] });
+
+    await waitFor(() => expect(result.current.dividendPerShareMap.size).toBe(0), waitOpts);
+    expect(result.current.dividendStatusMap.size).toBe(0);
+    expect(result.current.fetchedCount).toBe(0);
+    expect(result.current.totalCount).toBe(0);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('pending 後に enabled を切り替えると再フェッチで ok に更新できる', async () => {
