@@ -180,4 +180,45 @@ describe('NumberInputField', () => {
     expect(input).toHaveAttribute('min', '0');
     expect(input).toHaveAttribute('max', '100');
   });
+
+  it('blurで空文字の場合は何もしない', () => {
+    render(<NumberInputField {...defaultProps} />);
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    input.value = '';
+    fireEvent.blur(input);
+    expect(input.value).toBe('');
+  });
+
+  it('blurで小数入力の場合に適切な形式でフォーマットされる', () => {
+    render(<NumberInputField {...defaultProps} allowDecimal precision={2} />);
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    input.value = '3.14159';
+    fireEvent.blur(input);
+    expect(input.value).toBe('3.14');
+  });
+
+  it('blurでallowDecimal=falseの場合に数値文字列になる', () => {
+    render(<NumberInputField {...defaultProps} allowDecimal={false} />);
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    input.value = '42.7';
+    fireEvent.blur(input);
+    expect(input.value).toBe('42.7');
+  });
+
+  it('blurでonBlurプロップが呼ばれる', () => {
+    const onBlur = vi.fn();
+    render(<NumberInputField {...defaultProps} onBlur={onBlur} />);
+    const input = screen.getByLabelText('数値入力');
+    fireEvent.blur(input, { target: { value: '100' } });
+    expect(onBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('blurで非数値入力の場合はフォーマットされない', () => {
+    render(<NumberInputField {...defaultProps} />);
+    const input = screen.getByLabelText('数値入力') as HTMLInputElement;
+    input.type = 'text';
+    input.value = 'abc';
+    fireEvent.blur(input);
+    expect(input.value).toBe('abc');
+  });
 });
