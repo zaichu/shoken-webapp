@@ -34,9 +34,39 @@ describe('useIdleTimer', () => {
   it('enabled=false のとき onIdle を呼ばない', () => {
     const onIdle = vi.fn();
 
-    renderHook(() => useIdleTimer({ timeout: 1000, onIdle, enabled: false }));
+    const { result } = renderHook(() => useIdleTimer({ timeout: 1000, onIdle, enabled: false }));
 
     act(() => {
+      result.current.resetTimer();
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
+  it('enabled が true から false に切り替わると既存タイマーを解除する', () => {
+    const onIdle = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ enabled }) => useIdleTimer({ timeout: 1000, onIdle, enabled }),
+      { initialProps: { enabled: true } }
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    rerender({ enabled: false });
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(onIdle).not.toHaveBeenCalled();
+
+    act(() => {
+      document.dispatchEvent(new MouseEvent('mousedown'));
       vi.advanceTimersByTime(1000);
     });
     expect(onIdle).not.toHaveBeenCalled();
