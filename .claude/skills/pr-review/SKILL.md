@@ -1,33 +1,34 @@
 ---
 name: pr-review
 description: |
-  Codex が実装・push した PR を Claude が自動検出してレビューする。
+  Claude が実装した差分または PR を Codex がレビューする。
   Use when: 「PRをレビューして」「レビューしてください」と依頼された時。
-  または Codex から PR 作成完了の通知を受けた後。
+  または Claude 実装完了後に Codex が実装レビューする時。
 ---
 
-# PR Review（Claude 実行）
+# PR Review（Codex 実行）
 
 ## Overview
-Codex が実装して push した PR を Claude がレビューする。
+Claude が実装した差分または PR を Codex がレビューする。
 全体開発ルール（`.claude/rules/00-general.md`）における標準フローは
-`Codex が実装する → Claude がレビューする` とし、本スキルで運用する。
+`Codex が設計する → Claude が実装する → Codex がレビューする` とし、本スキルで運用する。
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 
 ## Workflow
 
-### 1. レビュー対象 PR を自動検出する
+### 1. レビュー対象を確認する
+- `docs/tasks/<branch-name>.md` が存在する場合は読む
 - `git fetch origin` で比較元を最新化する
 - `git branch --show-current` で現在ブランチを確認する
 - `gh pr list --state open --head "$(git branch --show-current)" --json number,title,url,body` で open PR を探す
-- 見つからない場合は、ユーザーに PR 番号 or URL を確認する
+- PR がない場合は、現在ブランチの `origin/main...HEAD` 差分をレビュー対象にする
 
 ### 2. レビュー材料を収集する
 - `git diff origin/main...HEAD --name-status`
 - `git diff origin/main...HEAD --stat`
 - `git diff origin/main...HEAD`
-- `gh pr view <PR番号> --json number,title,url,body`
+- PR がある場合: `gh pr view <PR番号> --json number,title,url,body`
 
 ### 3. 検証結果を確定する
 変更範囲に応じて実行:
@@ -52,53 +53,40 @@ findings first で重大度順に出す:
 2. **Open questions / assumptions**（あれば）
 3. **判定**: LGTM / 要修正
 
-### 5. レビュー結果を PR にコメントする
-- 既存の `🤖 Claude review` コメントを確認: `gh api repos/{owner}/{repo}/issues/<PR番号>/comments --jq '[.[] | select(.body | startswith("🤖 Claude review"))] | last | .id'`
-- 存在する場合は更新: `gh api repos/{owner}/{repo}/issues/comments/<comment_id> -X PATCH -f body="..."`
-- 存在しない場合は新規投稿: `gh pr comment <PR番号> --body "..."`
-- コメント先頭は `🤖 Claude review` で始める
-- **inline レビューコメントも必ず確認・返信する**:
-  - 取得: `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments --jq '.[] | {id, path, body}'`
-  - 返信: `gh api repos/{owner}/{repo}/pulls/comments/<comment_id>/replies --method POST --field 'body=...'`
+### 5. レビュー結果を記録する
+- task file がある場合は `レビュー指摘` に findings と判定を追記する
+- PR がある場合は必要に応じて `🤖 Codex review` コメントとして投稿する
+- 投稿済みコメントを更新する場合は、先頭が `🤖 Codex review` の最新コメントを更新する
 
 ### 6. 修正が必要な場合
-`claude-codex-handoff` スキルを使って Codex に修正を依頼する。依頼文には**以下を必ず含める**:
+`codex-claude-handoff` スキルを使って Claude に修正を依頼する。依頼文には**以下を必ず含める**:
 
 ```markdown
-## レビュー指摘への対応（全件返信 + 修正）
+## レビュー指摘への対応
 
-以下の各指摘を順番に処理する:
-1. PR コメントに返信する
-2. 修正を実装する
-3. lint/test/build を通す
-4. push する（PR は既に作成済みのため gh pr create は不要）
+以下の各指摘を順番に処理する。
+1. 修正を実装する
+2. lint/test/build を通す
+3. task file の進捗とメモを更新する
 
 ### 指摘一覧
 
-| # | 重大度 | 内容 | ファイル:行 | コメントID | 返信コマンド |
-|---|--------|------|-----------|-----------|------------|
-| 1 | [high] | <内容> | path/to/file.ts:42 | issue_comment:<id> | `gh api repos/{owner}/{repo}/issues/comments/<id> --method PATCH -f body='対応しました。<一言>'` |
-| 2 | [low]  | <内容> | path/to/other.rs:10 | pulls_comment:<id> | `gh api repos/{owner}/{repo}/pulls/comments/<id>/replies --method POST --field 'body=対応しました。<一言>'` |
-
-対応しない場合（スコープ外など）も「対応しない理由」を必ずコメントに返信すること。
-CodeRabbit 等の自動レビューコメントも同様に返信すること。
+| # | 重大度 | 内容 | ファイル:行 | 受け入れ条件 |
+|---|--------|------|-----------|--------------|
+| 1 | [high] | <内容> | path/to/file.ts:42 | <確認方法> |
 ```
 
-修正 push 後は本スキルで再レビューする（LGTM まで繰り返す）。
+依頼は `claude -p --continue "<修正依頼>"` で送る。
+修正後は本スキルで再レビューする（LGTM まで繰り返す）。
 
 ### 7. LGTM 後
-- **全コメント返信済みか最終確認する**:
-  - `gh api repos/{owner}/{repo}/issues/<PR番号>/comments` — issue コメントに未返信がないか
-  - `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments` — inline コメントに未返信がないか
-  - 未返信があれば返信してからマージする
-- PR をマージする: `gh pr merge <PR番号> --squash --delete-branch`
-- main を更新: `git switch main && git pull --ff-only origin main`
+- PR 作成、push、マージはユーザー指示または task file のスコープに従う
+- マージ前に未解消のレビュー指摘がないことを確認する
 
 ## Review Rules
 - findings first / 重大度順 / ファイルパスと行番号を必須とする
 - 検証コマンドと pass/fail を必ず記録する
-- issue コメント・inline コメント・CodeRabbit コメントすべてに返信する
-- **未返信の指摘が 1 件でも残ればマージしない**
+- **未解消の指摘が 1 件でも残ればマージしない**
 
 ## Output
-レビュー結果（findings first）を出力し、PR にコメントする。
+レビュー結果（findings first）を出力し、必要に応じて task file または PR に記録する。

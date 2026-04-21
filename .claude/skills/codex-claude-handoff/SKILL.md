@@ -6,7 +6,7 @@ description: "Codex から Claude に修正実装を依頼するときのベー�
 # Codex Claude Handoff
 
 ## Goal
-Claude が最短で実装に着手できる依頼文を作成する。
+Claude が最短で実装に着手できる依頼文を作成し、Codex から `claude` CLI で直接渡す。
 
 ## Workflow
 1. 依頼の目的を1文で確定する。
@@ -15,6 +15,8 @@ Claude が最短で実装に着手できる依頼文を作成する。
 4. 制約と非対象を明記する。
 5. 受け入れ条件と確認コマンドを明記する。
 6. `references/base_prompt_template.md` のテンプレートに埋め込む。
+7. 初回依頼は `claude -p --permission-mode acceptEdits "<依頼文>"` で実行する。
+8. レビュー指摘対応は `claude -p --continue "<修正依頼>"` で同じ文脈に渡す。
 
 ## Rules
 - 曖昧語を避ける。: 「いい感じ」「必要なら」などを使わない。
@@ -24,4 +26,4 @@ Claude が最短で実装に着手できる依頼文を作成する。
 - 実行コマンドを先に渡す。: lint/test/build の実施範囲を固定する。
 
 ## Output
-Claude に渡す最終プロンプトを Markdown で返す。
+Claude に渡す最終プロンプトと実行した `claude` コマンドの結果を返す。
