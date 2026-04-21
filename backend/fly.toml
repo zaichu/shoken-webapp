@@ -18,7 +18,7 @@ primary_region = 'nrt'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1 # cold start proxy error 回避のため常時 1 台を維持
   processes = ['app']
 
   [[http_service.checks]]
