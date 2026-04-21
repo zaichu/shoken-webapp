@@ -589,6 +589,22 @@ describe('ApiClient', () => {
         expect.objectContaining({ credentials: 'same-origin' })
       );
     });
+
+    it('withCredentials: true のとき credentials が include になる', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('{}'),
+      });
+      const client = createApiClient({ baseURL: 'http://api.test' });
+      const resultPromise = client.get('/test', { withCredentials: true });
+      await vi.runAllTimersAsync();
+      await resultPromise;
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ credentials: 'include' })
+      );
+    });
   });
 });
 
