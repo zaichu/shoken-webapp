@@ -14,7 +14,7 @@ mod state;
 mod test_env;
 
 use config::Config;
-use db::{connect_pool, run_migrations};
+use db::{connect_pool_with_retry, run_migrations};
 use dotenvy::dotenv;
 use reqwest::Client;
 use routes::app_router;
@@ -50,9 +50,12 @@ async fn main() {
     let config = Config::from_env();
 
     tracing::info!("データベースに接続中...");
-    let pool = connect_pool(&secrets.database_url, config.database_max_connections)
+    let pool = connect_pool_with_retry(&secrets.database_url, config.database_max_connections)
         .await
-        .expect("データベースへの接続に失敗しました");
+        .unwrap_or_else(|e| {
+            tracing::error!("{e}");
+            std::process::exit(1);
+        });
 
     // マイグレーションの実行
     tracing::info!("マイグレーションを実行中...");
