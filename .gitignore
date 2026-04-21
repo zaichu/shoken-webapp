@@ -9,7 +9,9 @@ CLAUDE.local.md
 backend/CLAUDE.local.md
 frontend/CLAUDE.local.md
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 docs/tasks/*.md
 !docs/tasks/TEMPLATE.md
 output/
 scripts/__pycache__/
+backend/tarpaulin-report.json
