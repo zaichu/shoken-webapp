@@ -143,6 +143,66 @@ describe('encoding utilities', () => {
       expect(result.text).toBeDefined();
     });
 
+    it('先頭候補 utf-8 の TextDecoder constructor が例外を投げた場合に shift-jis へ fallback する', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder: TextDecoder;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          if (encoding === 'utf-8') {
+            throw new TypeError('unsupported encoding');
+          }
+          this.decoder = new originalTextDecoder(encoding, options);
+        }
+
+        decode(input?: Uint8Array) {
+          return this.decoder.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      // 半角カタカナ「ｱｲｳ」の Shift-JIS バイト
+      const shiftJisBytes = new Uint8Array([0xB1, 0xB2, 0xB3]);
+      const result = tryDecodeWithMultipleEncodings(shiftJisBytes);
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).toBe('ｱｲｳ');
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('先頭候補 utf-8 の decode が例外を投げた場合に shift-jis へ fallback する', () => {
+      const originalTextDecoder = TextDecoder;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      class MockTextDecoder {
+        private readonly decoder?: TextDecoder;
+        private readonly shouldThrow: boolean;
+
+        constructor(encoding = 'utf-8', options?: TextDecoderOptions) {
+          this.shouldThrow = encoding === 'utf-8';
+          if (!this.shouldThrow) {
+            this.decoder = new originalTextDecoder(encoding, options);
+          }
+        }
+
+        decode(input?: Uint8Array) {
+          if (this.shouldThrow) {
+            throw new TypeError('decode failed');
+          }
+          return this.decoder!.decode(input);
+        }
+      }
+      vi.stubGlobal('TextDecoder', MockTextDecoder as unknown as typeof TextDecoder);
+
+      // 半角カタカナ「ｱｲｳ」の Shift-JIS バイト
+      const shiftJisBytes = new Uint8Array([0xB1, 0xB2, 0xB3]);
+      const result = tryDecodeWithMultipleEncodings(shiftJisBytes);
+
+      expect(result.encoding).toBe('shift-jis');
+      expect(result.text).toBe('ｱｲｳ');
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
     it('未サポートのエンコーディングはスキップして他の結果を使う', () => {
       const originalTextDecoder = TextDecoder;
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
