@@ -10,20 +10,37 @@
 ## 開発フロー（標準）
 
 ### 役割分担
-- **Claude**: 設計・タスク定義・コードレビュー・マージ判断
-- **Codex**: 実装・テスト・コミット・push・PR 作成
+- **Codex**: 調査・設計・タスク定義・実装レビュー・PR レビュー
+- **Claude**: task file に基づく実装・テスト・レビュー指摘対応
 
 ### 標準フロー
-1. Claude がタスクを設計し `docs/tasks/<branch-name>.md` を作成する
-2. Claude が `.claude/skills/claude-codex-handoff/SKILL.md` で Codex に実装を委譲する
-3. Codex が実装・lint/test/build・commit・push・PR 作成を行う
-4. Claude が `/pr-review` スキルで PR をレビューし、GitHub にコメントを投稿する
-5. **修正が必要な場合**: Claude が `claude-codex-handoff` で指摘一覧（コメント ID 付き）を Codex に渡す
-6. **Codex が指摘への対応をする**: 各指摘コメントに返信 → 修正実装 → lint/test/build → push（PR 作成は不要）
-7. Claude が再レビュー（ステップ 4 に戻る）
-8. LGTM → Claude がマージ
+1. Codex が調査・設計を行い `docs/tasks/<branch-name>.md` を作成する
+2. Codex が task file に `Claude 実装依頼` セクションを作り、目的・現状・期待挙動・対象ファイル・制約・受け入れ条件・確認コマンドを明記する
+3. Codex が `claude` CLI で Claude を直接呼び出し、実装を委譲する
+4. Claude が実装・lint/test/build・task file 更新を行う
+5. Codex が差分、テスト結果、受け入れ条件をレビューする
+6. **修正が必要な場合**: Codex が task file の `レビュー指摘` に追記し、`claude` CLI で Claude に追加修正を依頼する
+7. Claude がレビュー指摘へ対応し、必要なテストを再実行する
+8. Codex が再レビュー（ステップ 5 に戻る）
+9. LGTM → PR 作成・マージはユーザー指示または task file のスコープに従う
 
-**重要: ステップ 5〜7 は LGTM が出るまで繰り返す。返信なし・未修正の指摘が 1 件でも残ればマージ禁止。**
+**重要: ステップ 5〜8 は LGTM が出るまで繰り返す。未解消のレビュー指摘が 1 件でも残ればマージ禁止。**
+
+### Codex から Claude を直接呼ぶ手順
+
+- 初回依頼:
+
+```bash
+claude -p --permission-mode acceptEdits "$(sed -n '/^## Claude 実装依頼/,$p' docs/tasks/<branch-name>.md)"
+```
+
+- レビュー指摘対応:
+
+```bash
+claude -p --continue "<Codex のレビュー指摘と修正依頼>"
+```
+
+- `claude` CLI が使えない場合は、実行できなかった理由と Claude に渡す依頼文をユーザーへ返す
 
 ### タスク管理ルール
 - `docs/tasks/<branch-name>.md` が存在する場合は、作業前に必ず読み、進捗とレビュー指摘を更新する
@@ -31,15 +48,21 @@
 - task file はローカルの一時ファイルとして扱い、ユーザー明示指示がない限りコミット・PR に含めない
 - task 完了時または作業中止時には、対応する task file を削除する
 - backend の API 契約変更時は `bash scripts/check-openapi.sh` を実行して `docs/openapi.json` と `frontend/src/generated/api.ts` を同期する
+- Codex は実装委譲前に task file の `Claude 実装依頼` を最新化する
+- Claude は実装前に task file のスコープ、非対象、受け入れ条件、タスク固有コマンドを確認する
 
 ### Codex が遵守するルール
-- 実装後は必ず lint/test/build を通してからコミットする
-- push 後に PR を作成し、Claude のレビューを待つ
-- Claude からレビュー指摘が来たら、**まず各指摘コメントに返信し、その後修正して再 push する**
-  - 返信なしで修正だけするのは禁止
-  - 修正しない場合（スコープ外など）も「対応しない理由」を必ずコメントに返信する
-- CodeRabbit 等の自動レビューコメントにも同様に返信する
-- Codex から Claude に設計相談・調査依頼する場合は `.claude/skills/codex-claude-handoff/SKILL.md` を使用する
+- 実装前に調査結果、設計方針、非対象、受け入れ条件を task file に書く
+- Claude 実装後は `git diff`、関連テスト、受け入れ条件を確認する
+- レビュー指摘は task file の `レビュー指摘` に具体的に書く
+- 未解消の指摘がある場合は `claude` CLI で Claude に追加修正を依頼する
+- Codex が実装本体を直接変更するのは、ユーザーが明示した場合、または Claude 呼び出しが利用できずユーザーが続行を許可した場合に限る
+
+### Claude が遵守するルール
+- task file のスコープと非対象を守って実装する
+- 指定された lint/test/build を実行し、結果を返答に含める
+- 追加の設計変更が必要な場合は、実装前に Codex へ確認する
+- 実装完了後は task file の進捗と必要なメモを更新する
 
 ## 出力制約
 
