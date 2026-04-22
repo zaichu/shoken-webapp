@@ -1,5 +1,6 @@
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::time::Duration;
+use url::Url;
 
 // 起動時 DB 接続の retry パラメータ。fly.toml の grace_period と整合すること
 pub(crate) const MAX_ATTEMPTS: u32 = 5;
@@ -28,13 +29,17 @@ pub async fn connect_pool_with_retry(
 ) -> Result<PgPool, String> {
     let database_url = database_url.trim();
     validate_database_url(database_url)?;
+    let sanitized_url = sanitize_database_url_for_sqlx(database_url)?;
 
     let connect_timeout = Duration::from_secs(CONNECT_TIMEOUT_SECS);
     let retry_delay = Duration::from_secs(RETRY_DELAY_SECS);
 
     for attempt in 1..=MAX_ATTEMPTS {
-        match tokio::time::timeout(connect_timeout, connect_pool(database_url, max_connections))
-            .await
+        match tokio::time::timeout(
+            connect_timeout,
+            connect_pool(&sanitized_url, max_connections),
+        )
+        .await
         {
             Ok(Ok(pool)) => return Ok(pool),
             Ok(Err(e)) if is_transient_error(&e) => {
@@ -62,6 +67,44 @@ pub async fn connect_pool_with_retry(
     }
 
     Err("データベースへの接続に失敗しました（リトライ上限超過）".to_string())
+}
+
+/// SQLx に渡す前に `channel_binding` query parameter を除去する。
+/// `channel_binding` がない場合は入力文字列をそのまま返す。
+/// 保持する query pair は raw 文字列を再利用し percent-encoding を変換しない。
+fn sanitize_database_url_for_sqlx(url: &str) -> Result<String, String> {
+    let parsed = Url::parse(url).map_err(|_| "DATABASE_URL の解析に失敗しました".to_string())?;
+
+    if !parsed.query_pairs().any(|(k, _)| k == "channel_binding") {
+        return Ok(url.to_string());
+    }
+
+    // raw pair と decoded pair を zip し、decoded key が channel_binding の raw pair を除去する
+    let filtered_query = parsed
+        .query()
+        .map(|q| {
+            let raw_pairs: Vec<&str> = q.split('&').collect();
+            let decoded_pairs: Vec<_> = parsed.query_pairs().collect();
+            raw_pairs
+                .iter()
+                .zip(decoded_pairs.iter())
+                .filter(|(_, (k, _))| k != "channel_binding")
+                .map(|(raw, _)| *raw)
+                .collect::<Vec<_>>()
+                .join("&")
+        })
+        .unwrap_or_default();
+
+    let fragment = parsed
+        .fragment()
+        .map(|f| format!("#{f}"))
+        .unwrap_or_default();
+    let base = url.find('?').map_or(url, |pos| &url[..pos]);
+    if filtered_query.is_empty() {
+        Ok(format!("{base}{fragment}"))
+    } else {
+        Ok(format!("{base}?{filtered_query}{fragment}"))
+    }
 }
 
 fn validate_database_url(url: &str) -> Result<(), String> {
@@ -173,6 +216,115 @@ mod tests {
         assert!(
             !err.contains("example.com"),
             "trim後のURLをエラーに含めない: {err}"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_removes_channel_binding() {
+        // channel_binding だけを除去する
+        let url = "postgres://localhost/db?channel_binding=require";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        let parsed = url::Url::parse(&sanitized).unwrap();
+        let params: Vec<_> = parsed.query_pairs().collect();
+        assert!(
+            params.iter().all(|(k, _)| k != "channel_binding"),
+            "channel_binding が残っている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_preserves_other_params() {
+        // sslmode など他の query parameter は保持する
+        let url = "postgres://localhost/db?sslmode=require&channel_binding=require";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        let parsed = url::Url::parse(&sanitized).unwrap();
+        let params: Vec<_> = parsed.query_pairs().collect();
+        assert!(
+            params.iter().any(|(k, _)| k == "sslmode"),
+            "sslmode が除去されている"
+        );
+        assert!(
+            params.iter().all(|(k, _)| k != "channel_binding"),
+            "channel_binding が残っている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_only_channel_binding_param() {
+        // channel_binding だけの場合 query が空になる
+        let url = "postgres://localhost/db?channel_binding=require";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        let parsed = url::Url::parse(&sanitized).unwrap();
+        assert!(
+            parsed.query().is_none() || parsed.query() == Some(""),
+            "query が空でない: {:?}",
+            parsed.query()
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_preserves_percent_encoding() {
+        // %20 が + などに変換されず raw encoding のまま保持される
+        let url =
+            "postgres://localhost/db?application_name=shoken%20backend&channel_binding=require";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        assert!(
+            sanitized.contains("application_name=shoken%20backend"),
+            "%20 が + などに変換されている"
+        );
+        assert!(
+            !sanitized.contains("channel_binding"),
+            "channel_binding が残っている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_no_change_without_channel_binding() {
+        // channel_binding がない URL は入力文字列をそのまま返す
+        let url = "postgres://localhost/db?sslmode=require&application_name=shoken%20backend";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        assert!(sanitized == url, "入力文字列が変化した");
+    }
+
+    #[test]
+    fn test_sanitize_database_url_removes_percent_encoded_key() {
+        // decoded key が channel_binding になる percent-encoded raw key も除去される
+        // %5F は '_' なので channel%5Fbinding は channel_binding に decode される
+        let url = "postgres://localhost/db?channel%5Fbinding=require&sslmode=require";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        assert!(
+            !sanitized.contains("channel"),
+            "percent-encoded channel_binding key が残っている"
+        );
+        assert!(
+            sanitized.contains("sslmode=require"),
+            "sslmode が除去されている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_preserves_fragment() {
+        // fragment は channel_binding 除去後も保持される
+        let url = "postgres://localhost/db?sslmode=require&channel_binding=require#frag";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        assert!(sanitized.ends_with("#frag"), "fragment が消えている");
+        assert!(
+            !sanitized.contains("channel_binding"),
+            "channel_binding が残っている"
+        );
+        assert!(
+            sanitized.contains("sslmode=require"),
+            "sslmode が除去されている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_invalid_url_error_safe() {
+        // invalid URL のエラーに URL 本体・user・password・host を含まない
+        let err = sanitize_database_url_for_sqlx("not-a-valid-url").unwrap_err();
+        assert!(
+            !err.contains("not-a-valid-url"),
+            "エラーに URL 値を含めない: {err}"
         );
     }
 
