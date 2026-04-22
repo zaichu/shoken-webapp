@@ -7,18 +7,19 @@ pub(crate) const MAX_ATTEMPTS: u32 = 5;
 pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 5;
 pub(crate) const RETRY_DELAY_SECS: u64 = 3;
 
-pub async fn connect_pool(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
+fn pool_options(max_connections: u32) -> PgPoolOptions {
     PgPoolOptions::new()
         .max_connections(max_connections)
-        .connect(database_url)
-        .await
+        .acquire_slow_threshold(Duration::from_secs(CONNECT_TIMEOUT_SECS))
+}
+
+pub async fn connect_pool(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
+    pool_options(max_connections).connect(database_url).await
 }
 
 #[allow(dead_code)]
 pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
-    PgPoolOptions::new()
-        .max_connections(max_connections)
-        .connect_lazy(database_url)
+    pool_options(max_connections).connect_lazy(database_url)
 }
 
 /// URL の設定を事前検証し、一時的な接続失敗は bounded retry する。
@@ -134,6 +135,28 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_db_pool_options_use_connect_timeout_as_slow_acquire_threshold() {
+        let opts5 = pool_options(5);
+        assert_eq!(
+            opts5.get_acquire_slow_threshold(),
+            Duration::from_secs(CONNECT_TIMEOUT_SECS),
+            "slow acquire threshold は CONNECT_TIMEOUT_SECS と同じであること"
+        );
+        assert_eq!(
+            opts5.get_max_connections(),
+            5,
+            "max_connections が一致すること"
+        );
+
+        let opts10 = pool_options(10);
+        assert_eq!(
+            opts10.get_acquire_slow_threshold(),
+            Duration::from_secs(CONNECT_TIMEOUT_SECS),
+        );
+        assert_eq!(opts10.get_max_connections(), 10);
+    }
 
     #[tokio::test]
     async fn test_connect_pool_lazy() {
