@@ -84,9 +84,9 @@ describe('encoding utilities', () => {
 
     it('空の配列の場合は適切にハンドリングする', () => {
       const uint8Array = new Uint8Array(0);
-      
+
       const result = tryDecodeWithMultipleEncodings(uint8Array);
-      
+
       expect(result.text).toBe('');
       expect(result.confidence).toBeGreaterThanOrEqual(0);
     });
