@@ -95,11 +95,15 @@ fn sanitize_database_url_for_sqlx(url: &str) -> Result<String, String> {
         })
         .unwrap_or_default();
 
+    let fragment = parsed
+        .fragment()
+        .map(|f| format!("#{f}"))
+        .unwrap_or_default();
     let base = url.find('?').map_or(url, |pos| &url[..pos]);
     if filtered_query.is_empty() {
-        Ok(base.to_string())
+        Ok(format!("{base}{fragment}"))
     } else {
-        Ok(format!("{}?{}", base, filtered_query))
+        Ok(format!("{base}?{filtered_query}{fragment}"))
     }
 }
 
@@ -291,6 +295,22 @@ mod tests {
         assert!(
             !sanitized.contains("channel"),
             "percent-encoded channel_binding key が残っている"
+        );
+        assert!(
+            sanitized.contains("sslmode=require"),
+            "sslmode が除去されている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_preserves_fragment() {
+        // fragment は channel_binding 除去後も保持される
+        let url = "postgres://localhost/db?sslmode=require&channel_binding=require#frag";
+        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
+        assert!(sanitized.ends_with("#frag"), "fragment が消えている");
+        assert!(
+            !sanitized.contains("channel_binding"),
+            "channel_binding が残っている"
         );
         assert!(
             sanitized.contains("sslmode=require"),
