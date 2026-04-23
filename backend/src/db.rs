@@ -7,10 +7,14 @@ pub(crate) const MAX_ATTEMPTS: u32 = 5;
 pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 5;
 pub(crate) const RETRY_DELAY_SECS: u64 = 3;
 
+// runtime の Pool::acquire() slow warning 閾値。Fly + 外部 PG ではアイドル後再接続が
+// CONNECT_TIMEOUT_SECS を超えることがあるため、起動 retry timeout とは別定数にする。
+pub(crate) const ACQUIRE_SLOW_THRESHOLD_SECS: u64 = 10;
+
 fn pool_options(max_connections: u32) -> PgPoolOptions {
     PgPoolOptions::new()
         .max_connections(max_connections)
-        .acquire_slow_threshold(Duration::from_secs(CONNECT_TIMEOUT_SECS))
+        .acquire_slow_threshold(Duration::from_secs(ACQUIRE_SLOW_THRESHOLD_SECS))
 }
 
 pub async fn connect_pool(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
@@ -136,13 +140,24 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 mod tests {
     use super::*;
 
+    // 定数の大小関係をコンパイル時に保証する
+    const _: () = assert!(
+        ACQUIRE_SLOW_THRESHOLD_SECS > CONNECT_TIMEOUT_SECS,
+        "ACQUIRE_SLOW_THRESHOLD_SECS は CONNECT_TIMEOUT_SECS より大きくなければならない"
+    );
+
     #[test]
-    fn test_db_pool_options_use_connect_timeout_as_slow_acquire_threshold() {
+    fn test_db_pool_options_use_acquire_slow_threshold() {
         let opts5 = pool_options(5);
         assert_eq!(
             opts5.get_acquire_slow_threshold(),
+            Duration::from_secs(ACQUIRE_SLOW_THRESHOLD_SECS),
+            "slow acquire threshold は ACQUIRE_SLOW_THRESHOLD_SECS であること"
+        );
+        assert_ne!(
+            opts5.get_acquire_slow_threshold(),
             Duration::from_secs(CONNECT_TIMEOUT_SECS),
-            "slow acquire threshold は CONNECT_TIMEOUT_SECS と同じであること"
+            "slow acquire threshold は CONNECT_TIMEOUT_SECS と異なること"
         );
         assert_eq!(
             opts5.get_max_connections(),
@@ -153,7 +168,7 @@ mod tests {
         let opts10 = pool_options(10);
         assert_eq!(
             opts10.get_acquire_slow_threshold(),
-            Duration::from_secs(CONNECT_TIMEOUT_SECS),
+            Duration::from_secs(ACQUIRE_SLOW_THRESHOLD_SECS),
         );
         assert_eq!(opts10.get_max_connections(), 10);
     }
