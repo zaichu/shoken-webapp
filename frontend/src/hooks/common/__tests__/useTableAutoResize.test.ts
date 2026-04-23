@@ -8,7 +8,7 @@ class MockResizeObserver {
   constructor(_callback: ResizeObserverCallback) {
     // callback は保持するが、テストでは使用しない
   }
-  
+
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
@@ -30,7 +30,7 @@ describe('useTableAutoResize', () => {
       configurable: true,
       value: 1000,
     });
-    
+
     // addEventListenerとremoveEventListenerをモック
     window.addEventListener = mockAddEventListener;
     window.removeEventListener = mockRemoveEventListener;
@@ -46,16 +46,16 @@ describe('useTableAutoResize', () => {
 
   it('デフォルト設定で初期化される', () => {
     const { result } = renderHook(() => useTableAutoResize());
-    
+
     expect(result.current.containerRef).toBeDefined();
     expect(result.current.height).toBe('auto');
   });
 
   it('enabledがfalseの場合は高さ計算を行わない', () => {
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useTableAutoResize({ enabled: false })
     );
-    
+
     expect(result.current.height).toBe('auto');
   });
 
@@ -70,26 +70,26 @@ describe('useTableAutoResize', () => {
 
     // forceResizeを変更
     rerender({ forceResize: 1 });
-    
+
     // 高さが再計算される（実際の要素がないのでautoのまま）
     expect(result.current.height).toBe('auto');
   });
 
   it('コンポーネントのアンマウント時にイベントリスナーが削除される', () => {
     const { unmount } = renderHook(() => useTableAutoResize());
-    
+
     // マウント時にイベントリスナーが追加される
     expect(mockAddEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
-    
+
     unmount();
-    
+
     // アンマウント時にイベントリスナーが削除される
     expect(mockRemoveEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
   });
 
   it('ResizeObserverが利用可能な場合に設定される', () => {
     const { result } = renderHook(() => useTableAutoResize());
-    
+
     // containerRefが存在することを確認
     expect(result.current.containerRef).toBeDefined();
     expect(result.current.containerRef.current).toBeNull(); // 実際のDOM要素はない
@@ -102,24 +102,24 @@ describe('useTableAutoResize', () => {
       maxHeight: 800,
       bottomMargin: 50,
     };
-    
+
     const { result } = renderHook(() => useTableAutoResize(options));
-    
+
     expect(result.current.containerRef).toBeDefined();
     expect(result.current.height).toBe('auto'); // DOM要素がないので計算されない
   });
 
   it('ウィンドウサイズの変更時にリサイズハンドラーが呼ばれる', () => {
     renderHook(() => useTableAutoResize());
-    
+
     expect(mockAddEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
-    
+
     // リサイズイベントをシミュレート
     const resizeHandler = mockAddEventListener.mock.calls[0][1];
     act(() => {
       resizeHandler();
     });
-    
+
     // エラーが発生しないことを確認
   });
 
