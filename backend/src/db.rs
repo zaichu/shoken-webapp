@@ -22,9 +22,13 @@ pub async fn connect_pool(database_url: &str, max_connections: u32) -> Result<Pg
     pool_options(max_connections).connect(database_url).await
 }
 
-#[allow(dead_code)]
-pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
-    pool_options(max_connections).connect_lazy(database_url)
+pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgPool, String> {
+    let database_url = database_url.trim();
+    validate_database_url(database_url)?;
+    let sanitized_url = sanitize_database_url_for_sqlx(database_url)?;
+    pool_options(max_connections)
+        .connect_lazy(&sanitized_url)
+        .map_err(|e| format!("DB pool の初期化に失敗しました: {e}"))
 }
 
 /// URL の設定を事前検証し、一時的な接続失敗は bounded retry する。
@@ -178,6 +182,26 @@ mod tests {
         let database_url = "postgresql://user:password@localhost/test_db";
         assert!(connect_pool_lazy(database_url, 5).is_ok());
         assert!(connect_pool_lazy(database_url, 10).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_connect_pool_lazy_invalid_url() {
+        let err = connect_pool_lazy("", 5).unwrap_err();
+        assert!(err.contains("空"), "空URLを拒否すること: {err}");
+        let err = connect_pool_lazy("http://example.com/db", 5).unwrap_err();
+        assert!(
+            !err.contains("example.com"),
+            "エラーにホスト名を含めない: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_connect_pool_lazy_sanitizes_channel_binding() {
+        let url = "postgresql://user:password@localhost/test_db?channel_binding=require";
+        assert!(
+            connect_pool_lazy(url, 5).is_ok(),
+            "channel_binding 付きでも pool 作成できる"
+        );
     }
 
     #[test]

@@ -125,7 +125,11 @@ async fn db_integration_with_docker_and_migrations() {
     };
 
     let config = Config::from_env();
-    let app = app_router(state, &config);
+    let app = app_router(
+        state,
+        &config,
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+    );
 
     let req = Request::builder()
         .method(Method::GET)
@@ -721,7 +725,11 @@ async fn unauthenticated_requests_return_401() {
         client: Client::new(),
         dividend_cache: backend::state::DividendCacheState::default(),
     };
-    let app = app_router(state, &config);
+    let app = app_router(
+        state,
+        &config,
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+    );
 
     for path in [
         "/dividends",

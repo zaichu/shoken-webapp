@@ -259,7 +259,11 @@ mod tests {
             jquants_rate_limit_rps: 0,
             ..Config::default()
         };
-        app_router(make_test_state(), &config)
+        app_router(
+            make_test_state(),
+            &config,
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        )
     }
     async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();

@@ -14,12 +14,15 @@ mod state;
 mod test_env;
 
 use config::Config;
-use db::{connect_pool_with_retry, run_migrations};
+use db::{connect_pool_lazy, connect_pool_with_retry, run_migrations};
 use dotenvy::dotenv;
 use reqwest::Client;
 use routes::app_router;
 use state::{AppState, DividendCacheState, Secrets};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -49,37 +52,55 @@ async fn main() {
 
     let config = Config::from_env();
 
-    tracing::info!("データベースに接続中...");
-    let pool = connect_pool_with_retry(&secrets.database_url, config.database_max_connections)
-        .await
+    let startup_ready = Arc::new(AtomicBool::new(false));
+
+    // URL 検証のみ行い、実接続は行わない lazy pool
+    let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)
         .unwrap_or_else(|e| {
             tracing::error!("{e}");
             std::process::exit(1);
         });
 
-    // マイグレーションの実行
-    tracing::info!("マイグレーションを実行中...");
-    run_migrations(&pool)
-        .await
-        .expect("マイグレーションの実行に失敗しました");
-
     let client = Client::new();
     let state = AppState {
         pool,
-        secrets,
+        secrets: Arc::clone(&secrets),
         client,
         dividend_cache: DividendCacheState::default(),
     };
 
-    let router = app_router(state, &config);
+    let router = app_router(state, &config, Arc::clone(&startup_ready));
 
     let addr = config::server_addr();
-
-    tracing::info!("サーバーを {} で起動します", addr);
 
     let listener = TcpListener::bind(&addr)
         .await
         .expect("TCPリスナーのバインドに失敗しました");
+
+    tracing::info!("サーバーを {} で起動します", addr);
+
+    // DB 接続と migration をバックグラウンドで実行し、完了後に startup_ready を立てる
+    let db_url = secrets.database_url.clone();
+    let max_connections = config.database_max_connections;
+    let startup_ready_bg = Arc::clone(&startup_ready);
+    tokio::spawn(async move {
+        tracing::info!("データベースに接続中...");
+        let pool = connect_pool_with_retry(&db_url, max_connections)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::error!("{e}");
+                std::process::exit(1);
+            });
+
+        tracing::info!("マイグレーションを実行中...");
+        if let Err(e) = run_migrations(&pool).await {
+            tracing::error!("マイグレーション失敗: {e}");
+            std::process::exit(1);
+        }
+
+        tracing::info!("起動完了");
+        startup_ready_bg.store(true, Ordering::Release);
+    });
 
     axum::serve(listener, router)
         .await
