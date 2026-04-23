@@ -3,13 +3,14 @@ use std::time::Duration;
 use url::Url;
 
 // 起動時 DB 接続の retry パラメータ。fly.toml の grace_period と整合すること
-pub(crate) const MAX_ATTEMPTS: u32 = 5;
-pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 5;
+// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 3*10 + 2*3 = 36s < 40s
+pub(crate) const MAX_ATTEMPTS: u32 = 3;
+pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 10;
 pub(crate) const RETRY_DELAY_SECS: u64 = 3;
 
 // runtime の Pool::acquire() slow warning 閾値。Fly + 外部 PG ではアイドル後再接続が
 // CONNECT_TIMEOUT_SECS を超えることがあるため、起動 retry timeout とは別定数にする。
-pub(crate) const ACQUIRE_SLOW_THRESHOLD_SECS: u64 = 10;
+pub(crate) const ACQUIRE_SLOW_THRESHOLD_SECS: u64 = 15;
 
 fn pool_options(max_connections: u32) -> PgPoolOptions {
     PgPoolOptions::new()
@@ -141,10 +142,9 @@ mod tests {
     use super::*;
 
     // 定数の大小関係をコンパイル時に保証する
-    const _: () = assert!(
-        ACQUIRE_SLOW_THRESHOLD_SECS > CONNECT_TIMEOUT_SECS,
-        "ACQUIRE_SLOW_THRESHOLD_SECS は CONNECT_TIMEOUT_SECS より大きくなければならない"
-    );
+    const _: () = if ACQUIRE_SLOW_THRESHOLD_SECS <= CONNECT_TIMEOUT_SECS {
+        panic!("ACQUIRE_SLOW_THRESHOLD_SECS は CONNECT_TIMEOUT_SECS より大きくなければならない")
+    };
 
     #[test]
     fn test_db_pool_options_use_acquire_slow_threshold() {
@@ -363,6 +363,19 @@ mod tests {
         assert!(
             !err.contains("not-a-valid-url"),
             "エラーに URL 値を含めない: {err}"
+        );
+    }
+
+    /// test_startup_connect_timeout_covers_fly_observed_latency は CONNECT_TIMEOUT_SECS の下限ガード（上限は test_retry_budget_fits_grace_period が担う）。
+    /// Fly 起動直後に観測された ~8-10 秒の接続遅延をカバーできることを保証する。
+    /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1,2 で recoverable WARN が出る。
+    #[allow(clippy::assertions_on_constants)]
+    #[test]
+    fn test_startup_connect_timeout_covers_fly_observed_latency() {
+        assert!(
+            CONNECT_TIMEOUT_SECS >= 10,
+            "CONNECT_TIMEOUT_SECS={} は Fly 実測遅延（~8-10s）をカバーするため 10 以上が必要",
+            CONNECT_TIMEOUT_SECS
         );
     }
 
