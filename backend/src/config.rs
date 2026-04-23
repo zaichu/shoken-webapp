@@ -104,6 +104,7 @@ mod tests {
                 dividend_cache: crate::state::DividendCacheState::default(),
             },
             config,
+            Arc::new(std::sync::atomic::AtomicBool::new(true)),
         )
     }
     async fn preflight(app: Router, origin: &str) -> axum::response::Response {

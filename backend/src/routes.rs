@@ -1,6 +1,9 @@
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
-use axum::{middleware, routing::get, Json, Router};
+use axum::{http::StatusCode, middleware, response::IntoResponse, routing::get, Json, Router};
 use tower_http::{
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -37,7 +40,7 @@ fn spawn_keyed_limiter_cleanup(
     }
 }
 
-pub fn app_router(state: AppState, config: &Config) -> Router {
+pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBool>) -> Router {
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
@@ -46,7 +49,21 @@ pub fn app_router(state: AppState, config: &Config) -> Router {
     spawn_keyed_limiter_cleanup(&csv_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
-    domain_routes(jquants_limiter, auth_limiter, csv_limiter)
+    let ready = Arc::clone(&startup_ready);
+    let gated_domain =
+        domain_routes(jquants_limiter, auth_limiter, csv_limiter).layer(middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let ready = Arc::clone(&ready);
+                async move {
+                    if ready.load(Ordering::Acquire) {
+                        next.run(req).await
+                    } else {
+                        StatusCode::SERVICE_UNAVAILABLE.into_response()
+                    }
+                }
+            },
+        ));
+    gated_domain
         .merge(
             Router::new()
                 .route("/health", get(|| async { "OK" }))
@@ -132,7 +149,7 @@ mod tests {
             body::Body,
             http::{Method, Request},
         },
-        std::sync::Arc,
+        std::sync::{atomic::AtomicBool, Arc},
         tower::ServiceExt,
     };
     fn make_test_state() -> AppState {
@@ -310,26 +327,97 @@ mod tests {
             ("/asset-balances/csv", "1.2.3.7"),
         ] {
             assert_rate_limited(
-                app_router(make_test_state(), &Config::from_env()),
+                app_router(
+                    make_test_state(),
+                    &Config::from_env(),
+                    Arc::new(AtomicBool::new(true)),
+                ),
                 Method::POST,
                 path,
                 Some(ip),
             )
             .await;
         }
-        let resp = app_router(make_test_state(), &Config::from_env())
+        let resp = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/domestic-stocks/csv/preview")
+                .header("fly-client-ip", "1.2.3.4")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+    #[tokio::test]
+    async fn test_health_returns_200_during_startup() {
+        let startup_ready = Arc::new(AtomicBool::new(false));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        let resp = router
             .oneshot(
                 Request::builder()
-                    .method(Method::POST)
-                    .uri("/domestic-stocks/csv/preview")
-                    .header("fly-client-ip", "1.2.3.4")
+                    .method(Method::GET)
+                    .uri("/health")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
-        assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(resp.status(), axum::http::StatusCode::OK);
     }
+
+    #[tokio::test]
+    async fn test_domain_route_returns_503_during_startup() {
+        let startup_ready = Arc::new(AtomicBool::new(false));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/auth/me")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_domain_route_returns_401_after_startup() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/auth/me")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
     #[tokio::test]
     async fn test_request_id_propagated_to_response() {
         use {
