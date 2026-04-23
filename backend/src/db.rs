@@ -366,6 +366,7 @@ mod tests {
         );
     }
 
+    /// test_startup_connect_timeout_covers_fly_observed_latency は CONNECT_TIMEOUT_SECS の下限ガード（上限は test_retry_budget_fits_grace_period が担う）。
     /// Fly 起動直後に観測された ~8-10 秒の接続遅延をカバーできることを保証する。
     /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1,2 で recoverable WARN が出る。
     #[allow(clippy::assertions_on_constants)]
