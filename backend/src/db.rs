@@ -3,14 +3,14 @@ use std::time::Duration;
 use url::Url;
 
 // 起動時 DB 接続の retry パラメータ。fly.toml の grace_period と整合すること
-// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 3*10 + 2*3 = 36s < 40s
-pub(crate) const MAX_ATTEMPTS: u32 = 3;
-pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 10;
+// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
+pub(crate) const MAX_ATTEMPTS: u32 = 2;
+pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 15;
 pub(crate) const RETRY_DELAY_SECS: u64 = 3;
 
 // runtime の Pool::acquire() slow warning 閾値。Fly + 外部 PG ではアイドル後再接続が
 // CONNECT_TIMEOUT_SECS を超えることがあるため、起動 retry timeout とは別定数にする。
-pub(crate) const ACQUIRE_SLOW_THRESHOLD_SECS: u64 = 15;
+pub(crate) const ACQUIRE_SLOW_THRESHOLD_SECS: u64 = 20;
 
 fn pool_options(max_connections: u32) -> PgPoolOptions {
     PgPoolOptions::new()
@@ -367,14 +367,14 @@ mod tests {
     }
 
     /// test_startup_connect_timeout_covers_fly_observed_latency は CONNECT_TIMEOUT_SECS の下限ガード（上限は test_retry_budget_fits_grace_period が担う）。
-    /// Fly 起動直後に観測された ~8-10 秒の接続遅延をカバーできることを保証する。
-    /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1,2 で recoverable WARN が出る。
+    /// Fly v196 起動直後に観測された ~10-15 秒の接続遅延をカバーできることを保証する。
+    /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1 で recoverable WARN が出る（v196 実測: attempt=1 max_attempts=3）。
     #[allow(clippy::assertions_on_constants)]
     #[test]
     fn test_startup_connect_timeout_covers_fly_observed_latency() {
         assert!(
-            CONNECT_TIMEOUT_SECS >= 10,
-            "CONNECT_TIMEOUT_SECS={} は Fly 実測遅延（~8-10s）をカバーするため 10 以上が必要",
+            CONNECT_TIMEOUT_SECS >= 15,
+            "CONNECT_TIMEOUT_SECS={} は Fly v196 実測遅延（~10-15s）をカバーするため 15 以上が必要",
             CONNECT_TIMEOUT_SECS
         );
     }
