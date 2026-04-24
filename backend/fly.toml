@@ -26,7 +26,7 @@ primary_region = 'nrt'
     timeout = '3s'
     grace_period = '40s'
     method = 'GET'
-    path = '/health'
+    path = '/ready'
 
 [[vm]]
   memory = '256mb'

@@ -63,10 +63,24 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
                 }
             },
         ));
+    let ready_for_check = Arc::clone(&startup_ready);
     gated_domain
         .merge(
             Router::new()
                 .route("/health", get(|| async { "OK" }))
+                .route(
+                    "/ready",
+                    get(move || {
+                        let ready = Arc::clone(&ready_for_check);
+                        async move {
+                            if ready.load(Ordering::Acquire) {
+                                StatusCode::OK.into_response()
+                            } else {
+                                StatusCode::SERVICE_UNAVAILABLE.into_response()
+                            }
+                        }
+                    }),
+                )
                 .route(
                     "/api-docs/openapi.json",
                     get(|| async { Json(ApiDoc::openapi()) }),
@@ -355,6 +369,48 @@ mod tests {
         .unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
+    #[tokio::test]
+    async fn test_ready_returns_503_during_startup() {
+        let startup_ready = Arc::new(AtomicBool::new(false));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/ready")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_ready_returns_200_after_startup() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/ready")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::OK);
+    }
+
     #[tokio::test]
     async fn test_health_returns_200_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
