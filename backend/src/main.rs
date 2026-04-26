@@ -23,6 +23,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+use std::time::Instant;
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -73,11 +74,17 @@ async fn main() {
 
     let addr = config::server_addr();
 
+    let t0 = Instant::now();
+
     let listener = TcpListener::bind(&addr)
         .await
         .expect("TCPリスナーのバインドに失敗しました");
 
-    tracing::info!("サーバーを {} で起動します", addr);
+    tracing::info!(
+        elapsed_ms = t0.elapsed().as_millis(),
+        "サーバーを {} で起動します [listener bind 完了]",
+        addr
+    );
 
     // DB 接続と migration をバックグラウンドで実行し、完了後に startup_ready を立てる
     let db_url = secrets.database_url.clone();
@@ -92,14 +99,21 @@ async fn main() {
                 std::process::exit(1);
             });
 
+        tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "DB connect 完了");
+
         tracing::info!("マイグレーションを実行中...");
         if let Err(e) = run_migrations(&pool).await {
             tracing::error!("マイグレーション失敗: {e}");
             std::process::exit(1);
         }
 
-        tracing::info!("起動完了");
+        tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "migrations 完了");
+
         startup_ready_bg.store(true, Ordering::Release);
+        tracing::info!(
+            elapsed_ms = t0.elapsed().as_millis(),
+            "startup_ready 反映完了 [起動完了]"
+        );
     });
 
     axum::serve(listener, router)
