@@ -80,9 +80,10 @@ async fn main() {
         .await
         .expect("TCPリスナーのバインドに失敗しました");
 
+    let listener_bind_ms = t0.elapsed().as_millis();
     tracing::info!(
         target: "startup",
-        elapsed_ms = t0.elapsed().as_millis(),
+        elapsed_ms = listener_bind_ms,
         "サーバーを {} で起動します [listener bind 完了]",
         addr
     );
@@ -100,7 +101,8 @@ async fn main() {
                 std::process::exit(1);
             });
 
-        tracing::info!(target: "startup", elapsed_ms = t0.elapsed().as_millis(), "DB connect 完了");
+        let db_connect_ms = t0.elapsed().as_millis();
+        tracing::info!(target: "startup", elapsed_ms = db_connect_ms, "DB connect 完了");
 
         tracing::info!(target: "startup", "マイグレーションを実行中...");
         if let Err(e) = run_migrations(&pool).await {
@@ -108,13 +110,24 @@ async fn main() {
             std::process::exit(1);
         }
 
-        tracing::info!(target: "startup", elapsed_ms = t0.elapsed().as_millis(), "migrations 完了");
+        let migrations_ms = t0.elapsed().as_millis();
+        tracing::info!(target: "startup", elapsed_ms = migrations_ms, "migrations 完了");
 
         startup_ready_bg.store(true, Ordering::Release);
+        let startup_ready_ms = t0.elapsed().as_millis();
         tracing::info!(
             target: "startup",
-            elapsed_ms = t0.elapsed().as_millis(),
+            elapsed_ms = startup_ready_ms,
             "startup_ready 反映完了 [起動完了]"
+        );
+
+        tracing::info!(
+            target: "startup",
+            listener_bind_ms = listener_bind_ms,
+            db_connect_ms = db_connect_ms,
+            migrations_ms = migrations_ms,
+            startup_ready_ms = startup_ready_ms,
+            "[startup summary] 全フェーズ完了"
         );
     });
 
