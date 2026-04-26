@@ -21,6 +21,13 @@ README や skills の記載と衝突した場合は、本ドキュメントを�
 - `chore/<topic>`
 - `hotfix/<topic>`
 
+### worktree 運用
+
+- Claude 実装を委譲するタスクは、原則として専用 `git worktree` を作ってその中で行う
+- Codex は repo ルートの `main` をレビュー/統合用に clean に保つ
+- worktree の配置先は `/tmp/<repo>-<topic>` のような一時パスを標準とする
+- 1 作業ブランチ = 1 worktree を守る
+
 ## コミットルール
 
 - `git add .` / `git add -A` は使わず、`git add <path>` または `git add -p` を使う
@@ -51,7 +58,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - PR は作業ブランチから `main` へ作成する
 - PR マージ前に Codex レビュー（`.claude/skills/pr-review/SKILL.md`）を実施する
 - タイトルと説明は日本語で、変更内容とテスト結果を明記する
-- マージ方式は `Squash and merge` を推奨
+- マージ方式は `Squash and merge` を標準とする
 - マージ後は `main` を更新して作業ブランチを削除する
 
 ## 標準フロー
@@ -61,10 +68,11 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 git switch main
 git pull --ff-only origin main
 
-# 2) 1タスク1ブランチを作成
-git switch -c feature/<topic>
+# 2) 1タスク1ブランチ + 1worktree を作成
+git worktree add -b feature/<topic> /tmp/<repo>-<topic> main
 
-# 3) 変更を選択してコミット
+# 3) worktree で変更を選択してコミット
+cd /tmp/<repo>-<topic>
 git add -p
 git commit -m "feat: <変更内容の要約>"
 
@@ -73,11 +81,13 @@ git push -u origin feature/<topic>
 gh pr create --base main --head feature/<topic>
 
 # 5) マージ後の後片付け
+cd <repo-root>
 git switch main
 git pull --ff-only origin main
-git branch -d feature/<topic>
 git push origin --delete feature/<topic>
 git fetch origin --prune
+git worktree remove /tmp/<repo>-<topic>
+git branch -D feature/<topic>  # squash merge 済みの短期ブランチのみ
 ```
 
 ## 禁止事項
@@ -85,4 +95,4 @@ git fetch origin --prune
 - `main` への直接コミット / 直接 push
 - 1つの作業ブランチに複数タスクを混在させること
 - 不要な `--force` push
-- ユーザーの明示指示なしでの `git branch -D`
+- squash merge 済み・remote 削除済み・worktree 削除済みの短期ブランチ cleanup 以外で `git branch -D` を使うこと
