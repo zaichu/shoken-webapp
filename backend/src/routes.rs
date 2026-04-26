@@ -63,37 +63,41 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
                 }
             },
         ));
+
+    // /ready と /health は TraceLayer の対象外にする（startup 中の expected 503 を ERROR ログから除外）
     let ready_for_check = Arc::clone(&startup_ready);
-    gated_domain
-        .merge(
-            Router::new()
-                .route("/health", get(|| async { "OK" }))
-                .route(
-                    "/ready",
-                    get(move || {
-                        let ready = Arc::clone(&ready_for_check);
-                        async move {
-                            if ready.load(Ordering::Acquire) {
-                                StatusCode::OK.into_response()
-                            } else {
-                                StatusCode::SERVICE_UNAVAILABLE.into_response()
-                            }
-                        }
-                    }),
-                )
-                .route(
-                    "/api-docs/openapi.json",
-                    get(|| async { Json(ApiDoc::openapi()) }),
-                ),
-        )
+    let probe_routes = Router::new()
+        .route("/health", get(|| async { "OK" }))
+        .route(
+            "/ready",
+            get(move || {
+                let ready = Arc::clone(&ready_for_check);
+                async move {
+                    if ready.load(Ordering::Acquire) {
+                        StatusCode::OK.into_response()
+                    } else {
+                        StatusCode::SERVICE_UNAVAILABLE.into_response()
+                    }
+                }
+            }),
+        );
+
+    // リクエストトレース（パスのみ記録：クエリパラメータの機密情報漏洩を防ぐ）
+    let traced_inner = gated_domain
+        .merge(Router::new().route(
+            "/api-docs/openapi.json",
+            get(|| async { Json(ApiDoc::openapi()) }),
+        ))
+        .layer(TraceLayer::new_for_http().make_span_with(PathOnlyMakeSpan));
+
+    traced_inner
+        .merge(probe_routes)
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, req, next).await }
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(build_cors_layer(&config.cors_origins))
-        // リクエストトレース（パスのみ記録：クエリパラメータの機密情報漏洩を防ぐ）
-        .layer(TraceLayer::new_for_http().make_span_with(PathOnlyMakeSpan))
         // x-request-id をレスポンスに伝播
         .layer(PropagateRequestIdLayer::x_request_id())
         // x-request-id が未設定の場合は UUID v4 を自動付与
