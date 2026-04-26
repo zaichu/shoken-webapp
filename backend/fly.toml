@@ -11,7 +11,7 @@ primary_region = 'nrt'
 
 [env]
   PORT = '8080'
-  RUST_LOG = 'warn'
+  RUST_LOG = 'warn,startup=info'
 
 [http_service]
   internal_port = 8080
