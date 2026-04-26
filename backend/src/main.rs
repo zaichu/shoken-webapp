@@ -81,6 +81,7 @@ async fn main() {
         .expect("TCPリスナーのバインドに失敗しました");
 
     tracing::info!(
+        target: "startup",
         elapsed_ms = t0.elapsed().as_millis(),
         "サーバーを {} で起動します [listener bind 完了]",
         addr
@@ -91,7 +92,7 @@ async fn main() {
     let max_connections = config.database_max_connections;
     let startup_ready_bg = Arc::clone(&startup_ready);
     tokio::spawn(async move {
-        tracing::info!("データベースに接続中...");
+        tracing::info!(target: "startup", "データベースに接続中...");
         let pool = connect_pool_with_retry(&db_url, max_connections)
             .await
             .unwrap_or_else(|e| {
@@ -99,18 +100,19 @@ async fn main() {
                 std::process::exit(1);
             });
 
-        tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "DB connect 完了");
+        tracing::info!(target: "startup", elapsed_ms = t0.elapsed().as_millis(), "DB connect 完了");
 
-        tracing::info!("マイグレーションを実行中...");
+        tracing::info!(target: "startup", "マイグレーションを実行中...");
         if let Err(e) = run_migrations(&pool).await {
             tracing::error!("マイグレーション失敗: {e}");
             std::process::exit(1);
         }
 
-        tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "migrations 完了");
+        tracing::info!(target: "startup", elapsed_ms = t0.elapsed().as_millis(), "migrations 完了");
 
         startup_ready_bg.store(true, Ordering::Release);
         tracing::info!(
+            target: "startup",
             elapsed_ms = t0.elapsed().as_millis(),
             "startup_ready 反映完了 [起動完了]"
         );
