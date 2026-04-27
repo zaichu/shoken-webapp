@@ -102,6 +102,80 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@v1
 
       - name: Deploy to Fly.io
+        id: fly-deploy
         run: flyctl deploy --remote-only
+        continue-on-error: true
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Stopped machine recovery
+        if: steps.fly-deploy.outcome == 'failure'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          echo "=== flyctl deploy 失敗: stopped machine recovery を試みます ==="
+
+          # 新しい GH_SHA の machine 情報を一括取得
+          MACHINE_LIST=$(flyctl machine list --json)
+          MACHINE_IDS=$(echo "$MACHINE_LIST" | jq -r --arg sha "$GH_SHA" \
+            '.[] | select(.image_ref.labels.GH_SHA == $sha) | .id')
+
+          if [ -z "$MACHINE_IDS" ]; then
+            echo "エラー: GH_SHA=$GH_SHA の machine が存在しません"
+            echo "=== 全 machine 一覧 ==="
+            echo "$MACHINE_LIST" | jq '.[] | {id, state, sha: .image_ref.labels.GH_SHA, checks}'
+            exit 1
+          fi
+
+          echo "対象 machine: $(echo "$MACHINE_IDS" | tr '\n' ' ')"
+
+          # stopped machine を start する
+          while IFS= read -r id; do
+            STATE=$(echo "$MACHINE_LIST" | jq -r --arg id "$id" '.[] | select(.id == $id) | .state')
+            if [ "$STATE" = "stopped" ]; then
+              echo "Machine $id を起動します..."
+              flyctl machine start "$id"
+            else
+              echo "Machine $id の現在の状態: $STATE (start スキップ)"
+            fi
+          done <<< "$MACHINE_IDS"
+
+          # started + health check passing になるまで待機
+          MAX_WAIT=180
+          INTERVAL=10
+          ELAPSED=0
+
+          until [ "$ELAPSED" -ge "$MAX_WAIT" ]; do
+            sleep "$INTERVAL"
+            ELAPSED=$((ELAPSED + INTERVAL))
+            echo "--- ${ELAPSED}s 経過 ---"
+
+            CURRENT_LIST=$(flyctl machine list --json)
+            ALL_HEALTHY=true
+
+            while IFS= read -r id; do
+              INFO=$(echo "$CURRENT_LIST" | jq --arg id "$id" '.[] | select(.id == $id)')
+              STATE=$(echo "$INFO" | jq -r '.state')
+              CHECK_COUNT=$(echo "$INFO" | jq '.checks | length')
+              FAILING=$(echo "$INFO" | jq '[.checks[]? | select(.status != "passing")] | length')
+              echo "Machine $id: state=$STATE checks=$CHECK_COUNT failing=$FAILING"
+
+              if [ "$STATE" != "started" ] || [ "$FAILING" -gt 0 ]; then
+                ALL_HEALTHY=false
+              fi
+            done <<< "$MACHINE_IDS"
+
+            if [ "$ALL_HEALTHY" = "true" ]; then
+              echo "=== Recovery 成功: GH_SHA=$GH_SHA の machine が started + passing になりました ==="
+              exit 0
+            fi
+          done
+
+          echo "=== Recovery 失敗: ${MAX_WAIT}s でタイムアウト ==="
+          echo "=== GH_SHA=$GH_SHA の machine 最終状態 ==="
+          flyctl machine list --json | jq --arg sha "$GH_SHA" \
+            '[.[] | select(.image_ref.labels.GH_SHA == $sha) | {id, state, checks}]'
+          exit 1
