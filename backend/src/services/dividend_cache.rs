@@ -12,6 +12,9 @@ use tokio::time::Duration;
 
 use logic::compute_is_stale;
 
+/// 429 発生時の全インスタンス共有 cooldown 期間（秒）
+const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
+
 /// キャッシュをバッチ取得し、未取得/TTL切れ銘柄のバックグラウンド更新をキック
 pub async fn get_batch(
     pool: &PgPool,
@@ -141,6 +144,24 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// 429 発生時に jquants_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
+/// 既存の future 値がある場合は後退させず、GREATEST で大きい方を維持する
+async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
+    sqlx::query(
+        r#"
+        INSERT INTO jquants_rate_control (id, next_available_at)
+            VALUES (1, NOW() + $1 * INTERVAL '1 second')
+        ON CONFLICT (id) DO UPDATE
+            SET next_available_at =
+                GREATEST(jquants_rate_control.next_available_at, NOW() + $1 * INTERVAL '1 second')
+        "#,
+    )
+    .bind(RATE_LIMIT_COOLDOWN_SECS)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,6 +266,23 @@ mod tests {
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].status, "error");
         assert!(items[0].is_stale);
+    }
+
+    #[test]
+    fn test_cached_error_with_future_stale_at_is_not_stale() {
+        // 429 cooldown 中: status=error かつ stale_at が future の場合は
+        // is_stale=false となり refresh_codes に入らない
+        let now = fixed_now();
+        let caches = vec![make_cache("1234", "error", Some(now + Duration::hours(1)))];
+        let cache_map = make_cache_map(&caches);
+        let codes = vec!["1234".to_string()];
+
+        let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
+
+        assert!(refresh_codes.is_empty());
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].status, "error");
+        assert!(!items[0].is_stale);
     }
 
     #[test]
