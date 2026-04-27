@@ -15,6 +15,7 @@ use validator::Validate;
 /// | zero    | future      | false    | No      | 配当なし（有効）             |
 /// | zero    | NULL / past | true     | Yes     | stale（再取得待ち）          |
 /// | error   | NULL        | true     | Yes     | 即再取得対象                 |
+/// | error   | future      | false    | No      | 429 cooldown 中は再取得しない |
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct DividendCache {
     pub security_code: String,
