@@ -132,6 +132,8 @@ mod tests {
         for (status, stale_at, expected) in [
             ("pending", None, false),
             ("error", None, true),
+            // 429 cooldown 中は error + future stale_at でも stale 扱いしない
+            ("error", future, false),
             ("ok", past, true),
             ("ok", future, false),
             ("ok", None, true),

@@ -1,3 +1,4 @@
+use crate::errors::ApiError;
 use reqwest::Client;
 use sqlx::PgPool;
 use std::sync::{
@@ -6,7 +7,12 @@ use std::sync::{
 };
 
 use super::acquire_rate_slot;
-use super::persistence::{fetch_and_cache, update_cache_error};
+use super::persistence::{fetch_and_cache, update_cache_error, update_cache_error_with_cooldown};
+
+/// 429 レートリミットエラーの場合に background refresh を打ち切るべきか判定する
+pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
+    matches!(e, ApiError::RateLimitError(_))
+}
 
 /// バックグラウンドで未取得/TTL切れ銘柄を順次更新する（1分5回レート制御）
 pub fn spawn_background_refresh(
@@ -55,8 +61,22 @@ pub fn spawn_background_refresh(
                     tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
                 }
                 Err(e) => {
+                    if should_abort_on_error(&e) {
+                        tracing::warn!(
+                            "配当キャッシュ更新: レートリミット超過 code={}, バックグラウンド更新を中断",
+                            code
+                        );
+                        let _ = update_cache_error_with_cooldown(
+                            &pool,
+                            code,
+                            &e.to_string(),
+                            super::RATE_LIMIT_COOLDOWN_SECS,
+                        )
+                        .await;
+                        let _ = super::push_rate_control_cooldown(&pool).await;
+                        break;
+                    }
                     tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
-                    // エラーをキャッシュに記録
                     let _ = update_cache_error(&pool, code, &e.to_string()).await;
                 }
             }
@@ -69,6 +89,24 @@ pub fn spawn_background_refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_should_abort_on_rate_limit_error() {
+        let e = ApiError::RateLimitError("429 Too Many Requests".to_string());
+        assert!(should_abort_on_error(&e));
+    }
+
+    #[test]
+    fn test_should_not_abort_on_other_api_error() {
+        let e = ApiError::ApiError("500 Internal Server Error".to_string());
+        assert!(!should_abort_on_error(&e));
+    }
+
+    #[test]
+    fn test_should_not_abort_on_network_error() {
+        let e = ApiError::NetworkError("connection refused".to_string());
+        assert!(!should_abort_on_error(&e));
+    }
 
     #[tokio::test]
     async fn test_spawn_skips_if_already_running() {
