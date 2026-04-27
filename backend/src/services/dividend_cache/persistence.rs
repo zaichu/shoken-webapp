@@ -48,6 +48,37 @@ pub async fn fetch_and_cache(
     Ok(status)
 }
 
+/// 429 レートリミット発生時のエラーを cooldown 付きでキャッシュに記録する
+/// stale_at を future に設定することで cooldown 中の即時再取得を防ぐ
+pub async fn update_cache_error_with_cooldown(
+    pool: &PgPool,
+    code: &str,
+    error_msg: &str,
+    cooldown_secs: i32,
+) -> Result<(), ApiError> {
+    let truncated = truncate_error_message(error_msg);
+
+    sqlx::query(
+        r#"
+        INSERT INTO jquants_dividend_cache
+            (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
+        VALUES ($1, NULL, 'error', $2, NOW() + $3 * INTERVAL '1 second', 'jquants', NOW())
+        ON CONFLICT (security_code) DO UPDATE
+            SET status        = 'error',
+                error_message = EXCLUDED.error_message,
+                stale_at      = NOW() + $3 * INTERVAL '1 second',
+                updated_at    = NOW()
+        "#,
+    )
+    .bind(code)
+    .bind(truncated)
+    .bind(cooldown_secs)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 /// エラーメッセージを最大 200 文字に切り捨てる（マルチバイト文字境界を考慮）
 fn truncate_error_message(msg: &str) -> &str {
     if msg.len() <= 200 {
