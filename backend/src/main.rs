@@ -80,10 +80,10 @@ async fn main() {
         .await
         .expect("TCPリスナーのバインドに失敗しました");
 
-    let listener_bind_ms = t0.elapsed().as_millis();
+    let listener_bind_us = t0.elapsed().as_micros();
     tracing::info!(
         target: "startup",
-        elapsed_ms = listener_bind_ms,
+        elapsed_ms = listener_bind_us / 1000,
         "サーバーを {} で起動します [listener bind 完了]",
         addr
     );
@@ -123,10 +123,12 @@ async fn main() {
 
         tracing::info!(
             target: "startup",
-            listener_bind_ms = listener_bind_ms,
-            db_connect_ms = db_connect_ms,
-            migrations_ms = migrations_ms,
-            startup_ready_ms = startup_ready_ms,
+            listener_bind_phase_us = listener_bind_us,
+            db_connect_phase_ms = db_connect_ms - listener_bind_us / 1000,
+            db_connect_total_ms = db_connect_ms,
+            migrations_phase_ms = migrations_ms - db_connect_ms,
+            migrations_total_ms = migrations_ms,
+            startup_ready_total_ms = startup_ready_ms,
             "[startup summary] 全フェーズ完了"
         );
     });
