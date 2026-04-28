@@ -140,10 +140,10 @@ describe('AssetBalanceInfo', { timeout: 20000 }, () => {
     }, waitOpts);
   });
 
-  it('銘柄別構成比が表示される', async () => {
+  it('保有内訳が表示される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
     await waitFor(() => {
-      expect(screen.getByText('銘柄別構成比')).toBeInTheDocument();
+      expect(screen.getByText('保有内訳')).toBeInTheDocument();
     }, waitOpts);
   });
 });

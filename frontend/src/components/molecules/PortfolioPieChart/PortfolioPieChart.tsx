@@ -106,7 +106,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
   const color = COLORS[index % COLORS.length];
 
   return (
-    <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-3.5 py-3 shadow-[0_18px_36px_-34px_rgba(15,23,42,0.38)]">
+    <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -137,7 +137,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
       </div>
 
       <div
-        className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-[1rem] bg-slate-50"
+        className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50"
         data-testid="portfolio-card-acquisition-stats"
       >
         <div className="min-w-0 px-3 py-2">
@@ -154,7 +154,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
         </div>
       </div>
 
-      <div className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-[1rem] bg-emerald-50/55">
+      <div className="mt-2.5 grid grid-cols-3 overflow-hidden rounded-md bg-emerald-50/55">
         <div className="min-w-0 px-3 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">1株配当</p>
           <p className={`mt-0.5 truncate text-sm font-semibold ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}>

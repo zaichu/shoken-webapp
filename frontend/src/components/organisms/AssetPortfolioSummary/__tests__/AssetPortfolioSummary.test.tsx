@@ -68,7 +68,7 @@ describe('AssetPortfolioSummary', () => {
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
     expect(screen.getByTestId('portfolio-pie-chart')).toBeInTheDocument();
-    expect(screen.getByText('銘柄別構成比')).toBeInTheDocument();
+    expect(screen.getByText('保有内訳')).toBeInTheDocument();
     expect(screen.queryByText('保有比率と配当効率をまとめて確認できます。')).not.toBeInTheDocument();
   });
 

@@ -107,7 +107,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   return (
     <div className="mb-3 space-y-4" data-testid="asset-portfolio-summary">
       <section
-        className="rounded-[2rem] border border-slate-200/90 bg-white/85 px-5 py-5 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]"
+        className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm"
         data-testid="portfolio-kpi-strip"
       >
         <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
@@ -132,25 +132,25 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
           ) : null}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]">
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-4">
             <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
             <p className="text-3xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
               {formatCurrency(totalPurchaseAmount)}
             </p>
           </div>
-          <div className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/90 px-4 py-4 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-4">
             <p className="mb-1 text-xs font-medium text-slate-600">年間配当金額</p>
             <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
               {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
             </p>
           </div>
-          <div className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/90 px-4 py-4 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-4">
             <p className="mb-1 text-xs font-medium text-slate-600">配当利回り</p>
             <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
               {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
             </p>
           </div>
-          <div className="rounded-[1.35rem] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]">
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-4">
             <p className="mb-1 text-xs font-medium text-slate-600">保有銘柄数</p>
             <p className="text-3xl font-bold text-slate-700 tabular-nums">
               {isFiltered
@@ -163,11 +163,11 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
         </div>
       </section>
 
-      <Card className="overflow-hidden rounded-[1.75rem] border-slate-200 bg-white/95 shadow-sm">
+      <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm">
         <CardBody className="p-0">
           <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">銘柄別構成比</h3>
+              <h3 className="text-sm font-semibold text-slate-700">保有内訳</h3>
             </div>
           </div>
           <div className="p-4">
