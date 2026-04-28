@@ -98,7 +98,7 @@ export function HomePage() {
                 className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
               >
                 {inner}
-                <p className="text-xs text-slate-400 mt-1">各ページから取込可能</p>
+                <p className="text-xs text-slate-600 mt-1">各ページから取込可能</p>
               </div>
             );
           })}
