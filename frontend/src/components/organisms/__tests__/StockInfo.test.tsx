@@ -46,6 +46,19 @@ describe('StockInfo', () => {
     expect(screen.getByText('プライム')).toBeInTheDocument();
   });
 
+  it('メタデータラベルを表示する', () => {
+    render(
+      <MemoryRouter>
+        <StockInfo stockData={mockStockData} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('市場')).toBeInTheDocument();
+    expect(screen.getByText('33業種')).toBeInTheDocument();
+    expect(screen.getByText('17業種')).toBeInTheDocument();
+    expect(screen.getByText('規模')).toBeInTheDocument();
+  });
+
   it('フィールドが空の場合は - を表示する', () => {
     render(
       <MemoryRouter>
