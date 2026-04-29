@@ -1,6 +1,6 @@
 import { StockData } from '../../features/stock/types';
 import { StockInfoLinks } from '../molecules/StockInfoLinks';
-import { Card, CardBody, CardHeader } from '../atoms/Card';
+import { Card, CardHeader, CardBody } from '../atoms/Card';
 
 interface StockInfoProps {
   stockData: StockData;
@@ -20,33 +20,34 @@ export function StockInfo({ stockData }: StockInfoProps) {
     size_category
   } = stockData;
 
-  const items = [
-    { label: '銘柄コード', value: code },
-    { label: '銘柄名', value: name },
+  const metaItems = [
     { label: '市場', value: market_category },
     { label: '33業種', value: industry_category_33 },
     { label: '17業種', value: industry_category_17 },
-    { label: '規模', value: size_category }
+    { label: '規模', value: size_category },
   ];
 
   return (
     <div>
       <Card className="mb-4">
-        <CardHeader variant="primary">
-          <h5 className="text-sm font-semibold">{name} ({code})</h5>
+        <CardHeader variant="primary" className="rounded-t-lg">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-base font-semibold leading-tight">{name}</span>
+            <span className="inline-block rounded bg-slate-500 px-2 py-0.5 font-mono text-sm tracking-wider">
+              {code}
+            </span>
+          </div>
         </CardHeader>
         <CardBody>
-          <table className="w-full border-collapse text-sm">
-            <tbody>
-              {items.map(item => (
-                <tr key={item.label} className="border-b border-gray-200 last:border-b-0">
-                  <th className="w-[10%] bg-gray-50 px-3 py-2 text-left font-medium text-dark">{item.label}</th>
-                  <td className="px-3 py-2">{item.value || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3 p-3">
+          <dl className="grid grid-cols-2 gap-px bg-gray-200 border-b border-gray-200 text-sm">
+            {metaItems.map(item => (
+              <div key={item.label} className="bg-white px-3 py-2">
+                <dt className="text-xs font-medium text-slate-500">{item.label}</dt>
+                <dd className="mt-0.5 text-dark">{item.value || '-'}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="px-3 py-3">
             <StockInfoLinks code={code} />
           </div>
         </CardBody>
