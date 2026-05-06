@@ -805,6 +805,6 @@ describe('ReceiptsPage', () => {
     }, waitOpts);
 
     expect(screen.getByRole('tablist').className).toContain('border-b');
-    expect(screen.getByRole('tab', { name: /^配当金/ }).className).toContain('rounded-t-2xl');
+    expect(screen.getByRole('tab', { name: /^配当金/ }).className).toContain('rounded-t-lg');
   });
 });
