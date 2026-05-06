@@ -38,7 +38,7 @@ time = "0.3.47"
 csv = "1.4"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-axum = "0.2"
-sentry = "0.47"
+sentry = "0.48"
 sentry-tower = "0.47"
 url = "2.5"
 [dev-dependencies]
