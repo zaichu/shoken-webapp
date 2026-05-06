@@ -51,7 +51,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   ) : null;
 
   const mainCard = (
-    <Card className="mt-1 overflow-hidden rounded-[2rem] border-slate-200/90 bg-white/95 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]" data-testid="receipt-card">
+    <Card className="mt-1 overflow-hidden rounded-xl border-slate-200/90 bg-white/95 shadow-[0_4px_12px_-4px_rgba(15,23,42,0.12)]" data-testid="receipt-card">
       <CardBody className="p-0" data-testid="receipt-card-body">
         {children}
       </CardBody>
