@@ -37,9 +37,9 @@ export function ReceiptsTabNav({
             <button
               key={tab}
               id={`tab-${tab}`}
-              className={`-mb-px inline-flex items-center gap-2 rounded-t-2xl border border-transparent border-b-0 px-4 py-3 text-sm font-medium transition-[color,background-color,border-color,box-shadow] ${
+              className={`-mb-px inline-flex items-center gap-2 rounded-t-lg border border-transparent border-b-0 px-4 py-3 text-sm font-medium transition-[color,background-color,border-color,box-shadow] ${
                 isActive
-                  ? 'border-slate-200 bg-white text-slate-900 shadow-[0_-1px_0_0_rgba(255,255,255,1),0_18px_32px_-30px_rgba(15,23,42,0.7)]'
+                  ? 'border-slate-200 bg-white text-slate-900 shadow-[0_-1px_0_0_rgba(255,255,255,1),0_4px_8px_-6px_rgba(15,23,42,0.35)]'
                   : 'text-slate-500 hover:bg-white/80 hover:text-slate-800'
               }`}
               onClick={() => onTabChange(tab)}
