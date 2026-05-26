@@ -9,7 +9,7 @@ encoding_rs = "0.8"
 axum-extra = { version = "0.12", features = ["cookie"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+serde_json = { version = "1.0.150", features = ["arbitrary_precision"] }
 rust_decimal = { version = "1", features = ["serde-float", "serde-arbitrary-precision"] }
 rust_decimal_macros = "1"
 sqlx = { version = "0.8.6", features = [
