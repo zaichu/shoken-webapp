@@ -112,8 +112,13 @@ pub async fn validate_origin(
                     csrf_error()
                 }
                 None => {
-                    // Origin も Referer もなし → 同一オリジンまたは非ブラウザクライアントとみなし通過
-                    next.run(request).await
+                    // Origin も Referer もなし
+                    // 本番環境では CSRF リスクがあるため拒否する
+                    if crate::config::is_production_env() {
+                        csrf_error()
+                    } else {
+                        next.run(request).await
+                    }
                 }
             }
         }
@@ -167,6 +172,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_origin() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _app_env = EnvGuard::set("APP_ENV", None);
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
+        let _backend_url = EnvGuard::set("BACKEND_URL", None);
+
         for (input, expected) in [
             (
                 "http://localhost:8080/some/page",
@@ -236,6 +246,44 @@ mod tests {
             .await,
             StatusCode::FORBIDDEN
         );
+    }
+
+    #[tokio::test]
+    async fn test_validate_origin_production_strict() {
+        let _lock = ENV_MUTEX.lock().await;
+
+        // APP_ENV=production のとき Origin/Referer なしは 403
+        {
+            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::FORBIDDEN
+            );
+        }
+
+        // APP_ENV 未設定のとき Origin/Referer なしは通過
+        {
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::OK
+            );
+        }
+
+        // APP_ENV=production でも GET は通過
+        {
+            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_ne!(
+                oneshot_status(test_app(), Method::GET, &[]).await,
+                StatusCode::FORBIDDEN
+            );
+        }
     }
 
     async fn security_headers_response() -> axum::response::Response {
