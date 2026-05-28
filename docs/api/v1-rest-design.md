@@ -25,6 +25,34 @@
 - Model CSV preview as an import validation resource.
 - Model CSV save as an import resource.
 
+
+## Backend Module Structure
+
+`/api/v1` handlers are organized by resource, not as one large flat module.
+The parent `backend/src/handlers/v1.rs` owns route composition only.
+Resource-specific HTTP adapters live under `backend/src/handlers/v1/`:
+
+- `auth.rs`
+- `stocks.rs`
+- `dividends.rs`
+- `domestic_stocks.rs`
+- `mutual_funds.rs`
+- `asset_balances.rs`
+- `market_data.rs`
+
+Function names inside resource modules should not repeat the version prefix.
+Use `handlers::v1::auth::get_session`, not `handlers::v1::v1_get_session`.
+OpenAPI `operation_id` values may keep a `v1_` prefix because they are global
+API identifiers and must not collide with legacy operation IDs.
+
+## Destructive Operation Guard
+
+`DELETE /api/v1/account` is intentionally stricter than the legacy
+`DELETE /auth/delete-account` route. A client must first call
+`POST /api/v1/account-deletion-confirmations`, which sets a short-lived
+HttpOnly confirmation cookie scoped to `/api/v1/account`. The delete endpoint
+requires both a valid session cookie and that confirmation cookie.
+
 ## Proposed Routes
 
 ### Probes
@@ -40,8 +68,8 @@
 |---|---|---|
 | GET | `/api/v1/session` | Get current user session |
 | DELETE | `/api/v1/session` | Logout current session |
-| POST | `/api/v1/account-deletion-confirmations` | Start account deletion confirmation |
-| DELETE | `/api/v1/account` | Delete current account after confirmation |
+| POST | `/api/v1/account-deletion-confirmations` | Start account deletion confirmation and set a short-lived HttpOnly confirmation cookie |
+| DELETE | `/api/v1/account` | Delete current account; requires the confirmation cookie |
 | GET | `/api/v1/oauth/google/authorize` | Start Google OAuth |
 | GET | `/api/v1/oauth/google/callback` | Google OAuth callback |
 

@@ -114,20 +114,24 @@ fn domain_routes(
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
     let jquants_routes = if let Some(l) = jquants_limiter {
-        handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { rate_limit(l, req, next).await }
-        }))
-    } else {
         handlers::jquants::jquants_routes()
+            .merge(handlers::v1::jquants_routes())
+            .layer(middleware::from_fn(move |req, next| {
+                let l = l.clone();
+                async move { rate_limit(l, req, next).await }
+            }))
+    } else {
+        handlers::jquants::jquants_routes().merge(handlers::v1::jquants_routes())
     };
     let auth_routes = if let Some(l) = auth_limiter {
-        handlers::auth::auth_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { keyed_rate_limit(l, req, next).await }
-        }))
-    } else {
         handlers::auth::auth_routes()
+            .merge(handlers::v1::auth_routes())
+            .layer(middleware::from_fn(move |req, next| {
+                let l = l.clone();
+                async move { keyed_rate_limit(l, req, next).await }
+            }))
+    } else {
+        handlers::auth::auth_routes().merge(handlers::v1::auth_routes())
     };
     let csv_upload_routes = if let Some(l) = csv_limiter {
         csv_upload_routes().layer(middleware::from_fn(move |req, next| {
@@ -149,6 +153,7 @@ fn domain_routes(
         .merge(handlers::mutualfund::mutualfund_routes())
         .merge(handlers::asset_balance::asset_balance_routes())
         .merge(handlers::csv_import::csv_import_routes())
+        .merge(handlers::v1::data_routes())
 }
 
 fn csv_upload_routes() -> Router<AppState> {
@@ -157,6 +162,7 @@ fn csv_upload_routes() -> Router<AppState> {
         .merge(handlers::domestic_stock::domestic_stock_csv_upload_routes())
         .merge(handlers::mutualfund::mutualfund_csv_upload_routes())
         .merge(handlers::asset_balance::asset_balance_csv_upload_routes())
+        .merge(handlers::v1::csv_upload_routes())
 }
 #[cfg(test)]
 mod tests {
