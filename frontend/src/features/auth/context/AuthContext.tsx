@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
 
     const checkSession = async () => {
-      await authApiClient.get<UserInfo>('/auth/me', {
+      await authApiClient.get<UserInfo>('/api/v1/session', {
         withCredentials: true,
         signal: controller.signal,
       }).then((userInfo) => {
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // バックエンドの認証エンドポイントに直接リダイレクト
     // バックエンドがGoogleの認証ページにリダイレクトする
     const apiBaseUrl = import.meta.env.VITE_SHOKEN_WEBAPI_API_URL;
-    locationAssigner.assign(`${apiBaseUrl}/auth/google`);
+    locationAssigner.assign(`${apiBaseUrl}/api/v1/oauth/google/authorize`);
   };
 
   const logout = useCallback(async () => {
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutCallbacksRef.current.forEach(callback => callback());
     let hasError = false;
     let caughtError: unknown;
-    await apiClient.post('/auth/logout', {}, {
+    await apiClient.delete('/api/v1/session', {
       withCredentials: true,
     }).catch((error: unknown) => {
       hasError = true;
@@ -114,12 +114,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutCallbacksRef.current.forEach(callback => callback());
     let hasError = false;
     let caughtError: unknown;
-    await apiClient.delete('/auth/delete-account', {
-      withCredentials: true,
-    }).catch((error: unknown) => {
+    try {
+      await apiClient.post('/api/v1/account-deletion-confirmations', {}, {
+        withCredentials: true,
+      });
+      await apiClient.delete('/api/v1/account', {
+        withCredentials: true,
+      });
+    } catch (error: unknown) {
       hasError = true;
       caughtError = error;
-    });
+    }
     setSession(s => ({ ...s, user: null }));
     if (hasError) {
       throw caughtError;
