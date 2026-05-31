@@ -20,26 +20,26 @@ describe('dividendApi', () => {
     vi.clearAllMocks();
   });
 
-  it('list が /dividends に GET リクエストを送る', () => {
+  it('list が /api/v1/dividends に GET リクエストを送る', () => {
     dividendApi.list();
-    expect(apiClient.get).toHaveBeenCalledWith('/dividends', { withCredentials: true });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dividends', { withCredentials: true });
   });
 
-  it('previewCsv が /dividends/csv/preview にプレビューリクエストを送る', () => {
+  it('previewCsv が /api/v1/dividend-import-validations にプレビューリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     dividendApi.previewCsv(file);
-    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/dividends/csv/preview', file);
+    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/api/v1/dividend-import-validations', file);
   });
 
-  it('uploadCsv が /dividends/csv にアップロードリクエストを送る', () => {
+  it('uploadCsv が /api/v1/dividend-imports にアップロードリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     dividendApi.uploadCsv(file);
-    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/dividends/csv', file);
+    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/api/v1/dividend-imports', file);
   });
 
-  it('deleteAll が /dividends に DELETE リクエストを送る', () => {
+  it('deleteAll が /api/v1/dividends に DELETE リクエストを送る', () => {
     dividendApi.deleteAll();
-    expect(apiClient.delete).toHaveBeenCalledWith('/dividends', { withCredentials: true });
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/dividends', { withCredentials: true });
   });
 });
 
@@ -48,26 +48,26 @@ describe('domesticStockApi', () => {
     vi.clearAllMocks();
   });
 
-  it('list が /domestic-stocks に GET リクエストを送る', () => {
+  it('list が /api/v1/domestic-stock-transactions に GET リクエストを送る', () => {
     domesticStockApi.list();
-    expect(apiClient.get).toHaveBeenCalledWith('/domestic-stocks', { withCredentials: true });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/domestic-stock-transactions', { withCredentials: true });
   });
 
-  it('previewCsv が /domestic-stocks/csv/preview にプレビューリクエストを送る', () => {
+  it('previewCsv が /api/v1/domestic-stock-import-validations にプレビューリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     domesticStockApi.previewCsv(file);
-    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/domestic-stocks/csv/preview', file);
+    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/api/v1/domestic-stock-import-validations', file);
   });
 
-  it('uploadCsv が /domestic-stocks/csv にアップロードリクエストを送る', () => {
+  it('uploadCsv が /api/v1/domestic-stock-imports にアップロードリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     domesticStockApi.uploadCsv(file);
-    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/domestic-stocks/csv', file);
+    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/api/v1/domestic-stock-imports', file);
   });
 
-  it('deleteAll が /domestic-stocks に DELETE リクエストを送る', () => {
+  it('deleteAll が /api/v1/domestic-stock-transactions に DELETE リクエストを送る', () => {
     domesticStockApi.deleteAll();
-    expect(apiClient.delete).toHaveBeenCalledWith('/domestic-stocks', { withCredentials: true });
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/domestic-stock-transactions', { withCredentials: true });
   });
 });
 
@@ -76,25 +76,25 @@ describe('mutualfundApi', () => {
     vi.clearAllMocks();
   });
 
-  it('list が /mutualfunds に GET リクエストを送る', () => {
+  it('list が /api/v1/mutual-fund-transactions に GET リクエストを送る', () => {
     mutualfundApi.list();
-    expect(apiClient.get).toHaveBeenCalledWith('/mutualfunds', { withCredentials: true });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/mutual-fund-transactions', { withCredentials: true });
   });
 
-  it('previewCsv が /mutualfunds/csv/preview にプレビューリクエストを送る', () => {
+  it('previewCsv が /api/v1/mutual-fund-import-validations にプレビューリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     mutualfundApi.previewCsv(file);
-    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/mutualfunds/csv/preview', file);
+    expect(csvHelpers.previewCsvFile).toHaveBeenCalledWith('/api/v1/mutual-fund-import-validations', file);
   });
 
-  it('uploadCsv が /mutualfunds/csv にアップロードリクエストを送る', () => {
+  it('uploadCsv が /api/v1/mutual-fund-imports にアップロードリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     mutualfundApi.uploadCsv(file);
-    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/mutualfunds/csv', file);
+    expect(csvHelpers.uploadCsvFile).toHaveBeenCalledWith('/api/v1/mutual-fund-imports', file);
   });
 
-  it('deleteAll が /mutualfunds に DELETE リクエストを送る', () => {
+  it('deleteAll が /api/v1/mutual-fund-transactions に DELETE リクエストを送る', () => {
     mutualfundApi.deleteAll();
-    expect(apiClient.delete).toHaveBeenCalledWith('/mutualfunds', { withCredentials: true });
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/mutual-fund-transactions', { withCredentials: true });
   });
 });

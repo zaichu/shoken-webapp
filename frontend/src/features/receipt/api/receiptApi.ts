@@ -9,38 +9,38 @@ import type {
 // 配当金API
 export const dividendApi = {
   list: () =>
-    apiClient.get<DividendApiData[]>('/dividends', { withCredentials: true }),
+    apiClient.get<DividendApiData[]>('/api/v1/dividends', { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/dividends/csv/preview', file),
+  previewCsv: (file: File) => previewCsvFile('/api/v1/dividend-import-validations', file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/dividends/csv', file),
+  uploadCsv: (file: File) => uploadCsvFile('/api/v1/dividend-imports', file),
 
   deleteAll: async () =>
-    apiClient.delete('/dividends', { withCredentials: true }),
+    apiClient.delete('/api/v1/dividends', { withCredentials: true }),
 };
 
 // 国内株式API
 export const domesticStockApi = {
   list: () =>
-    apiClient.get<DomesticStockApiData[]>('/domestic-stocks', { withCredentials: true }),
+    apiClient.get<DomesticStockApiData[]>('/api/v1/domestic-stock-transactions', { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/domestic-stocks/csv/preview', file),
+  previewCsv: (file: File) => previewCsvFile('/api/v1/domestic-stock-import-validations', file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/domestic-stocks/csv', file),
+  uploadCsv: (file: File) => uploadCsvFile('/api/v1/domestic-stock-imports', file),
 
   deleteAll: async () =>
-    apiClient.delete('/domestic-stocks', { withCredentials: true }),
+    apiClient.delete('/api/v1/domestic-stock-transactions', { withCredentials: true }),
 };
 
 // 投資信託API
 export const mutualfundApi = {
   list: () =>
-    apiClient.get<MutualfundApiData[]>('/mutualfunds', { withCredentials: true }),
+    apiClient.get<MutualfundApiData[]>('/api/v1/mutual-fund-transactions', { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/mutualfunds/csv/preview', file),
+  previewCsv: (file: File) => previewCsvFile('/api/v1/mutual-fund-import-validations', file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/mutualfunds/csv', file),
+  uploadCsv: (file: File) => uploadCsvFile('/api/v1/mutual-fund-imports', file),
 
   deleteAll: async () =>
-    apiClient.delete('/mutualfunds', { withCredentials: true }),
+    apiClient.delete('/api/v1/mutual-fund-transactions', { withCredentials: true }),
 };

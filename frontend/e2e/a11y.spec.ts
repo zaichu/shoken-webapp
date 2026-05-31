@@ -14,9 +14,9 @@ const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザ�
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
-  dividends: /\/dividends$/,
-  domesticStocks: /\/domestic-stocks$/,
-  mutualfunds: /\/mutualfunds$/,
+  dividends: /\/api\/v1\/dividends$/,
+  domesticStocks: /\/api\/v1\/domestic-stock-transactions$/,
+  mutualfunds: /\/api\/v1\/mutual-fund-transactions$/,
   assetBalances: /\/asset-balances$/,
   stock: /\/stocks\/[^/]+$/,
 };
