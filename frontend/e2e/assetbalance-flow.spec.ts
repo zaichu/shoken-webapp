@@ -10,7 +10,7 @@ const MOCK_USER = {
 };
 
 const ROUTES = {
-  authMe: /\/auth\/me$/,
+  authMe: /\/api\/v1\/session$/,
   assetBalances: /\/asset-balances$/,
   assetBalancePreview: /\/asset-balances\/csv\/preview$/,
   assetBalanceUpload: /\/asset-balances\/csv$/,

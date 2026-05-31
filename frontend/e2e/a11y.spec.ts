@@ -13,7 +13,7 @@ import AxeBuilder from '@axe-core/playwright';
 const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザー' };
 
 const ROUTES = {
-  authMe: /\/auth\/me$/,
+  authMe: /\/api\/v1\/session$/,
   dividends: /\/dividends$/,
   domesticStocks: /\/domestic-stocks$/,
   mutualfunds: /\/mutualfunds$/,

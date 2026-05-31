@@ -442,6 +442,24 @@ describe('ApiClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
+    it('per-requestのretry: { maxRetries: 0 }でリトライが無効化される', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      const client = createApiClient({
+        baseURL: 'http://api.test',
+        retry: { maxRetries: 3, retryDelay: 100, retryDelayMultiplier: 1 },
+      });
+
+      await expect(
+        client.post('/confirm', {}, { retry: { maxRetries: 0 } }),
+      ).rejects.toBeInstanceOf(ApiError);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
     it('baseURLに既存クエリがある場合は追加パラメータを&で連結する', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

@@ -1,17 +1,18 @@
 import { ApiError, ApiErrorType } from '../types/api';
 
+export interface RetryConfig {
+  maxRetries: number;
+  retryDelay: number;
+  retryDelayMultiplier: number;
+  shouldRetry?: (error: ApiError) => boolean;
+}
+
 export interface RequestConfig {
   params?: Record<string, string | number | boolean | undefined>;
   headers?: Record<string, string>;
   withCredentials?: boolean;
   signal?: AbortSignal;
-}
-
-interface RetryConfig {
-  maxRetries: number;
-  retryDelay: number;
-  retryDelayMultiplier: number;
-  shouldRetry?: (error: ApiError) => boolean;
+  retry?: Partial<RetryConfig>;
 }
 
 interface ApiClientConfig {
@@ -79,7 +80,10 @@ class ApiClient {
     config: RequestConfig = {},
     retryCount = 0
   ): Promise<T> {
-    const { params, withCredentials, signal: externalSignal } = config;
+    const { params, withCredentials, signal: externalSignal, retry: perRequestRetry } = config;
+    const effectiveRetryConfig = perRequestRetry
+      ? { ...this.retryConfig, ...perRequestRetry }
+      : this.retryConfig;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort('timeout'), this.timeout);
@@ -158,13 +162,19 @@ class ApiClient {
 
       // 統一リトライ判定
       if (
-        retryCount < this.retryConfig.maxRetries &&
-        this.retryConfig.shouldRetry!(apiError)
+        retryCount < effectiveRetryConfig.maxRetries &&
+        effectiveRetryConfig.shouldRetry!(apiError)
       ) {
-        const delay = this.retryConfig.retryDelay *
-          Math.pow(this.retryConfig.retryDelayMultiplier, retryCount);
+        const delay = effectiveRetryConfig.retryDelay *
+          Math.pow(effectiveRetryConfig.retryDelayMultiplier, retryCount);
         console.warn(
-          `Retrying request (${retryCount + 1}/${this.retryConfig.maxRetries}) after ${delay}ms:`,
+          'Retrying request',
+          retryCount + 1,
+          'of',
+          effectiveRetryConfig.maxRetries,
+          'after',
+          delay,
+          'ms:',
           apiError.message
         );
         await new Promise(resolve => setTimeout(resolve, delay));

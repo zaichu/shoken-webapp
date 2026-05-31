@@ -20,7 +20,7 @@ const MOCK_STOCK = {
 };
 
 const ROUTES = {
-  authMe: /\/auth\/me$/,
+  authMe: /\/api\/v1\/session$/,
   // API エンドポイントのみ一致させる（Vite のソースファイルパスと衝突しないよう末尾を限定）
   stock: /\/stocks\/\d+$/,
 };

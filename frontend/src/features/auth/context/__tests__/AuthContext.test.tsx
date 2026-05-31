@@ -143,7 +143,7 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('authenticated').textContent).toBe('true');
     expect(screen.getByTestId('user-name').textContent).toBe('テストユーザー');
     expect(mockGet).toHaveBeenCalledTimes(1);
-    expect(mockGet).toHaveBeenCalledWith('/auth/me', expect.objectContaining({
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/session', expect.objectContaining({
       withCredentials: true,
       signal: expect.any(AbortSignal),
     }));
@@ -203,19 +203,19 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/auth/me', expect.objectContaining({
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/session', expect.objectContaining({
       withCredentials: true,
       signal: expect.any(AbortSignal),
     }));
   });
 
-  it('logoutがauth/logoutを呼びuserをnullにする', async () => {
+  it('logoutがapi/v1/sessionを削除しuserをnullにする', async () => {
     const { user } = await renderAuthProvider();
 
     await user.click(screen.getByRole('button', { name: 'logout' }));
 
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', {}, {
+      expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/session', {
         withCredentials: true,
       });
     });
@@ -224,7 +224,7 @@ describe('AuthProvider', () => {
   });
 
   it('logoutがAPIエラーの場合はthrowしてcatch可能', async () => {
-    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('logout failed'));
+    vi.mocked(apiClient.delete).mockRejectedValueOnce(new Error('logout failed'));
     const { user } = await renderAuthProvider();
 
     await user.click(screen.getByRole('button', { name: 'logout' }));
@@ -235,21 +235,44 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('user-name').textContent).toBe('none');
   });
 
-  it('deleteAccountがauth/delete-accountを呼びuserをnullにする', async () => {
+  it('deleteAccountが確認APIを先に呼んでから削除APIを呼びuserをnullにする', async () => {
     const { user } = await renderAuthProvider();
 
     await user.click(screen.getByRole('button', { name: 'delete-account' }));
 
     await waitFor(() => {
-      expect(apiClient.delete).toHaveBeenCalledWith('/auth/delete-account', {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, {
+        withCredentials: true,
+        retry: { maxRetries: 0 },
+      });
+      expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/account', {
         withCredentials: true,
       });
     });
+
+    // 確認APIが削除APIより先に呼ばれることを検証
+    const postCallOrder = vi.mocked(apiClient.post).mock.invocationCallOrder[0];
+    const deleteCallOrder = vi.mocked(apiClient.delete).mock.invocationCallOrder[0];
+    expect(postCallOrder).toBeLessThan(deleteCallOrder);
+
     expect(screen.getByTestId('user-name').textContent).toBe('none');
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
   });
 
-  it('deleteAccountがAPIエラーの場合はthrowしてcatch可能', async () => {
+  it('deleteAccountで確認APIが失敗した場合は削除APIを呼ばずuserをnullにする', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('confirmation failed'));
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('confirmation failed');
+    });
+    expect(apiClient.delete).not.toHaveBeenCalled();
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+  });
+
+  it('deleteAccountで削除APIが失敗した場合はthrowしてcatch可能', async () => {
     vi.mocked(apiClient.delete).mockRejectedValueOnce(new Error('delete failed'));
     const { user } = await renderAuthProvider();
 
@@ -257,6 +280,10 @@ describe('AuthProvider', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('error').textContent).toBe('delete failed');
+    });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, {
+      withCredentials: true,
+      retry: { maxRetries: 0 },
     });
     expect(screen.getByTestId('user-name').textContent).toBe('none');
   });
@@ -276,7 +303,7 @@ describe('AuthProvider', () => {
     idleOptions?.onIdle();
 
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', {}, {
+      expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/session', {
         withCredentials: true,
       });
     });
@@ -289,7 +316,7 @@ describe('AuthProvider', () => {
 
     await user.click(screen.getByRole('button', { name: 'login' }));
 
-    expect(assignSpy).toHaveBeenCalledWith('https://api.example.com/auth/google');
+    expect(assignSpy).toHaveBeenCalledWith('https://api.example.com/api/v1/oauth/google/authorize');
 
     assignSpy.mockRestore();
   });
@@ -371,7 +398,7 @@ describe('AuthProvider', () => {
     idleOptions?.onIdle();
 
     // userがnullなのでlogoutは呼ばれない
-    expect(apiClient.post).not.toHaveBeenCalled();
+    expect(apiClient.delete).not.toHaveBeenCalled();
   });
 
   it('onLogoutでコールバックを登録解除できる', async () => {
@@ -389,7 +416,7 @@ describe('AuthProvider', () => {
     await user.click(screen.getByRole('button', { name: 'logout' }));
 
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledTimes(2);
+      expect(apiClient.delete).toHaveBeenCalledTimes(2);
     });
     expect(onLogoutCallback).toHaveBeenCalledTimes(1);
   });
