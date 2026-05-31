@@ -20,7 +20,7 @@ const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザ�
 
 // ホスト非依存のパターン（VITE_SHOKEN_WEBAPI_API_URL の値に関わらず一致する）
 const ROUTES = {
-  authMe: /\/auth\/me$/,
+  authMe: /\/api\/v1\/session$/,
   dividends: /\/dividends$/,
   dividendsCsvPreview: /\/dividends\/csv\/preview$/,
   domesticStocks: /\/domestic-stocks$/,

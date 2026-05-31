@@ -7,7 +7,7 @@ const MOCK_USER = {
 };
 
 const ROUTES = {
-  authMe: /\/auth\/me$/,
+  authMe: /\/api\/v1\/session$/,
 };
 
 async function mockUnauthorizedAuth(page: Page) {

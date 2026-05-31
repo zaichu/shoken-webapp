@@ -117,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiClient.post('/api/v1/account-deletion-confirmations', {}, {
         withCredentials: true,
+        retry: { maxRetries: 0 },
       });
       await apiClient.delete('/api/v1/account', {
         withCredentials: true,

@@ -243,6 +243,7 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, {
         withCredentials: true,
+        retry: { maxRetries: 0 },
       });
       expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/account', {
         withCredentials: true,
@@ -280,7 +281,10 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('error').textContent).toBe('delete failed');
     });
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, { withCredentials: true });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, {
+      withCredentials: true,
+      retry: { maxRetries: 0 },
+    });
     expect(screen.getByTestId('user-name').textContent).toBe('none');
   });
 
