@@ -4,12 +4,12 @@ import type { AssetBalanceApiData } from '@/types/api';
 
 export const assetBalanceApi = {
   list: () =>
-    apiClient.get<AssetBalanceApiData[]>('/asset-balances', { withCredentials: true }),
+    apiClient.get<AssetBalanceApiData[]>('/api/v1/asset-balances', { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/asset-balances/csv/preview', file),
+  previewCsv: (file: File) => previewCsvFile('/api/v1/asset-balance-import-validations', file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/asset-balances/csv', file),
+  uploadCsv: (file: File) => uploadCsvFile('/api/v1/asset-balance-imports', file),
 
   deleteAll: async () =>
-    apiClient.delete('/asset-balances', { withCredentials: true }),
+    apiClient.delete('/api/v1/asset-balances', { withCredentials: true }),
 };

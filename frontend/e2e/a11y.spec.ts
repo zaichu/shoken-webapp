@@ -17,7 +17,7 @@ const ROUTES = {
   dividends: /\/api\/v1\/dividends$/,
   domesticStocks: /\/api\/v1\/domestic-stock-transactions$/,
   mutualfunds: /\/api\/v1\/mutual-fund-transactions$/,
-  assetBalances: /\/asset-balances$/,
+  assetBalances: /\/api\/v1\/asset-balances$/,
   stock: /\/stocks\/[^/]+$/,
 };
 

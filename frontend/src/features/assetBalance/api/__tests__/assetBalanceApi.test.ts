@@ -25,7 +25,7 @@ describe('assetBalanceApi', () => {
   it('list() は asset-balances 一覧取得 API を呼ぶ', () => {
     assetBalanceApi.list();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/asset-balances', {
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/asset-balances', {
       withCredentials: true,
     });
   });
@@ -35,7 +35,7 @@ describe('assetBalanceApi', () => {
 
     assetBalanceApi.previewCsv(file);
 
-    expect(previewCsvFile).toHaveBeenCalledWith('/asset-balances/csv/preview', file);
+    expect(previewCsvFile).toHaveBeenCalledWith('/api/v1/asset-balance-import-validations', file);
   });
 
   it('uploadCsv(file) は uploadCsvFile を呼ぶ', () => {
@@ -43,13 +43,13 @@ describe('assetBalanceApi', () => {
 
     assetBalanceApi.uploadCsv(file);
 
-    expect(uploadCsvFile).toHaveBeenCalledWith('/asset-balances/csv', file);
+    expect(uploadCsvFile).toHaveBeenCalledWith('/api/v1/asset-balance-imports', file);
   });
 
   it('deleteAll() は全件削除 API を呼ぶ', async () => {
     await assetBalanceApi.deleteAll();
 
-    expect(apiClient.delete).toHaveBeenCalledWith('/asset-balances', {
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/asset-balances', {
       withCredentials: true,
     });
   });
