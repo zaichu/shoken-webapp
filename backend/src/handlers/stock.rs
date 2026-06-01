@@ -13,6 +13,7 @@ use axum::{
     Json, Router,
 };
 
+#[allow(dead_code)]
 pub fn stock_routes() -> Router<AppState> {
     Router::new()
         .route("/stocks", post(create_stock))
@@ -32,6 +33,7 @@ pub fn stock_routes() -> Router<AppState> {
         (status = 404, body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn search_stock(
     Path(search_query): Path<String>,
     State(state): State<AppState>,

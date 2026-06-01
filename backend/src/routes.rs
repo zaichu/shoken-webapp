@@ -114,24 +114,20 @@ fn domain_routes(
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
     let jquants_routes = if let Some(l) = jquants_limiter {
-        handlers::jquants::jquants_routes()
-            .merge(handlers::v1::jquants_routes())
-            .layer(middleware::from_fn(move |req, next| {
-                let l = l.clone();
-                async move { rate_limit(l, req, next).await }
-            }))
+        handlers::v1::jquants_routes().layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { rate_limit(l, req, next).await }
+        }))
     } else {
-        handlers::jquants::jquants_routes().merge(handlers::v1::jquants_routes())
+        handlers::v1::jquants_routes()
     };
     let auth_routes = if let Some(l) = auth_limiter {
-        handlers::auth::auth_routes()
-            .merge(handlers::v1::auth_routes())
-            .layer(middleware::from_fn(move |req, next| {
-                let l = l.clone();
-                async move { keyed_rate_limit(l, req, next).await }
-            }))
+        handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
     } else {
-        handlers::auth::auth_routes().merge(handlers::v1::auth_routes())
+        handlers::v1::auth_routes()
     };
     let csv_upload_routes = if let Some(l) = csv_limiter {
         csv_upload_routes().layer(middleware::from_fn(move |req, next| {
@@ -143,26 +139,15 @@ fn domain_routes(
     };
 
     Router::new()
-        .merge(handlers::stock::stock_routes())
         .merge(jquants_routes)
-        .merge(handlers::dividend_per_share::dividend_per_share_routes())
         .merge(auth_routes)
         .merge(csv_upload_routes)
-        .merge(handlers::dividend::dividend_routes())
-        .merge(handlers::domestic_stock::domestic_stock_routes())
-        .merge(handlers::mutualfund::mutualfund_routes())
-        .merge(handlers::asset_balance::asset_balance_routes())
         .merge(handlers::csv_import::csv_import_routes())
         .merge(handlers::v1::data_routes())
 }
 
 fn csv_upload_routes() -> Router<AppState> {
-    Router::new()
-        .merge(handlers::dividend::dividend_csv_upload_routes())
-        .merge(handlers::domestic_stock::domestic_stock_csv_upload_routes())
-        .merge(handlers::mutualfund::mutualfund_csv_upload_routes())
-        .merge(handlers::asset_balance::asset_balance_csv_upload_routes())
-        .merge(handlers::v1::csv_upload_routes())
+    handlers::v1::csv_upload_routes()
 }
 #[cfg(test)]
 mod tests {
@@ -195,36 +180,34 @@ mod tests {
     }
     #[test]
     fn test_all_routes_creation() {
-        let _ = handlers::stock::stock_routes();
-        let _ = handlers::jquants::jquants_routes();
-        let _ = handlers::auth::auth_routes();
-        let _ = handlers::dividend::dividend_routes();
-        let _ = handlers::domestic_stock::domestic_stock_routes();
-        let _ = handlers::mutualfund::mutualfund_routes();
-        let _ = handlers::asset_balance::asset_balance_routes();
+        let _ = handlers::v1::auth_routes();
+        let _ = handlers::v1::jquants_routes();
+        let _ = handlers::v1::data_routes();
+        let _ = handlers::v1::csv_upload_routes();
+        let _ = handlers::csv_import::csv_import_routes();
     }
     #[tokio::test]
     async fn test_routes_rate_limit_returns_429() {
         let router = if let Some(l) = crate::middleware::build_keyed_rate_limiter(1) {
-            handlers::auth::auth_routes().layer(middleware::from_fn(move |req, next| {
+            handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
                 let l = l.clone();
                 async move { keyed_rate_limit(l, req, next).await }
             }))
         } else {
-            handlers::auth::auth_routes()
+            handlers::v1::auth_routes()
         }
         .with_state(make_test_state());
-        assert_rate_limited(router, Method::GET, "/auth/me", Some("1.2.3.4")).await;
+        assert_rate_limited(router, Method::GET, "/api/v1/session", Some("1.2.3.4")).await;
         let router = if let Some(l) = crate::middleware::build_rate_limiter(1) {
-            handlers::jquants::jquants_routes().layer(middleware::from_fn(move |req, next| {
+            handlers::v1::jquants_routes().layer(middleware::from_fn(move |req, next| {
                 let l = l.clone();
                 async move { rate_limit(l, req, next).await }
             }))
         } else {
-            handlers::jquants::jquants_routes()
+            handlers::v1::jquants_routes()
         }
         .with_state(make_test_state());
-        assert_rate_limited(router, Method::GET, "/jquants/fins/summary", None).await;
+        assert_rate_limited(router, Method::GET, "/api/v1/financial-statements", None).await;
     }
     async fn assert_rate_limited(
         router: axum::Router,
@@ -266,75 +249,79 @@ mod tests {
     async fn test_all_endpoints_require_auth() {
         for (router, method, uri) in [
             (
-                handlers::jquants::jquants_routes(),
+                handlers::v1::jquants_routes(),
                 Method::GET,
-                "/jquants/fins/summary?code=7203",
+                "/api/v1/financial-statements?code=7203",
             ),
             (
-                handlers::dividend::dividend_routes(),
+                handlers::v1::data_routes(),
                 Method::DELETE,
-                "/dividends",
+                "/api/v1/dividends",
             ),
             (
-                handlers::dividend::dividend_routes(),
+                handlers::v1::data_routes(),
                 Method::GET,
-                "/dividends",
+                "/api/v1/dividends",
             ),
             (
-                handlers::dividend::dividend_routes(),
+                handlers::v1::data_routes(),
                 Method::POST,
-                "/dividends/csv/preview",
+                "/api/v1/dividend-import-validations",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes(),
+                handlers::v1::data_routes(),
                 Method::DELETE,
-                "/domestic-stocks",
+                "/api/v1/domestic-stock-transactions",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes(),
+                handlers::v1::data_routes(),
                 Method::GET,
-                "/domestic-stocks",
+                "/api/v1/domestic-stock-transactions",
             ),
             (
-                handlers::domestic_stock::domestic_stock_routes(),
+                handlers::v1::data_routes(),
                 Method::POST,
-                "/domestic-stocks/csv/preview",
+                "/api/v1/domestic-stock-import-validations",
             ),
             (
-                handlers::mutualfund::mutualfund_routes(),
+                handlers::v1::data_routes(),
                 Method::DELETE,
-                "/mutualfunds",
+                "/api/v1/mutual-fund-transactions",
             ),
             (
-                handlers::mutualfund::mutualfund_routes(),
+                handlers::v1::data_routes(),
                 Method::GET,
-                "/mutualfunds",
+                "/api/v1/mutual-fund-transactions",
             ),
             (
-                handlers::mutualfund::mutualfund_routes(),
+                handlers::v1::data_routes(),
                 Method::POST,
-                "/mutualfunds/csv/preview",
+                "/api/v1/mutual-fund-import-validations",
             ),
             (
-                handlers::asset_balance::asset_balance_routes(),
+                handlers::v1::data_routes(),
                 Method::DELETE,
-                "/asset-balances",
+                "/api/v1/asset-balances",
             ),
             (
-                handlers::asset_balance::asset_balance_routes(),
-                Method::POST,
-                "/asset-balances/bulk",
+                handlers::v1::data_routes(),
+                Method::PUT,
+                "/api/v1/asset-balances",
             ),
             (
-                handlers::asset_balance::asset_balance_routes(),
+                handlers::v1::data_routes(),
                 Method::POST,
-                "/asset-balances/csv/preview",
+                "/api/v1/asset-balance-import-validations",
             ),
-            (csv_upload_routes(), Method::POST, "/dividends/csv"),
             (
-                handlers::dividend_per_share::dividend_per_share_routes(),
+                handlers::v1::csv_upload_routes(),
                 Method::POST,
-                "/dividends/per-share/batch",
+                "/api/v1/dividend-imports",
+            ),
+            (
+                handlers::v1::data_routes(),
+                Method::POST,
+                "/api/v1/dividend-per-share-estimates",
             ),
         ] {
             check_unauthorized(router.with_state(make_test_state()), method, uri).await;
@@ -345,10 +332,10 @@ mod tests {
         let _lock = ENV_MUTEX.lock().await;
         let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
         for (path, ip) in [
-            ("/domestic-stocks/csv", "1.2.3.4"),
-            ("/dividends/csv", "1.2.3.5"),
-            ("/mutualfunds/csv", "1.2.3.6"),
-            ("/asset-balances/csv", "1.2.3.7"),
+            ("/api/v1/domestic-stock-imports", "1.2.3.4"),
+            ("/api/v1/dividend-imports", "1.2.3.5"),
+            ("/api/v1/mutual-fund-imports", "1.2.3.6"),
+            ("/api/v1/asset-balance-imports", "1.2.3.7"),
         ] {
             assert_rate_limited(
                 app_router(
@@ -370,7 +357,7 @@ mod tests {
         .oneshot(
             Request::builder()
                 .method(Method::POST)
-                .uri("/domestic-stocks/csv/preview")
+                .uri("/api/v1/domestic-stock-import-validations")
                 .header("fly-client-ip", "1.2.3.4")
                 .body(Body::empty())
                 .unwrap(),
@@ -454,7 +441,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::GET)
-                    .uri("/auth/me")
+                    .uri("/api/v1/session")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -475,13 +462,48 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::GET)
-                    .uri("/auth/me")
+                    .uri("/api/v1/session")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
         assert_eq!(resp.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_legacy_paths_return_404() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        let router = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::clone(&startup_ready),
+        );
+        for (method, uri) in [
+            (Method::GET, "/auth/me"),
+            (Method::GET, "/jquants/fins/summary"),
+            (Method::GET, "/dividends"),
+            (Method::GET, "/domestic-stocks"),
+            (Method::GET, "/mutualfunds"),
+            (Method::GET, "/asset-balances"),
+        ] {
+            let resp = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method.clone())
+                        .uri(uri)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                resp.status(),
+                axum::http::StatusCode::NOT_FOUND,
+                "{method} {uri} should return 404"
+            );
+        }
     }
 
     #[tokio::test]

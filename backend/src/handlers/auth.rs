@@ -16,6 +16,7 @@ use serde::Deserialize;
 
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
 
+#[allow(dead_code)]
 pub fn auth_routes() -> Router<AppState> {
     Router::new()
         .route("/auth/google", get(google_auth))
@@ -194,6 +195,7 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
     ),
     security(("cookieAuth" = []))
 )]
+#[allow(dead_code)]
 pub async fn delete_account(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -222,11 +224,9 @@ pub async fn delete_account(
 #[cfg(test)]
 mod tests {
     use crate::{
-        config::Config,
         db::connect_pool_lazy,
         errors::ErrorResponse,
         models::common::MessageResponse,
-        routes::app_router,
         state::{AppState, Secrets},
     };
     use axum::{
@@ -254,16 +254,7 @@ mod tests {
         }
     }
     fn test_app() -> Router {
-        let config = Config {
-            auth_rate_limit_rps: 0,
-            jquants_rate_limit_rps: 0,
-            ..Config::default()
-        };
-        app_router(
-            make_test_state(),
-            &config,
-            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
-        )
+        super::auth_routes().with_state(make_test_state())
     }
     async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();

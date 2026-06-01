@@ -17,12 +17,14 @@ use axum::{
     Json, Router,
 };
 
+#[allow(dead_code)]
 pub fn domestic_stock_routes() -> Router<AppState> {
     Router::new()
         .route("/domestic-stocks", get(list).delete(delete_all))
         .route("/domestic-stocks/csv/preview", post(preview_csv))
 }
 
+#[allow(dead_code)]
 pub fn domestic_stock_csv_upload_routes() -> Router<AppState> {
     Router::new().route("/domestic-stocks/csv", post(upload_csv))
 }
