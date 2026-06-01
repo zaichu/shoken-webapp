@@ -27,7 +27,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     const result = await fetchDividendPerShareBatch(['7203']);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dividend-per-share-estimates', {
       security_codes: ['7203'],
     }, { withCredentials: true });
     expect(result).toEqual(mockItems);
@@ -38,7 +38,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     const result = await fetchDividendPerShareBatch([]);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dividend-per-share-estimates', {
       security_codes: [],
     }, { withCredentials: true });
     expect(result).toEqual([]);
@@ -57,7 +57,7 @@ describe('fetchDividendPerShareBatch', () => {
 
     const result = await fetchDividendPerShareBatch(securityCodes);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/dividends/per-share/batch', {
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dividend-per-share-estimates', {
       security_codes: securityCodes,
     }, { withCredentials: true });
     expect(result).toEqual(mockItems);

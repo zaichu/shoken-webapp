@@ -28,8 +28,9 @@ describe('JQuantsApiClient', () => {
 
       const result = await client.getSummary('1234');
 
-      expect(apiClient.get).toHaveBeenCalledWith('/jquants/fins/summary', {
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/financial-statements', {
         params: { code: '1234' },
+        withCredentials: true,
       });
       expect(result).toEqual(mockResponse);
     });
@@ -40,8 +41,9 @@ describe('JQuantsApiClient', () => {
 
       await client.getSummary('1234', '2024-01-01', '2024-12-31');
 
-      expect(apiClient.get).toHaveBeenCalledWith('/jquants/fins/summary', {
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/financial-statements', {
         params: { code: '1234', from: '2024-01-01', to: '2024-12-31' },
+        withCredentials: true,
       });
     });
 

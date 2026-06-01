@@ -18,7 +18,7 @@ const ROUTES = {
   domesticStocks: /\/api\/v1\/domestic-stock-transactions$/,
   mutualfunds: /\/api\/v1\/mutual-fund-transactions$/,
   assetBalances: /\/api\/v1\/asset-balances$/,
-  stock: /\/stocks\/[^/]+$/,
+  stock: /\/api\/v1\/stocks(?:\?.*)?$/,
 };
 
 async function setupAuthMocks(page: import('@playwright/test').Page) {

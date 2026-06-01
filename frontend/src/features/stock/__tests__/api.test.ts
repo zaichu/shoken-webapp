@@ -15,6 +15,27 @@ describe('Stock API', () => {
   });
 
   describe('fetchStockData', () => {
+    it('成功した場合、v1銘柄検索APIをquery param付きで呼び出して結果を返す', async () => {
+      const mockStock = {
+        date: '2024-03-01',
+        code: '7974',
+        name: '任天堂',
+        market_category: 'プライム',
+        industry_code_33: '37',
+        industry_category_33: '情報・通信業',
+        industry_code_17: '10',
+        industry_category_17: '情報通信・サービスその他',
+        size_code: '7',
+        size_category: 'TOPIX Large70',
+      };
+      (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockStock);
+
+      const result = await fetchStockData('7974');
+
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/stocks', { params: { query: '7974' } });
+      expect(result).toEqual(mockStock);
+    });
+
     it('ApiErrorの場合、同じエラーをそのまま再スローする', async () => {
       const apiError = new ApiError(ApiErrorType.NOT_FOUND_ERROR, 'リソースが見つかりません');
       (apiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(apiError);

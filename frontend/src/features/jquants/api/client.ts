@@ -24,8 +24,8 @@ export class JQuantsApiClient {
       if (to) params.to = to;
 
       const response = await apiClient.get<JQuantsFinSummaryResponse>(
-        '/jquants/fins/summary',
-        { params }
+        '/api/v1/financial-statements',
+        { params, withCredentials: true }
       );
 
       return response;
