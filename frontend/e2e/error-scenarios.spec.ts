@@ -25,7 +25,7 @@ const ROUTES = {
   dividendsCsvPreview: /\/api\/v1\/dividend-import-validations$/,
   domesticStocks: /\/api\/v1\/domestic-stock-transactions$/,
   mutualfunds: /\/api\/v1\/mutual-fund-transactions$/,
-  assetBalances: /\/asset-balances$/,
+  assetBalances: /\/api\/v1\/asset-balances$/,
 };
 
 async function setupCommonMocks(page: Page) {
