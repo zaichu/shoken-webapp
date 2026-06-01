@@ -18,7 +18,7 @@ export async function fetchDividendPerShareBatch(
   securityCodes: string[]
 ): Promise<DividendPerShareItem[]> {
   const response = await apiClient.post<BatchResponse>(
-    '/dividends/per-share/batch',
+    '/api/v1/dividend-per-share-estimates',
     { security_codes: securityCodes },
     { withCredentials: true }
   );

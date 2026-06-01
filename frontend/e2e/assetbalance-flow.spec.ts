@@ -14,7 +14,7 @@ const ROUTES = {
   assetBalances: /\/api\/v1\/asset-balances$/,
   assetBalancePreview: /\/api\/v1\/asset-balance-import-validations$/,
   assetBalanceUpload: /\/api\/v1\/asset-balance-imports$/,
-  dividendPerShareBatch: /\/dividends\/per-share\/batch$/,
+  dividendPerShareBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
 };
 
 const MOCK_ASSET = {
