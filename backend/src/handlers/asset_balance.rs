@@ -18,6 +18,7 @@ use axum::{
     Json, Router,
 };
 
+#[allow(dead_code)]
 pub fn asset_balance_routes() -> Router<AppState> {
     Router::new()
         .route("/asset-balances", get(list).delete(delete_all))
@@ -25,6 +26,7 @@ pub fn asset_balance_routes() -> Router<AppState> {
         .route("/asset-balances/csv/preview", post(preview_csv))
 }
 
+#[allow(dead_code)]
 pub fn asset_balance_csv_upload_routes() -> Router<AppState> {
     Router::new().route("/asset-balances/csv", post(upload_csv))
 }
@@ -61,6 +63,7 @@ pub async fn list(
     ),
     security(("cookieAuth" = []))
 )]
+#[allow(dead_code)]
 pub async fn bulk_create(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,

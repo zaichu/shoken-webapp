@@ -8,6 +8,7 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, routing::post, Json, Router};
 
+#[allow(dead_code)]
 pub fn dividend_per_share_routes() -> Router<AppState> {
     Router::new().route("/dividends/per-share/batch", post(batch))
 }

@@ -10,6 +10,7 @@ use axum::{
     Router,
 };
 
+#[allow(dead_code)]
 pub fn jquants_routes() -> Router<AppState> {
     Router::new().route("/jquants/fins/summary", get(get_fin_summary))
 }
