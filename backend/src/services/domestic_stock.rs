@@ -8,7 +8,7 @@ use crate::services::csv_util::{
     compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
 };
-use crate::services::shared::BulkTimer;
+use crate::services::shared::{user_ids_for_bulk_insert, BulkTimer};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tracing::info;
@@ -77,7 +77,7 @@ pub async fn bulk_create(
     }
 
     // 各フィールドを配列に変換
-    let user_ids: Vec<Uuid> = vec![user_id; total];
+    let user_ids = user_ids_for_bulk_insert(user_id, total);
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
