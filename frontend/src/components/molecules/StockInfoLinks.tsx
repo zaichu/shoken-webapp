@@ -18,7 +18,8 @@ const STOCK_INFO_LINKS_OBJECTS: StockInfoLinkObject[] = [
   { name: "みんかぶ", url: "https://minkabu.jp/stock/{}/" },
   { name: "IR BANK", url: "https://irbank.net/{}" },
   { name: "銘柄スカウター", url: "https://monex.ifis.co.jp/index.php?sa=report_index&bcode={}" },
-  { name: "ザイマニ", url: "https://zaimani.com/search/?_sf_s={}" }
+  { name: "ザイマニ", url: "https://zaimani.com/search/?_sf_s={}" },
+  { name: "JPX Explorer", url: "https://jpx-explorer.com/ja-JP/{}-TSE" }
 ];
 
 export const StockInfoLinks = ({ code }: StockInfoLinksProps) => {
