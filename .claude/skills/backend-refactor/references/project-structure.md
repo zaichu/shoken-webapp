@@ -56,16 +56,18 @@ Refactor 時に「どこに何を置くか」を迷わないための、backend 
 
 ## Current Routes (Reference)
 
-`backend/src/routes.rs` で定義されている主なパス。
+`backend/src/routes.rs` で定義されている主な公開パス。旧 API ルートは削除済みで、外部 API は原則 `/api/v1` 配下に集約する。
 
-- `/stock`, `/stock/{query}`
-- `/jquants/fins/statements`
-- `/auth/google`, `/auth/google/callback`, `/auth/me`, `/auth/logout`, `/auth/delete-account`
-- `/dividends`, `/dividends/bulk`, `/dividends/all`
-- `/domestic-stocks`, `/domestic-stocks/bulk`, `/domestic-stocks/all`
-- `/mutualfunds`, `/mutualfunds/bulk`, `/mutualfunds/all`
-- `/asset-balances`, `/asset-balances/bulk`, `/asset-balances/all`
-- `/health`
+- `/health`, `/ready`
+- `/api/v1/session`
+- `/api/v1/account-deletion-confirmations`, `/api/v1/account`
+- `/api/v1/oauth/google/authorize`, `/api/v1/oauth/google/callback`
+- `/api/v1/stocks`
+- `/api/v1/dividends`, `/api/v1/dividend-import-validations`, `/api/v1/dividend-imports`, `/api/v1/dividend-per-share-estimates`
+- `/api/v1/domestic-stock-transactions`, `/api/v1/domestic-stock-import-validations`, `/api/v1/domestic-stock-imports`
+- `/api/v1/mutual-fund-transactions`, `/api/v1/mutual-fund-import-validations`, `/api/v1/mutual-fund-imports`
+- `/api/v1/asset-balances`, `/api/v1/asset-balance-import-validations`, `/api/v1/asset-balance-imports`
+- `/api/v1/financial-statements`
 
 ## Invariants To Preserve (Unless Requested)
 

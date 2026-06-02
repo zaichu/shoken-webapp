@@ -19,48 +19,74 @@
 
 ## APIエンドポイント
 
-### 認証
+### プローブ
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/auth/google` | Google OAuth開始 |
-| GET | `/auth/google/callback` | OAuthコールバック |
-| GET | `/auth/me` | 現在のユーザー情報 |
-| POST | `/auth/logout` | ログアウト |
-| DELETE | `/auth/delete-account` | アカウント削除 |
+| GET | `/health` | Liveness チェック |
+| GET | `/ready` | 起動完了チェック |
+
+### 認証・セッション
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/v1/session` | 現在のセッション情報取得 |
+| DELETE | `/api/v1/session` | ログアウト |
+| POST | `/api/v1/account-deletion-confirmations` | アカウント削除確認（短命Cookie発行） |
+| DELETE | `/api/v1/account` | アカウント削除（確認Cookie必須） |
+| GET | `/api/v1/oauth/google/authorize` | Google OAuth 開始 |
+| GET | `/api/v1/oauth/google/callback` | Google OAuth コールバック |
 
 ### 証券情報
 
 | メソッド | パス | 説明 | 認証 |
 |---------|------|------|------|
-| GET | `/stocks/{query}` | 株式情報を検索 | 不要 |
-| POST | `/stocks` | 株式情報を追加 | **必須** |
+| GET | `/api/v1/stocks?query=7203` | 株式情報を検索 | 不要 |
+| POST | `/api/v1/stocks` | 株式情報を追加 | **必須** |
 
-### データ管理（すべて認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/dividends` | 配当金一覧を取得 |
-| DELETE | `/dividends` | 配当金を全削除 |
-| GET | `/domestic-stocks` | 国内株式一覧を取得 |
-| DELETE | `/domestic-stocks` | 国内株式を全削除 |
-| GET | `/mutualfunds` | 投資信託一覧を取得 |
-| DELETE | `/mutualfunds` | 投資信託を全削除 |
-| GET | `/asset-balances` | 保有銘柄一覧を取得 |
-| POST | `/asset-balances/bulk` | 保有銘柄を一括登録（全削除→再挿入） |
-| DELETE | `/asset-balances` | 保有銘柄を全削除 |
-
-### J-Quants API
+### 配当金（すべて認証必須）
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/jquants/fins/statements` | 決算サマリーを取得 |
+| GET | `/api/v1/dividends` | 配当金一覧を取得 |
+| DELETE | `/api/v1/dividends` | 配当金を全削除 |
+| POST | `/api/v1/dividend-import-validations` | 配当金CSV バリデーション（DB書き込みなし） |
+| POST | `/api/v1/dividend-imports` | 配当金CSV 取り込み |
+| POST | `/api/v1/dividend-per-share-estimates` | 1株配当一括推計 |
 
-### その他
+### 国内株式取引（すべて認証必須）
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/health` | ヘルスチェック |
+| GET | `/api/v1/domestic-stock-transactions` | 国内株式取引一覧を取得 |
+| DELETE | `/api/v1/domestic-stock-transactions` | 国内株式取引を全削除 |
+| POST | `/api/v1/domestic-stock-import-validations` | 国内株式CSV バリデーション |
+| POST | `/api/v1/domestic-stock-imports` | 国内株式CSV 取り込み |
+
+### 投資信託取引（すべて認証必須）
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/v1/mutual-fund-transactions` | 投資信託取引一覧を取得 |
+| DELETE | `/api/v1/mutual-fund-transactions` | 投資信託取引を全削除 |
+| POST | `/api/v1/mutual-fund-import-validations` | 投資信託CSV バリデーション |
+| POST | `/api/v1/mutual-fund-imports` | 投資信託CSV 取り込み |
+
+### 保有銘柄（すべて認証必須）
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/v1/asset-balances` | 保有銘柄一覧を取得 |
+| PUT | `/api/v1/asset-balances` | 保有銘柄を全件置換 |
+| DELETE | `/api/v1/asset-balances` | 保有銘柄を全削除 |
+| POST | `/api/v1/asset-balance-import-validations` | 保有銘柄CSV バリデーション |
+| POST | `/api/v1/asset-balance-imports` | 保有銘柄CSV 取り込み |
+
+### 市場データ（認証必須）
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/v1/financial-statements?code=7203` | 財務サマリーを取得 |
 
 ## 開発
 
@@ -192,9 +218,8 @@ backend/
 │   ├── errors.rs        # エラーハンドリング
 │   ├── extractors/      # Axumエクストラクター
 │   ├── handlers/        # リクエストハンドラー
-│   │   ├── auth.rs      # 認証
-│   │   ├── jquants.rs   # J-Quants API
-│   │   └── stock.rs     # 株式検索
+│   │   ├── v1/          # v1 APIハンドラー
+│   │   └── csv_import.rs # CSV取り込み共通処理
 │   ├── models/          # データモデル
 │   ├── services/        # ビジネスロジック
 │   └── state.rs         # アプリケーション状態

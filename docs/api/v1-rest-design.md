@@ -4,7 +4,6 @@
 
 - Keep the backend in Rust and Axum.
 - Introduce RESTful, versioned routes under `/api/v1`.
-- Keep old routes working during migration.
 - Make destructive and import operations explicit resources.
 - Hide external provider names such as J-Quants from first-class API resources
   unless provider-specific behavior is intentionally exposed.
@@ -47,8 +46,8 @@ API identifiers and must not collide with legacy operation IDs.
 
 ## Destructive Operation Guard
 
-`DELETE /api/v1/account` is intentionally stricter than the legacy
-`DELETE /auth/delete-account` route. A client must first call
+`DELETE /api/v1/account` is intentionally stricter than the retired
+`DELETE /auth/delete-account` route was. A client must first call
 `POST /api/v1/account-deletion-confirmations`, which sets a short-lived
 HttpOnly confirmation cookie scoped to `/api/v1/account`. The delete endpoint
 requires both a valid session cookie and that confirmation cookie.
@@ -124,9 +123,11 @@ requires both a valid session cookie and that confirmation cookie.
 |---|---|---|
 | GET | `/api/v1/financial-statements?code=7203` | Get financial statement summary |
 
-## Compatibility Map
+## Legacy Route Migration History
 
-| Current Route | v1 Route |
+旧ルートは v1 移行完了後に削除済み。以下は移行履歴（参照用）。
+
+| 廃止済み旧ルート | 移行先 v1 ルート |
 |---|---|
 | `GET /auth/me` | `GET /api/v1/session` |
 | `POST /auth/logout` | `DELETE /api/v1/session` |
@@ -154,15 +155,4 @@ requires both a valid session cookie and that confirmation cookie.
 | `POST /asset-balances/csv` | `POST /api/v1/asset-balance-imports` |
 | `GET /jquants/fins/summary` | `GET /api/v1/financial-statements` |
 | `POST /dividends/per-share/batch` | `POST /api/v1/dividend-per-share-estimates` |
-
-## Migration Order
-
-1. Harden current security behavior.
-2. Add `/api/v1/session` and OAuth aliases.
-3. Add `/api/v1/stocks`.
-4. Add read/delete aliases for existing collections.
-5. Add import validation/import aliases.
-6. Move frontend API client to `/api/v1`.
-7. Mark old routes as deprecated.
-8. Remove old routes only after a separate deprecation decision.
 
