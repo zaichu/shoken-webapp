@@ -6,12 +6,7 @@ use crate::{
     services::dividend_cache as dividend_cache_service,
     AppState,
 };
-use axum::{extract::State, response::IntoResponse, routing::post, Json, Router};
-
-#[allow(dead_code)]
-pub fn dividend_per_share_routes() -> Router<AppState> {
-    Router::new().route("/dividends/per-share/batch", post(batch))
-}
+use axum::{extract::State, response::IntoResponse, Json};
 
 /// 配当利回り一括取得
 #[utoipa::path(
@@ -52,6 +47,8 @@ mod tests {
         axum::{
             body::Body,
             http::{Request, StatusCode},
+            routing::post,
+            Router,
         },
         reqwest::Client,
         serde_json::json,
@@ -63,18 +60,20 @@ mod tests {
         let pool =
             crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
                 .unwrap();
-        dividend_per_share_routes().with_state(crate::AppState {
-            pool,
-            secrets: Arc::new(crate::state::Secrets {
-                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
-                jquants_api_key: None,
-                google_client_id: None,
-                google_client_secret: None,
-                frontend_url: "http://localhost:8080".to_string(),
-            }),
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        })
+        Router::new()
+            .route("/dividends/per-share/batch", post(batch))
+            .with_state(crate::AppState {
+                pool,
+                secrets: Arc::new(crate::state::Secrets {
+                    database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+                    jquants_api_key: None,
+                    google_client_id: None,
+                    google_client_secret: None,
+                    frontend_url: "http://localhost:8080".to_string(),
+                }),
+                client: Client::new(),
+                dividend_cache: crate::state::DividendCacheState::default(),
+            })
     }
 
     #[tokio::test]
