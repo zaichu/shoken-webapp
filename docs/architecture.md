@@ -56,11 +56,11 @@ shoken-webapp/
 ## 認証フロー
 
 ```
-1. フロント → GET /auth/google
+1. フロント → GET /api/v1/oauth/google/authorize
 2. バックエンド → Google OAuth 認証ページへリダイレクト
-3. Google → GET /auth/google/callback?code=...&state=...
+3. Google → GET /api/v1/oauth/google/callback?code=...&state=...
 4. バックエンド → セッション Cookie 発行（session_token, Max-Age=7日）
-5. フロント → GET /auth/me でユーザー情報取得
+5. フロント → GET /api/v1/session でユーザー情報取得
 ```
 
 CSRF 対策: `Origin` / `Referer` ヘッダーによるオリジン検証

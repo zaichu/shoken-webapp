@@ -81,10 +81,7 @@ export interface paths {
         };
         /** 保有銘柄一覧を取得（v1） */
         get: operations["v1_asset_balance_list"];
-        /**
-         * 保有銘柄を全置換（v1）
-         *     ステータスコード 200 を返す（既存 POST /asset-balances/bulk は 201）
-         */
+        /** 保有銘柄を全置換（v1） */
         put: operations["v1_asset_balance_replace"];
         post?: never;
         /** 保有銘柄を全削除（v1） */
