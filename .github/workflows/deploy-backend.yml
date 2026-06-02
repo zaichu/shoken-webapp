@@ -12,6 +12,10 @@ on:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-build:
     name: Test & Build
