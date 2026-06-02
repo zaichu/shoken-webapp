@@ -42,7 +42,7 @@ pub fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiErr
         ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
     })?;
 
-    let redirect_url = format!("{}/auth/google/callback", config::backend_url());
+    let redirect_url = format!("{}/api/v1/oauth/google/callback", config::backend_url());
 
     let client = BasicClient::new(ClientId::new(client_id))
         .set_client_secret(ClientSecret::new(client_secret))
@@ -213,7 +213,14 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
 }
 #[cfg(test)]
 mod tests {
-    use {super::*, crate::state::Secrets, std::sync::Arc};
+    use {
+        super::*,
+        crate::{
+            state::Secrets,
+            test_env::{EnvGuard, ENV_MUTEX},
+        },
+        std::sync::Arc,
+    };
     fn test_state() -> AppState {
         AppState {
             pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
@@ -297,5 +304,19 @@ mod tests {
     #[tokio::test]
     async fn test_create_oauth_client() {
         assert!(create_oauth_client(&test_state()).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_oauth_redirect_uri_is_v1_path() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _env = EnvGuard::set("BACKEND_URL", Some("https://shoken-backend.fly.dev"));
+        let client = create_oauth_client(&test_state()).unwrap();
+        let (auth_url, _csrf) = client.authorize_url(oauth2::CsrfToken::new_random).url();
+        let url_str = auth_url.to_string();
+        assert!(
+            url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.fly.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
+            "redirect_uri が /api/v1/oauth/google/callback でない: {}",
+            url_str
+        );
     }
 }
