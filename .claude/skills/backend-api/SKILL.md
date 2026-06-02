@@ -35,16 +35,20 @@ pub async fn list(
 }
 ```
 
-## ルート登録 (main.rs)
+## ルート登録
 
 ```rust
-use axum::routing::{get, post, delete};
+use axum::{routing::get, Router};
 
-let app = Router::new()
-    .route("/your-route", get(handlers::your::list))
-    .route("/your-route/bulk", post(handlers::your::bulk_create))
-    .route("/your-route/all", delete(handlers::your::delete_all));
+pub fn your_resource_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/v1/your-resources", get(handlers::v1::your_resources::list))
+}
 ```
+
+- ルートは `backend/src/routes.rs` または `backend/src/handlers/v1.rs` の route composition に集約する。
+- 外部公開 API は `/api/v1/<resource>` を標準にする。
+- 一括置換は `PUT /api/v1/<collection>`、全削除は `DELETE /api/v1/<collection>` を使う。`/bulk` や `/all` を新規 API の標準例にしない。
 
 ## モデル定義
 
@@ -57,7 +61,6 @@ use uuid::Uuid;
 pub struct YourModel {
     pub id: Uuid,
     #[serde(skip_serializing)]
-    #[allow(dead_code)]
     pub user_id: Uuid,
     // 他のフィールド
 }
@@ -67,6 +70,8 @@ pub struct CreateRequest {
     // リクエストフィールド
 }
 ```
+
+`#[allow(dead_code)]` はテンプレートとして追加しない。DB の所有者 ID など、`FromRow` には必要だが Rust コードから直接読まないフィールドで clippy が警告する場合だけ、構造上の理由をコメントで明記して最小範囲に付与する。
 
 ## バルク作成（重複スキップ）
 

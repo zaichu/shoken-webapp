@@ -11,7 +11,7 @@ use validator::Validate;
 pub struct Dividend {
     pub id: Uuid,
     #[serde(skip_serializing)]
-    #[allow(dead_code)]
+    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
     pub user_id: Uuid,
     pub settlement_date: NaiveDate,
     pub product: String,
