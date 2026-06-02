@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { StockInfoLinks } from '../StockInfoLinks';
 
 describe('StockInfoLinks', () => {
+  it('すべてのリンクを表示する（11件）', () => {
+    render(<StockInfoLinks code="7203" />);
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(11);
+  });
+
   it('楽天証券リンクとSBI証券リンクを表示する', () => {
     render(<StockInfoLinks code="7203" />);
 

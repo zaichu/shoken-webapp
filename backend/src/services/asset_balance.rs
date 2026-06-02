@@ -7,7 +7,7 @@ use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvR
 use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
-use crate::services::shared::BulkTimer;
+use crate::services::shared::{user_ids_for_bulk_insert, BulkTimer};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tracing::info;
@@ -60,7 +60,7 @@ pub async fn bulk_create(
     let timer = BulkTimer::new("asset_balance", total);
 
     // 各フィールドを配列に変換
-    let user_ids: Vec<Uuid> = vec![user_id; total];
+    let user_ids = user_ids_for_bulk_insert(user_id, total);
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
     let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();

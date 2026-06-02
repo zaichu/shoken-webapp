@@ -33,6 +33,11 @@ impl BulkTimer {
     }
 }
 
+/// bulk insert の UNNEST に渡す user_id 配列を生成する。
+pub fn user_ids_for_bulk_insert(user_id: Uuid, total: usize) -> Vec<Uuid> {
+    vec![user_id; total]
+}
+
 /// ユーザーに紐づく全レコードを削除する共通実装。
 /// テーブル名は呼び出し元がリテラルで指定するため SQL インジェクションの危険はない。
 pub async fn delete_all_for_user(
@@ -52,12 +57,24 @@ pub async fn delete_all_for_user(
 }
 #[cfg(test)]
 mod tests {
-    use super::BulkTimer;
+    use super::{user_ids_for_bulk_insert, BulkTimer};
+    use uuid::Uuid;
+
     #[test]
     fn test_bulk_timer_finish() {
         for (inserted, expected) in [(0, (0, 5)), (5, (5, 0)), (3, (3, 2))] {
             let response = BulkTimer::new("test", 5).finish(inserted);
             assert_eq!((response.inserted, response.skipped), expected);
         }
+    }
+
+    #[test]
+    fn test_user_ids_for_bulk_insert() {
+        let id = Uuid::new_v4();
+        let result = user_ids_for_bulk_insert(id, 3);
+        assert_eq!(result.len(), 3);
+        assert!(result.iter().all(|&v| v == id));
+
+        assert!(user_ids_for_bulk_insert(id, 0).is_empty());
     }
 }
