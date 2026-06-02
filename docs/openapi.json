@@ -255,7 +255,7 @@
         "tags": [
           "handlers::v1::asset_balances"
         ],
-        "summary": "保有銘柄を全置換（v1）\nステータスコード 200 を返す（既存 POST /asset-balances/bulk は 201）",
+        "summary": "保有銘柄を全置換（v1）",
         "operationId": "v1_asset_balance_replace",
         "requestBody": {
           "content": {

@@ -1,6 +1,5 @@
 use crate::config;
-use crate::errors::{ApiError, ErrorResponse};
-use crate::models::common::MessageResponse;
+use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, UserResponse};
 use crate::services::auth::{self as auth_service, create_oauth_client};
 use crate::state::AppState;
@@ -114,16 +113,6 @@ pub async fn google_callback(
 }
 
 /// 現在ログイン中のユーザー情報を取得
-#[utoipa::path(
-    get,
-    path = "/auth/me",
-    operation_id = "auth_me",
-    responses(
-        (status = 200, body = UserResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
 pub async fn get_current_user(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -139,15 +128,6 @@ pub async fn get_current_user(
 }
 
 /// ログアウト処理
-#[utoipa::path(
-    post,
-    path = "/auth/logout",
-    operation_id = "auth_logout",
-    responses(
-        (status = 200, body = MessageResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
     // セッションをデータベースから削除
     if let Some(session_token) = jar
@@ -179,8 +159,7 @@ mod tests {
     };
     use axum::{
         body::{to_bytes, Body},
-        http::{Request, StatusCode},
-        routing::{get, post},
+        http::{Method, Request, StatusCode},
         Router,
     };
     use {reqwest::Client, serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
@@ -203,16 +182,13 @@ mod tests {
         }
     }
     fn test_app() -> Router {
-        Router::new()
-            .route("/auth/me", get(super::get_current_user))
-            .route("/auth/logout", post(super::logout))
-            .with_state(make_test_state())
+        crate::handlers::v1::auth_routes().with_state(make_test_state())
     }
     async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();
         serde_json::from_slice(&body).unwrap()
     }
-    async fn request_json<T: DeserializeOwned>(method: &str, uri: &str) -> (StatusCode, T) {
+    async fn request_json<T: DeserializeOwned>(method: Method, uri: &str) -> (StatusCode, T) {
         let response = test_app()
             .oneshot(
                 Request::builder()
@@ -228,7 +204,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_auth_endpoints_without_cookie() {
-        let (status, error) = request_json::<ErrorResponse>("GET", "/auth/me").await;
+        let (status, error) = request_json::<ErrorResponse>(Method::GET, "/api/v1/session").await;
         assert_eq!(
             (
                 status,
@@ -237,7 +213,8 @@ mod tests {
             ),
             (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", true)
         );
-        let (status, message) = request_json::<MessageResponse>("POST", "/auth/logout").await;
+        let (status, message) =
+            request_json::<MessageResponse>(Method::DELETE, "/api/v1/session").await;
         assert_eq!(
             (status, message.message.as_str()),
             (StatusCode::OK, "ログアウトしました")

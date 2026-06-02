@@ -37,7 +37,6 @@ pub async fn list(
 }
 
 /// 保有銘柄を全置換（v1）
-/// ステータスコード 200 を返す（既存 POST /asset-balances/bulk は 201）
 #[utoipa::path(
     put,
     path = "/api/v1/asset-balances",
