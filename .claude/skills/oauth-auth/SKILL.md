@@ -24,7 +24,7 @@ description: |
 
 ## OAuth フロー
 
-### 1. 認証開始（`/auth/google`）
+### 1. 認証開始（`/api/v1/oauth/google/authorize`）
 
 ```rust
 pub async fn google_auth(
@@ -55,7 +55,7 @@ pub async fn google_auth(
 }
 ```
 
-### 2. コールバック（`/auth/google/callback`）
+### 2. コールバック（`/api/v1/oauth/google/callback`）
 
 ```rust
 pub async fn google_callback(
@@ -186,7 +186,18 @@ let jar = jar.remove(Cookie::build(("oauth_state", "")).path("/").build());
 | `SECURE_COOKIE` | Cookie の Secure 属性を明示制御 | `true` |
 | `RUST_ENV` / `APP_ENV` | 本番環境判定 | `production` |
 
+## Google Cloud OAuth 設定
+
+Authorized redirect URI は API バージョン付きのコールバックを登録する。
+
+| 環境 | URI |
+|------|-----|
+| 本番 | `https://shoken-backend.fly.dev/api/v1/oauth/google/callback` |
+| ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
+
+旧 `/auth/google/callback` は現行 API では使用しない。旧 URI を案内したり、互換ルートとして復活させたりしない。
+
 ## 参考ファイル
 
-- `backend/src/handlers/auth.rs` - 認証ハンドラー
+- `backend/src/handlers/v1/auth.rs` - 認証ハンドラー
 - `backend/src/extractors/auth.rs` - AuthenticatedUser エクストラクター
