@@ -8,26 +8,7 @@ use crate::{
     services::dividend as dividend_service,
     state::AppState,
 };
-use axum::{
-    extract::Multipart,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{get, post},
-    Json, Router,
-};
-
-#[allow(dead_code)]
-pub fn dividend_routes() -> Router<AppState> {
-    Router::new()
-        .route("/dividends", get(list).delete(delete_all))
-        .route("/dividends/csv/preview", post(preview_csv))
-}
-
-#[allow(dead_code)]
-pub fn dividend_csv_upload_routes() -> Router<AppState> {
-    Router::new().route("/dividends/csv", post(upload_csv))
-}
+use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの配当金一覧を取得
 #[utoipa::path(
@@ -125,6 +106,8 @@ mod tests {
         axum::{
             body::Body,
             http::{Request, StatusCode},
+            routing::get,
+            Router,
         },
         reqwest::Client,
         std::sync::Arc,
@@ -135,18 +118,20 @@ mod tests {
         let pool =
             crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
                 .unwrap();
-        dividend_routes().with_state(crate::AppState {
-            pool,
-            secrets: Arc::new(crate::state::Secrets {
-                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
-                jquants_api_key: None,
-                google_client_id: None,
-                google_client_secret: None,
-                frontend_url: "http://localhost:8080".to_string(),
-            }),
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        })
+        Router::new()
+            .route("/dividends", get(list).delete(delete_all))
+            .with_state(crate::AppState {
+                pool,
+                secrets: Arc::new(crate::state::Secrets {
+                    database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+                    jquants_api_key: None,
+                    google_client_id: None,
+                    google_client_secret: None,
+                    frontend_url: "http://localhost:8080".to_string(),
+                }),
+                client: Client::new(),
+                dividend_cache: crate::state::DividendCacheState::default(),
+            })
     }
 
     #[tokio::test]

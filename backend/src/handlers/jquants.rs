@@ -6,14 +6,7 @@ use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::Json,
-    routing::get,
-    Router,
 };
-
-#[allow(dead_code)]
-pub fn jquants_routes() -> Router<AppState> {
-    Router::new().route("/jquants/fins/summary", get(get_fin_summary))
-}
 
 /// 決算サマリーを取得（J-Quants API V2）
 #[utoipa::path(
@@ -58,6 +51,8 @@ mod tests {
         axum::{
             body::Body,
             http::{Request, StatusCode},
+            routing::get,
+            Router,
         },
         reqwest::Client,
         std::sync::Arc,
@@ -68,18 +63,20 @@ mod tests {
         let pool =
             crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
                 .unwrap();
-        jquants_routes().with_state(crate::AppState {
-            pool,
-            secrets: Arc::new(crate::state::Secrets {
-                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
-                jquants_api_key: None,
-                google_client_id: None,
-                google_client_secret: None,
-                frontend_url: "http://localhost:8080".to_string(),
-            }),
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        })
+        Router::new()
+            .route("/jquants/fins/summary", get(get_fin_summary))
+            .with_state(crate::AppState {
+                pool,
+                secrets: Arc::new(crate::state::Secrets {
+                    database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+                    jquants_api_key: None,
+                    google_client_id: None,
+                    google_client_secret: None,
+                    frontend_url: "http://localhost:8080".to_string(),
+                }),
+                client: Client::new(),
+                dividend_cache: crate::state::DividendCacheState::default(),
+            })
     }
 
     #[tokio::test]

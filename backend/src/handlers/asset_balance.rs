@@ -1,35 +1,14 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    extractors::validated_json::ValidatedJson,
-    models::asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
-    models::common::{BulkCreateResponse, MessageResponse},
+    models::asset_balance::AssetBalance,
+    models::common::MessageResponse,
     models::csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     services::asset_balance as asset_balance_service,
     services::csv_domain::AssetBalanceDomain,
     state::AppState,
 };
-use axum::{
-    extract::Multipart,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{get, post},
-    Json, Router,
-};
-
-#[allow(dead_code)]
-pub fn asset_balance_routes() -> Router<AppState> {
-    Router::new()
-        .route("/asset-balances", get(list).delete(delete_all))
-        .route("/asset-balances/bulk", post(bulk_create))
-        .route("/asset-balances/csv/preview", post(preview_csv))
-}
-
-#[allow(dead_code)]
-pub fn asset_balance_csv_upload_routes() -> Router<AppState> {
-    Router::new().route("/asset-balances/csv", post(upload_csv))
-}
+use axum::{extract::Multipart, extract::State, http::StatusCode, response::IntoResponse, Json};
 
 /// 認証ユーザーの保有銘柄一覧を取得
 #[utoipa::path(
@@ -48,30 +27,6 @@ pub async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     let balances = asset_balance_service::list(&state.pool, auth_user.id()).await?;
     Ok((StatusCode::OK, Json(balances)))
-}
-
-/// 保有銘柄を一括追加（既存は更新）
-#[utoipa::path(
-    post,
-    path = "/asset-balances/bulk",
-    operation_id = "asset_balance_bulk_create",
-    request_body = BulkCreateAssetBalanceRequest,
-    responses(
-        (status = 201, body = BulkCreateResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-#[allow(dead_code)]
-pub async fn bulk_create(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<BulkCreateAssetBalanceRequest>,
-) -> Result<impl IntoResponse, ApiError> {
-    let response =
-        asset_balance_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
-    Ok((StatusCode::CREATED, Json(response)))
 }
 
 /// CSV ファイルをパースして保存前プレビューを返す（DB 書き込みなし）
@@ -151,6 +106,8 @@ mod tests {
         axum::{
             body::Body,
             http::{Request, StatusCode},
+            routing::get,
+            Router,
         },
         reqwest::Client,
         std::sync::Arc,
@@ -161,18 +118,20 @@ mod tests {
         let pool =
             crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
                 .unwrap();
-        asset_balance_routes().with_state(crate::AppState {
-            pool,
-            secrets: Arc::new(crate::state::Secrets {
-                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
-                jquants_api_key: None,
-                google_client_id: None,
-                google_client_secret: None,
-                frontend_url: "http://localhost:8080".to_string(),
-            }),
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        })
+        Router::new()
+            .route("/asset-balances", get(list).delete(delete_all))
+            .with_state(crate::AppState {
+                pool,
+                secrets: Arc::new(crate::state::Secrets {
+                    database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
+                    jquants_api_key: None,
+                    google_client_id: None,
+                    google_client_secret: None,
+                    frontend_url: "http://localhost:8080".to_string(),
+                }),
+                client: Client::new(),
+                dividend_cache: crate::state::DividendCacheState::default(),
+            })
     }
 
     #[tokio::test]

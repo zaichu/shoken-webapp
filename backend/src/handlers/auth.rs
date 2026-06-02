@@ -7,24 +7,12 @@ use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Json, Redirect, Response},
-    routing::{delete, get, post},
-    Router,
 };
 use axum_extra::extract::CookieJar;
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 
 const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
-
-#[allow(dead_code)]
-pub fn auth_routes() -> Router<AppState> {
-    Router::new()
-        .route("/auth/google", get(google_auth))
-        .route("/auth/google/callback", get(google_callback))
-        .route("/auth/me", get(get_current_user))
-        .route("/auth/logout", post(logout))
-        .route("/auth/delete-account", delete(delete_account))
-}
 /// コールバック時のクエリパラメータ
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
@@ -181,46 +169,6 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
         Json(serde_json::json!({"message": "ログアウトしました"})),
     )
 }
-
-/// アカウント削除処理
-/// ユーザーとすべての関連データ（sessions, dividends, domestic_stocks, mutualfunds, asset_balances）を削除
-#[utoipa::path(
-    delete,
-    path = "/auth/delete-account",
-    operation_id = "auth_delete_account",
-    responses(
-        (status = 200, body = MessageResponse),
-        (status = 401, body = ErrorResponse),
-        (status = 500, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-#[allow(dead_code)]
-pub async fn delete_account(
-    State(state): State<AppState>,
-    jar: CookieJar,
-) -> Result<impl IntoResponse, ApiError> {
-    let session_id = auth_service::get_session_id_from_jar(&jar)?;
-
-    // セッションからユーザーIDを取得
-    let user_id = auth_service::select_user_id_by_session(&state.pool, session_id)
-        .await?
-        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
-
-    // ユーザーを削除（CASCADE により関連データも削除）
-    auth_service::delete_account(&state.pool, user_id).await?;
-
-    // セッションCookieを削除
-    let is_secure = config::is_secure_cookie();
-    let cookie = auth_service::clear_session_cookie(is_secure);
-
-    let jar = jar.remove(cookie);
-
-    Ok((
-        jar,
-        Json(serde_json::json!({"message": "アカウントを削除しました"})),
-    ))
-}
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -232,6 +180,7 @@ mod tests {
     use axum::{
         body::{to_bytes, Body},
         http::{Request, StatusCode},
+        routing::{get, post},
         Router,
     };
     use {reqwest::Client, serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
@@ -254,7 +203,10 @@ mod tests {
         }
     }
     fn test_app() -> Router {
-        super::auth_routes().with_state(make_test_state())
+        Router::new()
+            .route("/auth/me", get(super::get_current_user))
+            .route("/auth/logout", post(super::logout))
+            .with_state(make_test_state())
     }
     async fn read_json_response<T: DeserializeOwned>(response: axum::response::Response) -> T {
         let body = to_bytes(response.into_body(), BODY_LIMIT).await.unwrap();

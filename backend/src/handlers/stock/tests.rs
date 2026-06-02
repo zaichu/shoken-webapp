@@ -4,7 +4,7 @@ use {
     axum::{
         body::Body,
         http::{Request, StatusCode},
-        routing::{get, post},
+        routing::get,
         Router,
     },
     chrono::NaiveDate,
@@ -76,8 +76,10 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
 
 fn setup_test_app(pool: Pool<Postgres>) -> Router {
     Router::new()
-        .route("/stocks/{search_query}", get(search_stock))
-        .route("/stocks", post(create_stock))
+        .route(
+            "/api/v1/stocks",
+            get(crate::handlers::v1::stocks::search).post(create_stock),
+        )
         .with_state(crate::AppState {
             pool: pool.clone(),
             secrets: Arc::new(Secrets {
@@ -139,7 +141,7 @@ async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(pool);
 
-    let response = call(app.clone(), "GET", "/stocks/1234", None).await;
+    let response = call(app.clone(), "GET", "/api/v1/stocks?query=1234", None).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let stock = read_json(response).await;
@@ -149,8 +151,8 @@ async fn test_search_stock() {
     );
 
     for (uri, expected_status) in [
-        ("/stocks/テスト", StatusCode::OK),
-        ("/stocks/9999", StatusCode::NOT_FOUND),
+        ("/api/v1/stocks?query=テスト", StatusCode::OK),
+        ("/api/v1/stocks?query=9999", StatusCode::NOT_FOUND),
     ] {
         assert_eq!(
             call(app.clone(), "GET", uri, None).await.status(),
@@ -168,7 +170,7 @@ async fn test_create_stock() {
     let response = call(
         app.clone(),
         "POST",
-        "/stocks",
+        "/api/v1/stocks",
         Some(stock_payload("5678", "新規テスト株式会社")),
     )
     .await;
@@ -183,7 +185,7 @@ async fn test_create_stock() {
     let mut invalid_data = stock_payload("5678", "新規テスト株式会社");
     invalid_data["code"] = json!("");
     assert_eq!(
-        call(app, "POST", "/stocks", Some(invalid_data))
+        call(app, "POST", "/api/v1/stocks", Some(invalid_data))
             .await
             .status(),
         StatusCode::BAD_REQUEST
@@ -200,7 +202,7 @@ async fn test_create_stock_unauthorized() {
         call(
             app,
             "POST",
-            "/stocks",
+            "/api/v1/stocks",
             Some(stock_payload("9999", "未認証テスト"))
         )
         .await
