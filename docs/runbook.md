@@ -76,6 +76,18 @@ fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
 fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
 ```
 
+## Google Cloud OAuth 設定
+
+Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
+
+| 環境 | URI |
+|---|---|
+| 本番 | `https://shoken-backend.fly.dev/api/v1/oauth/google/callback` |
+| ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
+
+> **注意**: 旧 `https://shoken-backend.fly.dev/auth/google/callback` は現行 API では使用しない。
+> Google Cloud Console に登録している場合は削除する。
+
 ## セキュリティインシデント対応
 
 1. [SECURITY.md](../SECURITY.md) の手順に従って報告を受理
