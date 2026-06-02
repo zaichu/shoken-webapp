@@ -96,8 +96,15 @@ GitHub Actions で以下が自動実行されます（PR 時）:
 
 | ワークフロー | ファイル | ステップ |
 |---|---|---|
-| フロント | `deploy-frontend.yml` | lint / test / build |
-| バックエンド | `deploy-backend.yml` | clippy / test / check / OpenAPI 同期確認 / tsc |
+| フロント | `deploy-frontend.yml` | lint / test（1回） / build / E2E |
+| バックエンド | `deploy-backend.yml` | clippy / test / release check / OpenAPI 同期確認 / tsc |
+
+### フロントエンド CI の方針
+
+- PR CI では unit test を **1回だけ** 実行する。
+- flaky detection（unit test 2回目実行）は `workflow_dispatch` で手動トリガーする。
+  - GitHub Actions の「Run workflow」ボタン、または `gh workflow run deploy-frontend.yml` で実行できる。
+- E2E テストは PR CI に常時含める。
 
 ### セキュリティ監査（週次）
 

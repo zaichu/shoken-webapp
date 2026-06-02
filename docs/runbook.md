@@ -100,6 +100,37 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 (cd frontend && npm audit)
 ```
 
+## PR マージ後のクリーンアップ
+
+worktree を使った作業ブランチをマージした後は、以下の順序で後片付けをする。
+`git branch -D` を先に実行すると worktree がそのブランチを参照中のためエラーになる場合があるので、
+必ず **worktree 削除を先に行う**こと。
+
+```bash
+# 1. PR をマージ（GitHub 側でブランチを削除してもよい）
+gh pr merge <PR番号> --squash
+
+# 2. main を最新化
+git switch main
+git pull --ff-only origin main
+
+# 3. worktree を削除（使用中ブランチを手放す）
+git worktree remove /tmp/<repo>-<topic>
+
+# 4. ローカルブランチを削除（squash merge 済み短期ブランチのみ）
+git branch -D <branch-name>
+
+# 5. リモートブランチを削除（gh pr merge --delete-branch を使わなかった場合）
+git push origin --delete <branch-name>
+
+# 6. リモート参照を整理
+git fetch origin --prune
+```
+
+> **注意**: `gh pr merge --delete-branch` はリモートブランチを削除するが、
+> ローカルに worktree が残っている状態では `git branch -D` が失敗する。
+> 上記の順序（merge → main pull → worktree remove → branch -D → push delete → fetch prune）を守ること。
+
 ## Dependabot PR 対応
 
 毎週月曜日に Dependabot PR が作成されます。

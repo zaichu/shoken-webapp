@@ -147,44 +147,79 @@ cargo build
 
 ## API エンドポイント
 
-### 認証
+業務 API は `/api/v1` プレフィックスを持つ。プローブ（`/health`, `/ready`）は例外としてルート直下に置く。詳細は [docs/api/v1-rest-design.md](docs/api/v1-rest-design.md) を参照。
 
-| Method | Path | 説明 |
-|---|---|---|
-| GET | `/auth/google` | Google OAuth 認証開始 |
-| GET | `/auth/google/callback` | OAuth コールバック |
-| GET | `/auth/me` | 現在ユーザー取得 |
-| POST | `/auth/logout` | ログアウト |
-| DELETE | `/auth/delete-account` | アカウント削除 |
+### プローブ
+
+| Method | Path | 説明 | 認証 |
+|---|---|---|---|
+| GET | `/health` | 生存確認 | 不要 |
+| GET | `/ready` | 起動レディネス確認 | 不要 |
+
+### セッション・アカウント
+
+| Method | Path | 説明 | 認証 |
+|---|---|---|---|
+| GET | `/api/v1/session` | 現在ユーザーのセッション取得 | 必要 |
+| DELETE | `/api/v1/session` | ログアウト | 必要 |
+| POST | `/api/v1/account-deletion-confirmations` | アカウント削除確認（確認クッキー発行） | 必要 |
+| DELETE | `/api/v1/account` | アカウント削除（確認クッキー必須） | 必要 |
+| GET | `/api/v1/oauth/google/authorize` | Google OAuth 認証開始 | 不要 |
+| GET | `/api/v1/oauth/google/callback` | Google OAuth コールバック | 不要 |
 
 ### 銘柄
 
 | Method | Path | 説明 | 認証 |
 |---|---|---|---|
-| GET | `/stock/{query}` | 銘柄検索 | 不要 |
-| POST | `/stock` | 銘柄追加 | 必要 |
+| GET | `/api/v1/stocks?query=7203` | 銘柄検索（コード・社名） | 不要 |
+| POST | `/api/v1/stocks` | 銘柄追加 | 必要 |
 
-### 明細データ（認証必須）
+### 配当金（認証必須）
 
 | Method | Path | 説明 |
 |---|---|---|
-| GET | `/dividends` | 配当金一覧取得 |
-| DELETE | `/dividends/all` | 配当金全削除 |
-| GET | `/domestic-stocks` | 国内株式一覧取得 |
-| DELETE | `/domestic-stocks/all` | 国内株式全削除 |
-| GET | `/mutualfunds` | 投資信託一覧取得 |
-| DELETE | `/mutualfunds/all` | 投資信託全削除 |
-| GET | `/asset-balances` | 保有銘柄一覧取得 |
-| POST | `/asset-balances/bulk` | 保有銘柄一括登録（全削除→再挿入） |
-| DELETE | `/asset-balances/all` | 保有銘柄全削除 |
+| GET | `/api/v1/dividends` | 配当金一覧取得 |
+| DELETE | `/api/v1/dividends` | 配当金全削除 |
+| POST | `/api/v1/dividend-import-validations` | 配当金 CSV バリデーション（DB書込なし） |
+| POST | `/api/v1/dividend-imports` | 配当金 CSV インポート |
+| POST | `/api/v1/dividend-per-share-estimates` | 配当利回り一括取得 |
 
-### J-Quants / 補助 API
+### 国内株式明細（認証必須）
+
+| Method | Path | 説明 |
+|---|---|---|
+| GET | `/api/v1/domestic-stock-transactions` | 国内株式一覧取得 |
+| DELETE | `/api/v1/domestic-stock-transactions` | 国内株式全削除 |
+| POST | `/api/v1/domestic-stock-import-validations` | 国内株式 CSV バリデーション |
+| POST | `/api/v1/domestic-stock-imports` | 国内株式 CSV インポート |
+
+### 投資信託明細（認証必須）
+
+| Method | Path | 説明 |
+|---|---|---|
+| GET | `/api/v1/mutual-fund-transactions` | 投資信託一覧取得 |
+| DELETE | `/api/v1/mutual-fund-transactions` | 投資信託全削除 |
+| POST | `/api/v1/mutual-fund-import-validations` | 投資信託 CSV バリデーション |
+| POST | `/api/v1/mutual-fund-imports` | 投資信託 CSV インポート |
+
+### 保有銘柄（認証必須）
+
+| Method | Path | 説明 |
+|---|---|---|
+| GET | `/api/v1/asset-balances` | 保有銘柄一覧取得 |
+| PUT | `/api/v1/asset-balances` | 保有銘柄全置換（CSV 全件更新） |
+| DELETE | `/api/v1/asset-balances` | 保有銘柄全削除 |
+| POST | `/api/v1/asset-balance-import-validations` | 保有銘柄 CSV バリデーション |
+| POST | `/api/v1/asset-balance-imports` | 保有銘柄 CSV インポート |
+
+### マーケットデータ
 
 | Method | Path | 説明 | 認証 |
 |---|---|---|---|
-| GET | `/jquants/fins/statements` | 決算サマリー取得 | 不要 |
-| POST | `/dividends/per-share/batch` | 配当利回り一括取得 | 不要 |
-| GET | `/health` | ヘルスチェック | 不要 |
+| GET | `/api/v1/financial-statements?code=7203` | 決算サマリー取得 | 不要 |
+
+> 旧ルート（`/auth/google`、`/stock/{query}`、`/dividends/all` 等）は v1 移行完了後に削除済み。
+> 移行履歴は [docs/api/v1-rest-design.md](docs/api/v1-rest-design.md) の「Legacy Route Migration History」を参照。
 
 ## ディレクトリ構成
 
