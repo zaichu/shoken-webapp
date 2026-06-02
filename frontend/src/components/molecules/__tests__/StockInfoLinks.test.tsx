@@ -19,6 +19,16 @@ describe('StockInfoLinks', () => {
     );
   });
 
+  it('JPX Explorerリンクを表示し、コードに-TSEサフィックスを付けたhrefになる', () => {
+    render(<StockInfoLinks code="7203" />);
+
+    const jpxLink = screen.getByRole('link', { name: /JPX Explorer/ });
+    expect(jpxLink).toHaveAttribute(
+      'href',
+      'https://jpx-explorer.com/ja-JP/7203-TSE'
+    );
+  });
+
   it('銘柄コードがない場合は何も表示しない', () => {
     const { container } = render(<StockInfoLinks />);
     expect(container).toBeEmptyDOMElement();
