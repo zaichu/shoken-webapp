@@ -1,5 +1,16 @@
 # アーキテクチャ概要
 
+## 採用アーキテクチャ
+
+- **Backend**: Modular Monolith with Thin HTTP Adapter Layer
+  （Rust/Axum 単一バイナリ、ドメイン別モジュール構成、ハンドラーは薄い adapter）
+- **Frontend**: Feature-first Architecture with Shared UI Components
+  （`features/` 配下を機能単位で凝集、横断 UI は `components/`、横断ロジックは `lib/`）
+
+判断の根拠と「採用しないもの」は `docs/adr/0001-keep-axum-and-harden-api.md`
+の Architecture Stance を正本とする。本ドキュメントは構成図と境界の早見表として
+扱う。
+
 ## システム構成
 
 ```
@@ -52,6 +63,42 @@ shoken-webapp/
 ├── docs/                  # 設計・運用ドキュメント
 └── .github/               # CI/CD ワークフロー / Dependabot 設定
 ```
+
+## 境界の置き方
+
+「どこで線を引くか」を短く明文化する。詳細な判断は ADR 0001 を参照。
+
+### Backend（Modular Monolith + Thin HTTP Adapter）
+
+- **HTTP 境界**: `handlers/` と `extractors/` で完結させ、Axum 型はここから外に
+  漏らさない。ハンドラーは「入力パース → service 呼び出し → エラーマップ」だけ。
+- **サービス境界**: `services::<domain>` の関数がドメインの業務ルール・
+  バリデーション・SQLx クエリを所有する。ハンドラー間でロジックを共有したい
+  場合は HTTP ではなく service 関数を経由する。
+- **永続化境界**: SQLx クエリは service モジュール内に置く。Repository trait
+  は作らない。テストは実 DB（ローカル PostgreSQL）に対して書く。
+- **共有状態**: `AppState`（DB pool / secrets / HTTP client）で配線する。DI
+  container は導入しない。
+
+### Frontend（Feature-first + Shared UI Components）
+
+- **feature 境界**: `features/<domain>/` が hooks・API 呼び出し・feature 固有
+  コンポーネントを所有する。他 feature から直接 import しない。
+- **共有 UI**: 再利用が発生した時点でのみ `components/`（Atomic Design）へ
+  昇格する。先回りで共通化しない。
+- **共有ロジック**: API client / 型 / 汎用 util は `lib/` に集約する。型は
+  `src/generated/api.ts`（OpenAPI 由来）を一次ソースとする。
+
+### 引かない境界（採用しない）
+
+- 全面ヘキサゴナル / 全面クリーンアーキテクチャ（ports & adapters の重複コスト
+  に見合うサイズではない）
+- 集約ごとの Repository trait（SQLx 直書きの方が変更が早い）
+- DI container（`AppState` と関数引数で十分）
+- backend の `domain / application / infrastructure` 三層分割
+
+これらは具体的な痛み（第二の transport、サービス分割、DB fake 必須テスト等）が
+発生してから再検討する。
 
 ## 認証フロー
 
