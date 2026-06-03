@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-and-build:
-    name: Test & Build
+  unit-test-build:
+    name: Unit Test & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,6 +48,27 @@ jobs:
         run: npm run build
         env:
           VITE_SHOKEN_WEBAPI_API_URL: https://example.com
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
