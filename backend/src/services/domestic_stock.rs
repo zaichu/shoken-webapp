@@ -2,8 +2,8 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::domestic_stock::{CreateDomesticStockRequest, DomesticStock};
-use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
-use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
@@ -178,9 +178,11 @@ pub async fn bulk_create(
 
 /// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    let rows = parse_domestic_stock_csv(bytes)?;
-    let (items, errors) = transform_domestic_stock_rows(&rows);
-    Ok(build_preview_response(&items, errors))
+    build_csv_preview(
+        bytes,
+        &DOMESTIC_STOCK_CSV_CONFIG,
+        transform_domestic_stock_rows,
+    )
 }
 
 /// CSV バイト列から国内株式取引をパースして一括挿入
@@ -189,14 +191,13 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let rows = parse_domestic_stock_csv(bytes)?;
-    let (items, errors) = transform_domestic_stock_rows(&rows);
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(finish_csv_upload(result, errors))
-}
-
-fn parse_domestic_stock_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
-    parse_csv_with_config(bytes, &DOMESTIC_STOCK_CSV_CONFIG)
+    run_csv_upload(
+        bytes,
+        &DOMESTIC_STOCK_CSV_CONFIG,
+        transform_domestic_stock_rows,
+        |items| async move { bulk_create(pool, user_id, &items).await },
+    )
+    .await
 }
 
 fn transform_domestic_stock_rows(
