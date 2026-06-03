@@ -81,17 +81,32 @@ CSRF 対策: `Origin` / `Referer` ヘッダーによるオリジン検証
 
 ## CSV インポート設計
 
-CSV ファイルのアップロードは2段階:
+CSV ファイルのアップロードは2段階。詳細な API 契約は `docs/api/v1-rest-design.md` を参照。
 
-1. **プレビュー** `POST /xxx/csv/preview`: ファイルをパースして行エラー一覧を返す（DB 書き込みなし）
-2. **確定保存** `POST /xxx/csv`: パース + DB 挿入（ON CONFLICT DO NOTHING / occurrence_index）
+1. **バリデーション** `POST /api/v1/{resource}-import-validations`: ファイルをパースして行エラー一覧を返す（DB 書き込みなし）
+2. **確定インポート** `POST /api/v1/{resource}-imports`: パース + DB 挿入（ON CONFLICT DO NOTHING / occurrence_index）
+
+エンドポイント例:
+
+| リソース | バリデーション | インポート |
+|---|---|---|
+| 配当金 | `POST /api/v1/dividend-import-validations` | `POST /api/v1/dividend-imports` |
+| 国内株式 | `POST /api/v1/domestic-stock-import-validations` | `POST /api/v1/domestic-stock-imports` |
+| 投資信託 | `POST /api/v1/mutual-fund-import-validations` | `POST /api/v1/mutual-fund-imports` |
+| 保有銘柄 | `POST /api/v1/asset-balance-import-validations` | `POST /api/v1/asset-balance-imports` |
 
 ## データフロー（保有銘柄 CSV の場合）
 
 ```
-Client → POST /asset-balances/csv
+Client → POST /api/v1/asset-balance-import-validations  # バリデーション（DB 書き込みなし）
   → middleware stack
-  → handler::asset_balance::upload_csv
+  → handlers::v1::asset_balances::validate_import
+  → services::csv_import::parse_csv (with parse_asset_balance_row)
+  → 200 { errors: [...] }
+
+Client → POST /api/v1/asset-balance-imports             # 確定インポート
+  → middleware stack
+  → handlers::v1::asset_balances::import
   → services::csv_import::parse_csv (with parse_asset_balance_row)
   → services::asset_balance::bulk_create (DELETE ALL → INSERT)
   → 201 { inserted, skipped, errors }
