@@ -2,8 +2,8 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
-use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
-use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     normalize_security_name, parse_optional_string_row, parse_required_date_row,
     parse_required_number_row, parse_required_string_row,
@@ -114,9 +114,7 @@ pub async fn bulk_create(
 
 /// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    let rows = parse_dividend_csv(bytes)?;
-    let (items, errors) = transform_dividend_rows(&rows);
-    Ok(build_preview_response(&items, errors))
+    build_csv_preview(bytes, &DIVIDEND_CSV_CONFIG, transform_dividend_rows)
 }
 
 /// CSV バイト列から配当金をパースして一括挿入
@@ -125,14 +123,13 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let rows = parse_dividend_csv(bytes)?;
-    let (items, errors) = transform_dividend_rows(&rows);
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(finish_csv_upload(result, errors))
-}
-
-fn parse_dividend_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
-    parse_csv_with_config(bytes, &DIVIDEND_CSV_CONFIG)
+    run_csv_upload(
+        bytes,
+        &DIVIDEND_CSV_CONFIG,
+        transform_dividend_rows,
+        |items| async move { bulk_create(pool, user_id, &items).await },
+    )
+    .await
 }
 
 fn transform_dividend_rows(rows: &[CsvRow]) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {

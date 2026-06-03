@@ -2,8 +2,10 @@ use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv_import::{build_preview_response, finish_csv_upload, validate_csv_rows};
-use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+#[cfg(test)]
+use crate::services::csv_pipeline::parse_csv_with_config;
+use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
@@ -123,9 +125,11 @@ pub async fn bulk_create(
 /// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
 /// 現在の取込対象形式では、先頭6行はメタデータのためスキップ
 pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    let rows = parse_asset_balance_csv(bytes)?;
-    let (items, errors) = transform_asset_balance_rows(&rows);
-    Ok(build_preview_response(&items, errors))
+    build_csv_preview(
+        bytes,
+        &ASSET_BALANCE_CSV_CONFIG,
+        transform_asset_balance_rows,
+    )
 }
 
 /// CSV bytes をパースして保有銘柄を一括登録
@@ -134,21 +138,19 @@ pub async fn upload_csv(
     user_id: Uuid,
     bytes: &[u8],
 ) -> Result<CsvUploadResponse, ApiError> {
-    let rows = parse_asset_balance_csv(bytes)?;
-    let (items, errors) = transform_asset_balance_rows(&rows);
-    let result = bulk_create(pool, user_id, &items).await?;
-    Ok(finish_csv_upload(result, errors))
+    run_csv_upload(
+        bytes,
+        &ASSET_BALANCE_CSV_CONFIG,
+        transform_asset_balance_rows,
+        |items| async move { bulk_create(pool, user_id, &items).await },
+    )
+    .await
 }
 
 /// 認証ユーザーの保有銘柄を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     crate::services::shared::delete_all_for_user(pool, user_id, "asset_balances", "asset_balance")
         .await
-}
-
-/// 保有銘柄 CSV bytes をパース段階まで共通化して返す
-fn parse_asset_balance_csv(bytes: &[u8]) -> Result<Vec<CsvRow>, ApiError> {
-    parse_csv_with_config(bytes, &ASSET_BALANCE_CSV_CONFIG)
 }
 
 fn transform_asset_balance_rows(
@@ -371,7 +373,11 @@ mod tests {
                 &["1605", "7974"][..],
             ),
         ] {
-            let rows = parse_asset_balance_csv(make_asset_balance_csv(rows).as_bytes()).unwrap();
+            let rows = parse_csv_with_config(
+                make_asset_balance_csv(rows).as_bytes(),
+                &ASSET_BALANCE_CSV_CONFIG,
+            )
+            .unwrap();
             let (items, errors) = transform_asset_balance_rows(&rows);
 
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
