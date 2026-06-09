@@ -670,7 +670,7 @@ describe('ReceiptsPage', () => {
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({});
+    vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({ message: '' });
 
     renderWithQuery(<ReceiptsPage />);
 
@@ -706,7 +706,7 @@ describe('ReceiptsPage', () => {
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({});
+    vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({ message: '' });
 
     renderWithQuery(<ReceiptsPage />);
 
