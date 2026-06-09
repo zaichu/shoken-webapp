@@ -1,7 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::jquants::FinSummaryQuery;
-use crate::services::jquants::{JQuantsService, FIN_SUMMARY_URL};
-use reqwest::Client;
+use crate::services::jquants::JQuantsClient;
 use sqlx::PgPool;
 
 use super::logic::extract_dividend;
@@ -9,8 +8,7 @@ use super::logic::extract_dividend;
 /// JQuants API から取得してキャッシュを更新する
 pub async fn fetch_and_cache(
     pool: &PgPool,
-    client: &Client,
-    api_key: &str,
+    jquants_client: &JQuantsClient,
     code: &str,
 ) -> Result<String, ApiError> {
     let params = FinSummaryQuery {
@@ -19,8 +17,7 @@ pub async fn fetch_and_cache(
         to: None,
     };
 
-    let response =
-        JQuantsService::get_fin_summary(client, params, api_key, FIN_SUMMARY_URL).await?;
+    let response = jquants_client.get_fin_summary(params).await?;
 
     let (dividend_per_share, status) = extract_dividend(&response.data);
 

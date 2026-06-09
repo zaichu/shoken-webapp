@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use reqwest::Client;
+use crate::services::jquants::JQuantsClient;
 use sqlx::PgPool;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -17,8 +17,7 @@ pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
 /// バックグラウンドで未取得/TTL切れ銘柄を順次更新する（1分5回レート制御）
 pub fn spawn_background_refresh(
     pool: PgPool,
-    client: Client,
-    api_key: String,
+    jquants_client: JQuantsClient,
     codes: Vec<String>,
     running: Arc<AtomicBool>,
 ) {
@@ -56,7 +55,7 @@ pub fn spawn_background_refresh(
                 }
             }
 
-            match fetch_and_cache(&pool, &client, &api_key, code).await {
+            match fetch_and_cache(&pool, &jquants_client, code).await {
                 Ok(status) => {
                     tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
                 }
@@ -89,6 +88,7 @@ pub fn spawn_background_refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::Client;
 
     #[test]
     fn test_should_abort_on_rate_limit_error() {
@@ -117,8 +117,7 @@ mod tests {
 
         spawn_background_refresh(
             pool,
-            Client::new(),
-            "dummy_key".to_string(),
+            JQuantsClient::new(Client::new(), "dummy_key".to_string()),
             vec!["1234".to_string()],
             Arc::clone(&running),
         );

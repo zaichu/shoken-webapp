@@ -2,20 +2,44 @@ use crate::errors::ApiError;
 use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
 use reqwest::Client;
 
-pub const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
+const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
 
-pub struct JQuantsService;
+#[derive(Clone)]
+pub struct JQuantsClient {
+    client: Client,
+    api_key: String,
+    base_url: String,
+}
 
-impl JQuantsService {
-    /// 決算サマリーを取得（J-Quants API V2）
-    /// V2では fins/statements → fins/summary に変更
+impl JQuantsClient {
+    pub fn new(client: Client, api_key: String) -> Self {
+        Self {
+            client,
+            api_key,
+            base_url: FIN_SUMMARY_URL.to_string(),
+        }
+    }
+
+    pub fn from_optional_api_key(client: Client, api_key: Option<&str>) -> Result<Self, ApiError> {
+        let key = api_key.ok_or_else(|| {
+            ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string())
+        })?;
+        Ok(Self::new(client, key.to_string()))
+    }
+
+    #[cfg(test)]
+    pub fn with_base_url(client: Client, api_key: String, base_url: String) -> Self {
+        Self {
+            client,
+            api_key,
+            base_url,
+        }
+    }
+
     pub async fn get_fin_summary(
-        client: &Client,
+        &self,
         params: FinSummaryQuery,
-        api_key: &str,
-        base_url: &str,
     ) -> Result<FinSummaryResponse, ApiError> {
-        // クエリパラメータを構築（reqwest が自動でエンコード）
         let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
         let from_str;
         let to_str;
@@ -32,10 +56,11 @@ impl JQuantsService {
 
         tracing::info!("JQuants API V2 リクエスト: code={}", params.code);
 
-        let response = client
-            .get(base_url)
+        let response = self
+            .client
+            .get(&self.base_url)
             .query(&query_params)
-            .header("x-api-key", api_key)
+            .header("x-api-key", &self.api_key)
             .send()
             .await
             .map_err(|e| {
@@ -65,7 +90,6 @@ impl JQuantsService {
             )));
         }
 
-        // デシリアライズ前にレスポンス本文を取得（デバッグ用）
         let response_text = response.text().await.map_err(|e| {
             tracing::error!("レスポンス本文取得エラー: {}", e);
             ApiError::NetworkError(format!("レスポンス読み取りエラー: {}", e))
@@ -86,6 +110,7 @@ impl JQuantsService {
         Ok(fin_summary_response)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,7 +129,8 @@ mod tests {
             to: None,
         };
 
-        JQuantsService::get_fin_summary(&Client::new(), params, &api_key, base_url)
+        JQuantsClient::with_base_url(Client::new(), api_key, base_url.to_string())
+            .get_fin_summary(params)
             .await
             .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
     }
@@ -117,7 +143,9 @@ mod tests {
         };
         let base_url = format!("{}/v2/fins/summary", server.uri());
 
-        JQuantsService::get_fin_summary(&Client::new(), params, "test-api-key", &base_url).await
+        JQuantsClient::with_base_url(Client::new(), "test-api-key".to_string(), base_url)
+            .get_fin_summary(params)
+            .await
     }
 
     fn log_summary_overview(response: &FinSummaryResponse) {

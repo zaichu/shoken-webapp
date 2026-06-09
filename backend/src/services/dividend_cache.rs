@@ -4,6 +4,7 @@ mod persistence;
 
 use crate::errors::ApiError;
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
+use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
 use reqwest::Client;
 use sqlx::PgPool;
@@ -53,10 +54,10 @@ pub async fn get_batch(
     // バックグラウンド更新をキック（多重起動防止）
     if !refresh_codes.is_empty() {
         if let Some(key) = api_key {
+            let jquants_client = JQuantsClient::new(client.clone(), key.to_string());
             background::spawn_background_refresh(
                 pool.clone(),
-                client.clone(),
-                key.to_string(),
+                jquants_client,
                 refresh_codes,
                 Arc::clone(background_task_running),
             );
