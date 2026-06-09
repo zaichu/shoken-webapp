@@ -1,46 +1,61 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
-import type {
-  DividendApiData,
-  DomesticStockApiData,
-  MutualfundApiData,
-} from '@/features/receipt/types';
+import type { paths } from '@/generated/api';
+
+const API_PATHS = {
+  dividendList: '/api/v1/dividends',
+  dividendPreview: '/api/v1/dividend-import-validations',
+  dividendImport: '/api/v1/dividend-imports',
+  domesticStockList: '/api/v1/domestic-stock-transactions',
+  domesticStockPreview: '/api/v1/domestic-stock-import-validations',
+  domesticStockImport: '/api/v1/domestic-stock-imports',
+  mutualfundList: '/api/v1/mutual-fund-transactions',
+  mutualfundPreview: '/api/v1/mutual-fund-import-validations',
+  mutualfundImport: '/api/v1/mutual-fund-imports',
+} as const satisfies Record<string, keyof paths>;
+
+type DividendListResponse = paths['/api/v1/dividends']['get']['responses'][200]['content']['application/json'];
+type DividendDeleteResponse = paths['/api/v1/dividends']['delete']['responses'][200]['content']['application/json'];
+type DomesticStockListResponse = paths['/api/v1/domestic-stock-transactions']['get']['responses'][200]['content']['application/json'];
+type DomesticStockDeleteResponse = paths['/api/v1/domestic-stock-transactions']['delete']['responses'][200]['content']['application/json'];
+type MutualfundListResponse = paths['/api/v1/mutual-fund-transactions']['get']['responses'][200]['content']['application/json'];
+type MutualfundDeleteResponse = paths['/api/v1/mutual-fund-transactions']['delete']['responses'][200]['content']['application/json'];
 
 // 配当金API
 export const dividendApi = {
   list: () =>
-    apiClient.get<DividendApiData[]>('/api/v1/dividends', { withCredentials: true }),
+    apiClient.get<DividendListResponse>(API_PATHS.dividendList, { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/api/v1/dividend-import-validations', file),
+  previewCsv: (file: File) => previewCsvFile(API_PATHS.dividendPreview, file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/api/v1/dividend-imports', file),
+  uploadCsv: (file: File) => uploadCsvFile(API_PATHS.dividendImport, file),
 
   deleteAll: async () =>
-    apiClient.delete('/api/v1/dividends', { withCredentials: true }),
+    apiClient.delete<DividendDeleteResponse>(API_PATHS.dividendList, { withCredentials: true }),
 };
 
 // 国内株式API
 export const domesticStockApi = {
   list: () =>
-    apiClient.get<DomesticStockApiData[]>('/api/v1/domestic-stock-transactions', { withCredentials: true }),
+    apiClient.get<DomesticStockListResponse>(API_PATHS.domesticStockList, { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/api/v1/domestic-stock-import-validations', file),
+  previewCsv: (file: File) => previewCsvFile(API_PATHS.domesticStockPreview, file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/api/v1/domestic-stock-imports', file),
+  uploadCsv: (file: File) => uploadCsvFile(API_PATHS.domesticStockImport, file),
 
   deleteAll: async () =>
-    apiClient.delete('/api/v1/domestic-stock-transactions', { withCredentials: true }),
+    apiClient.delete<DomesticStockDeleteResponse>(API_PATHS.domesticStockList, { withCredentials: true }),
 };
 
 // 投資信託API
 export const mutualfundApi = {
   list: () =>
-    apiClient.get<MutualfundApiData[]>('/api/v1/mutual-fund-transactions', { withCredentials: true }),
+    apiClient.get<MutualfundListResponse>(API_PATHS.mutualfundList, { withCredentials: true }),
 
-  previewCsv: (file: File) => previewCsvFile('/api/v1/mutual-fund-import-validations', file),
+  previewCsv: (file: File) => previewCsvFile(API_PATHS.mutualfundPreview, file),
 
-  uploadCsv: (file: File) => uploadCsvFile('/api/v1/mutual-fund-imports', file),
+  uploadCsv: (file: File) => uploadCsvFile(API_PATHS.mutualfundImport, file),
 
   deleteAll: async () =>
-    apiClient.delete('/api/v1/mutual-fund-transactions', { withCredentials: true }),
+    apiClient.delete<MutualfundDeleteResponse>(API_PATHS.mutualfundList, { withCredentials: true }),
 };
