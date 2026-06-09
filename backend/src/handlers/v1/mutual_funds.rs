@@ -6,11 +6,13 @@ use crate::{
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         mutualfund::Mutualfund,
     },
+    services::{csv_domain::MutualfundDomain, mutualfund as mutualfund_service},
     state::AppState,
 };
 use axum::{
     extract::{Multipart, State},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
 
 // Mutual fund transaction handlers
@@ -31,7 +33,8 @@ pub async fn list_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::mutualfund::list(State(state), auth_user).await
+    let funds = mutualfund_service::list(&state.pool, auth_user.id()).await?;
+    Ok((StatusCode::OK, Json(funds)))
 }
 
 /// 投資信託を全削除（v1）
@@ -49,7 +52,13 @@ pub async fn delete_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::mutualfund::delete_all(State(state), auth_user).await
+    mutualfund_service::delete_all(&state.pool, auth_user.id()).await?;
+    Ok((
+        StatusCode::OK,
+        Json(MessageResponse {
+            message: "全ての投資信託データを削除しました".to_string(),
+        }),
+    ))
 }
 
 /// 投資信託 CSV をバリデーション（v1）
@@ -66,10 +75,10 @@ pub async fn delete_transactions(
     security(("cookieAuth" = []))
 )]
 pub async fn validate_import(
-    auth_user: AuthenticatedUser,
+    _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::mutualfund::preview_csv(auth_user, multipart).await
+    crate::handlers::csv_import::handle_preview_csv::<MutualfundDomain>(multipart).await
 }
 
 /// 投資信託 CSV をインポート（v1）
@@ -90,7 +99,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::mutualfund::upload_csv(State(state), auth_user, multipart).await
+    crate::handlers::csv_import::handle_upload_csv::<MutualfundDomain>(
+        &state.pool,
+        auth_user.id(),
+        multipart,
+    )
+    .await
 }
 
 // ---------------------------------------------------------------------------

@@ -7,11 +7,13 @@ use crate::{
         dividend::Dividend,
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     },
+    services::{csv_domain::DividendDomain, dividend as dividend_service},
     state::AppState,
 };
 use axum::{
     extract::{Multipart, State},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
 
 // Dividend handlers
@@ -32,7 +34,8 @@ pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::dividend::list(State(state), auth_user).await
+    let dividends = dividend_service::list(&state.pool, auth_user.id()).await?;
+    Ok((StatusCode::OK, Json(dividends)))
 }
 
 /// 配当金を全削除（v1）
@@ -50,7 +53,13 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::dividend::delete_all(State(state), auth_user).await
+    dividend_service::delete_all(&state.pool, auth_user.id()).await?;
+    Ok((
+        StatusCode::OK,
+        Json(MessageResponse {
+            message: "全ての配当金データを削除しました".to_string(),
+        }),
+    ))
 }
 
 /// 配当金 CSV をバリデーション（DB 書き込みなし）（v1）
@@ -67,10 +76,10 @@ pub async fn delete_all(
     security(("cookieAuth" = []))
 )]
 pub async fn validate_import(
-    auth_user: AuthenticatedUser,
+    _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::dividend::preview_csv(auth_user, multipart).await
+    crate::handlers::csv_import::handle_preview_csv::<DividendDomain>(multipart).await
 }
 
 /// 配当金 CSV をインポート（v1）
@@ -91,7 +100,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::dividend::upload_csv(State(state), auth_user, multipart).await
+    crate::handlers::csv_import::handle_upload_csv::<DividendDomain>(
+        &state.pool,
+        auth_user.id(),
+        multipart,
+    )
+    .await
 }
 
 /// 配当利回りを一括取得（v1）
