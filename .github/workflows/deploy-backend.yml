@@ -3,9 +3,6 @@ name: Backend CI / Deploy
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend.yml'
   push:
     branches: [main]
     paths:
@@ -27,11 +24,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend changes
+        id: detect
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "run_backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BASE_REF="origin/${{ github.base_ref }}"
+          echo "Comparing ${BASE_REF}...HEAD for backend-related changes"
+          CHANGED=$(git diff --name-only "${BASE_REF}...HEAD" -- \
+            backend .github/workflows/deploy-backend.yml)
+
+          if [ -n "$CHANGED" ]; then
+            echo "backend changes found:"
+            echo "$CHANGED"
+            echo "run_backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no backend changes: skipping heavy steps"
+            echo "run_backend=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Rust toolchain
+        if: steps.detect.outputs.run_backend == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Cache Cargo registry & build
+        if: steps.detect.outputs.run_backend == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -43,18 +67,23 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Lint (clippy)
+        if: steps.detect.outputs.run_backend == 'true'
         run: cargo clippy -- -D warnings
 
       - name: Run tests
+        if: steps.detect.outputs.run_backend == 'true'
         run: cargo test
 
       - name: Check release build
+        if: steps.detect.outputs.run_backend == 'true'
         run: cargo check --release
 
       - name: Generate OpenAPI schema
+        if: steps.detect.outputs.run_backend == 'true'
         run: cargo run --bin generate_openapi
 
       - name: Check OpenAPI schema is up to date
+        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code docs/openapi.json; then
@@ -63,6 +92,7 @@ jobs:
           fi
 
       - name: Setup Node.js
+        if: steps.detect.outputs.run_backend == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -70,14 +100,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
+        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}/frontend
         run: npm ci
 
       - name: Generate frontend types
+        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}/frontend
         run: npm run generate:types
 
       - name: Check frontend types are up to date
+        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code frontend/src/generated/api.ts; then
@@ -86,6 +119,7 @@ jobs:
           fi
 
       - name: TypeScript type check
+        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}/frontend
         run: npx tsc --noEmit
 
