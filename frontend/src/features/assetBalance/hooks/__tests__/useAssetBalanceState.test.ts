@@ -117,6 +117,7 @@ describe('useAssetBalanceState', () => {
     expect(result.current.utilityRailProps.actionRailProps.saveLabel).toBe('2件 全件置換で保存');
     expect(result.current.utilityRailProps.actionRailProps.deleteLabel).toBe('全件削除 (1件)');
     expect(result.current.utilityRailProps.searchCardProps.visible).toBe(true);
+    expect(result.current.utilityRailProps.reviewPromptCardProps.assetBalanceData).toEqual(previewRows);
 
     act(() => {
       result.current.utilityRailProps.searchCardProps.onSearch('6758');
@@ -124,6 +125,7 @@ describe('useAssetBalanceState', () => {
 
     expect(result.current.utilityRailProps.searchCardProps.value).toBe('6758');
     expect(result.current.filteredData).toEqual([previewRows[1]]);
+    expect(result.current.utilityRailProps.reviewPromptCardProps.assetBalanceData).toEqual(previewRows);
   });
 
   it('削除確認を開き、confirmDeleteAll で閉じて削除処理を実行する', async () => {

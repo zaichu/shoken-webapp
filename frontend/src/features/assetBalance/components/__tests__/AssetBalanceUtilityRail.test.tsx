@@ -12,6 +12,10 @@ vi.mock('@/components/organisms/SearchCard/SearchCard', () => ({
   SearchCard: ({ value }: { value: string }) => <div data-testid="search-card">{value}</div>,
 }));
 
+vi.mock('../AssetReviewPromptCard', () => ({
+  AssetReviewPromptCard: () => <div data-testid="asset-review-prompt-card" />,
+}));
+
 const actionRailProps = {
   onFileSelect: vi.fn(),
   selectedFileName: 'assetbalance.csv',
@@ -28,6 +32,11 @@ const actionRailProps = {
   saveModeLabel: '全件置換',
 };
 
+const reviewPromptCardProps = {
+  assetBalanceData: [],
+  dividendPerShareMap: new Map<string, number>(),
+};
+
 describe('AssetBalanceUtilityRail', () => {
   it('データ操作、エラー、検索カードを表示する', () => {
     render(
@@ -42,6 +51,7 @@ describe('AssetBalanceUtilityRail', () => {
           value: '7203',
           onSearch: vi.fn(),
         }}
+        reviewPromptCardProps={reviewPromptCardProps}
       />
     );
 
@@ -61,6 +71,7 @@ describe('AssetBalanceUtilityRail', () => {
           value: '',
           onSearch: vi.fn(),
         }}
+        reviewPromptCardProps={reviewPromptCardProps}
       />
     );
 
