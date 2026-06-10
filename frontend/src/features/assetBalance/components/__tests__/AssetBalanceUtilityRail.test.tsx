@@ -34,7 +34,6 @@ const actionRailProps = {
 
 const reviewPromptCardProps = {
   assetBalanceData: [],
-  dividendPerShareMap: new Map<string, number>(),
 };
 
 describe('AssetBalanceUtilityRail', () => {

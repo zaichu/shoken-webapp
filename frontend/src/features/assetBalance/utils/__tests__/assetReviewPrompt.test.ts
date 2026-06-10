@@ -39,78 +39,77 @@ describe('generateAssetReviewPrompt', () => {
     }),
   ];
 
-  it('投資助言ではなく判断材料整理である旨を含む', () => {
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
-    expect(result).toMatch(/投資助言|売買推奨/);
-    expect(result).toMatch(/判断材料/);
+  it('金融商品取引業者・投資顧問の助言ではないこと、売買指示・断定的推奨を避けることを明記する', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/金融商品取引業者|投資顧問/);
+    expect(result).toMatch(/売買指示|断定的推奨/);
   });
 
-  it('ポートフォリオレビューの役割指定を含む', () => {
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
-    expect(result).toMatch(/ポートフォリオ/);
+  it('リサーチアシスタントの役割指定を含む', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/リサーチアシスタント/);
   });
 
   it('全銘柄コードと銘柄名を含む', () => {
-    const result = generateAssetReviewPrompt(multiAssets, new Map());
+    const result = generateAssetReviewPrompt(multiAssets);
     expect(result).toContain('7203');
     expect(result).toContain('トヨタ自動車');
     expect(result).toContain('6758');
     expect(result).toContain('ソニーグループ');
   });
 
-  it('集計値（銘柄数・合計取得金額・合計評価額・評価損益額）を含む', () => {
-    const result = generateAssetReviewPrompt(multiAssets, new Map());
-    // 銘柄数
-    expect(result).toMatch(/2\s*銘柄|銘柄数.+2/);
-    // 合計取得金額: 250,000 + 600,000 = 850,000
-    expect(result).toMatch(/850,000|850000/);
-    // 合計評価額: 260,000 + 575,000 = 835,000
-    expect(result).toMatch(/835,000|835000/);
-    // 評価損益額: 835,000 - 850,000 = -15,000
-    expect(result).toMatch(/-15,000|-15000/);
+  it('集計セクションを含まず、保有銘柄テーブルだけを入力情報として渡す', () => {
+    const result = generateAssetReviewPrompt(multiAssets);
+    expect(result).not.toContain('集計:');
+    expect(result).not.toContain('保有銘柄数');
   });
 
-  it('dividendPerShareMap がある銘柄は配当値を含む', () => {
-    const divMap = new Map([['7203', 80]]);
-    const result = generateAssetReviewPrompt(singleAsset, divMap);
-    expect(result).toMatch(/80/);
+  it('保有株数・平均取得単価をテーブルに含む', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/100/);           // shares
+    expect(result).toMatch(/2,500|2500/);    // average_purchase_price
   });
 
-  it('dividendPerShareMap にない銘柄は「不明」と表示する', () => {
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
-    expect(result).toMatch(/不明/);
+  it('テーブルヘッダーに現在値・取得額・評価額・評価損益額・損益率・推定1株配当を含まない', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    const headerLine = result.split('\n').find((line) => line.startsWith('銘柄コード'));
+    expect(headerLine).toBeDefined();
+    expect(headerLine).not.toContain('現在値');
+    expect(headerLine).not.toContain('取得額');
+    expect(headerLine).not.toContain('評価額');
+    expect(headerLine).not.toContain('評価損益額');
+    expect(headerLine).not.toContain('損益率');
+    expect(headerLine).not.toContain('推定1株配当');
+  });
+
+  it('最新の公開情報を確認するよう外部AIへ指示する', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/公開情報/);
+    expect(result).toMatch(/最新/);
+    expect(result).toMatch(/株価|配当|業績|ニュース/);
+  });
+
+  it('投資目的・期間・リスク許容度等の不足情報を追加質問として列挙するよう指示する', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/投資目的/);
+    expect(result).toMatch(/リスク許容度/);
+    expect(result).toMatch(/追加質問/);
   });
 
   it('データが空の場合でもエラーを出さず空プロンプトを返す', () => {
-    expect(() => generateAssetReviewPrompt([], new Map())).not.toThrow();
-    const result = generateAssetReviewPrompt([], new Map());
+    expect(() => generateAssetReviewPrompt([])).not.toThrow();
+    const result = generateAssetReviewPrompt([]);
     expect(typeof result).toBe('string');
   });
 
   it('個人識別情報（メール・ユーザーID）を含まない', () => {
-    const result = generateAssetReviewPrompt(multiAssets, new Map());
+    const result = generateAssetReviewPrompt(multiAssets);
     expect(result).not.toMatch(/@/);
     expect(result).not.toMatch(/user_id|userId/);
   });
 
-  it('保有株数・平均取得単価・現在値・取得額・評価額・損益率を含む', () => {
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
-    expect(result).toMatch(/100/);   // shares
-    expect(result).toMatch(/2,500|2500/); // average_purchase_price
-    expect(result).toMatch(/2,600|2600/); // current_price
-    expect(result).toMatch(/250,000|250000/); // total_purchase_amount
-    expect(result).toMatch(/260,000|260000/); // market_value
-    expect(result).toMatch(/4\.0|4\.00/);  // profit_loss_rate
-  });
-
-  it('各銘柄の評価損益額（market_value - total_purchase_amount）を含む', () => {
-    // トヨタ: 260,000 - 250,000 = 10,000
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
-    expect(result).toMatch(/10,000|10000/);
-  });
-
   it('外部AIへ不足情報の質問を促す文言を含む', () => {
-    const result = generateAssetReviewPrompt(singleAsset, new Map());
+    const result = generateAssetReviewPrompt(singleAsset);
     expect(result).toMatch(/質問|不足|情報/);
   });
 });

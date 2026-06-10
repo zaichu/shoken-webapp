@@ -30,40 +30,25 @@ describe('AssetReviewPromptCard', () => {
   });
 
   it('保有データありのときコピーボタンを表示する', () => {
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={singleAsset}
-        dividendPerShareMap={new Map()}
-      />
-    );
+    render(<AssetReviewPromptCard assetBalanceData={singleAsset} />);
     expect(screen.getByRole('button', { name: /AI総評プロンプトをコピー/ })).toBeInTheDocument();
   });
 
   it('保有データ0件のときボタンをdisabledにする', () => {
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={[]}
-        dividendPerShareMap={new Map()}
-      />
-    );
+    render(<AssetReviewPromptCard assetBalanceData={[]} />);
     expect(screen.getByRole('button', { name: /AI総評プロンプトをコピー/ })).toBeDisabled();
   });
 
-  it('コピー成功時に成功メッセージを表示する', async () => {
+  it('コピー成功時にボタン文言で成功状態を表示する', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={singleAsset}
-        dividendPerShareMap={new Map()}
-      />
-    );
+    render(<AssetReviewPromptCard assetBalanceData={singleAsset} />);
 
     fireEvent.click(screen.getByRole('button', { name: /AI総評プロンプトをコピー/ }));
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('コピーしました');
+      expect(screen.getByRole('button', { name: /コピーしました！/ })).toBeInTheDocument();
     });
     expect(writeText).toHaveBeenCalledTimes(1);
   });
@@ -72,12 +57,7 @@ describe('AssetReviewPromptCard', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={singleAsset}
-        dividendPerShareMap={new Map()}
-      />
-    );
+    render(<AssetReviewPromptCard assetBalanceData={singleAsset} />);
 
     fireEvent.click(screen.getByRole('button', { name: /AI総評プロンプトをコピー/ }));
 
@@ -90,28 +70,12 @@ describe('AssetReviewPromptCard', () => {
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={singleAsset}
-        dividendPerShareMap={new Map()}
-      />
-    );
+    render(<AssetReviewPromptCard assetBalanceData={singleAsset} />);
 
     fireEvent.click(screen.getByRole('button', { name: /AI総評プロンプトをコピー/ }));
 
     await waitFor(() => {
-      expect(screen.getByText(/コピーに失敗しました/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /コピーに失敗しました/ })).toBeInTheDocument();
     });
-  });
-
-  it('aria-live 領域が存在する', () => {
-    render(
-      <AssetReviewPromptCard
-        assetBalanceData={singleAsset}
-        dividendPerShareMap={new Map()}
-      />
-    );
-    const liveRegion = screen.getByRole('status');
-    expect(liveRegion).toHaveAttribute('aria-live');
   });
 });

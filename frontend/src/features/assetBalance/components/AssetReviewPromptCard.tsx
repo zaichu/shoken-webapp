@@ -4,16 +4,12 @@ import type { AssetBalanceData } from '@/types/api';
 import { generateAssetReviewPrompt } from '../utils/assetReviewPrompt';
 export interface AssetReviewPromptCardProps {
   assetBalanceData: AssetBalanceData[];
-  dividendPerShareMap: Map<string, number>;
 }
 type CopyStatus = 'idle' | 'success' | 'error';
-export function AssetReviewPromptCard({
-  assetBalanceData,
-  dividendPerShareMap,
-}: AssetReviewPromptCardProps) {
+export function AssetReviewPromptCard({ assetBalanceData }: AssetReviewPromptCardProps) {
   const [status, setStatus] = useState<CopyStatus>('idle');
   const handleCopy = async () => {
-    const prompt = generateAssetReviewPrompt(assetBalanceData, dividendPerShareMap);
+    const prompt = generateAssetReviewPrompt(assetBalanceData);
     try {
       await navigator.clipboard.writeText(prompt);
       setStatus('success');
@@ -24,8 +20,11 @@ export function AssetReviewPromptCard({
     }
   };
   const disabled = assetBalanceData.length === 0;
-  const buttonLabel =
-    status === 'success' ? 'コピーしました！' : 'AI総評プロンプトをコピー';
+  const buttonLabel = status === 'success'
+    ? 'コピーしました！'
+    : status === 'error'
+      ? 'コピーに失敗しました'
+      : 'AI総評プロンプトをコピー';
   return (
     <div className="px-5 py-4">
       <p className="text-xs font-medium text-secondary mb-2">AI総評プロンプト</p>
@@ -40,10 +39,6 @@ export function AssetReviewPromptCard({
       >
         {buttonLabel}
       </Button>
-      <p role="status" aria-live="polite" className="text-xs mt-1 min-h-[1rem]">
-        {status === 'success' && 'コピーしました'}
-        {status === 'error' && 'コピーに失敗しました。手動でテキストをコピーしてください。'}
-      </p>
     </div>
   );
 }

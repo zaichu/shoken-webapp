@@ -165,7 +165,6 @@ export function useAssetBalanceState() {
     },
     reviewPromptCardProps: {
       assetBalanceData,
-      dividendPerShareMap: dividendPerShareMap as Map<string, number>,
     },
   };
 
