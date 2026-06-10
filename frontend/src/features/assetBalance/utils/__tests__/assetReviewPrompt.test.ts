@@ -45,9 +45,10 @@ describe('generateAssetReviewPrompt', () => {
     expect(result).toMatch(/売買指示|断定的推奨/);
   });
 
-  it('リサーチアシスタントの役割指定を含む', () => {
+  it('金融助言を連想させにくい調査サポーターの役割指定を含む', () => {
     const result = generateAssetReviewPrompt(singleAsset);
-    expect(result).toMatch(/リサーチアシスタント/);
+    expect(result).toMatch(/調査サポーター/);
+    expect(result).not.toContain('証券アナリストの観点');
   });
 
   it('全銘柄コードと銘柄名を含む', () => {
@@ -82,11 +83,20 @@ describe('generateAssetReviewPrompt', () => {
     expect(headerLine).not.toContain('推定1株配当');
   });
 
-  it('最新の公開情報を確認するよう外部AIへ指示する', () => {
+  it('最新情報取得を主タスクにせず、確認すべき公開情報の観点を列挙させる', () => {
     const result = generateAssetReviewPrompt(singleAsset);
     expect(result).toMatch(/公開情報/);
-    expect(result).toMatch(/最新/);
-    expect(result).toMatch(/株価|配当|業績|ニュース/);
+    expect(result).toMatch(/確認を推奨する公開情報の観点/);
+    expect(result).toMatch(/決算|IR|業績|指標/);
+    expect(result).toMatch(/ユーザー自身/);
+    expect(result).toMatch(/確認不能/);
+    expect(result).not.toContain('最新の株価・配当・業績・ニュース・指標の確認');
+  });
+
+  it('保有株レビューまたはポートフォリオ総評の作成を主目的にしている', () => {
+    const result = generateAssetReviewPrompt(singleAsset);
+    expect(result).toMatch(/保有株の構成レビュー|ポートフォリオ総評/);
+    expect(result).not.toContain('2. 論点整理');
   });
 
   it('投資目的・期間・リスク許容度等の不足情報を追加質問として列挙するよう指示する', () => {
