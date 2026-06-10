@@ -19,7 +19,6 @@ export interface AssetBalanceUtilityRailProps {
   };
   reviewPromptCardProps: {
     assetBalanceData: AssetBalanceData[];
-    dividendPerShareMap: Map<string, number>;
   };
 }
 

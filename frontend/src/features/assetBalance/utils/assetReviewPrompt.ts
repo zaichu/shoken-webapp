@@ -4,83 +4,40 @@ function fmt(value: number): string {
   return value.toLocaleString('ja-JP');
 }
 
-function fmtRate(value: number): string {
-  return `${value.toFixed(2)}%`;
-}
+export function generateAssetReviewPrompt(assets: AssetBalanceData[]): string {
+  const header = ['銘柄コード', '銘柄名', '保有株数', '平均取得単価'].join(' | ');
 
-export function generateAssetReviewPrompt(
-  assets: AssetBalanceData[],
-  dividendPerShareMap: Map<string, number>
-): string {
-  const totalPurchase = assets.reduce((sum, a) => sum + a.total_purchase_amount, 0);
-  const totalMarketValue = assets.reduce((sum, a) => sum + a.market_value, 0);
-  const totalProfitLoss = totalMarketValue - totalPurchase;
-  const totalProfitLossRate =
-    totalPurchase > 0 ? (totalProfitLoss / totalPurchase) * 100 : 0;
-
-  const summaryLines = [
-    `- 保有銘柄数: ${assets.length}銘柄`,
-    `- 合計取得金額: ¥${fmt(totalPurchase)}`,
-    `- 合計評価額: ¥${fmt(totalMarketValue)}`,
-    `- 評価損益額: ¥${fmt(totalProfitLoss)}`,
-    `- 評価損益率: ${fmtRate(totalProfitLossRate)}`,
-  ].join('\n');
-
-  const header = [
-    '銘柄コード',
-    '銘柄名',
-    '保有株数',
-    '平均取得単価',
-    '現在値',
-    '取得額',
-    '評価額',
-    '評価損益額',
-    '損益率',
-    '推定1株配当',
-  ].join(' | ');
-
-  const rows = assets.map((a) => {
-    const profitLossAmount = a.market_value - a.total_purchase_amount;
-    const div = dividendPerShareMap.has(a.security_code)
-      ? `¥${dividendPerShareMap.get(a.security_code)}`
-      : '不明';
-    return [
+  const rows = assets.map((a) =>
+    [
       a.security_code,
       a.security_name,
       fmt(a.shares),
       `¥${fmt(a.average_purchase_price)}`,
-      `¥${fmt(a.current_price)}`,
-      `¥${fmt(a.total_purchase_amount)}`,
-      `¥${fmt(a.market_value)}`,
-      `¥${fmt(profitLossAmount)}`,
-      fmtRate(a.profit_loss_rate),
-      div,
-    ].join(' | ');
-  });
+    ].join(' | ')
+  );
 
-  return `あなたは日本株ポートフォリオをレビューする投資分析アシスタントです。
-以下の保有銘柄データをもとに、ポートフォリオ全体の総評をしてください。
+  return `あなたは日本株の公開情報調査を支援するリサーチアシスタントです。
+証券アナリストの観点で、事実確認・論点整理・リスク整理を行ってください。
+なお、このプロンプトによる回答は金融商品取引業者・投資顧問としての助言ではなく、売買指示・目標株価・断定的推奨を行うものではありません。
 
-【重要な注意事項】
-このプロンプトで求めるのは投資助言・売買推奨ではありません。
-判断材料の整理・リスク観点・確認事項として回答してください。
-確定的な予測や断定的な表現は避け、検討観点と質問リストを提示してください。
+以下の保有銘柄データをもとに、ポートフォリオ全体の論点を整理してください。
 
-【お願いしたい分析項目】
-1. ポートフォリオ全体の総評
+【重要】
+- 株価・配当・業績・ニュース・決算・各種指標は、最新の公開情報を確認してから扱ってください
+- このアプリから渡す保有データだけで含み損益や時価評価を判断しないでください
+- 確認できない情報は推測せず「不明」または「要確認」と明記してください
+- 銘柄コードが曖昧な場合は、市場・上場銘柄の確認から始めてください
+- 売買指示・目標株価・断定的推奨は避け、論点整理・リスク・確認すべき質問・追加調査項目に限定してください
+- 投資目的、投資期間、リスク許容度、流動性需要、税務状況、他の資産状況が不足しているため、個別判断が必要な場合は追加質問として列挙してください
+
+【お願いしたい項目】
+1. ポートフォリオ全体の論点整理
 2. 集中リスク・業種偏り・銘柄偏りの読み取り
-3. 損益状況の読み取り（含み益/損の分布）
-4. 配当観点のコメント（推定配当が不明な銘柄は不明として扱う）
-5. 追加で確認すべきIR・決算・ニュース・指標
-6. 売買指示ではなく、検討すべき観点と質問リスト
+3. 最新の株価・配当・業績・ニュース・指標を公開情報で確認し、論点を整理
+4. 追加で確認すべきIR・決算・ニュース・指標
+5. 個別判断に必要な追加質問リスト
 
 【保有銘柄データ】
-集計:
-${summaryLines}
-
-各銘柄:
 ${header}
-${rows.join('\n')}
-
-不足している情報があれば、分析に必要な情報として質問してください。`;
+${rows.join('\n')}`;
 }
