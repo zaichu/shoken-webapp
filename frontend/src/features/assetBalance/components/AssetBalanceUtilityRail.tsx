@@ -4,7 +4,9 @@ import {
   type DataActionRailProps,
 } from '@/components/organisms/DataActionRail/DataActionRail';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
+import type { AssetBalanceData } from '@/types/api';
 import type { SearchCategories } from '@/types/common';
+import { AssetReviewPromptCard } from './AssetReviewPromptCard';
 
 export interface AssetBalanceUtilityRailProps {
   actionRailProps: DataActionRailProps;
@@ -15,12 +17,17 @@ export interface AssetBalanceUtilityRailProps {
     value: string;
     onSearch: (query: string) => void;
   };
+  reviewPromptCardProps: {
+    assetBalanceData: AssetBalanceData[];
+    dividendPerShareMap: Map<string, number>;
+  };
 }
 
 export function AssetBalanceUtilityRail({
   actionRailProps,
   error,
   searchCardProps,
+  reviewPromptCardProps,
 }: AssetBalanceUtilityRailProps) {
   return (
     <>
@@ -42,6 +49,8 @@ export function AssetBalanceUtilityRail({
           compact
         />
       )}
+
+      <AssetReviewPromptCard {...reviewPromptCardProps} />
     </>
   );
 }

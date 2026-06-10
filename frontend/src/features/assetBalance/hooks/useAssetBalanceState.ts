@@ -163,6 +163,10 @@ export function useAssetBalanceState() {
       value: state.searchQuery,
       onSearch: handleSearch,
     },
+    reviewPromptCardProps: {
+      assetBalanceData,
+      dividendPerShareMap: dividendPerShareMap as Map<string, number>,
+    },
   };
 
   const mainStatusMessage = getMainStatusMessage({ loading, saving, deleting, previewing });
