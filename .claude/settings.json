@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true"
+  },
   "permissions": {
     "allow": [
       "Bash(fly version:*)",
@@ -18,7 +21,8 @@
       "Bash(grep:*)"
     ]
   },
-  "env": {
-    "ENABLE_TOOL_SEARCH": "true"
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true
   }
 }
