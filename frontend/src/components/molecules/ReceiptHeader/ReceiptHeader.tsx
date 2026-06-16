@@ -1,6 +1,5 @@
 import React, { ReactNode, useId, useState } from 'react';
 import { cn } from '@/lib/utils/classNames';
-import { Card, CardHeader, CardBody } from '@/components/atoms/Card';
 import { HeaderItem, KpiTone } from '@/types/common';
 
 interface ReceiptHeaderProps {
@@ -9,22 +8,15 @@ interface ReceiptHeaderProps {
     children?: ReactNode;
     collapsible?: boolean;
     defaultExpanded?: boolean;
-    compact?: boolean;
 }
 
 // コンポーネント外に定義（毎レンダーで新参照が生成されるのを防ぐ）
-const COMPACT_BG: Record<KpiTone, string> = {
-    emerald: 'border-emerald-100 bg-emerald-50/90 shadow-[0_12px_24px_-28px_rgba(5,150,105,0.35)]',
-    red:     'border-rose-100 bg-rose-50/90 shadow-[0_12px_24px_-28px_rgba(225,29,72,0.28)]',
-    blue:    'border-blue-100 bg-blue-50/90 shadow-[0_12px_24px_-28px_rgba(37,99,235,0.28)]',
-    slate:   'border-slate-200/90 bg-white shadow-[0_12px_24px_-28px_rgba(15,23,42,0.4)]',
-};
-
-const NON_COMPACT_BG: Record<KpiTone, string> = {
-    emerald: 'bg-emerald-50',
-    red:     'bg-red-50',
-    blue:    'bg-blue-50',
-    slate:   'bg-slate-50',
+// AssetPortfolioSummary の KPI カード（border-{color}-100 bg-{color}-50 / border-slate-200 bg-white）と統一
+const KPI_CARD_BG: Record<KpiTone, string> = {
+    emerald: 'border-emerald-100 bg-emerald-50',
+    red:     'border-rose-100 bg-rose-50',
+    blue:    'border-blue-100 bg-blue-50',
+    slate:   'border-slate-200 bg-white',
 };
 
 const TONE_VALUE_COLOR: Record<KpiTone, string> = {
@@ -104,8 +96,7 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     children,
     collapsible = false,
     defaultExpanded = true,
-    compact = false,
-}) => {
+}: ReceiptHeaderProps) => {
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
     const bodyId = useId();
     const effectiveExpanded = collapsible ? isExpanded : true;
@@ -115,74 +106,11 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
         setIsExpanded(prev => !prev);
     };
 
-    if (compact) {
-        const compactChevron = collapsible && (
-            <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
-                <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
-                <svg
-                    className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </span>
-        );
-        return (
-            <section
-                className="rounded-[2rem] border border-slate-200/90 bg-white/85 px-5 py-5 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.45)]"
-                data-testid="receipt-summary-strip"
-            >
-                {collapsible ? (
-                    <button
-                        type="button"
-                        className="flex w-full items-start justify-between gap-3 border-b border-slate-200/80 pb-4 text-left"
-                        onClick={handleToggleExpanded}
-                        aria-expanded={effectiveExpanded}
-                        aria-controls={bodyId}
-                        data-testid="receipt-header"
-                    >
-                        <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
-                        {compactChevron}
-                    </button>
-                ) : (
-                    <div
-                        className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
-                        data-testid="receipt-header"
-                    >
-                        <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
-                    </div>
-                )}
-                <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-4">
-                    <KpiGrid
-                        items={items}
-                        gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-                        cardBg={COMPACT_BG}
-                        cardBaseClassName="rounded-[1.35rem] border px-4 py-4"
-                        valueSizeClassName="text-3xl"
-                    />
-                    <ChildrenSection
-                        hasItems={items.length > 0}
-                        dividerClassName="mt-4 border-t border-slate-200/90 pt-4"
-                    >
-                        {children}
-                    </ChildrenSection>
-                </div>
-            </section>
-        );
-    }
-
-    const chevron = (
-        <span
-            className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
-            aria-hidden="true"
-        >
-            <span className="text-xs font-semibold text-white">
-                {effectiveExpanded ? '閉じる' : '開く'}
-            </span>
+    const chevron = collapsible && (
+        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
+            <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
             <svg
-                className={cn('w-4 h-4 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
+                className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -193,51 +121,45 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     );
 
     return (
-        <Card>
-            <CardHeader
-                variant="secondary"
-                className={cn(
-                    collapsible
-                        ? cn('p-0', effectiveExpanded ? 'bg-slate-600' : 'bg-slate-400')
-                        : 'flex items-center justify-between bg-slate-600'
-                )}
-                data-testid={collapsible ? undefined : 'receipt-header'}
-            >
-                {collapsible ? (
-                    <button
-                        type="button"
-                        className={cn(
-                            'flex w-full items-center justify-between px-4 py-2 transition-colors',
-                            effectiveExpanded ? 'hover:bg-slate-700' : 'hover:bg-slate-500',
-                        )}
-                        onClick={handleToggleExpanded}
-                        aria-expanded={effectiveExpanded}
-                        aria-controls={bodyId}
-                        data-testid="receipt-header"
-                    >
-                        <h5 className="text-sm font-semibold text-white">{title}</h5>
-                        {chevron}
-                    </button>
-                ) : (
-                    <h5 className="text-sm font-semibold text-white">{title}</h5>
-                )}
-            </CardHeader>
-            {/* 折りたたみ時はhiddenで非表示（children内のstateを保持するため） */}
-            <CardBody id={bodyId} hidden={collapsible && !effectiveExpanded} className="p-4">
+        <section
+            className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm"
+            data-testid="receipt-summary-strip"
+        >
+            {collapsible ? (
+                <button
+                    type="button"
+                    className="flex w-full items-start justify-between gap-3 border-b border-slate-200/80 pb-4 text-left"
+                    onClick={handleToggleExpanded}
+                    aria-expanded={effectiveExpanded}
+                    aria-controls={bodyId}
+                    data-testid="receipt-header"
+                >
+                    <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
+                    {chevron}
+                </button>
+            ) : (
+                <div
+                    className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
+                    data-testid="receipt-header"
+                >
+                    <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
+                </div>
+            )}
+            <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-4">
                 <KpiGrid
                     items={items}
-                    gridClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
-                    cardBg={NON_COMPACT_BG}
-                    cardBaseClassName="rounded-lg px-4 py-3"
-                    valueSizeClassName="text-2xl"
+                    gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                    cardBg={KPI_CARD_BG}
+                    cardBaseClassName="rounded-lg border px-4 py-4"
+                    valueSizeClassName="text-3xl"
                 />
                 <ChildrenSection
                     hasItems={items.length > 0}
-                    dividerClassName="mt-4 pt-4 border-t border-slate-200"
+                    dividerClassName="mt-4 border-t border-slate-200 pt-4"
                 >
                     {children}
                 </ChildrenSection>
-            </CardBody>
-        </Card>
+            </div>
+        </section>
     );
 };

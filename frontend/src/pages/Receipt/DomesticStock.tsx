@@ -129,7 +129,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
     return (
         <ReceiptTemplate
             title="国内株式"
-            header={domesticStockData.length > 0 ? <ReceiptHeader items={headerItems} compact={Boolean(utilityRail)} /> : undefined}
+            header={domesticStockData.length > 0 ? <ReceiptHeader items={headerItems} /> : undefined}
             onSearch={(query: string) => setSearchQuery(query)}
             searchCategories={searchCategories}
             utilityRail={utilityRail}
