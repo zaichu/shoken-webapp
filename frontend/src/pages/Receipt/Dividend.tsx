@@ -204,7 +204,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
                     items={headerItems}
                     title="集計情報"
                     collapsible={isSecurityCodeSearch}
-                    compact={Boolean(utilityRail)}
                 >
                     {isSecurityCodeSearch && (
                         <DividendInfo

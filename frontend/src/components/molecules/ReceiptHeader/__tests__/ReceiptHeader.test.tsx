@@ -154,8 +154,8 @@ describe('ReceiptHeader', () => {
     expect(screen.getByText('テスト項目1')).not.toBeVisible();
   });
 
-  it('compactモードでは資産サマリーと同じ横方向のKPIグリッドで表示される', () => {
-    const { container } = render(<ReceiptHeader items={defaultItems} compact />);
+  it('AssetPortfolioSummaryと同じ横方向のKPIグリッドで表示される', () => {
+    const { container } = render(<ReceiptHeader items={defaultItems} />);
 
     expect(screen.getByTestId('receipt-summary-strip')).toBeInTheDocument();
     const grid = container.querySelector('[data-testid="kpi-grid"]');
@@ -164,14 +164,18 @@ describe('ReceiptHeader', () => {
     expect(grid).toHaveClass('xl:grid-cols-3');
   });
 
-  it('compactモード+collapsibleでもヘッダークリックで開閉できる', () => {
-    render(<ReceiptHeader items={defaultItems} compact collapsible />);
+  it('コンテナの角丸・シャドウ・背景がAssetPortfolioSummaryのKPIストリップと一致する', () => {
+    render(<ReceiptHeader items={defaultItems} />);
 
-    const header = screen.getByTestId('receipt-header');
-    expect(screen.getByText('テスト項目1')).toBeVisible();
+    const strip = screen.getByTestId('receipt-summary-strip');
+    expect(strip).toHaveClass('rounded-xl', 'border-slate-200', 'bg-white', 'shadow-sm');
+  });
 
-    fireEvent.click(header);
-    expect(screen.getByText('テスト項目1')).not.toBeVisible();
+  it('KPIカードの角丸・背景がAssetPortfolioSummaryのKPIカードと一致する', () => {
+    const { container } = render(<ReceiptHeader items={defaultItems} />);
+
+    const card = container.querySelector('[data-testid="kpi-grid"] > div');
+    expect(card).toHaveClass('rounded-lg', 'border', 'bg-white');
   });
 
   it('マイナス値のitemにdata-negative属性が付く', () => {
