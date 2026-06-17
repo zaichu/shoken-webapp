@@ -23,8 +23,8 @@ const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
                 id={id}
                 className={`w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${
                     isSelected
-                        ? 'border-primary bg-primary/20 text-blue-800 font-bold ring-2 ring-primary/50'
-                        : 'border-gray-300 bg-white text-dark hover:border-slate-400 focus:border-primary focus:ring-primary/25'
+                        ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold ring-2 ring-amber-500/30'
+                        : 'border-slate-300 bg-white text-dark hover:border-slate-500 focus:border-amber-600 focus:ring-amber-500/25'
                 }`}
                 value={displayValue}
                 onChange={(e) => onSearch(e.target.value, searchType)}
@@ -37,7 +37,7 @@ const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
                 ))}
             </select>
             {isSelected && (
-                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-blue-700 pointer-events-none">
+                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-amber-700 pointer-events-none">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -72,8 +72,8 @@ const QuickSearchButtons: React.FC<QuickSearchButtonsProps> = ({
                             size="sm"
                             onClick={() => onSearch(item, searchType)}
                             className={isSelected
-                                ? 'ring-2 ring-primary ring-offset-1 font-bold shadow-md'
-                                : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none`
+                                ? 'ring-2 ring-amber-500 ring-offset-1 font-bold shadow-md'
+                                : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none`
                             }
                             aria-pressed={isSelected}
                             aria-label={isSelected ? `${item}（選択中）` : item}
@@ -122,7 +122,7 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
         {DROPDOWN_CONFIGS.map(({ key, label }) =>
             hasData(categories[key]) && (
                 <div key={key} className="space-y-1">
-                    <label htmlFor={`${key}-search`} className="text-sm font-medium text-dark">{label}</label>
+                    <label htmlFor={`${key}-search`} className="text-sm font-bold text-slate-800">{label}</label>
                     <QuickSearchDropdown
                         items={categories[key]!}
                         id={`${key}-search`}
@@ -137,7 +137,7 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
         {BUTTONS_CONFIGS.map(({ key, label }) =>
             hasData(categories[key]) && (
                 <div key={key} className="space-y-1">
-                    <div className="text-sm font-medium text-dark">{label}</div>
+                    <div className="text-sm font-bold text-slate-800">{label}</div>
                     <div className="flex flex-wrap gap-1">
                         <QuickSearchButtons
                             items={categories[key]!}
@@ -239,9 +239,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     if (compact) {
         return (
-            <section className="px-5 py-5" data-testid="search-card-compact">
+            <section className="px-4 py-4" data-testid="search-card-compact">
                 <div
-                    className="flex cursor-pointer items-start justify-between gap-3 select-none"
+                    className="flex cursor-pointer items-center justify-between gap-2 select-none"
                     onClick={handleToggleExpanded}
                     onKeyDown={handleKeyDown}
                     role="button"
@@ -251,50 +251,45 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
                     data-testid="search-card-header"
                 >
-                    <div className="flex min-w-0 items-start gap-3">
-                        <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                             </svg>
                         </span>
                         <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Filter</p>
-                            <h5 className="mt-1 text-sm font-semibold text-slate-800">検索オプション</h5>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Filter</p>
+                            <h5 className="whitespace-nowrap text-sm font-black text-slate-950">検索オプション</h5>
                             {!isExpanded && effectiveActiveSearchType && (
-                                <span className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                    フィルタ適用中
+                                <span className="mt-1 inline-flex whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                                    適用中
                                 </span>
                             )}
                         </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                handleClearSearch();
-                            }}
-                            onKeyDown={(e: React.KeyboardEvent) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        {!isDefaultState && (
+                            <Button
+                                type="button"
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
-                                }
-                            }}
-                            className={`rounded-full px-3 py-1 text-xs transition-opacity ${
-                                isDefaultState
-                                    ? 'pointer-events-none opacity-0'
-                                    : 'opacity-100 border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                            }`}
-                            aria-label="検索条件をクリア"
-                            aria-hidden={isDefaultState}
-                            tabIndex={isDefaultState ? -1 : 0}
-                            data-testid="search-clear-button"
-                        >
-                            リセット
-                        </Button>
-                        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
-                            <span className="text-xs font-semibold">{isExpanded ? '閉じる' : '開く'}</span>
+                                    handleClearSearch();
+                                }}
+                                onKeyDown={(e: React.KeyboardEvent) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.stopPropagation();
+                                    }
+                                }}
+                                className="whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                                aria-label="検索条件をクリア"
+                                data-testid="search-clear-button"
+                            >
+                                解除
+                            </Button>
+                        )}
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700" aria-hidden="true">
                             <svg
                                 className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                                 fill="none"
@@ -323,13 +318,13 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     }
 
     return (
-        <Card className="mt-1">
+        <Card className="mt-1 overflow-hidden">
             <CardHeader
                 variant="secondary"
                 className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
                     isExpanded
-                        ? 'bg-slate-600 hover:bg-slate-700 border-b-2 border-slate-700'
-                        : 'bg-slate-400 hover:bg-slate-500'
+                        ? 'bg-slate-950 hover:bg-slate-900 border-b border-amber-500'
+                        : 'bg-slate-800 hover:bg-slate-900'
                 }`}
                 onClick={handleToggleExpanded}
                 onKeyDown={handleKeyDown}
@@ -383,7 +378,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span
-                        className="flex items-center gap-1.5 rounded border border-white/30 bg-white/10 px-2 py-0.5"
+                        className="flex items-center gap-1.5 rounded-md border border-white/25 bg-white/10 px-2 py-0.5"
                         aria-hidden="true"
                     >
                         <span className="text-xs font-semibold whitespace-nowrap text-white">

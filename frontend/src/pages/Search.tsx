@@ -86,9 +86,9 @@ export function SearchPage() {
               description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
               className="py-10"
             />
-            <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-semibold text-slate-600 mb-2">検索のヒント</h3>
-              <ul className="space-y-1 text-sm text-slate-500">
+            <div className="mt-6 rounded-xl border border-slate-950/10 bg-slate-50/80 p-4">
+              <h3 className="mb-2 text-sm font-black text-slate-800">検索のヒント</h3>
+              <ul className="space-y-1 text-sm font-medium text-slate-600">
                 <li>4桁の銘柄コードで検索できます（例：7203, 9984）</li>
                 <li>会社名の一部でも検索できます（例：トヨタ）</li>
                 <li>検索結果から各種証券サイトへのリンクを確認できます</li>

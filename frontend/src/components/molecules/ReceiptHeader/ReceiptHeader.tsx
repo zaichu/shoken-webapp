@@ -13,14 +13,14 @@ interface ReceiptHeaderProps {
 // コンポーネント外に定義（毎レンダーで新参照が生成されるのを防ぐ）
 // AssetPortfolioSummary の KPI カード（border-{color}-100 bg-{color}-50 / border-slate-200 bg-white）と統一
 const KPI_CARD_BG: Record<KpiTone, string> = {
-    emerald: 'border-emerald-100 bg-emerald-50',
+    emerald: 'border-teal-200 bg-teal-50',
     red:     'border-rose-100 bg-rose-50',
     blue:    'border-blue-100 bg-blue-50',
     slate:   'border-slate-200 bg-white',
 };
 
 const TONE_VALUE_COLOR: Record<KpiTone, string> = {
-    emerald: 'text-emerald-600',
+    emerald: 'text-teal-700',
     red:     'text-red-500',
     blue:    'text-blue-600',
     slate:   'text-slate-800',
@@ -107,7 +107,7 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     };
 
     const chevron = collapsible && (
-        <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
+        <span className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700" aria-hidden="true">
             <span className="text-xs font-semibold">{effectiveExpanded ? '閉じる' : '開く'}</span>
             <svg
                 className={cn('w-4 h-4 text-slate-500 transition-transform duration-200', effectiveExpanded && 'rotate-180')}
@@ -122,40 +122,40 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
 
     return (
         <section
-            className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm"
+            className="rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)]"
             data-testid="receipt-summary-strip"
         >
             {collapsible ? (
                 <button
                     type="button"
-                    className="flex w-full items-start justify-between gap-3 border-b border-slate-200/80 pb-4 text-left"
+                    className="flex w-full items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5 text-left"
                     onClick={handleToggleExpanded}
                     aria-expanded={effectiveExpanded}
                     aria-controls={bodyId}
                     data-testid="receipt-header"
                 >
-                    <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
+                    <div><h2 className="text-sm font-black text-slate-950">{title}</h2></div>
                     {chevron}
                 </button>
             ) : (
                 <div
-                    className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4"
+                    className="flex items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5"
                     data-testid="receipt-header"
                 >
-                    <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2></div>
+                    <div><h2 className="text-sm font-black text-slate-950">{title}</h2></div>
                 </div>
             )}
-            <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-4">
+            <div id={bodyId} hidden={collapsible && !effectiveExpanded} className="pt-3">
                 <KpiGrid
                     items={items}
-                    gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                    gridClassName="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3"
                     cardBg={KPI_CARD_BG}
-                    cardBaseClassName="rounded-lg border px-4 py-4"
-                    valueSizeClassName="text-3xl"
+                    cardBaseClassName="rounded-lg border px-3.5 py-3"
+                    valueSizeClassName="text-2xl"
                 />
                 <ChildrenSection
                     hasItems={items.length > 0}
-                    dividerClassName="mt-4 border-t border-slate-200 pt-4"
+                    dividerClassName="mt-3 border-t border-slate-950/10 pt-3"
                 >
                     {children}
                 </ChildrenSection>

@@ -46,7 +46,7 @@ export function DataActionRail({
   saveModeLabel,
 }: DataActionRailProps) {
   return (
-    <section className="space-y-3 px-5 py-5" role="group" aria-label="データ操作">
+    <section className="space-y-3 bg-slate-50/60 px-5 py-5" role="group" aria-label="データ操作">
       <div className="space-y-3">
         <CSVFileInput
           onFileSelect={onFileSelect}
@@ -57,7 +57,7 @@ export function DataActionRail({
           <Button
             variant="primary"
             size="sm"
-            className="h-11 w-full rounded-xl text-sm font-semibold"
+            className="h-11 w-full rounded-md text-sm font-bold"
             onClick={onSave}
             disabled={saveDisabled}
             aria-disabled={saveDisabled}
@@ -69,7 +69,7 @@ export function DataActionRail({
           <Button
             variant="outline-danger"
             size="sm"
-            className="h-11 w-full rounded-xl text-sm font-semibold"
+            className="h-11 w-full rounded-md text-sm font-bold"
             onClick={onDeleteRequest}
             disabled={deleteDisabled}
             aria-disabled={deleteDisabled}

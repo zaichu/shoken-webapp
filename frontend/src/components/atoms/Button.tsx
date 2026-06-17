@@ -18,31 +18,29 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   iconPosition?: 'left' | 'right';
 }
 
-// バリアント別のスタイル定義
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-hover active:bg-primary-dark',
-  secondary: 'bg-secondary text-white hover:bg-secondary-hover',
-  success: 'bg-success text-white hover:bg-success-hover',
-  danger: 'bg-danger text-white hover:bg-danger-hover',
-  warning: 'bg-warning text-dark hover:bg-warning-hover',
-  info: 'bg-info text-dark hover:bg-info-hover',
-  light: 'bg-light text-dark hover:bg-gray-200',
-  dark: 'bg-dark text-white hover:bg-gray-800',
-  'outline-primary': 'border border-primary text-primary hover:bg-primary hover:text-white',
-  'outline-secondary': 'border border-secondary text-secondary hover:bg-secondary hover:text-white',
-  'outline-success': 'border border-success text-success hover:bg-success hover:text-white',
+  primary: 'border border-slate-950 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-slate-800 active:bg-slate-950',
+  secondary: 'border border-slate-300 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-50',
+  success: 'border border-teal-700 bg-teal-700 text-white hover:bg-teal-800',
+  danger: 'border border-danger bg-danger text-white hover:bg-danger-hover',
+  warning: 'border border-amber-500 bg-amber-500 text-slate-950 hover:bg-amber-600',
+  info: 'border border-blue-600 bg-blue-600 text-white hover:bg-blue-700',
+  light: 'border border-slate-200 bg-white text-slate-900 hover:bg-slate-100',
+  dark: 'border border-slate-950 bg-slate-950 text-white hover:bg-slate-800',
+  'outline-primary': 'border border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white',
+  'outline-secondary': 'border border-slate-300 text-slate-700 hover:border-slate-500 hover:bg-slate-50',
+  'outline-success': 'border border-teal-700 text-teal-700 hover:bg-teal-700 hover:text-white',
   'outline-danger': 'border border-danger text-danger hover:bg-danger hover:text-white',
-  'outline-warning': 'border border-amber-600 text-amber-700 hover:bg-warning hover:text-dark',
-  'outline-info': 'border border-info text-info hover:bg-info hover:text-dark',
-  'outline-light': 'border border-light text-light hover:bg-light hover:text-dark',
-  'outline-dark': 'border border-dark text-dark hover:bg-dark hover:text-white',
+  'outline-warning': 'border border-amber-600 text-amber-700 hover:bg-amber-500 hover:text-slate-950',
+  'outline-info': 'border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white',
+  'outline-light': 'border border-white/70 text-white hover:bg-white hover:text-slate-950',
+  'outline-dark': 'border border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white',
 };
 
-// サイズ別のスタイル定義
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-2 py-1 text-sm',
-  md: 'px-3 py-1.5 text-base',
-  lg: 'px-4 py-2 text-lg',
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-5 py-2.5 text-base',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -61,7 +59,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const baseClasses = 'inline-flex items-center justify-center font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary/50 disabled:opacity-65 disabled:cursor-not-allowed no-print';
+    const baseClasses = 'inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print';
     const variantClass = variantStyles[variant];
     const sizeClass = sizeStyles[size];
     const widthClass = fullWidth ? 'w-full' : '';

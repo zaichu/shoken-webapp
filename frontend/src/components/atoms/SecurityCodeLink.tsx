@@ -22,8 +22,8 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
     return <span>{code}</span>;
   }
 
-  const baseClassName = 'security-code-link text-primary font-semibold hover:underline';
-  const combinedClassName = className ? `${baseClassName} ${className}` : baseClassName;
+  const baseClassName = 'security-code-link font-bold text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500';
+  const combinedClassName = className ? `${className} ${baseClassName}` : baseClassName;
 
   return (
     <a

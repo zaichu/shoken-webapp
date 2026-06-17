@@ -71,7 +71,7 @@ export function ReceiptsPage() {
         onKeyDown={handleTabKeyDown}
         counts={counts}
       />
-      <div className="mt-2" aria-busy={workspaceBusy}>
+      <div className="mt-0" aria-busy={workspaceBusy}>
         <div data-testid="receipts-workspace">
           {!initialLoading &&
             panels.map((panel) => (

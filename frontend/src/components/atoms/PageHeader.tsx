@@ -8,18 +8,15 @@ interface PageHeaderProps {
   className?: string;
 }
 
-/**
- * ページタイトル用の見出しコンポーネント
- * H1レベルの見出しとして使用
- */
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn('mb-4', className)}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className={cn('mb-5', className)}>
+      <div className="flex flex-col gap-3 border-l-4 border-amber-500 pl-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">{title}</h1>
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Workspace</p>
+          <h1 className="text-2xl font-black leading-tight tracking-normal text-slate-950">{title}</h1>
           {description ? (
-            <p className="mt-0.5 text-sm text-slate-600">{description}</p>
+            <p className="mt-1 text-sm font-medium text-slate-600">{description}</p>
           ) : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

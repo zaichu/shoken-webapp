@@ -5,14 +5,12 @@ import { useAuth } from '../../features/auth/hooks/useAuth';
 import { cn } from '../../lib/utils/classNames';
 import { APP_SHELL_CONTAINER } from '@/lib/layout';
 
-// ナビゲーションリンクの設定
 const NAV_LINKS = [
   { to: '/search', label: '銘柄検索' },
   { to: '/assetbalance', label: '資産管理' },
   { to: '/receipts', label: '取引明細' },
 ] as const;
 
-// ユーザー名からイニシャルを取得
 const getInitials = (name: string | null | undefined, email: string | null | undefined): string => {
   if (name) {
     const parts = name.trim().split(/\s+/);
@@ -35,7 +33,6 @@ export function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
-  // ドロップダウン外クリックで閉じる
   useEffect(() => {
     if (!showDropdown) return;
 
@@ -49,7 +46,6 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDropdown]);
 
-  // キーボード操作対応（Escapeで閉じる）
   useEffect(() => {
     if (!showDropdown) return;
 
@@ -84,14 +80,22 @@ export function Header() {
 
   return (
     <>
-      <header className="bg-slate-800 text-white no-print">
+      <header className="sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur no-print">
         <div className={`${APP_SHELL_CONTAINER} py-3`}>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center">
-            <div className="flex items-center justify-between">
-              <Link className="text-2xl font-bold tracking-wide text-white hover:text-slate-200 transition-colors" to="/">証券Web</Link>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex items-center justify-between gap-4">
+              <Link className="group inline-flex items-center gap-3 text-white transition-colors hover:text-amber-100" to="/">
+                <span className="flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white text-sm font-black text-slate-950 shadow-[inset_0_-3px_0_rgba(192,132,3,0.35)]">
+                  証
+                </span>
+                <span>
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.28em] text-amber-300/90">Portfolio Desk</span>
+                  <span className="block text-xl font-black leading-tight tracking-normal">証券Web</span>
+                </span>
+              </Link>
             </div>
 
-            <nav className="flex flex-wrap items-center gap-1" aria-label="主要ナビゲーション">
+            <nav className="flex flex-wrap items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1" aria-label="主要ナビゲーション">
               {NAV_LINKS.map(({ to, label }) => {
                 const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
                 return (
@@ -99,10 +103,10 @@ export function Header() {
                     key={to}
                     to={to}
                     className={cn(
-                      'px-4 py-2 text-base font-medium transition-colors border-b-2',
+                      'rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow]',
                       isActive
-                        ? 'border-white text-white font-semibold'
-                        : 'border-transparent text-slate-300 hover:text-white hover:border-slate-500'
+                        ? 'bg-white text-slate-950 shadow-[inset_0_-2px_0_#f59e0b]'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >
@@ -112,28 +116,27 @@ export function Header() {
               })}
             </nav>
 
-            <div className="flex items-center gap-3 md:ml-auto">
+            <div className="flex items-center gap-3 lg:ml-auto">
               {isLoading ? (
-                <span className="text-white/80 text-base">読み込み中...</span>
+                <span className="text-sm font-semibold text-white/70">読み込み中...</span>
               ) : isAuthenticated && user ? (
-                <div className="flex items-center gap-3">
-                  {/* ユーザーアバター（フォールバック付き） */}
+                <div className="flex flex-wrap items-center gap-3">
                   {user.picture_url && !imageError ? (
                     <img
                       src={user.picture_url}
                       alt={user.name || 'ユーザー'}
-                      className="h-8 w-8 rounded-full object-cover bg-slate-600"
+                      className="h-9 w-9 rounded-md border border-white/20 bg-slate-700 object-cover"
                       onError={() => setImageError(true)}
                     />
                   ) : (
                     <div
-                      className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-white text-sm font-medium"
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-slate-700 text-sm font-black text-white"
                       aria-label={user.name || 'ユーザー'}
                     >
                       {getInitials(user.name, user.email)}
                     </div>
                   )}
-                  <span className="text-base text-white/90">{user.name || user.email}</span>
+                  <span className="max-w-[16rem] truncate text-sm font-semibold text-white/85">{user.name || user.email}</span>
                   <div className="relative" ref={dropdownRef}>
                     <Button
                       variant="outline-light"
@@ -148,26 +151,26 @@ export function Header() {
                     {showDropdown && (
                       <ul
                         id="user-menu"
-                        className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-white text-dark shadow-lg"
+                        className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-slate-950/10 bg-white text-dark shadow-2xl"
                         role="menu"
                         aria-label="ユーザーメニュー"
                       >
                         <li role="none">
                           <button
-                            className="w-full px-3 py-2 text-left text-base hover:bg-gray-100"
+                            className="w-full px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100"
                             onClick={handleLogout}
                             role="menuitem"
                           >
                             ログアウト
                           </button>
                         </li>
-                        <li role="none"><hr className="my-1 border-border" /></li>
-                        <li role="none" className="px-3 py-1 text-xs text-secondary">
+                        <li role="none"><hr className="border-border" /></li>
+                        <li role="none" className="px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-secondary">
                           危険な操作
                         </li>
                         <li role="none">
                           <button
-                            className="w-full px-3 py-2 text-left text-base text-danger hover:bg-danger/10"
+                            className="w-full px-3 py-2 text-left text-sm font-bold text-danger hover:bg-danger/10"
                             onClick={() => setShowDeleteConfirm(true)}
                             role="menuitem"
                             aria-describedby="delete-warning"
@@ -192,10 +195,9 @@ export function Header() {
         </div>
       </header>
 
-      {/* アカウント削除確認モーダル */}
       {showDeleteConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
           onClick={() => setShowDeleteConfirm(false)}
           onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); }}
           role="dialog"
@@ -210,21 +212,21 @@ export function Header() {
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); else e.stopPropagation(); }}
           >
-            <div className="rounded-lg bg-white shadow-lg">
+            <div className="overflow-hidden rounded-xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <h5 id="delete-modal-title" className="text-danger font-semibold">
+                <h5 id="delete-modal-title" className="font-bold text-danger">
                   アカウント削除の確認
                 </h5>
                 <button
                   type="button"
-                  className="text-gray-500 hover:text-gray-700"
+                  className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   onClick={() => setShowDeleteConfirm(false)}
                   aria-label="閉じる"
                 >
                   <span aria-hidden="true">✕</span>
                 </button>
               </div>
-              <div id="delete-modal-description" className="px-4 py-4 text-base text-dark">
+              <div id="delete-modal-description" className="px-4 py-4 text-sm text-dark">
                 <p>本当にアカウントを削除しますか？</p>
                 <p className="mt-2 text-danger">
                   <strong>警告:</strong> この操作は取り消せません。

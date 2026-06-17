@@ -9,20 +9,15 @@ interface EmptyStateProps {
   description?: string;
   action?: ReactNode;
   className?: string;
-  /** 見出しレベル（デフォルト: h3） */
   headingLevel?: HeadingLevel;
 }
 
 const headingStyles: Record<HeadingLevel, string> = {
-  h1: 'text-2xl font-bold text-slate-900',
-  h2: 'text-xl font-bold text-slate-900',
-  h3: 'text-base font-semibold text-slate-900',
+  h1: 'text-2xl font-black text-slate-950',
+  h2: 'text-xl font-black text-slate-950',
+  h3: 'text-base font-black text-slate-950',
 };
 
-/**
- * 空状態を表示するコンポーネント
- * データがない場合やエラー時に使用
- */
 export function EmptyState({
   icon,
   title,
@@ -36,7 +31,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center py-8 px-4 text-center',
+        'flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center',
         className
       )}
     >
@@ -47,7 +42,7 @@ export function EmptyState({
       )}
       <Heading className={headingStyles[headingLevel]}>{title}</Heading>
       {description && (
-        <p className="mt-1.5 max-w-md text-sm text-slate-600">{description}</p>
+        <p className="mt-1.5 max-w-md text-sm font-medium text-slate-600">{description}</p>
       )}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
