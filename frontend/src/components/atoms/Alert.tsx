@@ -9,16 +9,16 @@ interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses: Record<AlertVariant, string> = {
-  info: 'bg-info/10 text-info border-info/30',
-  warning: 'bg-warning/15 text-warning border-warning/40',
-  danger: 'bg-danger/10 text-danger border-danger/30',
-  success: 'bg-success/10 text-success border-success/30',
+  info: 'border-blue-200 bg-blue-50 text-blue-800',
+  warning: 'border-amber-200 bg-amber-50 text-amber-900',
+  danger: 'border-red-200 bg-red-50 text-red-700',
+  success: 'border-teal-200 bg-teal-50 text-teal-800',
 };
 
 export function Alert({ children, variant = 'info', className, ...rest }: AlertProps) {
   return (
     <div
-      className={cn('rounded-md border px-4 py-3 text-sm', variantClasses[variant], className)}
+      className={cn('rounded-lg border px-4 py-3 text-sm font-medium shadow-sm', variantClasses[variant], className)}
       role="alert"
       {...rest}
     >

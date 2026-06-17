@@ -8,22 +8,18 @@ interface WorkspaceShellProps {
   testIdPrefix?: string;
 }
 
-/**
- * 2カラム workspace レイアウト（main stage + utility rail）の共通テンプレート。
- * ReceiptTemplate および AssetBalance の grid / rail スタイルを一元管理する。
- */
 export function WorkspaceShell({ main, rail, mainClassName, testIdPrefix = '' }: WorkspaceShellProps) {
   const prefix = testIdPrefix ? `${testIdPrefix}-` : '';
   return (
     <div
-      className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
       data-testid={`${prefix}workspace`}
     >
       <div className={cn('min-w-0', mainClassName)} data-testid={`${prefix}main-stage`}>
         {main}
       </div>
       <aside data-testid={`${prefix}utility-rail`}>
-        <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/80 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)] backdrop-blur-sm divide-y divide-slate-200/80">
+        <div className="overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10">
           {rail}
         </div>
       </aside>

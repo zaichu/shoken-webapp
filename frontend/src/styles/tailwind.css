@@ -1,58 +1,66 @@
 @import 'tailwindcss';
 
-/* カスタムテーマ設定 */
 @theme {
-  /* カラーパレット（既存テーマ互換 + 拡張） */
-  --color-primary: #0d6efd;
-  --color-primary-hover: #0b5ed7;
-  --color-primary-dark: #0a58ca;
-  --color-secondary: #6c757d;
-  --color-secondary-hover: #5c636a;
-  --color-success: #198754;
-  --color-success-hover: #157347;
-  --color-info: #0dcaf0;
-  --color-info-hover: #31d2f2;
-  --color-warning: #ffc107;
-  --color-warning-hover: #ffca2c;
+  --color-primary: #111827;
+  --color-primary-hover: #1f2937;
+  --color-primary-dark: #030712;
+  --color-secondary: #64748b;
+  --color-secondary-hover: #475569;
+  --color-success: #0f766e;
+  --color-success-hover: #115e59;
+  --color-info: #2563eb;
+  --color-info-hover: #1d4ed8;
+  --color-warning: #d97706;
+  --color-warning-hover: #b45309;
   --color-danger: #dc3545;
   --color-danger-hover: #bb2d3b;
-  --color-light: #f8f9fa;
-  --color-dark: #212529;
+  --color-light: #f8fafc;
+  --color-dark: #111827;
   --color-negative: #dc3545;
   --color-negative-dark: #ff6b6b;
+  --color-accent: #c08403;
+  --color-accent-soft: #fff7ed;
 
-  /* 背景色 */
-  --color-bg-body: #f5f5f5;
-  --color-bg-dark: #121212;
+  --color-bg-body: #f6f7f4;
+  --color-bg-dark: #111827;
   --color-bg-card-dark: #1e1e1e;
 
-  /* ボーダー色 */
-  --color-border: rgba(0, 0, 0, 0.125);
+  --color-border: rgba(15, 23, 42, 0.12);
   --color-border-dark: #333;
 
-  /* コンテナ幅 */
   --container-wide: 1600px;
 
-  /* フォントファミリー */
-  --font-sans: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  /* stylelint-disable-next-line value-keyword-case -- Meiryo is the official Windows font family name. */
+  --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 
-/* ベーススタイル */
 @layer base {
+  html {
+    background: var(--color-bg-body);
+  }
+
   body {
     font-family: var(--font-sans);
     line-height: 1.6;
     color: var(--color-dark);
     background-color: var(--color-bg-body);
+    background-image:
+      linear-gradient(rgba(17, 24, 39, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(17, 24, 39, 0.025) 1px, transparent 1px),
+      linear-gradient(180deg, #f9faf7 0%, #eef2f3 100%);
+    background-size: 44px 44px, 44px 44px, 100% 100%;
+    font-feature-settings: "palt" 1;
   }
 
-  /* ダークモード対応 */
   [data-theme="dark"] body {
     background-color: var(--color-bg-dark);
     color: #f5f5f5;
   }
 
-  /* 負の値を赤色で表示 */
+  ::selection {
+    background: rgba(192, 132, 3, 0.24);
+  }
+
   [data-negative="true"] {
     color: var(--color-negative) !important;
     font-weight: 500;
@@ -62,24 +70,23 @@
     color: var(--color-negative-dark) !important;
   }
 
-  /* スクロールバーのスタイリング */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #e5e7eb;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #94a3b8;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #888;
+    background: #64748b;
   }
 
   [data-theme="dark"] ::-webkit-scrollbar-track {
@@ -96,38 +103,36 @@
 }
 
 @layer components {
-  /* 単発ページのコンテンツ面（Home・Search など） */
   .page-surface {
-    @apply flex-1 rounded-lg border border-slate-200 bg-white p-6 shadow-sm;
+    @apply relative flex-1 overflow-hidden rounded-[1.25rem] border border-slate-950/10 bg-white/90 p-6 shadow-[0_18px_60px_-48px_rgba(15,23,42,0.85)] backdrop-blur-sm;
   }
 
-  /* フォーム入力コンテナ（CSV入力等） */
+  .page-surface::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-950 via-amber-500 to-teal-700;
+  }
+
   .form-input-container {
     @apply w-full max-w-[400px];
   }
 
-  /* 統計情報グリッド（3カラム） */
   .stat-grid {
     @apply grid grid-cols-1 gap-4 md:grid-cols-3;
   }
 
-  /* アクションツールバー */
   .action-toolbar {
-    @apply flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm;
+    @apply flex flex-wrap items-center gap-3 rounded-xl border border-slate-950/10 bg-white/85 p-3 shadow-sm backdrop-blur;
   }
 
-  /* ボタングループ（カード装飾なし、横並びのみ） */
   .action-button-group {
     @apply flex flex-wrap items-center gap-3;
   }
 
-  /* ステータスメッセージ（ローディング・空状態） */
   .status-message {
     @apply my-4 flex flex-col items-center gap-2;
   }
 }
 
-/* 印刷対応 */
 @media print {
   .no-print {
     display: none !important;

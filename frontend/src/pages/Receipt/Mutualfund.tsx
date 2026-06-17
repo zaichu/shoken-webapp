@@ -98,16 +98,16 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
 
     // テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
     const columns: TableColumnConfig[] = [
-        { key: 'trade_date', header: '約定日', width: '84px', format: formatJPDate },
-        { key: 'fund_name', header: 'ファンド名', width: '180px' },
+        { key: 'trade_date', header: '約定日', width: '112px', format: formatJPDate },
+        { key: 'fund_name', header: 'ファンド名', width: '300px' },
         { key: 'account', header: '口座', width: '60px' },
-        { key: 'shares', header: '数量', width: '64px', textAlign: 'right', format: formatNumber },
-        { key: 'cancellation_unit_price_yen', header: '解約単価', width: '82px', textAlign: 'right', format: formatCurrency },
-        { key: 'cancellation_amount_yen', header: '解約額', width: '82px', textAlign: 'right', format: formatCurrency },
-        { key: 'average_acquisition_price_yen', header: '取得価額', width: '82px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss', header: '実現損益', width: '82px', textAlign: 'right', format: formatCurrency },
-        { key: 'taxes', header: '税額', width: '64px', textAlign: 'right', format: formatCurrency },
-        { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '84px', textAlign: 'right', format: formatCurrency },
+        { key: 'shares', header: '数量', width: '112px', textAlign: 'right', format: formatNumber },
+        { key: 'cancellation_unit_price_yen', header: '解約単価', width: '98px', textAlign: 'right', format: formatCurrency },
+        { key: 'cancellation_amount_yen', header: '解約額', width: '128px', textAlign: 'right', format: formatCurrency },
+        { key: 'average_acquisition_price_yen', header: '取得価額', width: '116px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss', header: '実現損益', width: '112px', textAlign: 'right', format: formatCurrency },
+        { key: 'taxes', header: '税額', width: '106px', textAlign: 'right', format: formatCurrency },
+        { key: 'realized_profit_and_loss_after_tax', header: '税引損益', width: '118px', textAlign: 'right', format: formatCurrency },
     ];
 
     // サマリーカラムの定義（ヘッダーと同じ項目: 実現損益、税額、税引後）

@@ -37,14 +37,13 @@ interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   colSpan?: number;
 }
 
-// バリアント別の背景色
 const variantBgColors: Record<string, string> = {
-  primary: 'bg-primary/10',
+  primary: 'bg-slate-950/10',
   secondary: 'bg-secondary/10',
-  success: 'bg-success/10',
+  success: 'bg-teal-50',
   danger: 'bg-danger/10',
-  warning: 'bg-warning/10',
-  info: 'bg-info/10',
+  warning: 'bg-amber-50',
+  info: 'bg-blue-50',
   light: 'bg-light',
   dark: 'bg-dark text-white',
 };
@@ -77,18 +76,18 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       forceResize,
     });
 
-    // CSSクラスの構築（モバイル対応: パディング縮小、フォント調整）
     const tableClasses = cn(
-      'w-full table-fixed text-left border-collapse',
-      small ? 'text-[12px] leading-5 sm:text-[13px]' : 'text-sm sm:text-[15px]',
+      'w-full table-fixed border-collapse text-left',
+      small ? 'text-[12px] leading-5 sm:text-[13px]' : 'text-sm sm:text-[14px]',
       bordered && '[&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black',
       small
         ? '[&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5'
         : '[&_th]:py-2 [&_th]:px-2.5 [&_td]:py-2 [&_td]:px-2.5 sm:[&_th]:py-2.5 sm:[&_th]:px-3 sm:[&_td]:py-2.5 sm:[&_td]:px-3',
       '[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis',
+      '[&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100',
       variant && variantBgColors[variant],
-      striped && '[&_tbody_tr:nth-child(even)]:bg-slate-50',
-      hover && '[&_tbody_tr:hover]:bg-slate-100',
+      striped && '[&_tbody_tr:nth-child(even)]:bg-slate-50/80',
+      hover && '[&_tbody_tr:hover]:bg-amber-50/60',
       className
     );
 
@@ -98,7 +97,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       </table>
     );
 
-    // レスポンシブまたは自動高さが有効な場合はラッパーで包む
     if (responsive || autoHeight) {
       const containerStyle = autoHeight
         ? {
@@ -112,7 +110,7 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
         <div
           ref={containerRef}
           className={cn(
-            'relative w-full overflow-x-hidden rounded-md',
+            'relative w-full overflow-x-hidden rounded-lg border border-slate-950/10 bg-white',
             '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500'
           )}
           style={containerStyle}
@@ -131,9 +129,9 @@ Table.displayName = 'Table';
 const TableHeader = forwardRef<HTMLTableSectionElement, TableHeaderProps>(
   ({ children, variant, stickyTop = true, className, ...rest }, ref) => {
     const headerClasses = cn(
-      'bg-slate-50',
+      'bg-slate-100 text-slate-800',
       variant === 'light' && 'bg-slate-100',
-      variant === 'dark' && 'bg-slate-800 text-white',
+      variant === 'dark' && 'bg-slate-950 text-white',
       stickyTop && 'sticky top-0 z-10',
       className
     );
@@ -164,7 +162,7 @@ const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
   ({ children, active = false, variant, className, ...rest }, ref) => {
     const rowClasses = cn(
       '[&_th]:align-middle [&_td]:align-middle',
-      active && 'bg-primary/10',
+      active && 'bg-amber-50',
       variant && variantBgColors[variant],
       className
     );
@@ -193,7 +191,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ) => {
     const Cell = as;
     const scopeAttr = as === 'th' ? { scope } : {};
-    const cellClasses = cn(as === 'th' && 'font-semibold text-slate-700', className);
+    const cellClasses = cn(as === 'th' && 'font-black text-slate-800', className);
 
     return (
       <Cell ref={ref} className={cellClasses} {...scopeAttr} {...rest} colSpan={colSpan}>

@@ -51,7 +51,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   ) : null;
 
   const mainCard = (
-    <Card className="mt-1 overflow-hidden rounded-xl border-slate-200/90 bg-white/95 shadow-[0_4px_12px_-4px_rgba(15,23,42,0.12)]" data-testid="receipt-card">
+    <Card className="overflow-hidden border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)]" data-testid="receipt-card">
       <CardBody className="p-0" data-testid="receipt-card-body">
         {children}
       </CardBody>
@@ -60,10 +60,10 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
 
   if (layout === 'workspace') {
     return (
-      <div className="space-y-2" data-testid="receipt-container">
+      <div className="space-y-1.5" data-testid="receipt-container">
         <WorkspaceShell
           testIdPrefix="receipt"
-          mainClassName="space-y-4"
+          mainClassName="space-y-2"
           main={<>{header}{mainCard}</>}
           rail={<>{utilityRail}{searchCard}</>}
         />
@@ -73,9 +73,9 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   }
 
   return (
-    <div className="space-y-2" data-testid="receipt-container">
+    <div className="space-y-1.5" data-testid="receipt-container">
       {searchCard}
-      {header ? <div className="mt-1">{header}</div> : null}
+      {header ? <div>{header}</div> : null}
       {mainCard}
       {footer ? <div>{footer}</div> : null}
     </div >

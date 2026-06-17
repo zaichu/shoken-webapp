@@ -266,7 +266,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     });
   });
 
-  it('認証済み時: workspace は広めの right rail レイアウトで表示される', async () => {
+  it('認証済み時: workspace はメイン幅を優先した right rail レイアウトで表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
@@ -278,8 +278,8 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
       expect(screen.getByTestId('assetbalance-workspace')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('assetbalance-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_22rem]');
-    expect(screen.getByTestId('assetbalance-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
+    expect(screen.getByTestId('assetbalance-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_19rem]');
+    expect(screen.getByTestId('assetbalance-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_20rem]');
   });
 
   it('保存後: right rail に軽い confirmation strip が表示される', async () => {

@@ -25,9 +25,9 @@ export function ReceiptsTabNav({
   counts,
 }: ReceiptsTabNavProps) {
   return (
-    <nav className="mb-5 no-print" aria-label="取引明細タブ">
+    <nav className="mb-2 no-print" aria-label="取引明細タブ">
       <div
-        className="flex flex-wrap gap-1.5 border-b border-slate-200/90"
+        className="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm"
         role="tablist"
         ref={tablistRef}
       >
@@ -37,10 +37,10 @@ export function ReceiptsTabNav({
             <button
               key={tab}
               id={`tab-${tab}`}
-              className={`-mb-px inline-flex items-center gap-2 rounded-t-lg border border-transparent border-b-0 px-4 py-3 text-sm font-medium transition-[color,background-color,border-color,box-shadow] ${
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-[color,background-color,border-color,box-shadow] ${
                 isActive
-                  ? 'border-slate-200 bg-white text-slate-900 shadow-[0_-1px_0_0_rgba(255,255,255,1),0_4px_8px_-6px_rgba(15,23,42,0.35)]'
-                  : 'text-slate-500 hover:bg-white/80 hover:text-slate-800'
+                  ? 'border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]'
+                  : 'border-transparent text-slate-500 hover:bg-white hover:text-slate-900'
               }`}
               onClick={() => onTabChange(tab)}
               onKeyDown={onKeyDown}
@@ -55,7 +55,7 @@ export function ReceiptsTabNav({
                 data-testid={`tab-count-${tab}`}
                 className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                   isActive
-                    ? 'border border-slate-200 bg-slate-100 text-slate-700'
+                    ? 'border border-white/20 bg-white text-slate-950'
                     : 'bg-slate-100 text-slate-500'
                 }`}
               >

@@ -5,6 +5,8 @@ interface SecurityCodeLinkProps {
   className?: string;
 }
 
+const FONT_WEIGHT_CLASS_REGEX = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
+
 /**
  * 銘柄コードをリンクとして表示するコンポーネント
  * - 銘柄コードを正規化してパラメータ検証
@@ -22,8 +24,9 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
     return <span>{code}</span>;
   }
 
-  const baseClassName = 'security-code-link text-primary font-semibold hover:underline';
-  const combinedClassName = className ? `${baseClassName} ${className}` : baseClassName;
+  const baseClassName = 'security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500';
+  const fontWeightClassName = className && FONT_WEIGHT_CLASS_REGEX.test(className) ? '' : 'font-bold';
+  const combinedClassName = [className, fontWeightClassName, baseClassName].filter(Boolean).join(' ');
 
   return (
     <a

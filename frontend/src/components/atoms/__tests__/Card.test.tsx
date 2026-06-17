@@ -15,7 +15,7 @@ describe('CardHeader', () => {
 
     const header = screen.getByText('ヘッダー');
     expect(header).toBeInTheDocument();
-    expect(header).toHaveClass('bg-slate-700');
+    expect(header).toHaveClass('bg-slate-950');
   });
 });
 

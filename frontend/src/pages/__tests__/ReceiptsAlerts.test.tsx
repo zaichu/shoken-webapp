@@ -27,7 +27,7 @@ describe('ReceiptsAlerts', () => {
     );
 
     expect(screen.getByText('2行目: 金額が不正です')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveClass('bg-warning/15');
+    expect(screen.getByRole('alert')).toHaveClass('bg-amber-50');
   });
 
   it('csvPreview.errors が空なら warning バリアントを使わない', () => {
@@ -41,8 +41,8 @@ describe('ReceiptsAlerts', () => {
     );
 
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveClass('bg-info/10');
-    expect(alert).not.toHaveClass('bg-warning/15');
+    expect(alert).toHaveClass('bg-blue-50');
+    expect(alert).not.toHaveClass('bg-amber-50');
   });
 
   it('dbError があるとエラーメッセージを表示する', () => {

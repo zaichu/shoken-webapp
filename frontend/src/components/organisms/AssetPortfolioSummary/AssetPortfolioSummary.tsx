@@ -74,7 +74,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   // データがない場合
   if (assetBalanceData.length === 0) {
     return (
-      <Card className="mb-3">
+      <Card className="mb-3 overflow-hidden">
         <CardBody>
           <EmptyState
             title={isFiltered ? "該当する銘柄がありません" : "資産管理データがありません"}
@@ -107,16 +107,16 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   return (
     <div className="mb-3 space-y-4" data-testid="asset-portfolio-summary">
       <section
-        className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm"
+        className="rounded-xl border border-slate-950/10 bg-white/95 px-5 py-5 shadow-[0_16px_44px_-38px_rgba(15,23,42,0.9)]"
         data-testid="portfolio-kpi-strip"
       >
-        <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-slate-950/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">資産サマリー</h2>
+            <h2 className="text-sm font-black text-slate-950">資産サマリー</h2>
           </div>
           {isFiltered ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+              <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
                 絞り込み中: {displayCount}/{actualTotalCount}件
               </span>
               {onClearFilter ? (
@@ -132,25 +132,25 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
           ) : null}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-4">
+          <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
             <p className="text-3xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
               {formatCurrency(totalPurchaseAmount)}
             </p>
           </div>
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-4">
+          <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">年間配当金額</p>
-            <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-annual-dividends">
+            <p className="text-3xl font-bold text-teal-700 tabular-nums" data-testid="portfolio-annual-dividends">
               {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
             </p>
           </div>
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-4">
+          <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">配当利回り</p>
-            <p className="text-3xl font-bold text-emerald-600 tabular-nums" data-testid="portfolio-dividend-yield">
+            <p className="text-3xl font-bold text-teal-700 tabular-nums" data-testid="portfolio-dividend-yield">
               {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
             </p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-4">
+          <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">保有銘柄数</p>
             <p className="text-3xl font-bold text-slate-700 tabular-nums">
               {isFiltered
@@ -163,11 +163,11 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
         </div>
       </section>
 
-      <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm">
+      <Card className="overflow-hidden border-slate-950/10 bg-white/95">
         <CardBody className="p-0">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-slate-950/10 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">保有内訳</h3>
+              <h3 className="text-sm font-black text-slate-900">保有内訳</h3>
             </div>
           </div>
           <div className="p-4">

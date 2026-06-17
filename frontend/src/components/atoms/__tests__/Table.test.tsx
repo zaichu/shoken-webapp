@@ -66,7 +66,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('[&_tbody_tr:nth-child(even)]:bg-slate-50');
+    expect(table).toHaveClass('[&_tbody_tr:nth-child(even)]:bg-slate-50/80');
   });
 
   test('borderedプロパティが正しく適用される', () => {
@@ -96,7 +96,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('[&_tbody_tr:hover]:bg-slate-100');
+    expect(table).toHaveClass('[&_tbody_tr:hover]:bg-amber-50/60');
   });
 
   test('smallプロパティが正しく適用される', () => {
@@ -158,7 +158,7 @@ describe('Table', () => {
     );
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('bg-primary/10');
+    expect(table).toHaveClass('bg-slate-950/10');
   });
 
   test('forceResizeプロパティが変更されたとき再計算がトリガーされる', async () => {
@@ -245,7 +245,7 @@ describe('Table', () => {
     );
 
     const row = screen.getByRole('row');
-    expect(row).toHaveClass('bg-primary/10');
+    expect(row).toHaveClass('bg-amber-50');
   });
 
   test('TableRowのvariantプロパティが正しく適用される', () => {
@@ -260,7 +260,7 @@ describe('Table', () => {
     );
 
     const row = screen.getByRole('row');
-    expect(row).toHaveClass('bg-success/10');
+    expect(row).toHaveClass('bg-teal-50');
   });
 
   test('TableHeaderのstickyTopプロパティが正しく適用される', () => {
@@ -290,7 +290,7 @@ describe('Table', () => {
     );
 
     const thead = screen.getByRole('rowgroup');
-    expect(thead).toHaveClass('bg-slate-800', 'text-white');
+    expect(thead).toHaveClass('bg-slate-950', 'text-white');
   });
 
   test('TableCellのscopeプロパティがthの場合に正しく適用される', () => {
