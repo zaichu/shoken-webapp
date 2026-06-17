@@ -57,4 +57,16 @@ describe('SecurityCodeLink', () => {
     expect(link).not.toHaveClass('font-bold');
     expect(link).toHaveClass('text-blue-700');
   });
+
+  it('prefix 付き font weight を指定した場合はデフォルトの font-bold と競合しない', () => {
+    render(
+      <MemoryRouter>
+        <SecurityCodeLink value="7203" className="hover:font-semibold" />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: '7203' });
+    expect(link).toHaveClass('hover:font-semibold');
+    expect(link).not.toHaveClass('font-bold');
+  });
 });
