@@ -19,4 +19,15 @@ describe('PageHeader', () => {
 
     expect(screen.getByRole('button', { name: '追加' })).toBeInTheDocument();
   });
+
+  it('eyebrow を指定した場合だけ表示する', () => {
+    const { rerender } = render(<PageHeader title="資産管理" />);
+
+    expect(screen.queryByText('Portfolio')).not.toBeInTheDocument();
+    expect(screen.queryByText('Workspace')).not.toBeInTheDocument();
+
+    rerender(<PageHeader title="資産管理" eyebrow="Portfolio" />);
+
+    expect(screen.getByText('Portfolio')).toBeInTheDocument();
+  });
 });

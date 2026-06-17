@@ -46,6 +46,7 @@ export function SearchPage() {
       <div className="page-surface">
         <PageHeader
           title="銘柄検索"
+          eyebrow="Search"
           description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
         />
         <SearchForm
