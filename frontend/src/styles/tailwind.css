@@ -30,6 +30,7 @@
 
   --container-wide: 1600px;
 
+  /* stylelint-disable-next-line value-keyword-case -- Meiryo is the official Windows font family name. */
   --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 

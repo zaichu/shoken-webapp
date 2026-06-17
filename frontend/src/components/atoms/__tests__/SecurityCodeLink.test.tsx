@@ -44,4 +44,17 @@ describe('SecurityCodeLink', () => {
 
     expect(screen.getByRole('link', { name: '7203' })).toHaveClass('custom-class');
   });
+
+  it('font weight を指定した場合はデフォルトの font-bold と競合しない', () => {
+    render(
+      <MemoryRouter>
+        <SecurityCodeLink value="7203" className="text-[11px] font-semibold" />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: '7203' });
+    expect(link).toHaveClass('font-semibold');
+    expect(link).not.toHaveClass('font-bold');
+    expect(link).toHaveClass('text-blue-700');
+  });
 });

@@ -272,8 +272,8 @@ describe('ReceiptTemplate', () => {
 
     expect(screen.getByTestId('receipt-workspace')).toBeInTheDocument();
     expect(screen.getByTestId('receipt-utility-rail')).toBeInTheDocument();
-    expect(screen.getByTestId('receipt-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_22rem]');
-    expect(screen.getByTestId('receipt-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
+    expect(screen.getByTestId('receipt-workspace').className).toContain('lg:grid-cols-[minmax(0,1fr)_19rem]');
+    expect(screen.getByTestId('receipt-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_20rem]');
 
     const utilityRail = screen.getByTestId('receipt-utility-rail');
     expect(utilityRail).toContainElement(screen.getByTestId('workspace-tools'));

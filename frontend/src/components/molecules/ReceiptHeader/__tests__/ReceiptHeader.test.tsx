@@ -168,7 +168,7 @@ describe('ReceiptHeader', () => {
     render(<ReceiptHeader items={defaultItems} />);
 
     const strip = screen.getByTestId('receipt-summary-strip');
-    expect(strip).toHaveClass('rounded-xl', 'border-slate-200', 'bg-white', 'shadow-sm');
+    expect(strip).toHaveClass('rounded-xl', 'border-slate-950/10', 'bg-white/95');
   });
 
   it('KPIカードの角丸・背景がAssetPortfolioSummaryのKPIカードと一致する', () => {

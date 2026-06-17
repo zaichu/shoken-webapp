@@ -12,14 +12,14 @@ describe('Button', () => {
     
     const button = screen.getByRole('button', { name: 'テストボタン' });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('bg-primary');
+    expect(button).toHaveClass('bg-slate-950');
   });
 
   it('指定されたvariantのクラスが適用される', () => {
     render(<Button {...defaultProps} variant="success" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-success');
+    expect(button).toHaveClass('bg-teal-700');
   });
 
   it('outline variantが正しく適用される', () => {
@@ -33,14 +33,14 @@ describe('Button', () => {
     render(<Button {...defaultProps} size="lg" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('text-lg');
+    expect(button).toHaveClass('text-base');
   });
 
-  it('デフォルトサイズ(md)の場合はサイズクラスが追加されない', () => {
+  it('デフォルトサイズ(md)の場合は標準サイズのクラスが追加される', () => {
     render(<Button {...defaultProps} size="md" />);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('text-base');
+    expect(button).toHaveClass('text-sm');
   });
 
   it('fullWidthプロパティが動作する', () => {

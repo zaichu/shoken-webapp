@@ -84,7 +84,7 @@ describe('InputField', () => {
     render(<InputField label="テスト項目" variant="filled" />);
 
     const input = screen.getByLabelText('テスト項目');
-    expect(input).toHaveClass('bg-gray-100');
+    expect(input).toHaveClass('bg-slate-50');
   });
 
   it('variant=standardのスタイルが適用される', () => {

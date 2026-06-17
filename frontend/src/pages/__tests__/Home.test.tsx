@@ -27,7 +27,7 @@ describe('HomePage', () => {
     );
 
     expect(screen.getByRole('heading', { level: 1, name: '証券Web' })).toBeInTheDocument();
-    expect(screen.getByText('日々の資産・取引を確認する')).toBeInTheDocument();
+    expect(screen.getByText('資産、配当、取引明細をひとつの作業面で確認します。')).toBeInTheDocument();
   });
 
   it('ステータスストリップに4件のタイルを表示する', () => {
@@ -94,7 +94,7 @@ describe('HomePage', () => {
     );
 
     const nextSection = screen
-      .getByRole('heading', { name: '次に行う操作' })
+      .getByRole('heading', { name: '操作ショートカット' })
       .parentElement;
 
     expect(nextSection).not.toBeNull();
@@ -121,8 +121,8 @@ describe('HomePage', () => {
 
     const scoped = within(flowSection as HTMLElement);
 
-    expect(scoped.getByText('証券会社からCSVをダウンロード')).toBeInTheDocument();
-    expect(scoped.getByText('各ページのCSV取込から反映')).toBeInTheDocument();
-    expect(scoped.getByText('資産・配当金・取引明細を確認')).toBeInTheDocument();
+    expect(scoped.getByText('CSV取得')).toBeInTheDocument();
+    expect(scoped.getByText('各ページで取込')).toBeInTheDocument();
+    expect(scoped.getByText('資産と明細を確認')).toBeInTheDocument();
   });
 });
