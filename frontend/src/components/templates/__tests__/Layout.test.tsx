@@ -30,4 +30,10 @@ describe('Layout', () => {
     expect(screen.getByTestId('header')).toBeInTheDocument();
     expect(screen.getByTestId('footer')).toBeInTheDocument();
   });
+
+  it('明示的な背景色を持つ', () => {
+    render(<Layout><div>コンテンツ</div></Layout>);
+
+    expect(screen.getByText('コンテンツ').closest('.min-h-screen')).toHaveClass('bg-slate-50');
+  });
 });
