@@ -268,27 +268,27 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                        {!isDefaultState && (
-                            <Button
-                                type="button"
-                                variant="outline-secondary"
-                                size="sm"
-                                onClick={(e: React.MouseEvent) => {
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleClearSearch();
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
                                     e.stopPropagation();
-                                    handleClearSearch();
-                                }}
-                                onKeyDown={(e: React.KeyboardEvent) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.stopPropagation();
-                                    }
-                                }}
-                                className="whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                                aria-label="検索条件をクリア"
-                                data-testid="search-clear-button"
-                            >
-                                解除
-                            </Button>
-                        )}
+                                }
+                            }}
+                            className={`whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 transition-opacity${isDefaultState ? ' opacity-0 pointer-events-none' : ''}`}
+                            aria-label="検索条件をクリア"
+                            aria-hidden={isDefaultState}
+                            tabIndex={isDefaultState ? -1 : 0}
+                            data-testid="search-clear-button"
+                        >
+                            解除
+                        </Button>
                         <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700" aria-hidden="true">
                             <svg
                                 className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
@@ -374,7 +374,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         <svg className="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        {!compact && <span className="ml-1">絞り込み解除</span>}
+                        <span className="ml-1">絞り込み解除</span>
                     </Button>
                     {/* シェブロンアイコン: 回転で開閉状態を表現 */}
                     <span

@@ -361,6 +361,21 @@ describe('SearchCard', () => {
     expect(mockOnExpandToggle).not.toHaveBeenCalled();
   });
 
+  test('compactモードの初期状態でクリアボタンがDOMに存在し操作不可である', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        compact
+      />
+    );
+
+    const clearButton = screen.getByTestId('search-clear-button');
+    expect(clearButton).toBeInTheDocument();
+    expect(clearButton).toHaveClass('opacity-0');
+    expect(clearButton).toHaveClass('pointer-events-none');
+  });
+
   test('compactモードでクリアボタンのクリックとキーダウンが動作する', () => {
     render(
       <SearchCard
