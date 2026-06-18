@@ -15,7 +15,7 @@ import {
     formatNumber,
     createISODateKey
 } from '@/lib/utils/formatters';
-import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
+import { CopyableInstrumentName, renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
@@ -100,7 +100,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
     const baseColumns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', width: '84px', format: formatJPDate },
         { key: 'security_code', header: '銘柄コード', width: '72px', textAlign: 'center', format: renderSecurityCode },
-        { key: 'security_name', header: '銘柄名', width: '156px' },
+        { key: 'security_name', header: '銘柄名', width: '156px', render: (value, row) => <CopyableInstrumentName name={value} code={row.security_code} /> },
         { key: 'account', header: '口座', width: '60px' },
         { key: 'shares', header: '数量', width: '56px', textAlign: 'right', format: formatNumber },
         { key: 'asked_price', header: '売却単価', width: '76px', textAlign: 'right', format: formatCurrency },

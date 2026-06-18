@@ -45,8 +45,16 @@ const isNegativeValue = (value: unknown): boolean => {
     return Number(normalized) < 0;
 };
 
-const renderCell = (value: unknown, column: ColumnConfig, key: string, style?: React.CSSProperties) => {
-    const formattedValue = column.format ? column.format(value) : value;
+const renderCell = (
+    value: unknown,
+    column: ColumnConfig,
+    key: string,
+    style?: React.CSSProperties,
+    row?: DataItem
+) => {
+    const formattedValue = 'render' in column && column.render && row
+        ? column.render(value, row)
+        : column.format ? column.format(value) : value;
     const isNegative = !React.isValidElement(formattedValue) && isNegativeValue(value);
     const displayText = React.isValidElement(formattedValue) ? undefined : String(toText(formattedValue));
 
@@ -86,7 +94,7 @@ function renderDataRows<T extends DataItem>(
     return items.map((item, itemIndex) => (
         <TableRow key={`${keyPrefix}-${itemIndex}`}>
             {columns.map((column, colIndex) =>
-                renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`)
+                renderCell(item[column.key], column, `${keyPrefix}-${itemIndex}-${colIndex}`, undefined, item)
             )}
         </TableRow>
     ));
@@ -161,7 +169,7 @@ function renderGroupedRows<T extends DataItem, S extends SummaryItem>(
                 {groupItems.map((item, itemIndex) => (
                     <TableRow key={`item-${summaryIndex}-${itemIndex}`}>
                         {columns.map((column, colIndex) =>
-                            renderCell(item[column.key], column, `item-${summaryIndex}-${itemIndex}-${colIndex}`)
+                            renderCell(item[column.key], column, `item-${summaryIndex}-${itemIndex}-${colIndex}`, undefined, item)
                         )}
                     </TableRow>
                 ))}

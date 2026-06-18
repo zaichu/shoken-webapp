@@ -43,6 +43,44 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
   );
 };
 
+interface CopyableInstrumentNameProps {
+  name: unknown;
+  code?: unknown;
+  className?: string;
+}
+
+const toDisplayText = (value: unknown): string => {
+  if (value === null || value === undefined) return "-";
+  const text = String(value).trim();
+  return text || "-";
+};
+
+const createInstrumentCopyText = (name: unknown, code?: unknown): string => {
+  const displayName = toDisplayText(name);
+  const normalizedCode = normalizeSecurityCode(code);
+  return normalizedCode ? displayName + "(" + normalizedCode + ")" : displayName;
+};
+
+export const CopyableInstrumentName: React.FC<CopyableInstrumentNameProps> = ({ name, code, className }) => {
+  const displayName = toDisplayText(name);
+  const copyText = createInstrumentCopyText(name, code);
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    if (copyText && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(copyText);
+    }
+  };
+
+  const combinedClassName = className ? className + " cursor-copy" : "cursor-copy";
+
+  return (
+    <span className={combinedClassName} title={copyText} onContextMenu={handleContextMenu}>
+      {displayName}
+    </span>
+  );
+};
+
 /**
  * カラムのformat用レンダラー（ReactNodeを返す）
  */
