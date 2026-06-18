@@ -99,7 +99,7 @@ describe('DomesticStock', () => {
         expect(screen.getByText('テスト株式2')).toBeInTheDocument();
     });
 
-    it('銘柄名を右クリックすると銘柄名と銘柄コードをコピーする', () => {
+    it('銘柄名を右クリックしてもコピーされない', () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText },
@@ -113,6 +113,24 @@ describe('DomesticStock', () => {
         }]} />);
 
         fireEvent.contextMenu(screen.getByText('ＫＤＤＩ'));
+
+        expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it('コピーアイコンを押すと銘柄名と銘柄コードをコピーする', () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        render(<DomesticStock data={[{
+            ...mockData[0],
+            security_code: '9433',
+            security_name: 'ＫＤＤＩ',
+        }]} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
 
         expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
     });
