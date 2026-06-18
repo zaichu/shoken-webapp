@@ -94,7 +94,7 @@ describe('Mutualfund', () => {
         expect(screen.getByText('ファンド名')).toBeInTheDocument();
     });
 
-    it('ファンド名を右クリックするとファンド名をコピーする', () => {
+    it('ファンド名を右クリックしてもコピーされない', () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText },
@@ -103,7 +103,21 @@ describe('Mutualfund', () => {
 
         render(<Mutualfund data={mockData} />);
 
-        fireEvent.contextMenu(screen.getByText('テストファンドA'));
+        fireEvent.contextMenu(screen.getAllByText('テストファンドA')[0]);
+
+        expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it('コピーアイコンを押すとファンド名をコピーする', () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        render(<Mutualfund data={mockData} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'テストファンドA をコピー' }));
 
         expect(writeText).toHaveBeenCalledWith('テストファンドA');
     });

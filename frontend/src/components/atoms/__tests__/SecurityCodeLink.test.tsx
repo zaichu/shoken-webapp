@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { SecurityCodeLink } from '../SecurityCodeLink';
+import { SecurityCodeLink, CopyableInstrumentName } from '../SecurityCodeLink';
 
 describe('SecurityCodeLink', () => {
   it('有効な 4 桁コードをリンクとして表示する', () => {
@@ -68,5 +69,55 @@ describe('SecurityCodeLink', () => {
     const link = screen.getByRole('link', { name: '7203' });
     expect(link).toHaveClass('hover:font-semibold');
     expect(link).not.toHaveClass('font-bold');
+  });
+});
+
+describe('CopyableInstrumentName', () => {
+  it('銘柄名を表示する', () => {
+    render(<CopyableInstrumentName name="テスト株式" code="9433" />);
+    expect(screen.getByText('テスト株式')).toBeInTheDocument();
+  });
+
+  it('コピーボタンが accessible name を持つ（銘柄名+コード）', () => {
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    expect(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' })).toBeInTheDocument();
+  });
+
+  it('コードなしの場合はファンド名のみの accessible name を持つ', () => {
+    render(<CopyableInstrumentName name="テストファンドA" />);
+    expect(screen.getByRole('button', { name: 'テストファンドA をコピー' })).toBeInTheDocument();
+  });
+
+  it('右クリックしてもコピーされない', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    fireEvent.contextMenu(screen.getByText('ＫＤＤＩ'));
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('コピーボタンをクリックすると clipboard.writeText が呼ばれる', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
+    expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
+  });
+
+  it('navigator.clipboard がない環境でもエラーにならない', () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      configurable: true,
+    });
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    expect(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
+    }).not.toThrow();
   });
 });
