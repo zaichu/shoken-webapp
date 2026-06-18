@@ -88,7 +88,7 @@ export const CopyableInstrumentName: React.FC<CopyableInstrumentNameProps> = ({ 
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden="true"
-        className="rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 hover:text-gray-600"
+        className="rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 group-hover:text-gray-600 group-focus-visible:opacity-100"
       >
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />

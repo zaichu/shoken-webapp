@@ -132,9 +132,10 @@ describe('CopyableInstrumentName', () => {
     expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
   });
 
-  it('focus:opacity-100 が使われておらず focus-visible 系クラスが使われている', () => {
+  it('SVGアイコンに group-focus-visible:opacity-100 が含まれ focus:opacity-100 が含まれない', () => {
     const { container } = render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
-    expect(container.innerHTML).not.toContain('focus:opacity-100');
-    expect(container.innerHTML).toMatch(/focus-visible/);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('class')).toContain('group-focus-visible:opacity-100');
+    expect(svg?.getAttribute('class')).not.toContain('focus:opacity-100');
   });
 });
