@@ -234,7 +234,7 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   return (
     <div className={className} data-testid="portfolio-pie-chart">
       {/* 横棒グラフリスト（2-3列グリッド） */}
-      <div className={gridClassName}>
+      <div className={gridClassName} data-testid="portfolio-items-grid">
         {displayData.map((item, index) => (
           <PortfolioItemCard
             key={item.securityCode}
