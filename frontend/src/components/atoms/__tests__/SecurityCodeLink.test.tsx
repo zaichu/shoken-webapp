@@ -120,4 +120,22 @@ describe('CopyableInstrumentName', () => {
       fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
     }).not.toThrow();
   });
+
+  it('表示文字列をクリックすると clipboard.writeText が呼ばれる', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    fireEvent.click(screen.getByText('ＫＤＤＩ'));
+    expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
+  });
+
+  it('SVGアイコンに group-focus-visible:opacity-100 が含まれ focus:opacity-100 が含まれない', () => {
+    const { container } = render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('class')).toContain('group-focus-visible:opacity-100');
+    expect(svg?.getAttribute('class')).not.toContain('focus:opacity-100');
+  });
 });
