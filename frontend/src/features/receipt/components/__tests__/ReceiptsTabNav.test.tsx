@@ -47,6 +47,23 @@ describe('ReceiptsTabNav', () => {
     expect(screen.getByTestId('tab-count-mutualfund')).toHaveTextContent('2');
   });
 
+  it('非選択タブと件数バッジは淡い背景でも十分なコントラストの文字色を使う', () => {
+    render(
+      <ReceiptsTabNav
+        receiptsType="domesticstock"
+        tablistRef={createRef<HTMLDivElement>()}
+        onTabChange={vi.fn()}
+        onKeyDown={vi.fn()}
+        counts={counts}
+      />
+    );
+
+    const inactiveTab = screen.getByRole('tab', { name: /配当金/ });
+
+    expect(inactiveTab).toHaveClass('text-slate-800');
+    expect(screen.getByTestId('tab-count-dividend')).toHaveClass('text-slate-700');
+  });
+
   it('タブクリックで onTabChange コールバックが呼ばれる', () => {
     const onTabChange = vi.fn();
 
