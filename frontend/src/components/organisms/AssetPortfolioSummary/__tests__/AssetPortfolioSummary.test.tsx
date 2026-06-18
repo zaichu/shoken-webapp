@@ -197,6 +197,15 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
   });
 
+  it('KPI strip のグリッドは xl:grid-cols-3 で3列ベースを使用し xl:grid-cols-4 は使用しない', () => {
+    const mockData = createMockData();
+    const { container } = render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+    const kpiGrid = container.querySelector('[data-testid="portfolio-kpi-grid"]');
+    expect(kpiGrid).toBeInTheDocument();
+    expect(kpiGrid).toHaveClass('xl:grid-cols-3');
+    expect(kpiGrid).not.toHaveClass('xl:grid-cols-4');
+  });
+
   describe('配当金額・配当利回り', () => {
     it('ポートフォリオ全体の年間配当金額と配当利回りが正しく表示される', () => {
       const mockData = createMockData();

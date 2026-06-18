@@ -88,6 +88,13 @@ describe('PortfolioPieChart', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('3件以上のデータでは保有内訳カードを xl:grid-cols-3 で表示する', () => {
+    const { container } = render(<PortfolioPieChart data={mockData} />);
+    const grid = container.querySelector('[data-testid="portfolio-items-grid"]');
+    expect(grid).toHaveClass('xl:grid-cols-3');
+    expect(grid).not.toHaveClass('xl:grid-cols-4');
+  });
+
   it('カスタムクラス名が適用される', () => {
     render(<PortfolioPieChart data={mockData} className="custom-chart" />);
 
