@@ -120,4 +120,21 @@ describe('CopyableInstrumentName', () => {
       fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
     }).not.toThrow();
   });
+
+  it('表示文字列をクリックすると clipboard.writeText が呼ばれる', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    fireEvent.click(screen.getByText('ＫＤＤＩ'));
+    expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
+  });
+
+  it('focus:opacity-100 が使われておらず focus-visible 系クラスが使われている', () => {
+    const { container } = render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    expect(container.innerHTML).not.toContain('focus:opacity-100');
+    expect(container.innerHTML).toMatch(/focus-visible/);
+  });
 });
