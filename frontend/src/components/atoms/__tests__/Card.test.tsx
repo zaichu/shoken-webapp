@@ -7,6 +7,12 @@ describe('Card', () => {
 
     expect(screen.getByText('カード本文')).toBeInTheDocument();
   });
+
+  it('backdrop blur を適用しない', () => {
+    render(<Card>カード本文</Card>);
+
+    expect(screen.getByText('カード本文')).not.toHaveClass('backdrop-blur-sm');
+  });
 });
 
 describe('CardHeader', () => {

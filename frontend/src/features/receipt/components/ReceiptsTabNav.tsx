@@ -37,10 +37,10 @@ export function ReceiptsTabNav({
             <button
               key={tab}
               id={`tab-${tab}`}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-[color,background-color,border-color,box-shadow] ${
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold ${
                 isActive
                   ? 'border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]'
-                  : 'border-transparent text-slate-500 hover:bg-white hover:text-slate-900'
+                  : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950'
               }`}
               onClick={() => onTabChange(tab)}
               onKeyDown={onKeyDown}
@@ -56,7 +56,7 @@ export function ReceiptsTabNav({
                 className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                   isActive
                     ? 'border border-white/20 bg-white text-slate-950'
-                    : 'bg-slate-100 text-slate-500'
+                    : 'border border-slate-200 bg-white text-slate-700'
                 }`}
               >
                 {counts[tab]}
