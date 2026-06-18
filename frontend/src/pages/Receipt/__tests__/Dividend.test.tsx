@@ -122,6 +122,24 @@ describe('Dividend', () => {
         expect(screen.getByText('テスト株式2')).toBeInTheDocument();
     });
 
+    it('銘柄名を右クリックすると銘柄名と銘柄コードをコピーする', () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        render(<Dividend data={[{
+            ...mockData[0],
+            security_code: '9433',
+            security_name: 'ＫＤＤＩ',
+        }]} />);
+
+        fireEvent.contextMenu(screen.getByText('ＫＤＤＩ'));
+
+        expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
+    });
+
     it('検索オプションが正しく生成される', async () => {
         const { container } = render(<Dividend data={mockData} />);
 

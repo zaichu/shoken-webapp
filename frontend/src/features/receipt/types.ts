@@ -1,4 +1,5 @@
 import type { components } from '@/generated/api';
+import type React from 'react';
 import type { FormatFunction, TableColumnAlignment } from '@/types/common';
 
 export type DividendApiData = components['schemas']['Dividend'];
@@ -19,6 +20,7 @@ export interface TableColumnConfig {
   width?: string;
   textAlign?: TableColumnAlignment;
   format?: FormatFunction;
+  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
 export interface SummaryColumnConfig {

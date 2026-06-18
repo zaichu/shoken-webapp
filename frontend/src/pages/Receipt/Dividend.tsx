@@ -19,7 +19,7 @@ import {
     formatNumber,
     SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
-import { renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
+import { CopyableInstrumentName, renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
@@ -172,7 +172,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
         { key: 'product', header: '商品', width: '64px' },
         { key: 'account', header: '口座', width: '64px' },
         { key: 'security_code', header: '銘柄コード', width: '72px', textAlign: 'center', format: renderSecurityCode },
-        { key: 'security_name', header: '銘柄名', width: '160px' },
+        { key: 'security_name', header: '銘柄名', width: '160px', render: (value, row) => <CopyableInstrumentName name={value} code={row.security_code} /> },
         { key: 'unit_price', header: '単価', width: '72px', textAlign: 'right', format: formatCurrency },
         { key: 'shares', header: '数量', width: '56px', textAlign: 'right', format: formatNumber },
         { key: 'dividends_before_tax', header: '配当金', width: '84px', textAlign: 'right', format: formatCurrency },

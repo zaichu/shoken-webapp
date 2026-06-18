@@ -3,6 +3,7 @@ import { ReceiptHeader } from '@/components/molecules/ReceiptHeader/ReceiptHeade
 import { ReceiptTable } from '@/components/organisms/ReceiptTable/ReceiptTable';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import React from 'react';
+import { CopyableInstrumentName } from '@/components/atoms/SecurityCodeLink';
 import type {
     MutualfundData,
     SummaryColumnConfig,
@@ -99,7 +100,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
     // テーブルカラムの定義（列幅を明示的に設定して右端切れを防止）
     const columns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', width: '112px', format: formatJPDate },
-        { key: 'fund_name', header: 'ファンド名', width: '300px' },
+        { key: 'fund_name', header: 'ファンド名', width: '300px', render: (value) => <CopyableInstrumentName name={value} /> },
         { key: 'account', header: '口座', width: '60px' },
         { key: 'shares', header: '数量', width: '112px', textAlign: 'right', format: formatNumber },
         { key: 'cancellation_unit_price_yen', header: '解約単価', width: '98px', textAlign: 'right', format: formatCurrency },

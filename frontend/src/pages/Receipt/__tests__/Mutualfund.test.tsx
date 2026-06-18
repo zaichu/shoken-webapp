@@ -94,6 +94,20 @@ describe('Mutualfund', () => {
         expect(screen.getByText('ファンド名')).toBeInTheDocument();
     });
 
+    it('ファンド名を右クリックするとファンド名をコピーする', () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        render(<Mutualfund data={mockData} />);
+
+        fireEvent.contextMenu(screen.getByText('テストファンドA'));
+
+        expect(writeText).toHaveBeenCalledWith('テストファンドA');
+    });
+
     it('ファンド名検索でフィルタリングされる', async () => {
         const user = userEvent.setup();
         const { container } = render(<Mutualfund data={mockData} />);
