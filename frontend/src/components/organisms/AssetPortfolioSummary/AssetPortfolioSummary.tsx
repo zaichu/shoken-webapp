@@ -131,7 +131,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             </div>
           ) : null}
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="portfolio-kpi-grid">
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="portfolio-kpi-grid">
           <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
             <p className="text-3xl font-bold text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>

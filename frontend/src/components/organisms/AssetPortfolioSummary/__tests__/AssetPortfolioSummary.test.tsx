@@ -197,13 +197,13 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
   });
 
-  it('KPI strip のグリッドは xl:grid-cols-3 で3列ベースを使用し xl:grid-cols-4 は使用しない', () => {
+  it('KPI strip のグリッドは lg:grid-cols-4 で4列表示を使用する', () => {
     const mockData = createMockData();
     const { container } = render(<AssetPortfolioSummary assetBalanceData={mockData} />);
     const kpiGrid = container.querySelector('[data-testid="portfolio-kpi-grid"]');
     expect(kpiGrid).toBeInTheDocument();
-    expect(kpiGrid).toHaveClass('xl:grid-cols-3');
-    expect(kpiGrid).not.toHaveClass('xl:grid-cols-4');
+    expect(kpiGrid).toHaveClass('lg:grid-cols-4');
+    expect(kpiGrid).not.toHaveClass('xl:grid-cols-3');
   });
 
   describe('配当金額・配当利回り', () => {
