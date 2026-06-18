@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils/classNames';
 import { normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 
 interface SecurityCodeLinkProps {
@@ -5,7 +6,8 @@ interface SecurityCodeLinkProps {
   className?: string;
 }
 
-const FONT_WEIGHT_CLASS_REGEX = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
+// hover:font-bold や sm:font-semibold 等の responsive/state prefix を含む font-weight クラスを検出する
+const FONT_WEIGHT_CLASS_REGEX = /(?:^|\s)(?:[a-z-]+:)*font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
 
 /**
  * 銘柄コードをリンクとして表示するコンポーネント
@@ -24,14 +26,16 @@ export const SecurityCodeLink: React.FC<SecurityCodeLinkProps> = ({ value, class
     return <span>{code}</span>;
   }
 
-  const baseClassName = 'security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500';
-  const fontWeightClassName = className && FONT_WEIGHT_CLASS_REGEX.test(className) ? '' : 'font-bold';
-  const combinedClassName = [className, fontWeightClassName, baseClassName].filter(Boolean).join(' ');
+  const hasFontWeight = !!className && FONT_WEIGHT_CLASS_REGEX.test(className);
 
   return (
     <a
       href={`/search?code=${encodeURIComponent(code)}`}
-      className={combinedClassName}
+      className={cn(
+        'security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500',
+        !hasFontWeight && 'font-bold',
+        className
+      )}
       data-search={code}
     >
       {code}
