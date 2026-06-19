@@ -42,8 +42,10 @@ description: |
 
 <詳細説明（任意）>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
+
+利用モデルを検証できない場合は `Co-Authored-By` に具体的なモデル名・バージョンを書かない。
 
 - `<変更内容の要約>` と `<詳細説明>` は日本語で記述する
 
