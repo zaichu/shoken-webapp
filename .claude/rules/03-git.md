@@ -44,7 +44,7 @@ README や skills の記載と衝突した場合は、本ドキュメントを�
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-利用モデルを検証できない場合は `Co-Authored-By` に具体的なモデル名・バージョンを書かない。
+利用モデルを CLI 出力・API ログ・実行環境の明示情報などで検証できる場合は、`Co-Authored-By: Claude <具体モデル名> <noreply@anthropic.com>` のように具体名を書いてよい。検証できない場合は `Co-Authored-By: Claude <noreply@anthropic.com>` を使う。
 
 ### 種別
 
