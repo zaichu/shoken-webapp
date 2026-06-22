@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { SearchCard } from '../SearchCard';
@@ -168,6 +168,23 @@ describe('SearchCard', () => {
     );
 
     // SearchCardがレンダーされないことを確認
+    expect(container.firstChild).toBeNull();
+  });
+
+  test('dates: true でも years が空の場合は SearchCard が非表示になる', () => {
+    const { container } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={{
+          securities: [],
+          products: [],
+          accounts: [],
+          years: [],
+          dates: true,
+        }}
+      />
+    );
+
     expect(container.firstChild).toBeNull();
   });
 
@@ -401,6 +418,185 @@ describe('SearchCard', () => {
     fireEvent.keyDown(clearBtn2, { key: 'Enter' });
     fireEvent.keyDown(clearBtn2, { key: ' ' });
     expect(clearBtn2).toBeInTheDocument();
+  });
+
+  describe('期間ブロック', () => {
+    const dateCategories = {
+      ...defaultCategories,
+      dates: true as const,
+    };
+
+    test('datesカテゴリがある場合、期間ブロックが表示される', () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      expect(screen.getByText('期間')).toBeInTheDocument();
+    });
+
+    test('dates: true の場合、「期間」が「銘柄」より前に表示される', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      const text = container.textContent ?? '';
+      expect(text.indexOf('期間')).toBeLessThan(text.indexOf('銘柄'));
+    });
+
+    test('compact モードでも「期間」が「銘柄」より前に表示される', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} compact />
+      );
+      const text = container.textContent ?? '';
+      expect(text.indexOf('期間')).toBeLessThan(text.indexOf('銘柄'));
+    });
+
+    test('datesカテゴリがない場合、期間ブロックが表示されない', () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={defaultCategories} />);
+      expect(screen.queryByText('期間')).not.toBeInTheDocument();
+    });
+
+    test('年セグメントに text/number input が存在しない', () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(document.querySelector('input[type="number"]')).not.toBeInTheDocument();
+    });
+
+    test('年モードでは「年を選択」ボタンが表示される', () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      expect(screen.getByRole('button', { name: '年を選択' })).toBeInTheDocument();
+    });
+
+    test("「年を選択」ボタンをクリックすると年候補だけが表示される", () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      fireEvent.click(screen.getByLabelText("年を選択"));
+      const picker = screen.getByRole("listbox", { name: "年候補" });
+      expect(within(picker).getByText("2023年")).toBeInTheDocument();
+      expect(within(picker).getByText("2024年")).toBeInTheDocument();
+      expect(within(picker).queryByText(/1月|2月|月曜日|（|）/)).not.toBeInTheDocument();
+    });
+
+    test("年候補を選択すると年検索が実行され、パネルが閉じ、field が更新される", () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      fireEvent.click(screen.getByLabelText("年を選択"));
+      fireEvent.click(screen.getByRole("option", { name: "2024年" }));
+      expect(mockOnSearch).toHaveBeenCalledWith("2024");
+      expect(screen.queryByRole("listbox", { name: "年候補" })).not.toBeInTheDocument();
+      expect(screen.getByLabelText("年を選択")).toHaveTextContent("2024年");
+    });
+
+    test("月セグメントへ切り替えると年候補が閉じる", () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      fireEvent.click(screen.getByLabelText("年を選択"));
+      expect(screen.getByRole("listbox", { name: "年候補" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "月" }));
+      expect(screen.queryByRole("listbox", { name: "年候補" })).not.toBeInTheDocument();
+    });
+
+    test('期間ブロックのどのセグメントにも曜日・括弧が表示されない（native date input 由来の括弧も含む）', () => {
+      const FORBIDDEN = /月曜日|火曜日|水曜日|木曜日|金曜日|土曜日|日曜日|（|）|\(|\)/;
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      // 年モード（初期）
+      expect(container.textContent).not.toMatch(FORBIDDEN);
+      // 年候補パネルを開いた状態でも同様
+      fireEvent.click(screen.getByLabelText('年を選択'));
+      expect(container.textContent).not.toMatch(FORBIDDEN);
+      // 月モード
+      fireEvent.click(screen.getByRole('button', { name: '月' }));
+      expect(container.textContent).not.toMatch(FORBIDDEN);
+      // 日モード（hidden input が括弧を混入しないことを確認）
+      fireEvent.click(screen.getByRole('button', { name: '日' }));
+      expect(container.textContent).not.toMatch(FORBIDDEN);
+      // 範囲モード（hidden input 2つとも括弧を混入しないことを確認）
+      fireEvent.click(screen.getByRole('button', { name: '範囲' }));
+      expect(container.textContent).not.toMatch(FORBIDDEN);
+    });
+
+
+    test('月・日・範囲セグメントの native input は aria-hidden で画面上の表示から除外される（括弧・曜日の混入防止）', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: '月' }));
+      let ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
+      expect(ariaHiddenInputs).toHaveLength(1);
+      expect(ariaHiddenInputs[0]).toHaveAttribute('type', 'month');
+      expect(ariaHiddenInputs[0]).toHaveAttribute('aria-hidden', 'true');
+      fireEvent.click(screen.getByRole('button', { name: '日' }));
+      ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
+      expect(ariaHiddenInputs).toHaveLength(1);
+      expect(ariaHiddenInputs[0]).toHaveAttribute('type', 'date');
+      expect(ariaHiddenInputs[0]).toHaveAttribute('aria-hidden', 'true');
+      fireEvent.click(screen.getByRole('button', { name: '範囲' }));
+      ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
+      expect(ariaHiddenInputs).toHaveLength(2);
+      ariaHiddenInputs.forEach(input => expect(input).toHaveAttribute('aria-hidden', 'true'));
+    });
+
+    test('月モードで hidden month input に change を発火すると onSearch が呼ばれ button 表示が更新される', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: '月' }));
+      expect(screen.getByRole('button', { name: '月を選択' })).toBeInTheDocument();
+      const monthInput = container.querySelector("input[aria-hidden]") as HTMLInputElement;
+      expect(monthInput).toHaveAttribute('type', 'month');
+      fireEvent.change(monthInput, { target: { value: '2024-03' } });
+      expect(mockOnSearch).toHaveBeenCalledWith('2024-03');
+      expect(screen.getByRole('button', { name: '2024/03' })).toBeInTheDocument();
+    });
+
+    test('日モードで hidden date input に change を発火すると onSearch が呼ばれ button 表示が更新される', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: '日' }));
+      const dateInput = container.querySelector("input[aria-hidden]") as HTMLInputElement;
+      fireEvent.change(dateInput, { target: { value: '2024-03-15' } });
+      expect(mockOnSearch).toHaveBeenCalledWith('2024-03-15');
+      expect(screen.getByRole('button', { name: '2024/03/15' })).toBeInTheDocument();
+    });
+
+    test('範囲モードで hidden date inputs に change を発火すると button 表示が更新され YYYY-MM-DD..YYYY-MM-DD 形式で onSearch が呼ばれる', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: '範囲' }));
+      const inputs = Array.from(container.querySelectorAll("input[aria-hidden]")) as HTMLInputElement[];
+      fireEvent.change(inputs[0], { target: { value: '2024-03-01' } });
+      fireEvent.change(inputs[1], { target: { value: '2024-03-31' } });
+      expect(mockOnSearch).toHaveBeenLastCalledWith('2024-03-01..2024-03-31');
+      expect(screen.getByRole('button', { name: '2024/03/01' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '2024/03/31' })).toBeInTheDocument();
+    });
+
+    test('銘柄検索後に月セグメントへ切り替えると既存検索が解除される', () => {
+      const { container } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+      // 銘柄を選択
+      const secSelect = container.querySelector('#securities-search') as HTMLSelectElement;
+      fireEvent.change(secSelect, { target: { value: 'AAPL' } });
+      expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
+      expect(secSelect.value).toBe('AAPL');
+      // 月セグメントへ切り替え → 既存検索が解除される
+      fireEvent.click(screen.getByRole('button', { name: '月' }));
+      expect(mockOnSearch).toHaveBeenLastCalledWith('');
+      // 銘柄ドロップダウンの選択表示が外れる
+      expect(secSelect.value).toBe('');
+    });
+
+    test('クリアで期間入力状態がリセットされる', () => {
+      render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
+      // 年ピッカーで2024を選択
+      fireEvent.click(screen.getByLabelText('年を選択'));
+      fireEvent.click(screen.getByRole('option', { name: '2024年' }));
+      expect(mockOnSearch).toHaveBeenCalledWith('2024');
+      // クリアで検索もUIも初期化される
+      fireEvent.click(screen.getByTestId('search-clear-button'));
+      expect(mockOnSearch).toHaveBeenLastCalledWith('');
+      // セグメントが年モードに戻り、年ピッカーが「年を選択」を表示する
+      expect(screen.getByRole('button', { name: '年', pressed: true })).toBeInTheDocument();
+      expect(screen.getByLabelText('年を選択')).toHaveTextContent('年を選択');
+    });
   });
 
   test('compactモードでは検索グリッドが1列表示になる', () => {
