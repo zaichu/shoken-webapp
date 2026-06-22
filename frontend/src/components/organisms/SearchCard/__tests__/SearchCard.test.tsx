@@ -455,7 +455,6 @@ describe('SearchCard', () => {
     test('年セグメントに text/number input が存在しない', () => {
       render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-      // eslint-disable-next-line testing-library/no-node-access
       expect(document.querySelector('input[type="number"]')).not.toBeInTheDocument();
     });
 
@@ -517,19 +516,16 @@ describe('SearchCard', () => {
         <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
       );
       fireEvent.click(screen.getByRole('button', { name: '月' }));
-      // eslint-disable-next-line testing-library/no-node-access
       let ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
       expect(ariaHiddenInputs).toHaveLength(1);
       expect(ariaHiddenInputs[0]).toHaveAttribute('type', 'month');
       expect(ariaHiddenInputs[0]).toHaveAttribute('aria-hidden', 'true');
       fireEvent.click(screen.getByRole('button', { name: '日' }));
-      // eslint-disable-next-line testing-library/no-node-access
       ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
       expect(ariaHiddenInputs).toHaveLength(1);
       expect(ariaHiddenInputs[0]).toHaveAttribute('type', 'date');
       expect(ariaHiddenInputs[0]).toHaveAttribute('aria-hidden', 'true');
       fireEvent.click(screen.getByRole('button', { name: '範囲' }));
-      // eslint-disable-next-line testing-library/no-node-access
       ariaHiddenInputs = Array.from(container.querySelectorAll("input[aria-hidden]"));
       expect(ariaHiddenInputs).toHaveLength(2);
       ariaHiddenInputs.forEach(input => expect(input).toHaveAttribute('aria-hidden', 'true'));
@@ -541,7 +537,6 @@ describe('SearchCard', () => {
       );
       fireEvent.click(screen.getByRole('button', { name: '月' }));
       expect(screen.getByRole('button', { name: '月を選択' })).toBeInTheDocument();
-      // eslint-disable-next-line testing-library/no-node-access
       const monthInput = container.querySelector("input[aria-hidden]") as HTMLInputElement;
       expect(monthInput).toHaveAttribute('type', 'month');
       fireEvent.change(monthInput, { target: { value: '2024-03' } });
@@ -554,7 +549,6 @@ describe('SearchCard', () => {
         <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
       );
       fireEvent.click(screen.getByRole('button', { name: '日' }));
-      // eslint-disable-next-line testing-library/no-node-access
       const dateInput = container.querySelector("input[aria-hidden]") as HTMLInputElement;
       fireEvent.change(dateInput, { target: { value: '2024-03-15' } });
       expect(mockOnSearch).toHaveBeenCalledWith('2024-03-15');
@@ -566,7 +560,6 @@ describe('SearchCard', () => {
         <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
       );
       fireEvent.click(screen.getByRole('button', { name: '範囲' }));
-      // eslint-disable-next-line testing-library/no-node-access
       const inputs = Array.from(container.querySelectorAll("input[aria-hidden]")) as HTMLInputElement[];
       fireEvent.change(inputs[0], { target: { value: '2024-03-01' } });
       fireEvent.change(inputs[1], { target: { value: '2024-03-31' } });
