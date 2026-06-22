@@ -35,6 +35,9 @@ const FILTER_CONFIG: FilterConfig<DomesticStockData> = {
     ],
     dateField: item => item.trade_date,
     yearSearch: true,
+    yearMonthSearch: true,
+    dateSearch: true,
+    dateRangeSearch: true,
     amountFields: [
         item => item.shares,
         item => item.asked_price,
@@ -61,7 +64,8 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
     const searchCategories = {
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
         accounts: getUniqueValues(domesticStockData, item => item.account),
-        years: createYearOptions(domesticStockData, item => item.trade_date)
+        years: createYearOptions(domesticStockData, item => item.trade_date),
+        dates: true,
     };
 
     // 日次集計（searchQuery がある場合はフィルタ後データ、ない場合は全データを使用）
