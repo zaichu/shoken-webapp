@@ -355,16 +355,12 @@ describe('Dividend', () => {
 
     it('年で検索すると年月単位のグループが維持される', async () => {
         const user = userEvent.setup();
-        const { container } = render(<Dividend data={mockData} />);
+        render(<Dividend data={mockData} />);
 
         const searchCardHeader = screen.getByTestId('search-card-header');
         fireEvent.click(searchCardHeader);
-        await waitFor(() => {
-            expect(container.querySelector('#years-search')).toBeInTheDocument();
-        });
-
-        const yearSelect = container.querySelector('#years-search') as HTMLSelectElement;
-        await user.selectOptions(yearSelect, '2023');
+        await user.click(await screen.findByRole('button', { name: '年を選択' }));
+        await user.click(await screen.findByRole('option', { name: '2023年' }));
 
         await waitFor(() => {
             expect(screen.getByText('2023年1月')).toBeInTheDocument();
