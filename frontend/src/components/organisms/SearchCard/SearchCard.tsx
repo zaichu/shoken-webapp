@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
+
+type ActiveSearchType = 'securities' | 'years' | 'products' | 'accounts' | 'date' | null;
+type DateSegment = '年' | '月' | '日' | '範囲';
+
+const DATE_SEGMENTS: DateSegment[] = ['年', '月', '日', '範囲'];
+
+function buildRangeQuery(start: string, end: string): string {
+    if (!start && !end) return '';
+    return `${start}..${end}`;
+}
 
 interface QuickSearchDropdownProps {
     items: { value: string; label: string }[];
     id: string;
     searchType: 'securities' | 'years';
-    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    activeSearchType: ActiveSearchType;
     searchQuery: string;
     onSearch: (value: string, searchType: 'securities' | 'years') => void;
 }
@@ -50,7 +60,7 @@ const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
 interface QuickSearchButtonsProps {
     items: string[];
     searchType: 'products' | 'accounts';
-    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    activeSearchType: ActiveSearchType;
     searchQuery: string;
     onSearch: (value: string, searchType: 'products' | 'accounts') => void;
 }
@@ -109,7 +119,7 @@ const BUTTONS_CONFIGS: Array<{ key: ButtonsSearchType; label: string }> = [
 interface SearchFieldsGridProps {
     categories: SearchCategories;
     gridClassName: string;
-    activeSearchType: 'securities' | 'years' | 'products' | 'accounts' | null;
+    activeSearchType: ActiveSearchType;
     searchQuery: string;
     onSearch: (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => void;
     hasData: (data: unknown[] | undefined) => boolean;
@@ -120,7 +130,8 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
 }) => (
     <div className={`grid ${gridClassName}`}>
         {DROPDOWN_CONFIGS.map(({ key, label }) =>
-            hasData(categories[key]) && (
+            // yearsはdatesブロックが有効な場合は期間ブロック側で表示するため除外
+            hasData(categories[key]) && !(key === 'years' && Boolean(categories.dates)) && (
                 <div key={key} className="space-y-1">
                     <label htmlFor={`${key}-search`} className="text-sm font-bold text-slate-800">{label}</label>
                     <QuickSearchDropdown
@@ -153,6 +164,197 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
     </div>
 );
 
+const formatDateLabel = (value: string): string => value.replace(/-/g, "/");
+
+interface CalendarDateButtonProps {
+    label: string;
+    value: string;
+    inputType?: 'date' | 'month';
+    onChange: (value: string) => void;
+}
+
+const CalendarDateButton: React.FC<CalendarDateButtonProps> = ({ label, value, inputType = 'date', onChange }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleButtonClick = () => {
+        const input = inputRef.current;
+        if (!input) return;
+        try {
+            const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+            if (typeof pickerInput.showPicker === 'function') {
+                pickerInput.showPicker();
+                return;
+            }
+        } catch {
+            // fall through to the click fallback
+        }
+        input.focus();
+        input.click();
+    };
+
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={handleButtonClick}
+                className={"w-full flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25 " + (value ? "border-amber-500 bg-amber-50 text-amber-900 font-semibold" : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")}
+            >
+                <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="flex-1 text-left">
+                    {value ? formatDateLabel(value) : label}
+                </span>
+            </button>
+            <input
+                ref={inputRef}
+                type={inputType}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                aria-hidden="true"
+                tabIndex={-1}
+                className="absolute opacity-0 pointer-events-none w-px h-px overflow-hidden"
+            />
+        </div>
+    );
+};
+
+interface DatePeriodBlockProps {
+    dateSegment: DateSegment;
+    years: { value: string; label: string }[];
+    yearValue: string;
+    monthValue: string;
+    dateValue: string;
+    rangeStart: string;
+    rangeEnd: string;
+    isYearPickerOpen: boolean;
+    onSegmentChange: (segment: DateSegment) => void;
+    onToggleYearPicker: () => void;
+    onYearOptionSelect: (value: string) => void;
+    onMonthChange: (value: string) => void;
+    onDateValueChange: (value: string) => void;
+    onRangeStartChange: (value: string) => void;
+    onRangeEndChange: (value: string) => void;
+}
+
+const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
+    dateSegment, years, yearValue, monthValue, dateValue, rangeStart, rangeEnd, isYearPickerOpen,
+    onSegmentChange, onToggleYearPicker, onYearOptionSelect, onMonthChange, onDateValueChange, onRangeStartChange, onRangeEndChange,
+}) => {
+    const availableSegments = years.length > 0 ? DATE_SEGMENTS : DATE_SEGMENTS.filter(seg => seg !== '年');
+    const visibleDateSegment = years.length === 0 && dateSegment === '年' ? '月' : dateSegment;
+
+    return (
+    <div className="space-y-2">
+        <div className="text-sm font-bold text-slate-800">期間</div>
+        <div className="flex gap-1">
+            {availableSegments.map(seg => (
+                <button
+                    key={seg}
+                    type="button"
+                    aria-pressed={visibleDateSegment === seg}
+                    onClick={() => onSegmentChange(seg)}
+                    className={`flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors ${
+                        visibleDateSegment === seg
+                            ? 'bg-slate-950 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                    {seg}
+                </button>
+            ))}
+        </div>
+        {visibleDateSegment === '年' && (
+            <div className="relative">
+                <button
+                    type="button"
+                    aria-label="年を選択"
+                    aria-haspopup="listbox"
+                    aria-expanded={isYearPickerOpen}
+                    onClick={onToggleYearPicker}
+                    className={`w-full flex items-center gap-2 border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25 ${
+                        isYearPickerOpen ? 'rounded-t-md rounded-b-none' : 'rounded-md'
+                    } ${
+                        yearValue
+                            ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
+                            : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
+                    }`}
+                >
+                    <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="flex-1 text-left">
+                        {yearValue ? (years.find(y => y.value === yearValue)?.label ?? yearValue) : '年を選択'}
+                    </span>
+                    <svg
+                        className={`w-4 h-4 shrink-0 text-slate-400 transition-transform duration-150 ${isYearPickerOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                {isYearPickerOpen && (
+                    <div
+                        role="listbox"
+                        aria-label="年候補"
+                        className="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5"
+                    >
+                        {years.map(year => (
+                            <button
+                                key={year.value}
+                                type="button"
+                                role="option"
+                                aria-selected={yearValue === year.value}
+                                onClick={() => onYearOptionSelect(year.value)}
+                                className={
+                                    yearValue === year.value
+                                        ? 'rounded px-1 py-1.5 text-sm font-semibold text-center whitespace-nowrap bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-400 transition-colors'
+                                        : 'rounded px-1 py-1.5 text-sm text-center whitespace-nowrap text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors'
+                                }
+                            >
+                                {year.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+        {visibleDateSegment === '月' && (
+            <CalendarDateButton
+                label="月を選択"
+                value={monthValue}
+                inputType="month"
+                onChange={onMonthChange}
+            />
+        )}
+        {visibleDateSegment === '日' && (
+            <CalendarDateButton
+                label="日を選択"
+                value={dateValue}
+                onChange={onDateValueChange}
+            />
+        )}
+        {visibleDateSegment === '範囲' && (
+            <div className="flex flex-col gap-2">
+                <CalendarDateButton
+                    label="開始日"
+                    value={rangeStart}
+                    onChange={onRangeStartChange}
+                />
+                <CalendarDateButton
+                    label="終了日"
+                    value={rangeEnd}
+                    onChange={onRangeEndChange}
+                />
+            </div>
+        )}
+    </div>
+    );
+};
+
 interface SearchCardProps {
     onSearch: (query: string) => void;
     categories?: SearchCategories;
@@ -177,15 +379,23 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     const [isExpanded, setIsExpanded] = useState(initialExpanded);
     // layout 切り替えなどで initialExpanded が変化したときに展開状態を同期する
-    // useEffect ではなくレンダー中に調整することで余分な再レンダーを防ぐ
     const [prevInitialExpanded, setPrevInitialExpanded] = useState(initialExpanded);
     if (prevInitialExpanded !== initialExpanded) {
         setPrevInitialExpanded(initialExpanded);
         setIsExpanded(initialExpanded);
     }
     const [searchQuery, setSearchQuery] = useState('');
-    // アクティブな検索タイプを追跡（ドロップダウンの表示制御用）
-    const [activeSearchType, setActiveSearchType] = useState<'securities' | 'years' | 'products' | 'accounts' | null>(null);
+    const [activeSearchType, setActiveSearchType] = useState<ActiveSearchType>(null);
+
+    // 日付検索用ステート
+    const [dateSegment, setDateSegment] = useState<DateSegment>('年');
+    const [yearValue, setYearValue] = useState('');
+    const [monthValue, setMonthValue] = useState('');
+    const [dateValue, setDateValue] = useState('');
+    const [rangeStart, setRangeStart] = useState('');
+    const [rangeEnd, setRangeEnd] = useState('');
+    const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+
     const effectiveSearchQuery = value ?? searchQuery;
     const effectiveActiveSearchType = value === '' ? null : activeSearchType;
 
@@ -198,7 +408,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         hasData(categories.securities) ||
         hasData(categories.products) ||
         hasData(categories.accounts) ||
-        hasData(categories.years)
+        hasData(categories.years) ||
+        Boolean(categories.dates)
     );
 
     // 展開状態の切り替え処理
@@ -208,18 +419,72 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         onExpandToggle?.(newExpandedState);
     };
 
-    // キーボードイベントハンドラ
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleToggleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleToggleExpanded();
         }
     };
 
+    const resetDateInputs = () => {
+        setYearValue('');
+        setMonthValue('');
+        setDateValue('');
+        setRangeStart('');
+        setRangeEnd('');
+        setIsYearPickerOpen(false);
+    };
+
     const handleQuickSearch = (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => {
         setSearchQuery(value);
         setActiveSearchType(value ? searchType : null);
+        resetDateInputs();
         onSearch(value);
+    };
+
+    const handleDateSearch = (val: string) => {
+        setSearchQuery(val);
+        setActiveSearchType(val ? 'date' : null);
+        onSearch(val);
+    };
+
+    const handleSegmentChange = (segment: DateSegment) => {
+        if (segment === dateSegment) return;
+        setDateSegment(segment);
+        if (activeSearchType !== null) {
+            setSearchQuery('');
+            setActiveSearchType(null);
+            onSearch('');
+        }
+        resetDateInputs();
+    };
+
+    const handleYearOptionSelect = (val: string) => {
+        setYearValue(val);
+        setIsYearPickerOpen(false);
+        handleDateSearch(val);
+    };
+
+    const handleMonthChange = (val: string) => {
+        setMonthValue(val);
+        handleDateSearch(val);
+    };
+
+    const handleDateValueChange = (val: string) => {
+        setDateValue(val);
+        handleDateSearch(val);
+    };
+
+    const handleRangeStartChange = (val: string) => {
+        setRangeStart(val);
+        const query = buildRangeQuery(val, rangeEnd);
+        handleDateSearch(query);
+    };
+
+    const handleRangeEndChange = (val: string) => {
+        setRangeEnd(val);
+        const query = buildRangeQuery(rangeStart, val);
+        handleDateSearch(query);
     };
 
     // 検索条件が初期状態かどうか
@@ -229,6 +494,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     const handleClearSearch = () => {
         setSearchQuery('');
         setActiveSearchType(null);
+        setDateSegment('年');
+        resetDateInputs();
         onSearch('');
     };
 
@@ -237,21 +504,44 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
+    const datePeriodBlock = categories?.dates ? (
+        <div className="mb-3.5">
+            <DatePeriodBlock
+                dateSegment={dateSegment}
+                years={categories?.years ?? []}
+                yearValue={yearValue}
+                monthValue={monthValue}
+                dateValue={dateValue}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                isYearPickerOpen={isYearPickerOpen}
+                onSegmentChange={handleSegmentChange}
+                onToggleYearPicker={() => setIsYearPickerOpen(open => !open)}
+                onYearOptionSelect={handleYearOptionSelect}
+                onMonthChange={handleMonthChange}
+                onDateValueChange={handleDateValueChange}
+                onRangeStartChange={handleRangeStartChange}
+                onRangeEndChange={handleRangeEndChange}
+            />
+        </div>
+    ) : null;
+
     if (compact) {
         return (
             <section className="px-4 py-4" data-testid="search-card-compact">
                 <div
-                    className="flex cursor-pointer items-center justify-between gap-2 select-none"
-                    onClick={handleToggleExpanded}
-                    onKeyDown={handleKeyDown}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    aria-controls="search-options-body"
-                    aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
-                    data-testid="search-card-header"
+                    className="flex items-center justify-between gap-2"
                 >
-                    <div className="flex min-w-0 items-center gap-2.5">
+                    <button
+                        type="button"
+                        className="flex min-w-0 items-center gap-2.5 text-left select-none"
+                        onClick={handleToggleExpanded}
+                        onKeyDown={handleToggleKeyDown}
+                        aria-expanded={isExpanded}
+                        aria-controls="search-options-body"
+                        aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                        data-testid="search-card-header"
+                    >
                         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -266,7 +556,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 </span>
                             )}
                         </div>
-                    </div>
+                    </button>
                     <div className="flex shrink-0 items-center gap-1.5">
                         <Button
                             type="button"
@@ -303,6 +593,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 </div>
                 {isExpanded && categories && (
                     <div id="search-options-body" className="pt-4">
+                        {datePeriodBlock}
                         <SearchFieldsGrid
                             categories={categories}
                             gridClassName="grid-cols-1 gap-3.5"
@@ -321,21 +612,22 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1 overflow-hidden">
             <CardHeader
                 variant="secondary"
-                className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                className={`flex items-center justify-between transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
                     isExpanded
                         ? 'bg-slate-950 hover:bg-slate-900 border-b border-amber-500'
                         : 'bg-slate-800 hover:bg-slate-900'
                 }`}
-                onClick={handleToggleExpanded}
-                onKeyDown={handleKeyDown}
-                role="button"
-                tabIndex={0}
-                aria-expanded={isExpanded}
-                aria-controls="search-options-body"
-                aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
-                data-testid="search-card-header"
             >
-                <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    className="flex items-center gap-2 text-left select-none"
+                    onClick={handleToggleExpanded}
+                    onKeyDown={handleToggleKeyDown}
+                    aria-expanded={isExpanded}
+                    aria-controls="search-options-body"
+                    aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                    data-testid="search-card-header"
+                >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
@@ -345,7 +637,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             フィルタ適用中
                         </span>
                     )}
-                </div>
+                </button>
                 <div className="flex items-center gap-6">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button
@@ -397,6 +689,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             </CardHeader>
             {isExpanded && categories && (
                 <CardBody id="search-options-body" className="p-3">
+                    {datePeriodBlock}
                     <SearchFieldsGrid
                         categories={categories}
                         gridClassName="grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
