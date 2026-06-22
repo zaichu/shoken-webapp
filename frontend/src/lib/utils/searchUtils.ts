@@ -59,15 +59,23 @@ function matchesDate(date: Date, query: string): boolean {
  * 日付範囲検索マッチャー
  * クエリ形式: "YYYY-MM-DD..YYYY-MM-DD" / "YYYY-MM-DD.." / "..YYYY-MM-DD"
  */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE_RE.test(value)) return false;
+  const date = new Date(value + 'T00:00:00.000Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function matchesDateRange(date: Date, query: string): boolean {
   const sepIdx = query.indexOf('..');
   if (sepIdx === -1) return false;
   const start = query.slice(0, sepIdx);
   const end = query.slice(sepIdx + 2);
-  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-  if (start && !datePattern.test(start)) return false;
-  if (end && !datePattern.test(end)) return false;
+  if (start && !isValidIsoDate(start)) return false;
+  if (end && !isValidIsoDate(end)) return false;
   if (!start && !end) return false;
+  if (start && end && start > end) return false;
   const dateStr = date.toISOString().split('T')[0];
   if (start && end) return dateStr >= start && dateStr <= end;
   if (start) return dateStr >= start;

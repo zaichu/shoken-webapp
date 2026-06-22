@@ -240,18 +240,22 @@ interface DatePeriodBlockProps {
 const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
     dateSegment, years, yearValue, monthValue, dateValue, rangeStart, rangeEnd, isYearPickerOpen,
     onSegmentChange, onToggleYearPicker, onYearOptionSelect, onMonthChange, onDateValueChange, onRangeStartChange, onRangeEndChange,
-}) => (
+}) => {
+    const availableSegments = years.length > 0 ? DATE_SEGMENTS : DATE_SEGMENTS.filter(seg => seg !== '年');
+    const visibleDateSegment = years.length === 0 && dateSegment === '年' ? '月' : dateSegment;
+
+    return (
     <div className="space-y-2">
         <div className="text-sm font-bold text-slate-800">期間</div>
         <div className="flex gap-1">
-            {DATE_SEGMENTS.map(seg => (
+            {availableSegments.map(seg => (
                 <button
                     key={seg}
                     type="button"
-                    aria-pressed={dateSegment === seg}
+                    aria-pressed={visibleDateSegment === seg}
                     onClick={() => onSegmentChange(seg)}
                     className={`flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors ${
-                        dateSegment === seg
+                        visibleDateSegment === seg
                             ? 'bg-slate-950 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
@@ -260,7 +264,7 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                 </button>
             ))}
         </div>
-        {dateSegment === '年' && (
+        {visibleDateSegment === '年' && (
             <div className="relative">
                 <button
                     type="button"
@@ -318,7 +322,7 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                 )}
             </div>
         )}
-        {dateSegment === '月' && (
+        {visibleDateSegment === '月' && (
             <CalendarDateButton
                 label="月を選択"
                 value={monthValue}
@@ -326,14 +330,14 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                 onChange={onMonthChange}
             />
         )}
-        {dateSegment === '日' && (
+        {visibleDateSegment === '日' && (
             <CalendarDateButton
                 label="日を選択"
                 value={dateValue}
                 onChange={onDateValueChange}
             />
         )}
-        {dateSegment === '範囲' && (
+        {visibleDateSegment === '範囲' && (
             <div className="flex flex-col gap-2">
                 <CalendarDateButton
                     label="開始日"
@@ -348,7 +352,8 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
             </div>
         )}
     </div>
-);
+    );
+};
 
 interface SearchCardProps {
     onSearch: (query: string) => void;
@@ -403,7 +408,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         hasData(categories.securities) ||
         hasData(categories.products) ||
         hasData(categories.accounts) ||
-        hasData(categories.years)
+        hasData(categories.years) ||
+        Boolean(categories.dates)
     );
 
     // 展開状態の切り替え処理
@@ -413,8 +419,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         onExpandToggle?.(newExpandedState);
     };
 
-    // キーボードイベントハンドラ
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleToggleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleToggleExpanded();
@@ -499,7 +504,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return null;
     }
 
-    const datePeriodBlock = Boolean(categories?.dates) && hasData(categories?.years) ? (
+    const datePeriodBlock = categories?.dates ? (
         <div className="mb-3.5">
             <DatePeriodBlock
                 dateSegment={dateSegment}
@@ -525,17 +530,18 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         return (
             <section className="px-4 py-4" data-testid="search-card-compact">
                 <div
-                    className="flex cursor-pointer items-center justify-between gap-2 select-none"
-                    onClick={handleToggleExpanded}
-                    onKeyDown={handleKeyDown}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    aria-controls="search-options-body"
-                    aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
-                    data-testid="search-card-header"
+                    className="flex items-center justify-between gap-2"
                 >
-                    <div className="flex min-w-0 items-center gap-2.5">
+                    <button
+                        type="button"
+                        className="flex min-w-0 items-center gap-2.5 text-left select-none"
+                        onClick={handleToggleExpanded}
+                        onKeyDown={handleToggleKeyDown}
+                        aria-expanded={isExpanded}
+                        aria-controls="search-options-body"
+                        aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                        data-testid="search-card-header"
+                    >
                         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -550,7 +556,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 </span>
                             )}
                         </div>
-                    </div>
+                    </button>
                     <div className="flex shrink-0 items-center gap-1.5">
                         <Button
                             type="button"
@@ -606,21 +612,22 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1 overflow-hidden">
             <CardHeader
                 variant="secondary"
-                className={`flex cursor-pointer items-center justify-between select-none transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                className={`flex items-center justify-between transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
                     isExpanded
                         ? 'bg-slate-950 hover:bg-slate-900 border-b border-amber-500'
                         : 'bg-slate-800 hover:bg-slate-900'
                 }`}
-                onClick={handleToggleExpanded}
-                onKeyDown={handleKeyDown}
-                role="button"
-                tabIndex={0}
-                aria-expanded={isExpanded}
-                aria-controls="search-options-body"
-                aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
-                data-testid="search-card-header"
             >
-                <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    className="flex items-center gap-2 text-left select-none"
+                    onClick={handleToggleExpanded}
+                    onKeyDown={handleToggleKeyDown}
+                    aria-expanded={isExpanded}
+                    aria-controls="search-options-body"
+                    aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                    data-testid="search-card-header"
+                >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
@@ -630,7 +637,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             フィルタ適用中
                         </span>
                     )}
-                </div>
+                </button>
                 <div className="flex items-center gap-6">
                     {/* 条件クリアボタン（ヘッダー内・常にレンダリングし高さを固定） */}
                     <Button

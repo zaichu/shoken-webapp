@@ -171,7 +171,7 @@ describe('SearchCard', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  test('dates: true でも years が空の場合は SearchCard が非表示になる', () => {
+  test('dates: true で years が空の場合も日付検索用に SearchCard を表示する', () => {
     const { container } = render(
       <SearchCard
         onSearch={mockOnSearch}
@@ -185,7 +185,9 @@ describe('SearchCard', () => {
       />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).not.toBeNull();
+    expect(screen.getByText('期間')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '月', pressed: true })).toBeInTheDocument();
   });
 
   test('年度のみのデータがある場合のレイアウト', () => {
@@ -429,6 +431,24 @@ describe('SearchCard', () => {
     test('datesカテゴリがある場合、期間ブロックが表示される', () => {
       render(<SearchCard onSearch={mockOnSearch} categories={dateCategories} />);
       expect(screen.getByText('期間')).toBeInTheDocument();
+    });
+
+    test('datesカテゴリがあり years が空でも月・日・範囲検索を表示する', () => {
+      const categoriesWithoutYears = {
+        ...defaultCategories,
+        years: [],
+        dates: true as const,
+      };
+
+      render(<SearchCard onSearch={mockOnSearch} categories={categoriesWithoutYears} />);
+
+      expect(screen.getByText('期間')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '年' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '年を選択' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '月', pressed: true })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '月を選択' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '日' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '範囲' })).toBeInTheDocument();
     });
 
     test('dates: true の場合、「期間」が「銘柄」より前に表示される', () => {
