@@ -149,6 +149,16 @@ describe('filterByConfig', () => {
             const result = filterByConfig(testData, 'invalid..range', rangeConfig);
             expect(result).toHaveLength(0);
         });
+
+        it('非実在日付を含む範囲は一致しない', () => {
+            const result = filterByConfig(testData, '..2023-99-99', rangeConfig);
+            expect(result).toHaveLength(0);
+        });
+
+        it('開始日が終了日より後の範囲は一致しない', () => {
+            const result = filterByConfig(testData, '2023-02-01..2023-01-01', rangeConfig);
+            expect(result).toHaveLength(0);
+        });
     });
 
     describe('amountFields（金額検索）', () => {
