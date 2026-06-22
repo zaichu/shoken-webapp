@@ -29,6 +29,9 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
     ],
     dateField: item => item.trade_date,
     yearSearch: true,
+    yearMonthSearch: true,
+    dateSearch: true,
+    dateRangeSearch: true,
 };
 
 interface MutualfundProps {
@@ -47,7 +50,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
     // 検索オプションの生成
     const searchCategories = {
         securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
-        years: createYearOptions(mutualfundData, item => item.trade_date)
+        years: createYearOptions(mutualfundData, item => item.trade_date),
+        dates: true,
     };
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
