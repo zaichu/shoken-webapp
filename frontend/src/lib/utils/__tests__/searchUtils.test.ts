@@ -123,6 +123,44 @@ describe('filterByConfig', () => {
         });
     });
 
+    describe('dateRangeSearch（日付範囲検索）', () => {
+        const rangeConfig: FilterConfig<TestItem> = {
+            dateField: item => item.date,
+            dateRangeSearch: true,
+        };
+
+        it('閉区間 2023-01-01..2023-01-31 に一致する', () => {
+            const result = filterByConfig(testData, '2023-01-01..2023-01-31', rangeConfig);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1234'); // 2023-01-15
+        });
+
+        it('開始日のみ 2023-02-01.. に一致する', () => {
+            const result = filterByConfig(testData, '2023-02-01..', rangeConfig);
+            expect(result).toHaveLength(2); // 2023-02-20, 2024-01-10
+        });
+
+        it('終了日のみ ..2023-01-31 に一致する', () => {
+            const result = filterByConfig(testData, '..2023-01-31', rangeConfig);
+            expect(result).toHaveLength(1); // 2023-01-15
+        });
+
+        it('無効な範囲文字列は既存検索に影響しない（0件）', () => {
+            const result = filterByConfig(testData, 'invalid..range', rangeConfig);
+            expect(result).toHaveLength(0);
+        });
+
+        it('非実在日付を含む範囲は一致しない', () => {
+            const result = filterByConfig(testData, '..2023-99-99', rangeConfig);
+            expect(result).toHaveLength(0);
+        });
+
+        it('開始日が終了日より後の範囲は一致しない', () => {
+            const result = filterByConfig(testData, '2023-02-01..2023-01-01', rangeConfig);
+            expect(result).toHaveLength(0);
+        });
+    });
+
     describe('amountFields（金額検索）', () => {
         it('金額の部分一致で検索できる', () => {
             const config: FilterConfig<TestItem> = {

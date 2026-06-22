@@ -20,4 +20,5 @@ export interface SearchCategories {
   products?: string[];
   accounts?: string[];
   years?: { value: string, label: string }[];
+  dates?: boolean; // true の場合、日付検索UIを表示
 }
