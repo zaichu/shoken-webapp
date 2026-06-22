@@ -45,6 +45,7 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
     yearSearch: true,
     yearMonthSearch: true,
     dateSearch: true,
+    dateRangeSearch: true,
     amountFields: [
         item => item.unit_price,
         item => item.shares,
@@ -72,7 +73,8 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
         securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
         products: getUniqueValues(dividendData, item => item.product),
         accounts: getUniqueValues(dividendData, item => item.account),
-        years: createYearOptions(dividendData, item => item.settlement_date)
+        years: createYearOptions(dividendData, item => item.settlement_date),
+        dates: true,
     };
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
