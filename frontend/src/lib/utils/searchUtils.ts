@@ -55,6 +55,33 @@ function matchesDate(date: Date, query: string): boolean {
   return dateStr === query;
 }
 
+/**
+ * 日付範囲検索マッチャー
+ * クエリ形式: "YYYY-MM-DD..YYYY-MM-DD" / "YYYY-MM-DD.." / "..YYYY-MM-DD"
+ */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE_RE.test(value)) return false;
+  const date = new Date(value + 'T00:00:00.000Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function matchesDateRange(date: Date, query: string): boolean {
+  const sepIdx = query.indexOf('..');
+  if (sepIdx === -1) return false;
+  const start = query.slice(0, sepIdx);
+  const end = query.slice(sepIdx + 2);
+  if (start && !isValidIsoDate(start)) return false;
+  if (end && !isValidIsoDate(end)) return false;
+  if (!start && !end) return false;
+  if (start && end && start > end) return false;
+  const dateStr = date.toISOString().split('T')[0];
+  if (start && end) return dateStr >= start && dateStr <= end;
+  if (start) return dateStr >= start;
+  return dateStr <= end;
+}
+
 // ==================== 汎用フィルタ設定 ====================
 
 /**
@@ -73,6 +100,8 @@ export interface FilterConfig<T> {
   yearMonthSearch?: boolean;
   /** 日付検索を有効にするか */
   dateSearch?: boolean;
+  /** 日付範囲検索を有効にするか（YYYY-MM-DD..YYYY-MM-DD 形式） */
+  dateRangeSearch?: boolean;
   /** 金額フィールド（部分一致検索用） */
   amountFields?: ((item: T) => number)[];
 }
@@ -128,6 +157,11 @@ export function filterByConfig<T>(
 
       // 日付検索
       if (config.dateSearch && matchesDate(date, normalizedQuery)) {
+        return true;
+      }
+
+      // 日付範囲検索
+      if (config.dateRangeSearch && matchesDateRange(date, normalizedQuery)) {
         return true;
       }
     }

@@ -145,16 +145,11 @@ describe('Mutualfund', () => {
 
     it('年検索でフィルタリングされる', async () => {
         const user = userEvent.setup();
-        const { container } = render(<Mutualfund data={mockData} />);
+        render(<Mutualfund data={mockData} />);
 
         fireEvent.click(screen.getByTestId('search-card-header'));
-
-        await waitFor(() => {
-            expect(container.querySelector('#years-search')).toBeInTheDocument();
-        }, waitOpts);
-
-        const yearSelect = container.querySelector('#years-search') as HTMLSelectElement;
-        await user.selectOptions(yearSelect, '2023');
+        await user.click(await screen.findByRole('button', { name: '年を選択' }));
+        await user.click(await screen.findByRole('option', { name: '2023年' }));
 
         const table = screen.getByRole('table');
         await waitFor(() => {
