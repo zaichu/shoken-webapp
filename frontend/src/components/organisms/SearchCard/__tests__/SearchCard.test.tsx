@@ -588,7 +588,7 @@ describe('SearchCard', () => {
       expect(screen.getByRole('button', { name: '2024/03/31' })).toBeInTheDocument();
     });
 
-    test('銘柄検索後に月セグメントへ切り替えると既存検索が解除される', () => {
+    test('銘柄検索後に月セグメントへ切り替えても銘柄条件は維持される', () => {
       const { container } = render(
         <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
       );
@@ -597,11 +597,10 @@ describe('SearchCard', () => {
       fireEvent.change(secSelect, { target: { value: 'AAPL' } });
       expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
       expect(secSelect.value).toBe('AAPL');
-      // 月セグメントへ切り替え → 既存検索が解除される
+      // 月セグメントへ切り替えても、日付条件だけが初期化され銘柄条件は維持される
       fireEvent.click(screen.getByRole('button', { name: '月' }));
-      expect(mockOnSearch).toHaveBeenLastCalledWith('');
-      // 銘柄ドロップダウンの選択表示が外れる
-      expect(secSelect.value).toBe('');
+      expect(mockOnSearch).toHaveBeenLastCalledWith('AAPL');
+      expect(secSelect.value).toBe('AAPL');
     });
 
     test('クリアで期間入力状態がリセットされる', () => {
@@ -632,5 +631,125 @@ describe('SearchCard', () => {
     expect(grid).toHaveClass('grid-cols-1');
     expect(grid).not.toHaveClass('sm:grid-cols-2');
     expect(grid).not.toHaveClass('lg:grid-cols-4');
+  });
+
+  describe('value prop による外部クリア後の挙動', () => {
+    test('親が value を空文字にリセットした後の操作で古い商品条件が復活しない', () => {
+      const { rerender } = render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+        />
+      );
+
+      // 「株式」を選択
+      fireEvent.click(screen.getByText('株式'));
+      expect(mockOnSearch).toHaveBeenCalledWith('株式');
+
+      // 親が value='' でリセット
+      rerender(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+          value=""
+        />
+      );
+
+      // 「一般口座」をクリック → '株式' が復活しないこと
+      fireEvent.click(screen.getByText('一般口座'));
+      expect(mockOnSearch).toHaveBeenLastCalledWith('一般口座');
+    });
+
+    test('親が value を空文字にリセットした後のセグメント切り替えで古い日付条件が復活しない', () => {
+      const dateCategories = { ...defaultCategories, dates: true as const };
+      const { rerender } = render(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} />
+      );
+
+      // 年ピッカーで 2024 を選択
+      fireEvent.click(screen.getByLabelText('年を選択'));
+      fireEvent.click(screen.getByRole('option', { name: '2024年' }));
+      expect(mockOnSearch).toHaveBeenCalledWith('2024');
+
+      // 親が value='' でリセット
+      rerender(
+        <SearchCard onSearch={mockOnSearch} categories={dateCategories} value="" />
+      );
+
+      // 月セグメントへ切り替え → 旧日付条件 '2024' が onSearch に再渡しされないこと
+      fireEvent.click(screen.getByRole('button', { name: '月' }));
+      // handleSegmentChange は effectiveSelectedQueries.date === '' なので applySelectedQueries を呼ばない
+      expect(mockOnSearch).toHaveBeenLastCalledWith('2024');
+    });
+
+    test('親が value を空文字にリセットした後の銘柄選択で古い銘柄条件が復活しない', () => {
+      const { container, rerender } = render(
+        <SearchCard onSearch={mockOnSearch} categories={defaultCategories} />
+      );
+
+      // 銘柄 AAPL を選択
+      const select = container.querySelector('#securities-search') as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'AAPL' } });
+      expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
+
+      // 親が value='' でリセット
+      rerender(
+        <SearchCard onSearch={mockOnSearch} categories={defaultCategories} value="" />
+      );
+
+      // 別の銘柄 GOOGL を選択 → 'AAPL' が復活しないこと
+      fireEvent.change(select, { target: { value: 'GOOGL' } });
+      expect(mockOnSearch).toHaveBeenLastCalledWith('GOOGL');
+    });
+  });
+
+  describe('複数条件の組み合わせ', () => {
+    test('商品「株式」選択後に口座「一般口座」を選択すると、最後のonSearchがスペース区切りの両条件クエリになること', () => {
+      render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+        />
+      );
+
+      fireEvent.click(screen.getByText('株式'));
+      fireEvent.click(screen.getByText('一般口座'));
+
+      expect(mockOnSearch).toHaveBeenLastCalledWith('株式 一般口座');
+    });
+
+    test('商品「株式」選択後に同じ「株式」を再クリックすると条件が解除されて最後のonSearchが空文字になること', () => {
+      render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+        />
+      );
+
+      fireEvent.click(screen.getByText('株式'));
+      fireEvent.click(screen.getByText('株式'));
+
+      expect(mockOnSearch).toHaveBeenLastCalledWith('');
+    });
+
+    test('年ピッカーで2024年を選択後に銘柄AAPLを選択すると、最後のonSearchが「2024 AAPL」になること', () => {
+      const { container } = render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={{
+            ...defaultCategories,
+            dates: true as const,
+          }}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('年を選択'));
+      fireEvent.click(screen.getByRole('option', { name: '2024年' }));
+
+      const select = container.querySelector('#securities-search') as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'AAPL' } });
+
+      expect(mockOnSearch).toHaveBeenLastCalledWith('2024 AAPL');
+    });
   });
 });

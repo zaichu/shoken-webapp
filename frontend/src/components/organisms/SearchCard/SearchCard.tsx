@@ -3,14 +3,40 @@ import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 
-type ActiveSearchType = 'securities' | 'years' | 'products' | 'accounts' | 'date' | null;
+type SearchKey = 'securities' | 'years' | 'products' | 'accounts' | 'date';
+type ActiveSearchType = SearchKey | null;
 type DateSegment = '年' | '月' | '日' | '範囲';
 
 const DATE_SEGMENTS: DateSegment[] = ['年', '月', '日', '範囲'];
+const SEARCH_ORDER: SearchKey[] = ['date', 'securities', 'years', 'products', 'accounts'];
+
+function createEmptySelectedQueries(): Record<SearchKey, string> {
+    return {
+        securities: '',
+        years: '',
+        products: '',
+        accounts: '',
+        date: '',
+    };
+}
 
 function buildRangeQuery(start: string, end: string): string {
     if (!start && !end) return '';
     return `${start}..${end}`;
+}
+
+function formatQueryToken(value: string): string {
+    const trimmed = value.trim();
+    if (!/\s/.test(trimmed)) return trimmed;
+    return `"${trimmed.replace(/"/g, '\\"')}"`;
+}
+
+function buildCombinedQuery(queries: Record<SearchKey, string>): string {
+    return SEARCH_ORDER
+        .map(key => queries[key].trim())
+        .filter(Boolean)
+        .map(formatQueryToken)
+        .join(' ');
 }
 
 interface QuickSearchDropdownProps {
@@ -119,14 +145,13 @@ const BUTTONS_CONFIGS: Array<{ key: ButtonsSearchType; label: string }> = [
 interface SearchFieldsGridProps {
     categories: SearchCategories;
     gridClassName: string;
-    activeSearchType: ActiveSearchType;
-    searchQuery: string;
+    selectedQueries: Record<SearchKey, string>;
     onSearch: (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => void;
     hasData: (data: unknown[] | undefined) => boolean;
 }
 
 const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
-    categories, gridClassName, activeSearchType, searchQuery, onSearch, hasData,
+    categories, gridClassName, selectedQueries, onSearch, hasData,
 }) => (
     <div className={`grid ${gridClassName}`}>
         {DROPDOWN_CONFIGS.map(({ key, label }) =>
@@ -138,8 +163,8 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
                         items={categories[key]!}
                         id={`${key}-search`}
                         searchType={key}
-                        activeSearchType={activeSearchType}
-                        searchQuery={searchQuery}
+                        activeSearchType={selectedQueries[key] ? key : null}
+                        searchQuery={selectedQueries[key]}
                         onSearch={onSearch}
                     />
                 </div>
@@ -153,8 +178,8 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
                         <QuickSearchButtons
                             items={categories[key]!}
                             searchType={key}
-                            activeSearchType={activeSearchType}
-                            searchQuery={searchQuery}
+                            activeSearchType={selectedQueries[key] ? key : null}
+                            searchQuery={selectedQueries[key]}
                             onSearch={onSearch}
                         />
                     </div>
@@ -384,8 +409,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         setPrevInitialExpanded(initialExpanded);
         setIsExpanded(initialExpanded);
     }
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeSearchType, setActiveSearchType] = useState<ActiveSearchType>(null);
+    const [selectedQueries, setSelectedQueries] = useState<Record<SearchKey, string>>(
+        createEmptySelectedQueries()
+    );
 
     // 日付検索用ステート
     const [dateSegment, setDateSegment] = useState<DateSegment>('年');
@@ -396,8 +422,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     const [rangeEnd, setRangeEnd] = useState('');
     const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
 
-    const effectiveSearchQuery = value ?? searchQuery;
-    const effectiveActiveSearchType = value === '' ? null : activeSearchType;
+    const effectiveSelectedQueries = value === '' ? createEmptySelectedQueries() : selectedQueries;
+    const hasActiveSearch = Object.values(effectiveSelectedQueries).some(Boolean);
 
     // データが存在するかチェック
     const hasData = (data: unknown[] | undefined): boolean =>
@@ -435,26 +461,36 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         setIsYearPickerOpen(false);
     };
 
+    const applySelectedQueries = (nextQueries: Record<SearchKey, string>) => {
+        setSelectedQueries(nextQueries);
+        onSearch(buildCombinedQuery(nextQueries));
+    };
+
     const handleQuickSearch = (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => {
-        setSearchQuery(value);
-        setActiveSearchType(value ? searchType : null);
-        resetDateInputs();
-        onSearch(value);
+        const shouldToggleOff =
+            (searchType === 'products' || searchType === 'accounts') &&
+            effectiveSelectedQueries[searchType] === value;
+        applySelectedQueries({
+            ...effectiveSelectedQueries,
+            [searchType]: value === '' || shouldToggleOff ? '' : value,
+        });
     };
 
     const handleDateSearch = (val: string) => {
-        setSearchQuery(val);
-        setActiveSearchType(val ? 'date' : null);
-        onSearch(val);
+        applySelectedQueries({
+            ...effectiveSelectedQueries,
+            date: val,
+        });
     };
 
     const handleSegmentChange = (segment: DateSegment) => {
         if (segment === dateSegment) return;
         setDateSegment(segment);
-        if (activeSearchType !== null) {
-            setSearchQuery('');
-            setActiveSearchType(null);
-            onSearch('');
+        if (effectiveSelectedQueries.date) {
+            applySelectedQueries({
+                ...effectiveSelectedQueries,
+                date: '',
+            });
         }
         resetDateInputs();
     };
@@ -488,12 +524,11 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     // 検索条件が初期状態かどうか
-    const isDefaultState = effectiveSearchQuery === '' && effectiveActiveSearchType === null;
+    const isDefaultState = !hasActiveSearch;
 
     // 検索条件をクリア
     const handleClearSearch = () => {
-        setSearchQuery('');
-        setActiveSearchType(null);
+        setSelectedQueries(createEmptySelectedQueries());
         setDateSegment('年');
         resetDateInputs();
         onSearch('');
@@ -550,7 +585,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         <div className="min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Filter</p>
                             <h5 className="whitespace-nowrap text-sm font-black text-slate-950">検索オプション</h5>
-                            {!isExpanded && effectiveActiveSearchType && (
+                            {!isExpanded && hasActiveSearch && (
                                 <span className="mt-1 inline-flex whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                                     適用中
                                 </span>
@@ -597,8 +632,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         <SearchFieldsGrid
                             categories={categories}
                             gridClassName="grid-cols-1 gap-3.5"
-                            activeSearchType={effectiveActiveSearchType}
-                            searchQuery={effectiveSearchQuery}
+                            selectedQueries={effectiveSelectedQueries}
                             onSearch={handleQuickSearch}
                             hasData={hasData}
                         />
@@ -632,7 +666,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
                     <h5 className="text-sm font-semibold">検索オプション</h5>
-                    {!isExpanded && effectiveActiveSearchType && (
+                    {!isExpanded && hasActiveSearch && (
                         <span className="text-xs px-2 py-0.5 rounded bg-white/20">
                             フィルタ適用中
                         </span>
@@ -693,8 +727,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     <SearchFieldsGrid
                         categories={categories}
                         gridClassName="grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-                        activeSearchType={effectiveActiveSearchType}
-                        searchQuery={effectiveSearchQuery}
+                        selectedQueries={effectiveSelectedQueries}
                         onSearch={handleQuickSearch}
                         hasData={hasData}
                     />
