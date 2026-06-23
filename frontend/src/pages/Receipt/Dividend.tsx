@@ -70,7 +70,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
 
     // 検索カテゴリーの生成
     const searchCategories = {
-        securities: createSearchOptions(dividendData, 'security_code', 'security_name', true),
+        securities: createSearchOptions(dividendData, 'security_code', 'security_name', true, 'settlement_date'),
         products: getUniqueValues(dividendData, item => item.product),
         accounts: getUniqueValues(dividendData, item => item.account),
         years: createYearOptions(dividendData, item => item.settlement_date),

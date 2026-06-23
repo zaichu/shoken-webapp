@@ -49,7 +49,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
 
     // 検索オプションの生成
     const searchCategories = {
-        securities: createSearchOptions(mutualfundData, '', 'fund_name', true),
+        securities: createSearchOptions(mutualfundData, '', 'fund_name', true, 'trade_date'),
         years: createYearOptions(mutualfundData, item => item.trade_date),
         dates: true,
     };

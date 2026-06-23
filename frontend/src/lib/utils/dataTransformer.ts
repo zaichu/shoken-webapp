@@ -1,22 +1,47 @@
+function toDate(d: Date | string | null | undefined): Date | null {
+    if (!d) return null;
+    const parsed = d instanceof Date ? d : new Date(d);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function createSearchOptions<T>(
     data: T[],
     valueField: keyof T,
     labelField: keyof T,
-    prefix?: boolean
+    prefix?: boolean,
+    dateField?: keyof T | ((item: T) => Date | string | null | undefined)
 ): { value: string, label: string }[] {
-    const seen = new Map<string, { value: string; label: string }>();
+    const getDate = dateField
+        ? (typeof dateField === 'function'
+            ? dateField
+            : (item: T) => item[dateField] as Date | string | null | undefined)
+        : undefined;
+
+    const labels = new Map<string, string>();
+    const dates = new Map<string, Date | null>();
+
     for (const item of data) {
         const value = String(item[valueField] || item[labelField]);
-        if (!seen.has(value)) {
-            seen.set(value, {
-                value,
-                label: prefix
-                    ? `${item[valueField] ? `${String(item[valueField])}: ` : ''}${String(item[labelField])}`
-                    : String(item[labelField]),
-            });
+        const label = prefix
+            ? `${item[valueField] ? `${String(item[valueField])}: ` : ''}${String(item[labelField])}`
+            : String(item[labelField]);
+        const itemDate = getDate ? toDate(getDate(item)) : null;
+
+        if (!labels.has(value)) {
+            labels.set(value, label);
+            dates.set(value, itemDate);
+        } else if (itemDate) {
+            const existingDate = dates.get(value) ?? null;
+            if (!existingDate || itemDate > existingDate) {
+                labels.set(value, label);
+                dates.set(value, itemDate);
+            }
         }
     }
-    return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
+
+    return [...labels.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.value.localeCompare(b.value));
 }
 
 export type SummaryResult<K extends string | number | symbol> = {

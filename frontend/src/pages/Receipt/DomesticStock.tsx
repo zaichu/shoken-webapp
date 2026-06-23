@@ -62,7 +62,7 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
 
     // 検索カテゴリーの生成
     const searchCategories = {
-        securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true),
+        securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true, 'trade_date'),
         accounts: getUniqueValues(domesticStockData, item => item.account),
         years: createYearOptions(domesticStockData, item => item.trade_date),
         dates: true,
