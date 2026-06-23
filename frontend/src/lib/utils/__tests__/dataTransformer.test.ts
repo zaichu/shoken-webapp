@@ -6,6 +6,12 @@ interface TestItemWithCode {
     value?: number;
 }
 
+interface TestItemWithCodeAndDate {
+    code: string;
+    name: string;
+    date: Date | string;
+}
+
 interface TestItemWithDate {
     date: Date;
     category: string;
@@ -52,10 +58,79 @@ describe('createSearchOptions', () => {
         ];
 
         const result = createSearchOptions(testData, 'code', 'name', true);
-        
+
         expect(result).toEqual([
             { value: '1234', label: '1234: テスト1' },
             { value: '5678', label: '5678: テスト2' }
+        ]);
+    });
+
+    it('dateFieldを指定すると同一valueで最新日付のlabelを採用する（古い名称が先）', () => {
+        const testData: TestItemWithCodeAndDate[] = [
+            { code: '9432', name: '日本電信電話', date: new Date('2024-06-21') },
+            { code: '9432', name: 'ＮＴＴ', date: new Date('2026-06-01') },
+            { code: '1234', name: 'テスト', date: new Date('2023-01-01') },
+        ];
+
+        const result = createSearchOptions(testData, 'code', 'name', true, 'date');
+
+        expect(result).toEqual([
+            { value: '1234', label: '1234: テスト' },
+            { value: '9432', label: '9432: ＮＴＴ' },
+        ]);
+    });
+
+    it('dateFieldを指定すると同一valueで最新日付のlabelを採用する（新しい名称が先）', () => {
+        const testData: TestItemWithCodeAndDate[] = [
+            { code: '9432', name: 'ＮＴＴ', date: new Date('2026-06-01') },
+            { code: '9432', name: '日本電信電話', date: new Date('2024-06-21') },
+            { code: '1234', name: 'テスト', date: new Date('2023-01-01') },
+        ];
+
+        const result = createSearchOptions(testData, 'code', 'name', true, 'date');
+
+        expect(result).toEqual([
+            { value: '1234', label: '1234: テスト' },
+            { value: '9432', label: '9432: ＮＴＴ' },
+        ]);
+    });
+
+    it('dateFieldを日付文字列で指定しても最新日付のlabelを採用する', () => {
+        const testData: TestItemWithCodeAndDate[] = [
+            { code: '9432', name: '日本電信電話', date: '2024-06-21' },
+            { code: '9432', name: 'ＮＴＴ', date: '2026-06-01' },
+        ];
+
+        const result = createSearchOptions(testData, 'code', 'name', true, 'date');
+
+        expect(result).toEqual([
+            { value: '9432', label: '9432: ＮＴＴ' },
+        ]);
+    });
+
+    it('dateFieldを指定しない場合は最初に出たlabelを保持する（後方互換）', () => {
+        const testData: TestItemWithCodeAndDate[] = [
+            { code: '9432', name: '日本電信電話', date: new Date('2024-06-21') },
+            { code: '9432', name: 'ＮＴＴ', date: new Date('2026-06-01') },
+        ];
+
+        const result = createSearchOptions(testData, 'code', 'name', true);
+
+        expect(result).toEqual([
+            { value: '9432', label: '9432: 日本電信電話' },
+        ]);
+    });
+
+    it('先頭itemの日付が不正文字列でも後続の有効な日付のlabelを採用する', () => {
+        const testData: TestItemWithCodeAndDate[] = [
+            { code: '9432', name: '日本電信電話', date: 'not-a-date' },
+            { code: '9432', name: 'ＮＴＴ', date: '2026-06-01' },
+        ];
+
+        const result = createSearchOptions(testData, 'code', 'name', true, 'date');
+
+        expect(result).toEqual([
+            { value: '9432', label: '9432: ＮＴＴ' },
         ]);
     });
 });
