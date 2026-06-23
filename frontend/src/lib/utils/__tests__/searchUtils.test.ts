@@ -72,6 +72,40 @@ describe('filterByConfig', () => {
         });
     });
 
+    describe('AND検索（複数条件）', () => {
+        it('スペース区切りの複数トークンをAND条件として絞り込む', () => {
+            // クエリ形式: スペース区切りのトークンをAND結合
+            // 例: 'A 2023' → トークン1='A'（category完全一致）かつトークン2='2023'（年度一致）
+            const query = 'A 2023';
+            const config: FilterConfig<TestItem> = {
+                stringFields: [item => item.category],
+                dateField: item => item.date,
+                yearSearch: true,
+            };
+            const result = filterByConfig(testData, query, config);
+            // testData のうち category='A' かつ year=2023 → code='1234' のみ
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1234');
+        });
+
+
+        it('引用符で囲まれた空白入りトークンを1条件として扱う', () => {
+            const data = [
+                { code: '1', name: 'Alpha Fund A', category: 'A', date: new Date('2023-01-15'), amount: 100 },
+                { code: '2', name: 'Alpha Fund B', category: 'A', date: new Date('2023-01-15'), amount: 100 },
+                { code: '3', name: 'Alpha Fund A', category: 'A', date: new Date('2024-01-15'), amount: 100 },
+            ];
+            const config: FilterConfig<TestItem> = {
+                stringFields: [item => item.name],
+                dateField: item => item.date,
+                yearSearch: true,
+            };
+            const result = filterByConfig(data, '"Alpha Fund A" 2023', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1');
+        });
+    });
+
     describe('複合条件', () => {
         it('stringFieldsとpartialStringFieldsを組み合わせられる', () => {
             const config: FilterConfig<TestItem> = {

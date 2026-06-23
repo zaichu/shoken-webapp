@@ -106,8 +106,50 @@ export interface FilterConfig<T> {
   amountFields?: ((item: T) => number)[];
 }
 
+function parseSearchTokens(query: string): string[] {
+  const tokens: string[] = [];
+  const tokenPattern = /"((?:\\.|[^"\\])*)"|(\S+)/g;
+  for (const match of query.matchAll(tokenPattern)) {
+    const rawToken = match[1] ?? match[2] ?? '';
+    const token = rawToken.replace(/\\"/g, '"').trim().toLowerCase();
+    if (token) tokens.push(token);
+  }
+  return tokens;
+}
+
+function matchesToken<T>(item: T, token: string, config: FilterConfig<T>): boolean {
+  if (config.stringFields) {
+    for (const getter of config.stringFields) {
+      if (getter(item).toLowerCase() === token) return true;
+    }
+  }
+
+  if (config.partialStringFields) {
+    for (const getter of config.partialStringFields) {
+      if (getter(item).toLowerCase().includes(token)) return true;
+    }
+  }
+
+  if (config.dateField) {
+    const date = config.dateField(item);
+    if (config.yearSearch && matchesYear(date, token)) return true;
+    if (config.yearMonthSearch && matchesYearMonth(date, token)) return true;
+    if (config.dateSearch && matchesDate(date, token)) return true;
+    if (config.dateRangeSearch && matchesDateRange(date, token)) return true;
+  }
+
+  if (config.amountFields) {
+    for (const getter of config.amountFields) {
+      if (getter(item).toString().includes(token)) return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * 設定ベースの汎用フィルタ関数
+ * スペース区切りの複数トークンはAND条件として扱う（日付範囲 ".." はトークン分割しない）
  * @param data フィルタ対象データ
  * @param query 検索クエリ
  * @param config フィルタ設定
@@ -118,63 +160,11 @@ export function filterByConfig<T>(
   query: string,
   config: FilterConfig<T>
 ): T[] {
-  if (!query) return data;
+  const trimmed = query.trim();
+  if (!trimmed) return data;
 
-  const normalizedQuery = query.toLowerCase();
+  const tokens = parseSearchTokens(trimmed);
+  if (tokens.length === 0) return data;
 
-  return data.filter(item => {
-    // 文字列フィールドの完全一致検索
-    if (config.stringFields) {
-      for (const getter of config.stringFields) {
-        if (getter(item).toLowerCase() === normalizedQuery) {
-          return true;
-        }
-      }
-    }
-
-    // 文字列フィールドの部分一致検索
-    if (config.partialStringFields) {
-      for (const getter of config.partialStringFields) {
-        if (getter(item).toLowerCase().includes(normalizedQuery)) {
-          return true;
-        }
-      }
-    }
-
-    // 日付関連の検索
-    if (config.dateField) {
-      const date = config.dateField(item);
-
-      // 年度検索
-      if (config.yearSearch && matchesYear(date, normalizedQuery)) {
-        return true;
-      }
-
-      // 年月検索
-      if (config.yearMonthSearch && matchesYearMonth(date, normalizedQuery)) {
-        return true;
-      }
-
-      // 日付検索
-      if (config.dateSearch && matchesDate(date, normalizedQuery)) {
-        return true;
-      }
-
-      // 日付範囲検索
-      if (config.dateRangeSearch && matchesDateRange(date, normalizedQuery)) {
-        return true;
-      }
-    }
-
-    // 金額の部分一致検索
-    if (config.amountFields) {
-      for (const getter of config.amountFields) {
-        if (getter(item).toString().includes(normalizedQuery)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  });
+  return data.filter(item => tokens.every(token => matchesToken(item, token, config)));
 }
