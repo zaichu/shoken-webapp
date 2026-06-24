@@ -386,6 +386,63 @@ describe('Dividend', () => {
         }
     });
 
+    it('同一銘柄コードで旧名/新名が混在しても銘柄検索時は最新銘柄名の1グループにまとめられる', () => {
+        const mixedData = [
+            {
+                settlement_date: new Date('2024-06-21'),
+                product: '株式',
+                account: '特定口座',
+                security_code: '9432',
+                security_name: '日本電信電話',
+                unit_price: 10,
+                shares: 100,
+                dividends_before_tax: 1000,
+                taxes: 200,
+                net_amount_received: 800,
+            },
+            {
+                settlement_date: new Date('2026-06-01'),
+                product: '株式',
+                account: '特定口座',
+                security_code: '9432',
+                security_name: 'NTT',
+                unit_price: 10,
+                shares: 100,
+                dividends_before_tax: 2000,
+                taxes: 400,
+                net_amount_received: 1600,
+            },
+        ];
+
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mixedData,
+            searchQuery: '9432',
+            setSearchQuery: vi.fn(),
+            filteredData: mixedData,
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mixedData} />);
+
+            // グループヘッダーセル（最初のtd）は「NTT」で「2件」を示す
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('NTT');
+            expect(summaryCell).toHaveTextContent('2件');
+
+            // グループヘッダーセルに「日本電信電話」は表示されない（データ行は除外）
+            expect(summaryCell).not.toHaveTextContent('日本電信電話');
+
+            // 「件」バッジを含むグループヘッダー行が1つだけ（グループは1つ）
+            const allFirstCells = Array.from(
+                screen.getByRole('table').querySelectorAll('tbody tr td:first-child')
+            );
+            const groupHeaderCells = allFirstCells.filter(cell => cell.textContent?.includes('件'));
+            expect(groupHeaderCells).toHaveLength(1);
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
     it('検索種別に一致しないクエリでも年月単位でグループ化される', () => {
         const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
             sortedData: mockData,
