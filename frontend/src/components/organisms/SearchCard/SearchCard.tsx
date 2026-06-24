@@ -190,6 +190,12 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
     </div>
 );
 
+function getInitialDateSegment(cats: SearchCategories | undefined): DateSegment {
+    if ((cats?.years?.length ?? 0) > 0) return '年';
+    if (cats?.dates) return '月';
+    return '年';
+}
+
 const formatDateLabel = (value: string): string => value.replace(/-/g, "/");
 
 interface CalendarDateButtonProps {
@@ -490,8 +496,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     // 日付検索用ステート
     const [dateSegment, setDateSegment] = useState<DateSegment>(() =>
-        (categories?.years?.length ?? 0) > 0 ? '年' :
-        categories?.dates ? '月' : '年'
+        getInitialDateSegment(categories)
     );
     const [yearValue, setYearValue] = useState('');
     const [monthValue, setMonthValue] = useState('');
@@ -513,10 +518,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         setRangeStart('');
         setRangeEnd('');
         setIsYearPickerOpen(false);
-        setDateSegment(
-            (cats?.years?.length ?? 0) > 0 ? '年' :
-            cats?.dates ? '月' : '年'
-        );
+        setDateSegment(getInitialDateSegment(cats));
     }, [value]);
 
     const effectiveSelectedQueries = value === '' ? createEmptySelectedQueries() : selectedQueries;
@@ -626,10 +628,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     // 検索条件をクリア
     const handleClearSearch = () => {
         setSelectedQueries(createEmptySelectedQueries());
-        setDateSegment(
-            (categories?.years?.length ?? 0) > 0 ? '年' :
-            categories?.dates ? '月' : '年'
-        );
+        setDateSegment(getInitialDateSegment(categories));
         resetDateInputs();
         onSearch('');
     };
