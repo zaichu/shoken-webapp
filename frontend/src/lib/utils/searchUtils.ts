@@ -106,7 +106,7 @@ export interface FilterConfig<T> {
   amountFields?: ((item: T) => number)[];
 }
 
-function parseSearchTokens(query: string): string[] {
+export function parseSearchTokens(query: string): string[] {
   const tokens: string[] = [];
   const tokenPattern = /"((?:\\.|[^"\\])*)"|(\S+)/g;
   for (const match of query.matchAll(tokenPattern)) {

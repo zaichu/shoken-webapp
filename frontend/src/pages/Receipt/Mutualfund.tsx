@@ -16,7 +16,7 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
+import { createYearOptions, parseSearchTokens, FilterConfig } from '@/lib/utils/searchUtils';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import { sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 import { calculateMutualfund } from '@/features/receipt/calculations';
@@ -61,9 +61,9 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
     // ファンド名検索時は元データの正式表記を使用
     const getGroupKey = (item: MutualfundData): string => {
         if (searchQuery) {
-            // ファンド名検索の場合は元データの表記を使用（小文字化しない）
-            const query = searchQuery.toLowerCase();
-            if (item.fund_name.toLowerCase().includes(query)) {
+            // AND クエリをトークンに分割し、いずれかがファンド名に部分一致する場合はファンド名でグループ化
+            const tokens = parseSearchTokens(searchQuery);
+            if (tokens.some(t => item.fund_name.toLowerCase().includes(t))) {
                 return item.fund_name;
             }
             // 年検索など他の場合は年月でグループ化

@@ -461,6 +461,64 @@ describe('Dividend', () => {
         }
     });
 
+    it('銘柄コード+年のAND検索でも銘柄名でグループ化される', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: '1234 2023',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            // グループヘッダーセルは銘柄名でグループ化される
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('テスト株式1');
+            expect(summaryCell).toHaveTextContent('1件');
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
+    it('銘柄コード+年のAND検索でisSecurityCodeSearchがtrueになる', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: '1234 2023',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            // 銘柄詳細ヘッダーが表示される（isSecurityCodeSearch=true）
+            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(screen.getByText('平均取得価格')).toBeVisible();
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
+    it('銘柄名+年のAND検索でも銘柄名でグループ化される', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: 'テスト株式1 2023',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Dividend data={mockData} />);
+
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('テスト株式1');
+            expect(summaryCell).not.toHaveTextContent('2023年');
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
+    });
+
     it('コード付きラベル形式の検索クエリでも銘柄詳細ヘッダーが表示される', async () => {
         const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
             sortedData: mockData,

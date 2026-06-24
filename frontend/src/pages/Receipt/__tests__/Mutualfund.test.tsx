@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
+import * as receiptHooks from '@/hooks/receipt/useReceiptData';
 import { Mutualfund } from '../Mutualfund';
 import { waitOpts } from '@/test/utils';
 
@@ -141,6 +142,27 @@ describe('Mutualfund', () => {
             expect(within(table).queryByText('テストファンドB')).not.toBeInTheDocument();
             expect(within(table).queryByText('2023年1月')).not.toBeInTheDocument();
         }, waitOpts);
+    });
+
+    it('ファンド名+年のAND検索でもファンド名でグループ化される', () => {
+        const useReceiptBaseDataSpy = vi.spyOn(receiptHooks, 'useReceiptBaseData').mockReturnValue({
+            sortedData: mockData,
+            searchQuery: 'テストファンドA 2023',
+            setSearchQuery: vi.fn(),
+            filteredData: [mockData[0]],
+        } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
+
+        try {
+            render(<Mutualfund data={mockData} />);
+
+            // グループヘッダーセルはファンド名でグループ化される（年月にならない）
+            const summaryCell = screen.getByRole('table').querySelector('tbody tr td');
+            expect(summaryCell).toHaveTextContent('テストファンドA');
+            expect(summaryCell).toHaveTextContent('1件');
+            expect(summaryCell).not.toHaveTextContent('2023年');
+        } finally {
+            useReceiptBaseDataSpy.mockRestore();
+        }
     });
 
     it('年検索でフィルタリングされる', async () => {

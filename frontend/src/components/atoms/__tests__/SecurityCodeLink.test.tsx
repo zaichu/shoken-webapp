@@ -132,6 +132,22 @@ describe('CopyableInstrumentName', () => {
     expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
   });
 
+  it('clipboard.writeText が失敗した場合は console.warn を呼び例外を投げない', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('permission denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
+    fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
+    await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(
+      'クリップボードへのコピーに失敗しました',
+      expect.any(Error)
+    ));
+    warnSpy.mockRestore();
+  });
+
   it('SVGアイコンに group-focus-visible:opacity-100 が含まれ focus:opacity-100 が含まれない', () => {
     const { container } = render(<CopyableInstrumentName name="ＫＤＤＩ" code="9433" />);
     const svg = container.querySelector('svg');
