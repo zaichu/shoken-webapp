@@ -80,6 +80,18 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateDividends);
 
+    const latestSecurityNameByCode = new Map<string, { name: string; settlementTime: number }>();
+    for (const item of dividendData) {
+        const current = latestSecurityNameByCode.get(item.security_code);
+        const settlementTime = item.settlement_date.getTime();
+        if (!current || settlementTime > current.settlementTime) {
+            latestSecurityNameByCode.set(item.security_code, {
+                name: item.security_name,
+                settlementTime,
+            });
+        }
+    }
+
     // グループキーの取得（検索タイプに応じて動的に変更）
     const getGroupKey = (item: DividendData): string => {
         if (!searchQuery) {
@@ -88,10 +100,10 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
 
         const query = searchQuery.toLowerCase();
 
-        // 銘柄での検索の場合（銘柄名でグループ化、年と誤判定を防ぐ）
+        // 銘柄での検索の場合（同一コードの旧名/新名を最新銘柄名で1グループにまとめる）
         if (item.security_code.toLowerCase() === query ||
             item.security_name.toLowerCase() === query) {
-            return item.security_name;
+            return latestSecurityNameByCode.get(item.security_code)?.name ?? item.security_name;
         }
 
         // 商品での検索の場合
