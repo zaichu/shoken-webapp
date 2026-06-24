@@ -24,8 +24,7 @@ import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useR
 import {
     createYearOptions,
     getUniqueValues,
-    matchesYear,
-    matchesYearMonth,
+    parseSearchTokens,
     FilterConfig
 } from '@/lib/utils/searchUtils';
 import { DividendInfo } from '@/components/molecules/DividendInfo/DividendInfo';
@@ -98,35 +97,28 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
             return createYearMonthKey(item.settlement_date);
         }
 
-        const query = searchQuery.toLowerCase();
+        // AND クエリをトークンに分割し各トークンで判定
+        const tokens = parseSearchTokens(searchQuery);
 
-        // 銘柄での検索の場合（同一コードの旧名/新名を最新銘柄名で1グループにまとめる）
-        if (item.security_code.toLowerCase() === query ||
-            item.security_name.toLowerCase() === query) {
+        // いずれかのトークンが銘柄コード・銘柄名に一致 → 銘柄グループ化
+        if (tokens.some(t =>
+            item.security_code.toLowerCase() === t ||
+            item.security_name.toLowerCase() === t
+        )) {
             return latestSecurityNameByCode.get(item.security_code)?.name ?? item.security_name;
         }
 
-        // 商品での検索の場合
-        if (item.product.toLowerCase() === query) {
+        // いずれかのトークンが商品に一致
+        if (tokens.some(t => item.product.toLowerCase() === t)) {
             return item.product;
         }
 
-        // 口座での検索の場合
-        if (item.account.toLowerCase() === query) {
+        // いずれかのトークンが口座に一致
+        if (tokens.some(t => item.account.toLowerCase() === t)) {
             return item.account;
         }
 
-        // 年度での検索の場合も月単位でグループ化（検索なし時と同一ルール）
-        if (matchesYear(item.settlement_date, query)) {
-            return createYearMonthKey(item.settlement_date);
-        }
-
-        // 年月での検索の場合も月単位でグループ化（検索なし時と同一ルール）
-        if (matchesYearMonth(item.settlement_date, query)) {
-            return createYearMonthKey(item.settlement_date);
-        }
-
-        // デフォルトは年月でグループ化
+        // デフォルトは年月でグループ化（年度・年月検索を含む）
         return createYearMonthKey(item.settlement_date);
     };
 
@@ -140,14 +132,18 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
     // 銘柄名検索時に銘柄コードを補完
     const searchSecurityCode = (() => {
         if (!searchQuery) return '';
-        const normalizedQuery = searchQuery.toLowerCase();
+        // コード付きラベル形式（先頭が "XXXX:" で始まる場合）は先頭コードを使用
         const labelMatch = searchQuery.match(/^\s*([0-9A-Za-z]+)\s*[:：]/);
         if (labelMatch) {
             return labelMatch[1];
         }
+        // AND トークンのうち銘柄コード・銘柄名に一致するものを探す
+        const tokens = parseSearchTokens(searchQuery);
         const matchedItem = filteredData.find(item =>
-            item.security_code.toLowerCase() === normalizedQuery ||
-            item.security_name.toLowerCase() === normalizedQuery
+            tokens.some(t =>
+                item.security_code.toLowerCase() === t ||
+                item.security_name.toLowerCase() === t
+            )
         );
         return matchedItem?.security_code || '';
     })();

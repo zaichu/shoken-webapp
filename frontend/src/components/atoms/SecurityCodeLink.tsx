@@ -69,7 +69,13 @@ export const CopyableInstrumentName: React.FC<CopyableInstrumentNameProps> = ({ 
     <button
       type="button"
       aria-label={`${copyText} をコピー`}
-      onClick={() => { void navigator.clipboard?.writeText(copyText); }}
+      onClick={async () => {
+        try {
+          await navigator.clipboard?.writeText(copyText);
+        } catch (err) {
+          console.warn('クリップボードへのコピーに失敗しました', err);
+        }
+      }}
       className={cn(
         'group inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit',
         'focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500',

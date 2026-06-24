@@ -1,14 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SearchCategories } from '@/types/common';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
+import { cn } from '@/lib/utils/classNames';
 
 type SearchKey = 'securities' | 'years' | 'products' | 'accounts' | 'date';
 type ActiveSearchType = SearchKey | null;
 type DateSegment = '年' | '月' | '日' | '範囲';
 
 const DATE_SEGMENTS: DateSegment[] = ['年', '月', '日', '範囲'];
-const SEARCH_ORDER: SearchKey[] = ['date', 'securities', 'years', 'products', 'accounts'];
+const SEARCH_ORDER = ['date', 'securities', 'years', 'products', 'accounts'] as const satisfies readonly SearchKey[];
 
 function createEmptySelectedQueries(): Record<SearchKey, string> {
     return {
@@ -189,6 +190,12 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
     </div>
 );
 
+function getInitialDateSegment(cats: SearchCategories | undefined): DateSegment {
+    if ((cats?.years?.length ?? 0) > 0) return '年';
+    if (cats?.dates) return '月';
+    return '年';
+}
+
 const formatDateLabel = (value: string): string => value.replace(/-/g, "/");
 
 interface CalendarDateButtonProps {
@@ -211,7 +218,7 @@ const CalendarDateButton: React.FC<CalendarDateButtonProps> = ({ label, value, i
                 return;
             }
         } catch {
-            // fall through to the click fallback
+            // showPicker が失敗した場合はクリックフォールバックへ
         }
         input.focus();
         input.click();
@@ -222,7 +229,12 @@ const CalendarDateButton: React.FC<CalendarDateButtonProps> = ({ label, value, i
             <button
                 type="button"
                 onClick={handleButtonClick}
-                className={"w-full flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25 " + (value ? "border-amber-500 bg-amber-50 text-amber-900 font-semibold" : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")}
+                className={cn(
+                    'w-full flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25',
+                    value
+                        ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
+                        : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
+                )}
             >
                 <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -260,14 +272,79 @@ interface DatePeriodBlockProps {
     onDateValueChange: (value: string) => void;
     onRangeStartChange: (value: string) => void;
     onRangeEndChange: (value: string) => void;
+    onClose?: () => void;
 }
 
 const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
     dateSegment, years, yearValue, monthValue, dateValue, rangeStart, rangeEnd, isYearPickerOpen,
-    onSegmentChange, onToggleYearPicker, onYearOptionSelect, onMonthChange, onDateValueChange, onRangeStartChange, onRangeEndChange,
+    onSegmentChange, onToggleYearPicker, onYearOptionSelect, onMonthChange, onDateValueChange, onRangeStartChange, onRangeEndChange, onClose,
 }) => {
     const availableSegments = years.length > 0 ? DATE_SEGMENTS : DATE_SEGMENTS.filter(seg => seg !== '年');
     const visibleDateSegment = years.length === 0 && dateSegment === '年' ? '月' : dateSegment;
+
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const listboxRef = useRef<HTMLDivElement>(null);
+
+    const getListboxOptions = () => {
+        if (!listboxRef.current) return [];
+        return Array.from(listboxRef.current.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+    };
+
+    const handleListboxKeyDown = (e: React.KeyboardEvent) => {
+        const options = getListboxOptions();
+        if (options.length === 0) return;
+        const currentIndex = options.indexOf(document.activeElement as HTMLButtonElement);
+        switch (e.key) {
+            case 'ArrowDown':
+            case 'ArrowRight': {
+                e.preventDefault();
+                const next = currentIndex >= 0 && currentIndex < options.length - 1 ? options[currentIndex + 1] : options[0];
+                next.focus();
+                break;
+            }
+            case 'ArrowUp':
+            case 'ArrowLeft': {
+                e.preventDefault();
+                const prev = currentIndex > 0 ? options[currentIndex - 1] : options[options.length - 1];
+                prev.focus();
+                break;
+            }
+            case 'Home':
+                e.preventDefault();
+                options[0].focus();
+                break;
+            case 'End':
+                e.preventDefault();
+                options[options.length - 1].focus();
+                break;
+            case 'Enter':
+            case ' ': {
+                e.preventDefault();
+                if (currentIndex >= 0) options[currentIndex].click();
+                break;
+            }
+            case 'Escape':
+                e.preventDefault();
+                onClose?.();
+                triggerRef.current?.focus();
+                break;
+        }
+    };
+
+    const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (!isYearPickerOpen) return;
+        const options = getListboxOptions();
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            options[0]?.focus();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            options[options.length - 1]?.focus();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose?.();
+        }
+    };
 
     return (
     <div className="space-y-2">
@@ -292,11 +369,13 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
         {visibleDateSegment === '年' && (
             <div className="relative">
                 <button
+                    ref={triggerRef}
                     type="button"
                     aria-label="年を選択"
                     aria-haspopup="listbox"
                     aria-expanded={isYearPickerOpen}
                     onClick={onToggleYearPicker}
+                    onKeyDown={handleTriggerKeyDown}
                     className={`w-full flex items-center gap-2 border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25 ${
                         isYearPickerOpen ? 'rounded-t-md rounded-b-none' : 'rounded-md'
                     } ${
@@ -323,8 +402,10 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                 </button>
                 {isYearPickerOpen && (
                     <div
+                        ref={listboxRef}
                         role="listbox"
                         aria-label="年候補"
+                        onKeyDown={handleListboxKeyDown}
                         className="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5"
                     >
                         {years.map(year => (
@@ -414,13 +495,31 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     );
 
     // 日付検索用ステート
-    const [dateSegment, setDateSegment] = useState<DateSegment>('年');
+    const [dateSegment, setDateSegment] = useState<DateSegment>(() =>
+        getInitialDateSegment(categories)
+    );
     const [yearValue, setYearValue] = useState('');
     const [monthValue, setMonthValue] = useState('');
     const [dateValue, setDateValue] = useState('');
     const [rangeStart, setRangeStart] = useState('');
     const [rangeEnd, setRangeEnd] = useState('');
     const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+
+    const categoriesRef = useRef(categories);
+    categoriesRef.current = categories;
+
+    useEffect(() => {
+        if (value !== '') return;
+        const cats = categoriesRef.current;
+        setSelectedQueries(createEmptySelectedQueries());
+        setYearValue('');
+        setMonthValue('');
+        setDateValue('');
+        setRangeStart('');
+        setRangeEnd('');
+        setIsYearPickerOpen(false);
+        setDateSegment(getInitialDateSegment(cats));
+    }, [value]);
 
     const effectiveSelectedQueries = value === '' ? createEmptySelectedQueries() : selectedQueries;
     const hasActiveSearch = Object.values(effectiveSelectedQueries).some(Boolean);
@@ -529,7 +628,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     // 検索条件をクリア
     const handleClearSearch = () => {
         setSelectedQueries(createEmptySelectedQueries());
-        setDateSegment('年');
+        setDateSegment(getInitialDateSegment(categories));
         resetDateInputs();
         onSearch('');
     };
@@ -557,6 +656,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 onDateValueChange={handleDateValueChange}
                 onRangeStartChange={handleRangeStartChange}
                 onRangeEndChange={handleRangeEndChange}
+                onClose={() => setIsYearPickerOpen(false)}
             />
         </div>
     ) : null;
@@ -569,7 +669,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 >
                     <button
                         type="button"
-                        className="flex min-w-0 items-center gap-2.5 text-left select-none"
+                        className="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer"
                         onClick={handleToggleExpanded}
                         onKeyDown={handleToggleKeyDown}
                         aria-expanded={isExpanded}
@@ -654,7 +754,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             >
                 <button
                     type="button"
-                    className="flex items-center gap-2 text-left select-none"
+                    className="flex items-center gap-2 text-left select-none cursor-pointer"
                     onClick={handleToggleExpanded}
                     onKeyDown={handleToggleKeyDown}
                     aria-expanded={isExpanded}
