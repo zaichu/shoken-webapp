@@ -121,7 +121,7 @@ jobs:
       - name: TypeScript type check
         if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}/frontend
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
   deploy:
     name: Deploy to Fly.io

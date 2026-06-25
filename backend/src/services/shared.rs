@@ -38,16 +38,43 @@ pub fn user_ids_for_bulk_insert(user_id: Uuid, total: usize) -> Vec<Uuid> {
     vec![user_id; total]
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeleteTarget {
+    AssetBalances,
+    Dividends,
+    DomesticStocks,
+    MutualFunds,
+}
+
+impl DeleteTarget {
+    fn sql(self) -> &'static str {
+        match self {
+            Self::AssetBalances => "DELETE FROM asset_balances WHERE user_id = $1",
+            Self::Dividends => "DELETE FROM dividends WHERE user_id = $1",
+            Self::DomesticStocks => "DELETE FROM domestic_stocks WHERE user_id = $1",
+            Self::MutualFunds => "DELETE FROM mutualfunds WHERE user_id = $1",
+        }
+    }
+
+    fn domain(self) -> &'static str {
+        match self {
+            Self::AssetBalances => "asset_balance",
+            Self::Dividends => "dividend",
+            Self::DomesticStocks => "domestic_stock",
+            Self::MutualFunds => "mutualfund",
+        }
+    }
+}
+
 /// ユーザーに紐づく全レコードを削除する共通実装。
-/// テーブル名は呼び出し元がリテラルで指定するため SQL インジェクションの危険はない。
 pub async fn delete_all_for_user(
     pool: &PgPool,
     user_id: Uuid,
-    table_name: &'static str,
-    domain: &'static str,
+    target: DeleteTarget,
 ) -> Result<u64, ApiError> {
+    let domain = target.domain();
     info!("[{}.delete_all] リクエスト受信", domain);
-    let result = sqlx::query(&format!("DELETE FROM {} WHERE user_id = $1", table_name))
+    let result = sqlx::query(target.sql())
         .bind(user_id)
         .execute(pool)
         .await?;
