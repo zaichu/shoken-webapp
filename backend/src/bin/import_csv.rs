@@ -1,12 +1,13 @@
 // CSVインポート用の一時スクリプト（バルクインサート版）
-use sqlx::postgres::PgPoolOptions;
+use chrono::NaiveDate;
+use sqlx::{postgres::PgPoolOptions, Postgres, QueryBuilder};
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
 
 #[derive(Debug)]
 struct StockRecord {
-    date: String,
+    date: NaiveDate,
     code: String,
     name: String,
     market_category: String,
@@ -49,13 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for result in rdr.records() {
         let record = result?;
 
-        let date_str = &record[0];
-        let date = format!(
-            "{}-{}-{}",
-            &date_str[0..4],
-            &date_str[4..6],
-            &date_str[6..8]
-        );
+        let date = NaiveDate::parse_from_str(&record[0], "%Y%m%d")?;
 
         records.push(StockRecord {
             date,
@@ -78,29 +73,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let total_batches = records.len().div_ceil(batch_size);
 
     for (batch_num, chunk) in records.chunks(batch_size).enumerate() {
-        // VALUES句を動的に構築
-        let mut values_parts: Vec<String> = Vec::new();
-        let mut param_idx = 1;
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+            "INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) ",
+        );
 
-        for _ in chunk {
-            let placeholders: Vec<String> = (0..10)
-                .map(|i| {
-                    let p = format!("${}", param_idx + i);
-                    p
-                })
-                .collect();
-            // 日付はキャストが必要
-            let mut ph = placeholders;
-            ph[0] = format!("{}::date", ph[0]);
-            values_parts.push(format!("({})", ph.join(", ")));
-            param_idx += 10;
-        }
+        query_builder.push_values(chunk, |mut row, rec| {
+            row.push_bind(rec.date);
+            row.push_bind(&rec.code);
+            row.push_bind(&rec.name);
+            row.push_bind(&rec.market_category);
+            row.push_bind(&rec.industry_code_33);
+            row.push_bind(&rec.industry_category_33);
+            row.push_bind(&rec.industry_code_17);
+            row.push_bind(&rec.industry_category_17);
+            row.push_bind(&rec.size_code);
+            row.push_bind(&rec.size_category);
+        });
 
-        let sql = format!(
-            r#"
-            INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category)
-            VALUES {}
-            ON CONFLICT (date, code) DO UPDATE SET
+        query_builder.push(
+            " ON CONFLICT (date, code) DO UPDATE SET
                 name = EXCLUDED.name,
                 market_category = EXCLUDED.market_category,
                 industry_code_33 = EXCLUDED.industry_code_33,
@@ -108,27 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 industry_code_17 = EXCLUDED.industry_code_17,
                 industry_category_17 = EXCLUDED.industry_category_17,
                 size_code = EXCLUDED.size_code,
-                size_category = EXCLUDED.size_category
-            "#,
-            values_parts.join(", ")
+                size_category = EXCLUDED.size_category",
         );
 
-        let mut query = sqlx::query(&sql);
-        for rec in chunk {
-            query = query
-                .bind(&rec.date)
-                .bind(&rec.code)
-                .bind(&rec.name)
-                .bind(&rec.market_category)
-                .bind(&rec.industry_code_33)
-                .bind(&rec.industry_category_33)
-                .bind(&rec.industry_code_17)
-                .bind(&rec.industry_category_17)
-                .bind(&rec.size_code)
-                .bind(&rec.size_category);
-        }
-
-        query.execute(&pool).await?;
+        query_builder.build().execute(&pool).await?;
 
         println!(
             "Batch {}/{} 完了 ({} / {} records)",

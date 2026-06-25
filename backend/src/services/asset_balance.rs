@@ -9,7 +9,9 @@ use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
-use crate::services::shared::{user_ids_for_bulk_insert, BulkTimer};
+use crate::services::shared::{
+    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tracing::info;
@@ -149,8 +151,7 @@ pub async fn upload_csv(
 
 /// 認証ユーザーの保有銘柄を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    crate::services::shared::delete_all_for_user(pool, user_id, "asset_balances", "asset_balance")
-        .await
+    delete_all_for_user(pool, user_id, DeleteTarget::AssetBalances).await
 }
 
 fn transform_asset_balance_rows(

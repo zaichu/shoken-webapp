@@ -8,7 +8,9 @@ use crate::services::csv_util::{
     compute_taxes, get_row_cell, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
 };
-use crate::services::shared::{user_ids_for_bulk_insert, BulkTimer};
+use crate::services::shared::{
+    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tracing::info;
@@ -193,7 +195,7 @@ fn transform_mutualfund_row(
 
 /// 認証ユーザーの投資信託を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    crate::services::shared::delete_all_for_user(pool, user_id, "mutualfunds", "mutualfund").await
+    delete_all_for_user(pool, user_id, DeleteTarget::MutualFunds).await
 }
 #[cfg(test)]
 mod tests {

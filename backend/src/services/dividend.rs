@@ -8,7 +8,9 @@ use crate::services::csv_util::{
     normalize_security_name, parse_optional_string_row, parse_required_date_row,
     parse_required_number_row, parse_required_string_row,
 };
-use crate::services::shared::{user_ids_for_bulk_insert, BulkTimer};
+use crate::services::shared::{
+    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tracing::info;
@@ -160,7 +162,7 @@ fn transform_dividend_row(
 
 /// 認証ユーザーの配当金を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
-    crate::services::shared::delete_all_for_user(pool, user_id, "dividends", "dividend").await
+    delete_all_for_user(pool, user_id, DeleteTarget::Dividends).await
 }
 #[cfg(test)]
 mod tests {
