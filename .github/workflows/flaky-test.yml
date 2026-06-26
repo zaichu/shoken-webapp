@@ -1,0 +1,25 @@
+name: Frontend Flaky Test Detection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  flaky-detection:
+    name: Run tests twice for flaky detection
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Run tests (1st run)
+        run: npm test
+
+      - name: Run tests (flaky detection – 2nd run)
+        run: npm test
