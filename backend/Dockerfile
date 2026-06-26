@@ -17,11 +17,6 @@ COPY migrations ./migrations
 # 依存関係のビルドキャッシュを無効化しないために、全 Rust ソースのタイムスタンプを更新
 RUN find src -name "*.rs" -exec touch {} +
 
-# SQLxのオフラインモード用（.sqlxディレクトリがある場合）
-# 注意: .sqlxディレクトリが存在しない場合はこの行をコメントアウトするか、
-# cargo sqlx prepare を実行して作成してください
-# COPY .sqlx ./.sqlx
-
 # 本番ビルド（SQLX_OFFLINE=falseでビルド - マクロはランタイムでチェックされる）
 RUN cargo build --release
 
