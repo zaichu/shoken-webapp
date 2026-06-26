@@ -58,11 +58,12 @@ const QuickSearchDropdown: React.FC<QuickSearchDropdownProps> = ({
         <div className="relative">
             <select
                 id={id}
-                className={`w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${
+                className={cn(
+                    'w-full rounded-md border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2',
                     isSelected
                         ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold ring-2 ring-amber-500/30'
                         : 'border-slate-300 bg-white text-dark hover:border-slate-500 focus:border-amber-600 focus:ring-amber-500/25'
-                }`}
+                )}
                 value={displayValue}
                 onChange={(e) => onSearch(e.target.value, searchType)}
             >

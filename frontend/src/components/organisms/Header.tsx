@@ -81,7 +81,7 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur no-print">
-        <div className={`${APP_SHELL_CONTAINER} py-3`}>
+        <div className={cn(APP_SHELL_CONTAINER, 'py-3')}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="flex items-center justify-between gap-4">
               <Link className="group inline-flex items-center gap-3 text-white transition-colors hover:text-amber-100" to="/">

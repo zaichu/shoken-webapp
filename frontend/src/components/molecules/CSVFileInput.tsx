@@ -1,4 +1,5 @@
 import { useId, useRef } from 'react';
+import { cn } from '@/lib/utils/classNames';
 
 interface CSVFileInputProps {
   onFileSelect: (file: File) => void;
@@ -29,9 +30,10 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
     <div className="space-y-2.5">
       <label
         data-testid="csv-file-trigger"
-        className={`flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors ${
+        className={cn(
+          'flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors',
           disabled ? 'pointer-events-none opacity-65' : 'hover:border-slate-400 hover:bg-slate-100'
-        }`}
+        )}
         htmlFor={inputId}
       >
         <div className="flex min-w-0 items-center gap-3">

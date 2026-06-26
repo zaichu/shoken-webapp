@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ReceiptsType } from '../reducer';
+import { cn } from '@/lib/utils/classNames';
 
 const TAB_LABEL: Record<ReceiptsType, string> = {
   dividend: '配当金',
@@ -37,11 +38,12 @@ export function ReceiptsTabNav({
             <button
               key={tab}
               id={`tab-${tab}`}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold ${
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold',
                 isActive
                   ? 'border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]'
                   : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950'
-              }`}
+              )}
               onClick={() => onTabChange(tab)}
               onKeyDown={onKeyDown}
               type="button"
