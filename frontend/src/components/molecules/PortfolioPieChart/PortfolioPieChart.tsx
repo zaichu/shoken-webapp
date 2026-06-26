@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber, formatPercentageValue } from '@/lib/utils/formatters';
 import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
+import { cn } from '@/lib/utils/classNames';
 
 // 横棒グラフ用の配色（視認性を考慮した10色）
 const COLORS = [
@@ -158,7 +159,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
         <div className="min-w-0 px-2 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">1株配当</p>
           <p
-            className={`mt-0.5 truncate text-[12px] font-semibold ${divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}
+            className={cn('mt-0.5 truncate text-[12px] font-semibold', divInfo?.perShare !== null && divInfo?.perShare !== undefined ? 'text-emerald-600' : 'text-slate-500')}
             title={formatPerShare(divInfo)}
           >
             {formatPerShare(divInfo)}

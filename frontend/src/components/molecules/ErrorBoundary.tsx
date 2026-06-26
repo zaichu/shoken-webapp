@@ -1,4 +1,5 @@
 import { Component, ReactNode, ErrorInfo } from 'react';
+import { cn } from '@/lib/utils/classNames';
 
 interface ErrorBoundaryProps {
   fallback?: ReactNode | ((error: Error, errorInfo: ErrorInfo) => ReactNode);
@@ -137,7 +138,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // デフォルトフォールバック
       return (
-        <div className={`p-4 ${isolate ? 'isolated' : ''}`}>
+        <div className={cn('p-4', isolate && 'isolated')}>
           <div className="bg-danger/10 border-l-4 border-danger text-danger rounded-lg p-4" role="alert">
             <h4 className="font-bold text-lg mb-2">エラーが発生しました</h4>
             <p>申し訳ございません。予期しないエラーが発生しました。</p>
