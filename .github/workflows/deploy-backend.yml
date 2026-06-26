@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7 https://github.com/actions/checkout/releases/tag/v7
         with:
           fetch-depth: 0
 
@@ -31,6 +31,7 @@ jobs:
         id: detect
         working-directory: ${{ github.workspace }}
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "run_backend=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -52,11 +53,11 @@ jobs:
 
       - name: Setup Rust toolchain
         if: steps.detect.outputs.run_backend == 'true'
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v1
 
       - name: Cache Cargo registry & build
         if: steps.detect.outputs.run_backend == 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5 https://github.com/actions/cache/releases/tag/v5
         with:
           path: |
             ~/.cargo/registry
@@ -93,7 +94,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.detect.outputs.run_backend == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 https://github.com/actions/setup-node/releases/tag/v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -134,10 +135,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7 https://github.com/actions/checkout/releases/tag/v7
 
       - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@v1
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1 https://github.com/superfly/flyctl-actions/releases/tag/v1
 
       - name: Deploy to Fly.io
         id: fly-deploy
