@@ -20,6 +20,8 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    outputs:
+      backend: ${{ steps.detect.outputs.backend }}
 
     steps:
       - name: Checkout repository
@@ -29,34 +31,19 @@ jobs:
 
       - name: Detect backend changes
         id: detect
-        working-directory: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "run_backend=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          BASE_REF="origin/${{ github.base_ref }}"
-          echo "Comparing ${BASE_REF}...HEAD for backend-related changes"
-          CHANGED=$(git diff --name-only "${BASE_REF}...HEAD" -- \
-            backend .github/workflows/deploy-backend.yml)
-
-          if [ -n "$CHANGED" ]; then
-            echo "backend changes found:"
-            echo "$CHANGED"
-            echo "run_backend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "no backend changes: skipping heavy steps"
-            echo "run_backend=false" >> "$GITHUB_OUTPUT"
-          fi
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3 https://github.com/dorny/paths-filter/releases/tag/v3.0.3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/deploy-backend.yml'
 
       - name: Setup Rust toolchain
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v1
 
       - name: Cache Cargo registry & build
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5 https://github.com/actions/cache/releases/tag/v5
         with:
           path: |
@@ -68,23 +55,23 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Lint (clippy)
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         run: cargo clippy -- -D warnings
 
       - name: Run tests
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         run: cargo test
 
       - name: Check release build
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         run: cargo check --release
 
       - name: Generate OpenAPI schema
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         run: cargo run --bin generate_openapi
 
       - name: Check OpenAPI schema is up to date
-        if: steps.detect.outputs.run_backend == 'true'
+        if: steps.detect.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code docs/openapi.json; then
@@ -92,26 +79,24 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Node.js
-        if: steps.detect.outputs.run_backend == 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 https://github.com/actions/setup-node/releases/tag/v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+  validate-frontend-types:
+    name: Validate Frontend Types
+    needs: test-and-build
+    if: needs.test-and-build.outputs.backend == 'true'
+    runs-on: ubuntu-latest
 
-      - name: Install frontend dependencies
-        if: steps.detect.outputs.run_backend == 'true'
-        working-directory: ${{ github.workspace }}/frontend
-        run: npm ci
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup frontend
+        uses: ./.github/actions/setup-frontend
 
       - name: Generate frontend types
-        if: steps.detect.outputs.run_backend == 'true'
-        working-directory: ${{ github.workspace }}/frontend
+        working-directory: frontend
         run: npm run generate:types
 
       - name: Check frontend types are up to date
-        if: steps.detect.outputs.run_backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code frontend/src/generated/api.ts; then
@@ -120,13 +105,12 @@ jobs:
           fi
 
       - name: TypeScript type check
-        if: steps.detect.outputs.run_backend == 'true'
-        working-directory: ${{ github.workspace }}/frontend
+        working-directory: frontend
         run: npm run typecheck
 
   deploy:
     name: Deploy to Fly.io
-    needs: test-and-build
+    needs: [test-and-build, validate-frontend-types]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
