@@ -4,7 +4,7 @@ FROM rust:1.96-bookworm AS builder
 WORKDIR /app
 
 # 依存関係のキャッシュ用にCargo.tomlとCargo.lockをコピー
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 
 # ダミーのsrc/main.rsを作成して依存関係をキャッシュ
 RUN mkdir src && echo "fn main() {}" > src/main.rs
