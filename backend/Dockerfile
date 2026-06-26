@@ -14,8 +14,8 @@ RUN cargo build --release && rm -rf src
 COPY src ./src
 COPY migrations ./migrations
 
-# 依存関係のビルドキャッシュを無効化しないために、main.rsのタイムスタンプを更新
-RUN touch src/main.rs
+# 依存関係のビルドキャッシュを無効化しないために、全 Rust ソースのタイムスタンプを更新
+RUN find src -name "*.rs" -exec touch {} +
 
 # SQLxのオフラインモード用（.sqlxディレクトリがある場合）
 # 注意: .sqlxディレクトリが存在しない場合はこの行をコメントアウトするか、
