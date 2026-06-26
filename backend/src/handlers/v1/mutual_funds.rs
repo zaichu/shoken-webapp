@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Json},
 };
 
-// Mutual fund transaction handlers
+// 投資信託取引ハンドラー
 // ---------------------------------------------------------------------------
 
 /// 投資信託一覧を取得（v1）

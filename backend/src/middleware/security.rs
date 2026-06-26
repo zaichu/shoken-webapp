@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     body::Body,
-    http::{Method, Request, StatusCode},
+    http::{HeaderValue, Method, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
@@ -14,20 +14,23 @@ use crate::errors::{ErrorDetails, ErrorResponse};
 pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
-    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
-    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
+    headers.insert(
+        "X-Content-Type-Options",
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
     headers.insert(
         "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse().unwrap(),
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
     );
     headers.insert(
         "Content-Security-Policy",
-        "default-src 'none'".parse().unwrap(),
+        HeaderValue::from_static("default-src 'none'"),
     );
     if crate::config::is_secure_cookie() {
         headers.insert(
             "Strict-Transport-Security",
-            "max-age=31536000; includeSubDomains".parse().unwrap(),
+            HeaderValue::from_static("max-age=31536000; includeSubDomains"),
         );
     }
     response
