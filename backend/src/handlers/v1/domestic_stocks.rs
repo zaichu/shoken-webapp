@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Json},
 };
 
-// Domestic stock transaction handlers
+// 国内株式取引ハンドラー
 // ---------------------------------------------------------------------------
 
 /// 国内株式取引一覧を取得（v1）

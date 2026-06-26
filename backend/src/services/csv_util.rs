@@ -2,6 +2,7 @@ use crate::models::csv_import::CsvRowError;
 use chrono::NaiveDate;
 use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -50,7 +51,7 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
 
 /// 税金を計算する（特定口座かつ利益がある場合のみ）
 pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal) {
-    let tax_rate = Decimal::from_str("0.20315").unwrap();
+    let tax_rate = dec!(0.20315);
     if account.contains("特定") && realized_pnl > Decimal::ZERO {
         let taxes = (realized_pnl * tax_rate).floor();
         let after_tax = realized_pnl - taxes;

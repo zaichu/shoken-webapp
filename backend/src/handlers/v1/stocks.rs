@@ -13,7 +13,7 @@ use axum::{
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-// Stock handlers
+// 銘柄ハンドラー
 // ---------------------------------------------------------------------------
 
 /// 銘柄検索クエリパラメータ（v1）
