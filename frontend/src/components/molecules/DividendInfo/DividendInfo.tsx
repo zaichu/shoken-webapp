@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
-import { formatCurrency, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
+import { formatCurrency, formatNumber, formatPercentageValue, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
 import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
 import { useAssetBalance } from '@/features/assetBalance/hooks/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
@@ -180,7 +180,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
               className="text-2xl font-bold tabular-nums text-primary"
               title={holdingQuantity === undefined ? ASSET_BALANCE_HINT : undefined}
             >
-              {holdingQuantity !== undefined ? holdingQuantity.toLocaleString('ja-JP') : '---'}
+              {holdingQuantity !== undefined ? formatNumber(holdingQuantity) : '---'}
             </p>
             {holdingQuantity === undefined && (
               <p className="mt-0.5 text-xs text-slate-400">{ASSET_BALANCE_HINT}</p>
@@ -207,7 +207,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
               {formatCurrency(totalDividendsBeforeTax)}
               {grossDividendReturnRate > 0 && (
                 <span className="text-sm font-normal text-slate-500 ml-1">
-                  ({grossDividendReturnRate.toFixed(2)}%)
+                  ({formatPercentageValue(grossDividendReturnRate, 2)})
                 </span>
               )}
             </p>
@@ -224,7 +224,7 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
               {formatCurrency(totalNetAmountReceived)}
               {dividendReturnRate > 0 && (
                 <span className="text-sm font-normal text-slate-500 ml-1">
-                  ({dividendReturnRate.toFixed(2)}%)
+                  ({formatPercentageValue(dividendReturnRate, 2)})
                 </span>
               )}
             </p>
