@@ -33,14 +33,19 @@ type GoogleOAuthClient = oauth2::Client<
 >;
 
 pub fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
-    let client_id =
-        state.secrets.google_client_id.clone().ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
-        })?;
+    let client_id = state
+        .secrets
+        .google_client_id
+        .as_deref()
+        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string()))?
+        .to_string();
 
-    let client_secret = state.secrets.google_client_secret.clone().ok_or_else(|| {
-        ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
-    })?;
+    let client_secret = state
+        .secrets
+        .google_client_secret
+        .as_deref()
+        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string()))?
+        .to_string();
 
     let redirect_url = format!("{}/api/v1/oauth/google/callback", config::backend_url());
 

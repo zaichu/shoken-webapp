@@ -12,27 +12,33 @@ pub fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: Date
 /// 決算サマリーから1株配当を抽出する
 /// 優先順位: 来期予想(NxFDivAnn) > 今期予想(FDivAnn) > 実績(DivAnn)
 pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
-    // 開示日で降順ソート（最新データを優先）
-    let mut sorted: Vec<&FinSummaryData> = data.iter().collect();
-    sorted.sort_by(|a, b| b.disclosed_date.cmp(&a.disclosed_date));
+    // 有効な配当値を持つ summary の中で開示日が最大のものを選ぶ
+    // 同じ開示日の場合は入力順先勝ち（元の sort_by + 線形走査と同挙動）
+    let best = data
+        .iter()
+        .filter_map(|summary| {
+            [
+                summary
+                    .next_year_forecast_dividend_per_share_annual
+                    .as_deref(),
+                summary.forecast_dividend_per_share_annual.as_deref(),
+                summary.result_dividend_per_share_annual.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .filter(|s| !s.is_empty())
+            .find_map(|s| s.parse::<f64>().ok())
+            .map(|v| (&summary.disclosed_date, v))
+        })
+        .fold(None, |acc: Option<(&String, f64)>, (date, val)| match acc {
+            None => Some((date, val)),
+            Some((best_date, _)) if date > best_date => Some((date, val)),
+            Some(prev) => Some(prev),
+        });
 
-    for summary in &sorted {
-        for raw in [
-            summary
-                .next_year_forecast_dividend_per_share_annual
-                .as_deref(),
-            summary.forecast_dividend_per_share_annual.as_deref(),
-            summary.result_dividend_per_share_annual.as_deref(),
-        ] {
-            let Some(val_str) = raw.filter(|s| !s.is_empty()) else {
-                continue;
-            };
-
-            if let Ok(val) = val_str.parse::<f64>() {
-                let status = if val > 0.0 { "ok" } else { "zero" };
-                return (Some(val), status.to_string());
-            }
-        }
+    if let Some((_, val)) = best {
+        let status = if val > 0.0 { "ok" } else { "zero" };
+        return (Some(val), status.to_string());
     }
 
     // 配当情報が見つからない → ゼロ配当として扱う
@@ -118,6 +124,19 @@ mod tests {
         ]);
 
         assert_eq!(value, Some(60.0));
+        assert_eq!(status, "ok");
+    }
+
+    #[test]
+    fn test_extract_dividend_same_date_uses_first_input_order() {
+        // 同じ disclosed_date を持つ複数 summary がある場合、入力順で最初に現れた
+        // valid dividend が採用される。この値が persistence.rs によって DB に書き込まれるため、
+        // 後続の summary の値に変わらないことを保証する回帰テスト。
+        let (value, status) = extract_dividend(&[
+            make_summary("2024-01-01", None, None, Some("30.0")),
+            make_summary("2024-01-01", None, None, Some("99.0")),
+        ]);
+        assert_eq!(value, Some(30.0));
         assert_eq!(status, "ok");
     }
 

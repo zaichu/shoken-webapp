@@ -47,12 +47,9 @@ pub fn spawn_background_refresh(
 
         for code in &codes {
             // DBレート制御: 1分5回(12秒間隔)を全インスタンスで保証
-            match acquire_rate_slot(&pool).await {
-                Ok(()) => {}
-                Err(e) => {
-                    tracing::error!("レート制御スロット取得エラー: {}", e);
-                    break;
-                }
+            if let Err(e) = acquire_rate_slot(&pool).await {
+                tracing::error!("レート制御スロット取得エラー: {}", e);
+                break;
             }
 
             match fetch_and_cache(&pool, &jquants_client, code).await {

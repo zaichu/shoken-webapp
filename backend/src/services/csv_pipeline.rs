@@ -57,11 +57,15 @@ pub fn parse_csv_with_config(
 }
 
 fn strip_header_rows(content: &str, skip_header_rows: usize) -> String {
-    content
-        .lines()
-        .skip(skip_header_rows)
-        .collect::<Vec<_>>()
-        .join("\n")
+    let mut lines = content.lines().skip(skip_header_rows).peekable();
+    let mut result = String::new();
+    while let Some(line) = lines.next() {
+        result.push_str(line);
+        if lines.peek().is_some() {
+            result.push('\n');
+        }
+    }
+    result
 }
 
 fn is_all_empty_record(record: &csv::StringRecord) -> bool {
