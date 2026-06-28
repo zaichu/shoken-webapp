@@ -103,11 +103,13 @@ pub async fn delete_account(
 ) -> Result<impl IntoResponse, ApiError> {
     let session_id = auth_service::get_session_id_from_jar(&jar)?;
 
-    if jar.get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME).is_none() {
-        return Err(ApiError::ApiError(
-            "アカウント削除確認が完了していません".to_string(),
-        ));
-    }
+    let confirmation = jar
+        .get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME)
+        .ok_or_else(|| ApiError::ApiError("アカウント削除確認が完了していません".to_string()))?;
+    confirmation
+        .value()
+        .parse::<uuid::Uuid>()
+        .map_err(|_| ApiError::ApiError("アカウント削除確認が無効です".to_string()))?;
 
     let user_id = auth_service::select_user_id_by_session(&state.pool, session_id)
         .await?

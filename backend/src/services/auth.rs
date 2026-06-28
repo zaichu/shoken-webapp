@@ -163,6 +163,13 @@ pub async fn select_user_id_by_session(
 }
 
 pub async fn create_session(pool: &PgPool, user_id: uuid::Uuid) -> Result<String, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    sqlx::query("DELETE FROM sessions WHERE user_id = $1")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
     let session_id: (uuid::Uuid,) = sqlx::query_as(
         r#"
         INSERT INTO sessions (user_id)
@@ -171,8 +178,10 @@ pub async fn create_session(pool: &PgPool, user_id: uuid::Uuid) -> Result<String
         "#,
     )
     .bind(user_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await?;
+
+    tx.commit().await?;
 
     Ok(session_id.0.to_string())
 }
