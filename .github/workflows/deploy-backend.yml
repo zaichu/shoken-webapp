@@ -132,7 +132,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           set -euo pipefail
-          echo "::error::flyctl deploy failed. Previous running deployment was not modified by this recovery step."
+          echo "::error::flyctl deploy failed. Previous running deployment was not modified. See diagnostic output below."
           echo "=== releases ==="
           flyctl releases --json | jq '.' || true
           echo "=== machine list ==="
