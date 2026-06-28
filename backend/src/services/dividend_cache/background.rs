@@ -1,5 +1,6 @@
 use crate::errors::ApiError;
 use crate::services::jquants::JQuantsClient;
+use futures::stream::{FuturesUnordered, StreamExt};
 use sqlx::PgPool;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -14,7 +15,21 @@ pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
     matches!(e, ApiError::RateLimitError(_))
 }
 
-/// バックグラウンドで未取得/TTL切れ銘柄を順次更新する（1分5回レート制御）
+/// DB レート制御が 12秒間隔を保証するため、5 は同時に予約/待機させる上限であり、
+/// 外部 API の実呼び出し間隔は acquire_rate_slot が制御する
+const MAX_CONCURRENT_REFRESHES: usize = 5;
+
+enum RefreshOutcome {
+    Fetched(String),
+    /// acquire_rate_slot の失敗 → 全体中断
+    RateSlotFailed(ApiError),
+    /// 429 → cooldown 設定 + 全体中断
+    RateLimitExceeded(ApiError),
+    /// その他の fetch エラー → エラー記録して継続
+    FetchFailed(ApiError),
+}
+
+/// バックグラウンドで未取得/TTL切れ銘柄を並列更新する（最大 MAX_CONCURRENT_REFRESHES 件同時、1分5回レート制御）
 pub fn spawn_background_refresh(
     pool: PgPool,
     jquants_client: JQuantsClient,
@@ -45,36 +60,84 @@ pub fn spawn_background_refresh(
             codes.len()
         );
 
-        for code in &codes {
-            // DBレート制御: 1分5回(12秒間隔)を全インスタンスで保証
-            if let Err(e) = acquire_rate_slot(&pool).await {
-                tracing::error!("レート制御スロット取得エラー: {}", e);
+        let mut codes_iter = codes.iter();
+        let mut pending: FuturesUnordered<_> = FuturesUnordered::new();
+
+        loop {
+            // バッチ単位でエンキュー: abort-worthy な結果を含む現バッチを
+            // すべて処理し終えてから次バッチを enqueue する
+            for code in codes_iter.by_ref().take(MAX_CONCURRENT_REFRESHES) {
+                let pool = pool.clone();
+                let client = jquants_client.clone();
+                let code = code.clone();
+                pending.push(async move {
+                    // DBレート制御: 1分5回(12秒間隔)を全インスタンスで保証してから API を呼ぶ
+                    if let Err(e) = acquire_rate_slot(&pool).await {
+                        return (code, RefreshOutcome::RateSlotFailed(e));
+                    }
+                    let outcome = match fetch_and_cache(&pool, &client, &code).await {
+                        Ok(status) => RefreshOutcome::Fetched(status),
+                        Err(e) if should_abort_on_error(&e) => RefreshOutcome::RateLimitExceeded(e),
+                        Err(e) => RefreshOutcome::FetchFailed(e),
+                    };
+                    (code, outcome)
+                });
+            }
+
+            // コードが尽きて pending も空なら完了
+            if pending.is_empty() {
                 break;
             }
 
-            match fetch_and_cache(&pool, &jquants_client, code).await {
-                Ok(status) => {
-                    tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
-                }
-                Err(e) => {
-                    if should_abort_on_error(&e) {
+            // 現バッチを全件処理してから次バッチへ
+            let mut abort = false;
+            while let Some((code, outcome)) = pending.next().await {
+                match outcome {
+                    RefreshOutcome::Fetched(status) => {
+                        tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
+                    }
+                    RefreshOutcome::RateSlotFailed(e) => {
+                        tracing::error!("レート制御スロット取得エラー: {}", e);
+                        // pending の future を drop して中断（残タスクはキャンセル）
+                        abort = true;
+                        break;
+                    }
+                    RefreshOutcome::RateLimitExceeded(e) => {
                         tracing::warn!(
                             "配当キャッシュ更新: レートリミット超過 code={}, バックグラウンド更新を中断",
                             code
                         );
-                        let _ = update_cache_error_with_cooldown(
+                        if let Err(err) = update_cache_error_with_cooldown(
                             &pool,
-                            code,
+                            &code,
                             &e.to_string(),
                             super::RATE_LIMIT_COOLDOWN_SECS,
                         )
-                        .await;
-                        let _ = super::push_rate_control_cooldown(&pool).await;
+                        .await
+                        {
+                            tracing::error!(
+                                "配当キャッシュ エラー記録失敗: code={}, err={}",
+                                code,
+                                err
+                            );
+                        }
+                        if let Err(err) = super::push_rate_control_cooldown(&pool).await {
+                            tracing::error!("レートリミット cooldown 設定失敗: err={}", err);
+                        }
+                        // pending の future を drop して中断（残タスクはキャンセル）
+                        abort = true;
                         break;
                     }
-                    tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
-                    let _ = update_cache_error(&pool, code, &e.to_string()).await;
+                    RefreshOutcome::FetchFailed(e) => {
+                        tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
+                        let _ = update_cache_error(&pool, &code, &e.to_string()).await;
+                    }
                 }
+            }
+
+            if abort {
+                // ループを抜けると pending が drop され、残タスクはキャンセルされる
+                break;
             }
         }
 
