@@ -75,18 +75,36 @@ fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
             simple_error(StatusCode::BAD_REQUEST, "JSON_PARSE_ERROR", err.to_string())
         }
         ApiError::DatabaseError(ref e) => {
-            let (code, message) = match e {
-                sqlx::Error::RowNotFound => ("NOT_FOUND", "Resource not found"),
+            let (status, code, message): (StatusCode, &str, &str) = match e {
+                sqlx::Error::RowNotFound => {
+                    (StatusCode::NOT_FOUND, "NOT_FOUND", "Resource not found")
+                }
                 sqlx::Error::Database(db_err) => {
                     if db_err.is_unique_violation() {
-                        ("DUPLICATE_ENTRY", "Duplicate entry")
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "DUPLICATE_ENTRY",
+                            "Duplicate entry",
+                        )
                     } else if db_err.is_foreign_key_violation() {
-                        ("FOREIGN_KEY_VIOLATION", "Foreign key constraint violation")
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "FOREIGN_KEY_VIOLATION",
+                            "Foreign key constraint violation",
+                        )
                     } else {
-                        ("DATABASE_ERROR", "Database error occurred")
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "DATABASE_ERROR",
+                            "Database error occurred",
+                        )
                     }
                 }
-                _ => ("DATABASE_ERROR", "Database error occurred"),
+                _ => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "DATABASE_ERROR",
+                    "Database error occurred",
+                ),
             };
             if is_production_env() {
                 tracing::error!("Database error [{}]", code);
@@ -94,11 +112,7 @@ fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
                 tracing::error!("Database error [{}]: {}", code, e);
             }
             (
-                if code == "NOT_FOUND" {
-                    StatusCode::NOT_FOUND
-                } else {
-                    StatusCode::INTERNAL_SERVER_ERROR
-                },
+                status,
                 ErrorDetails {
                     code: code.to_string(),
                     message: message.to_string(),

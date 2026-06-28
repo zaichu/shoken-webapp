@@ -41,17 +41,11 @@ impl JQuantsClient {
         params: FinSummaryQuery,
     ) -> Result<FinSummaryResponse, ApiError> {
         let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
-        let from_str;
-        let to_str;
-
-        if let Some(ref from) = params.from {
-            from_str = from.clone();
-            query_params.push(("from", &from_str));
+        if let Some(from) = params.from.as_deref() {
+            query_params.push(("from", from));
         }
-
-        if let Some(ref to) = params.to {
-            to_str = to.clone();
-            query_params.push(("to", &to_str));
+        if let Some(to) = params.to.as_deref() {
+            query_params.push(("to", to));
         }
 
         tracing::info!("JQuants API V2 リクエスト: code={}", params.code);

@@ -82,30 +82,17 @@ fn build_batch_items<'a>(
     let mut items: Vec<DividendPerShareItem> = Vec::with_capacity(codes.len());
 
     for code in codes {
-        let item = if let Some(cached_item) = cache_map.get(code.as_str()) {
-            let is_stale = compute_is_stale(&cached_item.status, cached_item.stale_at, now);
-            if is_stale && refresh_seen.insert(code.as_str()) {
-                refresh_codes.push(code.clone());
-            }
-            DividendPerShareItem {
-                security_code: code.clone(),
-                dividend_per_share: cached_item.dividend_per_share,
-                status: cached_item.status.clone(),
-                fetched_at: cached_item.fetched_at,
-                is_stale,
-            }
-        } else {
-            // 未キャッシュ → pending としてキューに積む
-            if refresh_seen.insert(code.as_str()) {
-                refresh_codes.push(code.clone());
-            }
-            DividendPerShareItem {
-                security_code: code.clone(),
-                dividend_per_share: None,
-                status: "pending".to_string(),
-                fetched_at: None,
-                is_stale: false,
-            }
+        let cached_entry = cache_map.get(code.as_str());
+        let is_stale = cached_entry.is_none_or(|c| compute_is_stale(&c.status, c.stale_at, now));
+        if is_stale && refresh_seen.insert(code.as_str()) {
+            refresh_codes.push(code.clone());
+        }
+        let item = DividendPerShareItem {
+            security_code: code.clone(),
+            dividend_per_share: cached_entry.and_then(|c| c.dividend_per_share),
+            status: cached_entry.map_or_else(|| "pending".to_string(), |c| c.status.clone()),
+            fetched_at: cached_entry.and_then(|c| c.fetched_at),
+            is_stale: cached_entry.is_some() && is_stale,
         };
         items.push(item);
     }
