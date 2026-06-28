@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../atoms/Button';
+import { ConfirmDeleteModal } from '../molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { cn } from '../../lib/utils/classNames';
 import { APP_SHELL_CONTAINER } from '@/lib/layout';
@@ -195,59 +196,15 @@ export function Header() {
         </div>
       </header>
 
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-          onClick={() => setShowDeleteConfirm(false)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-          aria-describedby="delete-modal-description"
-          tabIndex={-1}
-        >
-          <div
-            className="w-full max-w-md"
-            role="presentation"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === 'Escape') setShowDeleteConfirm(false); else e.stopPropagation(); }}
-          >
-            <div className="overflow-hidden rounded-xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <h5 id="delete-modal-title" className="font-bold text-danger">
-                  アカウント削除の確認
-                </h5>
-                <button
-                  type="button"
-                  className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  aria-label="閉じる"
-                >
-                  <span aria-hidden="true">✕</span>
-                </button>
-              </div>
-              <div id="delete-modal-description" className="px-4 py-4 text-sm text-dark">
-                <p>本当にアカウントを削除しますか？</p>
-                <p className="mt-2 text-danger">
-                  <strong>警告:</strong> この操作は取り消せません。
-                  資産管理、配当金、取引履歴などすべてのデータが削除されます。
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  キャンセル
-                </Button>
-                <Button variant="outline-danger" onClick={handleDeleteAccount}>
-                  削除する
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteConfirm(false)}
+        title="アカウント削除の確認"
+        description="アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。"
+        itemCount={1}
+        confirmLabel="削除する"
+      />
     </>
   );
 }
