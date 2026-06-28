@@ -1,8 +1,5 @@
 import type { AssetBalanceData } from '@/types/api';
-
-function fmt(value: number): string {
-  return value.toLocaleString('ja-JP');
-}
+import { formatNumber } from '@/lib/utils/formatters';
 
 export function generateAssetReviewPrompt(assets: AssetBalanceData[]): string {
   const header = ['銘柄コード', '銘柄名', '保有株数', '平均取得単価'].join(' | ');
@@ -11,8 +8,8 @@ export function generateAssetReviewPrompt(assets: AssetBalanceData[]): string {
     [
       a.security_code,
       a.security_name,
-      fmt(a.shares),
-      `¥${fmt(a.average_purchase_price)}`,
+      formatNumber(a.shares),
+      `¥${formatNumber(a.average_purchase_price)}`,
     ].join(' | ')
   );
 

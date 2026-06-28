@@ -126,7 +126,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xl font-bold text-slate-800">{item.percentage.toFixed(1)}%</p>
+          <p className="text-xl font-bold text-slate-800">{formatPercentageValue(item.percentage, 1)}</p>
         </div>
       </div>
 
@@ -254,7 +254,7 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
                 その他 {chartData.length - TOP_N}銘柄
               </span>
               <span className="text-lg font-bold text-slate-500">
-                {othersPercentage.toFixed(1)}%
+                {formatPercentageValue(othersPercentage, 1)}
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full bg-slate-200">
