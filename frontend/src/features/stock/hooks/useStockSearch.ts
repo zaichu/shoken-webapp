@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchStockData } from '../api';
 import { StockData } from '../types';
 
 export function useStockSearch(initialCode?: string) {
   const [stockCode, setStockCode] = useState(initialCode || '');
-  const [searchQuery, setSearchQuery] = useState(initialCode || '');
+  const [submittedCode, setSubmittedCode] = useState(initialCode || '');
 
   const {
     data: stockData,
@@ -13,26 +13,26 @@ export function useStockSearch(initialCode?: string) {
     isLoading,
     isError
   } = useQuery<StockData, Error>({
-    queryKey: ['stock', searchQuery],
-    queryFn: () => fetchStockData(searchQuery),
-    enabled: !!searchQuery,
+    queryKey: ['stock', submittedCode],
+    queryFn: () => fetchStockData(submittedCode),
+    enabled: !!submittedCode,
     refetchOnWindowFocus: false,
   });
 
-  const handleSearch = useCallback((e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearchQuery(stockCode);
-  }, [stockCode]);
+    setSubmittedCode(stockCode);
+  };
 
   // 検索を直接実行（URLパラメータからの自動検索用）
   const searchByCode = (code: string) => {
     setStockCode(code);
-    setSearchQuery(code);
+    setSubmittedCode(code);
   };
 
   const resetSearch = () => {
     setStockCode('');
-    setSearchQuery('');
+    setSubmittedCode('');
   };
 
   return {

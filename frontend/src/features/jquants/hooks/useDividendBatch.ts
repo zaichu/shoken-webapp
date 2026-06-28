@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchDividendPerShareBatch, DividendStatus } from '../api/dividendPerShareApi';
 
 const BASE_RETRIES = 3;
@@ -18,15 +18,14 @@ export const useDividendBatch = (
   const [loading, setLoading] = useState<boolean>(false);
   const [fetchedCount, setFetchedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [retryCount, setRetryCount] = useState(0);
+  const [retryTick, setRetryTick] = useState(0);
   const retryCountRef = useRef(0);
   const prevCodesRef = useRef<string>('');
+  // 直前フェッチ開始時の codesKey を保持し、銘柄集合の実変更を判定する
+  const lastCodesKeyRef = useRef<string>('');
 
   // 重複排除・ソートした安定キー（配列参照の変化に影響されない）
-  const codesKey = useMemo(
-    () => [...new Set(securityCodes)].sort().join(','),
-    [securityCodes]
-  );
+  const codesKey = [...new Set(securityCodes)].sort().join(',');
 
   useEffect(() => {
     if (!enabled || codesKey === '') {
@@ -36,14 +35,18 @@ export const useDividendBatch = (
       setTotalCount(0);
       prevCodesRef.current = '';
       retryCountRef.current = 0;
+      lastCodesKeyRef.current = '';
       return;
     }
 
-    if (codesKey === prevCodesRef.current && retryCount === 0) return;
+    // 前回フェッチ済みの codesKey なら再フェッチしない
+    if (codesKey === prevCodesRef.current) return;
 
-    // コードセットが変わった場合はリトライカウントをリセット
-    if (codesKey !== prevCodesRef.current && retryCount === 0) {
+    // 実際の銘柄集合が変わった場合のみリトライカウントをリセット
+    // （リトライ時は prevCodesRef が '' になるが lastCodesKeyRef は変わらないため区別できる）
+    if (codesKey !== lastCodesKeyRef.current) {
       retryCountRef.current = 0;
+      lastCodesKeyRef.current = codesKey;
     }
 
     // バックエンドが12秒/銘柄で処理するため、銘柄数に応じて最大リトライ数を動的に計算
@@ -61,7 +64,7 @@ export const useDividendBatch = (
         retryTimer = setTimeout(() => {
           if (isActive) {
             prevCodesRef.current = '';
-            setRetryCount(c => c + 1);
+            setRetryTick(c => c + 1);
           }
         }, RETRY_DELAY_MS);
       } else {
@@ -117,7 +120,7 @@ export const useDividendBatch = (
       isActive = false;
       if (retryTimer !== null) clearTimeout(retryTimer);
     };
-  }, [codesKey, enabled, retryCount]);
+  }, [codesKey, enabled, retryTick]);
 
   return { dividendPerShareMap, dividendStatusMap, loading, fetchedCount, totalCount };
 };

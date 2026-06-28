@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -40,29 +40,23 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   }, [onLogout, queryClient]);
 
   // 未認証時はキャッシュに残存データがあっても空を返す
-  const assetBalanceData = useMemo(
-    () => (isAuthenticated ? (query.data ?? []) : []),
-    [isAuthenticated, query.data]
-  );
+  const assetBalanceData = isAuthenticated ? (query.data ?? []) : [];
 
-  const getAssetBalanceByCode = useCallback(
-    (code: string): AssetBalanceData | undefined => {
-      const normalizedCode = normalizeSecurityCode(code);
-      if (!normalizedCode) return undefined;
-      return assetBalanceData.find(balance =>
-        balance && normalizeSecurityCode(balance.security_code) === normalizedCode
-      );
-    },
-    [assetBalanceData]
-  );
+  const getAssetBalanceByCode = (code: string): AssetBalanceData | undefined => {
+    const normalizedCode = normalizeSecurityCode(code);
+    if (!normalizedCode) return undefined;
+    return assetBalanceData.find(balance =>
+      balance && normalizeSecurityCode(balance.security_code) === normalizedCode
+    );
+  };
 
-  const getTotalMarketValue = useCallback((): number => {
+  const getTotalMarketValue = (): number => {
     return assetBalanceData.reduce((total, balance) => total + (balance?.market_value || 0), 0);
-  }, [assetBalanceData]);
+  };
 
-  const refetch = useCallback(async () => {
+  const refetch = async () => {
     await queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(userId) });
-  }, [queryClient, userId]);
+  };
 
   return {
     assetBalanceData,

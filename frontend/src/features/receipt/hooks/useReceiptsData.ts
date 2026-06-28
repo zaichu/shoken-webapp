@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 import { dividendApi, domesticStockApi, mutualfundApi } from '../api/receiptApi';
 import {
   transformDBDividend,
@@ -31,7 +31,6 @@ interface UseReceiptsDataResult {
   uploadCsv: (args: UploadCsvArgs) => void;
   previewCsv: (args: PreviewCsvArgs) => void;
   deleteAll: (type: ReceiptsType, options?: { onSuccess?: () => void }) => void;
-  clearCache: () => void;
 }
 
 interface UploadCsvArgs {
@@ -148,10 +147,6 @@ export function useReceiptsData(): UseReceiptsDataResult {
     },
   });
 
-  const clearCache = useCallback(() => {
-    clearReceiptsCache(queryClient);
-  }, [queryClient]);
-
   const queryError = dividendQuery.error ?? domesticstockQuery.error ?? mutualfundQuery.error;
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error;
 
@@ -174,6 +169,5 @@ export function useReceiptsData(): UseReceiptsDataResult {
     uploadCsv: uploadCsvMutation.mutate,
     previewCsv: previewCsvMutation.mutate,
     deleteAll: (type, options) => deleteAllMutation.mutate(type, { onSuccess: options?.onSuccess }),
-    clearCache,
   };
 }
