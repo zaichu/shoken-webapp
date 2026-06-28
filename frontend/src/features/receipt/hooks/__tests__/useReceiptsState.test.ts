@@ -48,7 +48,6 @@ function setupMocks(isAuthenticated = true) {
     uploadCsv: mockUploadCsv,
     previewCsv: mockPreviewCsv,
     deleteAll: mockDeleteAll,
-    clearCache: vi.fn(),
   });
 }
 

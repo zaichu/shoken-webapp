@@ -426,41 +426,6 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
-  it('clearCache 実行で receipts キャッシュが消える', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
-      { id: '1', payment_date: '2023-01-01' } as never,
-    ]);
-    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue([
-      { id: '2', trade_date: '2023-01-02' } as never,
-    ]);
-    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue([
-      { id: '3', settlement_date: '2023-01-03' } as never,
-    ]);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeDefined();
-      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeDefined();
-      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeDefined();
-    });
-
-    act(() => {
-      result.current.clearCache();
-    });
-
-    await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toBeUndefined();
-      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toBeUndefined();
-      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
-    });
-  });
-
   it('uploadCsv mutation エラー時: dbError に反映される', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
