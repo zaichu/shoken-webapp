@@ -418,6 +418,7 @@ dependencies = [
  "csv",
  "dotenvy",
  "encoding_rs",
+ "futures",
  "governor",
  "hyper",
  "mockall",
