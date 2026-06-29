@@ -213,10 +213,10 @@ mod tests {
     #[tokio::test]
     async fn test_v1_stocks_search_allows_anonymous() {
         let router = data_routes().with_state(make_test_state());
-        assert_ne!(
-            check_status(router, Method::GET, "/api/v1/stocks?query=7203").await,
-            StatusCode::UNAUTHORIZED
-        );
+        let status = check_status(router, Method::GET, "/api/v1/stocks?query=7203").await;
+        assert_ne!(status, StatusCode::UNAUTHORIZED);
+        assert_ne!(status, StatusCode::NOT_FOUND);
+        assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);
     }
 
     /// 認証必須 collection v1 route が未認証で 401 を返す
