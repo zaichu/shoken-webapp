@@ -1,5 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
+use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
 use std::time::Instant;
 use tracing::info;
@@ -22,6 +23,19 @@ impl BulkTimer {
         }
     }
 
+    /// 空配列の場合は Err(即時レスポンス) を返し、非空なら Ok(タイマー) を返す。
+    pub fn new_with_guard<T>(
+        domain: &'static str,
+        items: &[T],
+    ) -> Result<Self, BulkCreateResponse> {
+        let timer = Self::new(domain, items.len());
+        if items.is_empty() {
+            Err(timer.finish(0))
+        } else {
+            Ok(timer)
+        }
+    }
+
     pub fn finish(self, inserted: usize) -> BulkCreateResponse {
         let skipped = self.total - inserted;
         let elapsed_ms = self.start.elapsed().as_secs_f64() * 1000.0;
@@ -30,6 +44,11 @@ impl BulkTimer {
             self.domain, inserted, skipped, elapsed_ms
         );
         BulkCreateResponse { inserted, skipped }
+    }
+
+    /// PgQueryResult から rows_affected を取り出して finish する。
+    pub fn finish_from_result(self, result: PgQueryResult) -> BulkCreateResponse {
+        self.finish(result.rows_affected() as usize)
     }
 }
 

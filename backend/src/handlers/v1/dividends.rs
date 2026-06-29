@@ -1,6 +1,7 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
+    handlers::common::ok_message,
     models::{
         common::MessageResponse,
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
@@ -54,12 +55,7 @@ pub async fn delete_all(
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
     dividend_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok((
-        StatusCode::OK,
-        Json(MessageResponse {
-            message: "全ての配当金データを削除しました".to_string(),
-        }),
-    ))
+    Ok(ok_message("全ての配当金データを削除しました"))
 }
 
 /// 配当金 CSV をバリデーション（DB 書き込みなし）（v1）
