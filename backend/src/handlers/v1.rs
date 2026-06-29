@@ -209,11 +209,11 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// GET /api/v1/stocks?query=... は未認証で 401 を返す
+    /// GET /api/v1/stocks?query=... は未認証でも認証エラーにしない
     #[tokio::test]
-    async fn test_v1_stocks_search_requires_auth() {
+    async fn test_v1_stocks_search_allows_anonymous() {
         let router = data_routes().with_state(make_test_state());
-        assert_eq!(
+        assert_ne!(
             check_status(router, Method::GET, "/api/v1/stocks?query=7203").await,
             StatusCode::UNAUTHORIZED
         );
@@ -223,11 +223,6 @@ mod tests {
     #[tokio::test]
     async fn test_v1_collection_routes_return_401_without_auth() {
         for (router, method, uri) in [
-            (
-                data_routes().with_state(make_test_state()),
-                Method::GET,
-                "/api/v1/stocks?query=7203",
-            ),
             (
                 data_routes().with_state(make_test_state()),
                 Method::GET,

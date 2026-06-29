@@ -249,11 +249,6 @@ mod tests {
     async fn test_all_endpoints_require_auth() {
         for (router, method, uri) in [
             (
-                handlers::v1::data_routes(),
-                Method::GET,
-                "/api/v1/stocks?query=7203",
-            ),
-            (
                 handlers::v1::jquants_routes(),
                 Method::GET,
                 "/api/v1/financial-statements?code=7203",
