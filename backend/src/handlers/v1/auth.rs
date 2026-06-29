@@ -101,7 +101,7 @@ pub async fn delete_account(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    let session_id = auth_service::get_session_id_from_jar(&jar)?;
+    let session_id = crate::handlers::auth::get_session_id_from_jar(&jar)?;
 
     let confirmation = jar
         .get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME)
@@ -119,7 +119,7 @@ pub async fn delete_account(
 
     let is_secure = config::is_secure_cookie();
     let jar = jar
-        .remove(auth_service::clear_session_cookie(is_secure))
+        .remove(crate::handlers::auth::clear_session_cookie(is_secure))
         .remove(clear_account_delete_confirmation_cookie(is_secure));
 
     Ok((

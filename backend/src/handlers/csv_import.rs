@@ -1,4 +1,5 @@
 use crate::errors::ApiError;
+use crate::models::csv_import::CsvUploadResponse;
 use crate::services::csv_domain::CsvDomain;
 use crate::state::AppState;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json, Router};
@@ -46,14 +47,15 @@ pub async fn handle_preview_csv<D: CsvDomain>(
 /// ドメイン共通のアップロード処理
 ///
 /// ハンドラーから `handle_upload_csv::<DividendDomain>(&state.pool, auth_user.id(), multipart).await` のように呼ぶ。
+/// HTTP ステータスコードは呼び出し元ハンドラーが決める。
 pub async fn handle_upload_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     multipart: Multipart,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<Json<CsvUploadResponse>, ApiError> {
     let bytes = read_csv_file_bytes(multipart).await?;
     let response = D::upload_csv(pool, user_id, &bytes).await?;
-    Ok((StatusCode::CREATED, Json(response)))
+    Ok(Json(response))
 }
 #[cfg(test)]
 mod tests {
@@ -182,7 +184,8 @@ mod tests {
         State(pool): State<sqlx::PgPool>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await
+        let json = handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await?;
+        Ok((StatusCode::CREATED, json))
     }
 
     #[tokio::test]
