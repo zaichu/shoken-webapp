@@ -1,5 +1,5 @@
 use crate::{
-    errors::{ApiError, ErrorResponse},
+    errors::ApiError,
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
@@ -8,19 +8,6 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, Json};
 
-/// 配当利回り一括取得
-#[utoipa::path(
-    post,
-    path = "/dividends/per-share/batch",
-    operation_id = "dividend_per_share_batch",
-    request_body = DividendPerShareBatchRequest,
-    responses(
-        (status = 200, body = DividendPerShareBatchResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
 pub async fn batch(
     State(state): State<AppState>,
     _auth_user: AuthenticatedUser,

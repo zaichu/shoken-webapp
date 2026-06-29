@@ -1,23 +1,19 @@
-use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
-    CookieJar,
-};
 use oauth2::{
-    basic::BasicClient, AuthUrl, ClientId, ClientSecret, EndpointNotSet, EndpointSet, RedirectUrl,
-    TokenUrl,
+    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, EndpointNotSet,
+    EndpointSet, RedirectUrl, TokenResponse, TokenUrl,
 };
 use sqlx::PgPool;
 
 use crate::config;
 use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, User};
-use crate::state::AppState;
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
 
 type GoogleOAuthClient = oauth2::Client<
     oauth2::basic::BasicErrorResponse,
@@ -32,25 +28,14 @@ type GoogleOAuthClient = oauth2::Client<
     EndpointSet,
 >;
 
-pub fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiError> {
-    let client_id = state
-        .secrets
-        .google_client_id
-        .as_deref()
-        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string()))?
-        .to_string();
-
-    let client_secret = state
-        .secrets
-        .google_client_secret
-        .as_deref()
-        .ok_or_else(|| ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string()))?
-        .to_string();
-
+pub fn create_oauth_client(
+    client_id: &str,
+    client_secret: &str,
+) -> Result<GoogleOAuthClient, ApiError> {
     let redirect_url = format!("{}/api/v1/oauth/google/callback", config::backend_url());
 
-    let client = BasicClient::new(ClientId::new(client_id))
-        .set_client_secret(ClientSecret::new(client_secret))
+    let client = BasicClient::new(ClientId::new(client_id.to_string()))
+        .set_client_secret(ClientSecret::new(client_secret.to_string()))
         .set_auth_uri(
             AuthUrl::new(GOOGLE_AUTH_URL.to_string())
                 .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
@@ -67,65 +52,43 @@ pub fn create_oauth_client(state: &AppState) -> Result<GoogleOAuthClient, ApiErr
     Ok(client)
 }
 
-fn same_site(secure: bool) -> SameSite {
-    if secure {
-        SameSite::None
-    } else {
-        SameSite::Lax
-    }
-}
-
-pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<uuid::Uuid, ApiError> {
-    let session_token = jar
-        .get(SESSION_COOKIE_NAME)
-        .map(|c| c.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
-
-    let session_id: uuid::Uuid = session_token
-        .parse()
-        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
-
-    Ok(session_id)
-}
-
-pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
-    Cookie::build((OAUTH_STATE_COOKIE_NAME, state.to_string()))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::minutes(10))
+/// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
+pub async fn authenticate_with_google_code(
+    pool: &PgPool,
+    http_client: &reqwest::Client,
+    oauth_client: &GoogleOAuthClient,
+    code: String,
+) -> Result<String, ApiError> {
+    let oauth_http_client = oauth2::reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .redirect(oauth2::reqwest::redirect::Policy::limited(3))
         .build()
-}
+        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {}", e)))?;
+    let token_result = oauth_client
+        .exchange_code(AuthorizationCode::new(code))
+        .request_async(&oauth_http_client)
+        .await
+        .map_err(|e| {
+            tracing::error!("OAuth token exchange error: {}", e);
+            ApiError::OAuthError(e.to_string())
+        })?;
 
-pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
-    Cookie::build((OAUTH_STATE_COOKIE_NAME, ""))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::seconds(0))
-        .build()
-}
+    let access_token = token_result.access_token().secret().to_string();
 
-pub fn build_session_cookie(token: &str, secure: bool) -> Cookie<'static> {
-    Cookie::build((SESSION_COOKIE_NAME, token.to_string()))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::days(7))
-        .build()
-}
+    let user_info: GoogleUserInfo = http_client
+        .get(GOOGLE_USERINFO_URL)
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .map_err(|e| ApiError::NetworkError(format!("ユーザー情報取得エラー: {}", e)))?
+        .json()
+        .await
+        .map_err(|e| ApiError::NetworkError(format!("ユーザー情報解析エラー: {}", e)))?;
 
-pub fn clear_session_cookie(secure: bool) -> Cookie<'static> {
-    Cookie::build((SESSION_COOKIE_NAME, ""))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::seconds(0))
-        .build()
+    let user = upsert_user(pool, &user_info).await?;
+    let session_token = create_session(pool, user.id).await?;
+
+    Ok(session_token)
 }
 
 pub async fn select_user_by_session(
@@ -229,102 +192,19 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
 mod tests {
     use {
         super::*,
-        crate::{
-            state::Secrets,
-            test_env::{EnvGuard, ENV_MUTEX},
-        },
-        std::sync::Arc,
+        crate::test_env::{EnvGuard, ENV_MUTEX},
     };
-    fn test_state() -> AppState {
-        AppState {
-            pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
-                .expect("pool"),
-            secrets: Arc::new(Secrets {
-                database_url: "postgresql://user:password@localhost/test_db".to_string(),
-                jquants_api_key: None,
-                google_client_id: Some("client-id".to_string()),
-                google_client_secret: Some("client-secret".to_string()),
-                frontend_url: "http://localhost:8080".to_string(),
-            }),
-            client: reqwest::Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
-        }
-    }
+
     #[test]
-    fn test_auth_helpers() {
-        for (secure, expected_secure) in [(true, true), (false, false)] {
-            for (cookie, expected_name, expected_value) in [
-                (
-                    build_state_cookie("test_state", secure),
-                    OAUTH_STATE_COOKIE_NAME,
-                    "test_state",
-                ),
-                (
-                    build_session_cookie("test_token", secure),
-                    SESSION_COOKIE_NAME,
-                    "test_token",
-                ),
-            ] {
-                assert_eq!(
-                    (
-                        cookie.name(),
-                        cookie.value(),
-                        cookie.secure(),
-                        cookie.http_only()
-                    ),
-                    (
-                        expected_name,
-                        expected_value,
-                        Some(expected_secure),
-                        Some(true)
-                    )
-                );
-            }
-        }
-        assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
-        assert!(get_session_id_from_jar(
-            &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))
-        )
-        .is_err());
-        let uuid = uuid::Uuid::new_v4();
-        assert_eq!(
-            get_session_id_from_jar(
-                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()))
-            )
-            .unwrap(),
-            uuid
-        );
-        for (cookie, expected_name) in [
-            (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
-            (clear_session_cookie(true), SESSION_COOKIE_NAME),
-        ] {
-            assert_eq!((cookie.name(), cookie.value()), (expected_name, ""));
-        }
-        assert_eq!(
-            (
-                same_site(true),
-                same_site(false),
-                SESSION_COOKIE_NAME,
-                OAUTH_STATE_COOKIE_NAME
-            ),
-            (
-                SameSite::None,
-                SameSite::Lax,
-                "session_token",
-                "oauth_state"
-            )
-        );
-    }
-    #[tokio::test]
-    async fn test_create_oauth_client() {
-        assert!(create_oauth_client(&test_state()).is_ok());
+    fn test_create_oauth_client() {
+        assert!(create_oauth_client("client-id", "client-secret").is_ok());
     }
 
     #[tokio::test]
     async fn test_oauth_redirect_uri_is_v1_path() {
         let _lock = ENV_MUTEX.lock().await;
         let _env = EnvGuard::set("BACKEND_URL", Some("https://shoken-backend.fly.dev"));
-        let client = create_oauth_client(&test_state()).unwrap();
+        let client = create_oauth_client("client-id", "client-secret").unwrap();
         let (auth_url, _csrf) = client.authorize_url(oauth2::CsrfToken::new_random).url();
         let url_str = auth_url.to_string();
         assert!(
