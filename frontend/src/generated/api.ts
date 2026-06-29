@@ -1688,14 +1688,6 @@ export interface operations {
                     "application/json": components["schemas"]["Stock"];
                 };
             };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
             404: {
                 headers: {
                     [name: string]: unknown;
