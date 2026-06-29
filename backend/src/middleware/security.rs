@@ -36,6 +36,23 @@ pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
     response
 }
 
+/// Origin/Referer なし unsafe method を拒否すべき環境かどうかを判定する
+///
+/// - RUST_ENV / APP_ENV が明示設定済みで、ローカル開発用の exempt 値でない → true（拒否）
+/// - 未設定の場合は BACKEND_URL=https:// のみ拒否（ローカル開発は通過）
+fn is_strict_origin_check() -> bool {
+    const EXEMPT: &[&str] = &["local", "dev", "development", "test"];
+    if let Ok(v) = std::env::var("RUST_ENV") {
+        return !EXEMPT.contains(&v.as_str());
+    }
+    if let Ok(v) = std::env::var("APP_ENV") {
+        return !EXEMPT.contains(&v.as_str());
+    }
+    std::env::var("BACKEND_URL")
+        .map(|url| url.starts_with("https://"))
+        .unwrap_or(false)
+}
+
 /// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
 ///
 /// `starts_with` での前方一致では `https://example.com.evil/` のような
@@ -116,8 +133,8 @@ pub async fn validate_origin(
                 }
                 None => {
                     // Origin も Referer もなし
-                    // 本番環境では CSRF リスクがあるため拒否する
-                    if crate::config::is_production_env() {
+                    // 本番・staging 等の明示設定済み環境では CSRF リスクがあるため拒否する
+                    if is_strict_origin_check() {
                         csrf_error()
                     } else {
                         next.run(request).await
@@ -285,6 +302,50 @@ mod tests {
             assert_ne!(
                 oneshot_status(test_app(), Method::GET, &[]).await,
                 StatusCode::FORBIDDEN
+            );
+        }
+
+        // APP_ENV=staging のとき Origin/Referer なしは 403（非本番でも明示設定済みなら拒否）
+        {
+            let _app_env = EnvGuard::set("APP_ENV", Some("staging"));
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::FORBIDDEN
+            );
+        }
+
+        // APP_ENV=development のとき Origin/Referer なしは通過（exempt 値）
+        {
+            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::OK
+            );
+        }
+
+        // RUST_ENV=staging のとき Origin/Referer なしは 403
+        {
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _rust_env = EnvGuard::set("RUST_ENV", Some("staging"));
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::FORBIDDEN
+            );
+        }
+
+        // RUST_ENV=test のとき Origin/Referer なしは通過（exempt 値）
+        {
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _rust_env = EnvGuard::set("RUST_ENV", Some("test"));
+            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::OK
             );
         }
     }

@@ -184,19 +184,50 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// GET /api/v1/stocks?query=... の route が登録されている（404 にならない）
+    /// DELETE /api/v1/account は確認 cookie の値が UUID でない場合 400 を返す
     #[tokio::test]
-    async fn test_v1_stocks_search_route_registered() {
+    async fn test_delete_account_rejects_invalid_confirmation_cookie_uuid() {
+        let router = auth_routes().with_state(make_test_state());
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::DELETE)
+                    .uri("/api/v1/account")
+                    .header(
+                        "cookie",
+                        format!(
+                            "session_token={}; account_delete_confirmation=not-a-uuid",
+                            uuid::Uuid::new_v4()
+                        ),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    /// GET /api/v1/stocks?query=... は未認証で 401 を返す
+    #[tokio::test]
+    async fn test_v1_stocks_search_requires_auth() {
         let router = data_routes().with_state(make_test_state());
-        // route が登録されていれば DB 接続エラーか 404 以外が返る
-        let status = check_status(router, Method::GET, "/api/v1/stocks?query=7203").await;
-        assert_ne!(status, StatusCode::NOT_FOUND);
+        assert_eq!(
+            check_status(router, Method::GET, "/api/v1/stocks?query=7203").await,
+            StatusCode::UNAUTHORIZED
+        );
     }
 
     /// 認証必須 collection v1 route が未認証で 401 を返す
     #[tokio::test]
     async fn test_v1_collection_routes_return_401_without_auth() {
         for (router, method, uri) in [
+            (
+                data_routes().with_state(make_test_state()),
+                Method::GET,
+                "/api/v1/stocks?query=7203",
+            ),
             (
                 data_routes().with_state(make_test_state()),
                 Method::GET,
