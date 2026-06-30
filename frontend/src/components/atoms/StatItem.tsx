@@ -2,9 +2,6 @@ import React from 'react';
 import { cn } from '../../lib/utils/classNames';
 import { formatNumber, formatPercentageValue } from '../../lib/utils/formatters';
 
-const defaultValueFormat = (value: number): string => formatNumber(value);
-const defaultRateFormat = (rate: number): string => formatPercentageValue(rate, 2);
-
 interface StatItemProps {
   title: string;
   value: string | React.ReactNode;
@@ -89,8 +86,8 @@ export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
   title,
   value,
   rate,
-  format = defaultValueFormat,
-  rateFormat = defaultRateFormat,
+  format = (value: number) => formatNumber(value),
+  rateFormat = (rate: number) => formatPercentageValue(rate, 2),
   className = '',
   showRate = true,
   variant = 'default'
