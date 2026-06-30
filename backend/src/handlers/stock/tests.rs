@@ -111,36 +111,6 @@ async fn call(
     app.oneshot(request.body(body).unwrap()).await.unwrap()
 }
 
-async fn make_session(pool: &Pool<Postgres>) -> String {
-    let (user_id,): (uuid::Uuid,) = sqlx::query_as(
-        "INSERT INTO users (google_id, email) VALUES ('test-google-id', 'test@example.com') RETURNING id",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap();
-    crate::services::auth::create_session(pool, user_id)
-        .await
-        .unwrap()
-}
-
-async fn call_with_session(
-    app: Router,
-    method: &str,
-    uri: &str,
-    session_cookie: &str,
-) -> axum::response::Response {
-    app.oneshot(
-        Request::builder()
-            .method(method)
-            .uri(uri)
-            .header("cookie", session_cookie)
-            .body(Body::empty())
-            .unwrap(),
-    )
-    .await
-    .unwrap()
-}
-
 async fn read_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(
         &axum::body::to_bytes(response.into_body(), BODY_LIMIT)
@@ -169,12 +139,9 @@ fn stock_payload(code: &str, name: &str) -> Value {
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
-    let session_token = make_session(&pool).await;
-    let cookie = format!("session_token={}", session_token);
     let app = setup_test_app(pool);
 
-    let response =
-        call_with_session(app.clone(), "GET", "/api/v1/stocks?query=1234", &cookie).await;
+    let response = call(app.clone(), "GET", "/api/v1/stocks?query=1234", None).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let stock = read_json(response).await;
@@ -188,9 +155,7 @@ async fn test_search_stock() {
         ("/api/v1/stocks?query=9999", StatusCode::NOT_FOUND),
     ] {
         assert_eq!(
-            call_with_session(app.clone(), "GET", uri, &cookie)
-                .await
-                .status(),
+            call(app.clone(), "GET", uri, None).await.status(),
             expected_status
         );
     }
@@ -247,12 +212,12 @@ async fn test_create_stock_unauthorized() {
 }
 
 #[tokio::test]
-async fn test_search_stock_unauthorized() {
+async fn test_search_stock_allows_anonymous() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
     let app = setup_test_app(pool);
 
-    assert_eq!(
+    assert_ne!(
         call(app, "GET", "/api/v1/stocks?query=7203", None)
             .await
             .status(),
