@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::common::BulkCreateResponse;
+use crate::models::common::{BulkCreateResponse, PaginatedResponse, PaginationParams};
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::mutualfund::{CreateMutualfundRequest, Mutualfund};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
@@ -34,10 +34,19 @@ const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     ],
 };
 
-/// 認証ユーザーの投資信託一覧を取得
-pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<Mutualfund>, ApiError> {
+/// 認証ユーザーの投資信託一覧を取得（ページネーション対応）
+pub async fn list(
+    pool: &PgPool,
+    user_id: Uuid,
+    params: &PaginationParams,
+) -> Result<PaginatedResponse<Mutualfund>, ApiError> {
     info!("[mutualfund.list] リクエスト受信");
-    let funds = sqlx::query_as::<_, Mutualfund>(
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+    let data = sqlx::query_as::<_, Mutualfund>(
         r#"
         SELECT id, user_id, trade_date, settlement_date, fund_name, dividends, account,
                shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen,
@@ -46,13 +55,16 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<Mutualfund>, ApiEr
         FROM mutualfunds
         WHERE user_id = $1
         ORDER BY trade_date DESC
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(user_id)
+    .bind(params.per_page())
+    .bind(params.offset())
     .fetch_all(pool)
     .await?;
 
-    Ok(funds)
+    Ok(PaginatedResponse { data, total, page: params.page(), per_page: params.per_page() })
 }
 
 /// 投資信託を一括追加（重複はスキップ）

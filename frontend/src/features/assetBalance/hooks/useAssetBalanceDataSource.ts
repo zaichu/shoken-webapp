@@ -127,7 +127,7 @@ export function useAssetBalanceDataSourceCore({
     await deleteAllMutation.mutateAsync();
   }, [deleteAllMutation, isAuthenticated]);
 
-  const dbData = dbQuery.data ?? [];
+  const dbData = dbQuery.data?.data ?? [];
   const queryError = dbQuery.error;
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error ?? previewMutation.error;
   const error = queryError

@@ -220,16 +220,35 @@
         ],
         "summary": "保有銘柄一覧を取得（v1）",
         "operationId": "v1_asset_balance_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（デフォルト: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "1ページあたりの件数（デフォルト: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AssetBalance"
-                  }
+                  "$ref": "#/components/schemas/PaginatedResponse_AssetBalance"
                 }
               }
             }
@@ -515,16 +534,35 @@
         ],
         "summary": "配当金一覧を取得（v1）",
         "operationId": "v1_dividend_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（デフォルト: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "1ページあたりの件数（デフォルト: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Dividend"
-                  }
+                  "$ref": "#/components/schemas/PaginatedResponse_Dividend"
                 }
               }
             }
@@ -700,16 +738,35 @@
         ],
         "summary": "国内株式取引一覧を取得（v1）",
         "operationId": "v1_domestic_stock_transaction_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（デフォルト: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "1ページあたりの件数（デフォルト: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DomesticStock"
-                  }
+                  "$ref": "#/components/schemas/PaginatedResponse_DomesticStock"
                 }
               }
             }
@@ -980,16 +1037,35 @@
         ],
         "summary": "投資信託一覧を取得（v1）",
         "operationId": "v1_mutual_fund_transaction_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（デフォルト: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "1ページあたりの件数（デフォルト: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Mutualfund"
-                  }
+                  "$ref": "#/components/schemas/PaginatedResponse_Mutualfund"
                 }
               }
             }
@@ -2652,6 +2728,421 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PaginatedResponse_AssetBalance": {
+        "type": "object",
+        "description": "ページネーションレスポンス（全ドメイン共通）",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "保有銘柄モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "security_code",
+                "security_name",
+                "shares",
+                "executing_shares",
+                "average_purchase_price",
+                "total_purchase_amount",
+                "current_price",
+                "daily_change",
+                "market_value",
+                "profit_loss_rate",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "average_purchase_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "current_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "daily_change": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "executing_shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "market_value": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "profit_loss_rate": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "security_code": {
+                  "type": "string"
+                },
+                "security_name": {
+                  "type": "string"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "total_purchase_amount": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaginatedResponse_Dividend": {
+        "type": "object",
+        "description": "ページネーションレスポンス（全ドメイン共通）",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "配当金モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "settlement_date",
+                "product",
+                "account",
+                "security_code",
+                "security_name",
+                "unit_price",
+                "shares",
+                "dividends_before_tax",
+                "taxes",
+                "net_amount_received",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dividends_before_tax": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "net_amount_received": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "security_code": {
+                  "type": "string"
+                },
+                "security_name": {
+                  "type": "string"
+                },
+                "settlement_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "taxes": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "unit_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaginatedResponse_DomesticStock": {
+        "type": "object",
+        "description": "ページネーションレスポンス（全ドメイン共通）",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "国内株式取引モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "trade_date",
+                "settlement_date",
+                "security_code",
+                "security_name",
+                "account",
+                "shares",
+                "asked_price",
+                "proceeds",
+                "purchase_price",
+                "realized_profit_and_loss",
+                "taxes",
+                "realized_profit_and_loss_after_tax",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "asked_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "proceeds": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "purchase_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "realized_profit_and_loss": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "realized_profit_and_loss_after_tax": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "security_code": {
+                  "type": "string"
+                },
+                "security_name": {
+                  "type": "string"
+                },
+                "settlement_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "taxes": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "trade_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaginatedResponse_Mutualfund": {
+        "type": "object",
+        "description": "ページネーションレスポンス（全ドメイン共通）",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "投資信託モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "trade_date",
+                "settlement_date",
+                "fund_name",
+                "account",
+                "shares",
+                "exchange_rate",
+                "cancellation_unit_price_yen",
+                "cancellation_amount_yen",
+                "average_acquisition_price_yen",
+                "realized_profit_and_loss",
+                "taxes",
+                "realized_profit_and_loss_after_tax",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "average_acquisition_price_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cancellation_amount_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cancellation_unit_price_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dividends": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "exchange_rate": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "fund_name": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "realized_profit_and_loss": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "realized_profit_and_loss_after_tax": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "settlement_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "taxes": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "trade_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

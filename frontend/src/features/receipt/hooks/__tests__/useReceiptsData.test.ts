@@ -84,7 +84,7 @@ function makeWrapper(qc: QueryClient) {
 describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApiModule.dividendApi.deleteAll).mockResolvedValue({} as never);
     vi.mocked(receiptApiModule.dividendApi.uploadCsv).mockResolvedValue({
       inserted: 0,
@@ -98,7 +98,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
       rows: [],
     } as never);
 
-    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApiModule.domesticStockApi.deleteAll).mockResolvedValue({} as never);
     vi.mocked(receiptApiModule.domesticStockApi.uploadCsv).mockResolvedValue({
       inserted: 0,
@@ -112,7 +112,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
       rows: [],
     } as never);
 
-    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApiModule.mutualfundApi.deleteAll).mockResolvedValue({} as never);
     vi.mocked(receiptApiModule.mutualfundApi.uploadCsv).mockResolvedValue({
       inserted: 0,
@@ -158,9 +158,10 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ onLogoutCapture: (cb) => { capturedCallbacks.push(cb); } })
     );
-    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
-      { id: '1', payment_date: '2023-01-01' } as never,
-    ]);
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue({
+      data: [{ id: '1', payment_date: '2023-01-01' } as never],
+      total: 1, page: 1, per_page: 200,
+    } as never);
 
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
@@ -200,9 +201,10 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ onLogoutCapture: (cb) => { capturedCallback = cb; } })
     );
-    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue([
-      { id: '1', payment_date: '2023-01-01' } as never,
-    ]);
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue({
+      data: [{ id: '1', payment_date: '2023-01-01' } as never],
+      total: 1, page: 1, per_page: 200,
+    } as never);
 
     renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 

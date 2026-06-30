@@ -40,7 +40,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   }, [onLogout, queryClient]);
 
   // 未認証時はキャッシュに残存データがあっても空を返す
-  const assetBalanceData = isAuthenticated ? (query.data ?? []) : [];
+  const assetBalanceData = isAuthenticated ? (query.data?.data ?? []) : [];
 
   const getAssetBalanceByCode = (code: string): AssetBalanceData | undefined => {
     const normalizedCode = normalizeSecurityCode(code);

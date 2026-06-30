@@ -794,6 +794,152 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /** @description ページネーションレスポンス（全ドメイン共通） */
+        PaginatedResponse_AssetBalance: {
+            data: {
+                /** Format: double */
+                average_purchase_price: number;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: double */
+                current_price: number;
+                /** Format: double */
+                daily_change: number;
+                /** Format: double */
+                executing_shares: number;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                market_value: number;
+                /** Format: double */
+                profit_loss_rate: number;
+                security_code: string;
+                security_name: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                total_purchase_amount: number;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description ページネーションレスポンス（全ドメイン共通） */
+        PaginatedResponse_Dividend: {
+            data: {
+                account: string;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: double */
+                dividends_before_tax: number;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                net_amount_received: number;
+                product: string;
+                security_code: string;
+                security_name: string;
+                /** Format: date */
+                settlement_date: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                taxes: number;
+                /** Format: double */
+                unit_price: number;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description ページネーションレスポンス（全ドメイン共通） */
+        PaginatedResponse_DomesticStock: {
+            data: {
+                account: string;
+                /** Format: double */
+                asked_price: number;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                proceeds: number;
+                /** Format: double */
+                purchase_price: number;
+                /** Format: double */
+                realized_profit_and_loss: number;
+                /** Format: double */
+                realized_profit_and_loss_after_tax: number;
+                security_code: string;
+                security_name: string;
+                /** Format: date */
+                settlement_date: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                taxes: number;
+                /** Format: date */
+                trade_date: string;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description ページネーションレスポンス（全ドメイン共通） */
+        PaginatedResponse_Mutualfund: {
+            data: {
+                account: string;
+                /** Format: double */
+                average_acquisition_price_yen: number;
+                /** Format: double */
+                cancellation_amount_yen: number;
+                /** Format: double */
+                cancellation_unit_price_yen: number;
+                /** Format: date-time */
+                created_at: string;
+                dividends?: string | null;
+                /** Format: double */
+                exchange_rate: number;
+                fund_name: string;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                realized_profit_and_loss: number;
+                /** Format: double */
+                realized_profit_and_loss_after_tax: number;
+                /** Format: date */
+                settlement_date: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                taxes: number;
+                /** Format: date */
+                trade_date: string;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /** Format: int64 */
+            total: number;
+        };
         Stock: {
             code: string;
             /** Format: date */
@@ -973,7 +1119,12 @@ export interface operations {
     };
     v1_asset_balance_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description ページ番号（デフォルト: 1） */
+                page?: number;
+                /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -985,7 +1136,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssetBalance"][];
+                    "application/json": components["schemas"]["PaginatedResponse_AssetBalance"];
                 };
             };
             401: {
@@ -1183,7 +1334,12 @@ export interface operations {
     };
     v1_dividend_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description ページ番号（デフォルト: 1） */
+                page?: number;
+                /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1195,7 +1351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Dividend"][];
+                    "application/json": components["schemas"]["PaginatedResponse_Dividend"];
                 };
             };
             401: {
@@ -1315,7 +1471,12 @@ export interface operations {
     };
     v1_domestic_stock_transaction_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description ページ番号（デフォルト: 1） */
+                page?: number;
+                /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1327,7 +1488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DomesticStock"][];
+                    "application/json": components["schemas"]["PaginatedResponse_DomesticStock"];
                 };
             };
             401: {
@@ -1505,7 +1666,12 @@ export interface operations {
     };
     v1_mutual_fund_transaction_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description ページ番号（デフォルト: 1） */
+                page?: number;
+                /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1517,7 +1683,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Mutualfund"][];
+                    "application/json": components["schemas"]["PaginatedResponse_Mutualfund"];
                 };
             };
             401: {

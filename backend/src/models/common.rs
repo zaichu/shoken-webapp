@@ -1,6 +1,34 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// ページネーションクエリパラメータ（全ドメイン共通）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginationParams {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+}
+
+impl PaginationParams {
+    pub fn page(&self) -> i64 {
+        self.page.unwrap_or(1).max(1)
+    }
+    pub fn per_page(&self) -> i64 {
+        self.per_page.unwrap_or(200).clamp(1, 1000)
+    }
+    pub fn offset(&self) -> i64 {
+        (self.page() - 1) * self.per_page()
+    }
+}
+
+/// ページネーションレスポンス（全ドメイン共通）
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PaginatedResponse<T: ToSchema + 'static> {
+    pub data: Vec<T>,
+    pub total: i64,
+    pub page: i64,
+    pub per_page: i64,
+}
+
 /// 一括作成レスポンス（全ドメイン共通）
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct BulkCreateResponse {

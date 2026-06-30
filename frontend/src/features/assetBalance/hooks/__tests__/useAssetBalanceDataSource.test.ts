@@ -155,9 +155,10 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ onLogoutCapture: (cb) => { capturedCallbacks.push(cb); } })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      { security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never,
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never],
+      total: 1, page: 1, per_page: 200,
+    });
 
     const { result } = renderHook(
       () => useAssetBalanceDataSource(),

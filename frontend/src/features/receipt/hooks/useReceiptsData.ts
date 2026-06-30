@@ -63,21 +63,21 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const dividendQuery = useQuery({
     queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
-      dividendApi.list().then(items => items.map(transformDBDividend)),
+      dividendApi.list().then(res => res.data.map(transformDBDividend)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const domesticstockQuery = useQuery({
     queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
-      domesticStockApi.list().then(items => items.map(transformDBDomesticStock)),
+      domesticStockApi.list().then(res => res.data.map(transformDBDomesticStock)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const mutualfundQuery = useQuery({
     queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
-      mutualfundApi.list().then(items => items.map(transformDBMutualfund)),
+      mutualfundApi.list().then(res => res.data.map(transformDBMutualfund)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
