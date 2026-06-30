@@ -65,7 +65,7 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Cache APT packages (Playwright deps)
-        uses: awalsh128/cache-apt-pkgs-action@681749ae568c81c2037cb9185e38b709b261bd2f # v1.6.1 https://github.com/awalsh128/cache-apt-pkgs-action/releases/tag/v1.6.1
+        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3 https://github.com/awalsh128/cache-apt-pkgs-action/releases/tag/v1.6.3
         with:
           version: playwright-ubuntu24.04-chromium-${{ hashFiles('frontend/package-lock.json') }}
           packages: xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
