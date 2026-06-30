@@ -33,14 +33,11 @@ pub struct StockSearchQuery {
     ),
     responses(
         (status = 200, body = Stock),
-        (status = 401, body = ErrorResponse),
         (status = 404, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
+    )
 )]
 pub async fn search(
     State(state): State<AppState>,
-    _auth_user: AuthenticatedUser,
     Query(params): Query<StockSearchQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     let stock = stock_service::search(&state.pool, &params.query).await?;
