@@ -191,6 +191,9 @@ const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
     </div>
 );
 
+type DateInputs = { yearValue: string; monthValue: string; dateValue: string; rangeStart: string; rangeEnd: string };
+const EMPTY_DATE_INPUTS: DateInputs = { yearValue: '', monthValue: '', dateValue: '', rangeStart: '', rangeEnd: '' };
+
 function getInitialDateSegment(cats: SearchCategories | undefined): DateSegment {
     if ((cats?.years?.length ?? 0) > 0) return '年';
     if (cats?.dates) return '月';
@@ -487,24 +490,19 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
     const [isExpanded, setIsExpanded] = useState(initialExpanded);
     // layout 切り替えなどで initialExpanded が変化したときに展開状態を同期する
-    const [prevInitialExpanded, setPrevInitialExpanded] = useState(initialExpanded);
-    if (prevInitialExpanded !== initialExpanded) {
-        setPrevInitialExpanded(initialExpanded);
+    useEffect(() => {
         setIsExpanded(initialExpanded);
-    }
+    }, [initialExpanded]);
+
     const [selectedQueries, setSelectedQueries] = useState<Record<SearchKey, string>>(
         createEmptySelectedQueries()
     );
 
-    // 日付検索用ステート
+    // 日付検索用ステート（5フィールドをひとつのオブジェクトで管理）
     const [dateSegment, setDateSegment] = useState<DateSegment>(() =>
         getInitialDateSegment(categories)
     );
-    const [yearValue, setYearValue] = useState('');
-    const [monthValue, setMonthValue] = useState('');
-    const [dateValue, setDateValue] = useState('');
-    const [rangeStart, setRangeStart] = useState('');
-    const [rangeEnd, setRangeEnd] = useState('');
+    const [dateInputs, setDateInputs] = useState<DateInputs>({ ...EMPTY_DATE_INPUTS });
     const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
 
     const categoriesRef = useRef(categories);
@@ -514,11 +512,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         if (value !== '') return;
         const cats = categoriesRef.current;
         setSelectedQueries(createEmptySelectedQueries());
-        setYearValue('');
-        setMonthValue('');
-        setDateValue('');
-        setRangeStart('');
-        setRangeEnd('');
+        setDateInputs({ ...EMPTY_DATE_INPUTS });
         setIsYearPickerOpen(false);
         setDateSegment(getInitialDateSegment(cats));
     }, [value]);
@@ -554,11 +548,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     const resetDateInputs = () => {
-        setYearValue('');
-        setMonthValue('');
-        setDateValue('');
-        setRangeStart('');
-        setRangeEnd('');
+        setDateInputs({ ...EMPTY_DATE_INPUTS });
         setIsYearPickerOpen(false);
     };
 
@@ -597,30 +587,30 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     };
 
     const handleYearOptionSelect = (val: string) => {
-        setYearValue(val);
+        setDateInputs(d => ({ ...d, yearValue: val }));
         setIsYearPickerOpen(false);
         handleDateSearch(val);
     };
 
     const handleMonthChange = (val: string) => {
-        setMonthValue(val);
+        setDateInputs(d => ({ ...d, monthValue: val }));
         handleDateSearch(val);
     };
 
     const handleDateValueChange = (val: string) => {
-        setDateValue(val);
+        setDateInputs(d => ({ ...d, dateValue: val }));
         handleDateSearch(val);
     };
 
     const handleRangeStartChange = (val: string) => {
-        setRangeStart(val);
-        const query = buildRangeQuery(val, rangeEnd);
+        setDateInputs(d => ({ ...d, rangeStart: val }));
+        const query = buildRangeQuery(val, dateInputs.rangeEnd);
         handleDateSearch(query);
     };
 
     const handleRangeEndChange = (val: string) => {
-        setRangeEnd(val);
-        const query = buildRangeQuery(rangeStart, val);
+        setDateInputs(d => ({ ...d, rangeEnd: val }));
+        const query = buildRangeQuery(dateInputs.rangeStart, val);
         handleDateSearch(query);
     };
 
@@ -645,11 +635,11 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             <DatePeriodBlock
                 dateSegment={dateSegment}
                 years={categories?.years ?? []}
-                yearValue={yearValue}
-                monthValue={monthValue}
-                dateValue={dateValue}
-                rangeStart={rangeStart}
-                rangeEnd={rangeEnd}
+                yearValue={dateInputs.yearValue}
+                monthValue={dateInputs.monthValue}
+                dateValue={dateInputs.dateValue}
+                rangeStart={dateInputs.rangeStart}
+                rangeEnd={dateInputs.rangeEnd}
                 isYearPickerOpen={isYearPickerOpen}
                 onSegmentChange={handleSegmentChange}
                 onToggleYearPicker={() => setIsYearPickerOpen(open => !open)}
