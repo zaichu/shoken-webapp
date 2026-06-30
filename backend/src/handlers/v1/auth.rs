@@ -49,7 +49,7 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
         .build()
 }
 
-// Session / account handlers
+// セッション・アカウントハンドラー
 // ---------------------------------------------------------------------------
 
 /// 現在ログイン中のユーザー情報を取得（v1）
