@@ -1,6 +1,7 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
+    handlers::common::ok_message,
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
@@ -76,12 +77,7 @@ pub async fn delete_all(
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
     asset_balance_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok((
-        StatusCode::OK,
-        Json(MessageResponse {
-            message: "全ての保有銘柄データを削除しました".to_string(),
-        }),
-    ))
+    Ok(ok_message("全ての保有銘柄データを削除しました"))
 }
 
 /// 保有銘柄 CSV をバリデーション（v1）

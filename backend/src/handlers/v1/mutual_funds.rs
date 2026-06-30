@@ -1,6 +1,7 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
+    handlers::common::ok_message,
     models::{
         common::MessageResponse,
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
@@ -53,12 +54,7 @@ pub async fn delete_transactions(
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
     mutualfund_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok((
-        StatusCode::OK,
-        Json(MessageResponse {
-            message: "全ての投資信託データを削除しました".to_string(),
-        }),
-    ))
+    Ok(ok_message("全ての投資信託データを削除しました"))
 }
 
 /// 投資信託 CSV をバリデーション（v1）
