@@ -16,7 +16,8 @@ import {
     formatCurrency,
     formatNumber
 } from '@/lib/utils/formatters';
-import { createYearOptions, parseSearchTokens, FilterConfig } from '@/lib/utils/searchUtils';
+import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
+import { createGroupKeyFn } from '@/lib/utils/searchGroupKey';
 import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
 import { sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 import { calculateMutualfund } from '@/features/receipt/calculations';
@@ -57,20 +58,17 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
 
-    // グループキーの取得（日付文字列：年月）
-    // ファンド名検索時は元データの正式表記を使用
-    const getGroupKey = (item: MutualfundData): string => {
-        if (searchQuery) {
-            // AND クエリをトークンに分割し、いずれかがファンド名に部分一致する場合はファンド名でグループ化
-            const tokens = parseSearchTokens(searchQuery);
-            if (tokens.some(t => item.fund_name.toLowerCase().includes(t))) {
-                return item.fund_name;
-            }
-            // 年検索など他の場合は年月でグループ化
-            return createYearMonthKey(item.trade_date);
-        }
-        return createYearMonthKey(item.trade_date);
-    };
+    // 検索タイプに応じたグループキー関数（ファンド名部分一致でグループ化）
+    const getGroupKey = createGroupKeyFn<MutualfundData>(
+        searchQuery,
+        item => createYearMonthKey(item.trade_date),
+        [
+            {
+                test: (item, t) => item.fund_name.toLowerCase().includes(t),
+                keyFn: item => item.fund_name,
+            },
+        ]
+    );
 
     // サマリーデータの集計
     const summary = groupAndSummarizeData(
