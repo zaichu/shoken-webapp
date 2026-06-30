@@ -29,7 +29,7 @@ tower-http = { version = "0.7.0", features = ["cors", "limit", "trace", "request
 governor = "0.10"
 oauth2 = "5.0.0"
 dotenvy = "0.15.7"
-mockall = "0.14.0"
+mockall = "0.15.0"
 hyper = "1.10.1"
 async-trait = "0.1.89"
 reqwest = { version = "0.13.4", features = ["json", "query"] }
