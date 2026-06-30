@@ -47,8 +47,12 @@ impl BulkTimer {
     }
 
     /// PgQueryResult から rows_affected を取り出して finish する。
-    pub fn finish_from_result(self, result: PgQueryResult) -> BulkCreateResponse {
-        self.finish(result.rows_affected() as usize)
+    /// u64 → usize の変換が失敗した場合は ApiError を返す。
+    pub fn finish_from_result(self, result: PgQueryResult) -> Result<BulkCreateResponse, ApiError> {
+        let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
+            ApiError::ApiError("bulk insert の rows_affected が usize に収まりません".to_string())
+        })?;
+        Ok(self.finish(inserted))
     }
 }
 
