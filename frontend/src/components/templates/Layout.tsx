@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Footer } from '../organisms/Footer';
 import { Header } from '../organisms/Header';
+import { cn } from '@/lib/utils/classNames';
 import { APP_SHELL_CONTAINER } from '@/lib/layout';
 
 interface LayoutProps {
@@ -19,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
 
       <Header />
 
-      <main id="main-content" className={`${APP_SHELL_CONTAINER} flex flex-1 flex-col py-5`}>
+      <main id="main-content" className={cn(APP_SHELL_CONTAINER, 'flex flex-1 flex-col py-5')}>
         {children}
       </main>
 

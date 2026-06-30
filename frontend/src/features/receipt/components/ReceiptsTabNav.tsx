@@ -55,11 +55,12 @@ export function ReceiptsTabNav({
               {TAB_LABEL[tab]}
               <span
                 data-testid={`tab-count-${tab}`}
-                className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                className={cn(
+                  'inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold',
                   isActive
                     ? 'border border-white/20 bg-white text-slate-950'
                     : 'border border-slate-200 bg-white text-slate-700'
-                }`}
+                )}
               >
                 {counts[tab]}
               </span>
