@@ -71,15 +71,13 @@ pub async fn bulk_create(
     user_id: Uuid,
     items: &[CreateDomesticStockRequest],
 ) -> Result<BulkCreateResponse, ApiError> {
-    let total = items.len();
-    let timer = BulkTimer::new("domestic_stock", total);
-
-    if items.is_empty() {
-        return Ok(timer.finish(0));
-    }
+    let timer = match BulkTimer::new_with_guard("domestic_stock", items) {
+        Ok(t) => t,
+        Err(empty) => return Ok(empty),
+    };
 
     // 各フィールドを配列に変換
-    let user_ids = user_ids_for_bulk_insert(user_id, total);
+    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
@@ -174,8 +172,7 @@ pub async fn bulk_create(
     .execute(pool)
     .await?;
 
-    let inserted = result.rows_affected() as usize;
-    Ok(timer.finish(inserted))
+    timer.finish_from_result(result)
 }
 
 /// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
