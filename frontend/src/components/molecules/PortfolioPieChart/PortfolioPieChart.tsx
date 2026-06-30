@@ -168,7 +168,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
         <div className="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">年間配当</p>
           <p
-            className={`mt-0.5 truncate text-[12px] font-semibold ${divInfo?.annual !== null && divInfo?.annual !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}
+            className={cn('mt-0.5 truncate text-[12px] font-semibold', divInfo?.annual != null ? 'text-emerald-600' : 'text-slate-500')}
             title={formatAnnual(divInfo)}
           >
             {formatAnnual(divInfo)}
@@ -177,7 +177,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
         <div className="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">配当利回り</p>
           <p
-            className={`mt-0.5 truncate text-[12px] font-semibold ${divInfo?.yieldValue !== null && divInfo?.yieldValue !== undefined ? 'text-emerald-600' : 'text-slate-500'}`}
+            className={cn('mt-0.5 truncate text-[12px] font-semibold', divInfo?.yieldValue != null ? 'text-emerald-600' : 'text-slate-500')}
             title={formatYield(divInfo)}
           >
             {formatYield(divInfo)}

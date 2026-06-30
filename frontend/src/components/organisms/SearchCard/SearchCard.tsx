@@ -155,7 +155,7 @@ interface SearchFieldsGridProps {
 const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
     categories, gridClassName, selectedQueries, onSearch, hasData,
 }) => (
-    <div className={`grid ${gridClassName}`}>
+    <div className={cn('grid', gridClassName)}>
         {DROPDOWN_CONFIGS.map(({ key, label }) =>
             // yearsはdatesブロックが有効な場合は期間ブロック側で表示するため除外
             hasData(categories[key]) && !(key === 'years' && Boolean(categories.dates)) && (
@@ -357,11 +357,12 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                     type="button"
                     aria-pressed={visibleDateSegment === seg}
                     onClick={() => onSegmentChange(seg)}
-                    className={`flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors ${
+                    className={cn(
+                        'flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors',
                         visibleDateSegment === seg
                             ? 'bg-slate-950 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    )}
                 >
                     {seg}
                 </button>
@@ -377,13 +378,13 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                     aria-expanded={isYearPickerOpen}
                     onClick={onToggleYearPicker}
                     onKeyDown={handleTriggerKeyDown}
-                    className={`w-full flex items-center gap-2 border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25 ${
-                        isYearPickerOpen ? 'rounded-t-md rounded-b-none' : 'rounded-md'
-                    } ${
+                    className={cn(
+                        'w-full flex items-center gap-2 border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:border-amber-600 focus:ring-amber-500/25',
+                        isYearPickerOpen ? 'rounded-t-md rounded-b-none' : 'rounded-md',
                         yearValue
                             ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
                             : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
-                    }`}
+                    )}
                 >
                     <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -392,7 +393,7 @@ const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                         {yearValue ? (years.find(y => y.value === yearValue)?.label ?? yearValue) : '年を選択'}
                     </span>
                     <svg
-                        className={`w-4 h-4 shrink-0 text-slate-400 transition-transform duration-150 ${isYearPickerOpen ? 'rotate-180' : ''}`}
+                        className={cn('w-4 h-4 shrink-0 text-slate-400 transition-transform duration-150', isYearPickerOpen && 'rotate-180')}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -707,7 +708,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                     e.stopPropagation();
                                 }
                             }}
-                            className={`whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 transition-opacity${isDefaultState ? ' opacity-0 pointer-events-none' : ''}`}
+                            className={cn('whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 transition-opacity', isDefaultState && 'opacity-0 pointer-events-none')}
                             aria-label="検索条件をクリア"
                             aria-hidden={isDefaultState}
                             tabIndex={isDefaultState ? -1 : 0}
@@ -717,7 +718,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </Button>
                         <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700" aria-hidden="true">
                             <svg
-                                className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', isExpanded && 'rotate-180')}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -747,11 +748,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         <Card className="mt-1 overflow-hidden">
             <CardHeader
                 variant="secondary"
-                className={`flex items-center justify-between transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset ${
+                className={cn(
+                    'flex items-center justify-between transition-colors focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-inset',
                     isExpanded
                         ? 'bg-slate-950 hover:bg-slate-900 border-b border-amber-500'
                         : 'bg-slate-800 hover:bg-slate-900'
-                }`}
+                )}
             >
                 <button
                     type="button"
@@ -788,11 +790,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                 e.stopPropagation();
                             }
                         }}
-                        className={`text-xs px-2 py-0.5 transition-opacity ${
+                        className={cn(
+                            'text-xs px-2 py-0.5 transition-opacity',
                             isDefaultState
                                 ? 'opacity-0 pointer-events-none border-transparent text-transparent'
                                 : 'opacity-100 border-white text-white bg-white/20 font-semibold hover:bg-white/30 hover:border-white'
-                        }`}
+                        )}
                         aria-label="検索条件をクリア"
                         aria-hidden={isDefaultState}
                         tabIndex={isDefaultState ? -1 : 0}
@@ -812,7 +815,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             {isExpanded ? '閉じる' : '開く'}
                         </span>
                         <svg
-                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            className={cn('w-4 h-4 transition-transform duration-200', isExpanded && 'rotate-180')}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
