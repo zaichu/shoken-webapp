@@ -32,6 +32,15 @@ const DIVIDEND_RECORD = [
   },
 ];
 
+function paginatedResponse(data: unknown[]) {
+  return {
+    data,
+    total: data.length,
+    page: 1,
+    per_page: data.length,
+  };
+}
+
 async function setupAuthMocks(
   page: Page,
   {
@@ -55,21 +64,21 @@ async function setupAuthMocks(
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(dividends),
+      body: JSON.stringify(paginatedResponse(dividends)),
     }),
   );
   await page.route(ROUTES.domesticStocks, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(domesticStocks),
+      body: JSON.stringify(paginatedResponse(domesticStocks)),
     }),
   );
   await page.route(ROUTES.mutualfunds, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(mutualfunds),
+      body: JSON.stringify(paginatedResponse(mutualfunds)),
     }),
   );
 }

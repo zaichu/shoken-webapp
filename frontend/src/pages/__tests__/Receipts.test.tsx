@@ -666,7 +666,6 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
@@ -702,7 +701,6 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
@@ -750,7 +748,6 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);

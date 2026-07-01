@@ -153,7 +153,10 @@ async function setupAssetBalanceMocks(
 
     if (method === 'GET') {
       listRequestCount += 1;
-      return route.fulfill(jsonResponse(cloneAssetBalances(assetBalances)));
+      const data = cloneAssetBalances(assetBalances);
+      return route.fulfill(
+        jsonResponse({ data, total: data.length, page: 1, per_page: data.length }),
+      );
     }
 
     return route.fallback();

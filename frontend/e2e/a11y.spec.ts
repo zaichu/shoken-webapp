@@ -21,21 +21,23 @@ const ROUTES = {
   stock: /\/api\/v1\/stocks(?:\?.*)?$/,
 };
 
+const EMPTY_PAGINATED_RESPONSE = JSON.stringify({ data: [], total: 0, page: 1, per_page: 0 });
+
 async function setupAuthMocks(page: import('@playwright/test').Page) {
   await page.route(ROUTES.authMe, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) }),
   );
   await page.route(ROUTES.dividends, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: EMPTY_PAGINATED_RESPONSE }),
   );
   await page.route(ROUTES.domesticStocks, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: EMPTY_PAGINATED_RESPONSE }),
   );
   await page.route(ROUTES.mutualfunds, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: EMPTY_PAGINATED_RESPONSE }),
   );
   await page.route(ROUTES.assetBalances, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: EMPTY_PAGINATED_RESPONSE }),
   );
 }
 
