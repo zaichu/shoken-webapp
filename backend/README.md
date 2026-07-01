@@ -5,7 +5,7 @@
 ## 技術スタック
 
 - **フレームワーク**: Axum 0.8
-- **データベース**: PostgreSQL (Neon)
+- **データベース**: PostgreSQL
 - **ORM**: SQLx
 - **認証**: Google OAuth 2.0
 - **デプロイ**: Fly.io
@@ -17,82 +17,16 @@
 - **Google OAuth認証**: セッションベースの認証
 - **ヘルスチェック**: サービス監視用エンドポイント
 
-## APIエンドポイント
+## API ドキュメント
 
-### プローブ
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/health` | Liveness チェック |
-| GET | `/ready` | 起動完了チェック |
-
-### 認証・セッション
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/session` | 現在のセッション情報取得 |
-| DELETE | `/api/v1/session` | ログアウト |
-| POST | `/api/v1/account-deletion-confirmations` | アカウント削除確認（短命Cookie発行） |
-| DELETE | `/api/v1/account` | アカウント削除（確認Cookie必須） |
-| GET | `/api/v1/oauth/google/authorize` | Google OAuth 開始 |
-| GET | `/api/v1/oauth/google/callback` | Google OAuth コールバック |
-
-### 証券情報
-
-| メソッド | パス | 説明 | 認証 |
-|---------|------|------|------|
-| GET | `/api/v1/stocks?query=7203` | 株式情報を検索 | 不要 |
-| POST | `/api/v1/stocks` | 株式情報を追加 | **必須** |
-
-### 配当金（すべて認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/dividends` | 配当金一覧を取得 |
-| DELETE | `/api/v1/dividends` | 配当金を全削除 |
-| POST | `/api/v1/dividend-import-validations` | 配当金CSV バリデーション（DB書き込みなし） |
-| POST | `/api/v1/dividend-imports` | 配当金CSV 取り込み |
-| POST | `/api/v1/dividend-per-share-estimates` | 1株配当一括推計 |
-
-### 国内株式取引（すべて認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/domestic-stock-transactions` | 国内株式取引一覧を取得 |
-| DELETE | `/api/v1/domestic-stock-transactions` | 国内株式取引を全削除 |
-| POST | `/api/v1/domestic-stock-import-validations` | 国内株式CSV バリデーション |
-| POST | `/api/v1/domestic-stock-imports` | 国内株式CSV 取り込み |
-
-### 投資信託取引（すべて認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/mutual-fund-transactions` | 投資信託取引一覧を取得 |
-| DELETE | `/api/v1/mutual-fund-transactions` | 投資信託取引を全削除 |
-| POST | `/api/v1/mutual-fund-import-validations` | 投資信託CSV バリデーション |
-| POST | `/api/v1/mutual-fund-imports` | 投資信託CSV 取り込み |
-
-### 保有銘柄（すべて認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/asset-balances` | 保有銘柄一覧を取得 |
-| PUT | `/api/v1/asset-balances` | 保有銘柄を全件置換 |
-| DELETE | `/api/v1/asset-balances` | 保有銘柄を全削除 |
-| POST | `/api/v1/asset-balance-import-validations` | 保有銘柄CSV バリデーション |
-| POST | `/api/v1/asset-balance-imports` | 保有銘柄CSV 取り込み |
-
-### 市場データ（認証必須）
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/v1/financial-statements?code=7203` | 財務サマリーを取得 |
+API の一覧と設計方針は [`../docs/api/v1-rest-design.md`](../docs/api/v1-rest-design.md) に集約しています。
+API 契約の正本は [`../docs/openapi.json`](../docs/openapi.json) です。
 
 ## 開発
 
 ### 前提条件
 
-- Rust 1.70+
+- Rust 1.96+（`rust-toolchain.toml` を正本とする）
 - PostgreSQL データベース
 - 環境変数の設定
 
@@ -187,7 +121,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db
 
 ```bash
 # マイグレーション実行
-cargo sqlx migrate run
+make migrate-local
 
 # SQLxクエリキャッシュ準備（オフラインビルド用）
 cargo sqlx prepare --merged

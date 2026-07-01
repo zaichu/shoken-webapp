@@ -52,6 +52,14 @@ API identifiers and must not collide with legacy operation IDs.
 HttpOnly confirmation cookie scoped to `/api/v1/account`. The delete endpoint
 requires both a valid session cookie and that confirmation cookie.
 
+## Pagination
+
+The list endpoints for dividends, domestic stock transactions, mutual fund transactions, and asset balances accept `page` and `per_page` query parameters.
+
+- `page`: defaults to `1`, minimum effective value is `1`.
+- `per_page`: defaults to `200`, clamped to `1..1000`.
+- Responses use `PaginatedResponse<T>`: `{ data, total, page, per_page }`.
+
 ## Proposed Routes
 
 ### Probes
@@ -83,7 +91,7 @@ requires both a valid session cookie and that confirmation cookie.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/dividends` | List dividends |
+| GET | `/api/v1/dividends?page=1&per_page=200` | List dividends |
 | DELETE | `/api/v1/dividends` | Delete all dividends for current user |
 | POST | `/api/v1/dividend-import-validations` | Validate dividend CSV without DB writes |
 | POST | `/api/v1/dividend-imports` | Import dividend CSV |
@@ -93,7 +101,7 @@ requires both a valid session cookie and that confirmation cookie.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/domestic-stock-transactions` | List domestic stock transactions |
+| GET | `/api/v1/domestic-stock-transactions?page=1&per_page=200` | List domestic stock transactions |
 | DELETE | `/api/v1/domestic-stock-transactions` | Delete all domestic stock transactions |
 | POST | `/api/v1/domestic-stock-import-validations` | Validate domestic stock CSV |
 | POST | `/api/v1/domestic-stock-imports` | Import domestic stock CSV |
@@ -102,7 +110,7 @@ requires both a valid session cookie and that confirmation cookie.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/mutual-fund-transactions` | List mutual fund transactions |
+| GET | `/api/v1/mutual-fund-transactions?page=1&per_page=200` | List mutual fund transactions |
 | DELETE | `/api/v1/mutual-fund-transactions` | Delete all mutual fund transactions |
 | POST | `/api/v1/mutual-fund-import-validations` | Validate mutual fund CSV |
 | POST | `/api/v1/mutual-fund-imports` | Import mutual fund CSV |
@@ -111,7 +119,7 @@ requires both a valid session cookie and that confirmation cookie.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/asset-balances` | List asset balances |
+| GET | `/api/v1/asset-balances?page=1&per_page=200` | List asset balances |
 | PUT | `/api/v1/asset-balances` | Replace all asset balances for current user |
 | DELETE | `/api/v1/asset-balances` | Delete all asset balances |
 | POST | `/api/v1/asset-balance-import-validations` | Validate asset balance CSV |
