@@ -3,7 +3,7 @@ use crate::{
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     handlers::common::ok_message,
     models::{
-        common::MessageResponse,
+        common::{MessageResponse, PaginatedResponse, PaginationParams},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         dividend::Dividend,
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
@@ -12,7 +12,7 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    extract::{Multipart, State},
+    extract::{Multipart, Query, State},
     http::StatusCode,
     response::{IntoResponse, Json},
 };
@@ -25,8 +25,12 @@ use axum::{
     get,
     path = "/api/v1/dividends",
     operation_id = "v1_dividend_list",
+    params(
+        ("page" = Option<i64>, Query, description = "ページ番号（デフォルト: 1）"),
+        ("per_page" = Option<i64>, Query, description = "1ページあたりの件数（デフォルト: 200、最大: 1000）"),
+    ),
     responses(
-        (status = 200, body = Vec<Dividend>),
+        (status = 200, body = PaginatedResponse<Dividend>),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -34,9 +38,10 @@ use axum::{
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
+    Query(params): Query<PaginationParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let dividends = dividend_service::list(&state.pool, auth_user.id()).await?;
-    Ok((StatusCode::OK, Json(dividends)))
+    let result = dividend_service::list(&state.pool, auth_user.id(), &params).await?;
+    Ok((StatusCode::OK, Json(result)))
 }
 
 /// 配当金を全削除（v1）

@@ -21,10 +21,14 @@ type DomesticStockDeleteResponse = paths['/api/v1/domestic-stock-transactions'][
 type MutualfundListResponse = paths['/api/v1/mutual-fund-transactions']['get']['responses'][200]['content']['application/json'];
 type MutualfundDeleteResponse = paths['/api/v1/mutual-fund-transactions']['delete']['responses'][200]['content']['application/json'];
 
+type ListQueryParams = NonNullable<paths['/api/v1/dividends']['get']['parameters']['query']>;
+const listRequestConfig = (params?: ListQueryParams) =>
+  params ? { params, withCredentials: true } : { withCredentials: true };
+
 // 配当金API
 export const dividendApi = {
-  list: () =>
-    apiClient.get<DividendListResponse>(API_PATHS.dividendList, { withCredentials: true }),
+  list: (params?: ListQueryParams) =>
+    apiClient.get<DividendListResponse>(API_PATHS.dividendList, listRequestConfig(params)),
 
   previewCsv: (file: File) => previewCsvFile(API_PATHS.dividendPreview, file),
 
@@ -36,8 +40,8 @@ export const dividendApi = {
 
 // 国内株式API
 export const domesticStockApi = {
-  list: () =>
-    apiClient.get<DomesticStockListResponse>(API_PATHS.domesticStockList, { withCredentials: true }),
+  list: (params?: ListQueryParams) =>
+    apiClient.get<DomesticStockListResponse>(API_PATHS.domesticStockList, listRequestConfig(params)),
 
   previewCsv: (file: File) => previewCsvFile(API_PATHS.domesticStockPreview, file),
 
@@ -49,8 +53,8 @@ export const domesticStockApi = {
 
 // 投資信託API
 export const mutualfundApi = {
-  list: () =>
-    apiClient.get<MutualfundListResponse>(API_PATHS.mutualfundList, { withCredentials: true }),
+  list: (params?: ListQueryParams) =>
+    apiClient.get<MutualfundListResponse>(API_PATHS.mutualfundList, listRequestConfig(params)),
 
   previewCsv: (file: File) => previewCsvFile(API_PATHS.mutualfundPreview, file),
 

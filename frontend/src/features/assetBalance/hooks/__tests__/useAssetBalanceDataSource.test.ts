@@ -19,7 +19,7 @@ import * as authHook from '@/features/auth/hooks/useAuth';
 
 vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
   assetBalanceApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
@@ -155,9 +155,10 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ onLogoutCapture: (cb) => { capturedCallbacks.push(cb); } })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      { security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never,
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never],
+      total: 1, page: 1, per_page: 200,
+    });
 
     const { result } = renderHook(
       () => useAssetBalanceDataSource(),

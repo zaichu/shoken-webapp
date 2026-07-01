@@ -202,7 +202,7 @@ const secondMockDbRow: AssetBalanceApiData = {
 describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockResolvedValue({
       total_rows: 0,
       valid_rows: 0,
@@ -257,7 +257,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -270,7 +270,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -286,7 +286,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(assetBalanceApiModule.assetBalanceApi.previewCsv).mockResolvedValue({
       total_rows: 2,
       valid_rows: 2,
@@ -337,7 +337,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -350,7 +350,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow, secondMockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow, secondMockDbRow], total: 2, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -380,7 +380,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -404,7 +404,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />); });
 
@@ -478,7 +478,7 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
         onLogoutCapture: (cb) => { capturedCallback = cb; },
       })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([mockDbRow]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
 
     await act(async () => { renderWithQuery(<AssetBalancePage />, qc); });
 

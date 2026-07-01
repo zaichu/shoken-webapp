@@ -8,9 +8,9 @@ const MOCK_USER = {
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
-  dividends: /\/api\/v1\/dividends$/,
-  domesticStocks: /\/api\/v1\/domestic-stock-transactions$/,
-  mutualfunds: /\/api\/v1\/mutual-fund-transactions$/,
+  dividends: /\/api\/v1\/dividends(?:\?.*)?$/,
+  domesticStocks: /\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/,
+  mutualfunds: /\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/,
 };
 
 const DIVIDEND_RECORD = [
@@ -31,6 +31,15 @@ const DIVIDEND_RECORD = [
     updated_at: '2024-03-01T00:00:00Z',
   },
 ];
+
+function paginatedResponse(data: unknown[]) {
+  return {
+    data,
+    total: data.length,
+    page: 1,
+    per_page: data.length,
+  };
+}
 
 async function setupAuthMocks(
   page: Page,
@@ -55,21 +64,21 @@ async function setupAuthMocks(
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(dividends),
+      body: JSON.stringify(paginatedResponse(dividends)),
     }),
   );
   await page.route(ROUTES.domesticStocks, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(domesticStocks),
+      body: JSON.stringify(paginatedResponse(domesticStocks)),
     }),
   );
   await page.route(ROUTES.mutualfunds, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(mutualfunds),
+      body: JSON.stringify(paginatedResponse(mutualfunds)),
     }),
   );
 }

@@ -30,7 +30,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
 
   const query = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
-    queryFn: () => assetBalanceApi.list(),
+    queryFn: () => assetBalanceApi.list({ per_page: 1000 }),
     enabled: isAuthenticated && !!userId && enabled,
   });
 
@@ -40,7 +40,8 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   }, [onLogout, queryClient]);
 
   // 未認証時はキャッシュに残存データがあっても空を返す
-  const assetBalanceData = isAuthenticated ? (query.data ?? []) : [];
+  const assetBalancePage = isAuthenticated ? query.data : undefined;
+  const assetBalanceData = assetBalancePage?.data ?? [];
 
   const getAssetBalanceByCode = (code: string): AssetBalanceData | undefined => {
     const normalizedCode = normalizeSecurityCode(code);

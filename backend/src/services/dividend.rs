@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::common::BulkCreateResponse;
+use crate::models::common::{BulkCreateResponse, PaginatedResponse, PaginationParams};
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::dividend::{CreateDividendRequest, Dividend};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
@@ -33,24 +33,36 @@ const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     ],
 };
 
-/// 認証ユーザーの配当金一覧を取得
-pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<Dividend>, ApiError> {
+/// 認証ユーザーの配当金一覧を取得（ページネーション対応）
+pub async fn list(
+    pool: &PgPool,
+    user_id: Uuid,
+    params: &PaginationParams,
+) -> Result<PaginatedResponse<Dividend>, ApiError> {
     info!("[dividend.list] リクエスト受信");
-    let dividends = sqlx::query_as::<_, Dividend>(
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM dividends WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+    let data = sqlx::query_as::<_, Dividend>(
         r#"
         SELECT id, user_id, settlement_date, product, account, security_code, security_name,
                unit_price, shares, dividends_before_tax, taxes, net_amount_received,
                created_at, updated_at
         FROM dividends
         WHERE user_id = $1
-        ORDER BY settlement_date DESC
+        ORDER BY settlement_date DESC, id DESC
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(user_id)
+    .bind(params.per_page())
+    .bind(params.offset())
     .fetch_all(pool)
     .await?;
 
-    Ok(dividends)
+    Ok(PaginatedResponse { data, total, page: params.page(), per_page: params.per_page() })
 }
 
 /// 配当金を一括追加（重複はスキップ）

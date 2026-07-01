@@ -150,19 +150,19 @@ vi.mock('@/pages/Receipt/Mutualfund', () => ({
 import * as receiptApi from '@/features/receipt/api/receiptApi';
 vi.mock('@/features/receipt/api/receiptApi', () => ({
   dividendApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   domesticStockApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   mutualfundApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
@@ -282,9 +282,9 @@ describe('ReceiptsPage', () => {
 
   async function setupKeyboardNavigationTest() {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
 
     renderWithQuery(<ReceiptsPage />);
 
@@ -340,9 +340,9 @@ describe('ReceiptsPage', () => {
 
   it('CSV preview: 配当金のプレビュー行を Dividend に渡す', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.dividendApi.previewCsv).mockResolvedValue({
       total_rows: 2,
       valid_rows: 2,
@@ -382,9 +382,9 @@ describe('ReceiptsPage', () => {
 
   it('CSV preview: 国内株式タブで DomesticStock コンポーネントにプレビューが渡る', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.domesticStockApi.previewCsv).mockResolvedValue({
       total_rows: 1,
       valid_rows: 1,
@@ -420,9 +420,9 @@ describe('ReceiptsPage', () => {
 
   it('CSV preview: 投資信託タブで Mutualfund コンポーネントにプレビューが渡る', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([] as never[]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.mutualfundApi.previewCsv).mockResolvedValue({
       total_rows: 1,
       valid_rows: 1,
@@ -584,9 +584,9 @@ describe('ReceiptsPage', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.dividendApi.uploadCsv).mockResolvedValue({ inserted: 0, skipped: 0, errors: [] });
 
     renderWithQuery(<ReceiptsPage />);
@@ -622,9 +622,9 @@ describe('ReceiptsPage', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true })
     );
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.dividendApi.uploadCsv).mockResolvedValue({ inserted: 3, skipped: 2, errors: [] });
 
     renderWithQuery(<ReceiptsPage />);
@@ -666,10 +666,9 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({ message: '' });
 
     renderWithQuery(<ReceiptsPage />);
@@ -702,10 +701,9 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.dividendApi.deleteAll).mockResolvedValue({ message: '' });
 
     renderWithQuery(<ReceiptsPage />);
@@ -750,10 +748,9 @@ describe('ReceiptsPage', () => {
     );
 
     const mockDbRow = { id: '1', payment_date: '2023-01-01' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([mockDbRow] as any);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
 
     renderWithQuery(<ReceiptsPage />, qc);
 
@@ -782,14 +779,9 @@ describe('ReceiptsPage', () => {
 
   it('desktop向けworkspaceレイアウトとタブ件数が表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue([
-      { id: 'd1', payment_date: '2025-01-01' },
-      { id: 'd2', payment_date: '2025-02-01' },
-    ] as never[]);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue([
-      { id: 's1', trade_date: '2025-01-01' },
-    ] as never[]);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue([] as never[]);
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [{ id: 'd1', payment_date: '2025-01-01' }, { id: 'd2', payment_date: '2025-02-01' }], total: 2, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [{ id: 's1', trade_date: '2025-01-01' }], total: 1, page: 1, per_page: 200 } as never);
+    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
 
     renderWithQuery(<ReceiptsPage />);
 

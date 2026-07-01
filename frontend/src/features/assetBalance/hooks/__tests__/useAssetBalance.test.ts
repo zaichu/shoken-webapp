@@ -19,8 +19,9 @@ import type { AssetBalanceApiData } from '@/types/api';
 // ────────────────────────────────────────────────────────
 
 vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
-  assetBalanceApi: { list: vi.fn().mockResolvedValue([]) },
+  assetBalanceApi: { list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 }) },
 }));
+const emptyPage = { data: [], total: 0, page: 1, per_page: 200 };
 
 vi.mock('@/features/auth/hooks/useAuth');
 
@@ -82,7 +83,7 @@ describe('useAssetBalance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue(emptyPage);
   });
 
   it('onLogout コールバック実行で assetBalance キャッシュが除去される', async () => {
@@ -94,9 +95,10 @@ describe('useAssetBalance', () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ onLogoutCapture: (cb) => { capturedCallback = cb; } })
     );
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      { security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never,
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never],
+      total: 1, page: 1, per_page: 200,
+    });
 
     renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
 
@@ -131,14 +133,13 @@ describe('useAssetBalance', () => {
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
 
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      makeAssetBalanceData({ security_code: '7203' }),
-      makeAssetBalanceData({
-        id: 'asset-balance-2',
-        security_code: '6758',
-        security_name: 'ソニーグループ',
-      }),
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [
+        makeAssetBalanceData({ security_code: '7203' }),
+        makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', security_name: 'ソニーグループ' }),
+      ],
+      total: 2, page: 1, per_page: 200,
+    });
 
     const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
 
@@ -157,15 +158,13 @@ describe('useAssetBalance', () => {
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
 
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      makeAssetBalanceData({ security_code: '7203', market_value: 210000 }),
-      makeAssetBalanceData({
-        id: 'asset-balance-2',
-        security_code: '6758',
-        security_name: 'ソニーグループ',
-        market_value: 180000,
-      }),
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [
+        makeAssetBalanceData({ security_code: '7203', market_value: 210000 }),
+        makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', security_name: 'ソニーグループ', market_value: 180000 }),
+      ],
+      total: 2, page: 1, per_page: 200,
+    });
 
     const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
 
@@ -192,10 +191,13 @@ describe('useAssetBalance', () => {
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
 
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue([
-      makeAssetBalanceData({ security_code: '7203', market_value: 100000 }),
-      makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', market_value: 0 }),
-    ]);
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [
+        makeAssetBalanceData({ security_code: '7203', market_value: 100000 }),
+        makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', market_value: 0 }),
+      ],
+      total: 2, page: 1, per_page: 200,
+    });
 
     const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
 

@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
-use crate::models::common::BulkCreateResponse;
+use crate::models::common::{BulkCreateResponse, PaginatedResponse, PaginationParams};
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
@@ -34,10 +34,19 @@ const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     ],
 };
 
-/// 認証ユーザーの保有銘柄一覧を取得
-pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<AssetBalance>, ApiError> {
+/// 認証ユーザーの保有銘柄一覧を取得（ページネーション対応）
+pub async fn list(
+    pool: &PgPool,
+    user_id: Uuid,
+    params: &PaginationParams,
+) -> Result<PaginatedResponse<AssetBalance>, ApiError> {
     info!("[asset_balance.list] リクエスト受信");
-    let balances = sqlx::query_as::<_, AssetBalance>(
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM asset_balances WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+    let data = sqlx::query_as::<_, AssetBalance>(
         r#"
         SELECT id, user_id, security_code, security_name, shares, executing_shares,
                average_purchase_price, total_purchase_amount, current_price,
@@ -45,13 +54,16 @@ pub async fn list(pool: &PgPool, user_id: Uuid) -> Result<Vec<AssetBalance>, Api
         FROM asset_balances
         WHERE user_id = $1
         ORDER BY security_code
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(user_id)
+    .bind(params.per_page())
+    .bind(params.offset())
     .fetch_all(pool)
     .await?;
 
-    Ok(balances)
+    Ok(PaginatedResponse { data, total, page: params.page(), per_page: params.per_page() })
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）

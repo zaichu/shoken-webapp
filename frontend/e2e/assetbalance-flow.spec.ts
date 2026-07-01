@@ -11,7 +11,7 @@ const MOCK_USER = {
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
-  assetBalances: /\/api\/v1\/asset-balances$/,
+  assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   assetBalancePreview: /\/api\/v1\/asset-balance-import-validations$/,
   assetBalanceUpload: /\/api\/v1\/asset-balance-imports$/,
   dividendPerShareBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
@@ -153,7 +153,10 @@ async function setupAssetBalanceMocks(
 
     if (method === 'GET') {
       listRequestCount += 1;
-      return route.fulfill(jsonResponse(cloneAssetBalances(assetBalances)));
+      const data = cloneAssetBalances(assetBalances);
+      return route.fulfill(
+        jsonResponse({ data, total: data.length, page: 1, per_page: data.length }),
+      );
     }
 
     return route.fallback();
