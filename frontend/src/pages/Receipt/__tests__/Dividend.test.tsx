@@ -524,7 +524,8 @@ describe('Dividend', () => {
             sortedData: mockData,
             searchQuery: '1234: テスト株式1',
             setSearchQuery: vi.fn(),
-            filteredData: [],
+            // filterByConfig はラベル形式トークン「1234:」を銘柄コード「1234」として一致させる
+            filteredData: [mockData[0]],
         } as ReturnType<typeof receiptHooks.useReceiptBaseData>);
 
         try {

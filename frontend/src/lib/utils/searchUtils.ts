@@ -106,13 +106,18 @@ export interface FilterConfig<T> {
   amountFields?: ((item: T) => number)[];
 }
 
+// コード付きラベル形式（"1234:" / "1234："）のトークン単体を銘柄コードとみなす
+const LABEL_CODE_TOKEN_RE = /^([0-9a-z]+)[:：]$/;
+
 export function parseSearchTokens(query: string): string[] {
   const tokens: string[] = [];
   const tokenPattern = /"((?:\\.|[^"\\])*)"|(\S+)/g;
   for (const match of query.matchAll(tokenPattern)) {
     const rawToken = match[1] ?? match[2] ?? '';
     const token = rawToken.replace(/\\"/g, '"').trim().toLowerCase();
-    if (token) tokens.push(token);
+    if (!token) continue;
+    const labelCodeMatch = token.match(LABEL_CODE_TOKEN_RE);
+    tokens.push(labelCodeMatch ? labelCodeMatch[1] : token);
   }
   return tokens;
 }

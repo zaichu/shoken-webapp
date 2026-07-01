@@ -104,6 +104,24 @@ describe('filterByConfig', () => {
             expect(result).toHaveLength(1);
             expect(result[0].code).toBe('1');
         });
+
+        it('コード付きラベル形式（半角コロン）のトークンを銘柄コードとして完全一致させる', () => {
+            const config: FilterConfig<TestItem> = {
+                stringFields: [item => item.code, item => item.name],
+            };
+            const result = filterByConfig(testData, '1234: テスト商品1', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1234');
+        });
+
+        it('コード付きラベル形式（全角コロン）のトークンを銘柄コードとして完全一致させる', () => {
+            const config: FilterConfig<TestItem> = {
+                stringFields: [item => item.code, item => item.name],
+            };
+            const result = filterByConfig(testData, '1234： テスト商品1', config);
+            expect(result).toHaveLength(1);
+            expect(result[0].code).toBe('1234');
+        });
     });
 
     describe('複合条件', () => {
