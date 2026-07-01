@@ -581,6 +581,40 @@ async fn dividend_bulk_create_and_list() {
         .data;
     assert_eq!(rows.len(), 3);
 
+    let first_page = dividend_svc::list(
+        &pool,
+        user_id,
+        &PaginationParams { page: Some(1), per_page: Some(2) },
+    )
+    .await
+    .expect("dividend first page list failed");
+    assert_eq!(first_page.total, 3);
+    assert_eq!(first_page.page, 1);
+    assert_eq!(first_page.per_page, 2);
+    assert_eq!(first_page.data.len(), 2);
+
+    let second_page = dividend_svc::list(
+        &pool,
+        user_id,
+        &PaginationParams { page: Some(2), per_page: Some(2) },
+    )
+    .await
+    .expect("dividend second page list failed");
+    assert_eq!(second_page.total, 3);
+    assert_eq!(second_page.page, 2);
+    assert_eq!(second_page.per_page, 2);
+    assert_eq!(second_page.data.len(), 1);
+
+    let clamped_page = dividend_svc::list(
+        &pool,
+        user_id,
+        &PaginationParams { page: Some(1), per_page: Some(5000) },
+    )
+    .await
+    .expect("dividend clamped page list failed");
+    assert_eq!(clamped_page.total, 3);
+    assert_eq!(clamped_page.per_page, 1000);
+
     let deleted = dividend_svc::delete_all(&pool, user_id)
         .await
         .expect("dividend delete_all failed");

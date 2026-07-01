@@ -63,21 +63,24 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const dividendQuery = useQuery({
     queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
-      dividendApi.list().then(res => res.data.map(transformDBDividend)),
+      dividendApi.list({ per_page: 1000 }).then(({ data: dividendRows }) =>
+        dividendRows.map(transformDBDividend)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const domesticstockQuery = useQuery({
     queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
-      domesticStockApi.list().then(res => res.data.map(transformDBDomesticStock)),
+      domesticStockApi.list({ per_page: 1000 }).then(({ data: domesticStockRows }) =>
+        domesticStockRows.map(transformDBDomesticStock)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const mutualfundQuery = useQuery({
     queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
-      mutualfundApi.list().then(res => res.data.map(transformDBMutualfund)),
+      mutualfundApi.list({ per_page: 1000 }).then(({ data: mutualfundRows }) =>
+        mutualfundRows.map(transformDBMutualfund)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
@@ -92,12 +95,12 @@ export function useReceiptsData(): UseReceiptsDataResult {
           return mutualfundApi.previewCsv(file);
       }
     },
-    onSuccess: (data, { onSuccess }) => {
+    onSuccess: (previewResult, { onSuccess }) => {
       onSuccess?.({
-        totalRows: data.total_rows,
-        validRows: data.valid_rows,
-        errors: data.errors,
-        rows: (data.rows ?? []) as Record<string, unknown>[],
+        totalRows: previewResult.total_rows,
+        validRows: previewResult.valid_rows,
+        errors: previewResult.errors,
+        rows: (previewResult.rows ?? []) as Record<string, unknown>[],
       });
     },
     onError: (error, { onError }) => {

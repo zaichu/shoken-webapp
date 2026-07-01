@@ -11,9 +11,13 @@ const API_PATHS = {
 type AssetBalanceListResponse = paths['/api/v1/asset-balances']['get']['responses'][200]['content']['application/json'];
 type AssetBalanceDeleteResponse = paths['/api/v1/asset-balances']['delete']['responses'][200]['content']['application/json'];
 
+type AssetBalanceListQueryParams = NonNullable<paths['/api/v1/asset-balances']['get']['parameters']['query']>;
+const listRequestConfig = (params?: AssetBalanceListQueryParams) =>
+  params ? { params, withCredentials: true } : { withCredentials: true };
+
 export const assetBalanceApi = {
-  list: () =>
-    apiClient.get<AssetBalanceListResponse>(API_PATHS.assetBalanceList, { withCredentials: true }),
+  list: (params?: AssetBalanceListQueryParams) =>
+    apiClient.get<AssetBalanceListResponse>(API_PATHS.assetBalanceList, listRequestConfig(params)),
 
   previewCsv: (file: File) => previewCsvFile(API_PATHS.assetBalancePreview, file),
 

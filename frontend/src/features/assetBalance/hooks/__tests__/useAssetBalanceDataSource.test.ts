@@ -19,7 +19,7 @@ import * as authHook from '@/features/auth/hooks/useAuth';
 
 vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
   assetBalanceApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [], rows: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),

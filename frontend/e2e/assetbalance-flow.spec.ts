@@ -11,7 +11,7 @@ const MOCK_USER = {
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
-  assetBalances: /\/api\/v1\/asset-balances$/,
+  assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   assetBalancePreview: /\/api\/v1\/asset-balance-import-validations$/,
   assetBalanceUpload: /\/api\/v1\/asset-balance-imports$/,
   dividendPerShareBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,

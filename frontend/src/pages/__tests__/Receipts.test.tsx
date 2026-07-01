@@ -150,19 +150,19 @@ vi.mock('@/pages/Receipt/Mutualfund', () => ({
 import * as receiptApi from '@/features/receipt/api/receiptApi';
 vi.mock('@/features/receipt/api/receiptApi', () => ({
   dividendApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   domesticStockApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   mutualfundApi: {
-    list: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1000 }),
     previewCsv: vi.fn().mockResolvedValue({ total_rows: 0, valid_rows: 0, errors: [] }),
     uploadCsv: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0, errors: [] }),
     deleteAll: vi.fn().mockResolvedValue({}),

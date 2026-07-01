@@ -30,6 +30,15 @@ describe('assetBalanceApi', () => {
     });
   });
 
+  it('list(params) はページング条件を送る', () => {
+    assetBalanceApi.list({ per_page: 1000 });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/asset-balances', {
+      params: { per_page: 1000 },
+      withCredentials: true,
+    });
+  });
+
   it('previewCsv(file) は previewCsvFile を呼ぶ', () => {
     const file = new File(['id,name\n1,test'], 'asset-balances.csv', { type: 'text/csv' });
 

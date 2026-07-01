@@ -56,24 +56,24 @@ export function useAssetBalanceDataSourceCore({
 
   const dbQuery = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
-    queryFn: () => assetBalanceApi.list(),
+    queryFn: () => assetBalanceApi.list({ per_page: 1000 }),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const previewMutation = useMutation({
     mutationFn: (file: File) => assetBalanceApi.previewCsv(file),
-    onSuccess: (data) => {
-      setPreviewRows(data.rows as unknown as AssetBalanceData[]);
+    onSuccess: (previewResult) => {
+      setPreviewRows(previewResult.rows as unknown as AssetBalanceData[]);
     },
   });
 
   const uploadCsvMutation = useMutation({
     mutationFn: (file: File) => assetBalanceApi.uploadCsv(file),
     onMutate: () => ({ snapshotUserId: userId }),
-    onSuccess: (data, _, context) => {
+    onSuccess: (uploadResult, _, context) => {
       setRawFile(null);
       setPreviewRows([]);
-      setLastSavedResult(data ?? null);
+      setLastSavedResult(uploadResult ?? null);
       queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId) });
     },
   });
@@ -84,7 +84,7 @@ export function useAssetBalanceDataSourceCore({
     onSuccess: (_, __, context) => {
       const key = assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId);
       if (queryClient.getQueryState(key) !== undefined) {
-        queryClient.setQueryData(key, []);
+        queryClient.setQueryData(key, { data: [], total: 0, page: 1, per_page: 1000 });
       }
       setLastSavedResult(null);
     },
@@ -127,7 +127,8 @@ export function useAssetBalanceDataSourceCore({
     await deleteAllMutation.mutateAsync();
   }, [deleteAllMutation, isAuthenticated]);
 
-  const dbData = dbQuery.data?.data ?? [];
+  const assetBalancePage = dbQuery.data;
+  const dbData = assetBalancePage?.data ?? [];
   const queryError = dbQuery.error;
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error ?? previewMutation.error;
   const error = queryError

@@ -25,6 +25,14 @@ describe('dividendApi', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dividends', { withCredentials: true });
   });
 
+  it('list が指定されたページング条件を送る', () => {
+    dividendApi.list({ per_page: 1000 });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dividends', {
+      params: { per_page: 1000 },
+      withCredentials: true,
+    });
+  });
+
   it('previewCsv が /api/v1/dividend-import-validations にプレビューリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     dividendApi.previewCsv(file);
@@ -53,6 +61,14 @@ describe('domesticStockApi', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/v1/domestic-stock-transactions', { withCredentials: true });
   });
 
+  it('list が指定されたページング条件を送る', () => {
+    domesticStockApi.list({ per_page: 1000 });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/domestic-stock-transactions', {
+      params: { per_page: 1000 },
+      withCredentials: true,
+    });
+  });
+
   it('previewCsv が /api/v1/domestic-stock-import-validations にプレビューリクエストを送る', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     domesticStockApi.previewCsv(file);
@@ -79,6 +95,14 @@ describe('mutualfundApi', () => {
   it('list が /api/v1/mutual-fund-transactions に GET リクエストを送る', () => {
     mutualfundApi.list();
     expect(apiClient.get).toHaveBeenCalledWith('/api/v1/mutual-fund-transactions', { withCredentials: true });
+  });
+
+  it('list が指定されたページング条件を送る', () => {
+    mutualfundApi.list({ per_page: 1000 });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/mutual-fund-transactions', {
+      params: { per_page: 1000 },
+      withCredentials: true,
+    });
   });
 
   it('previewCsv が /api/v1/mutual-fund-import-validations にプレビューリクエストを送る', () => {

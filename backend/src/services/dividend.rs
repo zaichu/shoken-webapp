@@ -52,7 +52,7 @@ pub async fn list(
                created_at, updated_at
         FROM dividends
         WHERE user_id = $1
-        ORDER BY settlement_date DESC
+        ORDER BY settlement_date DESC, id DESC
         LIMIT $2 OFFSET $3
         "#,
     )
