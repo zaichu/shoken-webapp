@@ -69,8 +69,8 @@ describe('createGroupKeyFn', () => {
     it('部分一致ルールで正しくグループ化できる', () => {
         const partialRules = [
             {
-                test: (it: TestItem, t: string) => it.name.toLowerCase().includes(t),
-                keyFn: (it: TestItem) => it.name,
+                test: (row: TestItem, t: string) => row.name.toLowerCase().includes(t),
+                keyFn: (row: TestItem) => row.name,
             },
         ];
         const fn = createGroupKeyFn('トヨタ', dateKeyFn, partialRules);
@@ -111,5 +111,14 @@ describe('deriveSecurityCodeFromQuery', () => {
 
     it('コードの前後にスペースがあるラベル形式でも抽出できる', () => {
         expect(deriveSecurityCodeFromQuery('  9984 ：ソフトバンクグループ', securityData)).toBe('9984');
+    });
+
+    it('ラベル形式でもdataに存在しないコードの場合は空文字を返す', () => {
+        expect(deriveSecurityCodeFromQuery('9999: 存在しない銘柄', securityData)).toBe('');
+    });
+
+    it('ラベル形式で小文字コードでもdataの大文字コードに一致すれば抽出できる', () => {
+        const mixedCaseData = [{ security_code: 'ABC1', security_name: 'テスト銘柄' }];
+        expect(deriveSecurityCodeFromQuery('abc1: テスト銘柄', mixedCaseData)).toBe('ABC1');
     });
 });

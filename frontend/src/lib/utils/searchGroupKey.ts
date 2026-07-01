@@ -50,7 +50,11 @@ export function deriveSecurityCodeFromQuery<T extends { security_code: string; s
     if (!query) return '';
 
     const labelMatch = query.match(/^\s*([0-9A-Za-z]+)\s*[:：]/);
-    if (labelMatch) return labelMatch[1];
+    if (labelMatch) {
+        const lowerCode = labelMatch[1].toLowerCase();
+        const matchedItem = data.find(item => item.security_code.toLowerCase() === lowerCode);
+        if (matchedItem) return matchedItem.security_code;
+    }
 
     const tokens = parseSearchTokens(query);
     const matchedItem = data.find(item =>
