@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::jquants::FinSummaryQuery;
-use crate::services::jquants::JQuantsClient;
+use crate::services::market_data::providers::jquants::JQuantsClient;
 use sqlx::PgPool;
 
 use super::logic::extract_dividend;

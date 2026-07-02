@@ -4,7 +4,7 @@ mod persistence;
 
 use crate::errors::ApiError;
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
-use crate::services::jquants::JQuantsClient;
+use crate::services::market_data::providers::jquants::JQuantsClient;
 use chrono::Utc;
 use reqwest::Client;
 use sqlx::PgPool;
