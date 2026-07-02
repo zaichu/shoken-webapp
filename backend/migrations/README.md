@@ -18,6 +18,8 @@ SQLx マイグレーション管理。
 | 0007 | `0007_mutualfunds.sql` | 投資信託取引 |
 | 0008 | `0008_asset_balances.sql` | 資産残高（保有銘柄） |
 | 0009 | `0009_jquants.sql` | J-Quants API キャッシュ・レートコントロール |
+| 0010 | `0010_add_pg_trgm_index.sql` | 銘柄名の部分一致検索向け pg_trgm index |
+| 0011 | `0011_rename_jquants_market_data_tables.sql` | market data table を provider 非依存名へ rename |
 
 ---
 
