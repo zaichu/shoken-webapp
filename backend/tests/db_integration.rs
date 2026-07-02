@@ -141,7 +141,7 @@ async fn db_integration_with_docker_and_migrations() {
 
     let req = Request::builder()
         .method(Method::GET)
-        .uri("/stocks/1234")
+        .uri("/api/v1/stocks?query=1234")
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
