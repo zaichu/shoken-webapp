@@ -1,26 +1,25 @@
--- 既存 DB の migration 履歴をリセットするスクリプト
--- 対象: migrations/0001〜0017 を適用済みの DB を migrations/0001〜0009 に移行する場合
+-- 既存 DB の migration 履歴を現在の baseline に切り替えるスクリプト。
 --
--- 実行方法:
---   psql $DATABASE_URL -f backend/scripts/repair-migrations.sql
---   cd backend && cargo sqlx migrate run  # 新しいファイルを "applied" としてマーク
+-- 対象:
+--   - 現行 0001〜0011 を適用済みの DB
 --
--- 注意:
---   - 全ての CREATE TABLE / CREATE INDEX に IF NOT EXISTS が付いているため
---     テーブルが存在していても SQL は安全に再実行される
---   - このスクリプトはスキーマには一切変更を加えない
---   - 事前条件: version=17 (0017_recalculate_domestic_stocks_content_hash) まで適用済みであること
--- psql がエラーで停止するよう ON_ERROR_STOP を有効にする（psql -v ON_ERROR_STOP=1 でも可）
+-- このスクリプトは schema/data を変更しない。
+-- `_sqlx_migrations` だけを空にし、次の `cargo sqlx migrate run` で
+-- `0001_initial_schema.sql` を applied として記録できる状態にする。
+--
+-- 実行前に DB backup を取得すること。
+-- 実行後:
+--   cd backend && cargo sqlx migrate run
+
 \set ON_ERROR_STOP on
 
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM _sqlx_migrations WHERE version = 17
+    SELECT 1 FROM _sqlx_migrations WHERE version = 11
   ) THEN
     RAISE EXCEPTION
-      'repair を実行するには version=17 まで全て適用済みである必要があります。'
-      '現在未達のため中断します。先に cargo sqlx migrate run で 0017 まで適用してください。';
+      'repair を実行するには現行 version=11 まで適用済みである必要があります。';
   END IF;
 END $$;
 
