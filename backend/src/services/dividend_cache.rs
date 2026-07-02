@@ -33,7 +33,7 @@ pub async fn get_batch(
         r#"
         SELECT security_code, dividend_per_share, status, fetched_at, stale_at, source,
                created_at, updated_at
-        FROM jquants_dividend_cache
+        FROM dividend_per_share_cache
         WHERE security_code = ANY($1)
         "#,
     )
@@ -106,11 +106,11 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
     let row: (Option<chrono::DateTime<chrono::Utc>>,) = sqlx::query_as(
         r#"
-        INSERT INTO jquants_rate_control (id, next_available_at)
+        INSERT INTO market_data_provider_rate_control (id, next_available_at)
             VALUES (1, NOW() + INTERVAL '12 seconds')
         ON CONFLICT (id) DO UPDATE
             SET next_available_at =
-                GREATEST(jquants_rate_control.next_available_at, NOW()) + INTERVAL '12 seconds'
+                GREATEST(market_data_provider_rate_control.next_available_at, NOW()) + INTERVAL '12 seconds'
         RETURNING
             GREATEST(next_available_at - INTERVAL '12 seconds', NOW() - INTERVAL '1 second')
         "#,
@@ -132,16 +132,16 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// 429 発生時に jquants_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
+/// 429 発生時に market_data_provider_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
 /// 既存の future 値がある場合は後退させず、GREATEST で大きい方を維持する
 async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
     sqlx::query(
         r#"
-        INSERT INTO jquants_rate_control (id, next_available_at)
+        INSERT INTO market_data_provider_rate_control (id, next_available_at)
             VALUES (1, NOW() + $1 * INTERVAL '1 second')
         ON CONFLICT (id) DO UPDATE
             SET next_available_at =
-                GREATEST(jquants_rate_control.next_available_at, NOW() + $1 * INTERVAL '1 second')
+                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $1 * INTERVAL '1 second')
         "#,
     )
     .bind(RATE_LIMIT_COOLDOWN_SECS)

@@ -23,7 +23,7 @@ pub async fn fetch_and_cache(
 
     sqlx::query(
         r#"
-        INSERT INTO jquants_dividend_cache
+        INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, fetched_at, stale_at, source, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
@@ -57,7 +57,7 @@ pub async fn update_cache_error_with_cooldown(
 
     sqlx::query(
         r#"
-        INSERT INTO jquants_dividend_cache
+        INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
         VALUES ($1, NULL, 'error', $2, NOW() + $3 * INTERVAL '1 second', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
@@ -99,7 +99,7 @@ pub async fn update_cache_error(
 
     sqlx::query(
         r#"
-        INSERT INTO jquants_dividend_cache
+        INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
         VALUES ($1, NULL, 'error', $2, NULL, 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
