@@ -96,8 +96,8 @@ GitHub Actions で以下が自動実行されます（PR 時）:
 
 | ワークフロー | ファイル | ステップ |
 |---|---|---|
-| フロント | `deploy-frontend.yml` | lint / test（1回） / build / E2E |
-| バックエンド | `deploy-backend.yml` | clippy / test / release check / OpenAPI 同期確認 / tsc |
+| フロント | `deploy-frontend.yml` | lint / typecheck / test（1回） / build / E2E |
+| バックエンド | `deploy-backend.yml` | clippy / test / OpenAPI 同期確認 / frontend typecheck |
 
 ### フロントエンド CI の方針
 

@@ -34,18 +34,18 @@
 - **`src/hooks/`**: カスタムReactフック
 - **`src/contexts/`**: Reactコンテキスト
 
-詳細は `/src/components/README.md` を参照してください。
-
 ## 使用技術
 
-- **React 19.2.3**: フロントエンド UI ライブラリ
-- **TypeScript 5.9.3**: 型安全なコーディング
-- **React Compiler 19.1.0**: 自動メモ化による最適化（babel-plugin-react-compiler）
-- **TanStack React Query 5.90.16**: サーバー状態管理
-- **React Router DOM 7.11.0**: クライアントサイドルーティング
-- **Tailwind CSS 4.1.18**: ユーティリティファーストのCSSフレームワーク
-- **Vite 7.3.0**: 高速な開発環境とビルドツール
-- **Vitest 4.0.16 + Testing Library 16.3.1**: ユニットテストとコンポーネントテスト
+- **React 19**: フロントエンド UI ライブラリ
+- **TypeScript 6**: 型安全なコーディング（実行は `npm run typecheck`）
+- **React Compiler**: 自動メモ化による最適化（babel-plugin-react-compiler）
+- **TanStack React Query 5**: サーバー状態管理
+- **React Router DOM 7**: クライアントサイドルーティング
+- **Tailwind CSS 4**: ユーティリティファーストのCSSフレームワーク
+- **Vite 8**: 高速な開発環境とビルドツール
+- **Vitest 4 + Testing Library**: ユニットテストとコンポーネントテスト
+
+実バージョンの正本は `package.json` と `package-lock.json` です。
 
 ### 主要アーキテクチャパターン
 - **Atomic Design**: 単一責任での厳密なコンポーネント階層
@@ -59,7 +59,7 @@
 ### NPMコマンド
 ```bash
 # 依存関係のインストール
-npm install
+npm ci
 
 # 開発サーバーの起動（ポート8080で自動ブラウザ起動）
 npm run dev
@@ -69,6 +69,9 @@ npm run build
 
 # ESLintによるコード検証（TypeScript + React + React Compilerルール）
 npm run lint
+
+# 型チェック
+npm run typecheck
 
 # テスト実行（メモリ最適化済み）
 npm test
@@ -110,7 +113,7 @@ make all
 
 - **ベースパス**: `/`（Vercel ルート）
 - **パスエイリアス**: `@/*` は `src/*` にマップ
-- **API 接続先**: `VITE_SHOKEN_WEBAPI_API_URL` でバックエンドURLを指定（J-Quants APIはバックエンド経由）
+- **API 接続先**: `VITE_SHOKEN_WEBAPI_API_URL` でバックエンドURLを指定。API 型は `docs/openapi.json` から生成した `src/generated/api.ts` を使用
 - **テスト環境**: jsdom環境での単一フォーク設定、10秒タイムアウト
 - **ビルド最適化**: Terser圧縮でのベンダーチャンク分割
 
