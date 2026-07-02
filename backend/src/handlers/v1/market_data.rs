@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     models::jquants::{FinSummaryQuery, FinSummaryResponse},
-    services::jquants::JQuantsClient,
+    services::market_data::providers::jquants::JQuantsClient,
     state::AppState,
 };
 use axum::{

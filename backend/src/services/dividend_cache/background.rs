@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::services::jquants::JQuantsClient;
+use crate::services::market_data::providers::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
 use sqlx::PgPool;
 use std::sync::{
