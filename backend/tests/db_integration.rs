@@ -19,7 +19,10 @@ use backend::{
 };
 
 fn default_pagination() -> PaginationParams {
-    PaginationParams { page: None, per_page: None }
+    PaginationParams {
+        page: None,
+        per_page: None,
+    }
 }
 use chrono::NaiveDate;
 use reqwest::Client;
@@ -293,7 +296,8 @@ async fn service_coverage_all_domains() {
     assert!(mutualfund_svc::list(&pool, user_id, &default_pagination())
         .await
         .expect("initial mutualfund list failed")
-        .data.is_empty());
+        .data
+        .is_empty());
     let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty mutualfund bulk_create failed");
@@ -322,7 +326,8 @@ async fn service_coverage_all_domains() {
         mutualfund_svc::list(&pool, user_id, &default_pagination())
             .await
             .expect("mutualfund list failed")
-            .data.len(),
+            .data
+            .len(),
         3
     );
     assert_eq!(
@@ -334,12 +339,14 @@ async fn service_coverage_all_domains() {
     assert!(mutualfund_svc::list(&pool, user_id, &default_pagination())
         .await
         .expect("mutualfund list after delete failed")
-        .data.is_empty());
+        .data
+        .is_empty());
 
     assert!(dividend_svc::list(&pool, user_id, &default_pagination())
         .await
         .expect("initial dividend list failed")
-        .data.is_empty());
+        .data
+        .is_empty());
     let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty dividend bulk_create failed");
@@ -365,7 +372,8 @@ async fn service_coverage_all_domains() {
         dividend_svc::list(&pool, user_id, &default_pagination())
             .await
             .expect("dividend list failed")
-            .data.len(),
+            .data
+            .len(),
         3
     );
     assert_eq!(
@@ -377,12 +385,16 @@ async fn service_coverage_all_domains() {
     assert!(dividend_svc::list(&pool, user_id, &default_pagination())
         .await
         .expect("dividend list after delete failed")
-        .data.is_empty());
+        .data
+        .is_empty());
 
-    assert!(domestic_stock_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("initial domestic_stock list failed")
-        .data.is_empty());
+    assert!(
+        domestic_stock_svc::list(&pool, user_id, &default_pagination())
+            .await
+            .expect("initial domestic_stock list failed")
+            .data
+            .is_empty()
+    );
     let domestic_stock_empty = domestic_stock_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty domestic_stock bulk_create failed");
@@ -412,7 +424,8 @@ async fn service_coverage_all_domains() {
         domestic_stock_svc::list(&pool, user_id, &default_pagination())
             .await
             .expect("domestic_stock list failed")
-            .data.len(),
+            .data
+            .len(),
         3
     );
     assert_eq!(
@@ -421,15 +434,21 @@ async fn service_coverage_all_domains() {
             .expect("domestic_stock delete_all failed"),
         3
     );
-    assert!(domestic_stock_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("domestic_stock list after delete failed")
-        .data.is_empty());
+    assert!(
+        domestic_stock_svc::list(&pool, user_id, &default_pagination())
+            .await
+            .expect("domestic_stock list after delete failed")
+            .data
+            .is_empty()
+    );
 
-    assert!(asset_balance_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("initial asset_balance list failed")
-        .data.is_empty());
+    assert!(
+        asset_balance_svc::list(&pool, user_id, &default_pagination())
+            .await
+            .expect("initial asset_balance list failed")
+            .data
+            .is_empty()
+    );
     let asset_balance_empty = asset_balance_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty asset_balance bulk_create failed");
@@ -447,7 +466,8 @@ async fn service_coverage_all_domains() {
         asset_balance_svc::list(&pool, user_id, &default_pagination())
             .await
             .expect("asset_balance list after bulk_create failed")
-            .data.len(),
+            .data
+            .len(),
         2
     );
 
@@ -472,10 +492,13 @@ async fn service_coverage_all_domains() {
             .expect("asset_balance delete_all failed"),
         1
     );
-    assert!(asset_balance_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("asset_balance list after delete failed")
-        .data.is_empty());
+    assert!(
+        asset_balance_svc::list(&pool, user_id, &default_pagination())
+            .await
+            .expect("asset_balance list after delete failed")
+            .data
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -584,7 +607,10 @@ async fn dividend_bulk_create_and_list() {
     let first_page = dividend_svc::list(
         &pool,
         user_id,
-        &PaginationParams { page: Some(1), per_page: Some(2) },
+        &PaginationParams {
+            page: Some(1),
+            per_page: Some(2),
+        },
     )
     .await
     .expect("dividend first page list failed");
@@ -596,7 +622,10 @@ async fn dividend_bulk_create_and_list() {
     let second_page = dividend_svc::list(
         &pool,
         user_id,
-        &PaginationParams { page: Some(2), per_page: Some(2) },
+        &PaginationParams {
+            page: Some(2),
+            per_page: Some(2),
+        },
     )
     .await
     .expect("dividend second page list failed");
@@ -608,7 +637,10 @@ async fn dividend_bulk_create_and_list() {
     let clamped_page = dividend_svc::list(
         &pool,
         user_id,
-        &PaginationParams { page: Some(1), per_page: Some(5000) },
+        &PaginationParams {
+            page: Some(1),
+            per_page: Some(5000),
+        },
     )
     .await
     .expect("dividend clamped page list failed");

@@ -1,10 +1,11 @@
+use crate::models::common::validate_length_field;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 /// 保有銘柄モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
@@ -36,11 +37,9 @@ pub struct AssetBalance {
 }
 
 /// 保有銘柄作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateAssetBalanceRequest {
-    #[validate(length(min = 1, max = 10))]
     pub security_code: String,
-    #[validate(length(min = 1, max = 200))]
     pub security_name: String,
     #[schema(value_type = f64)]
     pub shares: Decimal,
@@ -60,11 +59,47 @@ pub struct CreateAssetBalanceRequest {
     pub profit_loss_rate: Decimal,
 }
 
+impl Validate for CreateAssetBalanceRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(
+            &mut errors,
+            "security_code",
+            &self.security_code,
+            Some(1),
+            Some(10),
+        );
+        validate_length_field(
+            &mut errors,
+            "security_name",
+            &self.security_name,
+            Some(1),
+            Some(200),
+        );
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+}
+
 /// 保有銘柄一括作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct BulkCreateAssetBalanceRequest {
-    #[validate(length(min = 1))]
     pub items: Vec<CreateAssetBalanceRequest>,
+}
+
+impl Validate for BulkCreateAssetBalanceRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(&mut errors, "items", &self.items, Some(1), None);
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

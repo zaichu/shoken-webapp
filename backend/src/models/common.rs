@@ -1,5 +1,30 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use utoipa::ToSchema;
+use validator::{ValidateLength, ValidationError, ValidationErrors};
+
+/// `validator` derive の length rule 相当を手実装するヘルパー。
+/// `String` / `Option<String>` / `Vec<T>` など `ValidateLength` 実装型に共通で使う。
+pub(crate) fn validate_length_field<T>(
+    errors: &mut ValidationErrors,
+    field: &'static str,
+    value: T,
+    min: Option<u64>,
+    max: Option<u64>,
+) where
+    T: ValidateLength<u64>,
+{
+    if !value.validate_length(min, max, None) {
+        let mut error = ValidationError::new("length");
+        if let Some(min) = min {
+            error.add_param(Cow::from("min"), &min);
+        }
+        if let Some(max) = max {
+            error.add_param(Cow::from("max"), &max);
+        }
+        errors.add(field, error);
+    }
+}
 
 /// ページネーションクエリパラメータ（全ドメイン共通）
 #[derive(Debug, Clone, Serialize, Deserialize)]

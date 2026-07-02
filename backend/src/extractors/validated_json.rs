@@ -48,14 +48,28 @@ mod tests {
         },
         serde::{Deserialize, Serialize},
         tower::ServiceExt,
-        validator::Validate,
+        validator::{Validate, ValidateLength, ValidateRange, ValidationError, ValidationErrors},
     };
-    #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
     struct TestData {
-        #[validate(length(min = 1, max = 50))]
         name: String,
-        #[validate(range(min = 1, max = 150))]
         age: u8,
+    }
+    impl Validate for TestData {
+        fn validate(&self) -> Result<(), ValidationErrors> {
+            let mut errors = ValidationErrors::new();
+            if !self.name.validate_length(Some(1), Some(50), None) {
+                errors.add("name", ValidationError::new("length"));
+            }
+            if !self.age.validate_range(Some(1), Some(150), None, None) {
+                errors.add("age", ValidationError::new("range"));
+            }
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(errors)
+            }
+        }
     }
     fn json_request(body: impl Into<Body>) -> Request<Body> {
         Request::builder()
