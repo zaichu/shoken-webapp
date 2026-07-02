@@ -270,6 +270,120 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
+  it('dividend: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.dividendApi.list).mockImplementation(
+      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+        if (page === 1) {
+          return Promise.resolve({
+            data: Array.from({ length: 1000 }, (_, index) =>
+              ({ id: String(index + 1), payment_date: '2023-01-01' }) as never
+            ),
+            total: 1001,
+            page: 1,
+            per_page: 1000,
+          } as never);
+        }
+        return Promise.resolve({
+          data: [{ id: '1001', payment_date: '2023-01-02' } as never],
+          total: 1001,
+          page: 2,
+          per_page: 1000,
+        } as never);
+      }
+    );
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.dividendData).toHaveLength(1001);
+    });
+    expect(result.current.dividendData).toContainEqual({ id: '1001', payment_date: '2023-01-02' });
+    expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+  });
+
+  it('domesticstock: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.domesticStockApi.list).mockImplementation(
+      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+        if (page === 1) {
+          return Promise.resolve({
+            data: Array.from({ length: 1000 }, (_, index) =>
+              ({ id: 'stock-' + String(index + 1), trade_date: '2023-02-01' }) as never
+            ),
+            total: 1001,
+            page: 1,
+            per_page: 1000,
+          } as never);
+        }
+        return Promise.resolve({
+          data: [{ id: 'stock-1001', trade_date: '2023-02-02' } as never],
+          total: 1001,
+          page: 2,
+          per_page: 1000,
+        } as never);
+      }
+    );
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.domesticstockData).toHaveLength(1001);
+    });
+    expect(result.current.domesticstockData).toContainEqual({ id: 'stock-1001', trade_date: '2023-02-02' });
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+  });
+
+  it('mutualfund: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApiModule.mutualfundApi.list).mockImplementation(
+      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+        if (page === 1) {
+          return Promise.resolve({
+            data: Array.from({ length: 1000 }, (_, index) =>
+              ({ id: 'fund-' + String(index + 1), trade_date: '2023-03-01' }) as never
+            ),
+            total: 1001,
+            page: 1,
+            per_page: 1000,
+          } as never);
+        }
+        return Promise.resolve({
+          data: [{ id: 'fund-1001', trade_date: '2023-03-02' } as never],
+          total: 1001,
+          page: 2,
+          per_page: 1000,
+        } as never);
+      }
+    );
+
+    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.mutualfundData).toHaveLength(1001);
+    });
+    expect(result.current.mutualfundData).toContainEqual({ id: 'fund-1001', trade_date: '2023-03-02' });
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+  });
+
   it('deleteAll mutation: domesticstock と mutualfund を削除できる', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },

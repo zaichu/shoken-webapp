@@ -9,6 +9,7 @@ import {
 import { receiptQueryKeys, clearReceiptsCache } from '../queryKeys';
 import { type ReceiptsType } from '../reducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { fetchAllPages } from '@/lib/api/pagination';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
 
@@ -63,7 +64,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const dividendQuery = useQuery({
     queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
-      dividendApi.list({ per_page: 1000 }).then(({ data: dividendRows }) =>
+      fetchAllPages((page) => dividendApi.list({ per_page: 1000, page })).then((dividendRows) =>
         dividendRows.map(transformDBDividend)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
@@ -71,7 +72,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const domesticstockQuery = useQuery({
     queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
-      domesticStockApi.list({ per_page: 1000 }).then(({ data: domesticStockRows }) =>
+      fetchAllPages((page) => domesticStockApi.list({ per_page: 1000, page })).then((domesticStockRows) =>
         domesticStockRows.map(transformDBDomesticStock)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
@@ -79,7 +80,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const mutualfundQuery = useQuery({
     queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
-      mutualfundApi.list({ per_page: 1000 }).then(({ data: mutualfundRows }) =>
+      fetchAllPages((page) => mutualfundApi.list({ per_page: 1000, page })).then((mutualfundRows) =>
         mutualfundRows.map(transformDBMutualfund)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });

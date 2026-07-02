@@ -208,6 +208,38 @@ describe('useAssetBalance', () => {
     expect(result.current.getTotalMarketValue()).toBe(100000);
   });
 
+  it('total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockImplementation(
+      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+        if (page === 1) {
+          return Promise.resolve({
+            data: Array.from({ length: 1000 }, (_, index) =>
+              makeAssetBalanceData({ id: String(index + 1), security_code: String(7000 + index) })
+            ),
+            total: 1001, page: 1, per_page: 1000,
+          });
+        }
+        return Promise.resolve({
+          data: [makeAssetBalanceData({ id: '1001', security_code: '6758' })],
+          total: 1001, page: 2, per_page: 1000,
+        });
+      }
+    );
+
+    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.assetBalanceData).toHaveLength(1001);
+    });
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenCalledTimes(2);
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+  });
+
   it('refetch は assetBalance クエリを invalidate する', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
