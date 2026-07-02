@@ -44,14 +44,14 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
-    let jquants_limiter = build_rate_limiter(config.jquants_rate_limit_rps);
+    let market_data_limiter = build_rate_limiter(config.market_data_rate_limit_rps);
     spawn_keyed_limiter_cleanup(&auth_limiter);
     spawn_keyed_limiter_cleanup(&csv_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let ready = Arc::clone(&startup_ready);
     let gated_domain =
-        domain_routes(jquants_limiter, auth_limiter, csv_limiter).layer(middleware::from_fn(
+        domain_routes(market_data_limiter, auth_limiter, csv_limiter).layer(middleware::from_fn(
             move |req: axum::extract::Request, next: axum::middleware::Next| {
                 let ready = Arc::clone(&ready);
                 async move {
@@ -109,17 +109,17 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
 
 /// ドメインルートをまとめたルーター（認証・コア機能）
 fn domain_routes(
-    jquants_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
+    market_data_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
     auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
-    let jquants_routes = if let Some(l) = jquants_limiter {
-        handlers::v1::jquants_routes().layer(middleware::from_fn(move |req, next| {
+    let market_data_routes = if let Some(l) = market_data_limiter {
+        handlers::v1::market_data_routes().layer(middleware::from_fn(move |req, next| {
             let l = l.clone();
             async move { rate_limit(l, req, next).await }
         }))
     } else {
-        handlers::v1::jquants_routes()
+        handlers::v1::market_data_routes()
     };
     let auth_routes = if let Some(l) = auth_limiter {
         handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
@@ -139,7 +139,7 @@ fn domain_routes(
     };
 
     Router::new()
-        .merge(jquants_routes)
+        .merge(market_data_routes)
         .merge(auth_routes)
         .merge(csv_upload_routes)
         .merge(handlers::csv_import::csv_import_routes())
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_all_routes_creation() {
         let _ = handlers::v1::auth_routes();
-        let _ = handlers::v1::jquants_routes();
+        let _ = handlers::v1::market_data_routes();
         let _ = handlers::v1::data_routes();
         let _ = handlers::v1::csv_upload_routes();
         let _ = handlers::csv_import::csv_import_routes();
@@ -199,12 +199,12 @@ mod tests {
         .with_state(make_test_state());
         assert_rate_limited(router, Method::GET, "/api/v1/session", Some("1.2.3.4")).await;
         let router = if let Some(l) = crate::middleware::build_rate_limiter(1) {
-            handlers::v1::jquants_routes().layer(middleware::from_fn(move |req, next| {
+            handlers::v1::market_data_routes().layer(middleware::from_fn(move |req, next| {
                 let l = l.clone();
                 async move { rate_limit(l, req, next).await }
             }))
         } else {
-            handlers::v1::jquants_routes()
+            handlers::v1::market_data_routes()
         }
         .with_state(make_test_state());
         assert_rate_limited(router, Method::GET, "/api/v1/financial-statements", None).await;
@@ -249,7 +249,7 @@ mod tests {
     async fn test_all_endpoints_require_auth() {
         for (router, method, uri) in [
             (
-                handlers::v1::jquants_routes(),
+                handlers::v1::market_data_routes(),
                 Method::GET,
                 "/api/v1/financial-statements?code=7203",
             ),

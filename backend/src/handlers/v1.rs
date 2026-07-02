@@ -90,8 +90,8 @@ pub fn csv_upload_routes() -> Router<AppState> {
         )
 }
 
-/// J-Quants 系 v1 ルート（jquants_limiter 対象）
-pub fn jquants_routes() -> Router<AppState> {
+/// Market data 系 v1 ルート（market_data_limiter 対象）
+pub fn market_data_routes() -> Router<AppState> {
     Router::new().route(
         "/api/v1/financial-statements",
         get(market_data::get_financial_statements),
@@ -264,7 +264,7 @@ mod tests {
                 "/api/v1/asset-balances",
             ),
             (
-                jquants_routes().with_state(make_test_state()),
+                market_data_routes().with_state(make_test_state()),
                 Method::GET,
                 "/api/v1/financial-statements",
             ),
