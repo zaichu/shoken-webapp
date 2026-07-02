@@ -4,6 +4,7 @@ import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
+import { fetchAllPages } from '@/lib/api/pagination';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
 interface UseAssetBalanceReturn {
@@ -30,7 +31,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
 
   const query = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
-    queryFn: () => assetBalanceApi.list({ per_page: 1000 }),
+    queryFn: () => fetchAllPages((page) => assetBalanceApi.list({ per_page: 1000, page })),
     enabled: isAuthenticated && !!userId && enabled,
   });
 
@@ -40,8 +41,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   }, [onLogout, queryClient]);
 
   // 未認証時はキャッシュに残存データがあっても空を返す
-  const assetBalancePage = isAuthenticated ? query.data : undefined;
-  const assetBalanceData = assetBalancePage?.data ?? [];
+  const assetBalanceData = (isAuthenticated ? query.data : undefined) ?? [];
 
   const getAssetBalanceByCode = (code: string): AssetBalanceData | undefined => {
     const normalizedCode = normalizeSecurityCode(code);

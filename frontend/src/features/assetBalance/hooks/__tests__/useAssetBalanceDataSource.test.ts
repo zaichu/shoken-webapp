@@ -117,6 +117,36 @@ describe('useAssetBalanceDataSource: 基本動作', () => {
     });
   });
 
+  it('total が per_page を超える場合は次ページを取得し全件を dbData に含める', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockImplementation(
+      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+        if (page === 1) {
+          return Promise.resolve({
+            data: Array.from({ length: 1000 }, (_, index) =>
+              ({ security_code: String(7000 + index), security_name: '銘柄' + index, shares: 100 }) as never
+            ),
+            total: 1001, page: 1, per_page: 1000,
+          });
+        }
+        return Promise.resolve({
+          data: [{ security_code: '6758', security_name: 'ソニーグループ', shares: 50 } as never],
+          total: 1001, page: 2, per_page: 1000,
+        });
+      }
+    );
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    await waitFor(() => {
+      expect(result.current.dbData).toHaveLength(1001);
+    });
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenCalledTimes(2);
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+  });
+
   it('deleteAll完了後にcacheキーが存在しない場合setQueryDataを呼ばない', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));

@@ -4,6 +4,7 @@ import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
+import { fetchAllPages } from '@/lib/api/pagination';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 import type { CsvUploadResult } from '@/lib/csvImport';
 
@@ -56,7 +57,7 @@ export function useAssetBalanceDataSourceCore({
 
   const dbQuery = useQuery({
     queryKey: assetBalanceQueryKeys.all(userId),
-    queryFn: () => assetBalanceApi.list({ per_page: 1000 }),
+    queryFn: () => fetchAllPages((page) => assetBalanceApi.list({ per_page: 1000, page })),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
@@ -84,7 +85,7 @@ export function useAssetBalanceDataSourceCore({
     onSuccess: (_, __, context) => {
       const key = assetBalanceQueryKeys.all(context?.snapshotUserId ?? userId);
       if (queryClient.getQueryState(key) !== undefined) {
-        queryClient.setQueryData(key, { data: [], total: 0, page: 1, per_page: 1000 });
+        queryClient.setQueryData(key, []);
       }
       setLastSavedResult(null);
     },
@@ -127,8 +128,7 @@ export function useAssetBalanceDataSourceCore({
     await deleteAllMutation.mutateAsync();
   }, [deleteAllMutation, isAuthenticated]);
 
-  const assetBalancePage = dbQuery.data;
-  const dbData = assetBalancePage?.data ?? [];
+  const dbData = dbQuery.data ?? [];
   const queryError = dbQuery.error;
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error ?? previewMutation.error;
   const error = queryError
