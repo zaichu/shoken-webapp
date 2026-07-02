@@ -62,7 +62,12 @@ pub async fn list(
     .fetch_all(pool)
     .await?;
 
-    Ok(PaginatedResponse { data, total, page: params.page(), per_page: params.per_page() })
+    Ok(PaginatedResponse {
+        data,
+        total,
+        page: params.page(),
+        per_page: params.per_page(),
+    })
 }
 
 /// 配当金を一括追加（重複はスキップ）

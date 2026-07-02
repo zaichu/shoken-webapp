@@ -1,8 +1,9 @@
+use crate::models::common::validate_length_field;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 /// 配当キャッシュレコード
 ///
@@ -31,10 +32,27 @@ pub struct DividendCache {
 }
 
 /// バッチリクエスト
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct DividendPerShareBatchRequest {
-    #[validate(length(min = 1, max = 100))]
     pub security_codes: Vec<String>,
+}
+
+impl Validate for DividendPerShareBatchRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(
+            &mut errors,
+            "security_codes",
+            &self.security_codes,
+            Some(1),
+            Some(100),
+        );
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 
 /// レスポンス内の1銘柄アイテム

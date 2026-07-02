@@ -1,10 +1,11 @@
+use crate::models::common::validate_length_field;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 /// 国内株式取引モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
@@ -37,15 +38,12 @@ pub struct DomesticStock {
 }
 
 /// 国内株式取引作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateDomesticStockRequest {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
-    #[validate(length(min = 1, max = 10))]
     pub security_code: String,
-    #[validate(length(min = 1, max = 200))]
     pub security_name: String,
-    #[validate(length(min = 1, max = 100))]
     pub account: String,
     #[schema(value_type = f64)]
     pub shares: Decimal,
@@ -61,6 +59,32 @@ pub struct CreateDomesticStockRequest {
     pub taxes: Decimal,
     #[schema(value_type = f64)]
     pub realized_profit_and_loss_after_tax: Decimal,
+}
+
+impl Validate for CreateDomesticStockRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(
+            &mut errors,
+            "security_code",
+            &self.security_code,
+            Some(1),
+            Some(10),
+        );
+        validate_length_field(
+            &mut errors,
+            "security_name",
+            &self.security_name,
+            Some(1),
+            Some(200),
+        );
+        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

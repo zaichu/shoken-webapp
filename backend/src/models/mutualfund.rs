@@ -1,10 +1,11 @@
+use crate::models::common::validate_length_field;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 /// 投資信託モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
@@ -39,15 +40,12 @@ pub struct Mutualfund {
 }
 
 /// 投資信託作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateMutualfundRequest {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
-    #[validate(length(min = 1, max = 300))]
     pub fund_name: String,
-    #[validate(length(max = 100))]
     pub dividends: Option<String>,
-    #[validate(length(min = 1, max = 100))]
     pub account: String,
     #[schema(value_type = f64)]
     pub shares: Decimal,
@@ -65,6 +63,26 @@ pub struct CreateMutualfundRequest {
     pub taxes: Decimal,
     #[schema(value_type = f64)]
     pub realized_profit_and_loss_after_tax: Decimal,
+}
+
+impl Validate for CreateMutualfundRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(
+            &mut errors,
+            "fund_name",
+            &self.fund_name,
+            Some(1),
+            Some(300),
+        );
+        validate_length_field(&mut errors, "dividends", &self.dividends, None, Some(100));
+        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

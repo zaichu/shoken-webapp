@@ -1,30 +1,78 @@
+use crate::models::common::validate_length_field;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
-#[derive(Serialize, Deserialize, FromRow, Validate, ToSchema)]
+#[derive(Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Stock {
     pub date: NaiveDate,
-    #[validate(length(min = 1, max = 10))]
     pub code: String,
-    #[validate(length(min = 1, max = 100))]
     pub name: String,
-    #[validate(length(min = 1, max = 50))]
     pub market_category: String,
-    #[validate(length(max = 10))]
     pub industry_code_33: Option<String>,
-    #[validate(length(max = 100))]
     pub industry_category_33: Option<String>,
-    #[validate(length(max = 10))]
     pub industry_code_17: Option<String>,
-    #[validate(length(max = 100))]
     pub industry_category_17: Option<String>,
-    #[validate(length(max = 10))]
     pub size_code: Option<String>,
-    #[validate(length(max = 50))]
     pub size_category: Option<String>,
+}
+
+impl Validate for Stock {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(&mut errors, "code", &self.code, Some(1), Some(10));
+        validate_length_field(&mut errors, "name", &self.name, Some(1), Some(100));
+        validate_length_field(
+            &mut errors,
+            "market_category",
+            &self.market_category,
+            Some(1),
+            Some(50),
+        );
+        validate_length_field(
+            &mut errors,
+            "industry_code_33",
+            &self.industry_code_33,
+            None,
+            Some(10),
+        );
+        validate_length_field(
+            &mut errors,
+            "industry_category_33",
+            &self.industry_category_33,
+            None,
+            Some(100),
+        );
+        validate_length_field(
+            &mut errors,
+            "industry_code_17",
+            &self.industry_code_17,
+            None,
+            Some(10),
+        );
+        validate_length_field(
+            &mut errors,
+            "industry_category_17",
+            &self.industry_category_17,
+            None,
+            Some(100),
+        );
+        validate_length_field(&mut errors, "size_code", &self.size_code, None, Some(10));
+        validate_length_field(
+            &mut errors,
+            "size_category",
+            &self.size_category,
+            None,
+            Some(50),
+        );
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

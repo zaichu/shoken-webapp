@@ -1,10 +1,11 @@
+use crate::models::common::validate_length_field;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 /// 配当金モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
@@ -33,16 +34,12 @@ pub struct Dividend {
 }
 
 /// 配当金作成リクエスト
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateDividendRequest {
     pub settlement_date: NaiveDate,
-    #[validate(length(min = 1, max = 100))]
     pub product: String,
-    #[validate(length(min = 1, max = 100))]
     pub account: String,
-    #[validate(length(max = 10))]
     pub security_code: String,
-    #[validate(length(min = 1, max = 200))]
     pub security_name: String,
     #[schema(value_type = f64)]
     pub unit_price: Decimal,
@@ -54,6 +51,33 @@ pub struct CreateDividendRequest {
     pub taxes: Decimal,
     #[schema(value_type = f64)]
     pub net_amount_received: Decimal,
+}
+
+impl Validate for CreateDividendRequest {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+        validate_length_field(&mut errors, "product", &self.product, Some(1), Some(100));
+        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
+        validate_length_field(
+            &mut errors,
+            "security_code",
+            &self.security_code,
+            None,
+            Some(10),
+        );
+        validate_length_field(
+            &mut errors,
+            "security_name",
+            &self.security_name,
+            Some(1),
+            Some(200),
+        );
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 #[cfg(test)]
 mod tests {
