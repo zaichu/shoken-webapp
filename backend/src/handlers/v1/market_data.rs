@@ -1,7 +1,7 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    models::jquants::{FinSummaryQuery, FinSummaryResponse},
+    models::market_data::providers::jquants::{FinSummaryQuery, FinSummaryResponse},
     services::market_data::providers::jquants::JQuantsClient,
     state::AppState,
 };

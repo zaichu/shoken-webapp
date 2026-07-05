@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::jquants::FinSummaryQuery;
+use crate::models::market_data::providers::jquants::FinSummaryQuery;
 use crate::services::market_data::providers::jquants::JQuantsClient;
 use sqlx::PgPool;
 

@@ -13,7 +13,7 @@ use crate::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
         },
         domestic_stock::DomesticStock,
-        jquants::{FinSummaryData, FinSummaryResponse},
+        market_data::providers::jquants::{FinSummaryData, FinSummaryResponse},
         mutualfund::Mutualfund,
         stock::Stock,
         user::UserResponse,
