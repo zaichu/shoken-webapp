@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::jquants::{FinSummaryQuery, FinSummaryResponse};
+use crate::models::market_data::providers::jquants::{FinSummaryQuery, FinSummaryResponse};
 use reqwest::Client;
 
 const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";

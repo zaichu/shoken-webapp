@@ -4,7 +4,7 @@ pub mod csv_import;
 pub mod dividend;
 pub mod dividend_cache;
 pub mod domestic_stock;
-pub mod jquants;
+pub mod market_data;
 pub mod mutualfund;
 pub mod stock;
 pub mod user;

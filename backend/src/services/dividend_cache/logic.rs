@@ -1,4 +1,4 @@
-use crate::models::jquants::FinSummaryData;
+use crate::models::market_data::providers::jquants::FinSummaryData;
 use chrono::{DateTime, Utc};
 
 /// キャッシュエントリの is_stale を判定する
@@ -48,7 +48,7 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::jquants::FinSummaryData;
+    use crate::models::market_data::providers::jquants::FinSummaryData;
 
     fn make_summary(
         disc_date: &str,
