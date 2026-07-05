@@ -5,7 +5,7 @@
 見る場所:
 
 - `backend/src/models/jquants.rs`
-- `backend/src/services/jquants.rs`
+- `backend/src/services/market_data/providers/jquants.rs`
 
 原因の典型:
 
@@ -17,7 +17,7 @@
 
 見る場所:
 
-- `frontend/src/features/jquants/api/types.ts`
+- `frontend/src/features/marketData/api/types.ts`
 - `frontend/src/generated/api.ts`
 - hook 側の `response.data` / `response.statements` 参照
 

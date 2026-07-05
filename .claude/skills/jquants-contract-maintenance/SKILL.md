@@ -15,7 +15,7 @@ J-Quants 関連の不具合は、backend service / Rust model / OpenAPI / fronte
 - `missing field ...` のような deserialize エラーが出たとき
 - frontend で `is not iterable` など J-Quants 応答 shape 不一致が出たとき
 - J-Quants V1/V2 の仕様差分対応をするとき
-- `backend/src/models/jquants.rs` や `frontend/src/features/jquants/` を触るとき
+- `backend/src/models/jquants.rs`、`frontend/src/features/marketData/`、`frontend/src/features/dividendPerShare/` を触るとき
 - backend の API 変更後に `docs/openapi.json` と `frontend/src/generated/api.ts` の同期が必要なとき
 
 ## Workflow
@@ -31,12 +31,12 @@ J-Quants 関連の不具合は、backend service / Rust model / OpenAPI / fronte
 
 - backend ログで失敗:
   - `missing field`, `invalid type`, `unknown variant`
-  - まず `backend/src/models/jquants.rs` と `backend/src/services/jquants.rs` を確認
+  - まず `backend/src/models/jquants.rs` と `backend/src/services/market_data/providers/jquants.rs` を確認
 - frontend だけ失敗:
   - `statements is not iterable`, `undefined.data`, `map is not a function`
-  - まず `frontend/src/features/jquants/api/types.ts`、`frontend/src/generated/api.ts`、consumer hook を確認
+  - まず `frontend/src/features/marketData/api/types.ts`、`frontend/src/generated/api.ts`、consumer hook を確認
 - API は成功だが表示だけ崩れる:
-  - `frontend/src/features/jquants/hooks/` と `frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`、`frontend/src/pages/Receipt/Dividend.tsx` を確認
+  - `frontend/src/features/marketData/hooks/`、`frontend/src/features/dividendPerShare/hooks/`、`frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`、`frontend/src/pages/Receipt/Dividend.tsx` を確認
 
 症状別の詳細は [references/symptoms-and-fixes.md](references/symptoms-and-fixes.md) を読む。
 
@@ -46,14 +46,14 @@ J-Quants 関連の不具合は、backend service / Rust model / OpenAPI / fronte
 
 1. 実際の J-Quants 応答
 2. `backend/src/models/jquants.rs`
-3. `backend/src/handlers/jquants.rs` と `backend/src/openapi.rs`
+3. `backend/src/handlers/v1/market_data.rs` と `backend/src/openapi.rs`
 4. `docs/openapi.json`
 5. `frontend/src/generated/api.ts`
-6. `frontend/src/features/jquants/api/types.ts` と hook 群
+6. `frontend/src/features/marketData/api/types.ts`、`frontend/src/features/marketData/hooks/`、`frontend/src/features/dividendPerShare/hooks/`
 
 注意:
 
-- `frontend/src/features/jquants/api/types.ts` は hand-written 型なので、`frontend/src/generated/api.ts` と矛盾しやすい
+- `frontend/src/features/marketData/api/types.ts` は hand-written 型なので、`frontend/src/generated/api.ts` と矛盾しやすい
 - backend API を変えたら OpenAPI と frontend generated type の再生成を必ず行う
 - frontend 側の一時対応で hand-written 型だけ直して終わらせない
 
@@ -63,9 +63,9 @@ J-Quants 関連の不具合は、backend service / Rust model / OpenAPI / fronte
 
 最小確認範囲:
 
-- `backend/src/services/jquants.rs`
+- `backend/src/services/market_data/providers/jquants.rs`
 - `backend/src/models/jquants.rs`
-- `backend/src/handlers/jquants.rs`
+- `backend/src/handlers/v1/market_data.rs`
 - `backend/src/routes.rs`
 - `backend/src/openapi.rs`
 
@@ -96,11 +96,12 @@ cd frontend && npm run generate:types
 
 優先確認:
 
-- `frontend/src/features/jquants/api/client.ts`
-- `frontend/src/features/jquants/api/types.ts`
-- `frontend/src/features/jquants/hooks/useJQuantsDividend.ts`
-- `frontend/src/features/jquants/hooks/useJQuantsDividendBatch.ts`
-- `frontend/src/features/jquants/hooks/useDividendBatch.ts`
+- `frontend/src/features/marketData/api/client.ts`
+- `frontend/src/features/marketData/api/types.ts`
+- `frontend/src/features/marketData/hooks/useJQuantsDividend.ts`
+- `frontend/src/features/marketData/hooks/useJQuantsDividendBatch.ts`
+- `frontend/src/features/dividendPerShare/api/dividendPerShareApi.ts`
+- `frontend/src/features/dividendPerShare/hooks/useDividendBatch.ts`
 - `frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`
 - `frontend/src/pages/Receipt/Dividend.tsx`
 - `frontend/src/pages/AssetBalance.tsx`
@@ -123,10 +124,10 @@ bash .claude/skills/jquants-contract-maintenance/scripts/check_jquants_contract.
 
 ```bash
 cd backend && cargo test jquants
-cd frontend && npm test -- --run src/features/jquants/api/__tests__/client.test.ts src/features/jquants/hooks/__tests__/useJQuantsDividend.test.ts src/features/jquants/hooks/__tests__/useJQuantsDividendBatch.test.ts src/features/jquants/hooks/__tests__/useDividendBatch.test.ts
+cd frontend && npm test -- --run src/features/marketData/api/__tests__/client.test.ts src/features/marketData/hooks/__tests__/useJQuantsDividend.test.ts src/features/marketData/hooks/__tests__/useJQuantsDividendBatch.test.ts src/features/dividendPerShare/hooks/__tests__/useDividendBatch.test.ts
 ```
 
-実 API まで確認したいときは `backend/src/services/jquants.rs` の ignored test を読む。通常実行には含めない。
+実 API まで確認したいときは `backend/src/services/market_data/providers/jquants.rs` の ignored test を読む。通常実行には含めない。
 
 ## References
 

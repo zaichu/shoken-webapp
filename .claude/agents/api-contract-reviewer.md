@@ -21,8 +21,8 @@ J-Quants や OpenAPI 契約差分を起点に、backend / generated type / front
 ## When to Use This Agent
 
 - `backend/src/models/jquants.rs` を変更したとき
-- `backend/src/handlers/jquants.rs` や `backend/src/openapi.rs` を変更したとき
-- `frontend/src/features/jquants/` や `frontend/src/generated/api.ts` を変更したとき
+- `backend/src/handlers/v1/market_data.rs` や `backend/src/openapi.rs` を変更したとき
+- `frontend/src/features/marketData/`、`frontend/src/features/dividendPerShare/`、`frontend/src/generated/api.ts` を変更したとき
 - 実 API と app 内 contract のズレが疑われるとき
 
 ## How It Proceeds

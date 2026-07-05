@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NumberInputField } from '@/components/atoms/NumberInputField';
 import { StatItem, StatItemWithRate } from '@/components/atoms/StatItem';
 import { formatCurrency, formatNumber, formatPercentageValue, parseNumber, normalizeSecurityCode, SECURITY_CODE_REGEX } from '@/lib/utils/formatters';
-import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
+import { useDividendBatch } from '@/features/dividendPerShare/hooks/useDividendBatch';
 import { useAssetBalance } from '@/features/assetBalance/hooks/useAssetBalance';
 import { SummaryResult } from '@/lib/utils/dataTransformer';
 import type { DividendData } from '@/features/receipt/types';

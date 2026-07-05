@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber, formatPercentageValue } from '@/lib/utils/formatters';
-import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
+import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
 import { cn } from '@/lib/utils/classNames';
 
 // 横棒グラフ用の配色（視認性を考慮した10色）

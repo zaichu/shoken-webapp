@@ -9,7 +9,7 @@ import {
   normalizeSecurityName,
   safeAdd,
 } from '@/lib/utils/formatters';
-import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
+import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
 
 interface AssetPortfolioSummaryProps {
   assetBalanceData: AssetBalanceData[];

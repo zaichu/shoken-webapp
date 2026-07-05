@@ -23,7 +23,7 @@ function createMockDividendBatchResult(
   };
 }
 
-vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
+vi.mock('@/features/dividendPerShare/hooks/useDividendBatch', () => ({
   useDividendBatch: vi.fn(() => createMockDividendBatchResult()),
 }));
 
@@ -85,7 +85,7 @@ describe('DividendInfo', () => {
   });
 
   it('embedded モードで一株配当取得中に取得中... を表示する', async () => {
-    const { useDividendBatch } = await import('@/features/jquants/hooks/useDividendBatch');
+    const { useDividendBatch } = await import('@/features/dividendPerShare/hooks/useDividendBatch');
     vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
       loading: true,
     }));
@@ -97,7 +97,7 @@ describe('DividendInfo', () => {
   });
 
   it('standalone モードで一株配当取得中に入力欄が disabled になりプレースホルダーを表示する', async () => {
-    const { useDividendBatch } = await import('@/features/jquants/hooks/useDividendBatch');
+    const { useDividendBatch } = await import('@/features/dividendPerShare/hooks/useDividendBatch');
     vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
       loading: true,
     }));
@@ -110,7 +110,7 @@ describe('DividendInfo', () => {
   });
 
   it('standalone モードで一株配当と平均取得価格が揃ったとき配当利回りを計算して表示する', async () => {
-    const { useDividendBatch } = await import('@/features/jquants/hooks/useDividendBatch');
+    const { useDividendBatch } = await import('@/features/dividendPerShare/hooks/useDividendBatch');
     vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
       dividendPerShareMap: new Map([['1234', 30]]),
     }));

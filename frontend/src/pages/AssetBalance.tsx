@@ -6,7 +6,7 @@ import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
 import type { AssetBalanceData } from '@/types/api';
-import { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
+import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
 import { AssetBalanceUtilityRail } from '@/features/assetBalance/components/AssetBalanceUtilityRail';
 import { useAssetBalanceState } from '@/features/assetBalance/hooks/useAssetBalanceState';
 import { usePageTitle } from '../hooks/usePageTitle';

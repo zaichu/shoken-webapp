@@ -25,7 +25,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 // J-Quants バッチ配当フックのモック
-vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
+vi.mock('@/features/dividendPerShare/hooks/useDividendBatch', () => ({
   useDividendBatch: vi.fn(() => ({
     dividendPerShareMap: new Map(),
     dividendStatusMap: new Map(),

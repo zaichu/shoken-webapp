@@ -12,7 +12,7 @@ bash scripts/check-openapi.sh
 
 echo "[3/3] frontend jquants tests"
 (cd frontend && npm test -- --run \
-  src/features/jquants/api/__tests__/client.test.ts \
-  src/features/jquants/hooks/__tests__/useJQuantsDividend.test.ts \
-  src/features/jquants/hooks/__tests__/useJQuantsDividendBatch.test.ts \
-  src/features/jquants/hooks/__tests__/useDividendBatch.test.ts)
+  src/features/marketData/api/__tests__/client.test.ts \
+  src/features/marketData/hooks/__tests__/useJQuantsDividend.test.ts \
+  src/features/marketData/hooks/__tests__/useJQuantsDividendBatch.test.ts \
+  src/features/dividendPerShare/hooks/__tests__/useDividendBatch.test.ts)
