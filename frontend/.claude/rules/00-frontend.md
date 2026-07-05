@@ -185,7 +185,7 @@ vp build # ビルド
 
 - 日本株データの取得に使用
 - 開発時は Vite プロキシ経由
-- `features/jquants/` に関連コードを配置
+- `features/marketData/` に financial statements 関連コード、`features/dividendPerShare/` に 1株配当関連コードを配置
 
 ## セキュリティ
 

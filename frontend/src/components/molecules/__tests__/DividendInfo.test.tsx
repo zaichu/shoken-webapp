@@ -6,7 +6,7 @@ const { mockUseDividendBatch, mockUseAssetBalance } = vi.hoisted(() => ({
   mockUseAssetBalance: vi.fn(),
 }));
 
-vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
+vi.mock('@/features/dividendPerShare/hooks/useDividendBatch', () => ({
   useDividendBatch: (...args: unknown[]) => mockUseDividendBatch(...args),
 }));
 

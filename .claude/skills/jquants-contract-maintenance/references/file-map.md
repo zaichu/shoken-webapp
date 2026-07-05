@@ -2,11 +2,11 @@
 
 ## Backend
 
-- `backend/src/services/jquants.rs`
+- `backend/src/services/market_data/providers/jquants.rs`
   - J-Quants 外部 API 呼び出し
 - `backend/src/models/jquants.rs`
   - Rust 側の応答モデル
-- `backend/src/handlers/jquants.rs`
+- `backend/src/handlers/v1/market_data.rs`
   - 自アプリ API の handler
 - `backend/src/openapi.rs`
   - OpenAPI へ露出する schema / path
@@ -17,15 +17,17 @@
 
 - `frontend/src/generated/api.ts`
   - OpenAPI から生成される正規の API 型
-- `frontend/src/features/jquants/api/types.ts`
+- `frontend/src/features/marketData/api/types.ts`
   - hand-written 型。generated 型とズレやすい
-- `frontend/src/features/jquants/api/client.ts`
+- `frontend/src/features/marketData/api/client.ts`
   - backend の J-Quants route を呼ぶ client
-- `frontend/src/features/jquants/hooks/useJQuantsDividend.ts`
+- `frontend/src/features/marketData/hooks/useJQuantsDividend.ts`
   - 単一銘柄の配当 hook
-- `frontend/src/features/jquants/hooks/useJQuantsDividendBatch.ts`
+- `frontend/src/features/marketData/hooks/useJQuantsDividendBatch.ts`
   - 複数銘柄の配当 hook
-- `frontend/src/features/jquants/hooks/useDividendBatch.ts`
+- `frontend/src/features/dividendPerShare/api/dividendPerShareApi.ts`
+  - 1株配当 batch API client
+- `frontend/src/features/dividendPerShare/hooks/useDividendBatch.ts`
   - UI からの利用側 batch hook
 - `frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`
   - 配当 KPI 表示
@@ -37,8 +39,8 @@
 ## Sync Path
 
 1. `backend/src/models/jquants.rs`
-2. `backend/src/handlers/jquants.rs`
+2. `backend/src/handlers/v1/market_data.rs`
 3. `backend/src/openapi.rs`
 4. `docs/openapi.json`
 5. `frontend/src/generated/api.ts`
-6. `frontend/src/features/jquants/*`
+6. `frontend/src/features/marketData/* と frontend/src/features/dividendPerShare/*`

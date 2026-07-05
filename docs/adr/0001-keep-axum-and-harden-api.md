@@ -83,7 +83,8 @@ is intentionally pragmatic and does not require a framework migration.
 ### Frontend: Feature-first Architecture with Shared UI Components
 
 - Code is grouped by feature (`features/auth`, `features/stock`,
-  `features/receipt`, `features/assetBalance`, `features/jquants`).
+  `features/receipt`, `features/assetBalance`, `features/marketData`,
+  `features/dividendPerShare`).
 - Cross-feature UI primitives stay in `components/` (Atomic Design) and
   generic utilities stay in `lib/`.
 - Feature API wrappers use the generated API types in `src/generated/api.ts`,

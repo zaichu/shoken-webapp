@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import type { DataActionRailProps } from '@/components/organisms/DataActionRail/DataActionRail';
-import type { DividendStatus } from '@/features/jquants/api/dividendPerShareApi';
-import { useDividendBatch } from '@/features/jquants/hooks/useDividendBatch';
+import type { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
+import { useDividendBatch } from '@/features/dividendPerShare/hooks/useDividendBatch';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { createSearchOptions } from '@/lib/utils/dataTransformer';
 import { filterByConfig, type FilterConfig } from '@/lib/utils/searchUtils';

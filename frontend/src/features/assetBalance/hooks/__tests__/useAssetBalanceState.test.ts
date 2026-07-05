@@ -7,7 +7,7 @@ import * as dataSourceHook from '../useAssetBalanceDataSource';
 
 vi.mock('@/features/auth/hooks/useAuth');
 vi.mock('../useAssetBalanceDataSource');
-vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
+vi.mock('@/features/dividendPerShare/hooks/useDividendBatch', () => ({
   useDividendBatch: vi.fn(() => ({
     dividendPerShareMap: new Map(),
     dividendStatusMap: new Map(),

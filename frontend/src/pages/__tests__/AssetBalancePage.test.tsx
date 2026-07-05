@@ -111,7 +111,7 @@ vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
   },
 }));
 
-vi.mock('@/features/jquants/hooks/useDividendBatch', () => ({
+vi.mock('@/features/dividendPerShare/hooks/useDividendBatch', () => ({
   useDividendBatch: vi.fn(() => ({
     dividendPerShareMap: new Map(),
     dividendStatusMap: new Map(),
