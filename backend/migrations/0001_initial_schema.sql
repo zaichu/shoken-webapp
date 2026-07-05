@@ -146,11 +146,10 @@ CREATE TABLE IF NOT EXISTS dividend_per_share_cache (
 );
 
 CREATE TABLE IF NOT EXISTS market_data_provider_rate_control (
-    id                INTEGER PRIMARY KEY,
-    next_available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT single_row CHECK (id = 1)
+    provider          VARCHAR(50) PRIMARY KEY,
+    next_available_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO market_data_provider_rate_control (id, next_available_at)
-    VALUES (1, NOW())
-    ON CONFLICT (id) DO NOTHING;
+INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+    VALUES ('jquants', NOW())
+    ON CONFLICT (provider) DO NOTHING;

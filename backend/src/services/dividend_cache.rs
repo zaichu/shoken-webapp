@@ -16,6 +16,9 @@ use logic::compute_is_stale;
 /// 429 発生時の全インスタンス共有 cooldown 期間（秒）
 const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
 
+/// market_data_provider_rate_control.provider の J-Quants 用キー
+const JQUANTS_PROVIDER: &str = "jquants";
+
 /// キャッシュをバッチ取得し、未取得/TTL切れ銘柄のバックグラウンド更新をキック
 pub async fn get_batch(
     pool: &PgPool,
@@ -106,15 +109,16 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
     let row: (Option<chrono::DateTime<chrono::Utc>>,) = sqlx::query_as(
         r#"
-        INSERT INTO market_data_provider_rate_control (id, next_available_at)
-            VALUES (1, NOW() + INTERVAL '12 seconds')
-        ON CONFLICT (id) DO UPDATE
+        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+            VALUES ($1, NOW() + INTERVAL '12 seconds')
+        ON CONFLICT (provider) DO UPDATE
             SET next_available_at =
                 GREATEST(market_data_provider_rate_control.next_available_at, NOW()) + INTERVAL '12 seconds'
         RETURNING
             GREATEST(next_available_at - INTERVAL '12 seconds', NOW() - INTERVAL '1 second')
         "#,
     )
+    .bind(JQUANTS_PROVIDER)
     .fetch_one(pool)
     .await?;
 
@@ -137,13 +141,14 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
 async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
     sqlx::query(
         r#"
-        INSERT INTO market_data_provider_rate_control (id, next_available_at)
-            VALUES (1, NOW() + $1 * INTERVAL '1 second')
-        ON CONFLICT (id) DO UPDATE
+        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+            VALUES ($1, NOW() + $2 * INTERVAL '1 second')
+        ON CONFLICT (provider) DO UPDATE
             SET next_available_at =
-                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $1 * INTERVAL '1 second')
+                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $2 * INTERVAL '1 second')
         "#,
     )
+    .bind(JQUANTS_PROVIDER)
     .bind(RATE_LIMIT_COOLDOWN_SECS)
     .execute(pool)
     .await?;
