@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS dividend_per_share_cache (
     dividend_per_share DOUBLE PRECISION,
     status             VARCHAR(20)      NOT NULL DEFAULT 'pending',
     fetched_at         TIMESTAMPTZ,
-    source             VARCHAR(50)      NOT NULL DEFAULT 'jquants',
+    provider           VARCHAR(50)      NOT NULL DEFAULT 'jquants',
     error_message      TEXT,
     stale_at           TIMESTAMPTZ,
     created_at         TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
