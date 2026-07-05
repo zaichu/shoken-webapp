@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useJQuantsDividend } from '../useJQuantsDividend';
-import { jquantsApiClient } from '../../api/client';
+import { useFinancialStatementDividend } from '../useFinancialStatementDividend';
+import { marketDataApiClient } from '../../api/client';
 import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
-  jquantsApiClient: {
+  marketDataApiClient: {
     getSummary: vi.fn(),
   },
 }));
@@ -18,28 +18,28 @@ vi.mock('@/lib/utils/formatters', async (importOriginal) => {
   };
 });
 
-describe('useJQuantsDividend', () => {
+describe('useFinancialStatementDividend', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (parseNumber as Mock).mockImplementation((val) => Number(val) || 0);
   });
 
   it('enabledがfalseの場合、配当情報を取得しない', () => {
-    const { result } = renderHook(() => useJQuantsDividend('1234', false));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', false));
 
     expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(jquantsApiClient.getSummary).not.toHaveBeenCalled();
+    expect(marketDataApiClient.getSummary).not.toHaveBeenCalled();
   });
 
   it('securityCodeが空の場合、配当情報を取得しない', () => {
-    const { result } = renderHook(() => useJQuantsDividend('', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('', true));
 
     expect(result.current.dividendPerShare).toBeUndefined();
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(jquantsApiClient.getSummary).not.toHaveBeenCalled();
+    expect(marketDataApiClient.getSummary).not.toHaveBeenCalled();
   });
 
   it('最新の決算データから配当情報を取得する（開示日でソート）', async () => {
@@ -52,10 +52,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(70);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     expect(result.current.loading).toBe(true);
     expect(result.current.dividendPerShare).toBeUndefined();
@@ -64,7 +64,7 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('1234');
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledWith('1234');
     // 最新データ（2024-07-15）の70.00が取得されること
     expect(parseNumber).toHaveBeenCalledWith('70.00');
     expect(result.current.dividendPerShare).toBe(70);
@@ -82,10 +82,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(45);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -107,10 +107,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(40);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -128,10 +128,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(50);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -151,10 +151,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(0);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -167,9 +167,9 @@ describe('useJQuantsDividend', () => {
   it('エラーが発生した場合、エラーメッセージを設定する', async () => {
     const mockError = new Error('API Error');
 
-    (jquantsApiClient.getSummary as Mock).mockRejectedValue(mockError);
+    (marketDataApiClient.getSummary as Mock).mockRejectedValue(mockError);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -180,9 +180,9 @@ describe('useJQuantsDividend', () => {
   });
 
   it('非Errorオブジェクトのエラーの場合、デフォルトメッセージを設定する', async () => {
-    (jquantsApiClient.getSummary as Mock).mockRejectedValue('string error');
+    (marketDataApiClient.getSummary as Mock).mockRejectedValue('string error');
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -195,9 +195,9 @@ describe('useJQuantsDividend', () => {
   it('response.dataがundefinedの場合、undefinedを返す', async () => {
     const mockResponse = { data: undefined };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -210,9 +210,9 @@ describe('useJQuantsDividend', () => {
   it('response.dataが配列でない場合、undefinedを返す', async () => {
     const mockResponse = { data: { some: 'object' } };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -230,10 +230,10 @@ describe('useJQuantsDividend', () => {
       ],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(40);
 
-    const { result } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -249,9 +249,9 @@ describe('useJQuantsDividend', () => {
       resolvePromise = resolve;
     });
 
-    (jquantsApiClient.getSummary as Mock).mockReturnValue(pendingPromise);
+    (marketDataApiClient.getSummary as Mock).mockReturnValue(pendingPromise);
 
-    const { result, unmount } = renderHook(() => useJQuantsDividend('1234', true));
+    const { result, unmount } = renderHook(() => useFinancialStatementDividend('1234', true));
 
     expect(result.current.loading).toBe(true);
 
@@ -271,11 +271,11 @@ describe('useJQuantsDividend', () => {
       data: [{ NxFDivAnn: '50.00' }],
     };
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue(mockResponse);
     (parseNumber as Mock).mockReturnValue(50);
 
     const { result, rerender } = renderHook(
-      ({ code, enabled }) => useJQuantsDividend(code, enabled),
+      ({ code, enabled }) => useFinancialStatementDividend(code, enabled),
       { initialProps: { code: '1234', enabled: true } }
     );
 
@@ -283,14 +283,14 @@ describe('useJQuantsDividend', () => {
       expect(result.current.loading).toBe(false);
     }, { timeout: 5000 });
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('1234');
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledWith('1234');
     expect(result.current.dividendPerShare).toBe(50);
 
     // securityCodeを変更
     rerender({ code: '5678', enabled: true });
 
     await waitFor(() => {
-      expect(jquantsApiClient.getSummary).toHaveBeenCalledWith('5678');
+      expect(marketDataApiClient.getSummary).toHaveBeenCalledWith('5678');
     }, { timeout: 5000 });
   }, 15000);
 });

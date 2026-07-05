@@ -1,12 +1,12 @@
-import { JQuantsFinSummaryResponse } from './types';
+import { FinancialStatementsResponse } from './types';
 import { apiClient } from '@/lib/api/client';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
 
 /**
- * J-Quants API クライアント（バックエンド経由）
+ * 決算情報 API クライアント（バックエンド経由）
  * バックエンドがAPIキー認証を処理するため、フロントエンドではトークン管理不要
  */
-export class JQuantsApiClient {
+export class MarketDataApiClient {
   /**
    * 決算サマリーを取得
    * @param code 銘柄コード
@@ -17,13 +17,13 @@ export class JQuantsApiClient {
     code: string,
     from?: string,
     to?: string
-  ): Promise<JQuantsFinSummaryResponse> {
+  ): Promise<FinancialStatementsResponse> {
     try {
       const params: Record<string, string> = { code };
       if (from) params.from = from;
       if (to) params.to = to;
 
-      const response = await apiClient.get<JQuantsFinSummaryResponse>(
+      const response = await apiClient.get<FinancialStatementsResponse>(
         '/api/v1/financial-statements',
         { params, withCredentials: true }
       );
@@ -42,4 +42,4 @@ export class JQuantsApiClient {
 }
 
 // シングルトンインスタンス
-export const jquantsApiClient = new JQuantsApiClient();
+export const marketDataApiClient = new MarketDataApiClient();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { jquantsApiClient } from '../api/client';
+import { marketDataApiClient } from '../api/client';
 import { parseNumber } from '@/lib/utils/formatters';
-import { extractDividendFromSummary } from './useJQuantsDividend';
+import { extractDividendFromSummary } from './useFinancialStatementDividend';
 
 const MAX_CONCURRENT_REQUESTS = 3;
 const MAX_RETRIES = 3;
@@ -9,11 +9,11 @@ const RETRY_DELAY_MS = 60_000;
 
 /**
  * 複数銘柄の1株配当を一括取得するフック
- * J-Quants APIから最新予想配当を取得し、Map<銘柄コード, 1株配当>を返す
+ * 決算情報APIから最新予想配当を取得し、Map<銘柄コード, 1株配当>を返す
  *
  * @deprecated バックエンド集約API移行後は useDividendBatch を使用すること
  */
-export const useJQuantsDividendBatch = (
+export const useFinancialStatementDividendBatch = (
   securityCodes: string[],
   enabled: boolean = true
 ) => {
@@ -42,7 +42,7 @@ export const useJQuantsDividendBatch = (
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fetchOneCode = async (code: string) => {
-      const response = await jquantsApiClient.getSummary(code);
+      const response = await marketDataApiClient.getSummary(code);
       if (!response?.data || !Array.isArray(response.data)) return { code, value: null };
 
       // 開示日で降順ソート（最新データを優先）
