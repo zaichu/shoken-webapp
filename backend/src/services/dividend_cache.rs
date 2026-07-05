@@ -31,7 +31,7 @@ pub async fn get_batch(
     // DB からキャッシュを一括取得（ANY がDB側で重複を除く）
     let cached: Vec<DividendCache> = sqlx::query_as::<_, DividendCache>(
         r#"
-        SELECT security_code, dividend_per_share, status, fetched_at, stale_at, source,
+        SELECT security_code, dividend_per_share, status, fetched_at, stale_at, provider,
                created_at, updated_at
         FROM dividend_per_share_cache
         WHERE security_code = ANY($1)
@@ -166,7 +166,7 @@ mod tests {
             status: status.to_string(),
             fetched_at: Some(Utc::now()),
             stale_at,
-            source: "jquants".to_string(),
+            provider: "jquants".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

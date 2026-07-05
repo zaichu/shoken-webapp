@@ -24,14 +24,14 @@ pub async fn fetch_and_cache(
     sqlx::query(
         r#"
         INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, fetched_at, stale_at, source, updated_at)
+            (security_code, dividend_per_share, status, fetched_at, stale_at, provider, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET dividend_per_share = EXCLUDED.dividend_per_share,
                 status             = EXCLUDED.status,
                 fetched_at         = EXCLUDED.fetched_at,
                 stale_at           = NOW() + INTERVAL '7 days',
-                source             = EXCLUDED.source,
+                provider           = EXCLUDED.provider,
                 error_message      = NULL,
                 updated_at         = NOW()
         "#,
@@ -58,7 +58,7 @@ pub async fn update_cache_error_with_cooldown(
     sqlx::query(
         r#"
         INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
+            (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
         VALUES ($1, NULL, 'error', $2, NOW() + $3 * INTERVAL '1 second', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET status        = 'error',
@@ -100,7 +100,7 @@ pub async fn update_cache_error(
     sqlx::query(
         r#"
         INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, error_message, stale_at, source, updated_at)
+            (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
         VALUES ($1, NULL, 'error', $2, NULL, 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET status        = 'error',

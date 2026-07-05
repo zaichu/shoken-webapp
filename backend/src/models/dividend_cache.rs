@@ -26,7 +26,7 @@ pub struct DividendCache {
     pub fetched_at: Option<DateTime<Utc>>,
     /// TTL期限。この時刻を過ぎると再取得対象（NULL かつ pending 以外 = 即再取得対象）
     pub stale_at: Option<DateTime<Utc>>,
-    pub source: String,
+    pub provider: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
