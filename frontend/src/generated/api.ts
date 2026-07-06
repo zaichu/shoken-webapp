@@ -529,10 +529,10 @@ export interface components {
             error: components["schemas"]["ErrorDetails"];
         };
         /**
-         * @description 決算サマリーデータ（J-Quants API V2）
-         *     V2では省略形フィールド名を使用
+         * @description 決算サマリーデータ
+         *     upstream 互換の省略形フィールド名を維持
          */
-        FinSummaryData: {
+        FinancialStatementData: {
             /** @description 期中平均株式数 */
             AvgSh?: string | null;
             /** @description 1株当たり純資産 */
@@ -749,12 +749,12 @@ export interface components {
             TrShFY?: string | null;
         };
         /**
-         * @description 決算サマリーレスポンス（J-Quants API V2）
-         *     V2では fins/summary を使用し、ルートフィールドは "data"
+         * @description 決算サマリーレスポンス
+         *     upstream 互換のルートフィールド "data" を維持
          */
-        FinSummaryResponse: {
-            /** @description 決算サマリーデータの配列（V2では "data" フィールド） */
-            data: components["schemas"]["FinSummaryData"][];
+        FinancialStatementsResponse: {
+            /** @description 決算サマリーデータの配列 */
+            data: components["schemas"]["FinancialStatementData"][];
             /** @description ページネーションキー（データが大量の場合に設定される） */
             pagination_key?: string | null;
         };
@@ -1549,7 +1549,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FinSummaryResponse"];
+                    "application/json": components["schemas"]["FinancialStatementsResponse"];
                 };
             };
             400: {

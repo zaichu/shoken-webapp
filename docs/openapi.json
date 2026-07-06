@@ -865,7 +865,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FinSummaryResponse"
+                  "$ref": "#/components/schemas/FinancialStatementsResponse"
                 }
               }
             }
@@ -1858,9 +1858,9 @@
           }
         }
       },
-      "FinSummaryData": {
+      "FinancialStatementData": {
         "type": "object",
-        "description": "決算サマリーデータ（J-Quants API V2）\nV2では省略形フィールド名を使用",
+        "description": "決算サマリーデータ\nupstream 互換の省略形フィールド名を維持",
         "required": [
           "DiscDate",
           "Code",
@@ -2609,9 +2609,9 @@
           }
         }
       },
-      "FinSummaryResponse": {
+      "FinancialStatementsResponse": {
         "type": "object",
-        "description": "決算サマリーレスポンス（J-Quants API V2）\nV2では fins/summary を使用し、ルートフィールドは \"data\"",
+        "description": "決算サマリーレスポンス\nupstream 互換のルートフィールド \"data\" を維持",
         "required": [
           "data"
         ],
@@ -2619,9 +2619,9 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/FinSummaryData"
+              "$ref": "#/components/schemas/FinancialStatementData"
             },
-            "description": "決算サマリーデータの配列（V2では \"data\" フィールド）"
+            "description": "決算サマリーデータの配列"
           },
           "pagination_key": {
             "type": [

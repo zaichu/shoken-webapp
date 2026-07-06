@@ -1,5 +1,8 @@
 use crate::errors::ApiError;
-use crate::models::market_data::providers::jquants::{FinSummaryQuery, FinSummaryResponse};
+use crate::models::market_data::financial_statement::{
+    FinancialStatementsQuery, FinancialStatementsResponse,
+};
+use crate::models::market_data::providers::jquants::FinSummaryResponse;
 use reqwest::Client;
 
 const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
@@ -38,8 +41,8 @@ impl JQuantsClient {
 
     pub async fn get_fin_summary(
         &self,
-        params: FinSummaryQuery,
-    ) -> Result<FinSummaryResponse, ApiError> {
+        params: FinancialStatementsQuery,
+    ) -> Result<FinancialStatementsResponse, ApiError> {
         let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
         if let Some(from) = params.from.as_deref() {
             query_params.push(("from", from));
@@ -101,7 +104,7 @@ impl JQuantsClient {
                 ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {}", e))
             })?;
 
-        Ok(fin_summary_response)
+        Ok(fin_summary_response.into())
     }
 }
 
@@ -114,10 +117,10 @@ mod tests {
         Mock, MockServer, ResponseTemplate,
     };
 
-    async fn fetch_fin_summary(base_url: &str, code: &str) -> FinSummaryResponse {
+    async fn fetch_fin_summary(base_url: &str, code: &str) -> FinancialStatementsResponse {
         let api_key =
             std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
-        let params = FinSummaryQuery {
+        let params = FinancialStatementsQuery {
             code: code.to_string(),
             from: None,
             to: None,
@@ -129,8 +132,10 @@ mod tests {
             .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
     }
 
-    async fn fetch_mock_fin_summary(server: &MockServer) -> Result<FinSummaryResponse, ApiError> {
-        let params = FinSummaryQuery {
+    async fn fetch_mock_fin_summary(
+        server: &MockServer,
+    ) -> Result<FinancialStatementsResponse, ApiError> {
+        let params = FinancialStatementsQuery {
             code: "7203".to_string(),
             from: None,
             to: None,
@@ -142,7 +147,7 @@ mod tests {
             .await
     }
 
-    fn log_summary_overview(response: &FinSummaryResponse) {
+    fn log_summary_overview(response: &FinancialStatementsResponse) {
         println!("取得件数: {}", response.data.len());
         if let Some(first) = response.data.first() {
             println!("銘柄コード: {}", first.local_code);
@@ -154,7 +159,7 @@ mod tests {
         }
     }
 
-    fn log_dividend_summaries(response: &FinSummaryResponse) {
+    fn log_dividend_summaries(response: &FinancialStatementsResponse) {
         println!("取得件数: {}", response.data.len());
         for summary in &response.data {
             println!("---");

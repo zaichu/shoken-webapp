@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::market_data::providers::jquants::FinSummaryQuery;
+use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 use crate::services::market_data::providers::jquants::JQuantsClient;
 use sqlx::PgPool;
 
@@ -11,7 +11,7 @@ pub async fn fetch_and_cache(
     jquants_client: &JQuantsClient,
     code: &str,
 ) -> Result<String, ApiError> {
-    let params = FinSummaryQuery {
+    let params = FinancialStatementsQuery {
         code: code.to_string(),
         from: None,
         to: None,
