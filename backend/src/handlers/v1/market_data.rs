@@ -1,7 +1,9 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    models::market_data::providers::jquants::{FinSummaryQuery, FinSummaryResponse},
+    models::market_data::financial_statement::{
+        FinancialStatementsQuery, FinancialStatementsResponse,
+    },
     services::market_data::providers::jquants::JQuantsClient,
     state::AppState,
 };
@@ -24,7 +26,7 @@ use axum::{
         ("to" = Option<String>, Query, description = "終了日（YYYY-MM-DD）"),
     ),
     responses(
-        (status = 200, body = FinSummaryResponse),
+        (status = 200, body = FinancialStatementsResponse),
         (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
         (status = 429, body = ErrorResponse),
@@ -35,8 +37,8 @@ use axum::{
 pub async fn get_financial_statements(
     State(state): State<AppState>,
     _auth_user: AuthenticatedUser,
-    Query(params): Query<FinSummaryQuery>,
-) -> Result<Json<FinSummaryResponse>, ApiError> {
+    Query(params): Query<FinancialStatementsQuery>,
+) -> Result<Json<FinancialStatementsResponse>, ApiError> {
     tracing::info!("決算サマリー取得パラメータ: {:?}", params);
 
     let jquants_client = JQuantsClient::from_optional_api_key(

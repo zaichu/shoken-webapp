@@ -1,4 +1,4 @@
-use crate::models::market_data::providers::jquants::FinSummaryData;
+use crate::models::market_data::financial_statement::FinancialStatementData;
 use chrono::{DateTime, Utc};
 
 /// キャッシュエントリの is_stale を判定する
@@ -11,7 +11,7 @@ pub fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: Date
 
 /// 決算サマリーから1株配当を抽出する
 /// 優先順位: 来期予想(NxFDivAnn) > 今期予想(FDivAnn) > 実績(DivAnn)
-pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
+pub fn extract_dividend(data: &[FinancialStatementData]) -> (Option<f64>, String) {
     // 有効な配当値を持つ summary の中で開示日が最大のものを選ぶ
     // 同じ開示日の場合は入力順先勝ち（元の sort_by + 線形走査と同挙動）
     let best = data
@@ -48,14 +48,14 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::market_data::providers::jquants::FinSummaryData;
+    use crate::models::market_data::financial_statement::FinancialStatementData;
 
     fn make_summary(
         disc_date: &str,
         nx_div: Option<&str>,
         f_div: Option<&str>,
         div: Option<&str>,
-    ) -> FinSummaryData {
+    ) -> FinancialStatementData {
         serde_json::from_value(serde_json::json!({
             "DiscDate": disc_date,
             "Code": "1234",
@@ -64,7 +64,7 @@ mod tests {
             "FDivAnn": f_div,
             "DivAnn": div,
         }))
-        .expect("FinSummaryData のパースに失敗")
+        .expect("FinancialStatementData のパースに失敗")
     }
 
     #[test]
