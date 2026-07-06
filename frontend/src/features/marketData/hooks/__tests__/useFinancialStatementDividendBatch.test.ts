@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useJQuantsDividendBatch } from '../useJQuantsDividendBatch';
-import * as dividendHook from '../useJQuantsDividend';
-import { jquantsApiClient } from '../../api/client';
+import { useFinancialStatementDividendBatch } from '../useFinancialStatementDividendBatch';
+import * as dividendHook from '../useFinancialStatementDividend';
+import { marketDataApiClient } from '../../api/client';
 import { parseNumber } from '@/lib/utils/formatters';
 
 vi.mock('../../api/client', () => ({
-  jquantsApiClient: {
+  marketDataApiClient: {
     getSummary: vi.fn(),
   },
 }));
@@ -19,8 +19,8 @@ vi.mock('@/lib/utils/formatters', async (importOriginal) => {
   };
 });
 
-vi.mock('../useJQuantsDividend', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../useJQuantsDividend')>();
+vi.mock('../useFinancialStatementDividend', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../useFinancialStatementDividend')>();
   return {
     ...actual,
     extractDividendFromSummary: vi.fn(actual.extractDividendFromSummary),
@@ -34,7 +34,7 @@ const flushAsyncUpdates = async () => {
   });
 };
 
-describe('useJQuantsDividendBatch', () => {
+describe('useFinancialStatementDividendBatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (parseNumber as Mock).mockImplementation((val) => Number(val) || 0);
@@ -56,7 +56,7 @@ describe('useJQuantsDividendBatch', () => {
     let maxInFlight = 0;
     const resolvers: Array<() => void> = [];
 
-    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) => {
+    (marketDataApiClient.getSummary as Mock).mockImplementation((code: string) => {
       inFlight += 1;
       maxInFlight = Math.max(maxInFlight, inFlight);
       return new Promise((resolve) => {
@@ -69,16 +69,16 @@ describe('useJQuantsDividendBatch', () => {
       });
     });
 
-    const { result } = renderHook(() => useJQuantsDividendBatch(codes, true));
+    const { result } = renderHook(() => useFinancialStatementDividendBatch(codes, true));
 
     await waitFor(() => {
-      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(3);
+      expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(3);
     });
 
     resolvers.splice(0, 3).forEach((resolve) => resolve());
 
     await waitFor(() => {
-      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(6);
+      expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(6);
     });
 
     resolvers.splice(0).forEach((resolve) => resolve());
@@ -97,7 +97,7 @@ describe('useJQuantsDividendBatch', () => {
 
     const extractionCount: Record<string, number> = {};
 
-    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) =>
+    (marketDataApiClient.getSummary as Mock).mockImplementation((code: string) =>
       Promise.resolve({
         data: [{ DiscDate: '2025-01-01', NxFDivAnn: code === '1605' ? '30.0' : '15.5', Code: code }],
       })
@@ -111,11 +111,11 @@ describe('useJQuantsDividendBatch', () => {
       return summary.NxFDivAnn;
     });
 
-    const { result } = renderHook(() => useJQuantsDividendBatch(codes, true));
+    const { result } = renderHook(() => useFinancialStatementDividendBatch(codes, true));
 
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(2);
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(2);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -125,7 +125,7 @@ describe('useJQuantsDividendBatch', () => {
     });
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(4);
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(4);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('2933')).toBe(15.5);
   });
@@ -134,7 +134,7 @@ describe('useJQuantsDividendBatch', () => {
     vi.useFakeTimers();
     const codes = ['1605', '2933'];
 
-    (jquantsApiClient.getSummary as Mock).mockImplementation((code: string) =>
+    (marketDataApiClient.getSummary as Mock).mockImplementation((code: string) =>
       Promise.resolve({
         data: [{ DiscDate: '2025-01-01', NxFDivAnn: code === '1605' ? '30.0' : '15.5', Code: code }],
       })
@@ -147,11 +147,11 @@ describe('useJQuantsDividendBatch', () => {
       return summary.NxFDivAnn;
     });
 
-    const { result } = renderHook(() => useJQuantsDividendBatch(codes, true));
+    const { result } = renderHook(() => useFinancialStatementDividendBatch(codes, true));
 
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(2);
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(2);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -163,7 +163,7 @@ describe('useJQuantsDividendBatch', () => {
       await flushAsyncUpdates();
     }
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(8);
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(8);
     expect(result.current.loading).toBe(false);
     expect(result.current.dividendPerShareMap.get('1605')).toBe(30);
     expect(result.current.dividendPerShareMap.has('2933')).toBe(false);
@@ -173,22 +173,22 @@ describe('useJQuantsDividendBatch', () => {
     });
     await flushAsyncUpdates();
 
-    expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(8);
+    expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(8);
   });
 
   it('アンマウント時にリトライタイマーがクリアされる', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
 
-    (jquantsApiClient.getSummary as Mock).mockResolvedValue({ data: [] });
+    (marketDataApiClient.getSummary as Mock).mockResolvedValue({ data: [] });
 
     try {
       const codes = ['1605'];
-      const { result, unmount } = renderHook(() => useJQuantsDividendBatch(codes, true));
+      const { result, unmount } = renderHook(() => useFinancialStatementDividendBatch(codes, true));
 
       await flushAsyncUpdates();
 
-      expect(jquantsApiClient.getSummary).toHaveBeenCalledTimes(1);
+      expect(marketDataApiClient.getSummary).toHaveBeenCalledTimes(1);
       expect(result.current.loading).toBe(false);
 
       unmount();

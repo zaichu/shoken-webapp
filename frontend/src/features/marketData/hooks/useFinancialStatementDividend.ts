@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { jquantsApiClient } from '../api/client';
-import { JQuantsFinSummaryResponse, JQuantsStatementData } from '../api/types';
+import { marketDataApiClient } from '../api/client';
+import { FinancialStatementsResponse, FinancialStatementData } from '../api/types';
 import { parseNumber } from '@/lib/utils/formatters';
 
 /**
  * 決算データから配当情報を抽出する
  * 優先順位: 来期予想 > 今期予想 > 実績
  */
-export const extractDividendFromSummary = (summary: JQuantsStatementData): string | null => {
+export const extractDividendFromSummary = (summary: FinancialStatementData): string | null => {
   if (summary.NxFDivAnn && summary.NxFDivAnn !== '') {
     return summary.NxFDivAnn;
   }
@@ -21,10 +21,10 @@ export const extractDividendFromSummary = (summary: JQuantsStatementData): strin
 };
 
 /**
- * J-Quants APIを使用して配当情報を取得するフック
+ * 決算情報APIを使用して配当情報を取得するフック
  * 最新の決算データから配当情報を優先的に取得する
  */
-export const useJQuantsDividend = (
+export const useFinancialStatementDividend = (
   securityCode: string,
   enabled: boolean = true
 ) => {
@@ -50,8 +50,8 @@ export const useJQuantsDividend = (
 
       try {
         // V2 API では data フィールドを使用
-        const response: JQuantsFinSummaryResponse =
-          await jquantsApiClient.getSummary(securityCode);
+        const response: FinancialStatementsResponse =
+          await marketDataApiClient.getSummary(securityCode);
         if (!isActive) return;
 
         // レスポンスの data フィールドが配列でない場合はスキップ

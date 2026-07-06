@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JQuantsApiClient } from '../client';
+import { MarketDataApiClient } from '../client';
 import { apiClient } from '@/lib/api/client';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
 
@@ -9,12 +9,12 @@ vi.mock('@/lib/api/client', () => ({
   },
 }));
 
-describe('JQuantsApiClient', () => {
-  let client: JQuantsApiClient;
+describe('MarketDataApiClient', () => {
+  let client: MarketDataApiClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    client = new JQuantsApiClient();
+    client = new MarketDataApiClient();
   });
 
   describe('getSummary', () => {

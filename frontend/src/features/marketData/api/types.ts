@@ -1,10 +1,9 @@
-// J-Quants API レスポンスの型定義
+// 決算情報 API レスポンスの型定義
 
 /**
- * J-Quants API V2 決算サマリーデータ
- * V2では省略形フィールド名を使用
+ * 決算サマリーデータ（V2、省略形フィールド名を使用）
  */
-export interface JQuantsStatementData {
+export interface FinancialStatementData {
   // 基本情報
   DiscDate: string; // 開示日
   DiscTime?: string; // 開示時刻
@@ -140,10 +139,9 @@ export interface JQuantsStatementData {
 }
 
 /**
- * J-Quants API V2 決算サマリーレスポンス
- * V2では fins/summary を使用し、ルートフィールドは "data"
+ * 決算サマリーレスポンス（V2、fins/summary を使用し、ルートフィールドは "data"）
  */
-export interface JQuantsFinSummaryResponse {
-  data: JQuantsStatementData[];
+export interface FinancialStatementsResponse {
+  data: FinancialStatementData[];
   pagination_key?: string;
 }
