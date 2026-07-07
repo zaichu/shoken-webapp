@@ -8,6 +8,8 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8080}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+DATABASE_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/shoken_db}"
+CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT},${FRONTEND_URL}}"
 
 BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-dev.log}"
 FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-dev.log}"
@@ -58,7 +60,14 @@ for i in $(seq 1 120); do
 done
 
 echo "2/3 Starting backend..."
-(cd "${BACKEND_DIR}" && make run >"${BACKEND_LOG}" 2>&1) &
+(
+  cd "${BACKEND_DIR}"
+  DATABASE_URL="${DATABASE_URL}" \
+    BACKEND_URL="${BACKEND_URL}" \
+    FRONTEND_URL="${FRONTEND_URL}" \
+    CORS_ORIGINS="${CORS_ORIGINS}" \
+    make run >"${BACKEND_LOG}" 2>&1
+) &
 BACK_PID=$!
 
 if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then

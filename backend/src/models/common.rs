@@ -1,8 +1,22 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::FromRow;
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Display, str::FromStr};
 use utoipa::ToSchema;
 use validator::{ValidateLength, ValidationError, ValidationErrors};
+
+/// URL query は数値や boolean も文字列として届くため、対象型へ明示的に parse する。
+fn deserialize_optional_from_string<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: Display,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    value
+        .filter(|v| !v.is_empty())
+        .map(|v| v.parse::<T>().map_err(serde::de::Error::custom))
+        .transpose()
+}
 
 /// `validator` derive の length rule 相当を手実装するヘルパー。
 /// `String` / `Option<String>` / `Vec<T>` など `ValidateLength` 実装型に共通で使う。
@@ -30,7 +44,9 @@ pub(crate) fn validate_length_field<T>(
 /// ページネーションクエリパラメータ（全ドメイン共通）
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct PaginationParams {
+    #[serde(default, deserialize_with = "deserialize_optional_from_string")]
     pub page: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_optional_from_string")]
     pub per_page: Option<i64>,
 }
 
@@ -58,14 +74,17 @@ pub struct SearchQueryParams {
     /// 終了日（YYYY-MM-DD）
     pub date_to: Option<String>,
     /// 年（YYYY）
+    #[serde(default, deserialize_with = "deserialize_optional_from_string")]
     pub year: Option<i32>,
     /// 年月（YYYY-MM）
     pub year_month: Option<String>,
     /// 単日（YYYY-MM-DD）
     pub date: Option<String>,
     /// summary を返すかどうか
+    #[serde(default, deserialize_with = "deserialize_optional_from_string")]
     pub include_summary: Option<bool>,
     /// facets を返すかどうか
+    #[serde(default, deserialize_with = "deserialize_optional_from_string")]
     pub include_facets: Option<bool>,
 }
 
@@ -162,6 +181,7 @@ mod tests {
         BulkCreateResponse, FacetOption, MessageResponse, PaginatedResponse,
         PaginatedSearchResponse, PaginationParams, SearchFacets, SearchQueryParams,
     };
+    use axum::{extract::Query, http::Uri};
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
 
@@ -226,6 +246,22 @@ mod tests {
         assert_eq!(params.page(), 3);
         assert_eq!(params.per_page(), 50);
         assert_eq!(params.offset(), 100);
+        assert!(params.should_include_summary());
+        assert!(!params.should_include_facets());
+    }
+
+    #[test]
+    fn search_query_params_deserialize_from_url_query_strings() {
+        let uri: Uri = "/api/v1/dividends?per_page=1000&page=2&year=2026&include_summary=true&include_facets=false"
+            .parse()
+            .expect("valid URI");
+
+        let Query(params) =
+            Query::<SearchQueryParams>::try_from_uri(&uri).expect("query params should parse");
+
+        assert_eq!(params.page(), 2);
+        assert_eq!(params.per_page(), 1000);
+        assert_eq!(params.year, Some(2026));
         assert!(params.should_include_summary());
         assert!(!params.should_include_facets());
     }
