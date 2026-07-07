@@ -3,9 +3,9 @@ use crate::{
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     handlers::common::ok_message,
     models::{
-        common::{MessageResponse, PaginatedResponse, PaginationParams},
+        common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
-        dividend::Dividend,
+        dividend::{Dividend, DividendSearchQueryParams, DividendSummary},
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     },
     services::{csv_domain::DividendDomain, dividend as dividend_service},
@@ -28,9 +28,22 @@ use axum::{
     params(
         ("page" = Option<i64>, Query, description = "ページ番号（デフォルト: 1）"),
         ("per_page" = Option<i64>, Query, description = "1ページあたりの件数（デフォルト: 200、最大: 1000）"),
+        ("q" = Option<String>, Query, description = "フリーワード検索（商品/口座/銘柄コード/銘柄名の token AND 検索）"),
+        ("date_from" = Option<String>, Query, description = "決済日の開始日（YYYY-MM-DD）"),
+        ("date_to" = Option<String>, Query, description = "決済日の終了日（YYYY-MM-DD）"),
+        ("year" = Option<i32>, Query, description = "決済日の年（YYYY）"),
+        ("year_month" = Option<String>, Query, description = "決済日の年月（YYYY-MM）"),
+        ("date" = Option<String>, Query, description = "決済日の単日指定（YYYY-MM-DD）"),
+        ("product" = Option<String>, Query, description = "商品での絞り込み"),
+        ("account" = Option<String>, Query, description = "口座での絞り込み"),
+        ("security_code" = Option<String>, Query, description = "銘柄コードでの絞り込み"),
+        ("security_name" = Option<String>, Query, description = "銘柄名での絞り込み"),
+        ("include_summary" = Option<bool>, Query, description = "検索条件全体の集計を含めるか"),
+        ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, body = PaginatedResponse<Dividend>),
+        (status = 200, body = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>),
+        (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -38,9 +51,9 @@ use axum::{
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<DividendSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = dividend_service::list(&state.pool, auth_user.id(), &params).await?;
+    let result = dividend_service::search(&state.pool, auth_user.id(), &params).await?;
     Ok((StatusCode::OK, Json(result)))
 }
 

@@ -10,6 +10,7 @@ SQLx migration の baseline 管理。
 | No. | ファイル | 内容 |
 |-----|---------|------|
 | 0001 | `0001_initial_schema.sql` | 拡張、全テーブル、全 index、初期 seed を作成 |
+| 0002 | `0002_dividends_search_indexes.sql` | 配当金検索（product/account/security_code/security_name の絞り込み、settlement_date/id 順の一覧取得）向け index を追加 |
 
 ## 重要な注意
 

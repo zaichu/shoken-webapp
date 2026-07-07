@@ -490,6 +490,15 @@ export interface components {
             /** @description ok / zero / pending / error */
             status: string;
         };
+        /** @description 配当金 検索条件全体の集計 */
+        DividendSummary: {
+            /** Format: double */
+            total_dividends_before_tax: number;
+            /** Format: double */
+            total_net_amount_received: number;
+            /** Format: double */
+            total_taxes: number;
+        };
         /** @description 国内株式取引モデル（DB + APIレスポンス兼用） */
         DomesticStock: {
             account: string;
@@ -527,6 +536,13 @@ export interface components {
         };
         ErrorResponse: {
             error: components["schemas"]["ErrorDetails"];
+        };
+        /** @description 検索候補の共通表現。 */
+        FacetOption: {
+            /** Format: int64 */
+            count?: number | null;
+            label: string;
+            value: string;
         };
         /**
          * @description 決算サマリーデータ
@@ -830,39 +846,6 @@ export interface components {
             total: number;
         };
         /** @description ページネーションレスポンス（全ドメイン共通） */
-        PaginatedResponse_Dividend: {
-            data: {
-                account: string;
-                /** Format: date-time */
-                created_at: string;
-                /** Format: double */
-                dividends_before_tax: number;
-                /** Format: uuid */
-                id: string;
-                /** Format: double */
-                net_amount_received: number;
-                product: string;
-                security_code: string;
-                security_name: string;
-                /** Format: date */
-                settlement_date: string;
-                /** Format: double */
-                shares: number;
-                /** Format: double */
-                taxes: number;
-                /** Format: double */
-                unit_price: number;
-                /** Format: date-time */
-                updated_at: string;
-            }[];
-            /** Format: int64 */
-            page: number;
-            /** Format: int64 */
-            per_page: number;
-            /** Format: int64 */
-            total: number;
-        };
-        /** @description ページネーションレスポンス（全ドメイン共通） */
         PaginatedResponse_DomesticStock: {
             data: {
                 account: string;
@@ -939,6 +922,66 @@ export interface components {
             per_page: number;
             /** Format: int64 */
             total: number;
+        };
+        /** @description 検索・集計付きページネーションレスポンス。 */
+        PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets: {
+            data: {
+                account: string;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: double */
+                dividends_before_tax: number;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                net_amount_received: number;
+                product: string;
+                security_code: string;
+                security_name: string;
+                /** Format: date */
+                settlement_date: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                taxes: number;
+                /** Format: double */
+                unit_price: number;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** @description 検索候補レスポンスの共通枠。 */
+            facets?: {
+                accounts?: components["schemas"]["FacetOption"][] | null;
+                funds?: components["schemas"]["FacetOption"][] | null;
+                products?: components["schemas"]["FacetOption"][] | null;
+                securities?: components["schemas"]["FacetOption"][] | null;
+                year_months?: components["schemas"]["FacetOption"][] | null;
+                years?: components["schemas"]["FacetOption"][] | null;
+            };
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /** @description 配当金 検索条件全体の集計 */
+            summary?: {
+                /** Format: double */
+                total_dividends_before_tax: number;
+                /** Format: double */
+                total_net_amount_received: number;
+                /** Format: double */
+                total_taxes: number;
+            };
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description 検索候補レスポンスの共通枠。 */
+        SearchFacets: {
+            accounts?: components["schemas"]["FacetOption"][] | null;
+            funds?: components["schemas"]["FacetOption"][] | null;
+            products?: components["schemas"]["FacetOption"][] | null;
+            securities?: components["schemas"]["FacetOption"][] | null;
+            year_months?: components["schemas"]["FacetOption"][] | null;
+            years?: components["schemas"]["FacetOption"][] | null;
         };
         Stock: {
             code: string;
@@ -1339,6 +1382,30 @@ export interface operations {
                 page?: number;
                 /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
                 per_page?: number;
+                /** @description フリーワード検索（商品/口座/銘柄コード/銘柄名の token AND 検索） */
+                q?: string;
+                /** @description 決済日の開始日（YYYY-MM-DD） */
+                date_from?: string;
+                /** @description 決済日の終了日（YYYY-MM-DD） */
+                date_to?: string;
+                /** @description 決済日の年（YYYY） */
+                year?: number;
+                /** @description 決済日の年月（YYYY-MM） */
+                year_month?: string;
+                /** @description 決済日の単日指定（YYYY-MM-DD） */
+                date?: string;
+                /** @description 商品での絞り込み */
+                product?: string;
+                /** @description 口座での絞り込み */
+                account?: string;
+                /** @description 銘柄コードでの絞り込み */
+                security_code?: string;
+                /** @description 銘柄名での絞り込み */
+                security_name?: string;
+                /** @description 検索条件全体の集計を含めるか */
+                include_summary?: boolean;
+                /** @description 検索候補 facets を含めるか */
+                include_facets?: boolean;
             };
             header?: never;
             path?: never;
@@ -1351,7 +1418,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedResponse_Dividend"];
+                    "application/json": components["schemas"]["PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: {

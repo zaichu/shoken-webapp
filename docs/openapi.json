@@ -554,6 +554,115 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "フリーワード検索（商品/口座/銘柄コード/銘柄名の token AND 検索）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "description": "決済日の開始日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "description": "決済日の終了日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "決済日の年（YYYY）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "year_month",
+            "in": "query",
+            "description": "決済日の年月（YYYY-MM）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "決済日の単日指定（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "description": "商品での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "description": "口座での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "security_code",
+            "in": "query",
+            "description": "銘柄コードでの絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "security_name",
+            "in": "query",
+            "description": "銘柄名での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_summary",
+            "in": "query",
+            "description": "検索条件全体の集計を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_facets",
+            "in": "query",
+            "description": "検索候補 facets を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -562,7 +671,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_Dividend"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1746,6 +1865,29 @@
           }
         }
       },
+      "DividendSummary": {
+        "type": "object",
+        "description": "配当金 検索条件全体の集計",
+        "required": [
+          "total_dividends_before_tax",
+          "total_taxes",
+          "total_net_amount_received"
+        ],
+        "properties": {
+          "total_dividends_before_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_net_amount_received": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_taxes": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "DomesticStock": {
         "type": "object",
         "description": "国内株式取引モデル（DB + APIレスポンス兼用）",
@@ -1855,6 +1997,29 @@
         "properties": {
           "error": {
             "$ref": "#/components/schemas/ErrorDetails"
+          }
+        }
+      },
+      "FacetOption": {
+        "type": "object",
+        "description": "検索候補の共通表現。",
+        "required": [
+          "value",
+          "label"
+        ],
+        "properties": {
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },
@@ -2829,102 +2994,6 @@
           }
         }
       },
-      "PaginatedResponse_Dividend": {
-        "type": "object",
-        "description": "ページネーションレスポンス（全ドメイン共通）",
-        "required": [
-          "data",
-          "total",
-          "page",
-          "per_page"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "description": "配当金モデル（DB + APIレスポンス兼用）",
-              "required": [
-                "id",
-                "settlement_date",
-                "product",
-                "account",
-                "security_code",
-                "security_name",
-                "unit_price",
-                "shares",
-                "dividends_before_tax",
-                "taxes",
-                "net_amount_received",
-                "created_at",
-                "updated_at"
-              ],
-              "properties": {
-                "account": {
-                  "type": "string"
-                },
-                "created_at": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "dividends_before_tax": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "net_amount_received": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "product": {
-                  "type": "string"
-                },
-                "security_code": {
-                  "type": "string"
-                },
-                "security_name": {
-                  "type": "string"
-                },
-                "settlement_date": {
-                  "type": "string",
-                  "format": "date"
-                },
-                "shares": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "taxes": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "unit_price": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "updated_at": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              }
-            }
-          },
-          "page": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "per_page": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "total": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
       "PaginatedResponse_DomesticStock": {
         "type": "object",
         "description": "ページネーションレスポンス（全ドメイン共通）",
@@ -3143,6 +3212,245 @@
           "total": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets": {
+        "type": "object",
+        "description": "検索・集計付きページネーションレスポンス。",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "配当金モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "settlement_date",
+                "product",
+                "account",
+                "security_code",
+                "security_name",
+                "unit_price",
+                "shares",
+                "dividends_before_tax",
+                "taxes",
+                "net_amount_received",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dividends_before_tax": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "net_amount_received": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "security_code": {
+                  "type": "string"
+                },
+                "security_name": {
+                  "type": "string"
+                },
+                "settlement_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "taxes": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "unit_price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "facets": {
+            "type": "object",
+            "description": "検索候補レスポンスの共通枠。",
+            "properties": {
+              "accounts": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "funds": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "products": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "securities": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "year_months": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "years": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "object",
+            "description": "配当金 検索条件全体の集計",
+            "required": [
+              "total_dividends_before_tax",
+              "total_taxes",
+              "total_net_amount_received"
+            ],
+            "properties": {
+              "total_dividends_before_tax": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_net_amount_received": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_taxes": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SearchFacets": {
+        "type": "object",
+        "description": "検索候補レスポンスの共通枠。",
+        "properties": {
+          "accounts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          },
+          "funds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          },
+          "products": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          },
+          "securities": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          },
+          "year_months": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          },
+          "years": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
           }
         }
       },

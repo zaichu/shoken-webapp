@@ -1,4 +1,4 @@
-use crate::models::common::validate_length_field;
+use crate::models::common::{validate_length_field, SearchQueryParams};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,54 @@ pub struct Dividend {
     pub net_amount_received: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// 配当金一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 配当金固有の絞り込み）
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct DividendSearchQueryParams {
+    #[serde(flatten)]
+    pub search: SearchQueryParams,
+    /// 商品での絞り込み
+    pub product: Option<String>,
+    /// 口座での絞り込み
+    pub account: Option<String>,
+    /// 銘柄コードでの絞り込み
+    pub security_code: Option<String>,
+    /// 銘柄名での絞り込み
+    pub security_name: Option<String>,
+}
+
+impl DividendSearchQueryParams {
+    pub fn page(&self) -> i64 {
+        self.search.page()
+    }
+
+    pub fn per_page(&self) -> i64 {
+        self.search.per_page()
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.search.offset()
+    }
+
+    pub fn should_include_summary(&self) -> bool {
+        self.search.should_include_summary()
+    }
+
+    pub fn should_include_facets(&self) -> bool {
+        self.search.should_include_facets()
+    }
+}
+
+/// 配当金 検索条件全体の集計
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct DividendSummary {
+    #[schema(value_type = f64)]
+    pub total_dividends_before_tax: Decimal,
+    #[schema(value_type = f64)]
+    pub total_taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub total_net_amount_received: Decimal,
 }
 
 /// 配当金作成リクエスト
