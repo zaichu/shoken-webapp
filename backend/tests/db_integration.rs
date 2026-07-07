@@ -6,8 +6,8 @@ use backend::{
     config::Config,
     db::run_migrations,
     models::asset_balance::CreateAssetBalanceRequest,
-    models::common::PaginationParams,
-    models::dividend::CreateDividendRequest,
+    models::common::{PaginationParams, SearchQueryParams},
+    models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::CreateDomesticStockRequest,
     models::mutualfund::CreateMutualfundRequest,
     routes::app_router,
@@ -22,6 +22,22 @@ fn default_pagination() -> PaginationParams {
     PaginationParams {
         page: None,
         per_page: None,
+    }
+}
+
+fn default_dividend_search_params() -> DividendSearchQueryParams {
+    DividendSearchQueryParams::default()
+}
+
+fn dividend_search_params_with_pagination(
+    pagination: PaginationParams,
+) -> DividendSearchQueryParams {
+    DividendSearchQueryParams {
+        search: SearchQueryParams {
+            pagination,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 use chrono::NaiveDate;
@@ -342,11 +358,13 @@ async fn service_coverage_all_domains() {
         .data
         .is_empty());
 
-    assert!(dividend_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("initial dividend list failed")
-        .data
-        .is_empty());
+    assert!(
+        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
+            .await
+            .expect("initial dividend list failed")
+            .data
+            .is_empty()
+    );
     let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty dividend bulk_create failed");
@@ -369,7 +387,7 @@ async fn service_coverage_all_domains() {
     assert!(dividend_uploaded.errors.is_empty());
 
     assert_eq!(
-        dividend_svc::list(&pool, user_id, &default_pagination())
+        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
             .await
             .expect("dividend list failed")
             .data
@@ -382,11 +400,13 @@ async fn service_coverage_all_domains() {
             .expect("dividend delete_all failed"),
         3
     );
-    assert!(dividend_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("dividend list after delete failed")
-        .data
-        .is_empty());
+    assert!(
+        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
+            .await
+            .expect("dividend list after delete failed")
+            .data
+            .is_empty()
+    );
 
     assert!(
         domestic_stock_svc::list(&pool, user_id, &default_pagination())
@@ -598,19 +618,19 @@ async fn dividend_bulk_create_and_list() {
     assert_eq!(created.inserted, 3);
     assert_eq!(created.skipped, 0);
 
-    let rows = dividend_svc::list(&pool, user_id, &default_pagination())
+    let rows = dividend_svc::search(&pool, user_id, &default_dividend_search_params())
         .await
         .expect("dividend list failed")
         .data;
     assert_eq!(rows.len(), 3);
 
-    let first_page = dividend_svc::list(
+    let first_page = dividend_svc::search(
         &pool,
         user_id,
-        &PaginationParams {
+        &dividend_search_params_with_pagination(PaginationParams {
             page: Some(1),
             per_page: Some(2),
-        },
+        }),
     )
     .await
     .expect("dividend first page list failed");
@@ -618,14 +638,16 @@ async fn dividend_bulk_create_and_list() {
     assert_eq!(first_page.page, 1);
     assert_eq!(first_page.per_page, 2);
     assert_eq!(first_page.data.len(), 2);
+    assert!(first_page.summary.is_none());
+    assert!(first_page.facets.is_none());
 
-    let second_page = dividend_svc::list(
+    let second_page = dividend_svc::search(
         &pool,
         user_id,
-        &PaginationParams {
+        &dividend_search_params_with_pagination(PaginationParams {
             page: Some(2),
             per_page: Some(2),
-        },
+        }),
     )
     .await
     .expect("dividend second page list failed");
@@ -633,14 +655,16 @@ async fn dividend_bulk_create_and_list() {
     assert_eq!(second_page.page, 2);
     assert_eq!(second_page.per_page, 2);
     assert_eq!(second_page.data.len(), 1);
+    assert!(second_page.summary.is_none());
+    assert!(second_page.facets.is_none());
 
-    let clamped_page = dividend_svc::list(
+    let clamped_page = dividend_svc::search(
         &pool,
         user_id,
-        &PaginationParams {
+        &dividend_search_params_with_pagination(PaginationParams {
             page: Some(1),
             per_page: Some(5000),
-        },
+        }),
     )
     .await
     .expect("dividend clamped page list failed");
@@ -652,7 +676,7 @@ async fn dividend_bulk_create_and_list() {
         .expect("dividend delete_all failed");
     assert_eq!(deleted, 3);
 
-    let rows = dividend_svc::list(&pool, user_id, &default_pagination())
+    let rows = dividend_svc::search(&pool, user_id, &default_dividend_search_params())
         .await
         .expect("dividend list after delete failed")
         .data;

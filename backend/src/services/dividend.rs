@@ -1,7 +1,11 @@
 use crate::errors::ApiError;
-use crate::models::common::{BulkCreateResponse, PaginatedResponse, PaginationParams};
+use crate::models::common::{
+    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets,
+};
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::models::dividend::{CreateDividendRequest, Dividend};
+use crate::models::dividend::{
+    CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
+};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
@@ -11,8 +15,9 @@ use crate::services::csv_util::{
 use crate::services::shared::{
     delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
 };
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
 use uuid::Uuid;
 
@@ -33,41 +38,297 @@ const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     ],
 };
 
-/// 認証ユーザーの配当金一覧を取得（ページネーション対応）
-pub async fn list(
+/// 配当金検索条件を SQL 条件へ変換した中間表現
+#[derive(Debug)]
+struct DividendFilter {
+    date_eq: Option<NaiveDate>,
+    date_from: Option<NaiveDate>,
+    date_to: Option<NaiveDate>,
+    year_range: Option<(NaiveDate, NaiveDate)>,
+    year_month_range: Option<(NaiveDate, NaiveDate)>,
+    tokens: Vec<String>,
+    product: Option<String>,
+    account: Option<String>,
+    security_code: Option<String>,
+    security_name: Option<String>,
+}
+
+impl DividendFilter {
+    fn from_params(params: &DividendSearchQueryParams) -> Result<Self, ApiError> {
+        let search = &params.search;
+        let date_eq = search
+            .date
+            .as_deref()
+            .map(|v| parse_date_param("date", v))
+            .transpose()?;
+        let date_from = search
+            .date_from
+            .as_deref()
+            .map(|v| parse_date_param("date_from", v))
+            .transpose()?;
+        let date_to = search
+            .date_to
+            .as_deref()
+            .map(|v| parse_date_param("date_to", v))
+            .transpose()?;
+        let year_range = search.year.map(year_to_range).transpose()?;
+        let year_month_range = search
+            .year_month
+            .as_deref()
+            .map(parse_year_month_range)
+            .transpose()?;
+        let tokens = search
+            .q
+            .as_deref()
+            .map(|q| q.split_whitespace().map(str::to_string).collect())
+            .unwrap_or_default();
+
+        Ok(Self {
+            date_eq,
+            date_from,
+            date_to,
+            year_range,
+            year_month_range,
+            tokens,
+            product: params.product.clone(),
+            account: params.account.clone(),
+            security_code: params.security_code.clone(),
+            security_name: params.security_name.clone(),
+        })
+    }
+}
+
+fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
+    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .map_err(|_| ApiError::ValidationError(format!("{field} の形式が不正です（YYYY-MM-DD）")))
+}
+
+fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
+    let invalid = || ApiError::ValidationError("year の値が不正です".to_string());
+    let start = NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(invalid)?;
+    let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).ok_or_else(invalid)?;
+    Ok((start, end))
+}
+
+fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
+    let invalid =
+        || ApiError::ValidationError("year_month の形式が不正です（YYYY-MM）".to_string());
+    let (year_str, month_str) = value.split_once('-').ok_or_else(invalid)?;
+    let year: i32 = year_str.parse().map_err(|_| invalid())?;
+    let month: u32 = month_str.parse().map_err(|_| invalid())?;
+    let start = NaiveDate::from_ymd_opt(year, month, 1).ok_or_else(invalid)?;
+    let end = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }
+    .ok_or_else(invalid)?;
+    Ok((start, end))
+}
+
+/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
+fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DividendFilter) {
+    qb.push(" WHERE user_id = ").push_bind(user_id);
+    if let Some(v) = filter.date_eq {
+        qb.push(" AND settlement_date = ").push_bind(v);
+    }
+    if let Some(v) = filter.date_from {
+        qb.push(" AND settlement_date >= ").push_bind(v);
+    }
+    if let Some(v) = filter.date_to {
+        qb.push(" AND settlement_date <= ").push_bind(v);
+    }
+    if let Some((start, end)) = filter.year_range {
+        qb.push(" AND settlement_date >= ").push_bind(start);
+        qb.push(" AND settlement_date < ").push_bind(end);
+    }
+    if let Some((start, end)) = filter.year_month_range {
+        qb.push(" AND settlement_date >= ").push_bind(start);
+        qb.push(" AND settlement_date < ").push_bind(end);
+    }
+    if let Some(v) = &filter.product {
+        qb.push(" AND product = ").push_bind(v.clone());
+    }
+    if let Some(v) = &filter.account {
+        qb.push(" AND account = ").push_bind(v.clone());
+    }
+    if let Some(v) = &filter.security_code {
+        qb.push(" AND security_code = ").push_bind(v.clone());
+    }
+    if let Some(v) = &filter.security_name {
+        qb.push(" AND security_name = ").push_bind(v.clone());
+    }
+    for token in &filter.tokens {
+        let pattern = escape_like_pattern(token);
+        qb.push(" AND (product ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" ESCAPE '\\' OR account ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" ESCAPE '\\' OR security_code ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" ESCAPE '\\' OR security_name ILIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\')");
+    }
+}
+
+/// ILIKE の wildcard 文字（%, _, \）をリテラル扱いにエスケープしてから前後を % で囲む
+fn escape_like_pattern(token: &str) -> String {
+    let escaped = token
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    format!("%{escaped}%")
+}
+
+/// 認証ユーザーの配当金一覧を検索（ページネーション・summary・facets 対応）
+pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
-    params: &PaginationParams,
-) -> Result<PaginatedResponse<Dividend>, ApiError> {
-    info!("[dividend.list] リクエスト受信");
-    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM dividends WHERE user_id = $1")
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+    params: &DividendSearchQueryParams,
+) -> Result<PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>, ApiError> {
+    info!("[dividend.search] リクエスト受信");
+    let filter = DividendFilter::from_params(params)?;
 
-    let data = sqlx::query_as::<_, Dividend>(
-        r#"
-        SELECT id, user_id, settlement_date, product, account, security_code, security_name,
-               unit_price, shares, dividends_before_tax, taxes, net_amount_received,
-               created_at, updated_at
-        FROM dividends
-        WHERE user_id = $1
-        ORDER BY settlement_date DESC, id DESC
-        LIMIT $2 OFFSET $3
-        "#,
-    )
-    .bind(user_id)
-    .bind(params.per_page())
-    .bind(params.offset())
-    .fetch_all(pool)
-    .await?;
+    let mut count_qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM dividends");
+    push_filters(&mut count_qb, user_id, &filter);
+    let count_fut = async move {
+        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
+        Ok::<_, ApiError>(total)
+    };
 
-    Ok(PaginatedResponse {
+    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT id, user_id, settlement_date, product, account, security_code, security_name, \
+         unit_price, shares, dividends_before_tax, taxes, net_amount_received, created_at, updated_at \
+         FROM dividends",
+    );
+    push_filters(&mut data_qb, user_id, &filter);
+    data_qb.push(" ORDER BY settlement_date DESC, id DESC LIMIT ");
+    data_qb.push_bind(params.per_page());
+    data_qb.push(" OFFSET ");
+    data_qb.push_bind(params.offset());
+    let data_fut = async move {
+        let data = data_qb.build_query_as::<Dividend>().fetch_all(pool).await?;
+        Ok::<_, ApiError>(data)
+    };
+
+    let summary_fut = async {
+        if params.should_include_summary() {
+            fetch_summary(pool, user_id, &filter).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    };
+
+    let facets_fut = async {
+        if params.should_include_facets() {
+            fetch_facets(pool, user_id, &filter).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    };
+
+    // count/data/summary/facets は相互に依存しないため並行実行する
+    let (total, data, summary, facets) =
+        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
+
+    Ok(PaginatedSearchResponse {
         data,
         total,
         page: params.page(),
         per_page: params.per_page(),
+        summary,
+        facets,
     })
+}
+
+async fn fetch_summary(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &DividendFilter,
+) -> Result<DividendSummary, ApiError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
+         COALESCE(SUM(taxes), 0) AS total_taxes, \
+         COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
+         FROM dividends",
+    );
+    push_filters(&mut qb, user_id, filter);
+    Ok(qb
+        .build_query_as::<DividendSummary>()
+        .fetch_one(pool)
+        .await?)
+}
+
+async fn fetch_facets(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &DividendFilter,
+) -> Result<SearchFacets, ApiError> {
+    let products = fetch_group_facets(pool, user_id, filter, "product", true).await?;
+    let accounts = fetch_group_facets(pool, user_id, filter, "account", true).await?;
+    let securities = fetch_security_facets(pool, user_id, filter).await?;
+    let years = fetch_group_facets(
+        pool,
+        user_id,
+        filter,
+        "EXTRACT(YEAR FROM settlement_date)::integer::text",
+        false,
+    )
+    .await?;
+    let year_months = fetch_group_facets(
+        pool,
+        user_id,
+        filter,
+        "TO_CHAR(settlement_date, 'YYYY-MM')",
+        false,
+    )
+    .await?;
+
+    Ok(SearchFacets {
+        products: Some(products),
+        accounts: Some(accounts),
+        securities: Some(securities),
+        funds: None,
+        years: Some(years),
+        year_months: Some(year_months),
+    })
+}
+
+/// group_expr の値ごとに件数を集計して FacetOption を返す共通ヘルパー
+async fn fetch_group_facets(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &DividendFilter,
+    group_expr: &str,
+    order_asc: bool,
+) -> Result<Vec<FacetOption>, ApiError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+        "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM dividends"
+    ));
+    push_filters(&mut qb, user_id, filter);
+    qb.push(format!(
+        " GROUP BY {group_expr} ORDER BY {group_expr} {}",
+        if order_asc { "ASC" } else { "DESC" }
+    ));
+    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+}
+
+/// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
+async fn fetch_security_facets(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &DividendFilter,
+) -> Result<Vec<FacetOption>, ApiError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT security_code AS value, \
+         (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] AS label, \
+         COUNT(*) AS count \
+         FROM dividends",
+    );
+    push_filters(&mut qb, user_id, filter);
+    qb.push(" GROUP BY security_code ORDER BY security_code");
+    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
 }
 
 /// 配当金を一括追加（重複はスキップ）
@@ -246,5 +507,169 @@ mod tests {
                 (1, 0, true)
             );
         }
+    }
+
+    #[test]
+    fn test_dividend_search_query_params_delegate_include_flags() {
+        let mut params = DividendSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
+    }
+
+    #[test]
+    fn test_year_to_range_produces_year_boundaries() {
+        let (start, end) = year_to_range(2026).expect("2026年は有効な範囲");
+        assert_eq!(start, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
+        assert_eq!(end, NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_parse_year_month_range_handles_december_wrap_and_invalid_values() {
+        let (start, end) = parse_year_month_range("2026-06").expect("2026-06 は有効");
+        assert_eq!(start, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap());
+        assert_eq!(end, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap());
+
+        // 12月は年をまたいで翌年1月1日になる
+        let (_, end) = parse_year_month_range("2026-12").expect("2026-12 は有効");
+        assert_eq!(end, NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
+
+        for invalid in ["2026/06", "2026-13", "abcd-06", "2026-06-01"] {
+            assert!(
+                matches!(
+                    parse_year_month_range(invalid),
+                    Err(ApiError::ValidationError(_))
+                ),
+                "value={invalid} は ValidationError になるべき"
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_date_param_accepts_iso_format_and_rejects_others() {
+        assert!(parse_date_param("date", "2026-01-15").is_ok());
+        for invalid in ["2026/01/15", "15-01-2026", "not-a-date", ""] {
+            assert!(
+                matches!(
+                    parse_date_param("date", invalid),
+                    Err(ApiError::ValidationError(_))
+                ),
+                "value={invalid} は ValidationError になるべき"
+            );
+        }
+    }
+
+    #[test]
+    fn test_dividend_filter_from_params_accepts_valid_date_axis_values() {
+        let mut params = DividendSearchQueryParams::default();
+        params.search.date = Some("2026-01-15".to_string());
+        params.search.date_from = Some("2026-01-01".to_string());
+        params.search.date_to = Some("2026-12-31".to_string());
+        params.search.year = Some(2026);
+        params.search.year_month = Some("2026-06".to_string());
+
+        let filter =
+            DividendFilter::from_params(&params).expect("正しい日付フォーマットは検証を通過する");
+
+        assert_eq!(filter.date_eq, NaiveDate::from_ymd_opt(2026, 1, 15));
+        assert_eq!(filter.date_from, NaiveDate::from_ymd_opt(2026, 1, 1));
+        assert_eq!(filter.date_to, NaiveDate::from_ymd_opt(2026, 12, 31));
+        assert_eq!(
+            filter.year_range,
+            Some((
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
+            ))
+        );
+        assert_eq!(
+            filter.year_month_range,
+            Some((
+                NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_dividend_filter_from_params_rejects_invalid_date_axis_values() {
+        type Apply = fn(&mut DividendSearchQueryParams);
+        let cases: [(&str, Apply); 5] = [
+            ("date", |p| p.search.date = Some("2026/01/15".to_string())),
+            ("date_from", |p| {
+                p.search.date_from = Some("20260101".to_string())
+            }),
+            ("date_to", |p| {
+                p.search.date_to = Some("not-a-date".to_string())
+            }),
+            ("year", |p| p.search.year = Some(i32::MIN)),
+            ("year_month", |p| {
+                p.search.year_month = Some("2026-13".to_string())
+            }),
+        ];
+
+        for (field, apply) in cases {
+            let mut params = DividendSearchQueryParams::default();
+            apply(&mut params);
+            let err = DividendFilter::from_params(&params)
+                .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
+            assert!(
+                matches!(err, ApiError::ValidationError(_)),
+                "field={field} の失敗が ValidationError ではない"
+            );
+        }
+    }
+
+    #[test]
+    fn test_push_filters_combines_q_tokens_as_and_of_or_across_all_columns() {
+        let mut params = DividendSearchQueryParams::default();
+        params.search.q = Some("AA BB".to_string());
+        let filter = DividendFilter::from_params(&params).expect("q のみなら検証を通過する");
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
+        push_filters(&mut qb, Uuid::nil(), &filter);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は4カラムの OR になる
+        assert_eq!(sql.matches(" AND (").count(), 2);
+        assert_eq!(sql.matches("product ILIKE").count(), 2);
+        assert_eq!(sql.matches("account ILIKE").count(), 2);
+        assert_eq!(sql.matches("security_code ILIKE").count(), 2);
+        assert_eq!(sql.matches("security_name ILIKE").count(), 2);
+    }
+
+    #[test]
+    fn test_escape_like_pattern_escapes_wildcard_characters() {
+        assert_eq!(escape_like_pattern("abc"), "%abc%");
+        assert_eq!(escape_like_pattern("50%"), "%50\\%%");
+        assert_eq!(escape_like_pattern("A_B"), "%A\\_B%");
+        assert_eq!(escape_like_pattern("a\\b"), "%a\\\\b%");
+        assert_eq!(escape_like_pattern("100%_off\\"), "%100\\%\\_off\\\\%");
+    }
+
+    #[test]
+    fn test_push_filters_binds_dividend_specific_field_filters() {
+        let params = DividendSearchQueryParams {
+            product: Some("国内株式".to_string()),
+            account: Some("特定".to_string()),
+            security_code: Some("1234".to_string()),
+            security_name: Some("テスト株式会社".to_string()),
+            ..Default::default()
+        };
+        let filter = DividendFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
+        push_filters(&mut qb, Uuid::nil(), &filter);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.contains("AND product = "));
+        assert!(sql.contains("AND account = "));
+        assert!(sql.contains("AND security_code = "));
+        assert!(sql.contains("AND security_name = "));
     }
 }

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use std::borrow::Cow;
 use utoipa::ToSchema;
 use validator::{ValidateLength, ValidationError, ValidationErrors};
@@ -46,12 +47,11 @@ impl PaginationParams {
 }
 
 /// 検索・集計付き一覧の共通クエリパラメータ。
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct SearchQueryParams {
     #[serde(flatten)]
     pub pagination: PaginationParams,
-    /// フリーワード検索。後続PRで token AND 条件としてSQLへ変換する。
+    /// フリーワード検索。各ドメインが定義する検索対象カラムへの token AND 条件としてSQLへ変換する。
     pub q: Option<String>,
     /// 開始日（YYYY-MM-DD）
     pub date_from: Option<String>,
@@ -69,7 +69,6 @@ pub struct SearchQueryParams {
     pub include_facets: Option<bool>,
 }
 
-#[allow(dead_code)]
 impl SearchQueryParams {
     pub fn page(&self) -> i64 {
         self.pagination.page()
@@ -102,8 +101,7 @@ pub struct PaginatedResponse<T: ToSchema + 'static> {
 }
 
 /// 検索候補の共通表現。
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct FacetOption {
     pub value: String,
     pub label: String,
@@ -112,7 +110,6 @@ pub struct FacetOption {
 }
 
 /// 検索候補レスポンスの共通枠。
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct SearchFacets {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -130,7 +127,6 @@ pub struct SearchFacets {
 }
 
 /// 検索・集計付きページネーションレスポンス。
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PaginatedSearchResponse<
     T: ToSchema + 'static,
