@@ -73,7 +73,17 @@ cargo test -- --ignored
 
 # CSV CRUD フローのみ
 ./scripts/run-ui-e2e.sh --skip-main
+
+# 実 backend 接続の配当金一覧スモーク
+./scripts/run-real-backend-receipts-smoke.sh
 ```
+
+### 実 backend 接続スモーク
+
+`./scripts/run-real-backend-receipts-smoke.sh` は local PostgreSQL、backend、frontend を起動し、認証済み session と配当金 fixture を投入してから Playwright で `/receipts` を確認します。
+
+このスモークは `page.route()` の mock を使わないため、backend の query deserialize、認証 cookie、CORS、migration、DB schema の不整合を検出できます。
+検証対象は `/api/v1/dividends?per_page=1000&page=1` と summary/facets 付き API、および配当金タブの銘柄表示です。
 
 ### 失敗系テスト（API モック使用）
 
