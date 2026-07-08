@@ -1,4 +1,4 @@
-use crate::models::common::validate_length_field;
+use crate::models::common::{validate_length_field, SearchQueryParams};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -35,6 +35,56 @@ pub struct DomesticStock {
     pub realized_profit_and_loss_after_tax: Decimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// 国内株式取引一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 国内株式固有の絞り込み）
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct DomesticStockSearchQueryParams {
+    #[serde(flatten)]
+    pub search: SearchQueryParams,
+    /// 口座での絞り込み
+    pub account: Option<String>,
+    /// 銘柄コードでの絞り込み
+    pub security_code: Option<String>,
+    /// 銘柄名での絞り込み
+    pub security_name: Option<String>,
+}
+
+impl DomesticStockSearchQueryParams {
+    pub fn page(&self) -> i64 {
+        self.search.page()
+    }
+
+    pub fn per_page(&self) -> i64 {
+        self.search.per_page()
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.search.offset()
+    }
+
+    pub fn should_include_summary(&self) -> bool {
+        self.search.should_include_summary()
+    }
+
+    pub fn should_include_facets(&self) -> bool {
+        self.search.should_include_facets()
+    }
+}
+
+/// 国内株式取引 検索条件全体の集計
+///
+/// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、
+/// 特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする
+/// frontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct DomesticStockSummary {
+    #[schema(value_type = f64)]
+    pub total_realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub total_taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
 /// 国内株式取引作成リクエスト
@@ -134,5 +184,17 @@ mod tests {
         }
         .validate()
         .is_err());
+    }
+
+    #[test]
+    fn test_domestic_stock_search_query_params_delegate_include_flags() {
+        let mut params = DomesticStockSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
     }
 }
