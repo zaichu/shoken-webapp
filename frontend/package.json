@@ -19,6 +19,7 @@
     "ui:screenshot:csv-crud": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/csv-crud.spec.ts",
     "ui:csv-crud:auth": "npm run ui:screenshot:csv-crud",
     "ui:save-auth": "npx tsx e2e/save-auth.spec.ts",
+    "test:e2e:real-backend:receipts": "npx playwright test e2e/real-backend-receipts-smoke.spec.ts",
     "test:e2e:ci": "npx playwright test --config playwright.ci.config.ts",
     "generate:types": "FRONTEND_DIR=$(dirname \"$npm_package_json\") && cd /tmp && npx --yes --package typescript@5.9.3 --package openapi-typescript@7.13.0 openapi-typescript \"$FRONTEND_DIR/../docs/openapi.json\" -o \"$FRONTEND_DIR/src/generated/api.ts\"",
     "typecheck": "node ./node_modules/typescript-next/bin/tsc --noEmit"
