@@ -8,7 +8,7 @@ use backend::{
     models::asset_balance::CreateAssetBalanceRequest,
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
-    models::domestic_stock::CreateDomesticStockRequest,
+    models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
     models::mutualfund::CreateMutualfundRequest,
     routes::app_router,
     services::asset_balance as asset_balance_svc,
@@ -27,6 +27,10 @@ fn default_pagination() -> PaginationParams {
 
 fn default_dividend_search_params() -> DividendSearchQueryParams {
     DividendSearchQueryParams::default()
+}
+
+fn default_domestic_stock_search_params() -> DomesticStockSearchQueryParams {
+    DomesticStockSearchQueryParams::default()
 }
 
 fn dividend_search_params_with_pagination(
@@ -409,7 +413,7 @@ async fn service_coverage_all_domains() {
     );
 
     assert!(
-        domestic_stock_svc::list(&pool, user_id, &default_pagination())
+        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
             .await
             .expect("initial domestic_stock list failed")
             .data
@@ -441,7 +445,7 @@ async fn service_coverage_all_domains() {
     assert!(domestic_stock_uploaded.errors.is_empty());
 
     assert_eq!(
-        domestic_stock_svc::list(&pool, user_id, &default_pagination())
+        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
             .await
             .expect("domestic_stock list failed")
             .data
@@ -455,7 +459,7 @@ async fn service_coverage_all_domains() {
         3
     );
     assert!(
-        domestic_stock_svc::list(&pool, user_id, &default_pagination())
+        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
             .await
             .expect("domestic_stock list after delete failed")
             .data
@@ -720,7 +724,7 @@ async fn domestic_stock_bulk_create_and_list() {
     assert_eq!(created.inserted, 3);
     assert_eq!(created.skipped, 0);
 
-    let rows = domestic_stock_svc::list(&pool, user_id, &default_pagination())
+    let rows = domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
         .await
         .expect("domestic_stock list failed")
         .data;
@@ -731,7 +735,7 @@ async fn domestic_stock_bulk_create_and_list() {
         .expect("domestic_stock delete_all failed");
     assert_eq!(deleted, 3);
 
-    let rows = domestic_stock_svc::list(&pool, user_id, &default_pagination())
+    let rows = domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
         .await
         .expect("domestic_stock list after delete failed")
         .data;

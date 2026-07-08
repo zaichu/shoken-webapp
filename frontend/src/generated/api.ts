@@ -529,6 +529,21 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description 国内株式取引 検索条件全体の集計
+         *
+         *     trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、
+         *     特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする
+         *     frontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。
+         */
+        DomesticStockSummary: {
+            /** Format: double */
+            total_realized_profit_and_loss: number;
+            /** Format: double */
+            total_realized_profit_and_loss_after_tax: number;
+            /** Format: double */
+            total_taxes: number;
+        };
         ErrorDetails: {
             code: string;
             details?: string | null;
@@ -846,44 +861,6 @@ export interface components {
             total: number;
         };
         /** @description ページネーションレスポンス（全ドメイン共通） */
-        PaginatedResponse_DomesticStock: {
-            data: {
-                account: string;
-                /** Format: double */
-                asked_price: number;
-                /** Format: date-time */
-                created_at: string;
-                /** Format: uuid */
-                id: string;
-                /** Format: double */
-                proceeds: number;
-                /** Format: double */
-                purchase_price: number;
-                /** Format: double */
-                realized_profit_and_loss: number;
-                /** Format: double */
-                realized_profit_and_loss_after_tax: number;
-                security_code: string;
-                security_name: string;
-                /** Format: date */
-                settlement_date: string;
-                /** Format: double */
-                shares: number;
-                /** Format: double */
-                taxes: number;
-                /** Format: date */
-                trade_date: string;
-                /** Format: date-time */
-                updated_at: string;
-            }[];
-            /** Format: int64 */
-            page: number;
-            /** Format: int64 */
-            per_page: number;
-            /** Format: int64 */
-            total: number;
-        };
-        /** @description ページネーションレスポンス（全ドメイン共通） */
         PaginatedResponse_Mutualfund: {
             data: {
                 account: string;
@@ -968,6 +945,68 @@ export interface components {
                 total_dividends_before_tax: number;
                 /** Format: double */
                 total_net_amount_received: number;
+                /** Format: double */
+                total_taxes: number;
+            };
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description 検索・集計付きページネーションレスポンス。 */
+        PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets: {
+            data: {
+                account: string;
+                /** Format: double */
+                asked_price: number;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: uuid */
+                id: string;
+                /** Format: double */
+                proceeds: number;
+                /** Format: double */
+                purchase_price: number;
+                /** Format: double */
+                realized_profit_and_loss: number;
+                /** Format: double */
+                realized_profit_and_loss_after_tax: number;
+                security_code: string;
+                security_name: string;
+                /** Format: date */
+                settlement_date: string;
+                /** Format: double */
+                shares: number;
+                /** Format: double */
+                taxes: number;
+                /** Format: date */
+                trade_date: string;
+                /** Format: date-time */
+                updated_at: string;
+            }[];
+            /** @description 検索候補レスポンスの共通枠。 */
+            facets?: {
+                accounts?: components["schemas"]["FacetOption"][] | null;
+                funds?: components["schemas"]["FacetOption"][] | null;
+                products?: components["schemas"]["FacetOption"][] | null;
+                securities?: components["schemas"]["FacetOption"][] | null;
+                year_months?: components["schemas"]["FacetOption"][] | null;
+                years?: components["schemas"]["FacetOption"][] | null;
+            };
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            per_page: number;
+            /**
+             * @description 国内株式取引 検索条件全体の集計
+             *
+             *     trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、
+             *     特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする
+             *     frontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。
+             */
+            summary?: {
+                /** Format: double */
+                total_realized_profit_and_loss: number;
+                /** Format: double */
+                total_realized_profit_and_loss_after_tax: number;
                 /** Format: double */
                 total_taxes: number;
             };
@@ -1551,6 +1590,28 @@ export interface operations {
                 page?: number;
                 /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
                 per_page?: number;
+                /** @description フリーワード検索（口座/銘柄コード/銘柄名の token AND 検索） */
+                q?: string;
+                /** @description 約定日の開始日（YYYY-MM-DD） */
+                date_from?: string;
+                /** @description 約定日の終了日（YYYY-MM-DD） */
+                date_to?: string;
+                /** @description 約定日の年（YYYY） */
+                year?: number;
+                /** @description 約定日の年月（YYYY-MM） */
+                year_month?: string;
+                /** @description 約定日の単日指定（YYYY-MM-DD） */
+                date?: string;
+                /** @description 口座での絞り込み */
+                account?: string;
+                /** @description 銘柄コードでの絞り込み */
+                security_code?: string;
+                /** @description 銘柄名での絞り込み */
+                security_name?: string;
+                /** @description 検索条件全体の集計を含めるか */
+                include_summary?: boolean;
+                /** @description 検索候補 facets を含めるか */
+                include_facets?: boolean;
             };
             header?: never;
             path?: never;
@@ -1563,7 +1624,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedResponse_DomesticStock"];
+                    "application/json": components["schemas"]["PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: {
