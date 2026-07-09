@@ -62,9 +62,11 @@ function makeRow(overrides: Partial<AssetBalanceData> = {}): AssetBalanceData {
 function makeDataSourceMock(
   overrides: Partial<UseAssetBalanceDataSourceReturn> = {}
 ): UseAssetBalanceDataSourceReturn {
+  const dbData = overrides.dbData ?? [];
+
   return {
-    dbData: [],
-    dbTotal: 0,
+    dbData,
+    dbTotal: overrides.dbTotal ?? dbData.length,
     summary: undefined,
     facets: undefined,
     assetBalanceListLimit: 1000,
@@ -305,6 +307,21 @@ describe('useAssetBalanceState', () => {
     const { result } = renderHook(() => useAssetBalanceState());
 
     expect(result.current.portfolioSummary).toBeUndefined();
+  });
+
+  it('deleteLabel と dbDataCount は API total を使う', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        dbTotal: 1001,
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.actionRailProps.deleteLabel).toBe('全件削除 (1001件)');
+    expect(result.current.dbDataCount).toBe(1001);
   });
 
   it('dbTotalが上限を超える場合は件数上限の警告を表示する', () => {
