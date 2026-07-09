@@ -9,7 +9,7 @@ use backend::{
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
-    models::mutualfund::CreateMutualfundRequest,
+    models::mutualfund::{CreateMutualfundRequest, MutualfundSearchQueryParams},
     routes::app_router,
     services::asset_balance as asset_balance_svc,
     services::dividend as dividend_svc,
@@ -31,6 +31,10 @@ fn default_dividend_search_params() -> DividendSearchQueryParams {
 
 fn default_domestic_stock_search_params() -> DomesticStockSearchQueryParams {
     DomesticStockSearchQueryParams::default()
+}
+
+fn default_mutualfund_search_params() -> MutualfundSearchQueryParams {
+    MutualfundSearchQueryParams::default()
 }
 
 fn dividend_search_params_with_pagination(
@@ -313,11 +317,13 @@ async fn service_coverage_all_domains() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    assert!(mutualfund_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("initial mutualfund list failed")
-        .data
-        .is_empty());
+    assert!(
+        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
+            .await
+            .expect("initial mutualfund list failed")
+            .data
+            .is_empty()
+    );
     let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[])
         .await
         .expect("empty mutualfund bulk_create failed");
@@ -343,7 +349,7 @@ async fn service_coverage_all_domains() {
     assert!(mutualfund_uploaded.errors.is_empty());
 
     assert_eq!(
-        mutualfund_svc::list(&pool, user_id, &default_pagination())
+        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
             .await
             .expect("mutualfund list failed")
             .data
@@ -356,11 +362,13 @@ async fn service_coverage_all_domains() {
             .expect("mutualfund delete_all failed"),
         3
     );
-    assert!(mutualfund_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("mutualfund list after delete failed")
-        .data
-        .is_empty());
+    assert!(
+        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
+            .await
+            .expect("mutualfund list after delete failed")
+            .data
+            .is_empty()
+    );
 
     assert!(
         dividend_svc::search(&pool, user_id, &default_dividend_search_params())
@@ -778,7 +786,7 @@ async fn mutualfund_bulk_create_and_list() {
     assert_eq!(created.inserted, 2);
     assert_eq!(created.skipped, 0);
 
-    let rows = mutualfund_svc::list(&pool, user_id, &default_pagination())
+    let rows = mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
         .await
         .expect("mutualfund list failed")
         .data;
@@ -789,7 +797,7 @@ async fn mutualfund_bulk_create_and_list() {
         .expect("mutualfund delete_all failed");
     assert_eq!(deleted, 2);
 
-    let rows = mutualfund_svc::list(&pool, user_id, &default_pagination())
+    let rows = mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
         .await
         .expect("mutualfund list after delete failed")
         .data;

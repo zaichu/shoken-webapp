@@ -3,9 +3,9 @@ use crate::{
     extractors::auth::AuthenticatedUser,
     handlers::common::ok_message,
     models::{
-        common::{MessageResponse, PaginatedResponse, PaginationParams},
+        common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
-        mutualfund::Mutualfund,
+        mutualfund::{Mutualfund, MutualfundSearchQueryParams, MutualfundSummary},
     },
     services::{csv_domain::MutualfundDomain, mutualfund as mutualfund_service},
     state::AppState,
@@ -27,9 +27,32 @@ use axum::{
     params(
         ("page" = Option<i64>, Query, description = "ページ番号（デフォルト: 1）"),
         ("per_page" = Option<i64>, Query, description = "1ページあたりの件数（デフォルト: 200、最大: 1000）"),
+        ("q" = Option<String>, Query, description = "フリーワード検索（口座/ファンド名/分配金の token AND 検索）"),
+        ("date_from" = Option<String>, Query, description = "約定日の開始日（YYYY-MM-DD）"),
+        ("date_to" = Option<String>, Query, description = "約定日の終了日（YYYY-MM-DD）"),
+        ("year" = Option<i32>, Query, description = "約定日の年（YYYY）"),
+        ("year_month" = Option<String>, Query, description = "約定日の年月（YYYY-MM）"),
+        ("date" = Option<String>, Query, description = "約定日の単日指定（YYYY-MM-DD）"),
+        ("account" = Option<String>, Query, description = "口座での絞り込み"),
+        ("fund_name" = Option<String>, Query, description = "ファンド名での絞り込み"),
+        ("dividends" = Option<String>, Query, description = "分配金での絞り込み"),
+        ("include_summary" = Option<bool>, Query, description = "検索条件全体の集計を含めるか"),
+        ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
+        ("q" = Option<String>, Query, description = "フリーワード検索（口座/ファンド名/分配金の token AND 検索）"),
+        ("date_from" = Option<String>, Query, description = "約定日の開始日（YYYY-MM-DD）"),
+        ("date_to" = Option<String>, Query, description = "約定日の終了日（YYYY-MM-DD）"),
+        ("year" = Option<i32>, Query, description = "約定日の年（YYYY）"),
+        ("year_month" = Option<String>, Query, description = "約定日の年月（YYYY-MM）"),
+        ("date" = Option<String>, Query, description = "約定日の単日指定（YYYY-MM-DD）"),
+        ("account" = Option<String>, Query, description = "口座での絞り込み"),
+        ("fund_name" = Option<String>, Query, description = "ファンド名での絞り込み"),
+        ("dividends" = Option<String>, Query, description = "分配金での絞り込み"),
+        ("include_summary" = Option<bool>, Query, description = "検索条件全体の集計を含めるか"),
+        ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, body = PaginatedResponse<Mutualfund>),
+        (status = 200, body = PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>),
+        (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -37,9 +60,9 @@ use axum::{
 pub async fn list_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<MutualfundSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = mutualfund_service::list(&state.pool, auth_user.id(), &params).await?;
+    let result = mutualfund_service::search(&state.pool, auth_user.id(), &params).await?;
     Ok((StatusCode::OK, Json(result)))
 }
 
