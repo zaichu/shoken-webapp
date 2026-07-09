@@ -63,6 +63,12 @@ describe('DividendInfo', () => {
     expect(mockUseDividendBatch).toHaveBeenCalledWith(['7203'], true);
   });
 
+  it('searchQuery から銘柄コードを解決して useAssetBalance に渡す', () => {
+    render(<DividendInfo searchQuery="7203: トヨタ自動車" summary={[]} />);
+
+    expect(mockUseAssetBalance).toHaveBeenCalledWith({ enabled: true, securityCode: '7203' });
+  });
+
   it('embedded モードで未取得値にヒントを表示する', () => {
     render(<DividendInfo embedded searchQuery="7203: トヨタ自動車" summary={[]} />);
 
