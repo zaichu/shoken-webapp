@@ -10,6 +10,7 @@ export interface ReceiptsUtilityRailProps {
   actionRailProps: DataActionRailProps;
   alertsProps: {
     dbError: string | null | undefined;
+    dbWarning: string | null | undefined;
     hasCsvFile: boolean;
     previewing: boolean;
     csvPreview: CsvPreview | null | undefined;

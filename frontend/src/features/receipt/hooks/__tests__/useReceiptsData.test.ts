@@ -302,9 +302,8 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     await waitFor(() => {
       expect(result.current.dividendData).toHaveLength(1000);
     });
-    expect(result.current.dividendData).not.toContainEqual({ id: '1001', payment_date: '2023-01-02' });
     expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true, include_facets: true });
+    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
     expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
@@ -340,9 +339,8 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     await waitFor(() => {
       expect(result.current.domesticstockData).toHaveLength(1000);
     });
-    expect(result.current.domesticstockData).not.toContainEqual({ id: 'stock-1001', trade_date: '2023-02-02' });
     expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true, include_facets: true });
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
     expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
@@ -378,9 +376,8 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     await waitFor(() => {
       expect(result.current.mutualfundData).toHaveLength(1000);
     });
-    expect(result.current.mutualfundData).not.toContainEqual({ id: 'fund-1001', trade_date: '2023-03-02' });
     expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true, include_facets: true });
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
     expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 

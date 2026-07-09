@@ -14,6 +14,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError="DB からの取得に失敗しました"
+        dbWarning={null}
         hasCsvFile={false}
         previewing={false}
         csvPreview={null}
@@ -28,6 +29,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile
         previewing={false}
         csvPreview={{ ...csvPreview, errors: [] }}
@@ -42,6 +44,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile
         previewing={false}
         csvPreview={csvPreview}
@@ -52,10 +55,27 @@ describe('ReceiptsAlerts', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('1件エラー');
   });
 
+  it('dbWarning があれば警告アラートが表示される', () => {
+    render(
+      <ReceiptsAlerts
+        dbError={null}
+        dbWarning="一覧は最大1000件まで表示しています。検索条件を絞り込んでください。"
+        hasCsvFile={false}
+        previewing={false}
+        csvPreview={null}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '一覧は最大1000件まで表示しています。検索条件を絞り込んでください。'
+    );
+  });
+
   it('条件が満たされない場合は何も表示しない', () => {
     const { container } = render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile={false}
         previewing={false}
         csvPreview={null}

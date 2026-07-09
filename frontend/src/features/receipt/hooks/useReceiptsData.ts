@@ -28,6 +28,7 @@ interface UseReceiptsDataResult {
   saving: boolean;
   deleting: boolean;
   previewing: boolean;
+  receiptListLimit: number;
   uploadCsv: (args: UploadCsvArgs) => void;
   previewCsv: (args: PreviewCsvArgs) => void;
   deleteAll: (type: ReceiptsType, options?: { onSuccess?: () => void }) => void;
@@ -46,11 +47,11 @@ interface PreviewCsvArgs {
   onError?: (error: string) => void;
 }
 
+const RECEIPT_LIST_LIMIT = 1000;
+
 const RECEIPT_LIST_PARAMS = {
-  per_page: 1000,
+  per_page: RECEIPT_LIST_LIMIT,
   page: 1,
-  include_summary: true,
-  include_facets: true,
 } as const;
 
 /**
@@ -176,6 +177,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
     saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
     previewing: previewCsvMutation.isPending,
+    receiptListLimit: RECEIPT_LIST_LIMIT,
     uploadCsv: uploadCsvMutation.mutate,
     previewCsv: previewCsvMutation.mutate,
     deleteAll: (type, options) => deleteAllMutation.mutate(type, { onSuccess: options?.onSuccess }),

@@ -18,6 +18,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile
         previewing={false}
         csvPreview={makeCsvPreview({
@@ -34,6 +35,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile
         previewing={false}
         csvPreview={makeCsvPreview()}
@@ -49,6 +51,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError="保存に失敗しました"
+        dbWarning={null}
         hasCsvFile={false}
         previewing={false}
         csvPreview={null}
@@ -62,6 +65,7 @@ describe('ReceiptsAlerts', () => {
     render(
       <ReceiptsAlerts
         dbError={null}
+        dbWarning={null}
         hasCsvFile={false}
         previewing={false}
         csvPreview={makeCsvPreview()}
