@@ -110,15 +110,6 @@ impl SearchQueryParams {
     }
 }
 
-/// ページネーションレスポンス（全ドメイン共通）
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct PaginatedResponse<T: ToSchema + 'static> {
-    pub data: Vec<T>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
-}
-
 /// 検索候補の共通表現。
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct FacetOption {
@@ -178,8 +169,8 @@ pub struct MessageResponse {
 #[cfg(test)]
 mod tests {
     use super::{
-        BulkCreateResponse, FacetOption, MessageResponse, PaginatedResponse,
-        PaginatedSearchResponse, PaginationParams, SearchFacets, SearchQueryParams,
+        BulkCreateResponse, FacetOption, MessageResponse, PaginatedSearchResponse,
+        PaginationParams, SearchFacets, SearchQueryParams,
     };
     use axum::{extract::Query, http::Uri};
     use serde::{Deserialize, Serialize};
@@ -264,28 +255,6 @@ mod tests {
         assert_eq!(params.year, Some(2026));
         assert!(params.should_include_summary());
         assert!(!params.should_include_facets());
-    }
-
-    #[test]
-    fn paginated_response_keeps_existing_shape() {
-        let response = PaginatedResponse {
-            data: vec![Row { id: 1 }],
-            total: 1,
-            page: 1,
-            per_page: 200,
-        };
-
-        let json = serde_json::to_value(response).expect("PaginatedResponse should serialize");
-
-        assert_eq!(
-            json,
-            serde_json::json!({
-                "data": [{"id": 1}],
-                "total": 1,
-                "page": 1,
-                "per_page": 200
-            })
-        );
     }
 
     #[test]

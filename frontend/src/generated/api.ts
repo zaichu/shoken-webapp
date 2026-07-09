@@ -382,6 +382,19 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description 保有銘柄 検索条件全体の集計
+         *
+         *     profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
+         */
+        AssetBalanceSummary: {
+            /** Format: double */
+            total_daily_change: number;
+            /** Format: double */
+            total_market_value: number;
+            /** Format: double */
+            total_purchase_amount: number;
+        };
         /** @description 保有銘柄一括作成リクエスト */
         BulkCreateAssetBalanceRequest: {
             items: components["schemas"]["CreateAssetBalanceRequest"][];
@@ -834,8 +847,8 @@ export interface components {
             /** Format: double */
             total_taxes: number;
         };
-        /** @description ページネーションレスポンス（全ドメイン共通） */
-        PaginatedResponse_AssetBalance: {
+        /** @description 検索・集計付きページネーションレスポンス。 */
+        PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets: {
             data: {
                 /** Format: double */
                 average_purchase_price: number;
@@ -862,10 +875,32 @@ export interface components {
                 /** Format: date-time */
                 updated_at: string;
             }[];
+            /** @description 検索候補レスポンスの共通枠。 */
+            facets?: {
+                accounts?: components["schemas"]["FacetOption"][] | null;
+                funds?: components["schemas"]["FacetOption"][] | null;
+                products?: components["schemas"]["FacetOption"][] | null;
+                securities?: components["schemas"]["FacetOption"][] | null;
+                year_months?: components["schemas"]["FacetOption"][] | null;
+                years?: components["schemas"]["FacetOption"][] | null;
+            };
             /** Format: int64 */
             page: number;
             /** Format: int64 */
             per_page: number;
+            /**
+             * @description 保有銘柄 検索条件全体の集計
+             *
+             *     profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
+             */
+            summary?: {
+                /** Format: double */
+                total_daily_change: number;
+                /** Format: double */
+                total_market_value: number;
+                /** Format: double */
+                total_purchase_amount: number;
+            };
             /** Format: int64 */
             total: number;
         };
@@ -1233,6 +1268,16 @@ export interface operations {
                 page?: number;
                 /** @description 1ページあたりの件数（デフォルト: 200、最大: 1000） */
                 per_page?: number;
+                /** @description フリーワード検索（銘柄コード/銘柄名の token AND 検索） */
+                q?: string;
+                /** @description 銘柄コードでの絞り込み */
+                security_code?: string;
+                /** @description 銘柄名での絞り込み */
+                security_name?: string;
+                /** @description 検索条件全体の集計を含めるか */
+                include_summary?: boolean;
+                /** @description 検索候補 facets を含めるか */
+                include_facets?: boolean;
             };
             header?: never;
             path?: never;
@@ -1245,7 +1290,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedResponse_AssetBalance"];
+                    "application/json": components["schemas"]["PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: {

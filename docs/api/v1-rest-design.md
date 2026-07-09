@@ -58,7 +58,7 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 
 - `page`: defaults to `1`, minimum effective value is `1`.
 - `per_page`: defaults to `200`, clamped to `1..1000`.
-- Responses use `PaginatedResponse<T>`: `{ data, total, page, per_page }`.
+- Responses use the pagination envelope `data`, `total`, `page`, and `per_page`; searchable list endpoints may also include optional `summary` and `facets`.
 
 ## Proposed Routes
 

@@ -1,4 +1,4 @@
-use crate::models::common::validate_length_field;
+use crate::models::common::{validate_length_field, SearchQueryParams};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -101,6 +101,55 @@ impl Validate for BulkCreateAssetBalanceRequest {
         }
     }
 }
+
+/// 保有銘柄一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 保有銘柄固有の絞り込み）
+///
+/// asset_balances には snapshot 日付がないため、`search` の date 系フィールドは
+/// この検索では使用しない（対象外）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct AssetBalanceSearchQueryParams {
+    #[serde(flatten)]
+    pub search: SearchQueryParams,
+    /// 銘柄コードでの絞り込み
+    pub security_code: Option<String>,
+    /// 銘柄名での絞り込み
+    pub security_name: Option<String>,
+}
+
+impl AssetBalanceSearchQueryParams {
+    pub fn page(&self) -> i64 {
+        self.search.page()
+    }
+
+    pub fn per_page(&self) -> i64 {
+        self.search.per_page()
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.search.offset()
+    }
+
+    pub fn should_include_summary(&self) -> bool {
+        self.search.should_include_summary()
+    }
+
+    pub fn should_include_facets(&self) -> bool {
+        self.search.should_include_facets()
+    }
+}
+
+/// 保有銘柄 検索条件全体の集計
+///
+/// profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct AssetBalanceSummary {
+    #[schema(value_type = f64)]
+    pub total_market_value: Decimal,
+    #[schema(value_type = f64)]
+    pub total_purchase_amount: Decimal,
+    #[schema(value_type = f64)]
+    pub total_daily_change: Decimal,
+}
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
@@ -162,5 +211,17 @@ mod tests {
         }
         .validate()
         .is_ok());
+    }
+
+    #[test]
+    fn test_asset_balance_search_query_params_delegate_include_flags() {
+        let mut params = AssetBalanceSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
     }
 }

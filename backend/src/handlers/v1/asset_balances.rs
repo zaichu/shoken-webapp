@@ -3,8 +3,11 @@ use crate::{
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     handlers::common::ok_message,
     models::{
-        asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
-        common::{BulkCreateResponse, MessageResponse, PaginatedResponse, PaginationParams},
+        asset_balance::{
+            AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary,
+            BulkCreateAssetBalanceRequest,
+        },
+        common::{BulkCreateResponse, MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     },
     services::{asset_balance as asset_balance_service, csv_domain::AssetBalanceDomain},
@@ -27,9 +30,15 @@ use axum::{
     params(
         ("page" = Option<i64>, Query, description = "ページ番号（デフォルト: 1）"),
         ("per_page" = Option<i64>, Query, description = "1ページあたりの件数（デフォルト: 200、最大: 1000）"),
+        ("q" = Option<String>, Query, description = "フリーワード検索（銘柄コード/銘柄名の token AND 検索）"),
+        ("security_code" = Option<String>, Query, description = "銘柄コードでの絞り込み"),
+        ("security_name" = Option<String>, Query, description = "銘柄名での絞り込み"),
+        ("include_summary" = Option<bool>, Query, description = "検索条件全体の集計を含めるか"),
+        ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, body = PaginatedResponse<AssetBalance>),
+        (status = 200, body = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>),
+        (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -37,9 +46,9 @@ use axum::{
 pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<AssetBalanceSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = asset_balance_service::list(&state.pool, auth_user.id(), &params).await?;
+    let result = asset_balance_service::search(&state.pool, auth_user.id(), &params).await?;
     Ok((StatusCode::OK, Json(result)))
 }
 

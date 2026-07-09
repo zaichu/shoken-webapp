@@ -1,6 +1,10 @@
 use crate::errors::ApiError;
-use crate::models::asset_balance::{AssetBalance, CreateAssetBalanceRequest};
-use crate::models::common::{BulkCreateResponse, PaginatedResponse, PaginationParams};
+use crate::models::asset_balance::{
+    AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
+};
+use crate::models::common::{
+    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets,
+};
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
@@ -13,7 +17,7 @@ use crate::services::shared::{
     delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
 };
 use rust_decimal::Decimal;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
 use uuid::Uuid;
 
@@ -34,41 +38,178 @@ const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     ],
 };
 
-/// 認証ユーザーの保有銘柄一覧を取得（ページネーション対応）
-pub async fn list(
+/// 保有銘柄検索条件を SQL 条件へ変換した中間表現
+///
+/// asset_balances には snapshot 日付がないため、date 系の条件は扱わない。
+#[derive(Debug)]
+struct AssetBalanceFilter {
+    tokens: Vec<String>,
+    security_code: Option<String>,
+    security_name: Option<String>,
+}
+
+impl AssetBalanceFilter {
+    fn from_params(params: &AssetBalanceSearchQueryParams) -> Self {
+        let tokens = params
+            .search
+            .q
+            .as_deref()
+            .map(|q| q.split_whitespace().map(str::to_string).collect())
+            .unwrap_or_default();
+
+        Self {
+            tokens,
+            security_code: params.security_code.clone(),
+            security_name: params.security_name.clone(),
+        }
+    }
+}
+
+/// ILIKE の wildcard 文字（%, _, \）をリテラル扱いにエスケープしてから前後を % で囲む
+fn escape_like_pattern(token: &str) -> String {
+    let escaped = token
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    format!("%{escaped}%")
+}
+
+/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
+fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &AssetBalanceFilter) {
+    qb.push(" WHERE user_id = ").push_bind(user_id);
+    if let Some(v) = &filter.security_code {
+        qb.push(" AND security_code = ").push_bind(v.clone());
+    }
+    if let Some(v) = &filter.security_name {
+        qb.push(" AND security_name = ").push_bind(v.clone());
+    }
+    for token in &filter.tokens {
+        let pattern = escape_like_pattern(token);
+        qb.push(" AND (security_code ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" ESCAPE '\\' OR security_name ILIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\')");
+    }
+}
+
+/// 認証ユーザーの保有銘柄一覧を検索（ページネーション・summary・facets 対応）
+pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
-    params: &PaginationParams,
-) -> Result<PaginatedResponse<AssetBalance>, ApiError> {
-    info!("[asset_balance.list] リクエスト受信");
-    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM asset_balances WHERE user_id = $1")
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+    params: &AssetBalanceSearchQueryParams,
+) -> Result<PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>, ApiError> {
+    info!("[asset_balance.search] リクエスト受信");
+    let filter = AssetBalanceFilter::from_params(params);
 
-    let data = sqlx::query_as::<_, AssetBalance>(
-        r#"
-        SELECT id, user_id, security_code, security_name, shares, executing_shares,
-               average_purchase_price, total_purchase_amount, current_price,
-               daily_change, market_value, profit_loss_rate, created_at, updated_at
-        FROM asset_balances
-        WHERE user_id = $1
-        ORDER BY security_code
-        LIMIT $2 OFFSET $3
-        "#,
-    )
-    .bind(user_id)
-    .bind(params.per_page())
-    .bind(params.offset())
-    .fetch_all(pool)
-    .await?;
+    let mut count_qb: QueryBuilder<Postgres> =
+        QueryBuilder::new("SELECT COUNT(*) FROM asset_balances");
+    push_filters(&mut count_qb, user_id, &filter);
+    let count_fut = async move {
+        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
+        Ok::<_, ApiError>(total)
+    };
 
-    Ok(PaginatedResponse {
+    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT id, user_id, security_code, security_name, shares, executing_shares, \
+         average_purchase_price, total_purchase_amount, current_price, daily_change, \
+         market_value, profit_loss_rate, created_at, updated_at \
+         FROM asset_balances",
+    );
+    push_filters(&mut data_qb, user_id, &filter);
+    data_qb.push(" ORDER BY security_code ASC, id ASC LIMIT ");
+    data_qb.push_bind(params.per_page());
+    data_qb.push(" OFFSET ");
+    data_qb.push_bind(params.offset());
+    let data_fut = async move {
+        let data = data_qb
+            .build_query_as::<AssetBalance>()
+            .fetch_all(pool)
+            .await?;
+        Ok::<_, ApiError>(data)
+    };
+
+    let summary_fut = async {
+        if params.should_include_summary() {
+            fetch_summary(pool, user_id, &filter).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    };
+
+    let facets_fut = async {
+        if params.should_include_facets() {
+            fetch_facets(pool, user_id, &filter).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    };
+
+    // count/data/summary/facets は相互に依存しないため並行実行する
+    let (total, data, summary, facets) =
+        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
+
+    Ok(PaginatedSearchResponse {
         data,
         total,
         page: params.page(),
         per_page: params.per_page(),
+        summary,
+        facets,
     })
+}
+
+/// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
+async fn fetch_summary(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &AssetBalanceFilter,
+) -> Result<AssetBalanceSummary, ApiError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
+         COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
+         COALESCE(SUM(daily_change), 0) AS total_daily_change \
+         FROM asset_balances",
+    );
+    push_filters(&mut qb, user_id, filter);
+    Ok(qb
+        .build_query_as::<AssetBalanceSummary>()
+        .fetch_one(pool)
+        .await?)
+}
+
+async fn fetch_facets(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &AssetBalanceFilter,
+) -> Result<SearchFacets, ApiError> {
+    let securities = fetch_security_facets(pool, user_id, filter).await?;
+
+    Ok(SearchFacets {
+        products: None,
+        accounts: None,
+        securities: Some(securities),
+        funds: None,
+        years: None,
+        year_months: None,
+    })
+}
+
+/// 銘柄コードごとに銘柄名・件数を facets として返す
+async fn fetch_security_facets(
+    pool: &PgPool,
+    user_id: Uuid,
+    filter: &AssetBalanceFilter,
+) -> Result<Vec<FacetOption>, ApiError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT security_code AS value, \
+         (ARRAY_AGG(security_name ORDER BY id))[1] AS label, \
+         COUNT(*) AS count \
+         FROM asset_balances",
+    );
+    push_filters(&mut qb, user_id, filter);
+    qb.push(" GROUP BY security_code ORDER BY security_code");
+    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
@@ -407,5 +548,61 @@ mod tests {
                 expected_codes
             );
         }
+    }
+
+    #[test]
+    fn test_asset_balance_search_query_params_delegate_include_flags() {
+        let mut params = AssetBalanceSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
+    }
+
+    #[test]
+    fn test_push_filters_combines_q_tokens_as_and_of_or_across_all_columns() {
+        let mut params = AssetBalanceSearchQueryParams::default();
+        params.search.q = Some("AA BB".to_string());
+        let filter = AssetBalanceFilter::from_params(&params);
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
+        push_filters(&mut qb, Uuid::nil(), &filter);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は2カラムの OR になる
+        assert_eq!(sql.matches(" AND (").count(), 2);
+        assert_eq!(sql.matches("security_code ILIKE").count(), 2);
+        assert_eq!(sql.matches("security_name ILIKE").count(), 2);
+    }
+
+    #[test]
+    fn test_escape_like_pattern_escapes_wildcard_characters() {
+        assert_eq!(escape_like_pattern("abc"), "%abc%");
+        assert_eq!(escape_like_pattern("50%"), "%50\\%%");
+        assert_eq!(escape_like_pattern("A_B"), "%A\\_B%");
+        assert_eq!(escape_like_pattern("a\\b"), "%a\\\\b%");
+        assert_eq!(escape_like_pattern("100%_off\\"), "%100\\%\\_off\\\\%");
+    }
+
+    #[test]
+    fn test_push_filters_binds_asset_balance_specific_field_filters() {
+        let params = AssetBalanceSearchQueryParams {
+            security_code: Some("1234".to_string()),
+            security_name: Some("テスト株式会社".to_string()),
+            ..Default::default()
+        };
+        let filter = AssetBalanceFilter::from_params(&params);
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
+        push_filters(&mut qb, Uuid::nil(), &filter);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.contains("AND security_code = "));
+        assert!(sql.contains("AND security_name = "));
     }
 }

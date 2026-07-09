@@ -13,6 +13,7 @@ SQLx migration の baseline 管理。
 | 0002 | `0002_dividends_search_indexes.sql` | 配当金検索（product/account/security_code/security_name の絞り込み、settlement_date/id 順の一覧取得）向け index を追加 |
 | 0003 | `0003_domestic_stocks_search_indexes.sql` | 国内株式検索（account/security_code/security_name の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
 | 0004 | `0004_mutualfunds_search_indexes.sql` | 投資信託検索（account/fund_name/dividends の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
+| 0005 | `0005_asset_balances_search_indexes.sql` | 保有銘柄検索（security_code/security_name の絞り込み、security_code/id 順の一覧取得）向け index を追加 |
 
 ## 重要な注意
 
