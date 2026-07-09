@@ -1,4 +1,4 @@
-use crate::models::common::validate_length_field;
+use crate::models::common::{validate_length_field, SearchQueryParams};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -63,6 +63,52 @@ pub struct CreateMutualfundRequest {
     pub taxes: Decimal,
     #[schema(value_type = f64)]
     pub realized_profit_and_loss_after_tax: Decimal,
+}
+
+/// 投資信託一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 投資信託固有の絞り込み）
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct MutualfundSearchQueryParams {
+    #[serde(flatten)]
+    pub search: SearchQueryParams,
+    /// 口座での絞り込み
+    pub account: Option<String>,
+    /// ファンド名での絞り込み
+    pub fund_name: Option<String>,
+    /// 分配金での絞り込み
+    pub dividends: Option<String>,
+}
+
+impl MutualfundSearchQueryParams {
+    pub fn page(&self) -> i64 {
+        self.search.page()
+    }
+
+    pub fn per_page(&self) -> i64 {
+        self.search.per_page()
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.search.offset()
+    }
+
+    pub fn should_include_summary(&self) -> bool {
+        self.search.should_include_summary()
+    }
+
+    pub fn should_include_facets(&self) -> bool {
+        self.search.should_include_facets()
+    }
+}
+
+/// 投資信託 検索条件全体の集計
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct MutualfundSummary {
+    #[schema(value_type = f64)]
+    pub total_realized_profit_and_loss: Decimal,
+    #[schema(value_type = f64)]
+    pub total_taxes: Decimal,
+    #[schema(value_type = f64)]
+    pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
 impl Validate for CreateMutualfundRequest {
@@ -141,5 +187,17 @@ mod tests {
         }
         .validate()
         .is_ok());
+    }
+
+    #[test]
+    fn test_mutualfund_search_query_params_delegate_include_flags() {
+        let mut params = MutualfundSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
     }
 }

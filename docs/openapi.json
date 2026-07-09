@@ -1286,6 +1286,106 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "フリーワード検索（口座/ファンド名/分配金の token AND 検索）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "description": "約定日の開始日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "description": "約定日の終了日（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "約定日の年（YYYY）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "year_month",
+            "in": "query",
+            "description": "約定日の年月（YYYY-MM）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "約定日の単日指定（YYYY-MM-DD）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "description": "口座での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fund_name",
+            "in": "query",
+            "description": "ファンド名での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dividends",
+            "in": "query",
+            "description": "分配金での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_summary",
+            "in": "query",
+            "description": "検索条件全体の集計を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_facets",
+            "in": "query",
+            "description": "検索候補 facets を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1294,7 +1394,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_Mutualfund"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3029,6 +3139,29 @@
           }
         }
       },
+      "MutualfundSummary": {
+        "type": "object",
+        "description": "投資信託 検索条件全体の集計",
+        "required": [
+          "total_realized_profit_and_loss",
+          "total_taxes",
+          "total_realized_profit_and_loss_after_tax"
+        ],
+        "properties": {
+          "total_realized_profit_and_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_realized_profit_and_loss_after_tax": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_taxes": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "PaginatedResponse_AssetBalance": {
         "type": "object",
         "description": "ページネーションレスポンス（全ドメイン共通）",
@@ -3105,120 +3238,6 @@
                 "total_purchase_amount": {
                   "type": "number",
                   "format": "double"
-                },
-                "updated_at": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              }
-            }
-          },
-          "page": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "per_page": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "total": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
-      "PaginatedResponse_Mutualfund": {
-        "type": "object",
-        "description": "ページネーションレスポンス（全ドメイン共通）",
-        "required": [
-          "data",
-          "total",
-          "page",
-          "per_page"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "description": "投資信託モデル（DB + APIレスポンス兼用）",
-              "required": [
-                "id",
-                "trade_date",
-                "settlement_date",
-                "fund_name",
-                "account",
-                "shares",
-                "exchange_rate",
-                "cancellation_unit_price_yen",
-                "cancellation_amount_yen",
-                "average_acquisition_price_yen",
-                "realized_profit_and_loss",
-                "taxes",
-                "realized_profit_and_loss_after_tax",
-                "created_at",
-                "updated_at"
-              ],
-              "properties": {
-                "account": {
-                  "type": "string"
-                },
-                "average_acquisition_price_yen": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "cancellation_amount_yen": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "cancellation_unit_price_yen": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "created_at": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "dividends": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "exchange_rate": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "fund_name": {
-                  "type": "string"
-                },
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "realized_profit_and_loss": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "realized_profit_and_loss_after_tax": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "settlement_date": {
-                  "type": "string",
-                  "format": "date"
-                },
-                "shares": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "taxes": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "trade_date": {
-                  "type": "string",
-                  "format": "date"
                 },
                 "updated_at": {
                   "type": "string",
@@ -3584,6 +3603,203 @@
           "summary": {
             "type": "object",
             "description": "国内株式取引 検索条件全体の集計\n\ntrade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、\n特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする\nfrontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。",
+            "required": [
+              "total_realized_profit_and_loss",
+              "total_taxes",
+              "total_realized_profit_and_loss_after_tax"
+            ],
+            "properties": {
+              "total_realized_profit_and_loss": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_realized_profit_and_loss_after_tax": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_taxes": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets": {
+        "type": "object",
+        "description": "検索・集計付きページネーションレスポンス。",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "投資信託モデル（DB + APIレスポンス兼用）",
+              "required": [
+                "id",
+                "trade_date",
+                "settlement_date",
+                "fund_name",
+                "account",
+                "shares",
+                "exchange_rate",
+                "cancellation_unit_price_yen",
+                "cancellation_amount_yen",
+                "average_acquisition_price_yen",
+                "realized_profit_and_loss",
+                "taxes",
+                "realized_profit_and_loss_after_tax",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "average_acquisition_price_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cancellation_amount_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cancellation_unit_price_yen": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dividends": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "exchange_rate": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "fund_name": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "realized_profit_and_loss": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "realized_profit_and_loss_after_tax": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "settlement_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "taxes": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "trade_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "facets": {
+            "type": "object",
+            "description": "検索候補レスポンスの共通枠。",
+            "properties": {
+              "accounts": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "funds": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "products": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "securities": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "year_months": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "years": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "object",
+            "description": "投資信託 検索条件全体の集計",
             "required": [
               "total_realized_profit_and_loss",
               "total_taxes",
