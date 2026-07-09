@@ -4,7 +4,6 @@ import type { AssetBalanceData } from '@/types/api';
 import { assetBalanceApi } from '@/features/assetBalance/api/assetBalanceApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { normalizeSecurityCode } from '@/lib/utils/formatters';
-import { fetchAllPages } from '@/lib/api/pagination';
 import { assetBalanceQueryKeys, clearAssetBalanceCache } from '../queryKeys';
 
 interface UseAssetBalanceReturn {
@@ -17,6 +16,7 @@ interface UseAssetBalanceReturn {
 
 interface UseAssetBalanceOptions {
   enabled?: boolean;
+  securityCode?: string;
 }
 
 /**
@@ -24,14 +24,25 @@ interface UseAssetBalanceOptions {
  * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空配列を返す
  */
 export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetBalanceReturn {
-  const { enabled = true } = options;
+  const { enabled = true, securityCode } = options;
   const { isAuthenticated, onLogout, user } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id ?? '';
+  const normalizedSecurityCode = normalizeSecurityCode(securityCode ?? '');
+  const queryKey = normalizedSecurityCode
+    ? assetBalanceQueryKeys.lookup(userId, normalizedSecurityCode)
+    : assetBalanceQueryKeys.all(userId);
 
   const query = useQuery({
-    queryKey: assetBalanceQueryKeys.all(userId),
-    queryFn: () => fetchAllPages((page) => assetBalanceApi.list({ per_page: 1000, page })),
+    queryKey,
+    queryFn: async () => {
+      const response = await assetBalanceApi.list(
+        normalizedSecurityCode
+          ? { page: 1, per_page: 1, security_code: normalizedSecurityCode }
+          : { page: 1, per_page: 1000 }
+      );
+      return response.data;
+    },
     enabled: isAuthenticated && !!userId && enabled,
   });
 
@@ -56,7 +67,7 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
   };
 
   const refetch = async () => {
-    await queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(userId) });
+    await queryClient.invalidateQueries({ queryKey });
   };
 
   return {

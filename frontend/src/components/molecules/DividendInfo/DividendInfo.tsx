@@ -115,7 +115,10 @@ export const DividendInfo: React.FC<DividendInfoProps> = ({
 
   const isValidSecurityCode = !!effectiveSecurityCode && SECURITY_CODE_REGEX.test(effectiveSecurityCode);
 
-  const { getAssetBalanceByCode } = useAssetBalance({ enabled: isValidSecurityCode });
+  const { getAssetBalanceByCode } = useAssetBalance({
+    enabled: isValidSecurityCode,
+    securityCode: effectiveSecurityCode,
+  });
 
   const dividendBatchCodes = isValidSecurityCode ? [effectiveSecurityCode] : [];
   const { dividendPerShareMap, loading: apiLoading } = useDividendBatch(dividendBatchCodes, isValidSecurityCode);

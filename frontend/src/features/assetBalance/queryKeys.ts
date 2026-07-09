@@ -6,6 +6,8 @@ export const assetBalanceQueryKeys = {
   prefix: ['assetBalance'] as const,
   // useAssetBalance（DividendInfo 用）が参照する全件配列キャッシュ
   all: (userId: string) => ['assetBalance', userId] as const,
+  lookup: (userId: string, securityCode: string) =>
+    ['assetBalance', userId, 'lookup', securityCode] as const,
   // useAssetBalanceDataSource が参照する summary/facets 付きレスポンスキャッシュ
   // all と shape が異なるため、同じキーで共有しない
   list: (userId: string) => ['assetBalance', userId, 'list'] as const,
