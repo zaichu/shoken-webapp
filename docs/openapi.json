@@ -240,6 +240,51 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "フリーワード検索（銘柄コード/銘柄名の token AND 検索）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "security_code",
+            "in": "query",
+            "description": "銘柄コードでの絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "security_name",
+            "in": "query",
+            "description": "銘柄名での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_summary",
+            "in": "query",
+            "description": "検索条件全体の集計を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_facets",
+            "in": "query",
+            "description": "検索候補 facets を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -248,7 +293,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_AssetBalance"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1769,6 +1824,29 @@
           }
         }
       },
+      "AssetBalanceSummary": {
+        "type": "object",
+        "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。",
+        "required": [
+          "total_market_value",
+          "total_purchase_amount",
+          "total_daily_change"
+        ],
+        "properties": {
+          "total_daily_change": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_market_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "BulkCreateAssetBalanceRequest": {
         "type": "object",
         "description": "保有銘柄一括作成リクエスト",
@@ -3162,9 +3240,9 @@
           }
         }
       },
-      "PaginatedResponse_AssetBalance": {
+      "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets": {
         "type": "object",
-        "description": "ページネーションレスポンス（全ドメイン共通）",
+        "description": "検索・集計付きページネーションレスポンス。",
         "required": [
           "data",
           "total",
@@ -3246,6 +3324,66 @@
               }
             }
           },
+          "facets": {
+            "type": "object",
+            "description": "検索候補レスポンスの共通枠。",
+            "properties": {
+              "accounts": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "funds": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "products": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "securities": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "year_months": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              },
+              "years": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/FacetOption"
+                }
+              }
+            }
+          },
           "page": {
             "type": "integer",
             "format": "int64"
@@ -3253,6 +3391,29 @@
           "per_page": {
             "type": "integer",
             "format": "int64"
+          },
+          "summary": {
+            "type": "object",
+            "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。",
+            "required": [
+              "total_market_value",
+              "total_purchase_amount",
+              "total_daily_change"
+            ],
+            "properties": {
+              "total_daily_change": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_market_value": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_purchase_amount": {
+                "type": "number",
+                "format": "double"
+              }
+            }
           },
           "total": {
             "type": "integer",

@@ -5,7 +5,7 @@ use axum::{
 use backend::{
     config::Config,
     db::run_migrations,
-    models::asset_balance::CreateAssetBalanceRequest,
+    models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
@@ -18,11 +18,8 @@ use backend::{
     state::{AppState, Secrets},
 };
 
-fn default_pagination() -> PaginationParams {
-    PaginationParams {
-        page: None,
-        per_page: None,
-    }
+fn default_asset_balance_search_params() -> AssetBalanceSearchQueryParams {
+    AssetBalanceSearchQueryParams::default()
 }
 
 fn default_dividend_search_params() -> DividendSearchQueryParams {
@@ -475,7 +472,7 @@ async fn service_coverage_all_domains() {
     );
 
     assert!(
-        asset_balance_svc::list(&pool, user_id, &default_pagination())
+        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
             .await
             .expect("initial asset_balance list failed")
             .data
@@ -495,7 +492,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_created.inserted, 2);
     assert_eq!(asset_balance_created.skipped, 0);
     assert_eq!(
-        asset_balance_svc::list(&pool, user_id, &default_pagination())
+        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
             .await
             .expect("asset_balance list after bulk_create failed")
             .data
@@ -511,10 +508,11 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_uploaded.skipped, 0);
     assert!(asset_balance_uploaded.errors.is_empty());
 
-    let asset_balance_rows = asset_balance_svc::list(&pool, user_id, &default_pagination())
-        .await
-        .expect("asset_balance list failed")
-        .data;
+    let asset_balance_rows =
+        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
+            .await
+            .expect("asset_balance list failed")
+            .data;
     assert_eq!(asset_balance_rows.len(), 1);
     assert_eq!(asset_balance_rows[0].security_code, "7203");
 
@@ -525,7 +523,7 @@ async fn service_coverage_all_domains() {
         1
     );
     assert!(
-        asset_balance_svc::list(&pool, user_id, &default_pagination())
+        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
             .await
             .expect("asset_balance list after delete failed")
             .data
@@ -555,7 +553,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
         .await
         .expect("2回目 bulk_create 失敗");
 
-    let rows = asset_balance_svc::list(&pool, user_id, &default_pagination())
+    let rows = asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
         .await
         .expect("list 失敗")
         .data;
@@ -600,7 +598,7 @@ async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
     res_a.unwrap().expect("task_a 失敗");
     res_b.unwrap().expect("task_b 失敗");
 
-    let rows = asset_balance_svc::list(&pool, user_id, &default_pagination())
+    let rows = asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
         .await
         .expect("list 失敗")
         .data;
