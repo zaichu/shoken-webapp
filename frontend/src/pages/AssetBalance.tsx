@@ -6,6 +6,7 @@ import { Alert } from '@/components/atoms/Alert';
 import { Button } from '@/components/atoms/Button';
 import { Spinner } from '@/components/atoms/Spinner';
 import type { AssetBalanceData } from '@/types/api';
+import type { AssetBalanceSummary } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
 import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
 import { AssetBalanceUtilityRail } from '@/features/assetBalance/components/AssetBalanceUtilityRail';
 import { useAssetBalanceState } from '@/features/assetBalance/hooks/useAssetBalanceState';
@@ -27,6 +28,7 @@ interface AssetBalanceInfoProps {
   onClearFilter: () => void;
   dividendPerShareMap: Map<string, number>;
   dividendStatusMap?: Map<string, DividendStatus>;
+  portfolioSummary?: AssetBalanceSummary;
 }
 
 /**
@@ -39,6 +41,7 @@ export function AssetBalanceInfo({
   onClearFilter,
   dividendPerShareMap,
   dividendStatusMap,
+  portfolioSummary,
 }: AssetBalanceInfoProps) {
   const isFiltered = searchQuery !== '';
 
@@ -51,6 +54,7 @@ export function AssetBalanceInfo({
         onClearFilter={isFiltered ? onClearFilter : undefined}
         dividendPerShareMap={dividendPerShareMap}
         dividendStatusMap={dividendStatusMap}
+        summary={portfolioSummary}
       />
     </Suspense>
   );
@@ -68,6 +72,7 @@ export function AssetBalancePage() {
     login,
     assetBalanceData,
     filteredData,
+    portfolioSummary,
     clearSearch,
     utilityRailProps,
     showDeleteConfirm,
@@ -138,6 +143,7 @@ export function AssetBalancePage() {
                       onClearFilter={clearSearch}
                       dividendPerShareMap={dividendPerShareMap}
                       dividendStatusMap={dividendStatusMap}
+                      portfolioSummary={portfolioSummary}
                     />
                   )}
                 </>

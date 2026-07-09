@@ -11,6 +11,7 @@ import { AssetReviewPromptCard } from './AssetReviewPromptCard';
 export interface AssetBalanceUtilityRailProps {
   actionRailProps: DataActionRailProps;
   error: string | null;
+  warning?: string | null;
   searchCardProps: {
     visible: boolean;
     categories: SearchCategories;
@@ -25,6 +26,7 @@ export interface AssetBalanceUtilityRailProps {
 export function AssetBalanceUtilityRail({
   actionRailProps,
   error,
+  warning,
   searchCardProps,
   reviewPromptCardProps,
 }: AssetBalanceUtilityRailProps) {
@@ -37,6 +39,12 @@ export function AssetBalanceUtilityRail({
           <Alert variant="danger" role="alert" aria-live="assertive">
             <strong>エラー:</strong> {error}
           </Alert>
+        </div>
+      )}
+
+      {warning && (
+        <div className="px-5 py-4" role="status" aria-live="polite">
+          <Alert variant="warning">{warning}</Alert>
         </div>
       )}
 

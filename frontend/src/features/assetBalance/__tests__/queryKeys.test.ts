@@ -11,6 +11,10 @@ describe('assetBalanceQueryKeys', () => {
     expect(assetBalanceQueryKeys.all('user-1')).toEqual(['assetBalance', 'user-1']);
   });
 
+  it('list("user-1") が ["assetBalance", "user-1", "list"] を返す', () => {
+    expect(assetBalanceQueryKeys.list('user-1')).toEqual(['assetBalance', 'user-1', 'list']);
+  });
+
   it('all("user-2") が ["assetBalance", "user-2"] を返す', () => {
     expect(assetBalanceQueryKeys.all('user-2')).toEqual(['assetBalance', 'user-2']);
   });

@@ -117,34 +117,40 @@ describe('useAssetBalanceDataSource: 基本動作', () => {
     });
   });
 
-  it('total が per_page を超える場合は次ページを取得し全件を dbData に含める', async () => {
+  it('一覧APIをinclude_summary/include_facets付きで1回だけ呼び、dbData/summary/facetsを返す', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
-    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockImplementation(
-      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
-        if (page === 1) {
-          return Promise.resolve({
-            data: Array.from({ length: 1000 }, (_, index) =>
-              ({ security_code: String(7000 + index), security_name: '銘柄' + index, shares: 100 }) as never
-            ),
-            total: 1001, page: 1, per_page: 1000,
-          });
-        }
-        return Promise.resolve({
-          data: [{ security_code: '6758', security_name: 'ソニーグループ', shares: 50 } as never],
-          total: 1001, page: 2, per_page: 1000,
-        });
-      }
-    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
+      data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never],
+      total: 1,
+      page: 1,
+      per_page: 1000,
+      summary: { total_purchase_amount: 250000, total_market_value: 260000, total_daily_change: 50 },
+      facets: { securities: [{ value: '7203', label: '7203: トヨタ自動車' }] },
+    });
 
     const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.dbData).toHaveLength(1001);
+      expect(result.current.dbData).toHaveLength(1);
     });
-    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenCalledTimes(2);
-    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
-    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenCalledTimes(1);
+    expect(assetBalanceApiModule.assetBalanceApi.list).toHaveBeenCalledWith({
+      page: 1,
+      per_page: 1000,
+      include_summary: true,
+      include_facets: true,
+    });
+    expect(result.current.dbTotal).toBe(1);
+    expect(result.current.summary).toEqual({
+      total_purchase_amount: 250000,
+      total_market_value: 260000,
+      total_daily_change: 50,
+    });
+    expect(result.current.facets).toEqual({
+      securities: [{ value: '7203', label: '7203: トヨタ自動車' }],
+    });
   });
 
   it('deleteAll完了後にcacheキーが存在しない場合setQueryDataを呼ばない', async () => {
@@ -197,7 +203,7 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
 
     // データがキャッシュに入り、onLogout が登録されるまで待つ
     await waitFor(() => {
-      expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeDefined();
+      expect(qc.getQueryData(assetBalanceQueryKeys.list('user-1'))).toBeDefined();
     });
     await waitFor(() => expect(capturedCallbacks.length).toBeGreaterThan(0));
 
@@ -212,14 +218,14 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
 
     // キャッシュがクリアされたことを確認
     await waitFor(() => {
-      expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeUndefined();
+      expect(qc.getQueryData(assetBalanceQueryKeys.list('user-1'))).toBeUndefined();
     });
 
     // deleteAll を完了させる（onSuccess が setQueryData を試みる）
     await act(async () => { resolveDeleteAll(); });
 
     // getQueryState ガードにより キャッシュが再生成されていないことを確認
-    expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeUndefined();
+    expect(qc.getQueryData(assetBalanceQueryKeys.list('user-1'))).toBeUndefined();
   });
 
   it('uploadCsv 実行中ユーザー変更: snapshotUserId キーで invalidateQueries される', async () => {
@@ -271,9 +277,11 @@ describe('useAssetBalanceDataSource: キャッシュ境界', () => {
     // uploadCsv を完了させる（onSuccess が snapshotUserId で動作するか確認）
     await act(async () => { resolveUploadCsv(); });
 
-    // snapshotUserId（user-1）キーで invalidateQueries が呼ばれたことを確認
+    // snapshotUserId（user-1）キーで all と list の両方が invalidate されることを確認
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.all('user-1') });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.list('user-1') });
     // user-2 キーでは呼ばれていないことを確認
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.all('user-2') });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: assetBalanceQueryKeys.list('user-2') });
   });
 });

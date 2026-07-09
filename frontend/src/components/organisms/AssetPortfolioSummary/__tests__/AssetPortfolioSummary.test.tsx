@@ -63,6 +63,23 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.getByText(/850,000/)).toBeInTheDocument();
   });
 
+  it('API summary がある場合は合計取得総額に summary を優先する', () => {
+    const mockData = createMockData();
+    render(
+      <AssetPortfolioSummary
+        assetBalanceData={mockData}
+        summary={{
+          total_purchase_amount: 1234567,
+          total_market_value: 1300000,
+          total_daily_change: 5000,
+        }}
+      />
+    );
+
+    expect(screen.getByText(/1,234,567/)).toBeInTheDocument();
+    expect(screen.queryByText(/850,000/)).not.toBeInTheDocument();
+  });
+
   it('円グラフが表示される', () => {
     const mockData = createMockData();
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);

@@ -74,6 +74,10 @@ export function useAssetBalanceState() {
   const [state, dispatch] = useReducer(assetBalanceReducer, initialState);
   const {
     dbData,
+    dbTotal,
+    summary,
+    facets,
+    assetBalanceListLimit,
     previewRows,
     loading,
     error,
@@ -130,9 +134,22 @@ export function useAssetBalanceState() {
   const { dividendPerShareMap, dividendStatusMap } = useDividendBatch(securityCodes, isAuthenticated);
 
   const filteredData = filterByConfig(assetBalanceData, state.searchQuery, filterConfig);
-  const searchCategories: SearchCategories = {
-    securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true),
-  };
+
+  // facets は保存済み DB データ（一覧 API）由来のため、CSV プレビュー中は使わない
+  const searchCategories: SearchCategories = !hasCsvFile && facets?.securities
+    ? {
+      securities: facets.securities.map((option) => ({ value: option.value, label: option.label })),
+    }
+    : {
+      securities: createSearchOptions(assetBalanceData, 'security_code', 'security_name', true),
+    };
+
+  // summary も一覧 API 由来のため、CSV プレビュー中や検索絞り込み中は使わない
+  const portfolioSummary = !hasCsvFile && state.searchQuery === '' ? summary : undefined;
+
+  const dbWarning = !hasCsvFile && dbTotal > assetBalanceListLimit
+    ? `一覧は最大${assetBalanceListLimit}件まで表示しています。未表示の銘柄がある可能性があります。`
+    : null;
 
   const saveLabel = previewRows.length > 0
     ? `${previewRows.length}件 全件置換で保存`
@@ -157,6 +174,7 @@ export function useAssetBalanceState() {
   const utilityRailProps: AssetBalanceUtilityRailProps = {
     actionRailProps,
     error,
+    warning: dbWarning,
     searchCardProps: {
       visible: assetBalanceData.length > 0,
       categories: searchCategories,
@@ -176,6 +194,7 @@ export function useAssetBalanceState() {
     login,
     assetBalanceData,
     filteredData,
+    portfolioSummary,
     clearSearch,
     utilityRailProps,
     showDeleteConfirm: state.showDeleteConfirm,

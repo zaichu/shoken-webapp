@@ -64,6 +64,10 @@ function makeDataSourceMock(
 ): UseAssetBalanceDataSourceReturn {
   return {
     dbData: [],
+    dbTotal: 0,
+    summary: undefined,
+    facets: undefined,
+    assetBalanceListLimit: 1000,
     previewRows: [],
     loading: false,
     error: null,
@@ -187,5 +191,151 @@ describe('useAssetBalanceState', () => {
 
     expect(result.current.utilityRailProps.searchCardProps.value).toBe('');
     expect(result.current.showDeleteConfirm).toBe(false);
+  });
+
+  it('facetsがある場合は検索候補にfacets由来のsecuritiesを使う', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        facets: {
+          securities: [{ value: '9984', label: '9984: ソフトバンクグループ', count: 1 }],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.searchCardProps.categories.securities).toEqual([
+      { value: '9984', label: '9984: ソフトバンクグループ' },
+    ]);
+  });
+
+  it('facetsがない場合は表示データからcreateSearchOptionsで検索候補を作る', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        facets: undefined,
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.searchCardProps.categories.securities).toEqual([
+      { value: '7203', label: '7203: トヨタ自動車' },
+    ]);
+  });
+
+  it('CSVプレビュー中はfacetsがあってもcreateSearchOptions由来の候補を使う', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        previewRows: [makeRow({ security_code: '4568', security_name: 'プレビュー銘柄' })],
+        hasCsvFile: true,
+        facets: {
+          securities: [{ value: '9984', label: '9984: ソフトバンクグループ', count: 1 }],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.searchCardProps.categories.securities).toEqual([
+      { value: '4568', label: '4568: プレビュー銘柄' },
+    ]);
+  });
+
+  it('summaryがある場合はportfolioSummaryとして返す（未検索・非プレビュー時）', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        summary: {
+          total_purchase_amount: 250000,
+          total_market_value: 260000,
+          total_daily_change: 50,
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.portfolioSummary).toEqual({
+      total_purchase_amount: 250000,
+      total_market_value: 260000,
+      total_daily_change: 50,
+    });
+  });
+
+  it('検索中はsummaryがあってもportfolioSummaryはundefinedになる', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        summary: {
+          total_purchase_amount: 250000,
+          total_market_value: 260000,
+          total_daily_change: 50,
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    act(() => {
+      result.current.utilityRailProps.searchCardProps.onSearch('7203');
+    });
+
+    expect(result.current.portfolioSummary).toBeUndefined();
+  });
+
+  it('CSVプレビュー中はsummaryがあってもportfolioSummaryはundefinedになる', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        previewRows: [makeRow()],
+        hasCsvFile: true,
+        summary: {
+          total_purchase_amount: 250000,
+          total_market_value: 260000,
+          total_daily_change: 50,
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.portfolioSummary).toBeUndefined();
+  });
+
+  it('dbTotalが上限を超える場合は件数上限の警告を表示する', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        dbTotal: 1001,
+        assetBalanceListLimit: 1000,
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.warning).toBe(
+      '一覧は最大1000件まで表示しています。未表示の銘柄がある可能性があります。'
+    );
+  });
+
+  it('dbTotalが上限以下の場合は警告を表示しない', () => {
+    vi.mocked(dataSourceHook.useAssetBalanceDataSourceCore).mockReturnValue(
+      makeDataSourceMock({
+        dbData: [makeRow()],
+        hasDbData: true,
+        dbTotal: 1,
+        assetBalanceListLimit: 1000,
+      })
+    );
+
+    const { result } = renderHook(() => useAssetBalanceState());
+
+    expect(result.current.utilityRailProps.warning).toBeNull();
   });
 });
