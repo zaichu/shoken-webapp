@@ -145,7 +145,8 @@ pub async fn search(
         }
     };
 
-    // count/data/summary/facets は相互に依存しないため並行実行する
+    // count/data/summary/facets は相互に依存しないため並行実行する。
+    // summary/facets は include_* が true の場合だけ実クエリを発行する。
     let (total, data, summary, facets) =
         tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
 
