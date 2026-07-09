@@ -3,6 +3,7 @@ import { Card, CardBody } from '@/components/atoms/Card';
 import { EmptyState } from '@/components/atoms/EmptyState';
 import { PortfolioPieChart, PortfolioItem } from '@/components/molecules/PortfolioPieChart';
 import type { AssetBalanceData } from '@/types/api';
+import type { AssetBalanceSummary as AssetBalanceSummaryData } from '@/features/assetBalance/hooks/useAssetBalanceDataSource';
 import {
   formatCurrency,
   formatPercentageValue,
@@ -18,6 +19,7 @@ interface AssetPortfolioSummaryProps {
   onClearFilter?: () => void; // 絞り込み解除
   dividendPerShareMap?: Map<string, number>; // 銘柄別1株配当（J-Quants予想）
   dividendStatusMap?: Map<string, DividendStatus>; // 銘柄別取得ステータス
+  summary?: AssetBalanceSummaryData; // 一覧 API の検索条件全体集計（渡された場合は合計取得総額に優先利用）
 }
 
 /**
@@ -31,12 +33,15 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
   onClearFilter,
   dividendPerShareMap,
   dividendStatusMap,
+  summary,
 }) => {
-  // 合計取得総額を計算（null/undefinedは0として扱う）
-  const totalPurchaseAmount = assetBalanceData.reduce(
-    (sum, item) => safeAdd(sum, item.total_purchase_amount || 0),
-    0
-  );
+  // 合計取得総額を計算（summary がある場合は検索条件全体の集計を優先し、なければ表示中データから計算）
+  const totalPurchaseAmount = summary
+    ? summary.total_purchase_amount
+    : assetBalanceData.reduce(
+      (sum, item) => safeAdd(sum, item.total_purchase_amount || 0),
+      0
+    );
 
   // ポートフォリオ全体の年間配当金額と配当利回り（%）
   // 年間配当 = Σ(1株配当 × 保有株数)、配当利回り = 年間配当 / 取得総額 × 100
