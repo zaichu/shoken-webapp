@@ -270,7 +270,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
-  it('dividend: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+  it('dividend: total が per_page を超えても API 検索では次ページを取得しない', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -300,15 +300,14 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.dividendData).toHaveLength(1001);
+      expect(result.current.dividendData).toHaveLength(1000);
     });
-    expect(result.current.dividendData).toContainEqual({ id: '1001', payment_date: '2023-01-02' });
-    expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
-    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+    expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
-  it('domesticstock: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+  it('domesticstock: total が per_page を超えても API 検索では次ページを取得しない', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -338,15 +337,14 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.domesticstockData).toHaveLength(1001);
+      expect(result.current.domesticstockData).toHaveLength(1000);
     });
-    expect(result.current.domesticstockData).toContainEqual({ id: 'stock-1001', trade_date: '2023-02-02' });
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+    expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
-  it('mutualfund: total が per_page を超える場合は次ページを取得し全件を返す', async () => {
+  it('mutualfund: total が per_page を超えても API 検索では次ページを取得しない', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -376,12 +374,11 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.mutualfundData).toHaveLength(1001);
+      expect(result.current.mutualfundData).toHaveLength(1000);
     });
-    expect(result.current.mutualfundData).toContainEqual({ id: 'fund-1001', trade_date: '2023-03-02' });
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(2);
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(2, { per_page: 1000, page: 2 });
+    expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
   it('deleteAll mutation: domesticstock と mutualfund を削除できる', async () => {

@@ -23,6 +23,7 @@ export function useReceiptsState() {
     saving,
     deleting,
     previewing,
+    receiptListLimit,
     uploadCsv,
     previewCsv,
     deleteAll,
@@ -45,6 +46,9 @@ export function useReceiptsState() {
   const csvPreview = csvPreviews[receiptsType];
   const importResult = lastImportResults[receiptsType];
   const dbDataCount = currentData.length;
+  const dbWarning = dbDataCount >= receiptListLimit
+    ? '一覧は最大' + receiptListLimit + '件まで表示しています。検索条件を絞り込んでください。'
+    : null;
   const hasCsvFile = rawFile !== null;
   const tabName = TAB_LABEL[receiptsType];
   const saveLabel = csvPreview ? `${csvPreview.validRows}件 追加で保存` : '追加で保存';
@@ -157,6 +161,7 @@ export function useReceiptsState() {
     actionRailProps,
     alertsProps: {
       dbError,
+      dbWarning,
       hasCsvFile,
       previewing,
       csvPreview,

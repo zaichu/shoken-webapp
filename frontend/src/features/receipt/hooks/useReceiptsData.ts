@@ -9,7 +9,6 @@ import {
 import { receiptQueryKeys, clearReceiptsCache } from '../queryKeys';
 import { type ReceiptsType } from '../reducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
-import { fetchAllPages } from '@/lib/api/pagination';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
 
@@ -29,6 +28,7 @@ interface UseReceiptsDataResult {
   saving: boolean;
   deleting: boolean;
   previewing: boolean;
+  receiptListLimit: number;
   uploadCsv: (args: UploadCsvArgs) => void;
   previewCsv: (args: PreviewCsvArgs) => void;
   deleteAll: (type: ReceiptsType, options?: { onSuccess?: () => void }) => void;
@@ -47,6 +47,13 @@ interface PreviewCsvArgs {
   onError?: (error: string) => void;
 }
 
+const RECEIPT_LIST_LIMIT = 1000;
+
+const RECEIPT_LIST_PARAMS = {
+  per_page: RECEIPT_LIST_LIMIT,
+  page: 1,
+} as const;
+
 /**
  * 明細データの取得・保存・削除を TanStack Query で管理するフック
  * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空を返す
@@ -64,24 +71,24 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const dividendQuery = useQuery({
     queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
-      fetchAllPages((page) => dividendApi.list({ per_page: 1000, page })).then((dividendRows) =>
-        dividendRows.map(transformDBDividend)),
+      dividendApi.list(RECEIPT_LIST_PARAMS).then((response) =>
+        response.data.map(transformDBDividend)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const domesticstockQuery = useQuery({
     queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
-      fetchAllPages((page) => domesticStockApi.list({ per_page: 1000, page })).then((domesticStockRows) =>
-        domesticStockRows.map(transformDBDomesticStock)),
+      domesticStockApi.list(RECEIPT_LIST_PARAMS).then((response) =>
+        response.data.map(transformDBDomesticStock)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const mutualfundQuery = useQuery({
     queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
-      fetchAllPages((page) => mutualfundApi.list({ per_page: 1000, page })).then((mutualfundRows) =>
-        mutualfundRows.map(transformDBMutualfund)),
+      mutualfundApi.list(RECEIPT_LIST_PARAMS).then((response) =>
+        response.data.map(transformDBMutualfund)),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
@@ -170,6 +177,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
     saving: uploadCsvMutation.isPending,
     deleting: deleteAllMutation.isPending,
     previewing: previewCsvMutation.isPending,
+    receiptListLimit: RECEIPT_LIST_LIMIT,
     uploadCsv: uploadCsvMutation.mutate,
     previewCsv: previewCsvMutation.mutate,
     deleteAll: (type, options) => deleteAllMutation.mutate(type, { onSuccess: options?.onSuccess }),

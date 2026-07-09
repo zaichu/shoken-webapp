@@ -3,6 +3,7 @@ import type { CsvPreview } from '../reducer';
 
 interface ReceiptsAlertsProps {
   dbError: string | null | undefined;
+  dbWarning: string | null | undefined;
   hasCsvFile: boolean;
   previewing: boolean;
   csvPreview: CsvPreview | null | undefined;
@@ -10,6 +11,7 @@ interface ReceiptsAlertsProps {
 
 export function ReceiptsAlerts({
   dbError,
+  dbWarning,
   hasCsvFile,
   previewing,
   csvPreview,
@@ -21,6 +23,12 @@ export function ReceiptsAlerts({
           <Alert variant="danger" role="alert" aria-live="assertive">
             <strong>エラー:</strong> {dbError}
           </Alert>
+        </section>
+      )}
+
+      {dbWarning && (
+        <section className="px-5 py-4" role="status" aria-live="polite">
+          <Alert variant="warning">{dbWarning}</Alert>
         </section>
       )}
 

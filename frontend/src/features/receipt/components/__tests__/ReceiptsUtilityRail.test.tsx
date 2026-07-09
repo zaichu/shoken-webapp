@@ -26,6 +26,7 @@ const actionRailProps = {
 
 const alertsProps = {
   dbError: null,
+  dbWarning: null,
   hasCsvFile: false,
   previewing: false,
   csvPreview: null,

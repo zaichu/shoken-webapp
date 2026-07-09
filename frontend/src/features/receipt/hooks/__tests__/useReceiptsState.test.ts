@@ -45,6 +45,7 @@ function setupMocks(isAuthenticated = true) {
     saving: false,
     deleting: false,
     previewing: false,
+    receiptListLimit: 1000,
     uploadCsv: mockUploadCsv,
     previewCsv: mockPreviewCsv,
     deleteAll: mockDeleteAll,
@@ -66,6 +67,33 @@ describe('useReceiptsState', () => {
 
     expect(result.current.receiptsType).toBe('dividend');
     expect(result.current.showDeleteConfirm).toBe(false);
+  });
+
+  it('取得件数が一覧上限に達したら警告を渡す', () => {
+    const fullDividendData = Array.from({ length: 1000 }, () => ({})) as ReturnType<
+      typeof useReceiptsData
+    >['dividendData'];
+
+    vi.mocked(useReceiptsData).mockReturnValue({
+      dividendData: fullDividendData,
+      domesticstockData: [],
+      mutualfundData: [],
+      dbLoading: false,
+      dbError: null,
+      saving: false,
+      deleting: false,
+      previewing: false,
+      receiptListLimit: 1000,
+      uploadCsv: mockUploadCsv,
+      previewCsv: mockPreviewCsv,
+      deleteAll: mockDeleteAll,
+    });
+
+    const { result } = renderHook(() => useReceiptsState());
+
+    expect(result.current.utilityRailProps.alertsProps.dbWarning).toBe(
+      '一覧は最大1000件まで表示しています。検索条件を絞り込んでください。'
+    );
   });
 
   it('setReceiptsType: 呼び出すと receiptsType が変わる', () => {
