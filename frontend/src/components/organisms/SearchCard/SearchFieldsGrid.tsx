@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils/classNames';
 import { SearchCategories } from '@/types/common';
 import { SearchKey } from './types';
+import { hasData } from './searchQueryUtils';
 import { QuickSearchDropdown } from './QuickSearchDropdown';
 import { QuickSearchButtons } from './QuickSearchButtons';
 
@@ -23,11 +24,10 @@ interface SearchFieldsGridProps {
     gridClassName: string;
     selectedQueries: Record<SearchKey, string>;
     onSearch: (value: string, searchType: 'securities' | 'years' | 'products' | 'accounts') => void;
-    hasData: (data: unknown[] | undefined) => boolean;
 }
 
 export const SearchFieldsGrid: React.FC<SearchFieldsGridProps> = ({
-    categories, gridClassName, selectedQueries, onSearch, hasData,
+    categories, gridClassName, selectedQueries, onSearch,
 }) => (
     <div className={cn('grid', gridClassName)}>
         {DROPDOWN_CONFIGS.map(({ key, label }) =>

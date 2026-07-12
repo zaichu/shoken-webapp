@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { cn } from '@/lib/utils/classNames';
-import { DateSegment } from './types';
+import { DateInputs, DateSegment } from './types';
 import { CalendarDateButton } from './CalendarDateButton';
 
 const DATE_SEGMENTS: DateSegment[] = ['年', '月', '日', '範囲'];
@@ -8,11 +8,7 @@ const DATE_SEGMENTS: DateSegment[] = ['年', '月', '日', '範囲'];
 interface DatePeriodBlockProps {
     dateSegment: DateSegment;
     years: { value: string; label: string }[];
-    yearValue: string;
-    monthValue: string;
-    dateValue: string;
-    rangeStart: string;
-    rangeEnd: string;
+    dateInputs: DateInputs;
     isYearPickerOpen: boolean;
     onSegmentChange: (segment: DateSegment) => void;
     onToggleYearPicker: () => void;
@@ -25,9 +21,10 @@ interface DatePeriodBlockProps {
 }
 
 export const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
-    dateSegment, years, yearValue, monthValue, dateValue, rangeStart, rangeEnd, isYearPickerOpen,
+    dateSegment, years, dateInputs, isYearPickerOpen,
     onSegmentChange, onToggleYearPicker, onYearOptionSelect, onMonthChange, onDateValueChange, onRangeStartChange, onRangeEndChange, onClose,
 }) => {
+    const { yearValue, monthValue, dateValue, rangeStart, rangeEnd } = dateInputs;
     const availableSegments = years.length > 0 ? DATE_SEGMENTS : DATE_SEGMENTS.filter(seg => seg !== '年');
     const visibleDateSegment = years.length === 0 && dateSegment === '年' ? '月' : dateSegment;
 
