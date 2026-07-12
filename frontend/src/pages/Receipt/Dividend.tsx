@@ -8,6 +8,7 @@ import type {
     SummaryColumnConfig,
     TableColumnConfig
 } from '@/features/receipt/types';
+import type { DividendApiSummary } from '@/features/receipt/hooks/useReceiptsData';
 import {
     createSearchOptions,
     groupAndSummarizeData
@@ -57,13 +58,15 @@ const FILTER_CONFIG: FilterConfig<DividendData> = {
 interface DividendProps {
     data: DividendData[];
     previewData?: DividendData[];
+    // 検索条件全体（DB 側）の集計。1000件超のユーザーでも正しい合計を表示するために使用する
+    summary?: DividendApiSummary;
     utilityRail?: React.ReactNode;
 }
 
 /**
  * 配当金データを表示するコンポーネント
  */
-export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRail }) => {
+export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: apiSummary, utilityRail }) => {
     const { sortedData: dividendData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortDividendBySettlementDate, FILTER_CONFIG);
 
@@ -77,7 +80,13 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, utilityRa
     };
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
-    const calculations = useReceiptCalculations(filteredData, calculateDividends);
+    const clientCalculations = useReceiptCalculations(filteredData, calculateDividends);
+    // 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先する。
+    // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
+    const isPreviewMode = Boolean(previewData && previewData.length > 0);
+    const calculations = apiSummary && !isPreviewMode && searchQuery === ''
+        ? apiSummary
+        : clientCalculations;
 
     // 入金日が最新の銘柄名を銘柄コードへマッピング（グループキー用）
     const latestSecurityNameByCode = new Map<string, { name: string; settlementTime: number }>();

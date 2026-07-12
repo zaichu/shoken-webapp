@@ -29,6 +29,9 @@ export function ReceiptsPage() {
     dividendData,
     domesticstockData,
     mutualfundData,
+    dividendSummary,
+    domesticstockSummary,
+    mutualfundSummary,
     previewData,
     utilityRailProps,
     deleteModalLoading,
@@ -40,7 +43,14 @@ export function ReceiptsPage() {
   const panels = [
     {
       type: 'dividend',
-      content: <Dividend data={dividendData} previewData={previewData.dividend} utilityRail={utilityRail} />,
+      content: (
+        <Dividend
+          data={dividendData}
+          previewData={previewData.dividend}
+          summary={dividendSummary}
+          utilityRail={utilityRail}
+        />
+      ),
     },
     {
       type: 'domesticstock',
@@ -48,13 +58,21 @@ export function ReceiptsPage() {
         <DomesticStock
           data={domesticstockData}
           previewData={previewData.domesticstock}
+          summary={domesticstockSummary}
           utilityRail={utilityRail}
         />
       ),
     },
     {
       type: 'mutualfund',
-      content: <Mutualfund data={mutualfundData} previewData={previewData.mutualfund} utilityRail={utilityRail} />,
+      content: (
+        <Mutualfund
+          data={mutualfundData}
+          previewData={previewData.mutualfund}
+          summary={mutualfundSummary}
+          utilityRail={utilityRail}
+        />
+      ),
     },
   ] as const;
 

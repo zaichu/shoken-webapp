@@ -9,6 +9,7 @@ import type {
     SummaryColumnConfig,
     TableColumnConfig
 } from '@/features/receipt/types';
+import type { MutualfundApiSummary } from '@/features/receipt/hooks/useReceiptsData';
 import { createSearchOptions, groupAndSummarizeData } from '@/lib/utils/dataTransformer';
 import {
     formatJPDate,
@@ -38,13 +39,15 @@ const FILTER_CONFIG: FilterConfig<MutualfundData> = {
 interface MutualfundProps {
     data: MutualfundData[];
     previewData?: MutualfundData[];
+    // 検索条件全体（DB 側）の集計。1000件超のユーザーでも正しい合計を表示するために使用する
+    summary?: MutualfundApiSummary;
     utilityRail?: React.ReactNode;
 }
 
 /**
  * 投資信託データを表示するコンポーネント
  */
-export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utilityRail }) => {
+export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summary: apiSummary, utilityRail }) => {
     const { sortedData: mutualfundData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortMutualfundByTradeDate, FILTER_CONFIG);
 
@@ -56,7 +59,13 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, utili
     };
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
-    const calculations = useReceiptCalculations(filteredData, calculateMutualfund);
+    const clientCalculations = useReceiptCalculations(filteredData, calculateMutualfund);
+    // 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先する。
+    // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
+    const isPreviewMode = Boolean(previewData && previewData.length > 0);
+    const calculations = apiSummary && !isPreviewMode && searchQuery === ''
+        ? apiSummary
+        : clientCalculations;
 
     // 検索タイプに応じたグループキー関数（ファンド名部分一致でグループ化）
     const getGroupKey = createGroupKeyFn<MutualfundData>(

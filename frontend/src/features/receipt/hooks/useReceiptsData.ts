@@ -11,6 +11,11 @@ import { type ReceiptsType } from '../reducer';
 import { getDisplayErrorMessage } from '@/lib/utils/errorHandler';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
+import type { components } from '@/generated/api';
+
+export type DividendApiSummary = components['schemas']['DividendSummary'];
+export type DomesticStockApiSummary = components['schemas']['DomesticStockSummary'];
+export type MutualfundApiSummary = components['schemas']['MutualfundSummary'];
 
 interface CsvPreviewResult {
   totalRows: number;
@@ -23,6 +28,10 @@ interface UseReceiptsDataResult {
   dividendData: ReturnType<typeof transformDBDividend>[];
   domesticstockData: ReturnType<typeof transformDBDomesticStock>[];
   mutualfundData: ReturnType<typeof transformDBMutualfund>[];
+  // 検索条件全体（DB 側）の集計。1000件超のユーザーでも正しい合計を表示するために使用する
+  dividendSummary: DividendApiSummary | undefined;
+  domesticstockSummary: DomesticStockApiSummary | undefined;
+  mutualfundSummary: MutualfundApiSummary | undefined;
   dbLoading: boolean;
   dbError: string | null;
   saving: boolean;
@@ -52,6 +61,7 @@ const RECEIPT_LIST_LIMIT = 1000;
 const RECEIPT_LIST_PARAMS = {
   per_page: RECEIPT_LIST_LIMIT,
   page: 1,
+  include_summary: true,
 } as const;
 
 /**
@@ -71,24 +81,30 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const dividendQuery = useQuery({
     queryKey: receiptQueryKeys.dividend(userId),
     queryFn: () =>
-      dividendApi.list(RECEIPT_LIST_PARAMS).then((response) =>
-        response.data.map(transformDBDividend)),
+      dividendApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
+        items: response.data.map(transformDBDividend),
+        summary: response.summary,
+      })),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const domesticstockQuery = useQuery({
     queryKey: receiptQueryKeys.domesticstock(userId),
     queryFn: () =>
-      domesticStockApi.list(RECEIPT_LIST_PARAMS).then((response) =>
-        response.data.map(transformDBDomesticStock)),
+      domesticStockApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
+        items: response.data.map(transformDBDomesticStock),
+        summary: response.summary,
+      })),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
   const mutualfundQuery = useQuery({
     queryKey: receiptQueryKeys.mutualfund(userId),
     queryFn: () =>
-      mutualfundApi.list(RECEIPT_LIST_PARAMS).then((response) =>
-        response.data.map(transformDBMutualfund)),
+      mutualfundApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
+        items: response.data.map(transformDBMutualfund),
+        summary: response.summary,
+      })),
     enabled: isAuthenticated && !authLoading && !!userId,
   });
 
@@ -153,7 +169,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
       const key = receiptQueryKeys[type](context?.snapshotUserId ?? userId);
       // ログアウト等で clearReceiptsCache が先行しキャッシュが消えている場合は再生成しない
       if (queryClient.getQueryState(key) !== undefined) {
-        queryClient.setQueryData(key, []);
+        queryClient.setQueryData(key, { items: [], summary: undefined });
       }
     },
   });
@@ -162,9 +178,12 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error;
 
   return {
-    dividendData: dividendQuery.data ?? [],
-    domesticstockData: domesticstockQuery.data ?? [],
-    mutualfundData: mutualfundQuery.data ?? [],
+    dividendData: dividendQuery.data?.items ?? [],
+    domesticstockData: domesticstockQuery.data?.items ?? [],
+    mutualfundData: mutualfundQuery.data?.items ?? [],
+    dividendSummary: dividendQuery.data?.summary,
+    domesticstockSummary: domesticstockQuery.data?.summary,
+    mutualfundSummary: mutualfundQuery.data?.summary,
     dbLoading:
       dividendQuery.isFetching ||
       domesticstockQuery.isFetching ||
