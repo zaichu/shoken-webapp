@@ -265,25 +265,12 @@ async fn fetch_facets(
     user_id: Uuid,
     filter: &DividendFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let products = fetch_group_facets(pool, user_id, filter, "product", true).await?;
-    let accounts = fetch_group_facets(pool, user_id, filter, "account", true).await?;
+    let products = fetch_group_facets(pool, user_id, filter, GroupField::Product, true).await?;
+    let accounts = fetch_group_facets(pool, user_id, filter, GroupField::Account, true).await?;
     let securities = fetch_security_facets(pool, user_id, filter).await?;
-    let years = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        "EXTRACT(YEAR FROM settlement_date)::integer::text",
-        false,
-    )
-    .await?;
-    let year_months = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        "TO_CHAR(settlement_date, 'YYYY-MM')",
-        false,
-    )
-    .await?;
+    let years = fetch_group_facets(pool, user_id, filter, GroupField::Year, false).await?;
+    let year_months =
+        fetch_group_facets(pool, user_id, filter, GroupField::YearMonth, false).await?;
 
     Ok(SearchFacets {
         products: Some(products),
@@ -295,14 +282,36 @@ async fn fetch_facets(
     })
 }
 
-/// group_expr の値ごとに件数を集計して FacetOption を返す共通ヘルパー
+/// fetch_group_facets で GROUP BY に使える式を限定する集計対象カラム
+#[derive(Debug, Clone, Copy)]
+enum GroupField {
+    Product,
+    Account,
+    Year,
+    YearMonth,
+}
+
+impl GroupField {
+    /// SQL に埋め込む式（固定の &'static str のみを返す）
+    fn as_sql_expr(self) -> &'static str {
+        match self {
+            GroupField::Product => "product",
+            GroupField::Account => "account",
+            GroupField::Year => "EXTRACT(YEAR FROM settlement_date)::integer::text",
+            GroupField::YearMonth => "TO_CHAR(settlement_date, 'YYYY-MM')",
+        }
+    }
+}
+
+/// group_field の値ごとに件数を集計して FacetOption を返す共通ヘルパー
 async fn fetch_group_facets(
     pool: &PgPool,
     user_id: Uuid,
     filter: &DividendFilter,
-    group_expr: &str,
+    group_field: GroupField,
     order_asc: bool,
 ) -> Result<Vec<FacetOption>, ApiError> {
+    let group_expr = group_field.as_sql_expr();
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
         "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM dividends"
     ));
