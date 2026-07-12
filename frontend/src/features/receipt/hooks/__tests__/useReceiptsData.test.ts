@@ -243,7 +243,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toEqual([]);
+      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toEqual({ items: [], summary: undefined });
     });
 
     act(() => {
@@ -303,7 +303,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
       expect(result.current.dividendData).toHaveLength(1000);
     });
     expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
     expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
@@ -340,7 +340,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
       expect(result.current.domesticstockData).toHaveLength(1000);
     });
     expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
     expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
@@ -377,7 +377,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
       expect(result.current.mutualfundData).toHaveLength(1000);
     });
     expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1 });
+    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
     expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
   });
 
@@ -578,7 +578,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toEqual([]);
+      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toEqual({ items: [], summary: undefined });
     });
 
     act(() => {
@@ -622,7 +622,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toEqual([]);
+      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toEqual({ items: [], summary: undefined });
     });
 
     act(() => {

@@ -277,6 +277,48 @@ describe('Dividend', () => {
         expect(screen.getByText('配当金明細をCSVで追加してください')).toBeInTheDocument();
     });
 
+    it('summary propが渡された場合、未フィルタ時はAPI集計値を表示する（クライアント側合計ではなく）', () => {
+        // クライアント側で mockData から計算すると 配当金合計=5000 になるが、
+        // summary（DB側の検索条件全体の集計）は 1000件超のユーザーを想定した異なる値にする
+        render(
+            <Dividend
+                data={mockData}
+                summary={{
+                    total_dividends_before_tax: 999999,
+                    total_taxes: 111111,
+                    total_net_amount_received: 888888,
+                }}
+            />
+        );
+
+        expect(screen.getByText('¥ 999,999')).toBeInTheDocument();
+        expect(screen.getByText('¥ 111,111')).toBeInTheDocument();
+        expect(screen.getByText('¥ 888,888')).toBeInTheDocument();
+        // クライアント側合計（¥ 5,000 など）は表示されない
+        expect(screen.queryByText('¥ 5,000')).not.toBeInTheDocument();
+    });
+
+    it('検索中はsummary propが渡されていてもクライアント側の集計を表示する', async () => {
+        const user = userEvent.setup();
+        render(
+            <Dividend
+                data={mockData}
+                summary={{
+                    total_dividends_before_tax: 999999,
+                    total_taxes: 111111,
+                    total_net_amount_received: 888888,
+                }}
+            />
+        );
+
+        await user.click(screen.getByTestId('search-card-header'));
+        await user.click(await screen.findByRole('button', { name: '株式' }));
+
+        await waitFor(() => {
+            expect(screen.queryByText('¥ 999,999')).not.toBeInTheDocument();
+        });
+    });
+
     it('数値フォーマットが正しく適用される', () => {
         render(<Dividend data={mockData} />);
 
