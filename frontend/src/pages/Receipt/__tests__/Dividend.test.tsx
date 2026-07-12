@@ -41,7 +41,6 @@ vi.mock('@/features/assetBalance/hooks/useAssetBalance', () => ({
     assetBalanceData: [],
     isLoading: false,
     getAssetBalanceByCode: vi.fn(() => undefined),
-    getTotalMarketValue: vi.fn(() => 0),
     refetch: vi.fn(),
   })),
 }));

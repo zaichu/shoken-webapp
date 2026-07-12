@@ -133,7 +133,6 @@ describe('DividendInfo', () => {
         total_purchase_amount: 100000,
         updated_at: '2024-01-01T00:00:00Z',
       })),
-      getTotalMarketValue: vi.fn(() => 0),
       refetch: vi.fn(),
     });
 

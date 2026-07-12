@@ -10,7 +10,6 @@ interface UseAssetBalanceReturn {
   assetBalanceData: AssetBalanceData[];
   isLoading: boolean;
   getAssetBalanceByCode: (code: string) => AssetBalanceData | undefined;
-  getTotalMarketValue: () => number;
   refetch: () => Promise<void>;
 }
 
@@ -62,10 +61,6 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
     );
   };
 
-  const getTotalMarketValue = (): number => {
-    return assetBalanceData.reduce((total, balance) => total + (balance?.market_value || 0), 0);
-  };
-
   const refetch = async () => {
     await queryClient.invalidateQueries({ queryKey });
   };
@@ -74,7 +69,6 @@ export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetB
     assetBalanceData,
     isLoading: query.isLoading,
     getAssetBalanceByCode,
-    getTotalMarketValue,
     refetch,
   };
 }
