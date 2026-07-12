@@ -14,7 +14,7 @@ use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, escape_like_pattern, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -63,15 +63,6 @@ impl AssetBalanceFilter {
             security_name: params.security_name.clone(),
         }
     }
-}
-
-/// ILIKE の wildcard 文字（%, _, \）をリテラル扱いにエスケープしてから前後を % で囲む
-fn escape_like_pattern(token: &str) -> String {
-    let escaped = token
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_");
-    format!("%{escaped}%")
 }
 
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
@@ -578,15 +569,6 @@ mod tests {
         assert_eq!(sql.matches(" AND (").count(), 2);
         assert_eq!(sql.matches("security_code ILIKE").count(), 2);
         assert_eq!(sql.matches("security_name ILIKE").count(), 2);
-    }
-
-    #[test]
-    fn test_escape_like_pattern_escapes_wildcard_characters() {
-        assert_eq!(escape_like_pattern("abc"), "%abc%");
-        assert_eq!(escape_like_pattern("50%"), "%50\\%%");
-        assert_eq!(escape_like_pattern("A_B"), "%A\\_B%");
-        assert_eq!(escape_like_pattern("a\\b"), "%a\\\\b%");
-        assert_eq!(escape_like_pattern("100%_off\\"), "%100\\%\\_off\\\\%");
     }
 
     #[test]

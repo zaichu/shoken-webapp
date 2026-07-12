@@ -13,7 +13,8 @@ use crate::services::csv_util::{
     parse_required_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, escape_like_pattern, parse_date_param, parse_year_month_range,
+    user_ids_for_bulk_insert, year_to_range, BulkTimer, DeleteTarget,
 };
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
@@ -97,34 +98,6 @@ impl MutualfundFilter {
     }
 }
 
-fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
-        .map_err(|_| ApiError::ValidationError(format!("{field} の形式が不正です（YYYY-MM-DD）")))
-}
-
-fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
-    let invalid = || ApiError::ValidationError("year の値が不正です".to_string());
-    let start = NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(invalid)?;
-    let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).ok_or_else(invalid)?;
-    Ok((start, end))
-}
-
-fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
-    let invalid =
-        || ApiError::ValidationError("year_month の形式が不正です（YYYY-MM）".to_string());
-    let (year_str, month_str) = value.split_once('-').ok_or_else(invalid)?;
-    let year: i32 = year_str.parse().map_err(|_| invalid())?;
-    let month: u32 = month_str.parse().map_err(|_| invalid())?;
-    let start = NaiveDate::from_ymd_opt(year, month, 1).ok_or_else(invalid)?;
-    let end = if month == 12 {
-        NaiveDate::from_ymd_opt(year + 1, 1, 1)
-    } else {
-        NaiveDate::from_ymd_opt(year, month + 1, 1)
-    }
-    .ok_or_else(invalid)?;
-    Ok((start, end))
-}
-
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &MutualfundFilter) {
     qb.push(" WHERE user_id = ").push_bind(user_id);
@@ -164,15 +137,6 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Mutualf
             .push_bind(pattern)
             .push(" ESCAPE '\\')");
     }
-}
-
-/// ILIKE の wildcard 文字（%, _, \）をリテラル扱いにエスケープしてから前後を % で囲む
-fn escape_like_pattern(token: &str) -> String {
-    let escaped = token
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_");
-    format!("%{escaped}%")
 }
 
 /// 認証ユーザーの投資信託一覧を検索（ページネーション・summary・facets 対応）
@@ -490,20 +454,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_date_param_accepts_iso_format_and_rejects_others() {
-        assert!(parse_date_param("date", "2026-01-15").is_ok());
-        for invalid in ["2026/01/15", "15-01-2026", "not-a-date", ""] {
-            assert!(
-                matches!(
-                    parse_date_param("date", invalid),
-                    Err(ApiError::ValidationError(_))
-                ),
-                "value={invalid} は ValidationError になるべき"
-            );
-        }
-    }
-
-    #[test]
     fn test_mutualfund_filter_from_params_accepts_valid_date_axis_values() {
         let mut params = MutualfundSearchQueryParams::default();
         params.search.date = Some("2026-01-15".to_string());
@@ -579,15 +529,6 @@ mod tests {
         assert_eq!(sql.matches("account ILIKE").count(), 2);
         assert_eq!(sql.matches("fund_name ILIKE").count(), 2);
         assert_eq!(sql.matches("dividends ILIKE").count(), 2);
-    }
-
-    #[test]
-    fn test_escape_like_pattern_escapes_wildcard_characters() {
-        assert_eq!(escape_like_pattern("abc"), "%abc%");
-        assert_eq!(escape_like_pattern("50%"), "%50\\%%");
-        assert_eq!(escape_like_pattern("A_B"), "%A\\_B%");
-        assert_eq!(escape_like_pattern("a\\b"), "%a\\\\b%");
-        assert_eq!(escape_like_pattern("100%_off\\"), "%100\\%\\_off\\\\%");
     }
 
     #[test]
