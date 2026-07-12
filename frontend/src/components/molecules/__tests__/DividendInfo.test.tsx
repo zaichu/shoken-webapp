@@ -32,7 +32,6 @@ describe('DividendInfo', () => {
       assetBalanceData: [],
       isLoading: false,
       getAssetBalanceByCode: vi.fn(() => undefined),
-      getTotalMarketValue: vi.fn(() => 0),
       refetch: vi.fn(),
     });
   });
@@ -121,7 +120,6 @@ describe('DividendInfo', () => {
         shares: 100,
         security_code: '7203',
       })),
-      getTotalMarketValue: vi.fn(() => 0),
       refetch: vi.fn(),
     });
 
@@ -170,7 +168,6 @@ describe('DividendInfo', () => {
         shares: 100,
         security_code: '7203',
       })),
-      getTotalMarketValue: vi.fn(() => 0),
       refetch: vi.fn(),
     });
 
