@@ -47,3 +47,8 @@ export function getInitialDateSegment(cats: SearchCategories | undefined): DateS
 }
 
 export const formatDateLabel = (value: string): string => value.replace(/-/g, "/");
+
+// データが存在するかチェック
+export function hasData(data: unknown[] | undefined): boolean {
+    return Boolean(data && data.length > 0);
+}

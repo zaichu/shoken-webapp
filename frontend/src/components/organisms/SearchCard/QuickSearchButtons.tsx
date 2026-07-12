@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/atoms/Button';
+import { cn } from '@/lib/utils/classNames';
 import { ActiveSearchType } from './types';
 
 interface QuickSearchButtonsProps {
@@ -26,10 +27,12 @@ export const QuickSearchButtons: React.FC<QuickSearchButtonsProps> = ({
                             variant={isSelected ? 'primary' : 'outline-secondary'}
                             size="sm"
                             onClick={() => onSearch(item, searchType)}
-                            className={isSelected
-                                ? 'ring-2 ring-amber-500 ring-offset-1 font-bold shadow-md'
-                                : `${hasSelection ? 'opacity-50' : 'opacity-80'} hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none`
-                            }
+                            className={cn(
+                                isSelected
+                                    ? 'ring-2 ring-amber-500 ring-offset-1 font-bold shadow-md'
+                                    : hasSelection ? 'opacity-50' : 'opacity-80',
+                                !isSelected && 'hover:opacity-100 hover:bg-slate-100 hover:ring-1 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none'
+                            )}
                             aria-pressed={isSelected}
                             aria-label={isSelected ? `${item}（選択中）` : item}
                         >

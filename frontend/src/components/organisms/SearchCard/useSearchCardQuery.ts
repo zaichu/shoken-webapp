@@ -13,13 +13,14 @@ interface UseSearchCardQueryArgs {
     categories?: SearchCategories;
     value?: string; // 親の検索状態と同期（外部クリア対応）
     onSearch: (query: string) => void;
+    onCloseYearPicker: () => void; // 年ピッカーを閉じる必要があるタイミング（外部リセット/セグメント変更/年選択）で呼ばれる
 }
 
 /**
- * SearchCard の「API クエリ params state」を一元管理するフック。
- * 展開/折りたたみなどの UI 表示 state は呼び出し側（SearchCard）が持つ。
+ * SearchCard の「API クエリ params state」（検索条件そのもの）を一元管理するフック。
+ * isExpanded や isYearPickerOpen などの UI 表示 state は呼び出し側（SearchCard）が持つ。
  */
-export function useSearchCardQuery({ categories, value, onSearch }: UseSearchCardQueryArgs) {
+export function useSearchCardQuery({ categories, value, onSearch, onCloseYearPicker }: UseSearchCardQueryArgs) {
     const [selectedQueries, setSelectedQueries] = useState<Record<SearchKey, string>>(
         createEmptySelectedQueries()
     );
@@ -28,17 +29,21 @@ export function useSearchCardQuery({ categories, value, onSearch }: UseSearchCar
         getInitialDateSegment(categories)
     );
     const [dateInputs, setDateInputs] = useState<DateInputs>({ ...EMPTY_DATE_INPUTS });
-    const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
 
     const categoriesRef = useRef(categories);
     categoriesRef.current = categories;
+
+    // onCloseYearPicker は呼び出し側で毎レンダー新しい参照になり得るため、
+    // ref 経由で参照することで effect の依存関係から切り離す（無限ループ防止）
+    const onCloseYearPickerRef = useRef(onCloseYearPicker);
+    onCloseYearPickerRef.current = onCloseYearPicker;
 
     useEffect(() => {
         if (value !== '') return;
         const cats = categoriesRef.current;
         setSelectedQueries(createEmptySelectedQueries());
         setDateInputs({ ...EMPTY_DATE_INPUTS });
-        setIsYearPickerOpen(false);
+        onCloseYearPickerRef.current();
         setDateSegment(getInitialDateSegment(cats));
     }, [value]);
 
@@ -48,7 +53,7 @@ export function useSearchCardQuery({ categories, value, onSearch }: UseSearchCar
 
     const resetDateInputs = () => {
         setDateInputs({ ...EMPTY_DATE_INPUTS });
-        setIsYearPickerOpen(false);
+        onCloseYearPickerRef.current();
     };
 
     const applySelectedQueries = (nextQueries: Record<SearchKey, string>) => {
@@ -87,7 +92,7 @@ export function useSearchCardQuery({ categories, value, onSearch }: UseSearchCar
 
     const handleYearOptionSelect = (val: string) => {
         setDateInputs(d => ({ ...d, yearValue: val }));
-        setIsYearPickerOpen(false);
+        onCloseYearPickerRef.current();
         handleDateSearch(val);
     };
 
@@ -126,9 +131,6 @@ export function useSearchCardQuery({ categories, value, onSearch }: UseSearchCar
         isDefaultState,
         dateSegment,
         dateInputs,
-        isYearPickerOpen,
-        toggleYearPicker: () => setIsYearPickerOpen(open => !open),
-        closeYearPicker: () => setIsYearPickerOpen(false),
         handleQuickSearch,
         handleSegmentChange,
         handleYearOptionSelect,

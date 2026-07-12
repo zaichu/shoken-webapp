@@ -4,13 +4,9 @@ import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 import { cn } from '@/lib/utils/classNames';
 import { SearchCardProps } from './types';
 import { useSearchCardQuery } from './useSearchCardQuery';
+import { hasData } from './searchQueryUtils';
 import { SearchFieldsGrid } from './SearchFieldsGrid';
 import { DatePeriodBlock } from './DatePeriodBlock';
-
-// データが存在するかチェック
-function hasData(data: unknown[] | undefined): boolean {
-    return Boolean(data && data.length > 0);
-}
 
 /**
  * 検索カードコンポーネント
@@ -31,6 +27,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         setIsExpanded(initialExpanded);
     }, [initialExpanded]);
 
+    // 年ピッカーの開閉も検索クエリに影響しない UI 表示 state
+    const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+    const closeYearPicker = () => setIsYearPickerOpen(false);
+
     // 検索条件（API クエリ params）の state はフックに分離
     const {
         effectiveSelectedQueries,
@@ -38,9 +38,6 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         isDefaultState,
         dateSegment,
         dateInputs,
-        isYearPickerOpen,
-        toggleYearPicker,
-        closeYearPicker,
         handleQuickSearch,
         handleSegmentChange,
         handleYearOptionSelect,
@@ -49,7 +46,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         handleRangeStartChange,
         handleRangeEndChange,
         handleClearSearch,
-    } = useSearchCardQuery({ categories, value, onSearch });
+    } = useSearchCardQuery({ categories, value, onSearch, onCloseYearPicker: closeYearPicker });
 
     // 描画対象カテゴリが1つ以上あるか（毎レンダーで再評価されないよう定数化）
     const hasAnyCategories = categories != null && (
@@ -84,14 +81,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             <DatePeriodBlock
                 dateSegment={dateSegment}
                 years={categories?.years ?? []}
-                yearValue={dateInputs.yearValue}
-                monthValue={dateInputs.monthValue}
-                dateValue={dateInputs.dateValue}
-                rangeStart={dateInputs.rangeStart}
-                rangeEnd={dateInputs.rangeEnd}
+                dateInputs={dateInputs}
                 isYearPickerOpen={isYearPickerOpen}
                 onSegmentChange={handleSegmentChange}
-                onToggleYearPicker={toggleYearPicker}
+                onToggleYearPicker={() => setIsYearPickerOpen(open => !open)}
                 onYearOptionSelect={handleYearOptionSelect}
                 onMonthChange={handleMonthChange}
                 onDateValueChange={handleDateValueChange}
@@ -175,7 +168,6 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             gridClassName="grid-cols-1 gap-3.5"
                             selectedQueries={effectiveSelectedQueries}
                             onSearch={handleQuickSearch}
-                            hasData={hasData}
                         />
                     </div>
                 )}
@@ -272,7 +264,6 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         gridClassName="grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
                         selectedQueries={effectiveSelectedQueries}
                         onSearch={handleQuickSearch}
-                        hasData={hasData}
                     />
                 </CardBody>
             )}
