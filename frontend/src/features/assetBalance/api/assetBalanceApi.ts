@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
+import { listRequestConfig, withCredentialsConfig } from '@/lib/api/requestHelpers';
 import type { paths } from '@/generated/api';
 
 const API_PATHS = {
@@ -12,8 +13,6 @@ type AssetBalanceListResponse = paths['/api/v1/asset-balances']['get']['response
 type AssetBalanceDeleteResponse = paths['/api/v1/asset-balances']['delete']['responses'][200]['content']['application/json'];
 
 type AssetBalanceListQueryParams = NonNullable<paths['/api/v1/asset-balances']['get']['parameters']['query']>;
-const listRequestConfig = (params?: AssetBalanceListQueryParams) =>
-  params ? { params, withCredentials: true } : { withCredentials: true };
 
 export const assetBalanceApi = {
   list: (params?: AssetBalanceListQueryParams) =>
@@ -24,5 +23,5 @@ export const assetBalanceApi = {
   uploadCsv: (file: File) => uploadCsvFile(API_PATHS.assetBalanceImport, file),
 
   deleteAll: async () =>
-    apiClient.delete<AssetBalanceDeleteResponse>(API_PATHS.assetBalanceList, { withCredentials: true }),
+    apiClient.delete<AssetBalanceDeleteResponse>(API_PATHS.assetBalanceList, withCredentialsConfig),
 };
