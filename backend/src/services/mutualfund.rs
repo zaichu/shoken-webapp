@@ -13,8 +13,8 @@ use crate::services::csv_util::{
     parse_required_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
-    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget,
+    self, delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
+    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget, FacetOrder,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -172,10 +172,18 @@ async fn fetch_facets(
     user_id: Uuid,
     filter: &MutualfundFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let accounts_fut = fetch_group_facets(pool, user_id, filter, GroupField::Account, true);
-    let funds_fut = fetch_group_facets(pool, user_id, filter, GroupField::FundName, true);
-    let years_fut = fetch_group_facets(pool, user_id, filter, GroupField::Year, false);
-    let year_months_fut = fetch_group_facets(pool, user_id, filter, GroupField::YearMonth, false);
+    let accounts_fut =
+        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+    let funds_fut =
+        fetch_group_facets(pool, user_id, filter, GroupField::FundName, FacetOrder::Asc);
+    let years_fut = fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc);
+    let year_months_fut = fetch_group_facets(
+        pool,
+        user_id,
+        filter,
+        GroupField::YearMonth,
+        FacetOrder::Desc,
+    );
 
     let (accounts, funds, years, year_months) =
         tokio::try_join!(accounts_fut, funds_fut, years_fut, year_months_fut)?;
@@ -217,18 +225,16 @@ async fn fetch_group_facets(
     user_id: Uuid,
     filter: &MutualfundFilter,
     group_field: GroupField,
-    order_asc: bool,
+    order: FacetOrder,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    let group_expr = group_field.as_sql_expr();
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
-        "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM mutualfunds"
-    ));
-    push_filters(&mut qb, user_id, filter);
-    qb.push(format!(
-        " GROUP BY {group_expr} ORDER BY {group_expr} {}",
-        if order_asc { "ASC" } else { "DESC" }
-    ));
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    shared::fetch_group_facets(
+        pool,
+        "mutualfunds",
+        group_field.as_sql_expr(),
+        order,
+        |qb| push_filters(qb, user_id, filter),
+    )
+    .await
 }
 
 /// 投資信託を一括追加（重複はスキップ）

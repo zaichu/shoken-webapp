@@ -1,5 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::common::{BulkCreateResponse, SearchQueryParams};
+use crate::models::common::{BulkCreateResponse, FacetOption, SearchQueryParams};
 use chrono::NaiveDate;
 use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -246,12 +246,61 @@ pub fn push_token_ilike_filters(
     }
 }
 
+/// fetch_group_facets の GROUP BY 結果に対する ORDER BY 方向（呼び出し側が渡す固定値のみ）
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FacetOrder {
+    Asc,
+    Desc,
+}
+
+impl FacetOrder {
+    fn as_sql(self) -> &'static str {
+        match self {
+            Self::Asc => "ASC",
+            Self::Desc => "DESC",
+        }
+    }
+}
+
+/// table / group_expr（呼び出し側が渡す固定の &'static str のみ）を使って
+/// `SELECT ... GROUP BY ... ORDER BY ...` の QueryBuilder を組み立てる。
+/// push_filters は WHERE 句（user_id を含む検索条件）を積むクロージャ。
+fn build_group_facets_query(
+    table: &'static str,
+    group_expr: &'static str,
+    order: FacetOrder,
+    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+) -> QueryBuilder<Postgres> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+        "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM {table}"
+    ));
+    push_filters(&mut qb);
+    qb.push(format!(
+        " GROUP BY {group_expr} ORDER BY {group_expr} {}",
+        order.as_sql()
+    ));
+    qb
+}
+
+/// group_expr の値ごとに件数を集計して FacetOption を返す共通ヘルパー。
+/// table / group_expr / order は呼び出し側が定義する固定値のみを渡すこと。
+pub async fn fetch_group_facets(
+    pool: &PgPool,
+    table: &'static str,
+    group_expr: &'static str,
+    order: FacetOrder,
+    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+) -> Result<Vec<FacetOption>, ApiError> {
+    let mut qb = build_group_facets_query(table, group_expr, order, push_filters);
+    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_like_pattern, parse_date_param, parse_year_month_range, push_date_axis_filters,
-        push_token_ilike_filters, tokens_from_query, user_ids_for_bulk_insert, year_to_range,
-        BulkTimer, DateAxisFilter,
+        build_group_facets_query, escape_like_pattern, parse_date_param, parse_year_month_range,
+        push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
+        user_ids_for_bulk_insert, year_to_range, BulkTimer, DateAxisFilter, FacetOrder,
     };
     use crate::errors::ApiError;
     use chrono::NaiveDate;
@@ -391,5 +440,32 @@ mod tests {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
         push_token_ilike_filters(&mut qb, &tokens, &[]);
         assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
+    }
+
+    #[test]
+    fn test_build_group_facets_query_uses_given_table_group_expr_order_and_filters() {
+        let qb = build_group_facets_query("dividends", "product", FacetOrder::Asc, |qb| {
+            qb.push(" WHERE user_id = ").push_bind(Uuid::nil());
+        });
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.starts_with(
+            "SELECT product AS value, product AS label, COUNT(*) AS count FROM dividends"
+        ));
+        assert!(sql.contains("WHERE user_id = "));
+        assert!(sql.ends_with("GROUP BY product ORDER BY product ASC"));
+    }
+
+    #[test]
+    fn test_build_group_facets_query_desc_order_and_no_filters() {
+        let qb = build_group_facets_query("mutualfunds", "account", FacetOrder::Desc, |_| {});
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.starts_with(
+            "SELECT account AS value, account AS label, COUNT(*) AS count FROM mutualfunds"
+        ));
+        assert!(sql.ends_with("GROUP BY account ORDER BY account DESC"));
     }
 }
