@@ -14,7 +14,8 @@ use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, escape_like_pattern, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, push_token_ilike_filters, tokens_from_query, user_ids_for_bulk_insert,
+    BulkTimer, DeleteTarget,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -50,12 +51,7 @@ struct AssetBalanceFilter {
 
 impl AssetBalanceFilter {
     fn from_params(params: &AssetBalanceSearchQueryParams) -> Self {
-        let tokens = params
-            .search
-            .q
-            .as_deref()
-            .map(|q| q.split_whitespace().map(str::to_string).collect())
-            .unwrap_or_default();
+        let tokens = tokens_from_query(params.search.q.as_deref());
 
         Self {
             tokens,
@@ -74,14 +70,7 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &AssetBa
     if let Some(v) = &filter.security_name {
         qb.push(" AND security_name = ").push_bind(v.clone());
     }
-    for token in &filter.tokens {
-        let pattern = escape_like_pattern(token);
-        qb.push(" AND (security_code ILIKE ")
-            .push_bind(pattern.clone())
-            .push(" ESCAPE '\\' OR security_name ILIKE ")
-            .push_bind(pattern)
-            .push(" ESCAPE '\\')");
-    }
+    push_token_ilike_filters(qb, &filter.tokens, &["security_code", "security_name"]);
 }
 
 /// 認証ユーザーの保有銘柄一覧を検索（ページネーション・summary・facets 対応）

@@ -13,10 +13,9 @@ use crate::services::csv_util::{
     parse_required_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, escape_like_pattern, parse_date_param, parse_year_month_range,
-    user_ids_for_bulk_insert, year_to_range, BulkTimer, DeleteTarget,
+    delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
+    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget,
 };
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
@@ -43,11 +42,7 @@ const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
 /// 投資信託検索条件を SQL 条件へ変換した中間表現
 #[derive(Debug)]
 struct MutualfundFilter {
-    date_eq: Option<NaiveDate>,
-    date_from: Option<NaiveDate>,
-    date_to: Option<NaiveDate>,
-    year_range: Option<(NaiveDate, NaiveDate)>,
-    year_month_range: Option<(NaiveDate, NaiveDate)>,
+    date_axis: DateAxisFilter,
     tokens: Vec<String>,
     account: Option<String>,
     fund_name: Option<String>,
@@ -57,39 +52,11 @@ struct MutualfundFilter {
 impl MutualfundFilter {
     fn from_params(params: &MutualfundSearchQueryParams) -> Result<Self, ApiError> {
         let search = &params.search;
-        let date_eq = search
-            .date
-            .as_deref()
-            .map(|v| parse_date_param("date", v))
-            .transpose()?;
-        let date_from = search
-            .date_from
-            .as_deref()
-            .map(|v| parse_date_param("date_from", v))
-            .transpose()?;
-        let date_to = search
-            .date_to
-            .as_deref()
-            .map(|v| parse_date_param("date_to", v))
-            .transpose()?;
-        let year_range = search.year.map(year_to_range).transpose()?;
-        let year_month_range = search
-            .year_month
-            .as_deref()
-            .map(parse_year_month_range)
-            .transpose()?;
-        let tokens = search
-            .q
-            .as_deref()
-            .map(|q| q.split_whitespace().map(str::to_string).collect())
-            .unwrap_or_default();
+        let date_axis = DateAxisFilter::from_search_params(search)?;
+        let tokens = tokens_from_query(search.q.as_deref());
 
         Ok(Self {
-            date_eq,
-            date_from,
-            date_to,
-            year_range,
-            year_month_range,
+            date_axis,
             tokens,
             account: params.account.clone(),
             fund_name: params.fund_name.clone(),
@@ -101,23 +68,7 @@ impl MutualfundFilter {
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &MutualfundFilter) {
     qb.push(" WHERE user_id = ").push_bind(user_id);
-    if let Some(v) = filter.date_eq {
-        qb.push(" AND trade_date = ").push_bind(v);
-    }
-    if let Some(v) = filter.date_from {
-        qb.push(" AND trade_date >= ").push_bind(v);
-    }
-    if let Some(v) = filter.date_to {
-        qb.push(" AND trade_date <= ").push_bind(v);
-    }
-    if let Some((start, end)) = filter.year_range {
-        qb.push(" AND trade_date >= ").push_bind(start);
-        qb.push(" AND trade_date < ").push_bind(end);
-    }
-    if let Some((start, end)) = filter.year_month_range {
-        qb.push(" AND trade_date >= ").push_bind(start);
-        qb.push(" AND trade_date < ").push_bind(end);
-    }
+    push_date_axis_filters(qb, "trade_date", &filter.date_axis);
     if let Some(v) = &filter.account {
         qb.push(" AND account = ").push_bind(v.clone());
     }
@@ -127,16 +78,7 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Mutualf
     if let Some(v) = &filter.dividends {
         qb.push(" AND dividends = ").push_bind(v.clone());
     }
-    for token in &filter.tokens {
-        let pattern = escape_like_pattern(token);
-        qb.push(" AND (account ILIKE ")
-            .push_bind(pattern.clone())
-            .push(" ESCAPE '\\' OR fund_name ILIKE ")
-            .push_bind(pattern.clone())
-            .push(" ESCAPE '\\' OR dividends ILIKE ")
-            .push_bind(pattern)
-            .push(" ESCAPE '\\')");
-    }
+    push_token_ilike_filters(qb, &filter.tokens, &["account", "fund_name", "dividends"]);
 }
 
 /// 認証ユーザーの投資信託一覧を検索（ページネーション・summary・facets 対応）
@@ -431,6 +373,7 @@ pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     #[test]
     fn test_preview_csv_basic() {
         let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"");
@@ -465,18 +408,27 @@ mod tests {
         let filter =
             MutualfundFilter::from_params(&params).expect("正しい日付フォーマットは検証を通過する");
 
-        assert_eq!(filter.date_eq, NaiveDate::from_ymd_opt(2026, 1, 15));
-        assert_eq!(filter.date_from, NaiveDate::from_ymd_opt(2026, 1, 1));
-        assert_eq!(filter.date_to, NaiveDate::from_ymd_opt(2026, 12, 31));
         assert_eq!(
-            filter.year_range,
+            filter.date_axis.date_eq,
+            NaiveDate::from_ymd_opt(2026, 1, 15)
+        );
+        assert_eq!(
+            filter.date_axis.date_from,
+            NaiveDate::from_ymd_opt(2026, 1, 1)
+        );
+        assert_eq!(
+            filter.date_axis.date_to,
+            NaiveDate::from_ymd_opt(2026, 12, 31)
+        );
+        assert_eq!(
+            filter.date_axis.year_range,
             Some((
                 NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
                 NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
             ))
         );
         assert_eq!(
-            filter.year_month_range,
+            filter.date_axis.year_month_range,
             Some((
                 NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
                 NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
