@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { uploadCsvFile, previewCsvFile } from '@/lib/api/csvHelpers';
+import { listRequestConfig, withCredentialsConfig } from '@/lib/api/requestHelpers';
 import type { paths } from '@/generated/api';
 
 const API_PATHS = {
@@ -22,8 +23,6 @@ type MutualfundListResponse = paths['/api/v1/mutual-fund-transactions']['get']['
 type MutualfundDeleteResponse = paths['/api/v1/mutual-fund-transactions']['delete']['responses'][200]['content']['application/json'];
 
 type ListQueryParams = NonNullable<paths['/api/v1/dividends']['get']['parameters']['query']>;
-const listRequestConfig = (params?: ListQueryParams) =>
-  params ? { params, withCredentials: true } : { withCredentials: true };
 
 // 配当金API
 export const dividendApi = {
@@ -35,7 +34,7 @@ export const dividendApi = {
   uploadCsv: (file: File) => uploadCsvFile(API_PATHS.dividendImport, file),
 
   deleteAll: async () =>
-    apiClient.delete<DividendDeleteResponse>(API_PATHS.dividendList, { withCredentials: true }),
+    apiClient.delete<DividendDeleteResponse>(API_PATHS.dividendList, withCredentialsConfig),
 };
 
 // 国内株式API
@@ -48,7 +47,7 @@ export const domesticStockApi = {
   uploadCsv: (file: File) => uploadCsvFile(API_PATHS.domesticStockImport, file),
 
   deleteAll: async () =>
-    apiClient.delete<DomesticStockDeleteResponse>(API_PATHS.domesticStockList, { withCredentials: true }),
+    apiClient.delete<DomesticStockDeleteResponse>(API_PATHS.domesticStockList, withCredentialsConfig),
 };
 
 // 投資信託API
@@ -61,5 +60,5 @@ export const mutualfundApi = {
   uploadCsv: (file: File) => uploadCsvFile(API_PATHS.mutualfundImport, file),
 
   deleteAll: async () =>
-    apiClient.delete<MutualfundDeleteResponse>(API_PATHS.mutualfundList, { withCredentials: true }),
+    apiClient.delete<MutualfundDeleteResponse>(API_PATHS.mutualfundList, withCredentialsConfig),
 };
