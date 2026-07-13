@@ -13,8 +13,8 @@ use crate::services::csv_util::{
     parse_required_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
-    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget,
+    self, delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
+    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget, FacetOrder,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -196,11 +196,19 @@ async fn fetch_facets(
     user_id: Uuid,
     filter: &DomesticStockFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let accounts = fetch_group_facets(pool, user_id, filter, GroupField::Account, true).await?;
+    let accounts =
+        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc).await?;
     let securities = fetch_security_facets(pool, user_id, filter).await?;
-    let years = fetch_group_facets(pool, user_id, filter, GroupField::Year, false).await?;
-    let year_months =
-        fetch_group_facets(pool, user_id, filter, GroupField::YearMonth, false).await?;
+    let years =
+        fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc).await?;
+    let year_months = fetch_group_facets(
+        pool,
+        user_id,
+        filter,
+        GroupField::YearMonth,
+        FacetOrder::Desc,
+    )
+    .await?;
 
     Ok(SearchFacets {
         products: None,
@@ -237,18 +245,16 @@ async fn fetch_group_facets(
     user_id: Uuid,
     filter: &DomesticStockFilter,
     group_field: GroupField,
-    order_asc: bool,
+    order: FacetOrder,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    let group_expr = group_field.as_sql_expr();
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
-        "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM domestic_stocks"
-    ));
-    push_filters(&mut qb, user_id, filter);
-    qb.push(format!(
-        " GROUP BY {group_expr} ORDER BY {group_expr} {}",
-        if order_asc { "ASC" } else { "DESC" }
-    ));
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    shared::fetch_group_facets(
+        pool,
+        "domestic_stocks",
+        group_field.as_sql_expr(),
+        order,
+        |qb| push_filters(qb, user_id, filter),
+    )
+    .await
 }
 
 /// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
