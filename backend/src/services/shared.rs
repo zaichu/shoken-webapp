@@ -295,12 +295,45 @@ pub async fn fetch_group_facets(
     Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
 }
 
+/// table / label_order（呼び出し側が渡す固定の &'static str のみ）を使って
+/// `security_code` ごとの facet 集計クエリを組み立てる。
+/// push_filters は WHERE 句（user_id を含む検索条件）を積むクロージャ。
+fn build_security_facets_query(
+    table: &'static str,
+    label_order: &'static str,
+    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+) -> QueryBuilder<Postgres> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+        "SELECT security_code AS value, \
+         (ARRAY_AGG(security_name ORDER BY {label_order}))[1] AS label, \
+         COUNT(*) AS count \
+         FROM {table}"
+    ));
+    push_filters(&mut qb);
+    qb.push(" GROUP BY security_code ORDER BY security_code");
+    qb
+}
+
+/// security_code の値ごとに security_name（label_order で選択）・件数を集計して
+/// FacetOption を返す共通ヘルパー。
+/// table / label_order は呼び出し側が定義する固定値のみを渡すこと。
+pub async fn fetch_security_facets(
+    pool: &PgPool,
+    table: &'static str,
+    label_order: &'static str,
+    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+) -> Result<Vec<FacetOption>, ApiError> {
+    let mut qb = build_security_facets_query(table, label_order, push_filters);
+    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        build_group_facets_query, escape_like_pattern, parse_date_param, parse_year_month_range,
-        push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
-        user_ids_for_bulk_insert, year_to_range, BulkTimer, DateAxisFilter, FacetOrder,
+        build_group_facets_query, build_security_facets_query, escape_like_pattern,
+        parse_date_param, parse_year_month_range, push_date_axis_filters, push_token_ilike_filters,
+        tokens_from_query, user_ids_for_bulk_insert, year_to_range, BulkTimer, DateAxisFilter,
+        FacetOrder,
     };
     use crate::errors::ApiError;
     use chrono::NaiveDate;
@@ -467,5 +500,36 @@ mod tests {
             "SELECT account AS value, account AS label, COUNT(*) AS count FROM mutualfunds"
         ));
         assert!(sql.ends_with("GROUP BY account ORDER BY account DESC"));
+    }
+
+    #[test]
+    fn test_build_security_facets_query_uses_given_table_label_order_and_filters() {
+        let qb = build_security_facets_query("dividends", "settlement_date DESC, id DESC", |qb| {
+            qb.push(" WHERE user_id = ").push_bind(Uuid::nil());
+        });
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.starts_with(
+            "SELECT security_code AS value, \
+             (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] AS label, \
+             COUNT(*) AS count FROM dividends"
+        ));
+        assert!(sql.contains("WHERE user_id = "));
+        assert!(sql.ends_with("GROUP BY security_code ORDER BY security_code"));
+    }
+
+    #[test]
+    fn test_build_security_facets_query_with_no_filters() {
+        let qb = build_security_facets_query("asset_balances", "id", |_| {});
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert!(sql.starts_with(
+            "SELECT security_code AS value, \
+             (ARRAY_AGG(security_name ORDER BY id))[1] AS label, \
+             COUNT(*) AS count FROM asset_balances"
+        ));
+        assert!(sql.ends_with("GROUP BY security_code ORDER BY security_code"));
     }
 }

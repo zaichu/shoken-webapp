@@ -14,8 +14,8 @@ use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, push_token_ilike_filters, tokens_from_query, user_ids_for_bulk_insert,
-    BulkTimer, DeleteTarget,
+    self, delete_all_for_user, push_token_ilike_filters, tokens_from_query,
+    user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -182,15 +182,10 @@ async fn fetch_security_facets(
     user_id: Uuid,
     filter: &AssetBalanceFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT security_code AS value, \
-         (ARRAY_AGG(security_name ORDER BY id))[1] AS label, \
-         COUNT(*) AS count \
-         FROM asset_balances",
-    );
-    push_filters(&mut qb, user_id, filter);
-    qb.push(" GROUP BY security_code ORDER BY security_code");
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    shared::fetch_security_facets(pool, "asset_balances", "id", |qb| {
+        push_filters(qb, user_id, filter);
+    })
+    .await
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
