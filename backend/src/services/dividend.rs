@@ -240,15 +240,10 @@ async fn fetch_security_facets(
     user_id: Uuid,
     filter: &DividendFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT security_code AS value, \
-         (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] AS label, \
-         COUNT(*) AS count \
-         FROM dividends",
-    );
-    push_filters(&mut qb, user_id, filter);
-    qb.push(" GROUP BY security_code ORDER BY security_code");
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    shared::fetch_security_facets(pool, "dividends", "settlement_date DESC, id DESC", |qb| {
+        push_filters(qb, user_id, filter);
+    })
+    .await
 }
 
 /// 配当金を一括追加（重複はスキップ）
