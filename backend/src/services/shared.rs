@@ -1,8 +1,8 @@
 use crate::errors::ApiError;
-use crate::models::common::BulkCreateResponse;
+use crate::models::common::{BulkCreateResponse, SearchQueryParams};
 use chrono::NaiveDate;
 use sqlx::postgres::PgQueryResult;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::time::Instant;
 use tracing::info;
 use uuid::Uuid;
@@ -144,14 +144,118 @@ pub fn escape_like_pattern(token: &str) -> String {
     format!("%{escaped}%")
 }
 
+/// `SearchQueryParams` の date 系フィールドを解析した中間表現
+/// （date_eq / date_from / date_to / year_range / year_month_range）
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DateAxisFilter {
+    pub date_eq: Option<NaiveDate>,
+    pub date_from: Option<NaiveDate>,
+    pub date_to: Option<NaiveDate>,
+    pub year_range: Option<(NaiveDate, NaiveDate)>,
+    pub year_month_range: Option<(NaiveDate, NaiveDate)>,
+}
+
+impl DateAxisFilter {
+    pub fn from_search_params(search: &SearchQueryParams) -> Result<Self, ApiError> {
+        let date_eq = search
+            .date
+            .as_deref()
+            .map(|v| parse_date_param("date", v))
+            .transpose()?;
+        let date_from = search
+            .date_from
+            .as_deref()
+            .map(|v| parse_date_param("date_from", v))
+            .transpose()?;
+        let date_to = search
+            .date_to
+            .as_deref()
+            .map(|v| parse_date_param("date_to", v))
+            .transpose()?;
+        let year_range = search.year.map(year_to_range).transpose()?;
+        let year_month_range = search
+            .year_month
+            .as_deref()
+            .map(parse_year_month_range)
+            .transpose()?;
+
+        Ok(Self {
+            date_eq,
+            date_from,
+            date_to,
+            year_range,
+            year_month_range,
+        })
+    }
+}
+
+/// date_column（呼び出し側が渡す固定文字列のみ）を使って date 条件を WHERE 句へ push する
+pub fn push_date_axis_filters(
+    qb: &mut QueryBuilder<Postgres>,
+    date_column: &'static str,
+    filter: &DateAxisFilter,
+) {
+    if let Some(v) = filter.date_eq {
+        qb.push(format!(" AND {date_column} = ")).push_bind(v);
+    }
+    if let Some(v) = filter.date_from {
+        qb.push(format!(" AND {date_column} >= ")).push_bind(v);
+    }
+    if let Some(v) = filter.date_to {
+        qb.push(format!(" AND {date_column} <= ")).push_bind(v);
+    }
+    if let Some((start, end)) = filter.year_range {
+        qb.push(format!(" AND {date_column} >= ")).push_bind(start);
+        qb.push(format!(" AND {date_column} < ")).push_bind(end);
+    }
+    if let Some((start, end)) = filter.year_month_range {
+        qb.push(format!(" AND {date_column} >= ")).push_bind(start);
+        qb.push(format!(" AND {date_column} < ")).push_bind(end);
+    }
+}
+
+/// フリーワード検索欄をスペース区切りの token 配列へ変換する
+pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
+    q.map(|q| q.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default()
+}
+
+/// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を
+/// `AND (col1 ILIKE $n ESCAPE '\' OR col2 ILIKE $n+1 ESCAPE '\' ...)` として push する
+pub fn push_token_ilike_filters(
+    qb: &mut QueryBuilder<Postgres>,
+    tokens: &[String],
+    columns: &[&'static str],
+) {
+    if columns.is_empty() {
+        return;
+    }
+
+    for token in tokens {
+        let pattern = escape_like_pattern(token);
+        qb.push(" AND (");
+        for (i, column) in columns.iter().enumerate() {
+            if i > 0 {
+                qb.push(" OR ");
+            }
+            qb.push(format!("{column} ILIKE "))
+                .push_bind(pattern.clone())
+                .push(" ESCAPE '\\'");
+        }
+        qb.push(")");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_like_pattern, parse_date_param, parse_year_month_range, user_ids_for_bulk_insert,
-        year_to_range, BulkTimer,
+        escape_like_pattern, parse_date_param, parse_year_month_range, push_date_axis_filters,
+        push_token_ilike_filters, tokens_from_query, user_ids_for_bulk_insert, year_to_range,
+        BulkTimer, DateAxisFilter,
     };
     use crate::errors::ApiError;
     use chrono::NaiveDate;
+    use sqlx::{Postgres, QueryBuilder};
     use uuid::Uuid;
 
     #[test]
@@ -221,5 +325,71 @@ mod tests {
         assert!(result.iter().all(|&v| v == id));
 
         assert!(user_ids_for_bulk_insert(id, 0).is_empty());
+    }
+
+    #[test]
+    fn test_tokens_from_query_splits_on_whitespace() {
+        assert_eq!(tokens_from_query(None), Vec::<String>::new());
+        assert_eq!(tokens_from_query(Some("")), Vec::<String>::new());
+        assert_eq!(
+            tokens_from_query(Some("AA  BB")),
+            vec!["AA".to_string(), "BB".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_push_date_axis_filters_pushes_all_present_conditions_with_given_column() {
+        let filter = DateAxisFilter {
+            date_eq: NaiveDate::from_ymd_opt(2026, 1, 15),
+            date_from: NaiveDate::from_ymd_opt(2026, 1, 1),
+            date_to: NaiveDate::from_ymd_opt(2026, 12, 31),
+            year_range: Some((
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap(),
+            )),
+            year_month_range: Some((
+                NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            )),
+        };
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        push_date_axis_filters(&mut qb, "settlement_date", &filter);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert_eq!(sql.matches("settlement_date = ").count(), 1);
+        assert_eq!(sql.matches("settlement_date >= ").count(), 3);
+        assert_eq!(sql.matches("settlement_date <= ").count(), 1);
+        assert_eq!(sql.matches("settlement_date < ").count(), 2);
+    }
+
+    #[test]
+    fn test_push_date_axis_filters_pushes_nothing_when_all_none() {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        push_date_axis_filters(&mut qb, "settlement_date", &DateAxisFilter::default());
+        assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
+    }
+
+    #[test]
+    fn test_push_token_ilike_filters_combines_columns_as_or_per_token() {
+        let tokens = vec!["AA".to_string(), "BB".to_string()];
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        push_token_ilike_filters(&mut qb, &tokens, &["product", "account"]);
+        let sql = qb.sql();
+        let sql = sql.as_str();
+
+        assert_eq!(sql.matches(" AND (").count(), 2);
+        assert_eq!(sql.matches("product ILIKE").count(), 2);
+        assert_eq!(sql.matches("account ILIKE").count(), 2);
+        assert_eq!(sql.matches(" OR ").count(), 2);
+    }
+
+    #[test]
+    fn test_push_token_ilike_filters_pushes_nothing_when_columns_empty() {
+        let tokens = vec!["AA".to_string()];
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        push_token_ilike_filters(&mut qb, &tokens, &[]);
+        assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
     }
 }

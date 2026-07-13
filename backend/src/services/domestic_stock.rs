@@ -13,10 +13,9 @@ use crate::services::csv_util::{
     parse_required_string_row,
 };
 use crate::services::shared::{
-    delete_all_for_user, escape_like_pattern, parse_date_param, parse_year_month_range,
-    user_ids_for_bulk_insert, year_to_range, BulkTimer, DeleteTarget,
+    delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
+    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget,
 };
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
@@ -42,11 +41,7 @@ const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
 /// 国内株式検索条件を SQL 条件へ変換した中間表現
 #[derive(Debug)]
 struct DomesticStockFilter {
-    date_eq: Option<NaiveDate>,
-    date_from: Option<NaiveDate>,
-    date_to: Option<NaiveDate>,
-    year_range: Option<(NaiveDate, NaiveDate)>,
-    year_month_range: Option<(NaiveDate, NaiveDate)>,
+    date_axis: DateAxisFilter,
     tokens: Vec<String>,
     account: Option<String>,
     security_code: Option<String>,
@@ -56,39 +51,11 @@ struct DomesticStockFilter {
 impl DomesticStockFilter {
     fn from_params(params: &DomesticStockSearchQueryParams) -> Result<Self, ApiError> {
         let search = &params.search;
-        let date_eq = search
-            .date
-            .as_deref()
-            .map(|v| parse_date_param("date", v))
-            .transpose()?;
-        let date_from = search
-            .date_from
-            .as_deref()
-            .map(|v| parse_date_param("date_from", v))
-            .transpose()?;
-        let date_to = search
-            .date_to
-            .as_deref()
-            .map(|v| parse_date_param("date_to", v))
-            .transpose()?;
-        let year_range = search.year.map(year_to_range).transpose()?;
-        let year_month_range = search
-            .year_month
-            .as_deref()
-            .map(parse_year_month_range)
-            .transpose()?;
-        let tokens = search
-            .q
-            .as_deref()
-            .map(|q| q.split_whitespace().map(str::to_string).collect())
-            .unwrap_or_default();
+        let date_axis = DateAxisFilter::from_search_params(search)?;
+        let tokens = tokens_from_query(search.q.as_deref());
 
         Ok(Self {
-            date_eq,
-            date_from,
-            date_to,
-            year_range,
-            year_month_range,
+            date_axis,
             tokens,
             account: params.account.clone(),
             security_code: params.security_code.clone(),
@@ -100,23 +67,7 @@ impl DomesticStockFilter {
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DomesticStockFilter) {
     qb.push(" WHERE user_id = ").push_bind(user_id);
-    if let Some(v) = filter.date_eq {
-        qb.push(" AND trade_date = ").push_bind(v);
-    }
-    if let Some(v) = filter.date_from {
-        qb.push(" AND trade_date >= ").push_bind(v);
-    }
-    if let Some(v) = filter.date_to {
-        qb.push(" AND trade_date <= ").push_bind(v);
-    }
-    if let Some((start, end)) = filter.year_range {
-        qb.push(" AND trade_date >= ").push_bind(start);
-        qb.push(" AND trade_date < ").push_bind(end);
-    }
-    if let Some((start, end)) = filter.year_month_range {
-        qb.push(" AND trade_date >= ").push_bind(start);
-        qb.push(" AND trade_date < ").push_bind(end);
-    }
+    push_date_axis_filters(qb, "trade_date", &filter.date_axis);
     if let Some(v) = &filter.account {
         qb.push(" AND account = ").push_bind(v.clone());
     }
@@ -126,16 +77,11 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Domesti
     if let Some(v) = &filter.security_name {
         qb.push(" AND security_name = ").push_bind(v.clone());
     }
-    for token in &filter.tokens {
-        let pattern = escape_like_pattern(token);
-        qb.push(" AND (account ILIKE ")
-            .push_bind(pattern.clone())
-            .push(" ESCAPE '\\' OR security_code ILIKE ")
-            .push_bind(pattern.clone())
-            .push(" ESCAPE '\\' OR security_name ILIKE ")
-            .push_bind(pattern)
-            .push(" ESCAPE '\\')");
-    }
+    push_token_ilike_filters(
+        qb,
+        &filter.tokens,
+        &["account", "security_code", "security_name"],
+    );
 }
 
 /// 認証ユーザーの国内株式取引一覧を検索（ページネーション・summary・facets 対応）
@@ -665,18 +611,27 @@ mod tests {
         let filter = DomesticStockFilter::from_params(&params)
             .expect("正しい日付フォーマットは検証を通過する");
 
-        assert_eq!(filter.date_eq, NaiveDate::from_ymd_opt(2026, 1, 15));
-        assert_eq!(filter.date_from, NaiveDate::from_ymd_opt(2026, 1, 1));
-        assert_eq!(filter.date_to, NaiveDate::from_ymd_opt(2026, 12, 31));
         assert_eq!(
-            filter.year_range,
+            filter.date_axis.date_eq,
+            NaiveDate::from_ymd_opt(2026, 1, 15)
+        );
+        assert_eq!(
+            filter.date_axis.date_from,
+            NaiveDate::from_ymd_opt(2026, 1, 1)
+        );
+        assert_eq!(
+            filter.date_axis.date_to,
+            NaiveDate::from_ymd_opt(2026, 12, 31)
+        );
+        assert_eq!(
+            filter.date_axis.year_range,
             Some((
                 NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
                 NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
             ))
         );
         assert_eq!(
-            filter.year_month_range,
+            filter.date_axis.year_month_range,
             Some((
                 NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
                 NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
