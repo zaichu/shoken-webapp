@@ -110,6 +110,33 @@ impl SearchQueryParams {
     }
 }
 
+/// `#[serde(flatten)] search: SearchQueryParams` を持つドメイン別検索パラメータが
+/// page/per_page/offset/should_include_summary/should_include_facets を委譲実装する重複を解消する共通トレイト。
+/// 実装側は `search_params()` のみを定義すればよい。
+pub trait SearchParamsAccessor {
+    fn search_params(&self) -> &SearchQueryParams;
+
+    fn page(&self) -> i64 {
+        self.search_params().page()
+    }
+
+    fn per_page(&self) -> i64 {
+        self.search_params().per_page()
+    }
+
+    fn offset(&self) -> i64 {
+        self.search_params().offset()
+    }
+
+    fn should_include_summary(&self) -> bool {
+        self.search_params().should_include_summary()
+    }
+
+    fn should_include_facets(&self) -> bool {
+        self.search_params().should_include_facets()
+    }
+}
+
 /// 検索候補の共通表現。
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct FacetOption {

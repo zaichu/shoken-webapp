@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets,
+    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::models::domestic_stock::{
@@ -12,9 +12,10 @@ use crate::services::csv_util::{
     compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
 };
+use crate::services::search_filters::{push_search_filters, run_paginated_search};
 use crate::services::shared::{
-    self, delete_all_for_user, push_date_axis_filters, push_token_ilike_filters, tokens_from_query,
-    user_ids_for_bulk_insert, BulkTimer, DateAxisFilter, DeleteTarget, FacetOrder,
+    self, delete_all_for_user, tokens_from_query, user_ids_for_bulk_insert, BulkTimer,
+    DateAxisFilter, DeleteTarget, FacetOrder,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -66,19 +67,15 @@ impl DomesticStockFilter {
 
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DomesticStockFilter) {
-    qb.push(" WHERE user_id = ").push_bind(user_id);
-    push_date_axis_filters(qb, "trade_date", &filter.date_axis);
-    if let Some(v) = &filter.account {
-        qb.push(" AND account = ").push_bind(v.clone());
-    }
-    if let Some(v) = &filter.security_code {
-        qb.push(" AND security_code = ").push_bind(v.clone());
-    }
-    if let Some(v) = &filter.security_name {
-        qb.push(" AND security_name = ").push_bind(v.clone());
-    }
-    push_token_ilike_filters(
+    push_search_filters(
         qb,
+        user_id,
+        Some(("trade_date", &filter.date_axis)),
+        &[
+            ("account", &filter.account),
+            ("security_code", &filter.security_code),
+            ("security_name", &filter.security_name),
+        ],
         &filter.tokens,
         &["account", "security_code", "security_name"],
     );
@@ -92,33 +89,6 @@ pub async fn search(
 ) -> Result<PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>, ApiError> {
     info!("[domestic_stock.search] リクエスト受信");
     let filter = DomesticStockFilter::from_params(params)?;
-
-    let mut count_qb: QueryBuilder<Postgres> =
-        QueryBuilder::new("SELECT COUNT(*) FROM domestic_stocks");
-    push_filters(&mut count_qb, user_id, &filter);
-    let count_fut = async move {
-        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
-        Ok::<_, ApiError>(total)
-    };
-
-    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT id, user_id, trade_date, settlement_date, security_code, security_name, \
-         account, shares, asked_price, proceeds, purchase_price, realized_profit_and_loss, \
-         taxes, realized_profit_and_loss_after_tax, created_at, updated_at \
-         FROM domestic_stocks",
-    );
-    push_filters(&mut data_qb, user_id, &filter);
-    data_qb.push(" ORDER BY trade_date DESC, id DESC LIMIT ");
-    data_qb.push_bind(params.per_page());
-    data_qb.push(" OFFSET ");
-    data_qb.push_bind(params.offset());
-    let data_fut = async move {
-        let data = data_qb
-            .build_query_as::<DomesticStock>()
-            .fetch_all(pool)
-            .await?;
-        Ok::<_, ApiError>(data)
-    };
 
     let summary_fut = async {
         if params.should_include_summary() {
@@ -136,18 +106,22 @@ pub async fn search(
         }
     };
 
-    // count/data/summary/facets は相互に依存しないため並行実行する
-    let (total, data, summary, facets) =
-        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
-
-    Ok(PaginatedSearchResponse {
-        data,
-        total,
-        page: params.page(),
-        per_page: params.per_page(),
-        summary,
-        facets,
-    })
+    run_paginated_search(
+        pool,
+        "SELECT COUNT(*) FROM domestic_stocks",
+        "SELECT id, user_id, trade_date, settlement_date, security_code, security_name, \
+         account, shares, asked_price, proceeds, purchase_price, realized_profit_and_loss, \
+         taxes, realized_profit_and_loss_after_tax, created_at, updated_at \
+         FROM domestic_stocks",
+        " ORDER BY trade_date DESC, id DESC",
+        |qb| push_filters(qb, user_id, &filter),
+        params.page(),
+        params.per_page(),
+        params.offset(),
+        summary_fut,
+        facets_fut,
+    )
+    .await
 }
 
 /// 検索条件全体の summary を算出する。
