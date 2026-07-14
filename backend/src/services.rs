@@ -1,5 +1,6 @@
 pub mod asset_balance;
 pub mod auth;
+pub mod bulk_helpers;
 pub mod csv_domain;
 pub mod csv_import;
 pub mod csv_pipeline;
@@ -7,7 +8,9 @@ pub mod csv_util;
 pub mod dividend;
 pub mod dividend_cache;
 pub mod domestic_stock;
+pub mod facets;
 pub mod market_data;
 pub mod mutualfund;
+pub mod search_filters;
 pub mod shared;
 pub mod stock;
