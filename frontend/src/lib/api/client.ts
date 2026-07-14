@@ -207,41 +207,6 @@ class ApiClient {
   async delete<T>(url: string, config?: RequestConfig): Promise<T> {
     return this.executeRequest<T>('DELETE', url, undefined, config);
   }
-
-  // バッチリクエスト
-  async batch<T extends readonly unknown[]>(
-    requests: {
-      [K in keyof T]: () => Promise<T[K]>
-    }
-  ): Promise<T> {
-    const promises = requests.map(requestFn => requestFn());
-    return Promise.all(promises) as unknown as Promise<T>;
-  }
-
-  // キャンセル可能なリクエスト
-  createCancelableRequest<T>(
-    requestFn: (signal: AbortSignal) => Promise<T>
-  ): {
-    promise: Promise<T>;
-    cancel: () => void;
-  } {
-    const controller = new AbortController();
-
-    const wrappedPromise = requestFn(controller.signal).catch(error => {
-      if (controller.signal.aborted) {
-        throw new ApiError(
-          ApiErrorType.REQUEST_ERROR,
-          'リクエストがキャンセルされました'
-        );
-      }
-      throw error;
-    });
-
-    return {
-      promise: wrappedPromise,
-      cancel: () => controller.abort(),
-    };
-  }
 }
 
 // シングルトンインスタンスの遅延初期化
@@ -261,8 +226,6 @@ export const apiClient = {
   put: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().put<T>(url, data, config),
   patch: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().patch<T>(url, data, config),
   delete: <T>(url: string, config?: RequestConfig) => getApiClient().delete<T>(url, config),
-  batch: <T extends readonly unknown[]>(requests: { [K in keyof T]: () => Promise<T[K]> }) => getApiClient().batch<T>(requests),
-  createCancelableRequest: <T>(requestFn: (signal: AbortSignal) => Promise<T>) => getApiClient().createCancelableRequest<T>(requestFn),
 };
 
 // 型付きAPIクライアントのファクトリー関数
