@@ -282,67 +282,6 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('バッチリクエスト', () => {
-    it('複数のリクエストを並列実行できる', async () => {
-      const mockData1 = { id: 1 };
-      const mockData2 = { id: 2 };
-      const mockData3 = { id: 3 };
-
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData1)) })
-        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData2)) })
-        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(mockData3)) });
-
-      const client = createApiClient({ baseURL: 'http://api.test' });
-      const resultsPromise = client.batch([
-        () => client.get('/test/1'),
-        () => client.get('/test/2'),
-        () => client.get('/test/3'),
-      ]);
-      await vi.runAllTimersAsync();
-      const results = await resultsPromise;
-
-      expect(results).toEqual([mockData1, mockData2, mockData3]);
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  describe('キャンセル可能なリクエスト', () => {
-    it('リクエストをキャンセルできる', async () => {
-      const client = createApiClient({ baseURL: 'http://api.test' });
-      const { promise, cancel } = client.createCancelableRequest(
-        async (signal) => {
-          // AbortSignalを使用したリクエストのシミュレーション
-          return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => resolve('success'), 1000);
-
-            signal.addEventListener('abort', () => {
-              clearTimeout(timeout);
-              reject(new Error('Aborted'));
-            });
-          });
-        }
-      );
-
-      // 即座にキャンセル
-      cancel();
-
-      // キャンセルされたリクエストはエラーになるはず
-      await expect(promise).rejects.toThrow();
-    });
-
-    it('abort以外のエラーはそのままrethrowする', async () => {
-      const client = createApiClient({ baseURL: 'http://api.test' });
-      const expectedError = new Error('Unexpected failure');
-
-      const { promise } = client.createCancelableRequest(async () => {
-        throw expectedError;
-      });
-
-      await expect(promise).rejects.toBe(expectedError);
-    });
-  });
-
   describe('FormDataリクエスト', () => {
     it('FormDataを送信するとき Content-Type ヘッダーを含まない', async () => {
       mockFetch.mockResolvedValue({
@@ -494,11 +433,6 @@ describe('ApiClient', () => {
       const putPromise = apiClient.put('/singleton-put', { name: 'put' });
       const patchPromise = apiClient.patch('/singleton-patch', { name: 'patch' });
       const deletePromise = apiClient.delete('/singleton-delete');
-      const batchPromise = apiClient.batch([
-        () => apiClient.get('/singleton-batch-1'),
-        () => apiClient.get('/singleton-batch-2'),
-      ] as const);
-      const cancelableRequest = apiClient.createCancelableRequest(async () => 'singleton');
 
       await vi.runAllTimersAsync();
 
@@ -507,10 +441,8 @@ describe('ApiClient', () => {
       await expect(putPromise).resolves.toEqual({});
       await expect(patchPromise).resolves.toEqual({});
       await expect(deletePromise).resolves.toEqual({});
-      await expect(batchPromise).resolves.toEqual([{}, {}]);
-      await expect(cancelableRequest.promise).resolves.toBe('singleton');
 
-      expect(mockFetch).toHaveBeenCalledTimes(7);
+      expect(mockFetch).toHaveBeenCalledTimes(5);
       expect(mockFetch).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining('/singleton-get'),

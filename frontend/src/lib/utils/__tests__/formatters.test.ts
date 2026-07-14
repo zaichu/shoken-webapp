@@ -1,10 +1,7 @@
 import {
-  parseDate,
   formatJPDate,
-  formatDateString,
   createYearMonthKey,
   createISODateKey,
-  parseNumberString,
   parseNumber,
   formatNumber,
   formatCurrency,
@@ -21,28 +18,6 @@ import {
 } from '../formatters';
 
 describe('日付関連のフォーマット関数', () => {
-  describe('parseDate', () => {
-    it('正しい日付文字列を解析する', () => {
-      const result = parseDate('2023/12/25');
-      expect(result).toBeInstanceOf(Date);
-      expect(result?.getFullYear()).toBe(2023);
-      expect(result?.getMonth()).toBe(11); // 0ベース
-      expect(result?.getDate()).toBe(25);
-    });
-
-    it('無効な文字列でnullを返す', () => {
-      expect(parseDate('')).toBeNull();
-      expect(parseDate('invalid')).toBeNull();
-      expect(parseDate('2023-12-25')).toBeNull(); // 違う形式
-    });
-
-    it('単桁の月日も正しく解析する', () => {
-      const result = parseDate('2023/1/5');
-      expect(result?.getMonth()).toBe(0);
-      expect(result?.getDate()).toBe(5);
-    });
-  });
-
   describe('formatJPDate', () => {
     it('正常な日付を日本形式でフォーマットする', () => {
       const date = new Date(2023, 11, 25);
@@ -54,23 +29,6 @@ describe('日付関連のフォーマット関数', () => {
       expect(formatJPDate(undefined)).toBe('-');
       expect(formatJPDate('string')).toBe('-');
       expect(formatJPDate(new Date('invalid'))).toBe('-');
-    });
-  });
-
-  describe('formatDateString', () => {
-    const date = new Date(2023, 11, 25);
-
-    it('短い形式でフォーマットする', () => {
-      expect(formatDateString(date, 'short')).toBe('2023/12/25');
-      expect(formatDateString(date)).toBe('2023/12/25'); // デフォルト
-    });
-
-    it('長い形式でフォーマットする', () => {
-      expect(formatDateString(date, 'long')).toBe('2023年12月25日');
-    });
-
-    it('無効な日付で空文字を返す', () => {
-      expect(formatDateString(new Date('invalid'))).toBe('');
     });
   });
 
@@ -136,22 +94,6 @@ describe('数値関連のフォーマット関数', () => {
       expect(normalizeSecurityName('日本株ABC123')).toBe('日本株ABC123');
     });
   });
-  describe('parseNumberString', () => {
-    it('数値文字列を解析する', () => {
-      expect(parseNumberString('123')).toBe(123);
-      expect(parseNumberString('123.45')).toBe(123.45);
-      expect(parseNumberString('1,234')).toBe(1234);
-      expect(parseNumberString('1,234.56')).toBe(1234.56);
-    });
-
-    it('無効な値でnullを返す', () => {
-      expect(parseNumberString(null)).toBeNull();
-      expect(parseNumberString(undefined)).toBeNull();
-      expect(parseNumberString('')).toBeNull();
-      expect(parseNumberString('abc')).toBeNull();
-    });
-  });
-
   describe('parseNumber', () => {
     it('様々な値を数値に変換する', () => {
       expect(parseNumber('123')).toBe(123);

@@ -51,25 +51,6 @@ export function normalizeSecurityName(name: string): string {
 // ==================== 日付関連 ====================
 
 /**
- * 文字列から日付オブジェクトを解析する
- * @param dateStr 日付文字列 (YYYY/MM/DD形式)
- * @returns 日付オブジェクト、解析できない場合はnull
- */
-export function parseDate(dateStr: string): Date | null {
-  if (!dateStr) return null;
-
-  const match = dateStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if (match) {
-    const year = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const day = parseInt(match[3], 10);
-    return new Date(year, month, day);
-  }
-
-  return null;
-}
-
-/**
  * 日付を日本形式でフォーマットする
  * @param value 日付値
  * @returns フォーマットされた日付文字列
@@ -79,28 +60,6 @@ export function formatJPDate(value: unknown): string {
     return '-';
   }
   return value.toLocaleDateString('ja-JP', JP_DATE_FORMAT_OPTIONS);
-}
-
-/**
- * 日付文字列をフォーマットする
- * @param date 日付オブジェクト
- * @param format フォーマット形式
- * @returns フォーマットされた日付文字列
- */
-export function formatDateString(date: Date, format: 'short' | 'long' = 'short'): string {
-  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return '';
-  }
-
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-
-  if (format === 'short') {
-    return `${year}/${month}/${day}`;
-  }
-
-  return `${year}年${month}月${day}日`;
 }
 
 /**
@@ -133,24 +92,47 @@ export function createISODateKey(date: Date): string {
 // ==================== 数値関連 ====================
 
 /**
- * 数値文字列を解析して数値に変換する
- * @param value 解析する値
- * @returns 数値、解析できない場合はnull
- */
-export function parseNumberString(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const cleanStr = value.replace(/,/g, '');
-  const num = parseFloat(cleanStr);
-  return isNaN(num) ? null : num;
-}
-
-/**
  * 任意の値を数値に変換する（カンマ区切り対応）
  * @param value 変換する値
  * @returns 数値
  */
 export function parseNumber(value: unknown): number {
   return Number(String(value || '0').replace(/,/g, ''));
+}
+
+/**
+ * 値を数値に変換する（文字列・数値以外はnull）
+ * @param value 変換する値
+ * @returns 数値、変換できない場合はnull
+ */
+function toNumberOrNull(value: unknown): number | null {
+  let num: number;
+
+  if (typeof value === 'string') {
+    num = Number(value.replace(/,/g, ''));
+  } else if (typeof value === 'number') {
+    num = value;
+  } else {
+    return null;
+  }
+
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * 数値の絶対値をIntl.NumberFormatで文字列化し、符号を付与する
+ * @param num 数値
+ * @param formatOptions Intl.NumberFormatOptions
+ * @returns 符号付きのフォーマット済み文字列
+ */
+function formatSignedAbsNumber(
+  num: number,
+  formatOptions: Intl.NumberFormatOptions
+): { formatted: string; isNegative: boolean } {
+  const isNegative = num < 0;
+  const absNum = Math.abs(num);
+  const formatted = new Intl.NumberFormat('ja-JP', formatOptions).format(absNum);
+  return { formatted, isNegative };
 }
 
 /**
@@ -174,35 +156,19 @@ export function formatNumber(
   } = options;
 
   try {
-    let num: number;
-
-    if (typeof value === 'string') {
-      num = Number(value.replace(/,/g, ''));
-    } else if (typeof value === 'number') {
-      num = value;
-    } else {
+    const num = toNumberOrNull(value);
+    if (num === null) {
       return '-';
     }
 
-    if (isNaN(num)) {
-      return '-';
-    }
-
-    const isNegative = num < 0;
-    const absNum = Math.abs(num);
-
-    const formattedNumber = new Intl.NumberFormat('ja-JP', {
+    const { formatted, isNegative } = formatSignedAbsNumber(num, {
       style: 'decimal',
       useGrouping,
       minimumFractionDigits,
       maximumFractionDigits
-    }).format(absNum);
+    });
 
-    if (isNegative) {
-      return `-${formattedNumber}`;
-    } else {
-      return formattedNumber;
-    }
+    return isNegative ? `-${formatted}` : formatted;
   } catch (error) {
     console.error('数値のフォーマットに失敗しました:', error instanceof Error ? error.message : String(error));
     return '-';
@@ -230,35 +196,19 @@ export function formatCurrency(
   } = options;
 
   try {
-    let num: number;
-
-    if (typeof value === 'string') {
-      num = Number(value.replace(/,/g, ''));
-    } else if (typeof value === 'number') {
-      num = value;
-    } else {
+    const num = toNumberOrNull(value);
+    if (num === null) {
       return '-';
     }
 
-    if (isNaN(num)) {
-      return '-';
-    }
-
-    const isNegative = num < 0;
-    const absNum = Math.abs(num);
-
-    const formattedNumber = new Intl.NumberFormat('ja-JP', {
+    const { formatted, isNegative } = formatSignedAbsNumber(num, {
       style: 'decimal',
       useGrouping: true,
       minimumFractionDigits,
       maximumFractionDigits
-    }).format(absNum);
+    });
 
-    if (isNegative) {
-      return `${currency} -${formattedNumber}`;
-    } else {
-      return `${currency} ${formattedNumber}`;
-    }
+    return isNegative ? `${currency} -${formatted}` : `${currency} ${formatted}`;
   } catch (error) {
     console.error('通貨のフォーマットに失敗しました:', error instanceof Error ? error.message : String(error));
     return '-';
