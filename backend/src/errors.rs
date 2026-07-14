@@ -81,14 +81,10 @@ fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
                 }
                 sqlx::Error::Database(db_err) => {
                     if db_err.is_unique_violation() {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            "DUPLICATE_ENTRY",
-                            "Duplicate entry",
-                        )
+                        (StatusCode::CONFLICT, "DUPLICATE_ENTRY", "Duplicate entry")
                     } else if db_err.is_foreign_key_violation() {
                         (
-                            StatusCode::INTERNAL_SERVER_ERROR,
+                            StatusCode::BAD_REQUEST,
                             "FOREIGN_KEY_VIOLATION",
                             "Foreign key constraint violation",
                         )
