@@ -173,21 +173,27 @@ async fn fetch_facets(
     user_id: Uuid,
     filter: &DividendFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let products =
-        fetch_group_facets(pool, user_id, filter, GroupField::Product, FacetOrder::Asc).await?;
-    let accounts =
-        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc).await?;
-    let securities = fetch_security_facets(pool, user_id, filter).await?;
-    let years =
-        fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc).await?;
-    let year_months = fetch_group_facets(
+    let products_fut =
+        fetch_group_facets(pool, user_id, filter, GroupField::Product, FacetOrder::Asc);
+    let accounts_fut =
+        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+    let securities_fut = fetch_security_facets(pool, user_id, filter);
+    let years_fut = fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc);
+    let year_months_fut = fetch_group_facets(
         pool,
         user_id,
         filter,
         GroupField::YearMonth,
         FacetOrder::Desc,
-    )
-    .await?;
+    );
+
+    let (products, accounts, securities, years, year_months) = tokio::try_join!(
+        products_fut,
+        accounts_fut,
+        securities_fut,
+        years_fut,
+        year_months_fut
+    )?;
 
     Ok(SearchFacets {
         products: Some(products),
