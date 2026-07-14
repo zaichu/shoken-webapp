@@ -1,5 +1,6 @@
 import { FinancialStatementsResponse } from './types';
 import { apiClient } from '@/lib/api/client';
+import { listRequestConfig } from '@/lib/api/requestHelpers';
 import { ApiError, ApiErrorType } from '@/lib/types/api';
 
 /**
@@ -25,7 +26,7 @@ export class MarketDataApiClient {
 
       const response = await apiClient.get<FinancialStatementsResponse>(
         '/api/v1/financial-statements',
-        { params, withCredentials: true }
+        listRequestConfig(params)
       );
 
       return response;
