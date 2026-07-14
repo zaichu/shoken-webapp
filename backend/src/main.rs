@@ -14,10 +14,11 @@ mod state;
 mod test_env;
 
 use config::Config;
-use db::{connect_pool_lazy, connect_pool_with_retry, run_migrations};
+use db::{connect_pool_lazy, run_migrations, wait_for_pool_with_retry};
 use dotenvy::dotenv;
 use reqwest::Client;
 use routes::app_router;
+use sqlx::PgPool;
 use state::{AppState, DividendCacheState, Secrets};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -25,6 +26,22 @@ use std::sync::{
 };
 use std::time::Instant;
 use tokio::net::TcpListener;
+
+fn build_startup_state(
+    secrets: Arc<Secrets>,
+    config: &Config,
+) -> Result<(PgPool, AppState), String> {
+    // URL 検証のみ行い、実接続は background startup task で行う。
+    let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)?;
+    let state = AppState {
+        pool: pool.clone(),
+        secrets,
+        client: Client::new(),
+        dividend_cache: DividendCacheState::default(),
+    };
+
+    Ok((pool, state))
+}
 
 #[tokio::main]
 async fn main() {
@@ -55,20 +72,11 @@ async fn main() {
 
     let startup_ready = Arc::new(AtomicBool::new(false));
 
-    // URL 検証のみ行い、実接続は行わない lazy pool
-    let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)
-        .unwrap_or_else(|e| {
+    let (startup_pool, state) =
+        build_startup_state(Arc::clone(&secrets), &config).unwrap_or_else(|e| {
             tracing::error!("{e}");
             std::process::exit(1);
         });
-
-    let client = Client::new();
-    let state = AppState {
-        pool,
-        secrets: Arc::clone(&secrets),
-        client,
-        dividend_cache: DividendCacheState::default(),
-    };
 
     let router = app_router(state, &config, Arc::clone(&startup_ready));
 
@@ -89,12 +97,10 @@ async fn main() {
     );
 
     // DB 接続と migration をバックグラウンドで実行し、完了後に startup_ready を立てる
-    let db_url = secrets.database_url.clone();
-    let max_connections = config.database_max_connections;
     let startup_ready_bg = Arc::clone(&startup_ready);
     tokio::spawn(async move {
         tracing::info!(target: "startup", "データベースに接続中...");
-        let pool = connect_pool_with_retry(&db_url, max_connections)
+        wait_for_pool_with_retry(&startup_pool)
             .await
             .unwrap_or_else(|e| {
                 tracing::error!("{e}");
@@ -105,7 +111,7 @@ async fn main() {
         tracing::info!(target: "startup", elapsed_ms = db_connect_ms, "DB connect 完了");
 
         tracing::info!(target: "startup", "マイグレーションを実行中...");
-        if let Err(e) = run_migrations(&pool).await {
+        if let Err(e) = run_migrations(&startup_pool).await {
             tracing::error!("マイグレーション失敗: {e}");
             std::process::exit(1);
         }
@@ -136,4 +142,33 @@ async fn main() {
     axum::serve(listener, router)
         .await
         .expect("サーバーの起動に失敗しました");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_secrets() -> Arc<Secrets> {
+        Arc::new(Secrets {
+            database_url: "postgresql://user:password@localhost/test_db".to_string(),
+            jquants_api_key: None,
+            google_client_id: Some("client-id".to_string()),
+            google_client_secret: Some("client-secret".to_string()),
+            frontend_url: "http://localhost:8080".to_string(),
+        })
+    }
+
+    #[tokio::test]
+    async fn build_startup_state_reuses_pool_for_runtime_and_startup_tasks() {
+        let config = Config::default();
+        let (startup_pool, state) =
+            build_startup_state(test_secrets(), &config).expect("startup state");
+
+        startup_pool.close().await;
+
+        assert!(
+            state.pool.is_closed(),
+            "runtime state pool should share the startup pool handle"
+        );
+    }
 }

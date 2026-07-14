@@ -20,8 +20,14 @@ impl Secrets {
                 "DATABASE_URL が設定されていません（backend/.env を確認してください）".to_string()
             })?,
             jquants_api_key: std::env::var("JQUANTS_API_KEY").ok(),
-            google_client_id: std::env::var("GOOGLE_CLIENT_ID").ok(),
-            google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").ok(),
+            google_client_id: Some(std::env::var("GOOGLE_CLIENT_ID").map_err(|_| {
+                "GOOGLE_CLIENT_ID が設定されていません（Google OAuth 設定を確認してください）"
+                    .to_string()
+            })?),
+            google_client_secret: Some(std::env::var("GOOGLE_CLIENT_SECRET").map_err(|_| {
+                "GOOGLE_CLIENT_SECRET が設定されていません（Google OAuth 設定を確認してください）"
+                    .to_string()
+            })?),
             frontend_url: std::env::var("FRONTEND_URL")
                 .unwrap_or_else(|_| "http://localhost:8080".to_string()),
         })
@@ -63,6 +69,9 @@ mod tests {
                 "DATABASE_URL",
                 Some("postgresql://user:password@localhost/test"),
             );
+            let _google_client_id = EnvGuard::set("GOOGLE_CLIENT_ID", Some("client-id"));
+            let _google_client_secret =
+                EnvGuard::set("GOOGLE_CLIENT_SECRET", Some("client-secret"));
             let _fe = EnvGuard::set("FRONTEND_URL", None);
             assert_eq!(
                 Secrets::from_env().unwrap().frontend_url,
@@ -74,8 +83,32 @@ mod tests {
                 "DATABASE_URL",
                 Some("postgresql://user:password@localhost/test"),
             );
+            let _google_client_id = EnvGuard::set("GOOGLE_CLIENT_ID", Some("client-id"));
+            let _google_client_secret =
+                EnvGuard::set("GOOGLE_CLIENT_SECRET", Some("client-secret"));
             let _jq = EnvGuard::set("JQUANTS_API_KEY", None);
             assert!(Secrets::from_env().unwrap().jquants_api_key.is_none());
+        }
+        {
+            let _db = EnvGuard::set("DATABASE_URL", Some("postgresql://user:password/test"));
+            let _google_client_id = EnvGuard::set("GOOGLE_CLIENT_ID", None);
+            let _google_client_secret =
+                EnvGuard::set("GOOGLE_CLIENT_SECRET", Some("client-secret"));
+            let err_msg = Secrets::from_env().unwrap_err();
+            assert!(
+                err_msg.contains("GOOGLE_CLIENT_ID"),
+                "エラーメッセージに GOOGLE_CLIENT_ID が含まれること: {err_msg}"
+            );
+        }
+        {
+            let _db = EnvGuard::set("DATABASE_URL", Some("postgresql://user:password/test"));
+            let _google_client_id = EnvGuard::set("GOOGLE_CLIENT_ID", Some("client-id"));
+            let _google_client_secret = EnvGuard::set("GOOGLE_CLIENT_SECRET", None);
+            let err_msg = Secrets::from_env().unwrap_err();
+            assert!(
+                err_msg.contains("GOOGLE_CLIENT_SECRET"),
+                "エラーメッセージに GOOGLE_CLIENT_SECRET が含まれること: {err_msg}"
+            );
         }
     }
 }

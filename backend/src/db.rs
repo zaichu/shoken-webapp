@@ -17,11 +17,6 @@ fn pool_options(max_connections: u32) -> PgPoolOptions {
         .max_connections(max_connections)
         .acquire_slow_threshold(Duration::from_secs(ACQUIRE_SLOW_THRESHOLD_SECS))
 }
-
-pub async fn connect_pool(database_url: &str, max_connections: u32) -> Result<PgPool, sqlx::Error> {
-    pool_options(max_connections).connect(database_url).await
-}
-
 pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgPool, String> {
     let database_url = database_url.trim();
     validate_database_url(database_url)?;
@@ -31,27 +26,18 @@ pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<PgP
         .map_err(|e| format!("DB pool の初期化に失敗しました: {e}"))
 }
 
-/// URL の設定を事前検証し、一時的な接続失敗は bounded retry する。
-/// 設定エラーは retry しない。秘密情報はエラー文字列に含めない。
-pub async fn connect_pool_with_retry(
-    database_url: &str,
-    max_connections: u32,
-) -> Result<PgPool, String> {
-    let database_url = database_url.trim();
-    validate_database_url(database_url)?;
-    let sanitized_url = sanitize_database_url_for_sqlx(database_url)?;
-
+// Wait for an already-created Pool to establish a startup connection with bounded retry.
+// The Pool is not recreated, so runtime state and migrations share the same handle.
+pub async fn wait_for_pool_with_retry(pool: &PgPool) -> Result<(), String> {
     let connect_timeout = Duration::from_secs(CONNECT_TIMEOUT_SECS);
     let retry_delay = Duration::from_secs(RETRY_DELAY_SECS);
 
     for attempt in 1..=MAX_ATTEMPTS {
-        match tokio::time::timeout(
-            connect_timeout,
-            connect_pool(&sanitized_url, max_connections),
-        )
-        .await
-        {
-            Ok(Ok(pool)) => return Ok(pool),
+        match tokio::time::timeout(connect_timeout, pool.acquire()).await {
+            Ok(Ok(connection)) => {
+                drop(connection);
+                return Ok(());
+            }
             Ok(Err(e)) if is_transient_error(&e) => {
                 tracing::warn!(
                     attempt,
@@ -188,6 +174,15 @@ mod tests {
     async fn test_connect_pool_lazy_invalid_url() {
         let err = connect_pool_lazy("", 5).unwrap_err();
         assert!(err.contains("空"), "空URLを拒否すること: {err}");
+        let err = connect_pool_lazy("   ", 5).unwrap_err();
+        assert!(err.contains("空"), "空白のみは空として拒否: {err}");
+
+        let err = connect_pool_lazy("/relative", 5).unwrap_err();
+        assert!(
+            !err.contains("/relative"),
+            "相対URLをエラーに含めない: {err}"
+        );
+
         let err = connect_pool_lazy("http://example.com/db", 5).unwrap_err();
         assert!(
             !err.contains("example.com"),
@@ -242,43 +237,6 @@ mod tests {
         assert!(!is_transient_error(&sqlx::Error::ColumnNotFound(
             "col".to_string()
         )));
-    }
-
-    #[tokio::test]
-    async fn test_connect_pool_with_retry_invalid_url() {
-        // 空
-        let err = connect_pool_with_retry("", 5).await.unwrap_err();
-        assert!(err.contains("空"), "空URLのエラーメッセージが適切: {err}");
-        assert!(!err.contains("://"), "URLをエラーに含めない: {err}");
-
-        // 空白のみ（trim 後に空として拒否）
-        let err = connect_pool_with_retry("   ", 5).await.unwrap_err();
-        assert!(err.contains("空"), "空白のみは空として拒否: {err}");
-
-        // 相対 URL
-        let err = connect_pool_with_retry("/relative", 5).await.unwrap_err();
-        assert!(
-            !err.contains("/relative"),
-            "相対URLをエラーに含めない: {err}"
-        );
-
-        // HTTP スキーム
-        let err = connect_pool_with_retry("http://example.com/db", 5)
-            .await
-            .unwrap_err();
-        assert!(
-            !err.contains("example.com"),
-            "ホスト名をエラーに含めない: {err}"
-        );
-
-        // 前後空白 + HTTP スキーム（trim 後にスキームエラー）
-        let err = connect_pool_with_retry("  http://example.com/db  ", 5)
-            .await
-            .unwrap_err();
-        assert!(
-            !err.contains("example.com"),
-            "trim後のURLをエラーに含めない: {err}"
-        );
     }
 
     #[test]
