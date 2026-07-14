@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import { withCredentialsConfig } from '@/lib/api/requestHelpers';
 
 export type DividendStatus = 'ok' | 'zero' | 'pending' | 'error';
 
@@ -20,7 +21,7 @@ export async function fetchDividendPerShareBatch(
   const response = await apiClient.post<BatchResponse>(
     '/api/v1/dividend-per-share-estimates',
     { security_codes: securityCodes },
-    { withCredentials: true }
+    withCredentialsConfig
   );
   return response.items;
 }
