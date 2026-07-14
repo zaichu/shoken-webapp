@@ -196,19 +196,20 @@ async fn fetch_facets(
     user_id: Uuid,
     filter: &DomesticStockFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let accounts =
-        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc).await?;
-    let securities = fetch_security_facets(pool, user_id, filter).await?;
-    let years =
-        fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc).await?;
-    let year_months = fetch_group_facets(
+    let accounts_fut =
+        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+    let securities_fut = fetch_security_facets(pool, user_id, filter);
+    let years_fut = fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc);
+    let year_months_fut = fetch_group_facets(
         pool,
         user_id,
         filter,
         GroupField::YearMonth,
         FacetOrder::Desc,
-    )
-    .await?;
+    );
+
+    let (accounts, securities, years, year_months) =
+        tokio::try_join!(accounts_fut, securities_fut, years_fut, year_months_fut)?;
 
     Ok(SearchFacets {
         products: None,
