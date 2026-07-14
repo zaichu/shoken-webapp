@@ -1,7 +1,11 @@
 use crate::errors::ApiError;
-use crate::models::common::SearchQueryParams;
+use crate::models::common::{PaginatedSearchResponse, SearchQueryParams};
 use chrono::NaiveDate;
-use sqlx::{Postgres, QueryBuilder};
+use sqlx::postgres::PgRow;
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
+use std::future::Future;
+use utoipa::ToSchema;
+use uuid::Uuid;
 
 pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
@@ -140,6 +144,91 @@ pub fn push_token_ilike_filters(
         }
         qb.push(")");
     }
+}
+
+/// user_id 条件 + optional date axis 条件 + Option 完全一致条件 + token ILIKE 条件を
+/// この順で WHERE 句として QueryBuilder へ積む共通ヘルパー。
+///
+/// - `date_axis`: `(date_column, filter)`。date 系フィルタを持たないドメイン（asset_balance 等）は `None` を渡す
+/// - `exact_match_fields`: `(column, value)` の並び。呼び出し側が対象カラムを固定 `&'static str` で指定する
+/// - `token_columns`: フリーワード検索（ILIKE OR）の対象カラム
+pub fn push_search_filters(
+    qb: &mut QueryBuilder<Postgres>,
+    user_id: Uuid,
+    date_axis: Option<(&'static str, &DateAxisFilter)>,
+    exact_match_fields: &[(&'static str, &Option<String>)],
+    tokens: &[String],
+    token_columns: &[&'static str],
+) {
+    qb.push(" WHERE user_id = ").push_bind(user_id);
+    if let Some((date_column, filter)) = date_axis {
+        push_date_axis_filters(qb, date_column, filter);
+    }
+    for (column, value) in exact_match_fields {
+        if let Some(v) = value {
+            qb.push(format!(" AND {column} = ")).push_bind(v.clone());
+        }
+    }
+    push_token_ilike_filters(qb, tokens, token_columns);
+}
+
+/// count query / data query / summary future / facets future を `tokio::try_join!` で並行実行し
+/// `PaginatedSearchResponse` を組み立てる4ドメイン共通の検索制御フロー。
+///
+/// - `count_sql` / `data_sql`: フィルタ前の `SELECT ... FROM table`（呼び出し側が渡す固定文字列）
+/// - `order_by`: data query に付与する `ORDER BY` 句（先頭スペース込み。LIMIT/OFFSET は本関数側で付与する）
+/// - `push_filters`: count/data 両方の WHERE 句を積むクロージャ（`push_search_filters` 等を呼ぶ想定）
+/// - `summary_fut` / `facets_fut`: `should_include_summary`/`should_include_facets` に応じて
+///   `Some`/`None` を返す形に呼び出し側が組み立てた future をそのまま渡す
+#[allow(clippy::too_many_arguments)]
+pub async fn run_paginated_search<T, Summary, Facets, SummaryFut, FacetsFut>(
+    pool: &PgPool,
+    count_sql: &str,
+    data_sql: &str,
+    order_by: &str,
+    push_filters: impl Fn(&mut QueryBuilder<Postgres>),
+    page: i64,
+    per_page: i64,
+    offset: i64,
+    summary_fut: SummaryFut,
+    facets_fut: FacetsFut,
+) -> Result<PaginatedSearchResponse<T, Summary, Facets>, ApiError>
+where
+    T: for<'r> FromRow<'r, PgRow> + ToSchema + Send + Unpin + 'static,
+    Summary: ToSchema + 'static,
+    Facets: ToSchema + 'static,
+    SummaryFut: Future<Output = Result<Option<Summary>, ApiError>>,
+    FacetsFut: Future<Output = Result<Option<Facets>, ApiError>>,
+{
+    let mut count_qb: QueryBuilder<Postgres> = QueryBuilder::new(count_sql);
+    push_filters(&mut count_qb);
+    let count_fut = async move {
+        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
+        Ok::<_, ApiError>(total)
+    };
+
+    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(data_sql);
+    push_filters(&mut data_qb);
+    data_qb.push(order_by);
+    data_qb.push(" LIMIT ").push_bind(per_page);
+    data_qb.push(" OFFSET ").push_bind(offset);
+    let data_fut = async move {
+        let data = data_qb.build_query_as::<T>().fetch_all(pool).await?;
+        Ok::<_, ApiError>(data)
+    };
+
+    // count/data/summary/facets は相互に依存しないため並行実行する
+    let (total, data, summary, facets) =
+        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
+
+    Ok(PaginatedSearchResponse {
+        data,
+        total,
+        page,
+        per_page,
+        summary,
+        facets,
+    })
 }
 
 #[cfg(test)]

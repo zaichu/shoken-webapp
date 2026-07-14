@@ -3,7 +3,7 @@ use crate::models::asset_balance::{
     AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
 };
 use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets,
+    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
@@ -13,9 +13,9 @@ use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
+use crate::services::search_filters::{push_search_filters, run_paginated_search};
 use crate::services::shared::{
-    self, delete_all_for_user, push_token_ilike_filters, tokens_from_query,
-    user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    self, delete_all_for_user, tokens_from_query, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -62,15 +62,20 @@ impl AssetBalanceFilter {
 }
 
 /// user_id と検索条件を WHERE 句として QueryBuilder へ積む
+///
+/// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &AssetBalanceFilter) {
-    qb.push(" WHERE user_id = ").push_bind(user_id);
-    if let Some(v) = &filter.security_code {
-        qb.push(" AND security_code = ").push_bind(v.clone());
-    }
-    if let Some(v) = &filter.security_name {
-        qb.push(" AND security_name = ").push_bind(v.clone());
-    }
-    push_token_ilike_filters(qb, &filter.tokens, &["security_code", "security_name"]);
+    push_search_filters(
+        qb,
+        user_id,
+        None,
+        &[
+            ("security_code", &filter.security_code),
+            ("security_name", &filter.security_name),
+        ],
+        &filter.tokens,
+        &["security_code", "security_name"],
+    );
 }
 
 /// 認証ユーザーの保有銘柄一覧を検索（ページネーション・summary・facets 対応）
@@ -81,33 +86,6 @@ pub async fn search(
 ) -> Result<PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>, ApiError> {
     info!("[asset_balance.search] リクエスト受信");
     let filter = AssetBalanceFilter::from_params(params);
-
-    let mut count_qb: QueryBuilder<Postgres> =
-        QueryBuilder::new("SELECT COUNT(*) FROM asset_balances");
-    push_filters(&mut count_qb, user_id, &filter);
-    let count_fut = async move {
-        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
-        Ok::<_, ApiError>(total)
-    };
-
-    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT id, user_id, security_code, security_name, shares, executing_shares, \
-         average_purchase_price, total_purchase_amount, current_price, daily_change, \
-         market_value, profit_loss_rate, created_at, updated_at \
-         FROM asset_balances",
-    );
-    push_filters(&mut data_qb, user_id, &filter);
-    data_qb.push(" ORDER BY security_code ASC, id ASC LIMIT ");
-    data_qb.push_bind(params.per_page());
-    data_qb.push(" OFFSET ");
-    data_qb.push_bind(params.offset());
-    let data_fut = async move {
-        let data = data_qb
-            .build_query_as::<AssetBalance>()
-            .fetch_all(pool)
-            .await?;
-        Ok::<_, ApiError>(data)
-    };
 
     let summary_fut = async {
         if params.should_include_summary() {
@@ -125,19 +103,23 @@ pub async fn search(
         }
     };
 
-    // count/data/summary/facets は相互に依存しないため並行実行する。
     // summary/facets は include_* が true の場合だけ実クエリを発行する。
-    let (total, data, summary, facets) =
-        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
-
-    Ok(PaginatedSearchResponse {
-        data,
-        total,
-        page: params.page(),
-        per_page: params.per_page(),
-        summary,
-        facets,
-    })
+    run_paginated_search(
+        pool,
+        "SELECT COUNT(*) FROM asset_balances",
+        "SELECT id, user_id, security_code, security_name, shares, executing_shares, \
+         average_purchase_price, total_purchase_amount, current_price, daily_change, \
+         market_value, profit_loss_rate, created_at, updated_at \
+         FROM asset_balances",
+        " ORDER BY security_code ASC, id ASC",
+        |qb| push_filters(qb, user_id, &filter),
+        params.page(),
+        params.per_page(),
+        params.offset(),
+        summary_fut,
+        facets_fut,
+    )
+    .await
 }
 
 /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）

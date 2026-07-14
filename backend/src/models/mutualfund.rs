@@ -1,4 +1,4 @@
-use crate::models::common::{validate_length_field, SearchQueryParams};
+use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -78,25 +78,9 @@ pub struct MutualfundSearchQueryParams {
     pub dividends: Option<String>,
 }
 
-impl MutualfundSearchQueryParams {
-    pub fn page(&self) -> i64 {
-        self.search.page()
-    }
-
-    pub fn per_page(&self) -> i64 {
-        self.search.per_page()
-    }
-
-    pub fn offset(&self) -> i64 {
-        self.search.offset()
-    }
-
-    pub fn should_include_summary(&self) -> bool {
-        self.search.should_include_summary()
-    }
-
-    pub fn should_include_facets(&self) -> bool {
-        self.search.should_include_facets()
+impl SearchParamsAccessor for MutualfundSearchQueryParams {
+    fn search_params(&self) -> &SearchQueryParams {
+        &self.search
     }
 }
 
