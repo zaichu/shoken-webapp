@@ -17,7 +17,7 @@ import {
     createISODateKey
 } from '@/lib/utils/formatters';
 import { CopyableInstrumentName, renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations, useReceiptBaseData, useReceiptHeaderSummary } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
     getUniqueValues,
@@ -71,17 +71,14 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
         dates: true,
     };
 
-    // 日次集計（searchQuery がある場合はフィルタ後データ、ない場合は全データを使用）
-    const filteredDailyData = calculateDailyData(searchQuery ? filteredData : domesticStockData);
+    // 日次集計（filteredData は未検索時に全データと同じ内容）
+    const filteredDailyData = calculateDailyData(filteredData);
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const clientCalculations = useReceiptCalculations(filteredDailyData, calculateDomesticStock);
     // 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先する。
     // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
-    const isPreviewMode = Boolean(previewData && previewData.length > 0);
-    const calculations = apiSummary && !isPreviewMode && searchQuery === ''
-        ? apiSummary
-        : clientCalculations;
+    const calculations = useReceiptHeaderSummary(apiSummary, previewData, searchQuery, clientCalculations);
 
     // グループキーの取得
     const getGroupKey = (item: DomesticStockData): string => createISODateKey(item.trade_date);

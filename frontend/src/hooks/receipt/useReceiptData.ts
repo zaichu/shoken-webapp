@@ -27,3 +27,18 @@ export function useReceiptBaseData<T>(
   const { searchQuery, setSearchQuery, filteredData } = useReceiptPageState(sortedData, filterConfig);
   return { sortedData, searchQuery, setSearchQuery, filteredData };
 }
+
+/**
+ * ヘッダー集計値の選択ロジック
+ * 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先し、
+ * プレビュー中や絞り込み中はフィルタ後データから計算したクライアント集計を使う
+ */
+export function useReceiptHeaderSummary<TSummary, TCalc>(
+  apiSummary: TSummary | undefined,
+  previewData: unknown[] | undefined,
+  searchQuery: string,
+  clientCalculations: TCalc,
+): TSummary | TCalc {
+  const isPreviewMode = Boolean(previewData && previewData.length > 0);
+  return apiSummary && !isPreviewMode && searchQuery === '' ? apiSummary : clientCalculations;
+}
