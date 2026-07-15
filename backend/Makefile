@@ -78,7 +78,7 @@ repair-and-migrate-local:
 .PHONY: sqlx-prepare
 sqlx-prepare:
 	@echo "📦 SQLxクエリキャッシュを準備します..."
-	$(CARGO) sqlx prepare --merged
+	$(CARGO) sqlx prepare
 
 # Docker関連
 .PHONY: docker-build

@@ -56,11 +56,11 @@ jobs:
 
       - name: Lint (clippy)
         if: steps.detect.outputs.backend == 'true'
-        run: cargo clippy -- -D warnings
+        run: SQLX_OFFLINE=true cargo clippy -- -D warnings
 
       - name: Run tests
         if: steps.detect.outputs.backend == 'true'
-        run: cargo test
+        run: SQLX_OFFLINE=true cargo test
 
       - name: Generate OpenAPI schema
         if: steps.detect.outputs.backend == 'true'

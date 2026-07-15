@@ -124,8 +124,32 @@ DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db
 make migrate-local
 
 # SQLxクエリキャッシュ準備（オフラインビルド用）
-cargo sqlx prepare --merged
+cargo sqlx prepare
 ```
+
+### SQLx query! 運用方針
+
+固定SQLは `sqlx::query!` / `sqlx::query_as!` を優先し、コンパイル時検証できる形に寄せます。
+対象は SQL 文字列と戻り値の形が固定できる処理です。
+
+- 対象: `delete_all_for_user` のような固定テーブルへの `DELETE`
+- 対象: 条件と戻り列が固定された単純な `SELECT COUNT(*)`
+- 非対象: 検索条件、facet、並び順、対象カラムを `QueryBuilder` で組み立てる動的SQL
+- 非対象: バルク `UNNEST` のように列数や bind 配列を共通ヘルパーで扱う処理
+
+`backend/.sqlx/` はリポジトリ管理します。
+理由は、CI とローカル検証を `SQLX_OFFLINE=true` で実行し、DB接続なしでも `query!` のメタデータ整合性を検証できるようにするためです。
+`query!` を追加・変更した場合は、ローカルDBに最新マイグレーションを適用した上で次を実行します。
+
+```bash
+make db-up
+make migrate-local
+make sqlx-prepare
+```
+
+CI は `SQLX_OFFLINE=true cargo clippy` と `SQLX_OFFLINE=true cargo test` を実行します。
+`cargo sqlx prepare --check` はローカルDBの起動とマイグレーション適用が必要なためCIには入れず、`backend/.sqlx/` の差分確認で代替します。
+`query!` 追加・変更時は `make sqlx-prepare` の結果を必ずコミットします。
 
 ## デプロイ
 
