@@ -19,9 +19,9 @@ import type { AssetBalanceApiData } from '@/types/api';
 // ────────────────────────────────────────────────────────
 
 vi.mock('@/features/assetBalance/api/assetBalanceApi', () => ({
-  assetBalanceApi: { list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 }) },
+  assetBalanceApi: { list: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, per_page: 1 }) },
 }));
-const emptyPage = { data: [], total: 0, page: 1, per_page: 200 };
+const emptyPage = { data: [], total: 0, page: 1, per_page: 1 };
 
 vi.mock('@/features/auth/hooks/useAuth');
 
@@ -97,14 +97,14 @@ describe('useAssetBalance', () => {
     );
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
       data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 } as never],
-      total: 1, page: 1, per_page: 200,
+      total: 1, page: 1, per_page: 1,
     });
 
-    renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+    renderHook(() => useAssetBalance({ securityCode: '7203' }), { wrapper: makeWrapper(qc) });
 
     // キャッシュにデータが入るまで待つ
     await waitFor(() => {
-      expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeDefined();
+      expect(qc.getQueryData(assetBalanceQueryKeys.lookup('user-1', '7203'))).toBeDefined();
     });
     await waitFor(() => expect(capturedCallback).not.toBeNull());
 
@@ -114,7 +114,7 @@ describe('useAssetBalance', () => {
     });
 
     await waitFor(() => {
-      expect(qc.getQueryData(assetBalanceQueryKeys.all('user-1'))).toBeUndefined();
+      expect(qc.getQueryData(assetBalanceQueryKeys.lookup('user-1', '7203'))).toBeUndefined();
     });
   });
 
@@ -123,7 +123,7 @@ describe('useAssetBalance', () => {
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
 
-    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+    const { result } = renderHook(() => useAssetBalance({ securityCode: '7203' }), { wrapper: makeWrapper(qc) });
 
     expect(result.current.getAssetBalanceByCode('')).toBeUndefined();
   });
@@ -134,17 +134,14 @@ describe('useAssetBalance', () => {
     });
 
     vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({
-      data: [
-        makeAssetBalanceData({ security_code: '7203' }),
-        makeAssetBalanceData({ id: 'asset-balance-2', security_code: '6758', security_name: 'ソニーグループ' }),
-      ],
-      total: 2, page: 1, per_page: 200,
+      data: [makeAssetBalanceData({ security_code: '7203' })],
+      total: 1, page: 1, per_page: 1,
     });
 
-    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+    const { result } = renderHook(() => useAssetBalance({ securityCode: '7203' }), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.assetBalanceData).toHaveLength(2);
+      expect(result.current.assetBalanceData).toHaveLength(1);
     });
 
     expect(result.current.getAssetBalanceByCode(' 7203 ')).toMatchObject({
@@ -159,7 +156,7 @@ describe('useAssetBalance', () => {
     });
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: false }));
 
-    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+    const { result } = renderHook(() => useAssetBalance({ securityCode: '7203' }), { wrapper: makeWrapper(qc) });
 
     expect(result.current.assetBalanceData).toEqual([]);
   });
@@ -191,20 +188,30 @@ describe('useAssetBalance', () => {
     expect(result.current.getAssetBalanceByCode('7203')).toMatchObject({ security_code: '7203' });
   });
 
-  it('refetch は assetBalance クエリを invalidate する', async () => {
+  it('securityCode が空文字の場合はAPIを呼ばない', () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+
+    renderHook(() => useAssetBalance({ securityCode: '' }), { wrapper: makeWrapper(qc) });
+
+    expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
+  });
+
+  it('refetch は該当銘柄の lookup クエリを invalidate する', async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
     const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
 
-    const { result } = renderHook(() => useAssetBalance(), { wrapper: makeWrapper(qc) });
+    const { result } = renderHook(() => useAssetBalance({ securityCode: '7203' }), { wrapper: makeWrapper(qc) });
 
     await act(async () => {
       await result.current.refetch();
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: assetBalanceQueryKeys.all('user-1'),
+      queryKey: assetBalanceQueryKeys.lookup('user-1', '7203'),
     });
   });
 });
