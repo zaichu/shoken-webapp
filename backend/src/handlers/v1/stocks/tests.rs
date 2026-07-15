@@ -76,10 +76,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
 
 fn setup_test_app(pool: Pool<Postgres>) -> Router {
     Router::new()
-        .route(
-            "/api/v1/stocks",
-            get(crate::handlers::v1::stocks::search).post(create_stock),
-        )
+        .route("/api/v1/stocks", get(search).post(create))
         .with_state(crate::AppState {
             pool: pool.clone(),
             secrets: Arc::new(Secrets {

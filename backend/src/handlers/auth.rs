@@ -21,12 +21,28 @@ pub struct AuthCallbackQuery {
     pub state: String,
 }
 
-fn same_site(secure: bool) -> SameSite {
+pub fn same_site(secure: bool) -> SameSite {
     if secure {
         SameSite::None
     } else {
         SameSite::Lax
     }
+}
+
+fn google_oauth_credentials(state: &AppState) -> Result<(&str, &str), ApiError> {
+    let client_id =
+        state.secrets.google_client_id.as_deref().ok_or_else(|| {
+            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
+        })?;
+    let client_secret = state
+        .secrets
+        .google_client_secret
+        .as_deref()
+        .ok_or_else(|| {
+            ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
+        })?;
+
+    Ok((client_id, client_secret))
 }
 
 pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
@@ -87,18 +103,7 @@ pub async fn google_auth(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<(CookieJar, Redirect), ApiError> {
-    let client_id =
-        state.secrets.google_client_id.as_deref().ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
-        })?;
-    let client_secret = state
-        .secrets
-        .google_client_secret
-        .as_deref()
-        .ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
-        })?;
-
+    let (client_id, client_secret) = google_oauth_credentials(&state)?;
     let client = create_oauth_client(client_id, client_secret)?;
 
     let (auth_url, csrf_token) = client
@@ -139,18 +144,7 @@ pub async fn google_callback(
     let is_secure = config::is_secure_cookie();
     let jar = jar.remove(clear_state_cookie(is_secure));
 
-    let client_id =
-        state.secrets.google_client_id.as_deref().ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
-        })?;
-    let client_secret = state
-        .secrets
-        .google_client_secret
-        .as_deref()
-        .ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
-        })?;
-
+    let (client_id, client_secret) = google_oauth_credentials(&state)?;
     let client = create_oauth_client(client_id, client_secret)?;
 
     let session_token = auth_service::authenticate_with_google_code(

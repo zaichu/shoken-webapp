@@ -57,6 +57,11 @@ test:
 	@echo "🧪 テストを実行します..."
 	$(CARGO) test
 
+.PHONY: test-ignored
+test-ignored:
+	@echo "🧪 Docker が必要な ignored 統合テストを実行します..."
+	SQLX_OFFLINE=true $(CARGO) test --test db_integration -- --ignored
+
 # データベース関連
 .PHONY: migrate
 migrate:
@@ -126,6 +131,7 @@ help:
 	@echo "  build-log     : バックエンドをビルドし、結果をbuild.logに保存します"
 	@echo "  check         : コンパイルチェックのみを実行します"
 	@echo "  test          : テストを実行します"
+	@echo "  test-ignored  : Docker が必要な ignored 統合テストを実行します"
 	@echo "  migrate       : データベースマイグレーションを実行します"
 	@echo "  migrate-local           : ローカルDocker DBにマイグレーションを実行します"
 	@echo "  repair-and-migrate-local: 既存 migration 履歴 → 現行 baseline への一回限り切り替え"
