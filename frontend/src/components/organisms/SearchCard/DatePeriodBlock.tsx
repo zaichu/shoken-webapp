@@ -162,11 +162,12 @@ export const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                                 role="option"
                                 aria-selected={yearValue === year.value}
                                 onClick={() => onYearOptionSelect(year.value)}
-                                className={
+                                className={cn(
+                                    'rounded px-1 py-1.5 text-sm text-center whitespace-nowrap transition-colors',
                                     yearValue === year.value
-                                        ? 'rounded px-1 py-1.5 text-sm font-semibold text-center whitespace-nowrap bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-400 transition-colors'
-                                        : 'rounded px-1 py-1.5 text-sm text-center whitespace-nowrap text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors'
-                                }
+                                        ? 'font-semibold bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-400'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                )}
                             >
                                 {year.label}
                             </button>
