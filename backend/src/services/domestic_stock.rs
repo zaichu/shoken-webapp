@@ -6,16 +6,18 @@ use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadRespon
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
+use crate::services::bulk_helpers::{
+    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
 };
-use crate::services::search_filters::{push_search_filters, run_paginated_search};
-use crate::services::shared::{
-    self, delete_all_for_user, tokens_from_query, user_ids_for_bulk_insert, BulkTimer,
-    DateAxisFilter, DeleteTarget, FacetOrder,
+use crate::services::facets::{self, FacetOrder};
+use crate::services::search_filters::{
+    push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -222,7 +224,7 @@ async fn fetch_group_facets(
     group_field: GroupField,
     order: FacetOrder,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    shared::fetch_group_facets(
+    facets::fetch_group_facets(
         pool,
         "domestic_stocks",
         group_field.as_sql_expr(),
@@ -238,7 +240,7 @@ async fn fetch_security_facets(
     user_id: Uuid,
     filter: &DomesticStockFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    shared::fetch_security_facets(pool, "domestic_stocks", "trade_date DESC, id DESC", |qb| {
+    facets::fetch_security_facets(pool, "domestic_stocks", "trade_date DESC, id DESC", |qb| {
         push_filters(qb, user_id, filter);
     })
     .await

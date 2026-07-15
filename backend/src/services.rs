@@ -12,5 +12,4 @@ pub mod facets;
 pub mod market_data;
 pub mod mutualfund;
 pub mod search_filters;
-pub mod shared;
 pub mod stock;
