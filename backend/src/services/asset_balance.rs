@@ -6,6 +6,9 @@ use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::services::bulk_helpers::{
+    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+};
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
 use crate::services::csv_pipeline::parse_csv_with_config;
@@ -13,9 +16,9 @@ use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
 };
-use crate::services::search_filters::{push_search_filters, run_paginated_search};
-use crate::services::shared::{
-    self, delete_all_for_user, tokens_from_query, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+use crate::services::facets;
+use crate::services::search_filters::{
+    push_search_filters, run_paginated_search, tokens_from_query,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -164,7 +167,7 @@ async fn fetch_security_facets(
     user_id: Uuid,
     filter: &AssetBalanceFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    shared::fetch_security_facets(pool, "asset_balances", "id", |qb| {
+    facets::fetch_security_facets(pool, "asset_balances", "id", |qb| {
         push_filters(qb, user_id, filter);
     })
     .await
