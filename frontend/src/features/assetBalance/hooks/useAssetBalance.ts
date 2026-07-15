@@ -15,34 +15,31 @@ interface UseAssetBalanceReturn {
 
 interface UseAssetBalanceOptions {
   enabled?: boolean;
-  securityCode?: string;
+  securityCode: string;
 }
 
 /**
- * 保有銘柄データを Query キャッシュから取得するフック
+ * 指定銘柄コードの保有銘柄データを Query キャッシュから取得するフック
  * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空配列を返す
  */
-export function useAssetBalance(options: UseAssetBalanceOptions = {}): UseAssetBalanceReturn {
-  const { enabled = true, securityCode } = options;
+export function useAssetBalance({ enabled = true, securityCode }: UseAssetBalanceOptions): UseAssetBalanceReturn {
   const { isAuthenticated, onLogout, user } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id ?? '';
-  const normalizedSecurityCode = normalizeSecurityCode(securityCode ?? '');
-  const queryKey = normalizedSecurityCode
-    ? assetBalanceQueryKeys.lookup(userId, normalizedSecurityCode)
-    : assetBalanceQueryKeys.all(userId);
+  const normalizedSecurityCode = normalizeSecurityCode(securityCode);
+  const queryKey = assetBalanceQueryKeys.lookup(userId, normalizedSecurityCode);
 
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await assetBalanceApi.list(
-        normalizedSecurityCode
-          ? { page: 1, per_page: 1, security_code: normalizedSecurityCode }
-          : { page: 1, per_page: 1000 }
-      );
+      const response = await assetBalanceApi.list({
+        page: 1,
+        per_page: 1,
+        security_code: normalizedSecurityCode,
+      });
       return response.data;
     },
-    enabled: isAuthenticated && !!userId && enabled,
+    enabled: isAuthenticated && !!userId && !!normalizedSecurityCode && enabled,
   });
 
   // ログアウト時：このフックがマウントされている経路でも確実にキャッシュを除去する

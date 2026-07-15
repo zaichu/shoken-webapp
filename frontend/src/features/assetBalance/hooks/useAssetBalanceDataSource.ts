@@ -92,7 +92,7 @@ export function useAssetBalanceDataSourceCore({
       setPreviewRows([]);
       setLastSavedResult(uploadResult ?? null);
       const targetUserId = context?.snapshotUserId ?? userId;
-      // all は useAssetBalance（DividendInfo 用）が参照するキャッシュのため合わせて無効化する
+      // all は useAssetBalance（DividendInfo 用）の lookup キャッシュを含む prefix のため合わせて無効化する
       queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.all(targetUserId) });
       queryClient.invalidateQueries({ queryKey: assetBalanceQueryKeys.list(targetUserId) });
     },
@@ -105,18 +105,16 @@ export function useAssetBalanceDataSourceCore({
       const targetUserId = context?.snapshotUserId ?? userId;
 
       const listKey = assetBalanceQueryKeys.list(targetUserId);
-      if (queryClient.getQueryState(listKey) !== undefined) {
+      const hadListCache = queryClient.getQueryState(listKey) !== undefined;
+      queryClient.removeQueries({ queryKey: assetBalanceQueryKeys.all(targetUserId) });
+
+      if (hadListCache) {
         queryClient.setQueryData(listKey, {
           data: [],
           total: 0,
           page: 1,
           per_page: ASSET_BALANCE_LIST_LIMIT,
         });
-      }
-
-      const allKey = assetBalanceQueryKeys.all(targetUserId);
-      if (queryClient.getQueryState(allKey) !== undefined) {
-        queryClient.setQueryData(allKey, []);
       }
 
       setLastSavedResult(null);

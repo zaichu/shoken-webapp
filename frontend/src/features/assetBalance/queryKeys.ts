@@ -4,7 +4,8 @@ import type { QueryClient } from '@tanstack/react-query';
 export const assetBalanceQueryKeys = {
   // ログアウト時の cancelQueries/removeQueries に使うプレフィックスキー
   prefix: ['assetBalance'] as const,
-  // useAssetBalance（DividendInfo 用）が参照する全件配列キャッシュ
+  // useAssetBalanceDataSource の一括更新後に lookup 等の下位キャッシュへ
+  // まとめて波及させるための prefix キー（このキー自体で fetch はしない）
   all: (userId: string) => ['assetBalance', userId] as const,
   lookup: (userId: string, securityCode: string) =>
     ['assetBalance', userId, 'lookup', securityCode] as const,

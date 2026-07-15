@@ -169,6 +169,36 @@ describe('useAssetBalanceDataSource: 基本動作', () => {
     // エラーなく完了することを確認
     expect(result.current.error).toBeNull();
   });
+
+  it('deleteAll完了後にlookupキャッシュを削除し一覧キャッシュを空にする', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.deleteAll).mockResolvedValue({} as never);
+
+    const listKey = assetBalanceQueryKeys.list('user-1');
+    const lookupKey = assetBalanceQueryKeys.lookup('user-1', '7203');
+    qc.setQueryData(listKey, {
+      data: [{ security_code: '7203', security_name: 'トヨタ自動車', shares: 100 }],
+      total: 1,
+      page: 1,
+      per_page: 1000,
+    });
+    qc.setQueryData(lookupKey, [
+      { security_code: '7203', security_name: 'トヨタ自動車', shares: 100 },
+    ]);
+
+    const { result } = renderHook(() => useAssetBalanceDataSource(), { wrapper: makeWrapper(qc) });
+
+    await act(async () => { await result.current.handleDeleteAll(); });
+
+    expect(qc.getQueryData(lookupKey)).toBeUndefined();
+    expect(qc.getQueryData(listKey)).toEqual({
+      data: [],
+      total: 0,
+      page: 1,
+      per_page: 1000,
+    });
+  });
 });
 
 describe('useAssetBalanceDataSource: キャッシュ境界', () => {
