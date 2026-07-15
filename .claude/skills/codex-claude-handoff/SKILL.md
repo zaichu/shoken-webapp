@@ -16,7 +16,8 @@ Claude が最短で実装に着手できる依頼文を作成し、Codex から 
 5. 受け入れ条件と確認コマンドを明記する。
 6. `references/base_prompt_template.md` のテンプレートに埋め込む。
 7. 初回依頼は `claude -p --permission-mode acceptEdits "<依頼文>"` で実行する。
-8. レビュー指摘対応は `claude -p --continue "<修正依頼>"` で同じ文脈に渡す。
+8. 同じタスク・同じブランチで Claude 作業を継続する場合は `claude -c -p --permission-mode acceptEdits "<依頼文>"` を使い、直近セッションの文脈を引き継ぐ。
+9. レビュー指摘対応は `claude -c -p --permission-mode acceptEdits "<修正依頼>"` で同じ文脈に渡す。
 
 ## Rules
 - 曖昧語を避ける。: 「いい感じ」「必要なら」などを使わない。
