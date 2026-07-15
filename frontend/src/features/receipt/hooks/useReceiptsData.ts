@@ -64,6 +64,35 @@ const RECEIPT_LIST_PARAMS = {
   include_summary: true,
 } as const;
 
+// previewCsv/uploadCsv/deleteAll は3ドメインとも同一シグネチャのため、type キーで引ける lookup map にまとめる
+const receiptApiByType = {
+  dividend: dividendApi,
+  domesticstock: domesticStockApi,
+  mutualfund: mutualfundApi,
+} satisfies Record<ReceiptsType, Pick<typeof dividendApi, 'previewCsv' | 'uploadCsv' | 'deleteAll'>>;
+
+interface ReceiptListQueryConfig<TDbItem, TItem, TSummary> {
+  queryKey: readonly unknown[];
+  list: (params: typeof RECEIPT_LIST_PARAMS) => Promise<{ data: TDbItem[]; summary?: TSummary }>;
+  transform: (item: TDbItem) => TItem;
+}
+
+/** 明細一覧の取得ロジック（クエリキー・APIモジュール・変換関数以外は3ドメイン共通） */
+function useReceiptListQuery<TDbItem, TItem, TSummary>(
+  config: ReceiptListQueryConfig<TDbItem, TItem, TSummary>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: config.queryKey,
+    queryFn: () =>
+      config.list(RECEIPT_LIST_PARAMS).then((response) => ({
+        items: response.data.map(config.transform),
+        summary: response.summary,
+      })),
+    enabled,
+  });
+}
+
 /**
  * 明細データの取得・保存・削除を TanStack Query で管理するフック
  * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空を返す
@@ -72,53 +101,42 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
   const userId = user?.id ?? '';
   const queryClient = useQueryClient();
+  const enabled = isAuthenticated && !authLoading && !!userId;
 
   // ログアウト時：プレフィックスマッチで全ユーザーキャッシュをクリア
   useEffect(() => {
     return onLogout(() => clearReceiptsCache(queryClient));
   }, [onLogout, queryClient]);
 
-  const dividendQuery = useQuery({
-    queryKey: receiptQueryKeys.dividend(userId),
-    queryFn: () =>
-      dividendApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
-        items: response.data.map(transformDBDividend),
-        summary: response.summary,
-      })),
-    enabled: isAuthenticated && !authLoading && !!userId,
-  });
+  const dividendQuery = useReceiptListQuery(
+    {
+      queryKey: receiptQueryKeys.dividend(userId),
+      list: dividendApi.list,
+      transform: transformDBDividend,
+    },
+    enabled,
+  );
 
-  const domesticstockQuery = useQuery({
-    queryKey: receiptQueryKeys.domesticstock(userId),
-    queryFn: () =>
-      domesticStockApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
-        items: response.data.map(transformDBDomesticStock),
-        summary: response.summary,
-      })),
-    enabled: isAuthenticated && !authLoading && !!userId,
-  });
+  const domesticstockQuery = useReceiptListQuery(
+    {
+      queryKey: receiptQueryKeys.domesticstock(userId),
+      list: domesticStockApi.list,
+      transform: transformDBDomesticStock,
+    },
+    enabled,
+  );
 
-  const mutualfundQuery = useQuery({
-    queryKey: receiptQueryKeys.mutualfund(userId),
-    queryFn: () =>
-      mutualfundApi.list(RECEIPT_LIST_PARAMS).then((response) => ({
-        items: response.data.map(transformDBMutualfund),
-        summary: response.summary,
-      })),
-    enabled: isAuthenticated && !authLoading && !!userId,
-  });
+  const mutualfundQuery = useReceiptListQuery(
+    {
+      queryKey: receiptQueryKeys.mutualfund(userId),
+      list: mutualfundApi.list,
+      transform: transformDBMutualfund,
+    },
+    enabled,
+  );
 
   const previewCsvMutation = useMutation({
-    mutationFn: ({ type, file }: PreviewCsvArgs) => {
-      switch (type) {
-        case 'dividend':
-          return dividendApi.previewCsv(file);
-        case 'domesticstock':
-          return domesticStockApi.previewCsv(file);
-        case 'mutualfund':
-          return mutualfundApi.previewCsv(file);
-      }
-    },
+    mutationFn: ({ type, file }: PreviewCsvArgs) => receiptApiByType[type].previewCsv(file),
     onSuccess: (previewResult, { onSuccess }) => {
       onSuccess?.({
         totalRows: previewResult.total_rows,
@@ -134,16 +152,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   });
 
   const uploadCsvMutation = useMutation({
-    mutationFn: ({ type, file }: UploadCsvArgs) => {
-      switch (type) {
-        case 'dividend':
-          return dividendApi.uploadCsv(file);
-        case 'domesticstock':
-          return domesticStockApi.uploadCsv(file);
-        case 'mutualfund':
-          return mutualfundApi.uploadCsv(file);
-      }
-    },
+    mutationFn: ({ type, file }: UploadCsvArgs) => receiptApiByType[type].uploadCsv(file),
     // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
     onMutate: () => ({ snapshotUserId: userId }),
     onSuccess: (data, { type, onSuccess }, context) => {
@@ -153,16 +162,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
   });
 
   const deleteAllMutation = useMutation({
-    mutationFn: (type: ReceiptsType) => {
-      switch (type) {
-        case 'dividend':
-          return dividendApi.deleteAll();
-        case 'domesticstock':
-          return domesticStockApi.deleteAll();
-        case 'mutualfund':
-          return mutualfundApi.deleteAll();
-      }
-    },
+    mutationFn: (type: ReceiptsType) => receiptApiByType[type].deleteAll(),
     // mutate 呼び出し時点の userId をスナップショット（ログアウト→再ログイン中の上書き防止）
     onMutate: () => ({ snapshotUserId: userId }),
     onSuccess: (_, type, context) => {

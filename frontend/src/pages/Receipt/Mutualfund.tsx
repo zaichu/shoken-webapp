@@ -19,7 +19,7 @@ import {
 } from '@/lib/utils/formatters';
 import { createYearOptions, FilterConfig } from '@/lib/utils/searchUtils';
 import { createGroupKeyFn } from '@/lib/utils/searchGroupKey';
-import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations, useReceiptBaseData, useReceiptHeaderSummary } from '@/hooks/receipt/useReceiptData';
 import { sortMutualfundByTradeDate } from '@/features/receipt/parsers';
 import { calculateMutualfund } from '@/features/receipt/calculations';
 
@@ -62,10 +62,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
     const clientCalculations = useReceiptCalculations(filteredData, calculateMutualfund);
     // 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先する。
     // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
-    const isPreviewMode = Boolean(previewData && previewData.length > 0);
-    const calculations = apiSummary && !isPreviewMode && searchQuery === ''
-        ? apiSummary
-        : clientCalculations;
+    const calculations = useReceiptHeaderSummary(apiSummary, previewData, searchQuery, clientCalculations);
 
     // 検索タイプに応じたグループキー関数（ファンド名部分一致でグループ化）
     const getGroupKey = createGroupKeyFn<MutualfundData>(
@@ -80,7 +77,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
     );
 
     // サマリーデータの集計
-    const summary = groupAndSummarizeData(
+    const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
         ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
@@ -145,7 +142,7 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
             ) : (
                 <ReceiptTable
                     data={filteredData}
-                    summary={summary}
+                    summary={groupedSummary}
                     columns={columns}
                     summaryColumns={summaryColumns}
                     getGroupKey={getGroupKey}

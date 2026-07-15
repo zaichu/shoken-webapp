@@ -21,7 +21,7 @@ import {
     SECURITY_CODE_REGEX
 } from '@/lib/utils/formatters';
 import { CopyableInstrumentName, renderSecurityCode } from '@/components/atoms/SecurityCodeLink';
-import { useReceiptCalculations, useReceiptBaseData } from '@/hooks/receipt/useReceiptData';
+import { useReceiptCalculations, useReceiptBaseData, useReceiptHeaderSummary } from '@/hooks/receipt/useReceiptData';
 import {
     createYearOptions,
     getUniqueValues,
@@ -81,12 +81,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
 
     // 表示用の集計（検索前後で同一ロジック: フィルタ後データから計算）
     const clientCalculations = useReceiptCalculations(filteredData, calculateDividends);
-    // 未フィルタ時は DB 側の集計（1000件キャップの影響を受けない）を優先する。
-    // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
-    const isPreviewMode = Boolean(previewData && previewData.length > 0);
-    const calculations = apiSummary && !isPreviewMode && searchQuery === ''
-        ? apiSummary
-        : clientCalculations;
+    const calculations = useReceiptHeaderSummary(apiSummary, previewData, searchQuery, clientCalculations);
 
     // 入金日が最新の銘柄名を銘柄コードへマッピング（グループキー用）
     const latestSecurityNameByCode = new Map<string, { name: string; settlementTime: number }>();
@@ -125,7 +120,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
     );
 
     // サマリーデータの集計
-    const summary = groupAndSummarizeData(
+    const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
         ['dividends_before_tax', 'taxes', 'net_amount_received']
@@ -205,7 +200,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
                         <DividendInfo
                             searchQuery={searchQuery}
                             securityCode={searchSecurityCode}
-                            summary={summary}
+                            summary={groupedSummary}
                             embedded
                         />
                     )}
@@ -223,7 +218,7 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
             ) : (
                 <ReceiptTable
                     data={filteredData}
-                    summary={summary}
+                    summary={groupedSummary}
                     columns={columns}
                     summaryColumns={summaryColumns}
                     getGroupKey={getGroupKey}
