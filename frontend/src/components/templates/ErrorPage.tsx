@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { EmptyState } from '../atoms/EmptyState';
+import { ROUTE_PATHS } from '@/routes/routePaths';
 
 interface ErrorPageProps {
   title?: string;
@@ -10,9 +11,9 @@ interface ErrorPageProps {
 }
 
 const RELATED_LINKS = [
-  { to: '/', label: 'ホーム' },
-  { to: '/search', label: '銘柄検索' },
-  { to: '/receipts', label: '取引明細' },
+  { to: ROUTE_PATHS.home, label: 'ホーム' },
+  { to: ROUTE_PATHS.search, label: '銘柄検索' },
+  { to: ROUTE_PATHS.receipts, label: '取引明細' },
 ] as const;
 
 export function ErrorPage({
@@ -35,7 +36,7 @@ export function ErrorPage({
         action={
           <div className="flex flex-col items-center gap-4">
             {showHomeButton && (
-              <Link to="/">
+              <Link to={ROUTE_PATHS.home}>
                 <Button variant="primary" size="md">ホームに戻る</Button>
               </Link>
             )}

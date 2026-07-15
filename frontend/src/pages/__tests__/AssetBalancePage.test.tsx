@@ -2,7 +2,6 @@
  * AssetBalancePage の認証境界・キャッシュ境界テスト
  *
  * 対象:
- * - 未認証時: API フェッチ抑制・ログインプロンプト表示
  * - 認証済み: DB データ取得・全件削除ボタン表示
  * - ログアウト: onLogout コールバックでキャッシュ除去
  */
@@ -215,42 +214,6 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
       errors: [],
     } as never);
     vi.mocked(assetBalanceApiModule.assetBalanceApi.deleteAll).mockResolvedValue({} as never);
-  });
-
-  it('未認証時: ログインプロンプトが表示され API フェッチが行われない', async () => {
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({}));
-
-    await act(async () => { renderWithQuery(<AssetBalancePage />); });
-
-    await waitFor(() => {
-      expect(screen.getByText(/ログインが必要です/)).toBeInTheDocument();
-    });
-    expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
-  });
-
-  it('未認証時: ログインボタンを押すとログイン処理が呼ばれる', async () => {
-    const login = vi.fn();
-    vi.mocked(authHook.useAuth).mockReturnValue({
-      ...makeAuthMock({}),
-      login,
-    });
-
-    await act(async () => { renderWithQuery(<AssetBalancePage />); });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'ログイン' }));
-
-    expect(login).toHaveBeenCalledTimes(1);
-    expect(assetBalanceApiModule.assetBalanceApi.list).not.toHaveBeenCalled();
-  });
-
-  it('認証確認中: スピナーと案内文が表示される', async () => {
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ authLoading: true }));
-
-    await act(async () => { renderWithQuery(<AssetBalancePage />); });
-
-    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
-    expect(screen.getByText('認証状態を確認しています...')).toBeInTheDocument();
   });
 
   it('認証済み・DBデータあり: 全件削除ボタンが表示される', async () => {

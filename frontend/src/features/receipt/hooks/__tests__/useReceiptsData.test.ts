@@ -300,7 +300,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.dividendData).toHaveLength(1000);
+      expect(result.current.data.dividend).toHaveLength(1000);
     });
     expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
@@ -337,7 +337,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.domesticstockData).toHaveLength(1000);
+      expect(result.current.data.domesticstock).toHaveLength(1000);
     });
     expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
@@ -374,7 +374,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => {
-      expect(result.current.mutualfundData).toHaveLength(1000);
+      expect(result.current.data.mutualfund).toHaveLength(1000);
     });
     expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
     expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });

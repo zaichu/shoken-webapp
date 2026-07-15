@@ -4,6 +4,7 @@ import { ErrorBoundary } from '../components/molecules/ErrorBoundary';
 import { ErrorPage } from '../components/templates/ErrorPage';
 import { Spinner } from '../components/atoms/Spinner';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { ROUTE_PATHS } from './routePaths';
 
 const HomePage = lazy(() => import('../pages/Home').then(m => ({ default: m.HomePage })));
 const SearchPage = lazy(() => import('../pages/Search').then(m => ({ default: m.SearchPage })));
@@ -28,7 +29,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={ROUTE_PATHS.login} replace />;
   }
 
   return children;
@@ -36,16 +37,17 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 const router = createBrowserRouter([
   {
-    path: "/",
+    path: ROUTE_PATHS.home,
     element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense>,
     errorElement: <ErrorPage />,
   },
   {
-    path: "/search",
+    // 銘柄検索は未ログインでも利用できる公開ルート。
+    path: ROUTE_PATHS.search,
     element: <Suspense fallback={<PageLoader />}><SearchPage /></Suspense>,
   },
   {
-    path: "/receipts",
+    path: ROUTE_PATHS.receipts,
     element: (
       <ProtectedRoute>
         <Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>
@@ -53,7 +55,7 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/assetbalance",
+    path: ROUTE_PATHS.assetBalance,
     element: (
       <ProtectedRoute>
         <Suspense fallback={<PageLoader />}><AssetBalancePage /></Suspense>
@@ -61,16 +63,16 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/login",
+    path: ROUTE_PATHS.login,
     element: <Suspense fallback={<PageLoader />}><LoginPage /></Suspense>,
   },
   {
-    path: "/404",
+    path: ROUTE_PATHS.notFound,
     element: <Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>,
   },
   {
     path: "*",
-    element: <Navigate to="/404" replace />,
+    element: <Navigate to={ROUTE_PATHS.notFound} replace />,
   },
 ]);
 

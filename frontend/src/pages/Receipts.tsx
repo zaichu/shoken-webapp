@@ -26,12 +26,8 @@ export function ReceiptsPage() {
     confirmDeleteAll,
     tabName,
     dbDataCount,
-    dividendData,
-    domesticstockData,
-    mutualfundData,
-    dividendSummary,
-    domesticstockSummary,
-    mutualfundSummary,
+    data,
+    summaries,
     previewData,
     utilityRailProps,
     deleteModalLoading,
@@ -45,9 +41,9 @@ export function ReceiptsPage() {
       type: 'dividend',
       content: (
         <Dividend
-          data={dividendData}
+          data={data.dividend}
           previewData={previewData.dividend}
-          summary={dividendSummary}
+          summary={summaries.dividend}
           utilityRail={utilityRail}
         />
       ),
@@ -56,9 +52,9 @@ export function ReceiptsPage() {
       type: 'domesticstock',
       content: (
         <DomesticStock
-          data={domesticstockData}
+          data={data.domesticstock}
           previewData={previewData.domesticstock}
-          summary={domesticstockSummary}
+          summary={summaries.domesticstock}
           utilityRail={utilityRail}
         />
       ),
@@ -67,9 +63,9 @@ export function ReceiptsPage() {
       type: 'mutualfund',
       content: (
         <Mutualfund
-          data={mutualfundData}
+          data={data.mutualfund}
           previewData={previewData.mutualfund}
-          summary={mutualfundSummary}
+          summary={summaries.mutualfund}
           utilityRail={utilityRail}
         />
       ),

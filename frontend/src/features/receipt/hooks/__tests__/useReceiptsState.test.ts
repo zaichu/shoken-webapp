@@ -37,12 +37,16 @@ function setupMocks(isAuthenticated = true) {
   });
 
   vi.mocked(useReceiptsData).mockReturnValue({
-    dividendData: [],
-    domesticstockData: [],
-    mutualfundData: [],
-    dividendSummary: undefined,
-    domesticstockSummary: undefined,
-    mutualfundSummary: undefined,
+    data: {
+      dividend: [],
+      domesticstock: [],
+      mutualfund: [],
+    },
+    summaries: {
+      dividend: undefined,
+      domesticstock: undefined,
+      mutualfund: undefined,
+    },
     dbLoading: false,
     dbError: null,
     saving: false,
@@ -75,15 +79,19 @@ describe('useReceiptsState', () => {
   it('取得件数が一覧上限に達したら警告を渡す', () => {
     const fullDividendData = Array.from({ length: 1000 }, () => ({})) as ReturnType<
       typeof useReceiptsData
-    >['dividendData'];
+    >['data']['dividend'];
 
     vi.mocked(useReceiptsData).mockReturnValue({
-      dividendData: fullDividendData,
-      domesticstockData: [],
-      mutualfundData: [],
-      dividendSummary: undefined,
-      domesticstockSummary: undefined,
-      mutualfundSummary: undefined,
+      data: {
+        dividend: fullDividendData,
+        domesticstock: [],
+        mutualfund: [],
+      },
+      summaries: {
+        dividend: undefined,
+        domesticstock: undefined,
+        mutualfund: undefined,
+      },
       dbLoading: false,
       dbError: null,
       saving: false,

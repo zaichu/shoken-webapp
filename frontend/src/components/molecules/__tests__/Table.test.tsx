@@ -161,9 +161,9 @@ describe('Table', () => {
     expect(table).toHaveClass('bg-slate-950/10');
   });
 
-  test('forceResizeプロパティが変更されたとき再計算がトリガーされる', async () => {
+  test('autoHeight テーブルが再レンダリング後も表示される', async () => {
     const { rerender } = render(
-      <Table forceResize={0} autoHeight>
+      <Table autoHeight>
         <TableBody>
           <TableRow>
             <TableCell>テストデータ</TableCell>
@@ -172,9 +172,9 @@ describe('Table', () => {
       </Table>
     );
 
-    // forceResizeプロパティを変更
+    // autoHeight のまま再レンダリング
     rerender(
-      <Table forceResize={1} autoHeight>
+      <Table autoHeight>
         <TableBody>
           <TableRow>
             <TableCell>テストデータ</TableCell>

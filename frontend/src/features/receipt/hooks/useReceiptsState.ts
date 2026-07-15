@@ -15,12 +15,8 @@ export function useReceiptsState() {
   const { isAuthenticated, isLoading: authLoading, onLogout } = useAuth();
   const [state, dispatch] = useReducer(receiptsReducer, initialState);
   const {
-    dividendData,
-    domesticstockData,
-    mutualfundData,
-    dividendSummary,
-    domesticstockSummary,
-    mutualfundSummary,
+    data,
+    summaries,
     dbLoading,
     dbError,
     saving,
@@ -40,11 +36,7 @@ export function useReceiptsState() {
 
   const { receiptsType, rawFiles, csvPreviews, lastImportResults, showDeleteConfirm } = state;
   const tablistRef = useRef<HTMLDivElement>(null);
-  const currentData = {
-    dividend: dividendData,
-    domesticstock: domesticstockData,
-    mutualfund: mutualfundData,
-  }[receiptsType];
+  const currentData = data[receiptsType];
   const rawFile = rawFiles[receiptsType];
   const csvPreview = csvPreviews[receiptsType];
   const importResult = lastImportResults[receiptsType];
@@ -57,9 +49,9 @@ export function useReceiptsState() {
   const saveLabel = csvPreview ? `${csvPreview.validRows}件 追加で保存` : '追加で保存';
 
   const counts = {
-    dividend: dividendData.length,
-    domesticstock: domesticstockData.length,
-    mutualfund: mutualfundData.length,
+    dividend: data.dividend.length,
+    domesticstock: data.domesticstock.length,
+    mutualfund: data.mutualfund.length,
   };
 
   const previewData = {
@@ -184,12 +176,8 @@ export function useReceiptsState() {
     confirmDeleteAll,
     tabName,
     dbDataCount,
-    dividendData,
-    domesticstockData,
-    mutualfundData,
-    dividendSummary,
-    domesticstockSummary,
-    mutualfundSummary,
+    data,
+    summaries,
     previewData,
     utilityRailProps,
     deleteModalLoading: deleting,

@@ -5,12 +5,11 @@ import '@testing-library/jest-dom';
 import { ReceiptTemplate } from '../ReceiptTemplate';
 
 // モック用のReceiptTableコンポーネント
-const MockReceiptTable = React.forwardRef<HTMLDivElement, { forceResize?: number }>(
-  ({ forceResize, ...props }, ref) => (
+const MockReceiptTable = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  (props, ref) => (
     <div
       ref={ref}
       data-testid="mock-receipt-table"
-      data-force-resize={forceResize}
       {...props}
     >
       Mock Receipt Table
@@ -133,7 +132,7 @@ describe('ReceiptTemplate', () => {
     expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
   });
 
-  test('複数の子要素がある場合、ReceiptTableのみがenhanceされる', () => {
+  test('複数の子要素がある場合も子要素をそのまま描画する', () => {
     const NonReceiptTableChild = () => <div data-testid="non-receipt-table">Other Component</div>;
     
     render(
@@ -149,11 +148,8 @@ describe('ReceiptTemplate', () => {
     const receiptTable = screen.getByTestId('mock-receipt-table');
     const otherComponent = screen.getByTestId('non-receipt-table');
     
-    // ReceiptTableにはforceResizeが設定されている
-    expect(receiptTable.getAttribute('data-force-resize')).toBeDefined();
-    
-    // 他のコンポーネントにはforceResizeが設定されていない
-    expect(otherComponent.getAttribute('data-force-resize')).toBeNull();
+    expect(receiptTable).toBeInTheDocument();
+    expect(otherComponent).toBeInTheDocument();
   });
 
   test('ReceiptTableがない場合でもエラーが発生しない', () => {
