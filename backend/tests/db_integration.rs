@@ -535,7 +535,7 @@ async fn service_coverage_all_domains() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn asset_balance_bulk_create_replaces_previous_snapshot() {
     let (pool, _node) = start_test_pool().await;
-    let user_id = Uuid::new_v4();
+    let user_id = create_test_user(&pool).await;
 
     // 1回目: 2銘柄を登録
     let items_a = vec![make_asset_item("1001"), make_asset_item("1002")];
@@ -574,7 +574,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
     let (pool, _node) = start_test_pool().await;
-    let user_id = Uuid::new_v4();
+    let user_id = create_test_user(&pool).await;
 
     let items_a = vec![make_asset_item("A001"), make_asset_item("A002")];
     let items_b = vec![
@@ -846,10 +846,10 @@ async fn unauthenticated_requests_return_401() {
     );
 
     for path in [
-        "/dividends",
-        "/domestic-stocks",
-        "/mutualfunds",
-        "/asset-balances",
+        "/api/v1/dividends",
+        "/api/v1/domestic-stock-transactions",
+        "/api/v1/mutual-fund-transactions",
+        "/api/v1/asset-balances",
     ] {
         let response = app
             .clone()

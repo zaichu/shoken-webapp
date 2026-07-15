@@ -2,6 +2,7 @@ use crate::{
     config,
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
+    handlers::auth::same_site,
     models::{common::MessageResponse, user::UserResponse},
     services::auth as auth_service,
     state::AppState,
@@ -11,20 +12,9 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
-    CookieJar,
-};
+use axum_extra::extract::{cookie::Cookie, CookieJar};
 
 const ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME: &str = "account_delete_confirmation";
-
-fn same_site(secure: bool) -> SameSite {
-    if secure {
-        SameSite::None
-    } else {
-        SameSite::Lax
-    }
-}
 
 fn build_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
     Cookie::build((
@@ -205,6 +195,7 @@ pub async fn google_callback(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum_extra::extract::cookie::SameSite;
 
     #[test]
     fn test_account_delete_confirmation_cookie_is_http_only_and_scoped() {

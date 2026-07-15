@@ -59,10 +59,14 @@ pub async fn search(
 )]
 pub async fn create(
     State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
+    _auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<Stock>,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::stock::create_stock(State(state), auth_user, ValidatedJson(data)).await
+    let stock = stock_service::create(&state.pool, &data).await?;
+    Ok((StatusCode::CREATED, Json(stock)))
 }
 
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests;
