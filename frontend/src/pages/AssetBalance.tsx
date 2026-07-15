@@ -94,14 +94,17 @@ export function AssetBalancePage() {
           testIdPrefix="assetbalance"
           main={
             <>
-              <div aria-live="polite" aria-atomic="true">
-                {mainStatusMessage && (
-                  <div className="status-message" role="status">
-                    <Spinner size="md" className="text-primary" />
-                    <p className="text-sm text-secondary">{mainStatusMessage}</p>
-                  </div>
-                )}
-              </div>
+              {mainStatusMessage && (
+                <div
+                  className="status-message"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <Spinner size="md" className="text-primary" aria-hidden="true" />
+                  <p className="text-sm text-secondary">{mainStatusMessage}</p>
+                </div>
+              )}
 
               {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
               {showPortfolioSummary && (
