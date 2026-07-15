@@ -70,15 +70,6 @@ pub enum DeleteTarget {
 }
 
 impl DeleteTarget {
-    fn sql(self) -> &'static str {
-        match self {
-            Self::AssetBalances => "DELETE FROM asset_balances WHERE user_id = $1",
-            Self::Dividends => "DELETE FROM dividends WHERE user_id = $1",
-            Self::DomesticStocks => "DELETE FROM domestic_stocks WHERE user_id = $1",
-            Self::MutualFunds => "DELETE FROM mutualfunds WHERE user_id = $1",
-        }
-    }
-
     fn domain(self) -> &'static str {
         match self {
             Self::AssetBalances => "asset_balance",
@@ -90,6 +81,9 @@ impl DeleteTarget {
 }
 
 /// ユーザーに紐づく全レコードを削除する共通実装。
+///
+/// `sqlx::query!` はマクロ呼び出し箇所にSQLリテラルが必要なため、
+/// `DeleteTarget` ごとに固定SQLを個別に呼び出す。
 pub async fn delete_all_for_user(
     pool: &PgPool,
     user_id: Uuid,
@@ -97,10 +91,28 @@ pub async fn delete_all_for_user(
 ) -> Result<u64, ApiError> {
     let domain = target.domain();
     info!("[{}.delete_all] リクエスト受信", domain);
-    let result = sqlx::query(target.sql())
-        .bind(user_id)
-        .execute(pool)
-        .await?;
+    let result = match target {
+        DeleteTarget::AssetBalances => {
+            sqlx::query!("DELETE FROM asset_balances WHERE user_id = $1", user_id)
+                .execute(pool)
+                .await?
+        }
+        DeleteTarget::Dividends => {
+            sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id)
+                .execute(pool)
+                .await?
+        }
+        DeleteTarget::DomesticStocks => {
+            sqlx::query!("DELETE FROM domestic_stocks WHERE user_id = $1", user_id)
+                .execute(pool)
+                .await?
+        }
+        DeleteTarget::MutualFunds => {
+            sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id)
+                .execute(pool)
+                .await?
+        }
+    };
     let deleted = result.rows_affected();
     info!("[{}.delete_all] 完了: {}件削除", domain, deleted);
     Ok(deleted)
