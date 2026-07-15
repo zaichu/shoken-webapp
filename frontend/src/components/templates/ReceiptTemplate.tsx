@@ -2,8 +2,6 @@ import React, { ReactNode } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { Card, CardBody } from '@/components/atoms/Card';
 import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
-import { ResizeProvider } from '@/contexts/ResizeContext';
-import { useTriggerResize } from '@/hooks/common/useResize';
 import { SearchCategories } from '@/types/common';
 
 interface ReceiptTemplateProps {
@@ -18,7 +16,6 @@ interface ReceiptTemplateProps {
   utilityRail?: ReactNode;
 }
 
-// 内部コンポーネント（Context内で動作）
 const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   header,
   children,
@@ -30,13 +27,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   utilityRail,
 }) => {
   const layout = layoutProp ?? (utilityRail ? 'workspace' : 'stack');
-  const triggerResize = useTriggerResize();
-
-  // 検索カードの展開状態変更時の処理
   const handleSearchExpandToggle = (isExpanded: boolean) => {
-    // テーブルの強制リサイズをトリガー
-    triggerResize?.();
-    // 親コンポーネントにも通知
     onSearchExpandToggle?.(isExpanded);
   };
 
@@ -82,11 +73,4 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   );
 };
 
-// メインコンポーネント（ResizeProviderでラップ）
-export const ReceiptTemplate: React.FC<ReceiptTemplateProps> = (props) => {
-  return (
-    <ResizeProvider>
-      <ReceiptTemplateContent {...props} />
-    </ResizeProvider>
-  );
-};
+export const ReceiptTemplate: React.FC<ReceiptTemplateProps> = ReceiptTemplateContent;

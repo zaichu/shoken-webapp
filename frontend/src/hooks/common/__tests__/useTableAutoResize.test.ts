@@ -59,22 +59,6 @@ describe('useTableAutoResize', () => {
     expect(result.current.height).toBe('auto');
   });
 
-  it('forceResizeが変更されると高さが再計算される', () => {
-    const { result, rerender } = renderHook(
-      ({ forceResize }) => useTableAutoResize({ forceResize }),
-      { initialProps: { forceResize: 0 } }
-    );
-
-    // 初期状態
-    expect(result.current.height).toBe('auto');
-
-    // forceResizeを変更
-    rerender({ forceResize: 1 });
-
-    // 高さが再計算される（実際の要素がないのでautoのまま）
-    expect(result.current.height).toBe('auto');
-  });
-
   it('コンポーネントのアンマウント時にイベントリスナーが削除される', () => {
     const { unmount } = renderHook(() => useTableAutoResize());
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/molecules/Table';
 import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
-import { useForceResize } from '@/hooks/common/useResize';
 import { cn } from '@/lib/utils/classNames';
 
 type DataItem = Record<string, unknown>;
@@ -205,8 +204,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
     formatGroupHeader = defaultFormatGroupHeader,
     onSearch
 }: ReceiptTableProps<T, S>) {
-    const forceResize = useForceResize();
-
     // テーブル内のクリックイベントをハンドル（銘柄コードリンク用）
     const handleTableClick = (e: React.MouseEvent<HTMLTableElement>) => {
         const target = e.target as HTMLElement;
@@ -237,7 +234,6 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             bordered
             small
             responsive
-            forceResize={forceResize}
             onClick={handleTableClick}
         >
             <TableHeader>

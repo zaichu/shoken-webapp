@@ -24,14 +24,22 @@ interface CsvPreviewResult {
   rows: Record<string, unknown>[];
 }
 
+type ReceiptDataByType = {
+  dividend: ReturnType<typeof transformDBDividend>[];
+  domesticstock: ReturnType<typeof transformDBDomesticStock>[];
+  mutualfund: ReturnType<typeof transformDBMutualfund>[];
+};
+
+type ReceiptSummaryByType = {
+  dividend: DividendApiSummary | undefined;
+  domesticstock: DomesticStockApiSummary | undefined;
+  mutualfund: MutualfundApiSummary | undefined;
+};
+
 interface UseReceiptsDataResult {
-  dividendData: ReturnType<typeof transformDBDividend>[];
-  domesticstockData: ReturnType<typeof transformDBDomesticStock>[];
-  mutualfundData: ReturnType<typeof transformDBMutualfund>[];
+  data: ReceiptDataByType;
   // 検索条件全体（DB 側）の集計。1000件超のユーザーでも正しい合計を表示するために使用する
-  dividendSummary: DividendApiSummary | undefined;
-  domesticstockSummary: DomesticStockApiSummary | undefined;
-  mutualfundSummary: MutualfundApiSummary | undefined;
+  summaries: ReceiptSummaryByType;
   dbLoading: boolean;
   dbError: string | null;
   saving: boolean;
@@ -178,12 +186,16 @@ export function useReceiptsData(): UseReceiptsDataResult {
   const mutationError = uploadCsvMutation.error ?? deleteAllMutation.error;
 
   return {
-    dividendData: dividendQuery.data?.items ?? [],
-    domesticstockData: domesticstockQuery.data?.items ?? [],
-    mutualfundData: mutualfundQuery.data?.items ?? [],
-    dividendSummary: dividendQuery.data?.summary,
-    domesticstockSummary: domesticstockQuery.data?.summary,
-    mutualfundSummary: mutualfundQuery.data?.summary,
+    data: {
+      dividend: dividendQuery.data?.items ?? [],
+      domesticstock: domesticstockQuery.data?.items ?? [],
+      mutualfund: mutualfundQuery.data?.items ?? [],
+    },
+    summaries: {
+      dividend: dividendQuery.data?.summary,
+      domesticstock: domesticstockQuery.data?.summary,
+      mutualfund: mutualfundQuery.data?.summary,
+    },
     dbLoading:
       dividendQuery.isFetching ||
       domesticstockQuery.isFetching ||

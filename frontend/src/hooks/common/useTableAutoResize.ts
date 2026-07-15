@@ -12,8 +12,6 @@ interface UseTableAutoResizeOptions {
   maxHeight?: number | string;
   /** 下部マージン（px） */
   bottomMargin?: number;
-  /** 外部からの強制リサイズトリガー */
-  forceResize?: number;
 }
 
 interface UseTableAutoResizeResult {
@@ -28,7 +26,6 @@ export function useTableAutoResize({
   minHeight = 200,
   maxHeight,
   bottomMargin = 20,
-  forceResize,
 }: UseTableAutoResizeOptions = {}): UseTableAutoResizeResult {
   const [height, setHeight] = useState<string>('auto');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,24 +60,29 @@ export function useTableAutoResize({
     // 初回計算
     calculateHeight();
 
-    // ResizeObserverの設定
+    // コンテナ自体に加え、周辺レイアウト変化で top が変わるケースも監視する
     let resizeObserver: ResizeObserver | undefined;
     if (currentContainer && 'ResizeObserver' in window) {
-      resizeObserver = new ResizeObserver(calculateHeight);
-      resizeObserver.observe(currentContainer);
+      resizeObserver = new ResizeObserver(() => calculateHeight());
+      const observedElements = [
+        currentContainer,
+        currentContainer.parentElement,
+        document.body,
+      ].filter((element): element is HTMLElement => element !== null);
+
+      for (const element of observedElements) {
+        resizeObserver.observe(element);
+      }
     }
 
     // ウィンドウリサイズイベントの設定
     window.addEventListener('resize', calculateHeight);
 
     return () => {
-      if (resizeObserver && currentContainer) {
-        resizeObserver.unobserve(currentContainer);
-        resizeObserver.disconnect();
-      }
+      resizeObserver?.disconnect();
       window.removeEventListener('resize', calculateHeight);
     };
-  }, [enabled, minHeight, maxHeight, bottomMargin, forceResize]);
+  }, [enabled, minHeight, maxHeight, bottomMargin]);
 
   return {
     containerRef,

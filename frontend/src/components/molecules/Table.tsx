@@ -14,7 +14,6 @@ interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
   minHeight?: number;
   maxHeight?: number | string;
   bottomMargin?: number;
-  forceResize?: number;
 }
 
 interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {
@@ -62,7 +61,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       minHeight = 200,
       maxHeight,
       bottomMargin = 20,
-      forceResize,
       className,
       ...rest
     },
@@ -73,7 +71,6 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
       minHeight,
       maxHeight,
       bottomMargin,
-      forceResize,
     });
 
     const tableClasses = cn(

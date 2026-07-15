@@ -87,7 +87,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     vi.clearAllMocks();
   });
 
-  test('SearchCard展開時にTableのforceResizeが更新される', async () => {
+  test('SearchCard展開時もTableが表示され続ける', async () => {
     render(
       <ReceiptTemplate
         onSearch={mockOnSearch}
@@ -154,7 +154,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('株式');
   });
 
-  test('複数回の展開・折りたたみでforceResizeが適切に動作する', async () => {
+  test('複数回の展開・折りたたみでTableが表示され続ける', async () => {
     render(
       <ReceiptTemplate
         title="リサイズテスト"
@@ -254,7 +254,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('AAPL');
   });
 
-  test('複数のReceiptTableがある場合、全てにforceResizeが適用される', { timeout: 15000 }, async () => {
+  test('複数のReceiptTableがある場合も全て表示される', { timeout: 15000 }, async () => {
     const TestComponent = () => (
       <ReceiptTemplate
         onSearch={mockOnSearch}
@@ -337,7 +337,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       />
     );
 
-    // テーブルが正常に表示されることを確認（forceResizeはundefinedでも動作）
+    // テーブルが正常に表示されることを確認
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByText('商品A')).toBeInTheDocument();
     expect(screen.getByText('商品B')).toBeInTheDocument();
