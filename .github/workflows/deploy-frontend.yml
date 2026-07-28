@@ -3,10 +3,6 @@ name: Frontend CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
-      - '.github/actions/setup-frontend/**'
   workflow_dispatch:
 
 concurrency:
@@ -14,8 +10,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
+        with:
+          filters: |
+            frontend:
+              - "frontend/**"
+              - ".github/workflows/deploy-frontend.yml"
+              - ".github/actions/setup-frontend/**"
+
   unit-test-build:
     name: Unit Test & Build
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,6 +58,8 @@ jobs:
 
   e2e:
     name: E2E
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
