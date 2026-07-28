@@ -7,12 +7,53 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    paths:
+      - "backend/Cargo.toml"
+      - "backend/Cargo.lock"
+      - "backend/audit.toml"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "scripts/npm-audit-allowlist.mjs"
+      - ".github/workflows/security-audit.yml"
   push:
     branches: [main]
+    paths:
+      - "backend/Cargo.toml"
+      - "backend/Cargo.lock"
+      - "backend/audit.toml"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "scripts/npm-audit-allowlist.mjs"
+      - ".github/workflows/security-audit.yml"
 
 jobs:
+  changes:
+    name: Detect audit changes
+    runs-on: ubuntu-latest
+    outputs:
+      cargo: ${{ steps.filter.outputs.cargo }}
+      npm: ${{ steps.filter.outputs.npm }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
+        with:
+          filters: |
+            cargo:
+              - "backend/Cargo.toml"
+              - "backend/Cargo.lock"
+              - "backend/audit.toml"
+              - ".github/workflows/security-audit.yml"
+            npm:
+              - "frontend/package.json"
+              - "frontend/package-lock.json"
+              - "scripts/npm-audit-allowlist.mjs"
+              - ".github/workflows/security-audit.yml"
+
   cargo-audit:
     name: cargo audit (Rust)
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cargo == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,6 +70,8 @@ jobs:
 
   npm-audit:
     name: npm audit (Node.js)
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.npm == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
