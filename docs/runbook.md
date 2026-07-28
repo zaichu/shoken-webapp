@@ -97,7 +97,7 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 ```bash
 # 依存関係の脆弱性チェック
 (cd backend && cargo audit)
-(cd frontend && npm audit)
+(cd frontend && node ../scripts/npm-audit-allowlist.mjs)
 ```
 
 ## PR マージ後のクリーンアップ
