@@ -20,15 +20,41 @@ if (result.error) {
 
 let report;
 try {
-  report = JSON.parse(result.stdout || '{}');
+  if (!result.stdout) {
+    console.error(result.stderr || 'npm audit produced no JSON output.');
+    process.exit(1);
+  }
+  report = JSON.parse(result.stdout);
 } catch {
   console.error(result.stdout);
   console.error(result.stderr);
   process.exit(1);
 }
 
+if (result.signal) {
+  console.error(`npm audit terminated by signal: ${result.signal}`);
+  process.exit(1);
+}
+
+if (report.error) {
+  console.error(`npm audit failed: ${report.error.summary ?? 'unknown error'}`);
+  if (report.error.detail) {
+    console.error(report.error.detail);
+  }
+  process.exit(1);
+}
+
+if (!report.vulnerabilities || typeof report.vulnerabilities !== 'object') {
+  console.error('npm audit JSON did not include a vulnerabilities object.');
+  process.exit(1);
+}
+
+const failingSeverities = new Set(['high', 'critical']);
 const findings = [];
-for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
+for (const vulnerability of Object.values(report.vulnerabilities)) {
+  if (!failingSeverities.has(vulnerability.severity)) {
+    continue;
+  }
   for (const item of vulnerability.via ?? []) {
     if (typeof item === 'string') {
       continue;
