@@ -122,7 +122,7 @@ GitHub Actions で以下が自動実行されます（PR 時）:
 
 ```bash
 cargo audit    # Rust 依存関係の脆弱性
-npm audit --audit-level=high  # npm 依存関係の脆弱性
+(cd frontend && node ../scripts/npm-audit-allowlist.mjs)  # npm 依存関係の脆弱性
 ```
 
 ## テストカバレッジ確認（任意）
