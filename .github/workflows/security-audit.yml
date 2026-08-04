@@ -67,6 +67,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: backend
+          # RUSTSEC-2024-0436: paste is an unmaintained transitive proc-macro dependency.
+          # RUSTSEC-2026-0235: rkyv is present only as rust_decimal's optional dependency; the rkyv feature is not enabled.
+          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0235
 
   npm-audit:
     name: npm audit (Node.js)
