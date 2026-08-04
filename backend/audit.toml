@@ -3,4 +3,13 @@
 # utoipa-axum 0.2.0（最新版）の間接依存であり、直接除去できない。
 # paste は手続きマクロのみで、セキュリティリスクは低い。
 # utoipa-axum の後継バージョンで解消され次第、このエントリを削除する。
-ignore = ["RUSTSEC-2024-0436"]
+#
+# RUSTSEC-2026-0235: rkyv 0.7.46 の archive validation 脆弱性
+# rust_decimal 1.42.1 の optional 依存として Cargo.lock に含まれる。
+# backend では rust_decimal の rkyv feature を有効化しておらず、
+# cargo tree -e features でも rkyv feature が未使用であることを確認済み。
+# rust_decimal が rkyv 0.8.17 以降へ移行、または optional 依存の監査除外が不要になり次第削除する。
+ignore = [
+    "RUSTSEC-2024-0436",
+    "RUSTSEC-2026-0235",
+]

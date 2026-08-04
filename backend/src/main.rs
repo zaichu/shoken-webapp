@@ -54,10 +54,7 @@ async fn main() {
         .map(|dsn| {
             sentry::init((
                 dsn,
-                sentry::ClientOptions {
-                    release: sentry::release_name!(),
-                    ..Default::default()
-                },
+                sentry::ClientOptions::new().maybe_release(sentry::release_name!()),
             ))
         });
 
