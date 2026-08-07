@@ -75,6 +75,10 @@ jobs:
             exit 1
           fi
 
+      - name: Build Docker image
+        if: steps.detect.outputs.backend == 'true'
+        run: docker build -t shoken-backend:ci .
+
   validate-frontend-types:
     name: Validate Frontend Types
     needs: test-and-build
