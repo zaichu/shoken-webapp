@@ -1,6 +1,6 @@
 ---
 name: codex-claude-handoff
-description: "Codex から Claude に修正実装を依頼するときのベースプロンプトを生成する。Use when: バグ修正、レビュー指摘対応、リファクタリング、挙動不一致の調査などを Claude に委譲するとき。依頼文の不足で往復が増える状況を避けたいとき。"
+description: "Codex から Claude に修正実装を依頼するときのプロンプトと CLI 呼び出しを整える。Use when: バグ修正、レビュー指摘対応、リファクタリング、挙動不一致の調査などを Claude に委譲するとき、前回 Claude セッションを継続するとき、依頼文の不足で往復が増える状況を避けたいとき。"
 ---
 
 # Codex Claude Handoff
@@ -18,6 +18,7 @@ Claude が最短で実装に着手できる依頼文を作成し、Codex から 
 7. 初回依頼は `claude -p --permission-mode acceptEdits "<依頼文>"` で実行する。
 8. 同じタスク・同じブランチで Claude 作業を継続する場合は `claude -c -p --permission-mode acceptEdits "<依頼文>"` を使い、直近セッションの文脈を引き継ぐ。
 9. レビュー指摘対応は `claude -c -p --permission-mode acceptEdits "<修正依頼>"` で同じ文脈に渡す。
+10. Claude が使えない場合は、実行できなかった理由、再開コマンド、Claude に渡す依頼文を task file または PR/Issue に残す。
 
 ## Rules
 - 曖昧語を避ける。: 「いい感じ」「必要なら」などを使わない。
@@ -25,6 +26,8 @@ Claude が最短で実装に着手できる依頼文を作成し、Codex から 
 - ファイルパスを必ず明示する。: Claude が探索コストをかけないようにする。
 - 非対象を明記する。: ついでの変更を防ぐ。
 - 実行コマンドを先に渡す。: lint/test/build の実施範囲を固定する。
+- 既存 task file がある場合は先に読む。: スコープ、非対象、受け入れ条件を継承する。
+- Issue/PR がある場合は番号を渡す。: task file が消えても経緯を追えるようにする。
 - `claude` CLI 呼び出し時は原則 `--model` を指定しない。プロジェクト側でモデルを固定せず、Claude CLI やアカウント側のデフォルト/推奨モデル更新に追従しやすくする。ユーザーが明示した場合、または公式に確認した最新/推奨指定がある場合のみ `--model` を使える。
 
 ## Output
