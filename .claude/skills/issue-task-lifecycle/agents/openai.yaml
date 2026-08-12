@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue / Task Lifecycle"
+  short_description: "Issue と task file の使い分けを判断する"
+  default_prompt: "Issue と task file の運用を整理してください"

@@ -23,6 +23,7 @@ Claude が実装した差分または PR を Codex がレビューする。
 - `git branch --show-current` で現在ブランチを確認する
 - `gh pr list --state open --head "$(git branch --show-current)" --json number,title,url,body` で open PR を探す
 - PR がない場合は、現在ブランチの `origin/main...HEAD` 差分をレビュー対象にする
+- PR がある場合は CodeRabbit/GitHub review/comment を `review-implementing` の手順で確認する
 
 ### 2. レビュー材料を収集する
 - `git diff origin/main...HEAD --name-status`
@@ -82,6 +83,7 @@ findings first で重大度順に出す:
 ### 7. LGTM 後
 - PR 作成、push、マージはユーザー指示または task file のスコープに従う
 - マージ前に未解消のレビュー指摘がないことを確認する
+- durable な残件があれば `issue-task-lifecycle` を使って Issue 化する
 
 ## Review Rules
 - findings first / 重大度順 / ファイルパスと行番号を必須とする
