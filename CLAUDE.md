@@ -35,7 +35,8 @@
 
 ## Agent Assets
 
-- repo 内の agent 設定の正本は `./.claude` とする
+- 全プロジェクト共通の skill は `~/.agents/skills` を正本とする
+- repo 内の agent 設定とプロジェクト固有 skill の正本は `./.claude` とする
 - `./.agents` と `./.codex` は `./.claude` を指す symlink として維持する
 - symlink が壊れた場合は `./scripts/repair-agent-links.sh` を実行して復旧する
 
