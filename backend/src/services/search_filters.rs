@@ -172,6 +172,22 @@ pub fn push_search_filters(
     push_token_ilike_filters(qb, tokens, token_columns);
 }
 
+/// `include_*` フラグに応じて fetch future を実行し `Some`/`None` を返す。
+///
+/// future は lazy のため `include=false` の場合は inner future を poll せず、
+/// クエリを発行しない。4ドメインの `search()` 内でバイト同一だった
+/// summary/facets 条件分岐ブロックの共通化（SQL 生成には触らない）。
+pub async fn fetch_if_included<T>(
+    include: bool,
+    fetch: impl Future<Output = Result<T, ApiError>>,
+) -> Result<Option<T>, ApiError> {
+    if include {
+        fetch.await.map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
 /// count query / data query / summary future / facets future を `tokio::try_join!` で並行実行し
 /// `PaginatedSearchResponse` を組み立てる4ドメイン共通の検索制御フロー。
 ///
@@ -234,8 +250,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_like_pattern, parse_date_param, parse_year_month_range, push_date_axis_filters,
-        push_token_ilike_filters, tokens_from_query, year_to_range, DateAxisFilter,
+        escape_like_pattern, fetch_if_included, parse_date_param, parse_year_month_range,
+        push_date_axis_filters, push_token_ilike_filters, tokens_from_query, year_to_range,
+        DateAxisFilter,
     };
     use crate::errors::ApiError;
     use chrono::NaiveDate;
@@ -356,5 +373,30 @@ mod tests {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
         push_token_ilike_filters(&mut qb, &tokens, &[]);
         assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_if_included_returns_some_and_propagates_error_when_included() {
+        let some = fetch_if_included(true, async { Ok::<_, ApiError>(42) })
+            .await
+            .expect("include=true かつ Ok なら Some を返す");
+        assert_eq!(some, Some(42));
+
+        let err = fetch_if_included(true, async { Err::<i32, _>(ApiError::NotFound) }).await;
+        assert!(
+            matches!(err, Err(ApiError::NotFound)),
+            "include=true の場合は inner future のエラーをそのまま返す"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_fetch_if_included_returns_none_without_polling_when_excluded() {
+        // include=false の場合は inner future を poll しない（クエリ発行なし）。
+        // poll されたら panic する future を渡して固定する。
+        let result: Result<Option<i32>, ApiError> = fetch_if_included(false, async {
+            panic!("include=false の場合は poll してはならない")
+        })
+        .await;
+        assert_eq!(result.expect("include=false は Ok(None) を返す"), None);
     }
 }
