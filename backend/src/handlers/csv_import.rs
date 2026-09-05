@@ -61,7 +61,6 @@ pub async fn handle_upload_csv<D: CsvDomain>(
 mod tests {
     use super::*;
     use crate::errors::ErrorResponse;
-    use async_trait::async_trait;
     use axum::{
         body::{to_bytes, Body},
         extract::{Multipart, State},
@@ -86,7 +85,6 @@ mod tests {
 
     struct PreviewDomain;
 
-    #[async_trait]
     impl CsvDomain for PreviewDomain {
         fn preview_csv(
             bytes: &[u8],
@@ -110,7 +108,6 @@ mod tests {
 
     struct UploadDomain;
 
-    #[async_trait]
     impl CsvDomain for UploadDomain {
         fn preview_csv(
             _bytes: &[u8],
