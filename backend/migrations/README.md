@@ -25,6 +25,15 @@ SQLx は `_sqlx_migrations` に migration の version と checksum を保存す�
 
 本番 DB では、必ずバックアップ取得後に手動で実行する。アプリ起動時に勝手に repair はしない。
 
+## デプロイ時（Fly.io）の動作：自動適用
+
+デプロイ時の migration 適用は自動。手動実行は不要。
+
+- `fly.toml` に `release_command` は無い。`deploy-backend.yml` も `flyctl deploy` のみで migration を直接実行しない
+- アプリ起動時に `backend/src/main.rs` のバックグラウンド起動タスクが `run_migrations`（`backend/src/db.rs`、`sqlx::migrate!()`）を実行し、完了後に `/ready` の `startup_ready` が立つ
+- migration 失敗時はプロセス終了（`std::process::exit(1)`）し、旧デプロイが維持される
+- 手動 `cargo sqlx migrate run` が必要なのは、新規 DB・ローカル DB・既存 DB の baseline 切り替え（下記）のみ
+
 ## 新規 DB
 
 ```bash
