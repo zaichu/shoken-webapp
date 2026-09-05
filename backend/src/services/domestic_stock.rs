@@ -17,7 +17,7 @@ use crate::services::csv_util::{
 };
 use crate::services::facets::{self, FacetOrder};
 use crate::services::search_filters::{
-    push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
+    fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -92,21 +92,15 @@ pub async fn search(
     info!("[domestic_stock.search] リクエスト受信");
     let filter = DomesticStockFilter::from_params(params)?;
 
-    let summary_fut = async {
-        if params.should_include_summary() {
-            fetch_summary(pool, user_id, &filter).await.map(Some)
-        } else {
-            Ok(None)
-        }
-    };
+    let summary_fut = fetch_if_included(
+        params.should_include_summary(),
+        fetch_summary(pool, user_id, &filter),
+    );
 
-    let facets_fut = async {
-        if params.should_include_facets() {
-            fetch_facets(pool, user_id, &filter).await.map(Some)
-        } else {
-            Ok(None)
-        }
-    };
+    let facets_fut = fetch_if_included(
+        params.should_include_facets(),
+        fetch_facets(pool, user_id, &filter),
+    );
 
     run_paginated_search(
         pool,
