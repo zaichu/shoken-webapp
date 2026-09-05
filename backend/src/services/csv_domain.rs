@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -11,17 +10,18 @@ use crate::{
 ///
 /// 新規ドメインを追加する場合は本トレイトを実装し、
 /// ハンドラーから `handle_preview_csv<D>` / `handle_upload_csv<D>` を呼ぶだけでよい。
-#[async_trait]
 pub trait CsvDomain: Send + Sync + 'static {
     /// CSV バイト列をパースして DB 書き込みなしのプレビューを返す
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError>;
 
     /// CSV バイト列をパースして DB に一括登録する
-    async fn upload_csv(
+    ///
+    /// `async_trait` 時代と同様に `Send` な Future を要求する。
+    fn upload_csv(
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
-    ) -> Result<CsvUploadResponse, ApiError>;
+    ) -> impl std::future::Future<Output = Result<CsvUploadResponse, ApiError>> + Send;
 }
 
 /// 配当金ドメイン
@@ -36,7 +36,6 @@ pub struct MutualfundDomain;
 /// 資産残高（保有銘柄）ドメイン
 pub struct AssetBalanceDomain;
 
-#[async_trait]
 impl CsvDomain for DividendDomain {
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
         crate::services::dividend::preview_csv(bytes)
@@ -51,7 +50,6 @@ impl CsvDomain for DividendDomain {
     }
 }
 
-#[async_trait]
 impl CsvDomain for DomesticStockDomain {
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
         crate::services::domestic_stock::preview_csv(bytes)
@@ -66,7 +64,6 @@ impl CsvDomain for DomesticStockDomain {
     }
 }
 
-#[async_trait]
 impl CsvDomain for MutualfundDomain {
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
         crate::services::mutualfund::preview_csv(bytes)
@@ -81,7 +78,6 @@ impl CsvDomain for MutualfundDomain {
     }
 }
 
-#[async_trait]
 impl CsvDomain for AssetBalanceDomain {
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
         crate::services::asset_balance::preview_csv(bytes)
