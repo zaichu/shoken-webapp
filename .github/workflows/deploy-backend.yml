@@ -86,22 +86,34 @@ jobs:
 
   validate-frontend-types:
     name: Validate Frontend Types
-    needs: test-and-build
-    if: needs.test-and-build.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 1
+
+      - name: Detect backend changes
+        id: detect
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/deploy-backend.yml'
 
       - name: Setup frontend
+        if: steps.detect.outputs.backend == 'true'
         uses: ./.github/actions/setup-frontend
 
       - name: Generate frontend types
+        if: steps.detect.outputs.backend == 'true'
         working-directory: frontend
         run: npm run generate:types
 
       - name: Check frontend types are up to date
+        if: steps.detect.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code frontend/src/generated/api.ts; then
@@ -110,6 +122,7 @@ jobs:
           fi
 
       - name: TypeScript type check
+        if: steps.detect.outputs.backend == 'true'
         working-directory: frontend
         run: npm run typecheck
 
