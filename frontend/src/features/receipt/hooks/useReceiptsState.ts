@@ -2,7 +2,7 @@ import { useEffect, useReducer, useRef, type KeyboardEvent } from 'react';
 import type { DataActionRailProps } from '@/components/organisms/DataActionRail/DataActionRail';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { ReceiptsUtilityRailProps } from '../components/ReceiptsUtilityRail';
-import { TAB_LABEL, TABS } from '../components/ReceiptsTabNav';
+import { TAB_LABEL, TABS } from '../reducer';
 import {
   transformDBDividend,
   transformDBDomesticStock,
