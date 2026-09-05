@@ -26,6 +26,10 @@ on:
       - "scripts/npm-audit-allowlist.mjs"
       - ".github/workflows/security-audit.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     name: Detect audit changes
