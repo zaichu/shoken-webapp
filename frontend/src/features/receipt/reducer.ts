@@ -2,6 +2,14 @@ import type { CsvImportError, CsvUploadResult } from '@/lib/csvImport';
 
 export type ReceiptsType = 'dividend' | 'domesticstock' | 'mutualfund';
 
+export const TAB_LABEL: Record<ReceiptsType, string> = {
+  dividend: '配当金',
+  domesticstock: '国内株式',
+  mutualfund: '投資信託',
+};
+
+export const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
+
 export type ImportResult = CsvUploadResult;
 
 export interface CsvPreview {

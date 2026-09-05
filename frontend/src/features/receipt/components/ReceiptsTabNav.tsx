@@ -1,14 +1,6 @@
 import React from 'react';
-import type { ReceiptsType } from '../reducer';
+import { TAB_LABEL, TABS, type ReceiptsType } from '../reducer';
 import { cn } from '@/lib/utils/classNames';
-
-const TAB_LABEL: Record<ReceiptsType, string> = {
-  dividend: '配当金',
-  domesticstock: '国内株式',
-  mutualfund: '投資信託',
-};
-
-const TABS = ['dividend', 'domesticstock', 'mutualfund'] as const;
 
 interface ReceiptsTabNavProps {
   receiptsType: ReceiptsType;
@@ -71,5 +63,3 @@ export function ReceiptsTabNav({
     </nav>
   );
 }
-
-export { TABS, TAB_LABEL };
