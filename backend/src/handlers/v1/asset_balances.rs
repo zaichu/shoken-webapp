@@ -1,7 +1,6 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
-    handlers::common::ok_message,
     models::{
         asset_balance::{
             AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary,
@@ -48,8 +47,12 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<AssetBalanceSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = asset_balance_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::csv_import::handle_list(asset_balance_service::search(
+        &state.pool,
+        auth_user.id(),
+        &params,
+    ))
+    .await
 }
 
 /// 保有銘柄を全置換（v1）
@@ -90,8 +93,11 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    asset_balance_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok(ok_message("全ての保有銘柄データを削除しました"))
+    crate::handlers::csv_import::handle_delete_all(
+        asset_balance_service::delete_all(&state.pool, auth_user.id()),
+        "全ての保有銘柄データを削除しました",
+    )
+    .await
 }
 
 /// 保有銘柄 CSV をバリデーション（v1）
@@ -111,7 +117,8 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<AssetBalanceDomain>(multipart).await
+    crate::handlers::csv_import::handle_validate_import::<AssetBalanceDomain>(_auth_user, multipart)
+        .await
 }
 
 /// 保有銘柄 CSV をインポート（v1）
@@ -132,13 +139,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let json = crate::handlers::csv_import::handle_upload_csv::<AssetBalanceDomain>(
+    crate::handlers::csv_import::handle_import_csv::<AssetBalanceDomain>(
         &state.pool,
         auth_user.id(),
         multipart,
     )
-    .await?;
-    Ok((StatusCode::CREATED, json))
+    .await
 }
 
 // ---------------------------------------------------------------------------
