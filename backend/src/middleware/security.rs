@@ -4,11 +4,10 @@ use axum::{
     body::Body,
     http::{HeaderValue, Method, Request, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
-    Json,
+    response::Response,
 };
 
-use crate::errors::{ErrorDetails, ErrorResponse};
+use crate::errors::simple_error_response;
 
 /// セキュリティヘッダー付与ミドルウェア
 pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
@@ -69,14 +68,11 @@ fn extract_origin(url: &str) -> Option<&str> {
 
 /// CSRF 検証失敗レスポンスを生成する
 fn csrf_error() -> Response {
-    let error_response = ErrorResponse {
-        error: ErrorDetails {
-            code: "CSRF_ERROR".to_string(),
-            message: "不正なリクエスト元です".to_string(),
-            details: None,
-        },
-    };
-    (StatusCode::FORBIDDEN, Json(error_response)).into_response()
+    simple_error_response(
+        StatusCode::FORBIDDEN,
+        "CSRF_ERROR",
+        "不正なリクエスト元です".to_string(),
+    )
 }
 
 /// Origin検証ミドルウェア（CSRF対策）
