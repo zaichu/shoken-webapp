@@ -1,7 +1,6 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    handlers::common::ok_message,
     models::{
         common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
@@ -12,8 +11,7 @@ use crate::{
 };
 use axum::{
     extract::{Multipart, Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Json},
+    response::IntoResponse,
 };
 
 // 国内株式取引ハンドラー
@@ -51,8 +49,12 @@ pub async fn list_transactions(
     auth_user: AuthenticatedUser,
     Query(params): Query<DomesticStockSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = domestic_stock_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::csv_import::handle_list(domestic_stock_service::search(
+        &state.pool,
+        auth_user.id(),
+        &params,
+    ))
+    .await
 }
 
 /// 国内株式取引を全削除（v1）
@@ -70,8 +72,11 @@ pub async fn delete_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    domestic_stock_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok(ok_message("全ての国内株式取引データを削除しました"))
+    crate::handlers::csv_import::handle_delete_all(
+        domestic_stock_service::delete_all(&state.pool, auth_user.id()),
+        "全ての国内株式取引データを削除しました",
+    )
+    .await
 }
 
 /// 国内株式取引 CSV をバリデーション（v1）
@@ -91,7 +96,10 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<DomesticStockDomain>(multipart).await
+    crate::handlers::csv_import::handle_validate_import::<DomesticStockDomain>(
+        _auth_user, multipart,
+    )
+    .await
 }
 
 /// 国内株式取引 CSV をインポート（v1）
@@ -112,13 +120,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let json = crate::handlers::csv_import::handle_upload_csv::<DomesticStockDomain>(
+    crate::handlers::csv_import::handle_import_csv::<DomesticStockDomain>(
         &state.pool,
         auth_user.id(),
         multipart,
     )
-    .await?;
-    Ok((StatusCode::CREATED, json))
+    .await
 }
 
 // ---------------------------------------------------------------------------

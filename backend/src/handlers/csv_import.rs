@@ -1,8 +1,12 @@
 use crate::errors::ApiError;
+use crate::extractors::auth::AuthenticatedUser;
+use crate::handlers::common::ok_message;
+use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
 use crate::services::csv_domain::CsvDomain;
 use crate::state::AppState;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json, Router};
+use serde::Serialize;
 use uuid::Uuid;
 
 pub fn csv_import_routes() -> Router<AppState> {
@@ -56,6 +60,58 @@ pub async fn handle_upload_csv<D: CsvDomain>(
     let bytes = read_csv_file_bytes(multipart).await?;
     let response = D::upload_csv(pool, user_id, &bytes).await?;
     Ok(Json(response))
+}
+
+/// 一覧検索の定型レスポンス整形（200 OK + JSON）
+///
+/// 各ドメインの `list` ハンドラーから `handle_list(search_future).await` のように呼ぶ。
+/// 検索サービスの呼び出しを Future として渡すことで、サービス固有の型に依存せず
+/// ジェネリクスによる静的ディスパッチを維持する。
+/// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool` / `&params`）が
+/// 戻り値に漏れ出さないようにする。
+pub async fn handle_list<Fut, R>(search: Fut) -> Result<(StatusCode, Json<R>), ApiError>
+where
+    Fut: std::future::Future<Output = Result<R, ApiError>>,
+    R: Serialize,
+{
+    let result = search.await?;
+    Ok((StatusCode::OK, Json(result)))
+}
+
+/// 全削除の定型処理（削除実行 + 完了メッセージ）
+///
+/// 各ドメインの `delete_all` ハンドラーから
+/// `handle_delete_all(service::delete_all(&state.pool, auth_user.id()), "メッセージ").await`
+/// のように呼ぶ。戻り値を具体型にすることで、呼び出し元の借用が戻り値に漏れ出さないようにする。
+pub async fn handle_delete_all(
+    delete: impl std::future::Future<Output = Result<u64, ApiError>>,
+    message: &str,
+) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
+    delete.await?;
+    Ok(ok_message(message))
+}
+
+/// CSV バリデーションの委譲ヘルパー（DB 書き込みなし）
+///
+/// 認証は `AuthenticatedUser` エクストラクターで保証し、実処理は `handle_preview_csv` に委譲する。
+pub async fn handle_validate_import<D: CsvDomain>(
+    _auth_user: AuthenticatedUser,
+    multipart: Multipart,
+) -> Result<impl IntoResponse, ApiError> {
+    handle_preview_csv::<D>(multipart).await
+}
+
+/// CSV インポートの委譲ヘルパー（201 Created + JSON）
+///
+/// 実処理は `handle_upload_csv` に委譲し、ステータスコード付与まで面倒を見る。
+/// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
+pub async fn handle_import_csv<D: CsvDomain>(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+    multipart: Multipart,
+) -> Result<(StatusCode, Json<CsvUploadResponse>), ApiError> {
+    let json = handle_upload_csv::<D>(pool, user_id, multipart).await?;
+    Ok((StatusCode::CREATED, json))
 }
 #[cfg(test)]
 mod tests {

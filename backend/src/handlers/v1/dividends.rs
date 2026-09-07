@@ -1,7 +1,6 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
-    handlers::common::ok_message,
     models::{
         common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
@@ -13,8 +12,7 @@ use crate::{
 };
 use axum::{
     extract::{Multipart, Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Json},
+    response::IntoResponse,
 };
 
 // 配当金ハンドラー
@@ -53,8 +51,12 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<DividendSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = dividend_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::csv_import::handle_list(dividend_service::search(
+        &state.pool,
+        auth_user.id(),
+        &params,
+    ))
+    .await
 }
 
 /// 配当金を全削除（v1）
@@ -72,8 +74,11 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    dividend_service::delete_all(&state.pool, auth_user.id()).await?;
-    Ok(ok_message("全ての配当金データを削除しました"))
+    crate::handlers::csv_import::handle_delete_all(
+        dividend_service::delete_all(&state.pool, auth_user.id()),
+        "全ての配当金データを削除しました",
+    )
+    .await
 }
 
 /// 配当金 CSV をバリデーション（DB 書き込みなし）（v1）
@@ -93,7 +98,8 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<DividendDomain>(multipart).await
+    crate::handlers::csv_import::handle_validate_import::<DividendDomain>(_auth_user, multipart)
+        .await
 }
 
 /// 配当金 CSV をインポート（v1）
@@ -114,13 +120,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let json = crate::handlers::csv_import::handle_upload_csv::<DividendDomain>(
+    crate::handlers::csv_import::handle_import_csv::<DividendDomain>(
         &state.pool,
         auth_user.id(),
         multipart,
     )
-    .await?;
-    Ok((StatusCode::CREATED, json))
+    .await
 }
 
 /// 配当利回りを一括取得（v1）
