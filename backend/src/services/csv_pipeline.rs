@@ -124,6 +124,29 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_csv_skips_empty_lines() {
+        let rows = parse_csv_with_config(
+            "name,amount\nfoo,100\n,\nbar,200\n".as_bytes(),
+            &BASIC_CONFIG,
+        )
+        .unwrap();
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].get("name"), Some(&"foo".to_string()));
+        assert_eq!(rows[1].get("name"), Some(&"bar".to_string()));
+
+        let rows = parse_csv_with_config(
+            "name,amount\nfoo,100\n , \n\nbar,200\n".as_bytes(),
+            &BASIC_CONFIG,
+        )
+        .unwrap();
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].get("name"), Some(&"foo".to_string()));
+        assert_eq!(rows[1].get("name"), Some(&"bar".to_string()));
+    }
+
+    #[test]
     fn test_parse_csv_with_config() {
         let rows = parse_csv_with_config(
             "meta\nname,amount\nfoo,100\nbar\n,\n".as_bytes(),

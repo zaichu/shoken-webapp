@@ -34,7 +34,7 @@ pub fn auth_routes() -> Router<AppState> {
 /// データ系 v1 ルート（レート制限なし）
 pub fn data_routes() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/stocks", get(stocks::search).post(stocks::create))
+        .route("/api/v1/stocks", post(stocks::create))
         .route(
             "/api/v1/dividends",
             get(dividends::list).delete(dividends::delete_all),
@@ -73,6 +73,11 @@ pub fn data_routes() -> Router<AppState> {
             "/api/v1/asset-balance-import-validations",
             post(asset_balances::validate_import),
         )
+}
+
+/// 銘柄検索 v1 ルート（stock_search_limiter 対象、未認証）
+pub fn stock_search_routes() -> Router<AppState> {
+    Router::new().route("/api/v1/stocks", get(stocks::search))
 }
 
 /// CSV アップロード系 v1 ルート（csv_limiter 対象）
@@ -212,7 +217,7 @@ mod tests {
     /// GET /api/v1/stocks?query=... は未認証でも認証エラーにしない
     #[tokio::test]
     async fn test_v1_stocks_search_allows_anonymous() {
-        let router = data_routes().with_state(make_test_state());
+        let router = stock_search_routes().with_state(make_test_state());
         let status = check_status(router, Method::GET, "/api/v1/stocks?query=7203").await;
         assert_ne!(status, StatusCode::UNAUTHORIZED);
         assert_ne!(status, StatusCode::NOT_FOUND);

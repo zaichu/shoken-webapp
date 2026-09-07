@@ -2108,7 +2108,23 @@ export interface operations {
                     "application/json": components["schemas"]["Stock"];
                 };
             };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
