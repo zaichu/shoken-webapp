@@ -84,7 +84,7 @@ export const useDividendBatch = (
 
       for (const item of items) {
         statusMap.set(item.security_code, item.status);
-        if (item.status === 'ok' && item.dividend_per_share !== null && item.dividend_per_share > 0) {
+        if (item.status === 'ok' && item.dividend_per_share !== null && item.dividend_per_share !== undefined && item.dividend_per_share > 0) {
           perShareMap.set(item.security_code, item.dividend_per_share);
         }
         if (item.status === 'ok' || item.status === 'zero') {
