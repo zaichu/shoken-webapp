@@ -17,6 +17,8 @@ pub struct Config {
     pub market_data_rate_limit_rps: u32,
     /// CSV アップロードルートへの IP 単位レート制限（リクエスト/秒）。0 は無制限
     pub csv_rate_limit_rps: u32,
+    /// 銘柄検索ルート（`GET /api/v1/stocks`）への IP 単位レート制限（リクエスト/秒）。0 は無制限
+    pub stock_search_rate_limit_rps: u32,
 }
 
 impl Default for Config {
@@ -33,6 +35,7 @@ impl Default for Config {
             auth_rate_limit_rps: 10,
             market_data_rate_limit_rps: 5,
             csv_rate_limit_rps: 2,
+            stock_search_rate_limit_rps: 10,
         }
     }
 }
@@ -51,6 +54,9 @@ impl Config {
         let parse_rps = |var: &str| env::var(var).ok().and_then(|v| v.parse::<u32>().ok());
         if let Some(v) = parse_rps("AUTH_RATE_LIMIT_RPS") {
             config.auth_rate_limit_rps = v;
+        }
+        if let Some(v) = parse_rps("STOCK_SEARCH_RATE_LIMIT_RPS") {
+            config.stock_search_rate_limit_rps = v;
         }
         // JQUANTS_RATE_LIMIT_RPS は後方互換のため環境変数名を維持
         if let Some(v) = parse_rps("JQUANTS_RATE_LIMIT_RPS") {
@@ -162,6 +168,7 @@ mod tests {
             auth_rate_limit_rps: 10,
             market_data_rate_limit_rps: 5,
             csv_rate_limit_rps: 2,
+            stock_search_rate_limit_rps: 10,
         };
         assert_eq!(
             (
@@ -192,6 +199,14 @@ mod tests {
         let config = Config::from_env();
         assert_eq!(config.market_data_rate_limit_rps, 7);
     }
+    #[test]
+    fn test_config_from_env_stock_search_rps() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        assert_eq!(Config::default().stock_search_rate_limit_rps, 10);
+        let _env = EnvGuard::set("STOCK_SEARCH_RATE_LIMIT_RPS", Some("3"));
+        assert_eq!(Config::from_env().stock_search_rate_limit_rps, 3);
+    }
+
     #[tokio::test]
     async fn test_config_from_env() {
         let _lock = ENV_MUTEX.lock().await;
