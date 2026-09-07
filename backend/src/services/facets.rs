@@ -18,6 +18,34 @@ impl FacetOrder {
     }
 }
 
+/// fetch_group_facets で GROUP BY に使える式を限定する集計対象カラム（3ドメイン共通）。
+/// 年/年月のSQL式は日付カラムごとにバリアントを分け、SQL文字列自体は集約前と同一にする。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupField {
+    Account,
+    Product,
+    FundName,
+    TradeDateYear,
+    TradeDateYearMonth,
+    SettlementDateYear,
+    SettlementDateYearMonth,
+}
+
+impl GroupField {
+    /// SQL に埋め込む式（固定の &'static str のみを返す）
+    pub fn as_sql_expr(self) -> &'static str {
+        match self {
+            Self::Account => "account",
+            Self::Product => "product",
+            Self::FundName => "fund_name",
+            Self::TradeDateYear => "EXTRACT(YEAR FROM trade_date)::integer::text",
+            Self::TradeDateYearMonth => "TO_CHAR(trade_date, 'YYYY-MM')",
+            Self::SettlementDateYear => "EXTRACT(YEAR FROM settlement_date)::integer::text",
+            Self::SettlementDateYearMonth => "TO_CHAR(settlement_date, 'YYYY-MM')",
+        }
+    }
+}
+
 /// table / group_expr（呼び出し側が渡す固定の &'static str のみ）を使って
 /// `SELECT ... GROUP BY ... ORDER BY ...` の QueryBuilder を組み立てる。
 /// push_filters は WHERE 句（user_id を含む検索条件）を積むクロージャ。
@@ -85,8 +113,31 @@ pub async fn fetch_security_facets(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_group_facets_query, build_security_facets_query, FacetOrder};
+    use super::{build_group_facets_query, build_security_facets_query, FacetOrder, GroupField};
     use uuid::Uuid;
+
+    #[test]
+    fn test_group_field_as_sql_expr_preserves_legacy_sql_strings() {
+        assert_eq!(GroupField::Account.as_sql_expr(), "account");
+        assert_eq!(GroupField::Product.as_sql_expr(), "product");
+        assert_eq!(GroupField::FundName.as_sql_expr(), "fund_name");
+        assert_eq!(
+            GroupField::TradeDateYear.as_sql_expr(),
+            "EXTRACT(YEAR FROM trade_date)::integer::text"
+        );
+        assert_eq!(
+            GroupField::TradeDateYearMonth.as_sql_expr(),
+            "TO_CHAR(trade_date, 'YYYY-MM')"
+        );
+        assert_eq!(
+            GroupField::SettlementDateYear.as_sql_expr(),
+            "EXTRACT(YEAR FROM settlement_date)::integer::text"
+        );
+        assert_eq!(
+            GroupField::SettlementDateYearMonth.as_sql_expr(),
+            "TO_CHAR(settlement_date, 'YYYY-MM')"
+        );
+    }
 
     #[test]
     fn test_build_group_facets_query_uses_given_table_group_expr_order_and_filters() {

@@ -15,7 +15,7 @@ use crate::services::csv_util::{
     compute_taxes, get_row_cell, parse_required_date_row, parse_required_number_row,
     parse_required_string_row,
 };
-use crate::services::facets::{self, FacetOrder};
+use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
@@ -150,12 +150,18 @@ async fn fetch_facets(
         fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
     let funds_fut =
         fetch_group_facets(pool, user_id, filter, GroupField::FundName, FacetOrder::Asc);
-    let years_fut = fetch_group_facets(pool, user_id, filter, GroupField::Year, FacetOrder::Desc);
+    let years_fut = fetch_group_facets(
+        pool,
+        user_id,
+        filter,
+        GroupField::TradeDateYear,
+        FacetOrder::Desc,
+    );
     let year_months_fut = fetch_group_facets(
         pool,
         user_id,
         filter,
-        GroupField::YearMonth,
+        GroupField::TradeDateYearMonth,
         FacetOrder::Desc,
     );
 
@@ -170,27 +176,6 @@ async fn fetch_facets(
         years: Some(years),
         year_months: Some(year_months),
     })
-}
-
-/// fetch_group_facets で GROUP BY に使える式を限定する集計対象カラム
-#[derive(Debug, Clone, Copy)]
-enum GroupField {
-    Account,
-    FundName,
-    Year,
-    YearMonth,
-}
-
-impl GroupField {
-    /// SQL に埋め込む式（固定の &'static str のみを返す）
-    fn as_sql_expr(self) -> &'static str {
-        match self {
-            GroupField::Account => "account",
-            GroupField::FundName => "fund_name",
-            GroupField::Year => "EXTRACT(YEAR FROM trade_date)::integer::text",
-            GroupField::YearMonth => "TO_CHAR(trade_date, 'YYYY-MM')",
-        }
-    }
 }
 
 /// group_field の値ごとに件数を集計して FacetOption を返す共通ヘルパー
