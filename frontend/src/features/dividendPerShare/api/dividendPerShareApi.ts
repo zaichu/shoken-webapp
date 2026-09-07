@@ -1,19 +1,12 @@
+import type { components } from '@/generated/api';
 import { apiClient } from '@/lib/api/client';
 import { withCredentialsConfig } from '@/lib/api/requestHelpers';
 
-export type DividendStatus = 'ok' | 'zero' | 'pending' | 'error';
+// 生成型のエイリアス（API契約の正本は docs/openapi.json）
+export type DividendPerShareItem = components['schemas']['DividendPerShareItem'];
+export type DividendStatus = DividendPerShareItem['status'];
 
-export interface DividendPerShareItem {
-  security_code: string;
-  dividend_per_share: number | null;
-  status: DividendStatus;
-  fetched_at: string | null;
-  is_stale: boolean;
-}
-
-interface BatchResponse {
-  items: DividendPerShareItem[];
-}
+type BatchResponse = components['schemas']['DividendPerShareBatchResponse'];
 
 export async function fetchDividendPerShareBatch(
   securityCodes: string[]

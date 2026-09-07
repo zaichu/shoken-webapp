@@ -1,3 +1,4 @@
+use validator::Validate;
 use {
     super::*,
     crate::state::Secrets,
@@ -219,5 +220,59 @@ async fn test_search_stock_allows_anonymous() {
             .await
             .status(),
         StatusCode::UNAUTHORIZED
+    );
+}
+
+#[test]
+fn test_stock_search_query_validation_bounds() {
+    // 正常系: 1文字と100文字は通る
+    assert!(StockSearchQuery {
+        query: "7".to_string(),
+    }
+    .validate()
+    .is_ok());
+    assert!(StockSearchQuery {
+        query: "あ".repeat(100),
+    }
+    .validate()
+    .is_ok());
+    // 異常系: 空文字と101文字は落ちる
+    assert!(StockSearchQuery {
+        query: String::new(),
+    }
+    .validate()
+    .is_err());
+    assert!(StockSearchQuery {
+        query: "あ".repeat(101),
+    }
+    .validate()
+    .is_err());
+}
+
+#[tokio::test]
+async fn test_search_stock_rejects_empty_query() {
+    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
+        .unwrap();
+    let app = setup_test_app(pool);
+
+    assert_eq!(
+        call(app, "GET", "/api/v1/stocks?query=", None)
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[tokio::test]
+async fn test_search_stock_rejects_too_long_query() {
+    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
+        .unwrap();
+    let app = setup_test_app(pool);
+
+    // バリデーションは DB 問い合わせより先に行われるため、DB なしでも 400 が返る
+    let uri = format!("/api/v1/stocks?query={}", "a".repeat(101));
+    assert_eq!(
+        call(app, "GET", &uri, None).await.status(),
+        StatusCode::BAD_REQUEST
     );
 }

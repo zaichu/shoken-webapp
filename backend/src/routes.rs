@@ -44,25 +44,33 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
+    // 銘柄検索は未認証かつ前方ワイルドカード検索のため IP 単位の keyed limiter（DoS 対策）
+    let stock_search_limiter = build_keyed_rate_limiter(config.stock_search_rate_limit_rps);
     let market_data_limiter = build_rate_limiter(config.market_data_rate_limit_rps);
     spawn_keyed_limiter_cleanup(&auth_limiter);
     spawn_keyed_limiter_cleanup(&csv_limiter);
+    spawn_keyed_limiter_cleanup(&stock_search_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let ready = Arc::clone(&startup_ready);
-    let gated_domain =
-        domain_routes(market_data_limiter, auth_limiter, csv_limiter).layer(middleware::from_fn(
-            move |req: axum::extract::Request, next: axum::middleware::Next| {
-                let ready = Arc::clone(&ready);
-                async move {
-                    if ready.load(Ordering::Acquire) {
-                        next.run(req).await
-                    } else {
-                        StatusCode::SERVICE_UNAVAILABLE.into_response()
-                    }
+    let gated_domain = domain_routes(
+        market_data_limiter,
+        auth_limiter,
+        csv_limiter,
+        stock_search_limiter,
+    )
+    .layer(middleware::from_fn(
+        move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let ready = Arc::clone(&ready);
+            async move {
+                if ready.load(Ordering::Acquire) {
+                    next.run(req).await
+                } else {
+                    StatusCode::SERVICE_UNAVAILABLE.into_response()
                 }
-            },
-        ));
+            }
+        },
+    ));
 
     // /ready と /health は TraceLayer の対象外にする（startup 中の expected 503 を ERROR ログから除外）
     let ready_for_check = Arc::clone(&startup_ready);
@@ -112,6 +120,7 @@ fn domain_routes(
     market_data_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
     auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+    stock_search_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
     let market_data_routes = if let Some(l) = market_data_limiter {
         handlers::v1::market_data_routes().layer(middleware::from_fn(move |req, next| {
@@ -137,11 +146,20 @@ fn domain_routes(
     } else {
         csv_upload_routes()
     };
+    let stock_search_routes = if let Some(l) = stock_search_limiter {
+        handlers::v1::stock_search_routes().layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
+    } else {
+        handlers::v1::stock_search_routes()
+    };
 
     Router::new()
         .merge(market_data_routes)
         .merge(auth_routes)
         .merge(csv_upload_routes)
+        .merge(stock_search_routes)
         .merge(handlers::csv_import::csv_import_routes())
         .merge(handlers::v1::data_routes())
 }
@@ -182,6 +200,7 @@ mod tests {
     fn test_all_routes_creation() {
         let _ = handlers::v1::auth_routes();
         let _ = handlers::v1::market_data_routes();
+        let _ = handlers::v1::stock_search_routes();
         let _ = handlers::v1::data_routes();
         let _ = handlers::v1::csv_upload_routes();
         let _ = handlers::csv_import::csv_import_routes();
@@ -365,6 +384,25 @@ mod tests {
         .await
         .unwrap();
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
+    }
+    #[tokio::test]
+    async fn test_stock_search_routes_rate_limit_returns_429() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _stock_search_rate_limit_rps = EnvGuard::set("STOCK_SEARCH_RATE_LIMIT_RPS", Some("1"));
+        // レート制限ミドルウェアはハンドラーより先に動くため、バリデーションで
+        // 400 になる空クエリを使えば DB 接続待ちなしで limiter の挙動だけを検証できる。
+        // 1リクエスト目は 400（limiter 通過）、同一 IP からの 2リクエスト目は 429 が返る
+        assert_rate_limited(
+            app_router(
+                make_test_state(),
+                &Config::from_env(),
+                Arc::new(AtomicBool::new(true)),
+            ),
+            Method::GET,
+            "/api/v1/stocks?query=",
+            Some("9.9.9.9"),
+        )
+        .await;
     }
     #[tokio::test]
     async fn test_ready_returns_503_during_startup() {
