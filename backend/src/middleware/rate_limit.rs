@@ -4,22 +4,18 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
-    Json,
+    response::Response,
 };
 use governor::{DefaultDirectRateLimiter, DefaultKeyedRateLimiter, Quota, RateLimiter};
 
-use crate::errors::{ErrorDetails, ErrorResponse};
+use crate::errors::simple_error_response;
 
 fn rate_limit_error() -> Response {
-    let error_response = ErrorResponse {
-        error: ErrorDetails {
-            code: "RATE_LIMIT_EXCEEDED".to_string(),
-            message: "リクエストが多すぎます。しばらくしてから再試行してください。".to_string(),
-            details: None,
-        },
-    };
-    (StatusCode::TOO_MANY_REQUESTS, Json(error_response)).into_response()
+    simple_error_response(
+        StatusCode::TOO_MANY_REQUESTS,
+        "RATE_LIMIT_EXCEEDED",
+        "リクエストが多すぎます。しばらくしてから再試行してください。".to_string(),
+    )
 }
 
 /// 毎秒 rps リクエストを許可するグローバルレート制限インスタンスを生成する

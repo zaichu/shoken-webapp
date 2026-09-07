@@ -1,4 +1,8 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
 use oauth2::{
     basic::BasicErrorResponseType, url::ParseError, RequestTokenError, StandardErrorResponse,
 };
@@ -53,16 +57,37 @@ pub struct ErrorDetails {
 
 // --- ヘルパー関数 ---
 
+/// `ErrorDetails` を生成する唯一のコンストラクタ
+///
+/// 本番環境では内部エラー詳細を露出させないため、`debug_detail` があっても
+/// `details` は `None` になる（ログ・機密情報ルール対応）。
+pub fn error_details_with_debug(
+    code: &str,
+    message: String,
+    debug_detail: Option<String>,
+) -> ErrorDetails {
+    ErrorDetails {
+        code: code.to_string(),
+        message,
+        details: if is_production_env() {
+            None
+        } else {
+            debug_detail
+        },
+    }
+}
+
+/// `details` なしの定型エラーレスポンスを直接生成する（middleware 用）
+pub fn simple_error_response(status: StatusCode, code: &str, message: String) -> Response {
+    let error_response = ErrorResponse {
+        error: error_details_with_debug(code, message, None),
+    };
+    (status, Json(error_response)).into_response()
+}
+
 /// details なしのシンプルなエラーレスポンスパーツを生成
 fn simple_error(status: StatusCode, code: &str, message: String) -> (StatusCode, ErrorDetails) {
-    (
-        status,
-        ErrorDetails {
-            code: code.to_string(),
-            message,
-            details: None,
-        },
-    )
+    (status, error_details_with_debug(code, message, None))
 }
 
 /// ApiError を HTTP ステータスと ErrorDetails に変換
@@ -109,15 +134,7 @@ fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
             }
             (
                 status,
-                ErrorDetails {
-                    code: code.to_string(),
-                    message: message.to_string(),
-                    details: if is_production_env() {
-                        None
-                    } else {
-                        Some(e.to_string())
-                    },
-                },
+                error_details_with_debug(code, message.to_string(), Some(e.to_string())),
             )
         }
         ApiError::NotFound => simple_error(StatusCode::NOT_FOUND, "NOT_FOUND", err.to_string()),
@@ -146,15 +163,11 @@ fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
             tracing::error!("JSON processing error: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorDetails {
-                    code: "JSON_ERROR".to_string(),
-                    message: "JSON processing error".to_string(),
-                    details: if is_production_env() {
-                        None
-                    } else {
-                        Some(e.to_string())
-                    },
-                },
+                error_details_with_debug(
+                    "JSON_ERROR",
+                    "JSON processing error".to_string(),
+                    Some(e.to_string()),
+                ),
             )
         }
     }
