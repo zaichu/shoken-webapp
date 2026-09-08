@@ -2,8 +2,9 @@ use crate::models::common::validate_length_field;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::{borrow::Cow, collections::BTreeMap};
 use utoipa::ToSchema;
-use validator::{Validate, ValidationErrors};
+use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 
 /// 配当キャッシュレコード
 ///
@@ -47,6 +48,37 @@ impl Validate for DividendPerShareBatchRequest {
             Some(1),
             Some(100),
         );
+        // 件数自体が不正（空・上限超過）の場合は要素検証を省略する。
+        // `security_codes` キーには既に長さエラーが入っており、List 形式で上書きすると
+        // 件数エラーが失われるため（`BulkCreateAssetBalanceRequest::validate` と同慣例）。
+        if errors.is_empty() {
+            let element_errors = self
+                .security_codes
+                .iter()
+                .enumerate()
+                .filter_map(|(index, code)| {
+                    let mut element = ValidationErrors::new();
+                    validate_length_field(&mut element, "security_code", code, Some(1), Some(10));
+                    if !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '.') {
+                        element.add(
+                            "security_code",
+                            ValidationError::new("invalid_security_code"),
+                        );
+                    }
+                    if element.is_empty() {
+                        None
+                    } else {
+                        Some((index, Box::new(element)))
+                    }
+                })
+                .collect::<BTreeMap<_, _>>();
+            if !element_errors.is_empty() {
+                errors.errors_mut().insert(
+                    Cow::Borrowed("security_codes"),
+                    ValidationErrorsKind::List(element_errors),
+                );
+            }
+        }
         if errors.is_empty() {
             Ok(())
         } else {
@@ -102,6 +134,61 @@ mod tests {
         // 101件は NG（max = 100）
         assert!(DividendPerShareBatchRequest {
             security_codes: vec!["1234".to_string(); 101],
+        }
+        .validate()
+        .is_err());
+    }
+
+    #[test]
+    fn test_batch_request_accepts_valid_codes() {
+        // 国内株4桁・英字混じり・ドット付きはいずれも OK
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["7203".to_string(), "AAPL".to_string(), "7203.T".to_string(),],
+        }
+        .validate()
+        .is_ok());
+    }
+
+    #[test]
+    fn test_batch_request_rejects_invalid_element_with_index() {
+        // 2 番目の要素（インデックス 1）に記号を含む
+        let request = DividendPerShareBatchRequest {
+            security_codes: vec!["7203".to_string(), "7203;DROP".to_string()],
+        };
+        let errors = request.validate().expect_err("不正な要素は拒否される");
+        assert!(
+            format!("{errors}").contains("security_codes[1]"),
+            "どの要素が不正か分かること: {errors}"
+        );
+
+        // 空文字要素（インデックス 0）は長さ min=1 違反で拒否される
+        let request = DividendPerShareBatchRequest {
+            security_codes: vec![String::new(), "7203".to_string()],
+        };
+        let errors = request.validate().expect_err("空文字要素は拒否される");
+        assert!(format!("{errors}").contains("security_codes[0]"));
+
+        // 11 文字要素は VARCHAR(10) のため拒否される
+        let request = DividendPerShareBatchRequest {
+            security_codes: vec!["12345678901".to_string()],
+        };
+        assert!(request.validate().is_err());
+
+        // 10 文字は OK（上限境界）
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["1234567890".to_string()],
+        }
+        .validate()
+        .is_ok());
+
+        // 日本語・空白を含む要素は拒否される
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["トヨタ".to_string()],
+        }
+        .validate()
+        .is_err());
+        assert!(DividendPerShareBatchRequest {
+            security_codes: vec!["7203 ".to_string()],
         }
         .validate()
         .is_err());
