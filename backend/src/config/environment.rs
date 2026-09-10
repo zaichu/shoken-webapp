@@ -52,12 +52,14 @@ pub fn csv_rate_limit_rps() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_env::ENV_MUTEX;
     use temp_env::with_vars;
 
     // --- is_production_env ---
 
     #[test]
     fn test_is_production_env_rust_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("RUST_ENV", Some("production")),
@@ -72,6 +74,7 @@ mod tests {
 
     #[test]
     fn test_is_production_env_app_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("RUST_ENV", None::<&str>),
@@ -86,6 +89,7 @@ mod tests {
 
     #[test]
     fn test_is_production_env_backend_url_https() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("RUST_ENV", None::<&str>),
@@ -100,6 +104,7 @@ mod tests {
 
     #[test]
     fn test_is_production_env_backend_url_http() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("RUST_ENV", None::<&str>),
@@ -114,6 +119,7 @@ mod tests {
 
     #[test]
     fn test_is_production_env_none() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("RUST_ENV", None::<&str>),
@@ -130,6 +136,7 @@ mod tests {
 
     #[test]
     fn test_backend_url_explicit() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("BACKEND_URL", Some("https://api.example.com")),
@@ -143,6 +150,7 @@ mod tests {
 
     #[test]
     fn test_backend_url_port() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [("BACKEND_URL", None::<&str>), ("PORT", Some("8080"))],
             || {
@@ -153,6 +161,7 @@ mod tests {
 
     #[test]
     fn test_backend_url_default() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [("BACKEND_URL", None::<&str>), ("PORT", None::<&str>)],
             || {
@@ -165,6 +174,7 @@ mod tests {
 
     #[test]
     fn test_server_addr_port() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars([("PORT", Some("9000"))], || {
             assert_eq!(server_addr(), "0.0.0.0:9000");
         });
@@ -172,6 +182,7 @@ mod tests {
 
     #[test]
     fn test_server_addr_default() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars([("PORT", None::<&str>)], || {
             assert_eq!(server_addr(), "0.0.0.0:3001");
         });
@@ -181,6 +192,7 @@ mod tests {
 
     #[test]
     fn test_is_secure_cookie_true() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("SECURE_COOKIE", Some("true")),
@@ -194,6 +206,7 @@ mod tests {
 
     #[test]
     fn test_is_secure_cookie_one() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [("SECURE_COOKIE", Some("1")), ("BACKEND_URL", None::<&str>)],
             || {
@@ -204,6 +217,7 @@ mod tests {
 
     #[test]
     fn test_is_secure_cookie_false() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("SECURE_COOKIE", Some("false")),
@@ -217,6 +231,7 @@ mod tests {
 
     #[test]
     fn test_is_secure_cookie_backend_url_https() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("SECURE_COOKIE", None::<&str>),
@@ -230,6 +245,7 @@ mod tests {
 
     #[test]
     fn test_is_secure_cookie_none() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars(
             [
                 ("SECURE_COOKIE", None::<&str>),
@@ -245,6 +261,7 @@ mod tests {
 
     #[test]
     fn test_csv_rate_limit_rps_explicit() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars([("CSV_RATE_LIMIT_RPS", Some("5"))], || {
             assert_eq!(csv_rate_limit_rps(), 5);
         });
@@ -252,6 +269,7 @@ mod tests {
 
     #[test]
     fn test_csv_rate_limit_rps_default() {
+        let _guard = ENV_MUTEX.blocking_lock();
         with_vars([("CSV_RATE_LIMIT_RPS", None::<&str>)], || {
             assert_eq!(csv_rate_limit_rps(), 2);
         });
