@@ -151,21 +151,22 @@ describe('useDividendBatch', () => {
     expect(result.current.totalCount).toBe(2);
     expect(result.current.fetchedCount).toBe(0);
 
-    for (let i = 0; i < 4; i += 1) {
+    // 2銘柄は単位修正により maxRetries=5（初回 + 5回 = 6呼び出し）
+    for (let i = 0; i < 5; i += 1) {
       await act(async () => {
         await vi.runOnlyPendingTimersAsync();
       });
       await flushAsyncUpdates();
     }
 
-    expect(mockFetch).toHaveBeenCalledTimes(5);
+    expect(mockFetch).toHaveBeenCalledTimes(6);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
     await flushAsyncUpdates();
 
-    expect(mockFetch).toHaveBeenCalledTimes(5);
+    expect(mockFetch).toHaveBeenCalledTimes(6);
   });
 
   it('enabled=false のときは状態がクリアされ API が呼ばれない', async () => {
@@ -310,5 +311,167 @@ describe('useDividendBatch', () => {
 
     // codesKey が同じなので再フェッチしない
     expect(mockFetch).toHaveBeenCalledTimes(callCount);
+  });
+
+  it('N=2ではmaxRetriesが5にスケールする（単位修正の検証）', async () => {
+    vi.useFakeTimers();
+
+    mockFetch.mockResolvedValue([
+      makeItem('7001', 'pending', null),
+      makeItem('7002', 'pending', null),
+    ]);
+
+    // 単位不一致の旧式では銘柄数によらず4回で停止するが、修正後は
+    // ceil(2*12*1000/15000)+3=5回リトライする
+    renderHook(() => useDividendBatch(['7001', '7002'], true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // 旧上限の4回を超えてもポーリングが継続すること
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    // 5回目のリトライ後（計6呼び出し）で停止すること
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(6);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(6);
+  });
+
+  it('N=100ではmaxRetriesが83にスケールする', async () => {
+    vi.useFakeTimers();
+
+    const codes = Array.from({ length: 100 }, (_, i) => String(8000 + i));
+    mockFetch.mockResolvedValue(codes.map((code) => makeItem(code, 'pending', null)));
+
+    // ceil(100*12*1000/15000)+3=83回リトライ（初回 + 83回 = 84呼び出し）
+    renderHook(() => useDividendBatch(codes, true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // 旧上限の4回を超えてもポーリングが継続すること
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    for (let i = 0; i < 79; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(84);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(84);
+  });
+
+  it('上限キャップによりN=200でも100回リトライで停止する', async () => {
+    vi.useFakeTimers();
+
+    const codes = Array.from({ length: 200 }, (_, i) => String(9000 + i));
+    mockFetch.mockResolvedValue(codes.map((code) => makeItem(code, 'pending', null)));
+
+    // キャップなしの計算値は163回だが、上限100で打ち切られる（初回 + 100回 = 101呼び出し）
+    renderHook(() => useDividendBatch(codes, true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    for (let i = 0; i < 100; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(101);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(101);
+  });
+
+  it('通信失敗時のリトライはpending再確認と分離され3回で停止する', async () => {
+    vi.useFakeTimers();
+
+    // N=100ならpending上限は83回だが、通信失敗は別枠の3回で打ち切られる
+    const codes = Array.from({ length: 100 }, (_, i) => String(8100 + i));
+    mockFetch.mockRejectedValue(new Error('network error'));
+
+    renderHook(() => useDividendBatch(codes, true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+
+    // 初回 + 3回 = 4呼び出しで停止する
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it('pending再確認は通信失敗の回数を消費しない', async () => {
+    vi.useFakeTimers();
+
+    mockFetch
+      .mockResolvedValueOnce([makeItem('7101', 'pending', null)])
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValue([makeItem('7101', 'pending', null)]);
+
+    // N=1のpending上限は4回。途中の通信失敗2回がpending枠を消費しなければ
+    // pendingリトライは4回使い切る（初回 + 通信失敗2回 + pending4回 = 7呼び出しで停止する）
+    // 共有カウンタの旧実装なら通信失敗が枠を消費して5呼び出しで止まる
+    renderHook(() => useDividendBatch(['7101'], true));
+
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    for (let i = 0; i < 6; i += 1) {
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      await flushAsyncUpdates();
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(7);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushAsyncUpdates();
+    expect(mockFetch).toHaveBeenCalledTimes(7);
   });
 });
