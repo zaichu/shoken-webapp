@@ -5,6 +5,10 @@ use std::sync::{
 
 use axum::{http::StatusCode, middleware, response::IntoResponse, routing::get, Json, Router};
 use tower_http::{
+    compression::{
+        predicate::{NotForContentType, Predicate, SizeAbove},
+        CompressionLayer,
+    },
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     trace::TraceLayer,
@@ -24,6 +28,11 @@ use crate::{
 
 /// リクエストボディの上限サイズ（10MB）
 const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
+
+/// レスポンス圧縮の最小サイズ（1KB）。
+/// 1 shared CPU 環境のため、認証系等の小さなレスポンスは圧縮せず、
+/// 一覧取得系などの大きめの JSON のみ gzip 圧縮する。
+const COMPRESSION_MIN_SIZE: u64 = 1024;
 
 fn spawn_keyed_limiter_cleanup(
     limiter: &Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
@@ -110,6 +119,15 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
         .layer(PropagateRequestIdLayer::x_request_id())
         // x-request-id が未設定の場合は UUID v4 を自動付与
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+        // 大きめの JSON（一覧取得系）のみ gzip 圧縮。小さなレスポンスは CPU 消費を避ける
+        .layer(
+            CompressionLayer::new().compress_when(
+                SizeAbove::new(COMPRESSION_MIN_SIZE)
+                    .and(NotForContentType::GRPC)
+                    .and(NotForContentType::IMAGES)
+                    .and(NotForContentType::SSE),
+            ),
+        )
         // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
         .layer(middleware::from_fn(add_security_headers))
         .with_state(state)
