@@ -1,9 +1,20 @@
 use oauth2::{
-    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, EndpointNotSet,
-    EndpointSet, RedirectUrl, TokenResponse, TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, EndpointNotSet, EndpointSet, RedirectUrl,
+    TokenUrl,
+};
+use openidconnect::{
+    core::{
+        CoreIdToken, CoreIdTokenVerifier, CoreJsonWebKeySet, CoreJwsSigningAlgorithm,
+        CoreTokenResponse,
+    },
+    IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
 };
 use sqlx::PgPool;
-use std::sync::OnceLock;
+use std::{
+    sync::OnceLock,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 use crate::config;
 use crate::errors::ApiError;
@@ -14,11 +25,12 @@ pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-const GOOGLE_USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v3/userinfo";
+const GOOGLE_ISSUER: &str = "https://accounts.google.com";
+const GOOGLE_JWKS_URL: &str = "https://www.googleapis.com/oauth2/v3/certs";
 
 type GoogleOAuthClient = oauth2::Client<
     oauth2::basic::BasicErrorResponse,
-    oauth2::basic::BasicTokenResponse,
+    CoreTokenResponse,
     oauth2::basic::BasicTokenIntrospectionResponse,
     oauth2::StandardRevocableToken,
     oauth2::basic::BasicRevocationErrorResponse,
@@ -35,7 +47,7 @@ pub fn create_oauth_client(
 ) -> Result<GoogleOAuthClient, ApiError> {
     let redirect_url = format!("{}/api/v1/oauth/google/callback", config::backend_url());
 
-    let client = BasicClient::new(ClientId::new(client_id.to_string()))
+    let client = oauth2::Client::new(ClientId::new(client_id.to_string()))
         .set_client_secret(ClientSecret::new(client_secret.to_string()))
         .set_auth_uri(
             AuthUrl::new(GOOGLE_AUTH_URL.to_string())
@@ -72,9 +84,17 @@ pub fn build_oauth_http_client() -> Result<oauth2::reqwest::Client, ApiError> {
 pub fn init_oauth_http_client() -> Result<(), ApiError> {
     if OAUTH_HTTP_CLIENT.get().is_none() {
         let client = build_oauth_http_client()?;
+        let startup_client = client.clone();
         // 並行して初期化が進んでいた場合は先勝ちした側を共有する。
         if OAUTH_HTTP_CLIENT.set(client).is_err() {
             tracing::debug!("OAuth HTTPクライアントは既に初期化されています");
+        } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            // 起動をブロックせず先読みする。失敗時は次のログイン時に再取得する。
+            runtime.spawn(async move {
+                if shared_google_jwks(&startup_client).await.is_err() {
+                    tracing::warn!("Google JWKSの先読みに失敗しました");
+                }
+            });
         }
     }
     Ok(())
@@ -91,10 +111,97 @@ fn shared_oauth_http_client() -> Result<&'static oauth2::reqwest::Client, ApiErr
     })
 }
 
+// 起動時に先読みし、取得成功後5分間は共有する。期限切れ後の最初の要求で更新する。
+// 未知の鍵や署名エラーによる強制再取得は行わず、外部リクエストの増幅を避ける。
+const JWKS_CACHE_TTL: Duration = Duration::from_secs(300);
+static GOOGLE_JWKS_CACHE: GoogleJwksCache = GoogleJwksCache::new();
+
+struct GoogleJwksCache {
+    entry: Mutex<Option<(CoreJsonWebKeySet, Instant)>>,
+}
+
+impl GoogleJwksCache {
+    const fn new() -> Self {
+        Self {
+            entry: Mutex::const_new(None),
+        }
+    }
+
+    async fn get(
+        &self,
+        client: &oauth2::reqwest::Client,
+        url: &JsonWebKeySetUrl,
+    ) -> Result<CoreJsonWebKeySet, ApiError> {
+        // 取得中も排他し、同時ログインによる重複取得を防ぐ。
+        let mut entry = self.entry.lock().await;
+        if let Some((keys, fetched_at)) = entry.as_ref() {
+            if fetched_at.elapsed() < JWKS_CACHE_TTL {
+                return Ok(keys.clone());
+            }
+        }
+        let keys = CoreJsonWebKeySet::fetch_async(url, client)
+            .await
+            .map_err(|_| ApiError::OAuthError("Google JWKS取得エラー".into()))?;
+        // 更新失敗時は期限切れの鍵を使用しない。
+        *entry = Some((keys.clone(), Instant::now()));
+        Ok(keys)
+    }
+}
+
+async fn shared_google_jwks(
+    client: &oauth2::reqwest::Client,
+) -> Result<CoreJsonWebKeySet, ApiError> {
+    let url = JsonWebKeySetUrl::new(GOOGLE_JWKS_URL.to_string())?;
+    GOOGLE_JWKS_CACHE.get(client, &url).await
+}
+
+fn verify_google_id_token(
+    token: &CoreIdToken,
+    client_id: &ClientId,
+    keys: CoreJsonWebKeySet,
+) -> Result<GoogleUserInfo, ApiError> {
+    // Googleの非対称署名のみ許可。クライアントシークレットを署名鍵として扱わない。
+    let verifier = CoreIdTokenVerifier::new_public_client(
+        client_id.clone(),
+        IssuerUrl::new(GOOGLE_ISSUER.to_string())?,
+        keys,
+    )
+    .set_allowed_algs(vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256]);
+    // 既存の認可コードフローはnonceを送信しない。未要求nonceも受理しない。
+    // CSRFのstate照合はコールバックハンドラーで従来どおり実施する。
+    let claims = token
+        .claims(&verifier, |nonce: Option<&Nonce>| {
+            if nonce.is_some() {
+                Err("未要求のnonce".to_string())
+            } else {
+                Ok(())
+            }
+        })
+        .map_err(|_| ApiError::OAuthError("Google IDトークン検証エラー".into()))?;
+
+    // 署名・iss・aud・expの検証を通ったclaimだけをDB更新に使用する。
+    Ok(GoogleUserInfo {
+        sub: claims.subject().as_str().to_string(),
+        email: claims
+            .email()
+            .ok_or_else(|| ApiError::OAuthError("Google IDトークンにemailがありません".into()))?
+            .as_str()
+            .to_string(),
+        name: claims
+            .name()
+            .and_then(|name| name.get(None))
+            .map(|name| name.as_str().to_string()),
+        picture: claims
+            .picture()
+            .and_then(|picture| picture.get(None))
+            .map(|picture| picture.as_str().to_string()),
+    })
+}
+
 /// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
 pub async fn authenticate_with_google_code(
     pool: &PgPool,
-    http_client: &reqwest::Client,
+    _http_client: &reqwest::Client,
     oauth_client: &GoogleOAuthClient,
     code: String,
 ) -> Result<String, ApiError> {
@@ -103,22 +210,14 @@ pub async fn authenticate_with_google_code(
         .exchange_code(AuthorizationCode::new(code))
         .request_async(oauth_http_client)
         .await
-        .map_err(|e| {
-            tracing::error!("OAuth token exchange error: {}", e);
-            ApiError::OAuthError(e.to_string())
-        })?;
+        // パースエラーにはレスポンス本文が含まれ得るため、詳細をログや応答に出さない。
+        .map_err(|_| ApiError::OAuthError("Googleトークン交換エラー".into()))?;
 
-    let access_token = token_result.access_token().secret().to_string();
-
-    let user_info: GoogleUserInfo = http_client
-        .get(GOOGLE_USERINFO_URL)
-        .bearer_auth(&access_token)
-        .send()
-        .await
-        .map_err(|e| ApiError::NetworkError(format!("ユーザー情報取得エラー: {}", e)))?
-        .json()
-        .await
-        .map_err(|e| ApiError::NetworkError(format!("ユーザー情報解析エラー: {}", e)))?;
+    let id_token = token_result
+        .id_token()
+        .ok_or_else(|| ApiError::OAuthError("Google IDトークンがありません".into()))?;
+    let keys = shared_google_jwks(oauth_http_client).await?;
+    let user_info = verify_google_id_token(id_token, oauth_client.client_id(), keys)?;
 
     let session_token = upsert_user_and_rotate_session(pool, &user_info).await?;
 
@@ -251,6 +350,209 @@ mod tests {
         super::*,
         crate::test_env::{EnvGuard, ENV_MUTEX},
     };
+
+    use openidconnect::{
+        core::{
+            CoreIdToken, CoreIdTokenClaims, CoreJsonWebKeySet, CoreJwsSigningAlgorithm,
+            CoreRsaPrivateSigningKey,
+        },
+        JsonWebKeyId, PrivateSigningKey,
+    };
+
+    // このテスト専用に生成した公開済みの鍵。本番の認証には使用しない。
+    const TEST_SIGNING_KEY: &str = r#"-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAremwhaI5aHwKo/1GEBrS4qeZx+V1xkXI3X9uU1LcU/rd9Ng0
+rybnrTH6VSoCBTbE4eGzH3nQoKYB/mgQwS1vd++zXWja/VuYGFut7hzVOgWBqmGo
+F5UL7wcEGl5veYCV9p1lmjQXuBDsX/rZD8ACVG9DMx26YmrVC8U9vmZyQagNG2vm
+z5YB3zctZ9hP/0KAy0ixIdcB05u8uErbON/ODwHJp4K4v5wMaD/O5O1KBHrHIpi+
+A0F+dj070aWovQ0erUEM8dX9FCAr7/4AzAWpBhPylRVu4HOUridjDW4W5cJlN/Au
+GKW8auBqF2wBdngPBCJIr7KwOrHp4VyJGQzjDQIDAQABAoIBAAteAbdNjSo/jh2x
+FkoP/Sy3ZVCXHOv8VhuA+SyuqjWknHe+eGMVmRsAiasIKq2jxAA61Y+Yt+kByl7F
+XbyV3a1Qy4ziQT4O8is7z57t34bO77siB7yfqPIGQV+Zc8VugPhnluNNxScdl0Jt
+J11LxygBrCDEY3eMIaftTBKmQfcsizXgHuiKX5OCn2Hjlx6dZzl9od5oG7fhM/2O
+qalx793ItsSfLKp/EftnzdoVIqvX18uLmEBYcrVOGv4eb2sV7IeCMwNll62Tc6rT
+Diz/rRoF+p4+AVebzm6sNXMDnJ0mXFWTt7xC6a/oFMDOuted1Mga5CuLigo/5Ha/
+cczxM7kCgYEA1UEJ+9OlUFXjrcqgVuRyOWmlEnarHG1mfbEDM5u3Km+kVErYANa2
+L+d6+ccFbvHwF6PPqvjjUA2VK6sazoDJm8xmYyovOlsKkLW5Y6LNdvWaLQBSQfil
++x2CPXDeOT19NcjibWnrN7XyRrPo5j241/dob43hZJR9rZ5Ikc81s/8CgYEA0MXj
+UTwSob36LvOZ+LvhBaL+CxmXMuBhPUkltVQ5afTEbsGMyK/aJKTm/U7gR9SASNXc
+SEfhvWyNXf8De0PbZ01EprhjPHMkZqrp4coWAVb6oUGJCgDPmv6eQUS4DHdBGrxV
+/LvEFWEh+RJD/mtQV9nydoVylZOWAzXEsA1M+PMCgYAhaIYC4J5GXp5DjLnfwvwu
+CGHm6ZZW5sCmskN5I0znpgPNfMgoIXr7OD1owggU4Gwnl+8hrsoVsXsME0sozL5I
+3RWxNVuevcKC9yUq+cdMep+Dq0g3s5d1JqNPss3tk7d45JasY2qJGMTy1J6I62R4
+2PaQe16zHhwuRdzCkv6rywKBgHwTL37m6dfQVTC0O+y0lA5KiRrFsbNd4MyQfWWf
+0aNkAZ4lT2sx/75JdrJSvz5RT5B58TnP5pwyOG4FkecfM/TX2hYPfYK+l4KgzvEO
+rjdLnxZZIX2db8SY0CrQEWXvNfUSuzPBz8449PzW2ywIUS507AF+W9QDa2MrAGL0
+9Kr7AoGBAMR/3jv99iniFERcsZjqs50jxQsXOC7o7F2fmtJMYFRKg53/WrDUXz7r
+Dyhh5nzzuOz2uZ/ZrViITixw5Pgk5EhS8RF2cTgd4kvR/zHa9j0s2ndhvJfhYGqi
+jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
+-----END RSA PRIVATE KEY-----
+"#;
+
+    fn signed_token(claims: serde_json::Value) -> (CoreIdToken, CoreJsonWebKeySet) {
+        let key = CoreRsaPrivateSigningKey::from_pem(
+            TEST_SIGNING_KEY,
+            Some(JsonWebKeyId::new("test-key".into())),
+        )
+        .unwrap();
+        let claims: CoreIdTokenClaims = serde_json::from_value(claims).unwrap();
+        let token = CoreIdToken::new(
+            claims,
+            &key,
+            CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256,
+            None,
+            None,
+        )
+        .unwrap();
+        (
+            token,
+            CoreJsonWebKeySet::new(vec![key.as_verification_key()]),
+        )
+    }
+
+    fn valid_claims() -> serde_json::Value {
+        serde_json::json!({
+            "iss": "https://accounts.google.com", "aud": "client-id", "sub": "test-subject",
+            "exp": chrono::Utc::now().timestamp() + 3600, "iat": chrono::Utc::now().timestamp(),
+            "email": "oidc@example.com", "name": "テスト利用者",
+            "picture": "https://example.com/avatar.png"
+        })
+    }
+
+    #[test]
+    fn test_oidc_verified_profile() {
+        let (token, keys) = signed_token(valid_claims());
+        let user =
+            verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).unwrap();
+        assert_eq!(user.sub, "test-subject");
+        assert_eq!(user.email, "oidc@example.com");
+        assert_eq!(user.name.as_deref(), Some("テスト利用者"));
+        assert_eq!(
+            user.picture.as_deref(),
+            Some("https://example.com/avatar.png")
+        );
+    }
+
+    #[test]
+    fn test_oidc_rejects_invalid_claims_and_signature() {
+        for (field, value) in [
+            ("iss", serde_json::json!("https://attacker.example.com")),
+            ("aud", serde_json::json!("other-client")),
+            (
+                "exp",
+                serde_json::json!(chrono::Utc::now().timestamp() - 60),
+            ),
+            ("nonce", serde_json::json!("unsolicited-nonce")),
+            ("email", serde_json::Value::Null),
+        ] {
+            let mut claims = valid_claims();
+            claims[field] = value;
+            let (token, keys) = signed_token(claims);
+            assert!(
+                verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).is_err(),
+                "{field}"
+            );
+        }
+        let (token, keys) = signed_token(valid_claims());
+        let serialized = serde_json::to_value(&token).unwrap();
+        let mut jwt = serialized.as_str().unwrap().as_bytes().to_vec();
+        let start = jwt.iter().rposition(|c| *c == b'.').unwrap() + 1;
+        jwt[start] = if jwt[start] == b'A' { b'B' } else { b'A' };
+        let tampered: CoreIdToken =
+            serde_json::from_value(serde_json::json!(String::from_utf8(jwt).unwrap())).unwrap();
+        assert!(
+            verify_google_id_token(&tampered, &ClientId::new("client-id".into()), keys).is_err()
+        );
+        assert!(verify_google_id_token(
+            &token,
+            &ClientId::new("client-id".into()),
+            CoreJsonWebKeySet::new(vec![])
+        )
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_jwks_cache_shares_fetch_and_refreshes_after_expiry() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+        let server = MockServer::start().await;
+        let (_, keys) = signed_token(valid_claims());
+        Mock::given(method("GET"))
+            .and(path("/keys"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&keys))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let cache = GoogleJwksCache::new();
+        let url = openidconnect::JsonWebKeySetUrl::new(format!("{}/keys", server.uri())).unwrap();
+        let client = build_oauth_http_client().unwrap();
+        let (first, second) = tokio::join!(cache.get(&client, &url), cache.get(&client, &url));
+        assert!(first.is_ok());
+        assert!(second.is_ok());
+        server.verify().await;
+        server.reset().await;
+        cache.entry.lock().await.as_mut().unwrap().1 = std::time::Instant::now() - JWKS_CACHE_TTL;
+        Mock::given(method("GET"))
+            .and(path("/keys"))
+            .respond_with(ResponseTemplate::new(503))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert!(
+            cache.get(&client, &url).await.is_err(),
+            "期限切れの鍵にフォールバックしない"
+        );
+        server.verify().await;
+        server.reset().await;
+        Mock::given(method("GET"))
+            .and(path("/keys"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&keys))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert!(cache.get(&client, &url).await.is_ok());
+        assert!(cache.get(&client, &url).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_oidc_token_exchange_preserves_id_token() {
+        use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        let (token, keys) = signed_token(valid_claims());
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "access_token": "test-access-token", "token_type": "Bearer",
+                "expires_in": 3600, "id_token": token
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = create_oauth_client("client-id", "client-secret")
+            .unwrap()
+            .set_token_uri(TokenUrl::new(server.uri()).unwrap());
+        let response = client
+            .exchange_code(AuthorizationCode::new("test-code".into()))
+            .request_async(&build_oauth_http_client().unwrap())
+            .await
+            .unwrap();
+        let user =
+            verify_google_id_token(response.id_token().unwrap(), client.client_id(), keys).unwrap();
+        assert_eq!(user.sub, "test-subject");
+    }
+
+    #[test]
+    fn test_oidc_optional_profile_claims() {
+        let mut claims = valid_claims();
+        claims.as_object_mut().unwrap().remove("name");
+        claims.as_object_mut().unwrap().remove("picture");
+        let (token, keys) = signed_token(claims);
+        let user =
+            verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).unwrap();
+        assert!(user.name.is_none());
+        assert!(user.picture.is_none());
+    }
 
     #[test]
     fn test_create_oauth_client() {
