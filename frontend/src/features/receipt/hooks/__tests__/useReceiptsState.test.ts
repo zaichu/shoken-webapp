@@ -48,6 +48,11 @@ function setupMocks(isAuthenticated = true) {
       mutualfund: undefined,
     },
     dbLoading: false,
+    loadingByTab: {
+      dividend: false,
+      domesticstock: false,
+      mutualfund: false,
+    },
     dbError: null,
     saving: false,
     deleting: false,
@@ -93,6 +98,11 @@ describe('useReceiptsState', () => {
         mutualfund: undefined,
       },
       dbLoading: false,
+      loadingByTab: {
+        dividend: false,
+        domesticstock: false,
+        mutualfund: false,
+      },
       dbError: null,
       saving: false,
       deleting: false,
@@ -232,5 +242,46 @@ describe('useReceiptsState', () => {
 
     // utilityRailProps.alertsProps.csvPreview にプレビューがセットされている
     expect(result.current.utilityRailProps.alertsProps.csvPreview).toEqual(csvPreviewData);
+  });
+
+  it('initialLoading: 非表示タブの取得中は選択中タブの表示をブロックしない', () => {
+    vi.mocked(useReceiptsData).mockReturnValue({
+      data: {
+        dividend: [],
+        domesticstock: [],
+        mutualfund: [],
+      },
+      summaries: {
+        dividend: undefined,
+        domesticstock: undefined,
+        mutualfund: undefined,
+      },
+      dbLoading: true,
+      loadingByTab: {
+        dividend: false,
+        domesticstock: true,
+        mutualfund: true,
+      },
+      dbError: null,
+      saving: false,
+      deleting: false,
+      previewing: false,
+      receiptListLimit: 1000,
+      uploadCsv: mockUploadCsv,
+      previewCsv: mockPreviewCsv,
+      deleteAll: mockDeleteAll,
+    });
+
+    const { result } = renderHook(() => useReceiptsState());
+
+    // 選択中は dividend のため他タブ取得中でもブロックされない
+    expect(result.current.receiptsType).toBe('dividend');
+    expect(result.current.initialLoading).toBe(false);
+
+    // 未取得タブへ切り替えるとそのタブのローディングになる
+    act(() => {
+      result.current.setReceiptsType('domesticstock');
+    });
+    expect(result.current.initialLoading).toBe(true);
   });
 });
