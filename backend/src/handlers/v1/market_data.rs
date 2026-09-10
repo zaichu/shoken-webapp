@@ -5,6 +5,7 @@ use crate::{
         FinancialStatementsQuery, FinancialStatementsResponse,
     },
     services::market_data::providers::jquants::JQuantsClient,
+    services::market_data_cache,
     state::AppState,
 };
 use axum::{
@@ -45,7 +46,7 @@ pub async fn get_financial_statements(
         state.client.clone(),
         state.secrets.jquants_api_key.as_deref(),
     )?;
-    let response = jquants_client.get_fin_summary(params).await?;
+    let response = market_data_cache::get_or_fetch(&state.pool, &jquants_client, params).await?;
     Ok(Json(response))
 }
 
