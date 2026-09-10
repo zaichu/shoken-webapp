@@ -4,6 +4,12 @@ import { fetchDividendPerShareBatch, DividendStatus } from '../api/dividendPerSh
 const BASE_RETRIES = 3;
 const RETRY_DELAY_MS = 15_000;
 const SECS_PER_CODE = 12; // バックエンドのレート制御: 12秒/銘柄
+const MS_PER_SEC = 1_000;
+// pending再確認の上限キャップ: 100回 × 15秒 = 約25分。
+// 100銘柄(バックエンド処理約20分)をカバーしつつ、1000銘柄超での数時間ポーリングを防ぐ
+const MAX_PENDING_RETRIES = 100;
+// 通信失敗時はバックエンドの処理待ちと無関係のため、固定少数回で打ち切る
+const MAX_NETWORK_RETRIES = 3;
 
 /**
  * バックエンド集約APIを使って複数銘柄の1株配当を取得するフック
@@ -19,7 +25,10 @@ export const useDividendBatch = (
   const [fetchedCount, setFetchedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [retryTick, setRetryTick] = useState(0);
-  const retryCountRef = useRef(0);
+  // pending再確認と通信失敗のリトライは別カウンタで管理する
+  // （共有すると単位修正後のpending上限が通信障害時にも適用されてしまう）
+  const pendingRetryCountRef = useRef(0);
+  const networkRetryCountRef = useRef(0);
   const prevCodesRef = useRef<string>('');
   // 直前フェッチ開始時の codesKey を保持し、銘柄集合の実変更を判定する
   const lastCodesKeyRef = useRef<string>('');
@@ -34,7 +43,8 @@ export const useDividendBatch = (
       setFetchedCount(0);
       setTotalCount(0);
       prevCodesRef.current = '';
-      retryCountRef.current = 0;
+      pendingRetryCountRef.current = 0;
+      networkRetryCountRef.current = 0;
       lastCodesKeyRef.current = '';
       return;
     }
@@ -45,21 +55,28 @@ export const useDividendBatch = (
     // 実際の銘柄集合が変わった場合のみリトライカウントをリセット
     // （リトライ時は prevCodesRef が '' になるが lastCodesKeyRef は変わらないため区別できる）
     if (codesKey !== lastCodesKeyRef.current) {
-      retryCountRef.current = 0;
+      pendingRetryCountRef.current = 0;
+      networkRetryCountRef.current = 0;
       lastCodesKeyRef.current = codesKey;
     }
 
     // バックエンドが12秒/銘柄で処理するため、銘柄数に応じて最大リトライ数を動的に計算
+    // SECS_PER_CODE(秒)をミリ秒に変換してからRETRY_DELAY_MS(ミリ秒)で割る
     const uniqueCodes = codesKey.split(',');
     const uniqueCount = uniqueCodes.length;
-    const maxRetries = Math.max(BASE_RETRIES, Math.ceil(uniqueCount * SECS_PER_CODE / RETRY_DELAY_MS) + 3);
+    const pendingMaxRetries = Math.min(
+      MAX_PENDING_RETRIES,
+      Math.max(BASE_RETRIES, Math.ceil(uniqueCount * SECS_PER_CODE * MS_PER_SEC / RETRY_DELAY_MS) + 3)
+    );
 
     let isActive = true;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const scheduleRetry = () => {
-      if (retryCountRef.current < maxRetries) {
-        retryCountRef.current += 1;
+    const scheduleRetry = (kind: 'pending' | 'network') => {
+      const countRef = kind === 'pending' ? pendingRetryCountRef : networkRetryCountRef;
+      const maxRetries = kind === 'pending' ? pendingMaxRetries : MAX_NETWORK_RETRIES;
+      if (countRef.current < maxRetries) {
+        countRef.current += 1;
         // prevCodesRef は timer 発火時にリセット（即時リセットすると再レンダー時に useEffect が再実行される）
         retryTimer = setTimeout(() => {
           if (isActive) {
@@ -103,7 +120,7 @@ export const useDividendBatch = (
         setLoading(false);
 
         if (hasPending) {
-          scheduleRetry();
+          scheduleRetry('pending');
         }
       }
     };
@@ -112,7 +129,8 @@ export const useDividendBatch = (
       if (isActive) {
         setLoading(false);
         // API失敗時もリトライをスケジュール（ネットワーク瞬断・5xx対応）
-        scheduleRetry();
+        // pending再確認とは別枠の固定少数回で打ち切る
+        scheduleRetry('network');
       }
     });
 
