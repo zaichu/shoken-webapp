@@ -102,8 +102,9 @@ CSV アップロード→保存→削除の一連フローを対象とする。E
 - まとめて起動するだけなら `./scripts/start-local.sh` も使えるが、レビュー用途では優先しない
 - **ログインは必須**。認証情報は `frontend/.auth/storage-state.json` を使用する
   - 初回保存 / 期限切れ時は `./scripts/run-ui-e2e.sh --save-auth --skip-csv` または `./scripts/run-ui-e2e.sh --save-auth --skip-main` を使う
-- このアプリのレビューは **PC表示前提**（モバイル評価は対象外）
+- このアプリのレビューは **PC表示を基本**とし、加えて **スマホ表示（390x844 / iPhone 14 相当）も対象**とする
 - スクショは **FHD（1920x1080）** をデフォルトで取得する（4Kが必要な場合は `UI_REVIEW_VIEWPORT=4k` を指定）
+- スマホ表示のスクショは `cd frontend && npm run ui:screenshot:mobile` で取得する。API を `page.route()` でモックするため **バックエンド起動・ログイン不要**（`.playwright-mcp/mobile-*.png` に保存される）
 - 開発サーバー運用は以下を厳守する
   - 8080が既に起動中なら **再利用**（新規起動しない）
   - 新規起動時は `--strictPort` を必須化（8081/8082への自動フォールバック禁止）
