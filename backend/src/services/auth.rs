@@ -3,6 +3,7 @@ use oauth2::{
     EndpointSet, RedirectUrl, TokenResponse, TokenUrl,
 };
 use sqlx::PgPool;
+use std::sync::OnceLock;
 
 use crate::config;
 use crate::errors::ApiError;
@@ -52,6 +53,44 @@ pub fn create_oauth_client(
     Ok(client)
 }
 
+/// トークン交換用の共有HTTPクライアント（起動時に1つ構築し、TCP/TLSコネクションを使い回す）。
+///
+/// `oauth2::reqwest` は oauth2 クレートが依存する reqwest 0.12 の再エクスポートであり、
+/// アプリ側の `reqwest` 0.13（`AppState.client`）とは型が異なるため、専用の static で保持する。
+static OAUTH_HTTP_CLIENT: OnceLock<oauth2::reqwest::Client> = OnceLock::new();
+
+/// OAuth用HTTPクライアントを構築する（10秒タイムアウト・リダイレクト3回制限）。
+pub fn build_oauth_http_client() -> Result<oauth2::reqwest::Client, ApiError> {
+    oauth2::reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .redirect(oauth2::reqwest::redirect::Policy::limited(3))
+        .build()
+        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {}", e)))
+}
+
+/// 起動時に共有OAuthクライアントを初期化する（`main.rs` の起動処理から呼ぶ）。
+pub fn init_oauth_http_client() -> Result<(), ApiError> {
+    if OAUTH_HTTP_CLIENT.get().is_none() {
+        let client = build_oauth_http_client()?;
+        // 並行して初期化が進んでいた場合は先勝ちした側を共有する。
+        if OAUTH_HTTP_CLIENT.set(client).is_err() {
+            tracing::debug!("OAuth HTTPクライアントは既に初期化されています");
+        }
+    }
+    Ok(())
+}
+
+/// 共有OAuthクライアントを取得する。起動時初期化漏れ時はその場で構築する。
+fn shared_oauth_http_client() -> Result<&'static oauth2::reqwest::Client, ApiError> {
+    if let Some(client) = OAUTH_HTTP_CLIENT.get() {
+        return Ok(client);
+    }
+    init_oauth_http_client()?;
+    OAUTH_HTTP_CLIENT.get().ok_or_else(|| {
+        ApiError::OAuthError("OAuth HTTPクライアントが初期化されていません".to_string())
+    })
+}
+
 /// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
 pub async fn authenticate_with_google_code(
     pool: &PgPool,
@@ -59,14 +98,10 @@ pub async fn authenticate_with_google_code(
     oauth_client: &GoogleOAuthClient,
     code: String,
 ) -> Result<String, ApiError> {
-    let oauth_http_client = oauth2::reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .redirect(oauth2::reqwest::redirect::Policy::limited(3))
-        .build()
-        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {}", e)))?;
+    let oauth_http_client = shared_oauth_http_client()?;
     let token_result = oauth_client
         .exchange_code(AuthorizationCode::new(code))
-        .request_async(&oauth_http_client)
+        .request_async(oauth_http_client)
         .await
         .map_err(|e| {
             tracing::error!("OAuth token exchange error: {}", e);
@@ -198,6 +233,18 @@ mod tests {
     #[test]
     fn test_create_oauth_client() {
         assert!(create_oauth_client("client-id", "client-secret").is_ok());
+    }
+
+    #[test]
+    fn test_oauth_http_client_is_shared() {
+        init_oauth_http_client().expect("共有OAuthクライアントの初期化");
+        let first = shared_oauth_http_client().expect("共有クライアント取得") as *const _;
+        init_oauth_http_client().expect("再初期化は冪等");
+        let second = shared_oauth_http_client().expect("共有クライアント再取得") as *const _;
+        assert_eq!(
+            first, second,
+            "OAuth用HTTPクライアントは同一インスタンスを共有すること"
+        );
     }
 
     #[tokio::test]

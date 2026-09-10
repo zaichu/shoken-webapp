@@ -33,6 +33,8 @@ fn build_startup_state(
 ) -> Result<(PgPool, AppState), String> {
     // URL 検証のみ行い、実接続は background startup task で行う。
     let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)?;
+    // OAuthトークン交換用のHTTPクライアントを起動時に1つ構築し、以降使い回す。
+    services::auth::init_oauth_http_client().map_err(|e| e.to_string())?;
     let state = AppState {
         pool: pool.clone(),
         secrets,
