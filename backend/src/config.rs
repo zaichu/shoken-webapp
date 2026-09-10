@@ -147,6 +147,7 @@ mod tests {
     }
     #[test]
     fn test_config_creation() {
+        let _guard = ENV_MUTEX.blocking_lock();
         let config = Config::default();
         assert_eq!(
             (
