@@ -103,7 +103,7 @@ export const DatePeriodBlock: React.FC<DatePeriodBlockProps> = ({
                     aria-pressed={visibleDateSegment === seg}
                     onClick={() => onSegmentChange(seg)}
                     className={cn(
-                        'flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors',
+                        'flex-1 rounded px-2 py-1 text-xs font-semibold transition-colors max-sm:min-h-[44px]',
                         visibleDateSegment === seg
                             ? 'bg-slate-950 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

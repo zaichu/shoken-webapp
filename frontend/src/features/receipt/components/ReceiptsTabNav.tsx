@@ -31,7 +31,7 @@ export function ReceiptsTabNav({
               key={tab}
               id={`tab-${tab}`}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold',
+                'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-[44px]',
                 isActive
                   ? 'border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]'
                   : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950'
