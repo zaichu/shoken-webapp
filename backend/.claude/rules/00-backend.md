@@ -149,8 +149,7 @@ make test  # cargo test
 
 ### モック
 
-- `mockall` クレートを使用
-- `tokio-test` で非同期テスト
+- `wiremock` によるHTTPモックと `testcontainers` による実DBテストを使用する
 
 ### 方針
 
