@@ -331,7 +331,7 @@ describe('Dividend', () => {
         const { container } = render(<Dividend data={mockData} />);
 
         // レスポンシブテーブルのクラスが適用されていることを確認
-        const responsiveTable = container.querySelector('div.overflow-x-hidden');
+        const responsiveTable = container.querySelector('div.overflow-x-auto');
         expect(responsiveTable).toBeInTheDocument();
 
         const table = screen.getByRole('table');

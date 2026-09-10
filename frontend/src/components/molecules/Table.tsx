@@ -107,7 +107,7 @@ const Table = forwardRef<HTMLTableElement, TableProps>(
         <div
           ref={containerRef}
           className={cn(
-            'relative w-full overflow-x-hidden rounded-lg border border-slate-950/10 bg-white',
+            'relative w-full overflow-x-auto rounded-lg border border-slate-950/10 bg-white',
             '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500'
           )}
           style={containerStyle}

@@ -126,8 +126,8 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('overflow-x-hidden');
-    expect(container).not.toHaveClass('overflow-x-auto');
+    expect(container).toHaveClass('overflow-x-auto');
+    expect(container).not.toHaveClass('overflow-x-hidden');
     expect(screen.getByRole('table')).toHaveClass('table-fixed');
   });
 
@@ -143,7 +143,7 @@ describe('Table', () => {
     );
 
     const container = screen.getByRole('table').parentElement;
-    expect(container).toHaveClass('overflow-x-hidden');
+    expect(container).toHaveClass('overflow-x-auto');
   });
 
   test('variantプロパティが正しく適用される', () => {
