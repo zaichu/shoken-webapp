@@ -18,6 +18,7 @@
     "ui:screenshot:auth": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/ui-screenshots.spec.ts",
     "ui:screenshot:csv-crud": "STORAGE_STATE=.auth/storage-state.json npx playwright test e2e/csv-crud.spec.ts",
     "ui:csv-crud:auth": "npm run ui:screenshot:csv-crud",
+    "ui:screenshot:mobile": "npx playwright test --config playwright.mobile.config.ts",
     "ui:save-auth": "npx tsx e2e/save-auth.spec.ts",
     "test:e2e:real-backend:receipts": "npx playwright test e2e/real-backend-receipts-smoke.spec.ts",
     "test:e2e:ci": "npx playwright test --config playwright.ci.config.ts",
