@@ -18,6 +18,7 @@ export function useReceiptsState() {
     data,
     summaries,
     dbLoading,
+    loadingByTab,
     dbError,
     saving,
     deleting,
@@ -26,7 +27,7 @@ export function useReceiptsState() {
     uploadCsv,
     previewCsv,
     deleteAll,
-  } = useReceiptsData();
+  } = useReceiptsData(state.receiptsType);
 
   useEffect(() => {
     return onLogout(() => {
@@ -35,6 +36,8 @@ export function useReceiptsState() {
   }, [onLogout]);
 
   const { receiptsType, rawFiles, csvPreviews, lastImportResults, showDeleteConfirm } = state;
+  // 選択中タブの取得完了だけを待つ。他タブのバックグラウンド取得はブロックしない
+  const activeTabLoading = loadingByTab[receiptsType];
   const tablistRef = useRef<HTMLDivElement>(null);
   const currentData = data[receiptsType];
   const rawFile = rawFiles[receiptsType];
@@ -181,7 +184,7 @@ export function useReceiptsState() {
     previewData,
     utilityRailProps,
     deleteModalLoading: deleting,
-    initialLoading: authLoading || dbLoading,
+    initialLoading: authLoading || activeTabLoading,
     workspaceBusy: authLoading || dbLoading || saving || deleting,
   };
 }

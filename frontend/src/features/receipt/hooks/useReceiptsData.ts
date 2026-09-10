@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { dividendApi, domesticStockApi, mutualfundApi } from '../api/receiptApi';
 import {
   transformDBDividend,
@@ -41,6 +41,8 @@ interface UseReceiptsDataResult {
   // 検索条件全体（DB 側）の集計。1000件超のユーザーでも正しい合計を表示するために使用する
   summaries: ReceiptSummaryByType;
   dbLoading: boolean;
+  // タブごとの取得中フラグ。選択中タブの表示が他タブの取得完了を待たないようにするために使用する
+  loadingByTab: Record<ReceiptsType, boolean>;
   dbError: string | null;
   saving: boolean;
   deleting: boolean;
@@ -104,8 +106,12 @@ function useReceiptListQuery<TDbItem, TItem, TSummary>(
 /**
  * 明細データの取得・保存・削除を TanStack Query で管理するフック
  * ユーザー固有キーでキャッシュを分離し、未認証時はフェッチせず空を返す
+ *
+ * activeTab を渡すと選択中タブを優先取得する。非表示タブは選択中タブの取得完了後に
+ * バックグラウンドで取得するため、タブ件数バッジは遅れて表示される。
+ * activeTab を省略した場合は従来通り3タブとも同時に取得する。
  */
-export function useReceiptsData(): UseReceiptsDataResult {
+export function useReceiptsData(activeTab?: ReceiptsType): UseReceiptsDataResult {
   const { isAuthenticated, isLoading: authLoading, onLogout, user } = useAuth();
   const userId = user?.id ?? '';
   const queryClient = useQueryClient();
@@ -116,13 +122,37 @@ export function useReceiptsData(): UseReceiptsDataResult {
     return onLogout(() => clearReceiptsCache(queryClient));
   }, [onLogout, queryClient]);
 
+  // 訪問済みタブは有効化したままにし、タブ切替で取得中クエリを中断させない
+  const visitedTabsRef = useRef<Set<ReceiptsType>>(new Set(activeTab ? [activeTab] : []));
+  useEffect(() => {
+    if (activeTab !== undefined) {
+      visitedTabsRef.current.add(activeTab);
+    }
+  }, [activeTab]);
+
+  // 選択中タブの初回取得が完了したら非表示タブをバックグラウンド取得する
+  const [activeTabSettled, setActiveTabSettled] = useState(false);
+  // ユーザー切替時はバックグラウンド取得フラグをリセットする
+  useEffect(() => {
+    setActiveTabSettled(false);
+  }, [userId]);
+
+  const isTabEnabled = (tab: ReceiptsType): boolean => {
+    if (!enabled || activeTab === undefined) {
+      return enabled;
+    }
+    return (
+      tab === activeTab || visitedTabsRef.current.has(tab) || activeTabSettled
+    );
+  };
+
   const dividendQuery = useReceiptListQuery(
     {
       queryKey: receiptQueryKeys.dividend(userId),
       list: dividendApi.list,
       transform: transformDBDividend,
     },
-    enabled,
+    isTabEnabled('dividend'),
   );
 
   const domesticstockQuery = useReceiptListQuery(
@@ -131,7 +161,7 @@ export function useReceiptsData(): UseReceiptsDataResult {
       list: domesticStockApi.list,
       transform: transformDBDomesticStock,
     },
-    enabled,
+    isTabEnabled('domesticstock'),
   );
 
   const mutualfundQuery = useReceiptListQuery(
@@ -140,8 +170,22 @@ export function useReceiptsData(): UseReceiptsDataResult {
       list: mutualfundApi.list,
       transform: transformDBMutualfund,
     },
-    enabled,
+    isTabEnabled('mutualfund'),
   );
+
+  const queriesByTab = {
+    dividend: dividendQuery,
+    domesticstock: domesticstockQuery,
+    mutualfund: mutualfundQuery,
+  };
+
+  // 選択中タブの取得完了を検知してバックグラウンド取得を開始する
+  const activeQueryFetched = activeTab === undefined ? true : queriesByTab[activeTab].isFetched;
+  useEffect(() => {
+    if (activeQueryFetched) {
+      setActiveTabSettled(true);
+    }
+  }, [activeQueryFetched]);
 
   const previewCsvMutation = useMutation({
     mutationFn: ({ type, file }: PreviewCsvArgs) => receiptApiByType[type].previewCsv(file),
@@ -200,6 +244,11 @@ export function useReceiptsData(): UseReceiptsDataResult {
       dividendQuery.isFetching ||
       domesticstockQuery.isFetching ||
       mutualfundQuery.isFetching,
+    loadingByTab: {
+      dividend: dividendQuery.isFetching,
+      domesticstock: domesticstockQuery.isFetching,
+      mutualfund: mutualfundQuery.isFetching,
+    },
     dbError: queryError
       ? getDisplayErrorMessage(queryError, 'データ取得に失敗しました')
       : mutationError
