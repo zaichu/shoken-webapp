@@ -471,6 +471,137 @@ describe('ApiClient', () => {
     });
   });
 
+  describe('getReadApiClient の振り分け（#799 二重リトライ解消）', () => {
+    // 継続的なネットワーク失敗を再現する
+    const failAll = () => {
+      mockFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    };
+    // 応答しないサーバーを再現する（タイムアウト検証用）
+    const hangAll = () => {
+      mockFetch.mockImplementation((_url: string, options?: RequestInit) => {
+        const signal = options?.signal as AbortSignal;
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            reject(new DOMException('AbortError', 'AbortError'));
+          });
+        });
+      });
+    };
+
+    it('通常GETは失敗時に2回試行で打ち切る（maxRetries=1）', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      failAll();
+
+      const resultPromise = apiClient.get('/api/v1/dividends');
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('financial-statements GETは失敗時に4回試行する（旧設定を維持）', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      failAll();
+
+      const resultPromise = apiClient.get('/api/v1/financial-statements', {
+        params: { code: '7203' },
+      });
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+
+    it('通常GETは一時的な失敗から回復できる', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockData = { data: [] };
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(mockData)),
+        });
+
+      const resultPromise = apiClient.get('/api/v1/dividends');
+      await vi.runAllTimersAsync();
+      await expect(resultPromise).resolves.toEqual(mockData);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('400エラー時はリトライせず即時失敗する', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ message: 'Bad Request' }),
+      });
+
+      const resultPromise = apiClient.get('/api/v1/dividends');
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('POSTは旧設定のまま失敗時に4回試行する（書き込み系は変更なし）', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      failAll();
+
+      const resultPromise = apiClient.post('/api/v1/dividend-per-share-estimates', {
+        security_codes: ['7203'],
+      });
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+
+    it('通常GETは短縮タイムアウトで約21秒後に打ち切られる', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      hangAll();
+
+      const resultPromise = apiClient.get('/api/v1/dividends');
+      const expectation = expect(resultPromise).rejects.toMatchObject({
+        type: ApiErrorType.TIMEOUT_ERROR,
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expectation;
+
+      // 10秒×2試行＋1秒待機＝約21秒で打ち切り。旧設定（30秒）なら30秒時点で1試行目が終わったばかりになる
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('financial-statements GETは旧タイムアウトを維持し31秒時点でも継続中', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      hangAll();
+
+      let settled = false;
+      const resultPromise = apiClient.get('/api/v1/financial-statements', {
+        params: { code: '7203' },
+      });
+      void resultPromise.then(
+        () => { settled = true; },
+        () => { settled = true; },
+      );
+      await vi.advanceTimersByTimeAsync(31_000);
+
+      // 30秒×1試行＋1秒待機の直後のため、2試行目が始まったばかりで未確定
+      expect(settled).toBe(false);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      // 後始末：残りのリトライを消化して拒否で確定させる
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
+      await vi.runAllTimersAsync();
+      await expectation;
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+  });
+
   describe('カバレッジ補完', () => {
     it('baseURL 省略時は VITE_SHOKEN_WEBAPI_API_URL または空文字を使う', async () => {
       mockFetch.mockResolvedValue({

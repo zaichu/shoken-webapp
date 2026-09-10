@@ -6,7 +6,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
-      retry: 1,
+      // リトライは API クライアント側で行い、二重適用を防ぐ。
+      retry: false,
     },
   },
 });
