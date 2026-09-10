@@ -73,7 +73,11 @@ jobs:
           working-directory: backend
           # RUSTSEC-2024-0436: paste is an unmaintained transitive proc-macro dependency.
           # RUSTSEC-2026-0235: rkyv is present only as rust_decimal's optional dependency; the rkyv feature is not enabled.
-          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0235
+          # RUSTSEC-2023-0071: rsa (via openidconnect) has a timing side-channel in private-key operations
+          # (Marvin Attack). Our usage is verify-only (Google's public JWKS via CoreIdTokenVerifier); we never
+          # perform RSA signing/decryption with a private key, so the attack does not apply. No patched version
+          # exists yet upstream.
+          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0235,RUSTSEC-2023-0071
 
   npm-audit:
     name: npm audit (Node.js)
