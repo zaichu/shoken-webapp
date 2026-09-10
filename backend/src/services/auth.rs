@@ -120,8 +120,28 @@ pub async fn authenticate_with_google_code(
         .await
         .map_err(|e| ApiError::NetworkError(format!("ユーザー情報解析エラー: {}", e)))?;
 
-    let user = upsert_user(pool, &user_info).await?;
-    let session_token = create_session(pool, user.id).await?;
+    let session_token = upsert_user_and_rotate_session(pool, &user_info).await?;
+
+    Ok(session_token)
+}
+
+/// Googleユーザー情報をupsertし、旧セッションを失効させた上で新セッションを発行する。
+///
+/// ユーザーupsertとセッションローテーション（旧削除+新規発行）を1つのトランザクションにまとめ、以下を保証する。
+/// - 往復削減: 従来は upsert(1文・autocommit) + BEGIN + DELETE + INSERT + COMMIT の
+///   5段階だったが、BEGIN + upsert + 旧セッション削除/新規発行CTE + COMMIT の
+///   4段階・2文・1コネクションチェックアウトに削減する。
+/// - 旧セッション失効: 同一トランザクション内で user 行の upsert が行ロックを保持するため、
+///   同一ユーザーの同時ログインは直列化され、旧セッションが残らない。
+/// - 原子性: session発行失敗時は user の upsert もロールバックされる。
+async fn upsert_user_and_rotate_session(
+    pool: &PgPool,
+    user_info: &GoogleUserInfo,
+) -> Result<String, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    let user = upsert_user_in_tx(&mut tx, user_info).await?;
+    let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
+    tx.commit().await?;
 
     Ok(session_token)
 }
@@ -160,31 +180,33 @@ pub async fn select_user_id_by_session(
     Ok(user_id.map(|record| record.0))
 }
 
-pub async fn create_session(pool: &PgPool, user_id: uuid::Uuid) -> Result<String, sqlx::Error> {
-    let mut tx = pool.begin().await?;
-
-    sqlx::query("DELETE FROM sessions WHERE user_id = $1")
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await?;
-
+/// 旧セッションの削除と新セッションの発行を1文でアトミックに行う。
+/// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
+async fn rotate_session_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_id: uuid::Uuid,
+) -> Result<String, sqlx::Error> {
     let session_id: (uuid::Uuid,) = sqlx::query_as(
         r#"
+        WITH deleted AS (
+            DELETE FROM sessions WHERE user_id = $1
+        )
         INSERT INTO sessions (user_id)
         VALUES ($1)
         RETURNING id
         "#,
     )
     .bind(user_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
-
-    tx.commit().await?;
 
     Ok(session_id.0.to_string())
 }
 
-pub async fn upsert_user(pool: &PgPool, user_info: &GoogleUserInfo) -> Result<User, sqlx::Error> {
+async fn upsert_user_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_info: &GoogleUserInfo,
+) -> Result<User, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"
         INSERT INTO users (google_id, email, name, picture_url)
@@ -201,7 +223,7 @@ pub async fn upsert_user(pool: &PgPool, user_info: &GoogleUserInfo) -> Result<Us
     .bind(&user_info.email)
     .bind(&user_info.name)
     .bind(&user_info.picture)
-    .fetch_one(pool)
+    .fetch_one(&mut **tx)
     .await
 }
 
@@ -258,6 +280,141 @@ mod tests {
             url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.fly.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
             "redirect_uri が /api/v1/oauth/google/callback でない: {}",
             url_str
+        );
+    }
+
+    use sqlx::postgres::PgPoolOptions;
+    use std::time::Duration;
+    use testcontainers::runners::AsyncRunner;
+    use testcontainers_modules::postgres::Postgres;
+
+    fn test_google_user_info() -> GoogleUserInfo {
+        GoogleUserInfo {
+            sub: "test-google-id-804".to_string(),
+            email: "test804@example.com".to_string(),
+            name: Some("テストユーザー804".to_string()),
+            picture: None,
+        }
+    }
+
+    async fn start_auth_test_pool() -> (PgPool, impl Drop) {
+        let node = Postgres::default().start().await.unwrap();
+        let port = node.get_host_port_ipv4(5432).await.unwrap();
+        let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+        let mut last_error = None;
+        let mut pool_opt = None;
+        for _ in 0..20 {
+            match tokio::time::timeout(
+                Duration::from_secs(2),
+                PgPoolOptions::new().connect(&database_url),
+            )
+            .await
+            {
+                Ok(Ok(pool)) => {
+                    pool_opt = Some(pool);
+                    break;
+                }
+                Ok(Err(err)) => last_error = Some(format!("{err:?}")),
+                Err(_) => {}
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        let pool = pool_opt.unwrap_or_else(|| panic!("Postgres接続失敗: {last_error:?}"));
+        crate::db::run_migrations(&pool)
+            .await
+            .expect("マイグレーション失敗");
+        (pool, node)
+    }
+
+    async fn session_count(pool: &PgPool, user_id: uuid::Uuid) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("セッション件数取得失敗")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn test_relogin_invalidates_old_session() {
+        let (pool, _node) = start_auth_test_pool().await;
+        let user_info = test_google_user_info();
+
+        let first_token = upsert_user_and_rotate_session(&pool, &user_info)
+            .await
+            .expect("初回ログイン失敗");
+        let first_id: uuid::Uuid = first_token.parse().expect("初回トークンがUUIDでない");
+        let user_id = select_user_id_by_session(&pool, first_id)
+            .await
+            .expect("初回セッション参照失敗")
+            .expect("初回セッションが存在しない");
+
+        let second_token = upsert_user_and_rotate_session(&pool, &user_info)
+            .await
+            .expect("再ログイン失敗");
+        assert_ne!(
+            first_token, second_token,
+            "再ログインで新トークンが発行されること"
+        );
+        let second_id: uuid::Uuid = second_token.parse().expect("再発行トークンがUUIDでない");
+
+        assert!(
+            select_user_id_by_session(&pool, first_id)
+                .await
+                .expect("旧セッション参照失敗")
+                .is_none(),
+            "旧トークンは失効していること"
+        );
+        assert_eq!(
+            select_user_id_by_session(&pool, second_id)
+                .await
+                .expect("新セッション参照失敗"),
+            Some(user_id),
+            "新トークンが有効であること"
+        );
+        assert_eq!(
+            session_count(&pool, user_id).await,
+            1,
+            "セッションは1件のみ残ること"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn test_concurrent_login_keeps_single_session() {
+        let (pool, _node) = start_auth_test_pool().await;
+        let user_info = test_google_user_info();
+
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            let pool = pool.clone();
+            let user_info = user_info.clone();
+            handles.push(tokio::spawn(async move {
+                upsert_user_and_rotate_session(&pool, &user_info).await
+            }));
+        }
+        let mut tokens = Vec::new();
+        for handle in handles {
+            tokens.push(handle.await.expect("タスク失敗").expect("同時ログイン失敗"));
+        }
+
+        let mut live = 0;
+        let mut live_user_id = None;
+        for token in &tokens {
+            let id: uuid::Uuid = token.parse().expect("発行トークンがUUIDでない");
+            let user_id = select_user_id_by_session(&pool, id)
+                .await
+                .expect("セッション参照失敗");
+            if user_id.is_some() {
+                live += 1;
+                live_user_id = user_id;
+            }
+        }
+        assert_eq!(live, 1, "有効なトークンは1つのみであること");
+        assert_eq!(
+            session_count(&pool, live_user_id.expect("有効なセッションが存在しない")).await,
+            1,
+            "同時ログイン後もセッションは1件のみであること"
         );
     }
 }
