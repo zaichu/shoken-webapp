@@ -5,6 +5,7 @@ import { Dividend } from './Receipt/Dividend';
 import { DomesticStock } from './Receipt/DomesticStock';
 import { Mutualfund } from './Receipt/Mutualfund';
 import { ConfirmDeleteModal } from '@/components/molecules/ConfirmDeleteModal/ConfirmDeleteModal';
+import { Spinner } from '@/components/atoms/Spinner';
 import { ReceiptsTabNav } from '@/features/receipt/components/ReceiptsTabNav';
 import { ReceiptsUtilityRail } from '@/features/receipt/components/ReceiptsUtilityRail';
 import { useReceiptsState } from '@/features/receipt/hooks/useReceiptsState';
@@ -88,7 +89,14 @@ export function ReceiptsPage() {
       />
       <div className="mt-0" aria-busy={workspaceBusy}>
         <div data-testid="receipts-workspace">
-          {!initialLoading &&
+          {initialLoading ? (
+            <section className="px-5 py-4" role="status">
+              <div className="status-message">
+                <Spinner size="md" className="text-primary" />
+                <p className="text-sm text-secondary">データを読み込んでいます...</p>
+              </div>
+            </section>
+          ) : (
             panels.map((panel) => (
               <div
                 key={panel.type}
@@ -99,7 +107,8 @@ export function ReceiptsPage() {
               >
                 {receiptsType === panel.type && panel.content}
               </div>
-            ))}
+            ))
+          )}
         </div>
 
         <ConfirmDeleteModal

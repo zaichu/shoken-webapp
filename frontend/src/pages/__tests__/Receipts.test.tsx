@@ -469,7 +469,10 @@ describe('ReceiptsPage', () => {
         expect(getDomesticStockTab()).toHaveFocus();
       }, waitOpts);
 
-      expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
+      // 未取得タブへの切替直後はローディング表示になるため取得完了を待つ
+      await waitFor(() => {
+        expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
+      }, waitOpts);
       expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
     });
 
@@ -527,7 +530,10 @@ describe('ReceiptsPage', () => {
         expect(getMutualfundTab()).toHaveFocus();
       }, waitOpts);
 
-      expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
+      // 未取得タブへの切替直後はローディング表示になるため取得完了を待つ
+      await waitFor(() => {
+        expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
+      }, waitOpts);
       expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
     });
 
@@ -798,5 +804,39 @@ describe('ReceiptsPage', () => {
 
     expect(screen.getByRole('tablist').className).toContain('rounded-xl');
     expect(screen.getByRole('tab', { name: /^配当金/ }).className).toContain('rounded-lg');
+  });
+
+  it('選択中タブの表示が他タブの取得完了を待たない', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [{ id: 'd1', payment_date: '2025-01-01' }], total: 1, page: 1, per_page: 200 } as never);
+    // 非表示タブの取得を遅延させる
+    let resolveDomesticStock!: (value: never) => void;
+    let resolveMutualfund!: (value: never) => void;
+    vi.mocked(receiptApi.domesticStockApi.list).mockReturnValue(
+      new Promise((resolve) => { resolveDomesticStock = resolve as (value: never) => void; }) as never
+    );
+    vi.mocked(receiptApi.mutualfundApi.list).mockReturnValue(
+      new Promise((resolve) => { resolveMutualfund = resolve as (value: never) => void; }) as never
+    );
+
+    renderWithQuery(<ReceiptsPage />);
+
+    // 他タブが未完了でも選択中タブが表示される
+    await waitFor(() => {
+      expect(screen.getByTestId('dividend-view')).toBeInTheDocument();
+    }, waitOpts);
+    expect(screen.getByTestId('tab-count-dividend')).toHaveTextContent('1');
+
+    // 遅延していた他タブの取得が完了すると件数バッジに反映される
+    await act(async () => {
+      resolveDomesticStock({ data: [{ id: 's1', trade_date: '2025-01-01' }], total: 1, page: 1, per_page: 200 } as never);
+      resolveMutualfund({ data: [], total: 0, page: 1, per_page: 200 } as never);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-count-domesticstock')).toHaveTextContent('1');
+    }, waitOpts);
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-count-mutualfund')).toHaveTextContent('0');
+    }, waitOpts);
   });
 });

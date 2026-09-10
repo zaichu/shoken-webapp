@@ -515,8 +515,7 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
-  it('previewCsv mutation: エラー時に onError が呼ばれる', async () => {
-    const qc = new QueryClient({
+  it('previewCsv mutation: エラー時に onError が呼ばれる', async () => {    const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
     const onError = vi.fn();
@@ -646,6 +645,121 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
     await waitFor(() => {
       expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe('useReceiptsData: 選択中タブの優先取得', () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  }
+
+  function makeEmptyList() {
+    return { data: [], total: 0, page: 1, per_page: 200 };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(receiptApiModule.dividendApi.list).mockResolvedValue(makeEmptyList() as never);
+    vi.mocked(receiptApiModule.domesticStockApi.list).mockResolvedValue(makeEmptyList() as never);
+    vi.mocked(receiptApiModule.mutualfundApi.list).mockResolvedValue(makeEmptyList() as never);
+    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+  });
+
+  function makeTestQueryClient() {
+    return new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+  }
+
+  it('選択中タブのみ先行取得し、完了後に他タブをバックグラウンド取得する', async () => {
+    const dividendGate = deferred<unknown>();
+    vi.mocked(receiptApiModule.dividendApi.list).mockReturnValue(dividendGate.promise as never);
+
+    const { result } = renderHook(() => useReceiptsData('dividend'), {
+      wrapper: makeWrapper(makeTestQueryClient()),
+    });
+
+    // 選択中タブの取得は開始される
+    await waitFor(() => {
+      expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
+    });
+    // 他タブは選択中タブの完了まで取得されない
+    expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalled();
+    expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalled();
+    expect(result.current.loadingByTab.dividend).toBe(true);
+    expect(result.current.dbLoading).toBe(true);
+
+    // 選択中タブの取得が完了すると他タブがバックグラウンド取得される
+    await act(async () => {
+      dividendGate.resolve(makeEmptyList());
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.loadingByTab.dividend).toBe(false);
+    });
+    expect(result.current.dbLoading).toBe(false);
+  });
+
+  it('タブ切替で未取得タブの取得が開始される', async () => {
+    const dividendGate = deferred<unknown>();
+    vi.mocked(receiptApiModule.dividendApi.list).mockReturnValue(dividendGate.promise as never);
+
+    const { result, rerender } = renderHook(
+      ({ tab }: { tab: 'dividend' | 'domesticstock' | 'mutualfund' }) => useReceiptsData(tab),
+      {
+        wrapper: makeWrapper(makeTestQueryClient()),
+        initialProps: { tab: 'dividend' as 'dividend' | 'domesticstock' | 'mutualfund' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
+    });
+    // dividend 完了前は他タブを取得しない
+    expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalled();
+
+    // 未取得タブへ切り替えるとそのタブの取得が開始される
+    rerender({ tab: 'domesticstock' });
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.loadingByTab.domesticstock).toBe(true);
+    // 切替元の取得は中断されず継続する
+    expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      dividendGate.resolve(makeEmptyList());
+    });
+    await waitFor(() => {
+      expect(result.current.loadingByTab.dividend).toBe(false);
+    });
+    await waitFor(() => {
+      expect(result.current.loadingByTab.domesticstock).toBe(false);
+    });
+  });
+
+  it('activeTab 省略時は従来通り3タブとも同時に取得する', async () => {
+    renderHook(() => useReceiptsData(), {
+      wrapper: makeWrapper(makeTestQueryClient()),
+    });
+
+    await waitFor(() => {
+      expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
     });
   });
 });
