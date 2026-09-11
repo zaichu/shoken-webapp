@@ -142,10 +142,12 @@ function ReceiptCard({ item, columns, fields }: {
     // グループ見出しに年月があるので先頭の年だけ落として MM/DD にする。
     const dateColumn = columns.find(column => column.key === fields.dateKey);
     const date = fields.dateKey
-        ? toText(
-              dateColumn?.format
-                  ? dateColumn.format(item[fields.dateKey])
-                  : item[fields.dateKey]
+        ? String(
+              toText(
+                  dateColumn?.format
+                      ? dateColumn.format(item[fields.dateKey])
+                      : item[fields.dateKey]
+              )
           ).replace(/^\d{4}\//, '')
         : '';
     const account = fields.accountKey ? toText(item[fields.accountKey]) : '';
