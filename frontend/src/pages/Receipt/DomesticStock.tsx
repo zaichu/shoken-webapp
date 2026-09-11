@@ -151,6 +151,10 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
                 />
             ) : (
                 <ReceiptTable
+                    primaryKey="realized_profit_and_loss_after_tax"
+                    nameKey="security_name"
+                    dateKey="trade_date"
+                    accountKey="account"
                     data={filteredData}
                     summary={filteredDailyData}
                     columns={columns}

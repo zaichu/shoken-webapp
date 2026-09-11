@@ -95,6 +95,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -136,6 +137,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -164,6 +166,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -202,6 +205,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -237,6 +241,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -263,6 +268,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -270,6 +276,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
           getGroupKey={getGroupKey}
         />
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData.slice(0, 1)}
           summary={[]}
           columns={testColumns}
@@ -303,6 +310,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}
@@ -331,6 +339,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
     // ResizeProvider外でReceiptTableを直接使用（Context無し）
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={testData}
         summary={testSummary}
         columns={testColumns}
@@ -355,6 +364,7 @@ describe('ReceiptTemplate Context API統合テスト', () => {
         searchCategories={searchCategories}
       >
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={testData}
           summary={testSummary}
           columns={testColumns}

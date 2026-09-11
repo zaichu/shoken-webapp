@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/molecules/Table';
 import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 import { cn } from '@/lib/utils/classNames';
@@ -8,6 +8,10 @@ type SummaryItem = Record<string, unknown> & { filter: string };
 type ColumnConfig = TableColumnConfig | SummaryColumnConfig;
 
 interface ReceiptTableProps<T extends DataItem, S extends SummaryItem> {
+    primaryKey: string;
+    nameKey: string;
+    dateKey?: string;
+    accountKey?: string;
     data: T[];
     summary: S[];
     columns: TableColumnConfig[];
@@ -114,38 +118,78 @@ const resolveSummaryLabel = (summaryKey: string, columns: TableColumnConfig[]): 
     return summaryKey;
 };
 
-function renderCardItem<T extends DataItem>(
-    item: T,
-    columns: TableColumnConfig[],
-    keyPrefix: string
-) {
+interface MobileSummaryFields {
+    primaryKey: string;
+    nameKey: string;
+    dateKey?: string;
+    accountKey?: string;
+}
+
+function ReceiptCard({ item, columns, fields }: {
+    item: DataItem;
+    columns: TableColumnConfig[];
+    fields: MobileSummaryFields;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const id = useId();
+    const name = String(toText(item[fields.nameKey]));
+    const primaryColumn = columns.find(column => column.key === fields.primaryKey);
+    // ボタン内には文字列だけを置き、列の render が返すリンクやボタンを入れ子にしない。
+    const amount = primaryColumn?.format
+        ? toText(primaryColumn.format(item[fields.primaryKey]))
+        : toText(item[fields.primaryKey]);
+    // 日付は Date 型で渡るため、列定義の format（formatJPDate）を通す。
+    // グループ見出しに年月があるので先頭の年だけ落として MM/DD にする。
+    const dateColumn = columns.find(column => column.key === fields.dateKey);
+    const date = fields.dateKey
+        ? toText(
+              dateColumn?.format
+                  ? dateColumn.format(item[fields.dateKey])
+                  : item[fields.dateKey]
+          ).replace(/^\d{4}\//, '')
+        : '';
+    const account = fields.accountKey ? toText(item[fields.accountKey]) : '';
+
     return (
-        <div
-            key={keyPrefix}
-            data-testid="receipt-card"
-            className="rounded-lg border border-slate-950/10 bg-white px-3.5 py-2 shadow-sm"
-        >
-            <dl>
-                {columns.map((column, colIndex) => {
-                    const { node, rawValue, displayText } = formatCardValue(item[column.key], column, item);
-                    const isNegative = !React.isValidElement(node) && isNegativeValue(rawValue);
-                    return (
-                        <div
-                            key={`${keyPrefix}-${colIndex}`}
-                            className="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0"
-                        >
-                            <dt className="shrink-0 pt-0.5 text-xs text-slate-500">{column.header}</dt>
-                            <dd
-                                className="min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
-                                title={displayText}
-                                data-negative={isNegative ? 'true' : undefined}
-                            >
-                                {node}
-                            </dd>
-                        </div>
-                    );
-                })}
-            </dl>
+        <div data-testid="receipt-card" className="rounded-lg border border-slate-300 bg-white">
+            <button
+                id={`${id}-button`}
+                type="button"
+                aria-label={`${name} ${amount}`}
+                aria-expanded={expanded}
+                aria-controls={`${id}-details`}
+                onClick={() => setExpanded(previous => !previous)}
+                className="flex min-h-[90px] w-full flex-col justify-center gap-2 rounded-lg px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+                <span className="flex w-full items-baseline gap-2">
+                    <span className="min-w-0 flex-1 truncate text-base font-semibold text-slate-950">{name}</span>
+                    <span className={cn('min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums', isNegativeValue(item[fields.primaryKey]) ? 'text-red-800' : 'text-slate-950')}>
+                        {amount}
+                    </span>
+                </span>
+                <span className="flex w-full items-center gap-2 text-xs text-slate-600" aria-hidden="true">
+                    <span className="shrink-0">{date}</span>
+                    <span className="min-w-0 flex-1 truncate">{account}</span>
+                    <svg className={cn('h-4 w-4 shrink-0', expanded && 'rotate-180')} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </span>
+            </button>
+            <div id={`${id}-details`} role="region" aria-labelledby={`${id}-button`} hidden={!expanded} className="border-t border-slate-300 px-3 py-2">
+                {expanded && <dl>
+                    {columns.map(column => {
+                        const { node, rawValue, displayText } = formatCardValue(item[column.key], column, item);
+                        return (
+                            <div key={column.key} className="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
+                                <dt className="shrink-0 pt-0.5 text-xs text-slate-600">{column.header}</dt>
+                                <dd className={cn('min-w-0 break-words text-right text-sm font-semibold tabular-nums', isNegativeValue(rawValue) ? 'text-red-800' : 'text-slate-800')} title={displayText}>
+                                    {node}
+                                </dd>
+                            </div>
+                        );
+                    })}
+                </dl>}
+            </div>
         </div>
     );
 }
@@ -155,7 +199,8 @@ function renderGroupedCards<T extends DataItem, S extends SummaryItem>(
     groupedDataMap: Map<string, T[]>,
     columns: TableColumnConfig[],
     summaryColumns: SummaryColumnConfig[],
-    formatGroupHeader: (key: string) => string
+    formatGroupHeader: (key: string) => string,
+    fields: MobileSummaryFields
 ) {
     return summaryToRender.map((summaryItem, summaryIndex) => {
         const groupItems = groupedDataMap.get(summaryItem.filter) ?? [];
@@ -171,7 +216,7 @@ function renderGroupedCards<T extends DataItem, S extends SummaryItem>(
 
         return (
             <section key={`card-group-${summaryIndex}`} data-testid="receipt-card-group">
-                <div className="rounded-lg border border-slate-300 bg-slate-100 px-3.5 py-2.5">
+                <div className="rounded-lg border-l-4 border-slate-600 bg-slate-200 px-3.5 py-2.5">
                     <div className="flex items-center">
                         <span className="text-sm font-medium text-slate-800">
                             {headerText}
@@ -198,7 +243,7 @@ function renderGroupedCards<T extends DataItem, S extends SummaryItem>(
                 </div>
                 <div className="mt-2 space-y-2">
                     {groupItems.map((item, itemIndex) =>
-                        renderCardItem(item, columns, `card-item-${summaryIndex}-${itemIndex}`)
+                        <ReceiptCard key={String(item.id ?? `card-item-${summaryIndex}-${itemIndex}`)} item={item} columns={columns} fields={fields} />
                     )}
                 </div>
             </section>
@@ -317,6 +362,10 @@ const defaultFormatGroupHeader = (key: string): string => {
 };
 
 export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
+    primaryKey,
+    nameKey,
+    dateKey,
+    accountKey,
     data,
     summary,
     columns,
@@ -387,12 +436,12 @@ export function ReceiptTable<T extends DataItem, S extends SummaryItem>({
             <div className="sm:hidden" onClick={handleContentClick} data-testid="receipt-card-list">
                 {summaryToRender.length > 0 ? (
                     <div className="space-y-4">
-                        {renderGroupedCards(summaryToRender, groupedDataMap, columns, summaryColumns, formatGroupHeader)}
+                        {renderGroupedCards(summaryToRender, groupedDataMap, columns, summaryColumns, formatGroupHeader, { primaryKey, nameKey, dateKey, accountKey })}
                     </div>
                 ) : (
                     <div className="space-y-2">
                         {data.map((item, itemIndex) =>
-                            renderCardItem(item, columns, `card-item-${itemIndex}`)
+                            <ReceiptCard key={String(item.id ?? `card-item-${itemIndex}`)} item={item} columns={columns} fields={{ primaryKey, nameKey, dateKey, accountKey }} />
                         )}
                     </div>
                 )}

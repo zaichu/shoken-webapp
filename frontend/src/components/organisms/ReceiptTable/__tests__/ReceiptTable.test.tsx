@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ReceiptTable } from '../ReceiptTable';
 import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 
@@ -38,9 +39,28 @@ describe('ReceiptTable', () => {
   // PCテーブル内のみを対象にするヘルパー（スマホカードとテキストが重複するため）
   const getTableQueries = () => within(screen.getByRole('table'));
 
+  it('指定した銘柄と主要金額で読み上げ、EnterとSpaceで明細を開閉する', async () => {
+    const user = userEvent.setup();
+    render(<ReceiptTable data={mockData} summary={[]} columns={mockColumns}
+      summaryColumns={[]} getGroupKey={getGroupKey} nameKey="name" primaryKey="amount" dateKey="date" />);
+    const button = screen.getByRole('button', { name: '銘柄A ¥1,000' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: '銘柄A ¥1,000' })).not.toBeInTheDocument();
+    button.focus();
+    await user.keyboard('{Enter}');
+    const region = screen.getByRole('region', { name: '銘柄A ¥1,000' });
+    expect(region.id).toBe(button.getAttribute('aria-controls'));
+    expect(within(region).getByText('日付')).toBeVisible();
+    expect(button).toHaveFocus();
+    await user.keyboard(' ');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(region).not.toBeVisible();
+  });
+
   it('データが正しくレンダリングされる', () => {
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={mockData}
         summary={mockSummary}
         columns={mockColumns}
@@ -86,6 +106,7 @@ describe('ReceiptTable', () => {
 
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={dataWithHtml}
         summary={mockSummary}
         columns={columnsWithHtml}
@@ -115,6 +136,7 @@ describe('ReceiptTable', () => {
 
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={dataWithNegative}
         summary={summaryWithNegative}
         columns={mockColumns}
@@ -134,6 +156,7 @@ describe('ReceiptTable', () => {
   it('空のデータでも正しくレンダリングされる', () => {
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={[]}
         summary={[]}
         columns={mockColumns}
@@ -167,6 +190,7 @@ describe('ReceiptTable', () => {
 
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={dataWithMixedTypes as unknown as typeof mockData}
         summary={[{ filter: 'A', amount: 0, name: 'グループA' }]}
         columns={columnsWithBoolean}
@@ -193,6 +217,7 @@ describe('ReceiptTable', () => {
 
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={dataWithYear}
         summary={summaryWithYear}
         columns={mockColumns}
@@ -209,6 +234,7 @@ describe('ReceiptTable', () => {
 
     const { container } = render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={mockData}
         summary={mockSummary}
         columns={mockColumns}
@@ -235,6 +261,7 @@ describe('ReceiptTable', () => {
   it('グループごとにデータが正しくフィルタリングされる', () => {
     render(
       <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
         data={mockData}
         summary={mockSummary}
         columns={mockColumns}
@@ -269,6 +296,7 @@ describe('ReceiptTable', () => {
     it('PCテーブルとスマホカードの両方がレンダリングされ、出し分けクラスが付く', () => {
       const { container } = render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={mockData}
           summary={mockSummary}
           columns={mockColumns}
@@ -288,6 +316,7 @@ describe('ReceiptTable', () => {
     it('カードに全列のラベルと値が省略なく含まれる', () => {
       render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={mockData}
           summary={mockSummary}
           columns={mockColumns}
@@ -300,18 +329,22 @@ describe('ReceiptTable', () => {
       const cardQueries = within(cardList);
       // 全3件分のカード
       expect(cardQueries.getAllByTestId('receipt-card')).toHaveLength(3);
+      // 折り畳み時は詳細を描画せず、展開後に全列を表示する
+      expect(cardQueries.queryByText('日付')).not.toBeInTheDocument();
+      fireEvent.click(cardQueries.getByRole('button', { name: '銘柄A ¥1,000' }));
       // 各列のラベル（header）がカード内に存在する
       expect(cardQueries.getAllByText('日付').length).toBeGreaterThan(0);
       expect(cardQueries.getAllByText('銘柄').length).toBeGreaterThan(0);
       expect(cardQueries.getAllByText('金額').length).toBeGreaterThan(0);
       // 値も省略なく含まれる
-      expect(cardQueries.getByText('銘柄A')).toBeInTheDocument();
-      expect(cardQueries.getByText('¥1,000')).toBeInTheDocument();
+      expect(within(cardQueries.getByRole('region', { name: '銘柄A ¥1,000' })).getByText('銘柄A')).toBeVisible();
+      expect(within(cardQueries.getByRole('region', { name: '銘柄A ¥1,000' })).getByText('¥1,000')).toBeVisible();
     });
 
     it('グループヘッダーに件数と集計値が表示される', () => {
       render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={mockData}
           summary={mockSummary}
           columns={mockColumns}
@@ -344,6 +377,7 @@ describe('ReceiptTable', () => {
 
       render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={dataWithProfit}
           summary={summaryData}
           columns={columnsWithProfit}
@@ -358,7 +392,7 @@ describe('ReceiptTable', () => {
       expect(within(cardList).getByText('¥30,000')).toBeInTheDocument();
     });
 
-    it('カード内の負の値にはdata-negative属性が付与される', () => {
+    it('カードの負の主要金額を濃い赤で表示する', () => {
       const dataWithNegative = [
         { date: '2024-01-01', name: '銘柄A', amount: -1200, group: 'A' },
       ];
@@ -368,6 +402,7 @@ describe('ReceiptTable', () => {
 
       render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={dataWithNegative}
           summary={summaryWithNegative}
           columns={mockColumns}
@@ -377,11 +412,8 @@ describe('ReceiptTable', () => {
       );
 
       const cardList = screen.getByTestId('receipt-card-list');
-      const negativeValues = within(cardList).getAllByText('¥-1,200');
-      expect(negativeValues.length).toBeGreaterThan(0);
-      negativeValues.forEach((element) => {
-        expect(element.closest('dd')).toHaveAttribute('data-negative', 'true');
-      });
+      const button = within(cardList).getByRole('button', { name: '銘柄A ¥-1,200' });
+      expect(within(button).getByText('¥-1,200')).toHaveClass('text-red-800');
     });
 
     it('カード内のsecurity-code-linkクリックでonSearchが呼ばれる', () => {
@@ -389,6 +421,7 @@ describe('ReceiptTable', () => {
 
       render(
         <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
           data={mockData}
           summary={mockSummary}
           columns={mockColumns}
