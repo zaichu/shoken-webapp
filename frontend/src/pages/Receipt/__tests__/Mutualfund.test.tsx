@@ -91,8 +91,10 @@ describe('Mutualfund', () => {
     it('データがある場合にテーブルヘッダーが表示される', () => {
         render(<Mutualfund data={mockData} />);
 
-        expect(screen.getByText('約定日')).toBeInTheDocument();
-        expect(screen.getByText('ファンド名')).toBeInTheDocument();
+        // スマホカードにも同じラベルが出るためテーブル内にスコープする
+        const table = within(screen.getByRole('table'));
+        expect(table.getByText('約定日')).toBeInTheDocument();
+        expect(table.getByText('ファンド名')).toBeInTheDocument();
     });
 
     it('ファンド名を右クリックしてもコピーされない', () => {
@@ -118,7 +120,7 @@ describe('Mutualfund', () => {
 
         render(<Mutualfund data={mockData} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'テストファンドA をコピー' }));
+        fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'テストファンドA をコピー' }));
 
         expect(writeText).toHaveBeenCalledWith('テストファンドA');
     });

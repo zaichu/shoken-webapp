@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { DomesticStock } from '../DomesticStock';
@@ -74,29 +74,32 @@ describe('DomesticStock', () => {
         render(<DomesticStock data={mockData} />);
 
         // テーブルヘッダーの確認（実際のカラム定義に合わせる）
+        // スマホカードにも同じラベルが出るためテーブル内にスコープする
         // 「口座」は検索オプション内にも表示されるためgetAllByTextを使用
-        expect(screen.getByText('約定日')).toBeInTheDocument();
-        expect(screen.getByText('銘柄コード')).toBeInTheDocument();
-        expect(screen.getByText('銘柄名')).toBeInTheDocument();
+        const table = within(screen.getByRole('table'));
+        expect(table.getByText('約定日')).toBeInTheDocument();
+        expect(table.getByText('銘柄コード')).toBeInTheDocument();
+        expect(table.getByText('銘柄名')).toBeInTheDocument();
         expect(screen.getAllByText('口座').length).toBeGreaterThan(0);
-        expect(screen.getByText('数量')).toBeInTheDocument();
-        expect(screen.getByText('売却単価')).toBeInTheDocument();
-        expect(screen.getByText('売却額')).toBeInTheDocument();
-        expect(screen.getByText('取得価額')).toBeInTheDocument();
-        expect(screen.getByText('損益')).toBeInTheDocument();
+        expect(table.getByText('数量')).toBeInTheDocument();
+        expect(table.getByText('売却単価')).toBeInTheDocument();
+        expect(table.getByText('売却額')).toBeInTheDocument();
+        expect(table.getByText('取得価額')).toBeInTheDocument();
+        expect(table.getByText('損益')).toBeInTheDocument();
         // 「税額」は集計情報にも表示されるためgetAllByTextを使用
         expect(screen.getAllByText('税額').length).toBeGreaterThan(0);
-        expect(screen.getByText('税引後')).toBeInTheDocument();
+        expect(table.getByText('税引後')).toBeInTheDocument();
     });
 
     it('CSVデータが正しく表示される', () => {
         render(<DomesticStock data={mockData} />);
-        
-        // データの内容確認
-        expect(screen.getByText('1234')).toBeInTheDocument();
-        expect(screen.getByText('テスト株式')).toBeInTheDocument();
-        expect(screen.getByText('5678')).toBeInTheDocument();
-        expect(screen.getByText('テスト株式2')).toBeInTheDocument();
+
+        // データの内容確認（スマホカードにも同じ値が出るためテーブル内にスコープする）
+        const table = within(screen.getByRole('table'));
+        expect(table.getByText('1234')).toBeInTheDocument();
+        expect(table.getByText('テスト株式')).toBeInTheDocument();
+        expect(table.getByText('5678')).toBeInTheDocument();
+        expect(table.getByText('テスト株式2')).toBeInTheDocument();
     });
 
     it('銘柄名を右クリックしてもコピーされない', () => {
@@ -112,7 +115,7 @@ describe('DomesticStock', () => {
             security_name: 'ＫＤＤＩ',
         }]} />);
 
-        fireEvent.contextMenu(screen.getByText('ＫＤＤＩ'));
+        fireEvent.contextMenu(within(screen.getByRole('table')).getByText('ＫＤＤＩ'));
 
         expect(writeText).not.toHaveBeenCalled();
     });
@@ -130,7 +133,7 @@ describe('DomesticStock', () => {
             security_name: 'ＫＤＤＩ',
         }]} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
+        fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
 
         expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
     });

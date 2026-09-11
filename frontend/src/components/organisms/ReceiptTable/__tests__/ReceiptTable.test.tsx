@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ReceiptTable } from '../ReceiptTable';
 import type { TableColumnConfig, SummaryColumnConfig } from '@/features/receipt/types';
 
@@ -35,6 +35,9 @@ describe('ReceiptTable', () => {
 
   const getGroupKey = (item: typeof mockData[0]) => item.group;
 
+  // PCテーブル内のみを対象にするヘルパー（スマホカードとテキストが重複するため）
+  const getTableQueries = () => within(screen.getByRole('table'));
+
   it('データが正しくレンダリングされる', () => {
     render(
       <ReceiptTable
@@ -46,24 +49,25 @@ describe('ReceiptTable', () => {
       />
     );
 
+    const table = getTableQueries();
     // ヘッダー
-    expect(screen.getByText('日付')).toBeInTheDocument();
-    expect(screen.getByText('銘柄')).toBeInTheDocument();
-    expect(screen.getByText('金額')).toBeInTheDocument();
+    expect(table.getByText('日付')).toBeInTheDocument();
+    expect(table.getByText('銘柄')).toBeInTheDocument();
+    expect(table.getByText('金額')).toBeInTheDocument();
 
     // データ
-    expect(screen.getByText('銘柄A')).toBeInTheDocument();
-    expect(screen.getByText('銘柄B')).toBeInTheDocument();
-    expect(screen.getByText('銘柄C')).toBeInTheDocument();
-    expect(screen.getByText('¥1,000')).toBeInTheDocument();
-    expect(screen.getByText('¥2,000')).toBeInTheDocument();
-    
+    expect(table.getByText('銘柄A')).toBeInTheDocument();
+    expect(table.getByText('銘柄B')).toBeInTheDocument();
+    expect(table.getByText('銘柄C')).toBeInTheDocument();
+    expect(table.getByText('¥1,000')).toBeInTheDocument();
+    expect(table.getByText('¥2,000')).toBeInTheDocument();
+
     // ¥3,000は複数あるので、getAllByTextを使用
-    const threeThousandElements = screen.getAllByText('¥3,000');
+    const threeThousandElements = table.getAllByText('¥3,000');
     expect(threeThousandElements).toHaveLength(3); // データ1つ + サマリー2つ
 
     // サマリー
-    expect(screen.getAllByText('合計:')).toHaveLength(2);
+    expect(table.getAllByText('合計:')).toHaveLength(2);
   });
 
   it('HTMLタグが含まれる文字列はエスケープされてテキストとして表示される（XSS対策）', () => {
@@ -90,14 +94,15 @@ describe('ReceiptTable', () => {
       />
     );
 
+    const table = getTableQueries();
     // ヘッダーの「リンク」のみ表示
-    expect(screen.getByText('リンク')).toBeInTheDocument();
+    expect(table.getByText('リンク')).toBeInTheDocument();
 
     // HTML文字列はリンクとしてレンダリングされず、テキストとして表示される
     expect(screen.queryAllByRole('link')).toHaveLength(0);
 
     // エスケープされたHTML文字列がテキストとして表示される
-    expect(screen.getAllByText('<a href="https://example.com">リンク</a>')).toHaveLength(3);
+    expect(table.getAllByText('<a href="https://example.com">リンク</a>')).toHaveLength(3);
   });
 
   it('負の値のセルにはdata-negative属性が付与される', () => {
@@ -118,7 +123,8 @@ describe('ReceiptTable', () => {
       />
     );
 
-    const negativeCells = screen.getAllByText('¥-1,200').map((element) => element.closest('td'));
+    const table = getTableQueries();
+    const negativeCells = table.getAllByText('¥-1,200').map((element) => element.closest('td'));
     expect(negativeCells).toHaveLength(2); // 明細行 + サマリー行
     negativeCells.forEach((cell) => {
       expect(cell).toHaveAttribute('data-negative', 'true');
@@ -136,13 +142,16 @@ describe('ReceiptTable', () => {
       />
     );
 
+    const table = getTableQueries();
     // ヘッダーは表示される
-    expect(screen.getByText('日付')).toBeInTheDocument();
-    expect(screen.getByText('銘柄')).toBeInTheDocument();
-    expect(screen.getByText('金額')).toBeInTheDocument();
+    expect(table.getByText('日付')).toBeInTheDocument();
+    expect(table.getByText('銘柄')).toBeInTheDocument();
+    expect(table.getByText('金額')).toBeInTheDocument();
 
     // データ行は表示されない
-    expect(screen.queryByText('銘柄A')).not.toBeInTheDocument();
+    expect(table.queryByText('銘柄A')).not.toBeInTheDocument();
+    // カードも表示されない
+    expect(screen.queryByTestId('receipt-card')).not.toBeInTheDocument();
   });
 
   it('nullやundefinedやbooleanの値が適切にレンダリングされる', () => {
@@ -166,11 +175,12 @@ describe('ReceiptTable', () => {
       />
     );
 
+    const table = getTableQueries();
     // true → 'true', false → 'false' が表示される
-    expect(screen.getByText('true')).toBeInTheDocument();
-    expect(screen.getByText('false')).toBeInTheDocument();
-    expect(screen.queryByText('null')).not.toBeInTheDocument();
-    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+    expect(table.getByText('true')).toBeInTheDocument();
+    expect(table.getByText('false')).toBeInTheDocument();
+    expect(table.queryByText('null')).not.toBeInTheDocument();
+    expect(table.queryByText('undefined')).not.toBeInTheDocument();
   });
 
   it('4桁年グループキーが「YYYY年」形式でフォーマットされる', () => {
@@ -191,7 +201,7 @@ describe('ReceiptTable', () => {
       />
     );
 
-    expect(screen.getByText('2024年')).toBeInTheDocument();
+    expect(getTableQueries().getByText('2024年')).toBeInTheDocument();
   });
 
   it('security-code-linkクリックでonSearchが呼ばれる', () => {
@@ -253,5 +263,148 @@ describe('ReceiptTable', () => {
 
     // グループBのデータ行
     expect(rows[4]).toHaveTextContent('銘柄C');
+  });
+
+  describe('スマホカード表示（sm未満）', () => {
+    it('PCテーブルとスマホカードの両方がレンダリングされ、出し分けクラスが付く', () => {
+      const { container } = render(
+        <ReceiptTable
+          data={mockData}
+          summary={mockSummary}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const tableWrapper = screen.getByRole('table').parentElement?.parentElement;
+      expect(tableWrapper?.className).toContain('hidden');
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      expect(cardList.className).toContain('sm:hidden');
+      expect(container.querySelector('table')).not.toBeNull();
+    });
+
+    it('カードに全列のラベルと値が省略なく含まれる', () => {
+      render(
+        <ReceiptTable
+          data={mockData}
+          summary={mockSummary}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      const cardQueries = within(cardList);
+      // 全3件分のカード
+      expect(cardQueries.getAllByTestId('receipt-card')).toHaveLength(3);
+      // 各列のラベル（header）がカード内に存在する
+      expect(cardQueries.getAllByText('日付').length).toBeGreaterThan(0);
+      expect(cardQueries.getAllByText('銘柄').length).toBeGreaterThan(0);
+      expect(cardQueries.getAllByText('金額').length).toBeGreaterThan(0);
+      // 値も省略なく含まれる
+      expect(cardQueries.getByText('銘柄A')).toBeInTheDocument();
+      expect(cardQueries.getByText('¥1,000')).toBeInTheDocument();
+    });
+
+    it('グループヘッダーに件数と集計値が表示される', () => {
+      render(
+        <ReceiptTable
+          data={mockData}
+          summary={mockSummary}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      const groups = within(cardList).getAllByTestId('receipt-card-group');
+      expect(groups).toHaveLength(2);
+      expect(groups[0]).toHaveTextContent('2件');
+      expect(groups[0]).toHaveTextContent('¥3,000');
+      expect(groups[1]).toHaveTextContent('1件');
+    });
+
+    it('total_プレフィックス付き集計キーのラベルが列定義から解決される', () => {
+      const columnsWithProfit: TableColumnConfig[] = [
+        { header: '銘柄', key: 'name', width: '200px' },
+        { header: '損益', key: 'realized_profit_and_loss', width: '120px', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+      ];
+      const summaryWithTotal: SummaryColumnConfig[] = [
+        { key: 'total_realized_profit_and_loss', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+      ];
+      const summaryData = [{ filter: 'A', total_realized_profit_and_loss: 30000 }];
+      const dataWithProfit = mockData.map((item, index) => ({
+        ...item,
+        realized_profit_and_loss: [10000, 20000, 30000][index],
+      }));
+
+      render(
+        <ReceiptTable
+          data={dataWithProfit}
+          summary={summaryData}
+          columns={columnsWithProfit}
+          summaryColumns={summaryWithTotal}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      // 集計ラベルが列定義のheader「損益」で表示される
+      expect(within(cardList).getAllByText('損益').length).toBeGreaterThan(0);
+      expect(within(cardList).getByText('¥30,000')).toBeInTheDocument();
+    });
+
+    it('カード内の負の値にはdata-negative属性が付与される', () => {
+      const dataWithNegative = [
+        { date: '2024-01-01', name: '銘柄A', amount: -1200, group: 'A' },
+      ];
+      const summaryWithNegative = [
+        { filter: 'A', amount: -1200, name: 'グループA' },
+      ];
+
+      render(
+        <ReceiptTable
+          data={dataWithNegative}
+          summary={summaryWithNegative}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      const negativeValues = within(cardList).getAllByText('¥-1,200');
+      expect(negativeValues.length).toBeGreaterThan(0);
+      negativeValues.forEach((element) => {
+        expect(element.closest('dd')).toHaveAttribute('data-negative', 'true');
+      });
+    });
+
+    it('カード内のsecurity-code-linkクリックでonSearchが呼ばれる', () => {
+      const mockOnSearch = vi.fn();
+
+      render(
+        <ReceiptTable
+          data={mockData}
+          summary={mockSummary}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+          onSearch={mockOnSearch}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      const linkEl = document.createElement('span');
+      linkEl.classList.add('security-code-link');
+      linkEl.dataset.search = '5678';
+      cardList.appendChild(linkEl);
+      fireEvent.click(linkEl);
+      expect(mockOnSearch).toHaveBeenCalledWith('5678');
+    });
   });
 });
