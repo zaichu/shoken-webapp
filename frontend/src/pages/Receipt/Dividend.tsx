@@ -123,7 +123,8 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
     const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
-        ['dividends_before_tax', 'taxes', 'net_amount_received']
+        ['dividends_before_tax', 'taxes', 'net_amount_received'],
+        'desc',
     );
 
     // 銘柄名検索時に銘柄コードを補完

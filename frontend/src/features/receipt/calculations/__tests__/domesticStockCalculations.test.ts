@@ -60,6 +60,18 @@ describe('calculateDailyData', () => {
     ]);
   });
 
+  it('未整列の入力でも年・月・日をまたいで新しい順に返す', () => {
+    const result = calculateDailyData([
+      createDomesticStockData({ trade_date: new Date(2023, 11, 31) }),
+      createDomesticStockData({ trade_date: new Date(2024, 1, 1) }),
+      createDomesticStockData({ trade_date: new Date(2024, 0, 2) }),
+      createDomesticStockData({ trade_date: new Date(2024, 0, 1) }),
+    ]);
+    expect(result.map(item => item.filter)).toEqual([
+      '2024-02-01', '2024-01-02', '2024-01-01', '2023-12-31',
+    ]);
+  });
+
   it('特定口座で利益がある場合は税金を計算する', () => {
     const result = calculateDailyData([
       createDomesticStockData({
@@ -127,7 +139,7 @@ describe('calculateDailyData', () => {
     });
   });
 
-  it('別日付のデータは日付昇順のサマリーで返す', () => {
+  it('別日付のデータは日付降順のサマリーで返す', () => {
     const result = calculateDailyData([
       createDomesticStockData({
         trade_date: new Date(2024, 2, 2),
@@ -144,16 +156,16 @@ describe('calculateDailyData', () => {
 
     expect(result).toEqual([
       {
-        filter: '2024-03-01',
-        total_realized_profit_and_loss: 1000,
-        total_taxes: 203,
-        total_realized_profit_and_loss_after_tax: 797,
-      },
-      {
         filter: '2024-03-02',
         total_realized_profit_and_loss: 2000,
         total_taxes: 406,
         total_realized_profit_and_loss_after_tax: 1594,
+      },
+      {
+        filter: '2024-03-01',
+        total_realized_profit_and_loss: 1000,
+        total_taxes: 203,
+        total_realized_profit_and_loss_after_tax: 797,
       },
     ]);
   });

@@ -80,7 +80,8 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
     const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
-        ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax']
+        ['cancellation_amount_yen', 'realized_profit_and_loss', 'taxes', 'realized_profit_and_loss_after_tax'],
+        'desc',
     );
 
     // ヘッダー項目の定義
