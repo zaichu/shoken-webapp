@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { SearchCard } from '@/components/organisms/SearchCard/SearchCard';
 import { Card, CardBody } from '@/components/atoms/Card';
 import { WorkspaceShell } from '@/components/templates/WorkspaceShell';
@@ -27,6 +27,15 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
   utilityRail,
 }) => {
   const layout = layoutProp ?? (utilityRail ? 'workspace' : 'stack');
+  // Issue #837 PR2: スマホ幅 (<sm, Tailwind の sm と同じ 640px) では検索を
+  // 折り畳み入口から始める (初期表示に明細を入れるため)。PC幅の初期展開は変えない。
+  // matchMedia 未対応環境 (jsdom 等) では従来どおり展開を維持する。
+  const [isNarrowInitial] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 639px)').matches
+  );
   const handleSearchExpandToggle = (isExpanded: boolean) => {
     onSearchExpandToggle?.(isExpanded);
   };
@@ -36,7 +45,7 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       onSearch={onSearch}
       categories={searchCategories}
       onExpandToggle={handleSearchExpandToggle}
-      initialExpanded={layout === 'workspace'}
+      initialExpanded={layout === 'workspace' && !isNarrowInitial}
       compact={layout === 'workspace'}
     />
   ) : null;

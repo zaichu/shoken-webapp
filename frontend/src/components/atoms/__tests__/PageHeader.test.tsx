@@ -30,4 +30,14 @@ describe('PageHeader', () => {
 
     expect(screen.getByText('Portfolio')).toBeInTheDocument();
   });
+
+  it('スマホ幅ではタイトルを縮小し、eyebrow と description を非表示にする', () => {
+    render(<PageHeader title="取引明細" eyebrow="Transactions" description="配当金・国内株式・投資信託の取引明細を管理します。" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('max-sm:text-lg');
+    expect(screen.getByText('Transactions')).toHaveClass('max-sm:hidden');
+    expect(screen.getByText('配当金・国内株式・投資信託の取引明細を管理します。')).toHaveClass(
+      'max-sm:hidden'
+    );
+  });
 });

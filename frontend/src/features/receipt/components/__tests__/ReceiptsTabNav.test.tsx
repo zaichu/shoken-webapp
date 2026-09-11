@@ -82,4 +82,37 @@ describe('ReceiptsTabNav', () => {
     expect(onTabChange).toHaveBeenCalledWith('mutualfund');
     expect(onTabChange).toHaveBeenCalledTimes(1);
   });
+
+  it('スマホ幅でタブが1行に収まる（折り返さず横スクロール）', () => {
+    render(
+      <ReceiptsTabNav
+        receiptsType="dividend"
+        tablistRef={createRef<HTMLDivElement>()}
+        onTabChange={vi.fn()}
+        onKeyDown={vi.fn()}
+        counts={counts}
+      />
+    );
+
+    const tablist = screen.getByRole('tablist');
+    expect(tablist).toHaveClass('max-sm:flex-nowrap');
+    expect(tablist).toHaveClass('max-sm:overflow-x-auto');
+  });
+
+  it('スマホ幅でもタブのタップ領域が44px以上あり、タブが縮まない', () => {
+    render(
+      <ReceiptsTabNav
+        receiptsType="dividend"
+        tablistRef={createRef<HTMLDivElement>()}
+        onTabChange={vi.fn()}
+        onKeyDown={vi.fn()}
+        counts={counts}
+      />
+    );
+
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab).toHaveClass('max-sm:min-h-[44px]');
+      expect(tab).toHaveClass('max-sm:shrink-0');
+    }
+  });
 });

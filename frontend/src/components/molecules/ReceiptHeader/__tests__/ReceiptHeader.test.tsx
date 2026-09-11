@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ReceiptHeader } from '../ReceiptHeader';
 
 describe('ReceiptHeader', () => {
@@ -17,18 +18,22 @@ describe('ReceiptHeader', () => {
 
   it('正しくレンダリングされる', () => {
     render(<ReceiptHeader items={defaultItems} />);
-    
-    expect(screen.getByText('集計情報')).toBeInTheDocument();
-    expect(screen.getByText('テスト項目1')).toBeInTheDocument();
-    expect(screen.getByText('¥1,000')).toBeInTheDocument();
-    expect(screen.getByText('テスト項目2')).toBeInTheDocument();
-    expect(screen.getByText('50件')).toBeInTheDocument();
+
+    // スマホ用1行サマリーが末尾項目とテキストを重複させるため、PC表示側にスコープする
+    const desktop = within(screen.getByTestId('receipt-summary-desktop'));
+    expect(desktop.getByText('集計情報')).toBeInTheDocument();
+    expect(desktop.getByText('テスト項目1')).toBeInTheDocument();
+    expect(desktop.getByText('¥1,000')).toBeInTheDocument();
+    expect(desktop.getByText('テスト項目2')).toBeInTheDocument();
+    expect(desktop.getByText('50件')).toBeInTheDocument();
   });
 
   it('空の配列でも正しくレンダリングされる', () => {
     render(<ReceiptHeader items={[]} />);
-    
-    expect(screen.getByText('集計情報')).toBeInTheDocument();
+
+    // タイトルはスマホ用ボタン (aria-label) とPC表示で重複するため、PC表示側にスコープする
+    const desktop = within(screen.getByTestId('receipt-summary-desktop'));
+    expect(desktop.getByText('集計情報')).toBeInTheDocument();
   });
 
   it('itemsの配列数に応じて適切な数の項目がレンダリングされる', () => {
@@ -68,9 +73,10 @@ describe('ReceiptHeader', () => {
 
     render(<ReceiptHeader items={items} />);
 
-    expect(screen.getByText('¥1500')).toBeInTheDocument();
-    expect(screen.getByText('75%')).toBeInTheDocument();
-    expect(screen.getByText('10個')).toBeInTheDocument();
+    const desktop = within(screen.getByTestId('receipt-summary-desktop'));
+    expect(desktop.getByText('¥1500')).toBeInTheDocument();
+    expect(desktop.getByText('75%')).toBeInTheDocument();
+    expect(desktop.getByText('10個')).toBeInTheDocument();
   });
 
   it('タイトルと追加コンテンツを表示できる', () => {
@@ -192,5 +198,93 @@ describe('ReceiptHeader', () => {
     const valueEl = container.querySelector('[data-negative="true"]');
     expect(valueEl).toBeInTheDocument();
     expect(valueEl).toHaveTextContent('¥-500');
+  });
+
+  describe('スマホ幅の1行サマリー', () => {
+    it('主要金額（末尾項目）を1行で表示し、初期は折りたたまれている', () => {
+      render(<ReceiptHeader items={defaultItems} />);
+
+      const toggle = screen.getByTestId('receipt-summary-compact-toggle');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      // ボタン名が「項目名 金額」として読み上げられる
+      expect(toggle).toHaveAccessibleName('テスト項目2 50件');
+      // 内訳は初期表示されない
+      const compact = within(screen.getByTestId('receipt-summary-compact'));
+      expect(compact.queryByRole('region')).not.toBeInTheDocument();
+    });
+
+    it('3項目あるとき末尾（主要金額）を1行目に出す', () => {
+      const items = [
+        ...defaultItems,
+        { title: '受取金額', value: 193590, format: (value: number) => `¥${value.toLocaleString()}` },
+      ];
+      render(<ReceiptHeader items={items} />);
+
+      expect(screen.getByTestId('receipt-summary-compact-toggle')).toHaveAccessibleName(
+        '受取金額 ¥193,590'
+      );
+    });
+
+    it('クリックで内訳を展開・折り畳みできる', () => {
+      render(<ReceiptHeader items={defaultItems} />);
+
+      const toggle = screen.getByTestId('receipt-summary-compact-toggle');
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      const region = within(screen.getByTestId('receipt-summary-compact')).getByRole('region');
+      expect(region).toBeVisible();
+      expect(within(region).getByText('テスト項目1')).toBeVisible();
+      // aria-controls が展開部の id を指す
+      expect(toggle.getAttribute('aria-controls')).toBe(region.getAttribute('id'));
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(
+        within(screen.getByTestId('receipt-summary-compact')).queryByRole('region')
+      ).not.toBeInTheDocument();
+    });
+
+    it('キーボード（Tab / Enter / Space）で展開・折り畳みできる', async () => {
+      const user = userEvent.setup();
+      render(<ReceiptHeader items={defaultItems} />);
+
+      const toggle = screen.getByTestId('receipt-summary-compact-toggle');
+      await user.tab();
+      expect(toggle).toHaveFocus();
+
+      await user.keyboard('{Enter}');
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(
+        within(screen.getByTestId('receipt-summary-compact')).getByRole('region')
+      ).toBeVisible();
+
+      await user.keyboard(' ');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('itemsが空のときはタイトルを表示し、childrenを展開できる', () => {
+      render(
+        <ReceiptHeader items={[]} title="集計情報">
+          <div>配当情報</div>
+        </ReceiptHeader>
+      );
+
+      const toggle = screen.getByTestId('receipt-summary-compact-toggle');
+      expect(toggle).toHaveAccessibleName('集計情報');
+
+      fireEvent.click(toggle);
+      expect(
+        within(screen.getByTestId('receipt-summary-compact')).getByText('配当情報')
+      ).toBeVisible();
+    });
+
+    it('PC幅の内訳グリッドは従来どおり表示される', () => {
+      render(<ReceiptHeader items={defaultItems} />);
+
+      const desktop = within(screen.getByTestId('receipt-summary-desktop'));
+      expect(desktop.getByText('テスト項目1')).toBeVisible();
+      expect(desktop.getByText('50件')).toBeVisible();
+    });
   });
 });

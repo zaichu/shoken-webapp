@@ -98,8 +98,15 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
     defaultExpanded = true,
 }: ReceiptHeaderProps) => {
     const [isExpanded, setIsExpanded] = useState(() => (collapsible ? defaultExpanded : true));
+    // スマホ幅 (<sm) の1行サマリー用。初期は折り畳み、PC幅の表示には影響しない
+    const [mobileExpanded, setMobileExpanded] = useState(false);
     const bodyId = useId();
+    const mobileBodyId = useId();
     const effectiveExpanded = collapsible ? isExpanded : true;
+
+    // 折り畳み1行目に出す主要金額: 配当=受取額、国内株式/投信=実現損益税引後。
+    // 各ページが主要指標を末尾に置く規約のため、末尾の項目を使う
+    const primaryItem = items.length > 0 ? items[items.length - 1] : undefined;
 
     const handleToggleExpanded = () => {
         if (!collapsible) return;
@@ -122,9 +129,66 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
 
     return (
         <section
-            className="rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)]"
+            className="rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)] max-sm:px-3 max-sm:py-0"
             data-testid="receipt-summary-strip"
         >
+            {/* スマホ幅 (<sm) のみ: 主要金額1行＋タップ展開。PC幅では hidden */}
+            <div className="sm:hidden" data-testid="receipt-summary-compact">
+                <button
+                    type="button"
+                    className="flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    onClick={() => setMobileExpanded(prev => !prev)}
+                    aria-expanded={mobileExpanded}
+                    aria-controls={mobileBodyId}
+                    aria-label={primaryItem ? `${primaryItem.title} ${primaryItem.format(primaryItem.value)}` : title}
+                    data-testid="receipt-summary-compact-toggle"
+                >
+                    {primaryItem ? (
+                        <span className="flex min-w-0 items-baseline gap-2">
+                            <span className="shrink-0 text-xs font-medium text-slate-600">{primaryItem.title}</span>
+                            <span
+                                className={cn('truncate text-base font-bold tabular-nums', TONE_VALUE_COLOR[resolveTone(primaryItem)])}
+                                data-negative={primaryItem.value < 0 ? 'true' : undefined}
+                            >
+                                {primaryItem.format(primaryItem.value)}
+                            </span>
+                        </span>
+                    ) : (
+                        <span className="text-sm font-black text-slate-950">{title}</span>
+                    )}
+                    <span className="flex shrink-0 items-center gap-1 text-slate-700">
+                        <span className="text-xs font-semibold">{mobileExpanded ? '閉じる' : '開く'}</span>
+                        <svg
+                            aria-hidden="true"
+                            className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', mobileExpanded && 'rotate-180')}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </span>
+                </button>
+                {mobileExpanded && (
+                    <div id={mobileBodyId} role="region" className="border-t border-slate-950/10 py-3">
+                        <KpiGrid
+                            items={items}
+                            gridClassName="grid grid-cols-1 gap-2.5"
+                            cardBg={KPI_CARD_BG}
+                            cardBaseClassName="rounded-lg border px-3.5 py-3"
+                            valueSizeClassName="text-2xl"
+                        />
+                        <ChildrenSection
+                            hasItems={items.length > 0}
+                            dividerClassName="mt-3 border-t border-slate-950/10 pt-3"
+                        >
+                            {children}
+                        </ChildrenSection>
+                    </div>
+                )}
+            </div>
+            {/* PC幅 (sm以上) のみ: 従来表示をそのまま維持 */}
+            <div className="hidden sm:block" data-testid="receipt-summary-desktop">
             {collapsible ? (
                 <button
                     type="button"
@@ -159,6 +223,7 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
                 >
                     {children}
                 </ChildrenSection>
+            </div>
             </div>
         </section>
     );
