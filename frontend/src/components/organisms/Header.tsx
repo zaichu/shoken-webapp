@@ -104,7 +104,7 @@ export function Header() {
                     key={to}
                     to={to}
                     className={cn(
-                      'rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow]',
+                      'rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-[44px] max-sm:min-w-[44px] max-sm:items-center max-sm:justify-center',
                       isActive
                         ? 'bg-white text-slate-950 shadow-[inset_0_-2px_0_#f59e0b]'
                         : 'text-slate-300 hover:bg-white/10 hover:text-white'
