@@ -341,7 +341,7 @@ describe('ReceiptTable', () => {
       expect(within(cardQueries.getByRole('region', { name: '銘柄A ¥1,000' })).getByText('¥1,000')).toBeVisible();
     });
 
-    it('グループヘッダーに件数と集計値が表示される', () => {
+    it('グループ見出しは1行に集約され、展開すると集計値を確認できる', () => {
       render(
         <ReceiptTable
         primaryKey="amount" nameKey="name" dateKey="date"
@@ -356,9 +356,87 @@ describe('ReceiptTable', () => {
       const cardList = screen.getByTestId('receipt-card-list');
       const groups = within(cardList).getAllByTestId('receipt-card-group');
       expect(groups).toHaveLength(2);
+      // 折り畳み時: 件数と主要集計（金額）のみ表示し、明細ラベルは隠す
       expect(groups[0]).toHaveTextContent('2件');
       expect(groups[0]).toHaveTextContent('¥3,000');
+      const toggle = within(groups[0]).getByRole('button', { name: /2件/ });
+      const collapsedRegion = groups[0].querySelector(`#${CSS.escape(toggle.getAttribute('aria-controls') ?? '')}`);
+      expect(collapsedRegion).not.toBeVisible();
+      // 展開すると全集計を確認できる
+      fireEvent.click(toggle);
+      expect(collapsedRegion).toBeVisible();
+      expect(collapsedRegion).toHaveTextContent('¥3,000');
       expect(groups[1]).toHaveTextContent('1件');
+    });
+
+    it('グループ見出しはbutton+aria-expanded/aria-controlsでEnterとSpaceで開閉する', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReceiptTable
+        primaryKey="amount" nameKey="name" dateKey="date"
+          data={mockData}
+          summary={mockSummary}
+          columns={mockColumns}
+          summaryColumns={mockSummaryColumns}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      const groups = within(cardList).getAllByTestId('receipt-card-group');
+      const button = within(groups[0]).getByRole('button', { name: /2件/ });
+      // タップターゲット44px以上
+      expect(button.className).toContain('min-h-[44px]');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      button.focus();
+      await user.keyboard('{Enter}');
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+      const controlsId = button.getAttribute('aria-controls') ?? '';
+      const region = groups[0].querySelector(`#${CSS.escape(controlsId)}`);
+      expect(region).toHaveAttribute('role', 'region');
+      expect(region).toBeVisible();
+      expect(button).toHaveFocus();
+      await user.keyboard(' ');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(region).not.toBeVisible();
+    });
+
+    it('グループ見出しの主要集計はprimaryKeyに対応する列を表示する', () => {
+      const columnsWithProfit: TableColumnConfig[] = [
+        { header: '銘柄', key: 'name', width: '200px' },
+        { header: '損益', key: 'realized_profit_and_loss', width: '120px', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+        { header: '税額', key: 'taxes', width: '120px', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+      ];
+      const summaryWithTotal: SummaryColumnConfig[] = [
+        { key: 'total_realized_profit_and_loss', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+        { key: 'total_taxes', textAlign: 'right', format: (value) => `¥${(value as number).toLocaleString()}` },
+      ];
+      const summaryData = [{ filter: 'A', total_realized_profit_and_loss: 30000, total_taxes: 6090 }];
+      const dataWithProfit = mockData.map((item, index) => ({
+        ...item,
+        realized_profit_and_loss: [10000, 20000, 30000][index],
+        taxes: [2000, 3000, 6090][index],
+      }));
+
+      render(
+        <ReceiptTable
+        primaryKey="realized_profit_and_loss" nameKey="name" dateKey="date"
+          data={dataWithProfit}
+          summary={summaryData}
+          columns={columnsWithProfit}
+          summaryColumns={summaryWithTotal}
+          getGroupKey={getGroupKey}
+        />
+      );
+
+      const cardList = screen.getByTestId('receipt-card-list');
+      // total_プレフィックス差異を吸収し、損益の値を1行に表示する
+      const button = within(cardList).getByRole('button', { name: /損益 ¥30,000/ });
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(button);
+      // 展開すると税額も確認できる
+      const region = within(cardList).getByRole('region');
+      expect(within(region).getByText('¥6,090')).toBeVisible();
     });
 
     it('total_プレフィックス付き集計キーのラベルが列定義から解決される', () => {

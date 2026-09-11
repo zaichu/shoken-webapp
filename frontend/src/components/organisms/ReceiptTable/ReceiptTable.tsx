@@ -105,6 +105,26 @@ const formatCardValue = (
     return { node: React.isValidElement(formattedValue) ? formattedValue : toText(formattedValue), rawValue: value, displayText };
 };
 
+const stripTotalPrefix = (key: string): string => key.replace(/^total_/, '');
+
+/**
+ * スマホのグループ見出しに常時表示する主要集計列を決める。
+ * primaryKey と一致（total_ プレフィックス差異を吸収）する列を優先し、
+ * 見つからなければ末尾列（受取額/税引後の想定）を使う。
+ * ReceiptTable は汎用表示に徹し、ドメイン分岐は持たない。
+ */
+const resolvePrimarySummaryIndex = (
+    summaryColumns: SummaryColumnConfig[],
+    primaryKey: string
+): number => {
+    if (summaryColumns.length === 0) return -1;
+    const normalizedPrimary = stripTotalPrefix(primaryKey);
+    const matched = summaryColumns.findIndex(
+        column => stripTotalPrefix(column.key) === normalizedPrimary
+    );
+    return matched >= 0 ? matched : summaryColumns.length - 1;
+};
+
 /**
  * スマホカード表示用: 集計カラムのラベルを列定義から解決する。
  * DomesticStock のように集計キーへ total_ プレフィックスが付く場合に対応する。
@@ -196,6 +216,118 @@ function ReceiptCard({ item, columns, fields }: {
     );
 }
 
+/**
+ * スマホ幅のグループ見出し1個分。集計3行を1行に集約し、詳細はタップで展開する。
+ * 折り畳み時: 年月・件数・主要集計（受取額/税引後）のみで min-h 44px に収める。
+ * 背景は slate-700（白カードとのコントラスト約10:1）で境界を明確にする。
+ * PC幅のテーブル表示には一切触らない。
+ */
+function MobileReceiptGroup<T extends DataItem, S extends SummaryItem>({ summaryItem, groupItems, headerText, columns, summaryColumns, primaryKey, fields }: {
+    summaryItem: S;
+    groupItems: T[];
+    headerText: string;
+    columns: TableColumnConfig[];
+    summaryColumns: SummaryColumnConfig[];
+    primaryKey: string;
+    fields: MobileSummaryFields;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const id = useId();
+    const itemCount = groupItems.length;
+
+    const summaryValues = summaryColumns.map(column => ({
+        key: column.key,
+        label: resolveSummaryLabel(column.key, columns),
+        value: formatSummaryValue(summaryItem[column.key], column),
+        rawValue: summaryItem[column.key]
+    }));
+
+    if (summaryValues.length === 0) {
+        return (
+            <section data-testid="receipt-card-group">
+                <div className="flex min-h-[44px] items-center rounded-lg bg-slate-700 px-3 py-2">
+                    <span className="text-sm font-semibold text-white">{headerText}</span>
+                    <span className="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                        {itemCount}件
+                    </span>
+                </div>
+                <div className="mt-2 space-y-2">
+                    {groupItems.map((item, itemIndex) =>
+                        <ReceiptCard key={String(item.id ?? `card-item-${itemIndex}`)} item={item} columns={columns} fields={fields} />
+                    )}
+                </div>
+            </section>
+        );
+    }
+
+    const primaryIndex = resolvePrimarySummaryIndex(summaryColumns, primaryKey);
+    const primary = summaryValues[primaryIndex] ?? summaryValues[summaryValues.length - 1];
+    if (!primary) {
+        return null;
+    }
+    const primaryText = React.isValidElement(primary.value) ? '' : String(toText(primary.value));
+
+    return (
+        <section data-testid="receipt-card-group">
+            <div className="overflow-hidden rounded-lg border border-slate-700">
+                <button
+                    id={`${id}-group-button`}
+                    type="button"
+                    aria-label={`${headerText} ${itemCount}件 ${primary.label} ${primaryText}`}
+                    aria-expanded={expanded}
+                    aria-controls={`${id}-group-details`}
+                    onClick={() => setExpanded(previous => !previous)}
+                    className="flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                        {headerText}
+                        <span className="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                            {itemCount}件
+                        </span>
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap" aria-hidden="true">
+                        <span className="text-xs text-slate-200">{primary.label}</span>
+                        <span className="font-mono text-sm font-semibold tabular-nums text-white">
+                            {React.isValidElement(primary.value) ? primary.value : toText(primary.value)}
+                        </span>
+                        <svg className={cn('h-4 w-4 shrink-0 self-center text-slate-200', expanded && 'rotate-180')} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </span>
+                </button>
+                <div
+                    id={`${id}-group-details`}
+                    role="region"
+                    aria-labelledby={`${id}-group-button`}
+                    hidden={!expanded}
+                    className="border-t border-slate-200 bg-white px-3 py-1"
+                >
+                    {expanded && (
+                        <dl>
+                            {summaryValues.map((sv) => (
+                                <div key={sv.key} className="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
+                                    <dt className="shrink-0 pt-0.5 text-xs text-slate-600">{sv.label}</dt>
+                                    <dd
+                                        className={cn('min-w-0 break-words text-right text-sm font-semibold tabular-nums', !React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'text-red-800' : 'text-slate-800')}
+                                        data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
+                                    >
+                                        {React.isValidElement(sv.value) ? sv.value : toText(sv.value)}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                    )}
+                </div>
+            </div>
+            <div className="mt-2 space-y-2">
+                {groupItems.map((item, itemIndex) =>
+                    <ReceiptCard key={String(item.id ?? `card-item-${itemIndex}`)} item={item} columns={columns} fields={fields} />
+                )}
+            </div>
+        </section>
+    );
+}
+
 function renderGroupedCards<T extends DataItem, S extends SummaryItem>(
     summaryToRender: S[],
     groupedDataMap: Map<string, T[]>,
@@ -207,48 +339,18 @@ function renderGroupedCards<T extends DataItem, S extends SummaryItem>(
     return summaryToRender.map((summaryItem, summaryIndex) => {
         const groupItems = groupedDataMap.get(summaryItem.filter) ?? [];
         const headerText = formatGroupHeader(summaryItem.filter);
-        const itemCount = groupItems.length;
-
-        const summaryValues = summaryColumns.map(column => ({
-            key: column.key,
-            label: resolveSummaryLabel(column.key, columns),
-            value: formatSummaryValue(summaryItem[column.key], column),
-            rawValue: summaryItem[column.key]
-        }));
 
         return (
-            <section key={`card-group-${summaryIndex}`} data-testid="receipt-card-group">
-                <div className="rounded-lg border-l-4 border-slate-600 bg-slate-200 px-3.5 py-2.5">
-                    <div className="flex items-center">
-                        <span className="text-sm font-medium text-slate-800">
-                            {headerText}
-                        </span>
-                        <span className="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
-                            {itemCount}件
-                        </span>
-                    </div>
-                    {summaryValues.length > 0 && (
-                        <dl className="mt-2 border-t border-slate-200 pt-2">
-                            {summaryValues.map((sv) => (
-                                <div key={sv.key} className="flex items-start justify-between gap-3 py-0.5">
-                                    <dt className="shrink-0 text-xs text-slate-600">{sv.label}</dt>
-                                    <dd
-                                        className="min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
-                                        data-negative={!React.isValidElement(sv.value) && isNegativeValue(sv.rawValue) ? 'true' : undefined}
-                                    >
-                                        {React.isValidElement(sv.value) ? sv.value : toText(sv.value)}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    )}
-                </div>
-                <div className="mt-2 space-y-2">
-                    {groupItems.map((item, itemIndex) =>
-                        <ReceiptCard key={String(item.id ?? `card-item-${summaryIndex}-${itemIndex}`)} item={item} columns={columns} fields={fields} />
-                    )}
-                </div>
-            </section>
+            <MobileReceiptGroup
+                key={`card-group-${summaryIndex}`}
+                summaryItem={summaryItem}
+                groupItems={groupItems}
+                headerText={headerText}
+                columns={columns}
+                summaryColumns={summaryColumns}
+                primaryKey={fields.primaryKey}
+                fields={fields}
+            />
         );
     });
 }
