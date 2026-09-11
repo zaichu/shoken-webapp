@@ -20,7 +20,7 @@ export function ReceiptsTabNav({
   return (
     <nav className="mb-2 no-print" aria-label="取引明細タブ">
       <div
-        className="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm"
+        className="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto"
         role="tablist"
         ref={tablistRef}
       >
@@ -31,7 +31,7 @@ export function ReceiptsTabNav({
               key={tab}
               id={`tab-${tab}`}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-[44px]',
+                'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-[44px] max-sm:shrink-0 max-sm:px-3',
                 isActive
                   ? 'border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]'
                   : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950'

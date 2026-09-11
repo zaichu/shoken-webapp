@@ -20,11 +20,12 @@ MockReceiptTable.displayName = 'ReceiptTable';
 
 // SearchCardのモック
 vi.mock('@/components/organisms/SearchCard/SearchCard', () => ({
-  SearchCard: ({ onSearch, onExpandToggle }: {
+  SearchCard: ({ onSearch, onExpandToggle, initialExpanded }: {
     onSearch: (query: string) => void;
     onExpandToggle?: (isExpanded: boolean) => void;
+    initialExpanded?: boolean;
   }) => (
-    <div data-testid="search-card">
+    <div data-testid="search-card" data-initial-expanded={String(initialExpanded)}>
       <button onClick={() => onSearch('test-query')}>Search</button>
       <button onClick={() => onExpandToggle?.(true)}>Expand</button>
       <button onClick={() => onExpandToggle?.(false)}>Collapse</button>
@@ -314,5 +315,61 @@ describe('ReceiptTemplate', () => {
 
     expect(screen.queryByTestId('receipt-workspace')).not.toBeInTheDocument();
     expect(screen.getByTestId('search-card')).toBeInTheDocument();
+  });
+
+  test('workspaceレイアウトでは検索は初期展開される（PC幅・Issue #837 PR2）', () => {
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        onSearch={mockOnSearch}
+        utilityRail={<div>CSV操作</div>}
+      />
+    );
+
+    // jsdom には matchMedia がないため、PC幅相当として初期展開のまま
+    expect(screen.getByTestId('search-card')).toHaveAttribute('data-initial-expanded', 'true');
+  });
+
+  test('スマホ幅 (<640px) では検索は折り畳み入口から始める（Issue #837 PR2）', () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: true });
+    vi.stubGlobal('matchMedia', matchMedia);
+    // window.matchMedia として参照されるよう window にも設定する
+    Object.defineProperty(window, 'matchMedia', { value: matchMedia, configurable: true });
+    try {
+      render(
+        <ReceiptTemplate
+          {...defaultProps}
+          layout="workspace"
+          onSearch={mockOnSearch}
+          utilityRail={<div>CSV操作</div>}
+        />
+      );
+
+      expect(matchMedia).toHaveBeenCalledWith('(max-width: 639px)');
+      expect(screen.getByTestId('search-card')).toHaveAttribute('data-initial-expanded', 'false');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test('640px以上では検索は初期展開のまま（Issue #837 PR2）', () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: false });
+    Object.defineProperty(window, 'matchMedia', { value: matchMedia, configurable: true });
+    try {
+      render(
+        <ReceiptTemplate
+          {...defaultProps}
+          layout="workspace"
+          onSearch={mockOnSearch}
+          utilityRail={<div>CSV操作</div>}
+        />
+      );
+
+      expect(screen.getByTestId('search-card')).toHaveAttribute('data-initial-expanded', 'true');
+    } finally {
+      // @ts-expect-error テスト後の後片付けとして matchMedia を未定義に戻す
+      delete window.matchMedia;
+    }
   });
 });

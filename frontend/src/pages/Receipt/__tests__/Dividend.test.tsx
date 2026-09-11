@@ -198,7 +198,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認（初期状態は展開済み）
         await waitFor(() => {
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
         });
 
         // 展開済みなのでembeddedモードの入力とStatItemが表示される
@@ -227,7 +227,7 @@ describe('Dividend', () => {
 
         // 初期状態は展開済み
         await waitFor(() => {
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
         });
         expect(screen.getByText('平均取得価格')).toBeVisible();
 
@@ -260,7 +260,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
         });
 
         // 検索をクリア
@@ -268,7 +268,7 @@ describe('Dividend', () => {
 
         // 通常の集計情報ヘッダーに戻ることを確認
         await waitFor(() => {
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
         });
     });
 
@@ -293,9 +293,11 @@ describe('Dividend', () => {
             />
         );
 
-        expect(screen.getByText('¥ 999,999')).toBeInTheDocument();
-        expect(screen.getByText('¥ 111,111')).toBeInTheDocument();
-        expect(screen.getByText('¥ 888,888')).toBeInTheDocument();
+        // スマホ用1行サマリーが末尾金額と重複するため、PC表示側にスコープする
+        const desktop = within(screen.getByTestId('receipt-summary-desktop'));
+        expect(desktop.getByText('¥ 999,999')).toBeInTheDocument();
+        expect(desktop.getByText('¥ 111,111')).toBeInTheDocument();
+        expect(desktop.getByText('¥ 888,888')).toBeInTheDocument();
         // クライアント側合計（¥ 5,000 など）は表示されない
         expect(screen.queryByText('¥ 5,000')).not.toBeInTheDocument();
     });
@@ -357,7 +359,7 @@ describe('Dividend', () => {
 
         // 銘柄詳細ヘッダーが表示されることを確認
         await waitFor(() => {
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
         });
 
         // embedded モードでは read-only KPI カードが表示される
@@ -541,7 +543,7 @@ describe('Dividend', () => {
             render(<Dividend data={mockData} />);
 
             // 銘柄詳細ヘッダーが表示される（isSecurityCodeSearch=true）
-            expect(screen.getByText('集計情報')).toBeInTheDocument();
+            expect(within(screen.getByTestId('receipt-summary-desktop')).getByText('集計情報')).toBeInTheDocument();
             expect(screen.getByText('平均取得価格')).toBeVisible();
         } finally {
             useReceiptBaseDataSpy.mockRestore();
