@@ -28,7 +28,9 @@ export default defineConfig({
   webServer: {
     command: 'npx vite --host 127.0.0.1 --port 8080 --strictPort',
     url: 'http://127.0.0.1:8080',
-    reuseExistingServer: true,
+    // 別 worktree で起動中の dev server を再利用すると、そのブランチのコードを
+    // 撮ってしまい修正前後の比較が無意味になる。毎回起動する。
+    reuseExistingServer: false,
     timeout: 60_000,
     env: {
       VITE_SHOKEN_WEBAPI_API_URL: 'http://localhost:3001',
