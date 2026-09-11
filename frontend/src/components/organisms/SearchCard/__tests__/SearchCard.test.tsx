@@ -618,6 +618,44 @@ describe('SearchCard', () => {
     });
   });
 
+  describe('モバイルのタップ領域', () => {
+    test('compactモードの開閉トグルに max-sm:min-h-[44px] がある', () => {
+      render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+          compact
+        />
+      );
+
+      expect(screen.getByTestId('search-card-header')).toHaveClass('max-sm:min-h-[44px]');
+    });
+
+    test('compactモードのクリアボタンに max-sm:min-h-[44px] がある', () => {
+      render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+          compact
+        />
+      );
+
+      expect(screen.getByTestId('search-clear-button')).toHaveClass('max-sm:min-h-[44px]');
+    });
+
+    test('通常モードの開閉トグルとクリアボタンに max-sm:min-h-[44px] がある', () => {
+      render(
+        <SearchCard
+          onSearch={mockOnSearch}
+          categories={defaultCategories}
+        />
+      );
+
+      expect(screen.getByTestId('search-card-header')).toHaveClass('max-sm:min-h-[44px]');
+      expect(screen.getByTestId('search-clear-button')).toHaveClass('max-sm:min-h-[44px]');
+    });
+  });
+
   test('compactモードでは検索グリッドが1列表示になる', () => {
     const { container } = render(
       <SearchCard
