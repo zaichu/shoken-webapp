@@ -1,7 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::market_data::financial_statement::{
-    FinancialStatementsQuery, FinancialStatementsResponse,
-};
+use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 use crate::models::market_data::providers::jquants::FinSummaryResponse;
 use reqwest::Client;
 
@@ -35,7 +33,7 @@ impl JQuantsClient {
     pub async fn get_fin_summary(
         &self,
         params: FinancialStatementsQuery,
-    ) -> Result<FinancialStatementsResponse, ApiError> {
+    ) -> Result<FinSummaryResponse, ApiError> {
         let mut query_params: Vec<(&str, &str)> = vec![("code", &params.code)];
         if let Some(from) = params.from.as_deref() {
             query_params.push(("from", from));
@@ -97,7 +95,7 @@ impl JQuantsClient {
                 ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {}", e))
             })?;
 
-        Ok(fin_summary_response.into())
+        Ok(fin_summary_response)
     }
 }
 
@@ -110,7 +108,7 @@ mod tests {
         Mock, MockServer, ResponseTemplate,
     };
 
-    async fn fetch_fin_summary(base_url: &str, code: &str) -> FinancialStatementsResponse {
+    async fn fetch_fin_summary(base_url: &str, code: &str) -> FinSummaryResponse {
         let api_key =
             std::env::var("JQUANTS_API_KEY").expect("JQUANTS_API_KEY 環境変数が設定されていません");
         let params = FinancialStatementsQuery {
@@ -125,9 +123,7 @@ mod tests {
             .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
     }
 
-    async fn fetch_mock_fin_summary(
-        server: &MockServer,
-    ) -> Result<FinancialStatementsResponse, ApiError> {
+    async fn fetch_mock_fin_summary(server: &MockServer) -> Result<FinSummaryResponse, ApiError> {
         let params = FinancialStatementsQuery {
             code: "7203".to_string(),
             from: None,
@@ -140,19 +136,16 @@ mod tests {
             .await
     }
 
-    fn log_summary_overview(response: &FinancialStatementsResponse) {
+    fn log_summary_overview(response: &FinSummaryResponse) {
         println!("取得件数: {}", response.data.len());
         if let Some(first) = response.data.first() {
             println!("銘柄コード: {}", first.local_code);
             println!("開示日: {}", first.disclosed_date);
             println!("書類種別: {}", first.type_of_document);
-            println!("当期種別: {:?}", first.type_of_current_period);
-            println!("当期開始日: {:?}", first.current_period_start_date);
-            println!("当期終了日: {:?}", first.current_period_end_date);
         }
     }
 
-    fn log_dividend_summaries(response: &FinancialStatementsResponse) {
+    fn log_dividend_summaries(response: &FinSummaryResponse) {
         println!("取得件数: {}", response.data.len());
         for summary in &response.data {
             println!("---");
@@ -171,6 +164,49 @@ mod tests {
                 summary.next_year_forecast_dividend_per_share_annual
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_fin_summary_date_query_and_dividend() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v2/fins/summary"))
+            .and(query_param("code", "7203"))
+            .and(query_param("from", "2024-01-01"))
+            .and(query_param("to", "2024-12-31"))
+            .and(header("x-api-key", "test-api-key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "data": [{
+                    "DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
+                    "Sales": "123456789", "CurPerType": "FY",
+                    "NxFDivAnn": "", "FDivAnn": "45.25", "DivAnn": "40.00",
+                    "UnknownField": {"nested": [1, 2]}
+                }],
+                "pagination_key": "next-page"
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = JQuantsClient::with_base_url(
+            Client::new(),
+            "test-api-key".to_string(),
+            format!("{}/v2/fins/summary", server.uri()),
+        );
+        let response = client
+            .get_fin_summary(FinancialStatementsQuery {
+                code: "7203".to_string(),
+                from: Some("2024-01-01".to_string()),
+                to: Some("2024-12-31".to_string()),
+            })
+            .await
+            .expect("配当レスポンス");
+        assert_eq!(response.pagination_key.as_deref(), Some("next-page"));
+        assert_eq!(
+            response.data[0]
+                .forecast_dividend_per_share_annual
+                .as_deref(),
+            Some("45.25")
+        );
     }
 
     #[tokio::test]
