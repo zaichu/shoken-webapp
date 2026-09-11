@@ -3,11 +3,11 @@ import type { DomesticStockApiData, DomesticStockData } from '@/features/receipt
 type DomesticStockSource = Partial<DomesticStockApiData> | Record<string, unknown>;
 
 /**
- * 取引日でソート
+ * 取引日で降順（新しい順）にソート
  */
 export const sortDomesticStockByTradeDate = (data: DomesticStockData[]): DomesticStockData[] => {
     return [...data].sort((a, b) =>
-        a.trade_date.getTime() - b.trade_date.getTime()
+        b.trade_date.getTime() - a.trade_date.getTime()
     );
 };
 
