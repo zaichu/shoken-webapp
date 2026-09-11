@@ -103,7 +103,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                 >
                     <button
                         type="button"
-                        className="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer"
+                        className="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-[44px]"
                         onClick={handleToggleExpanded}
                         onKeyDown={handleToggleKeyDown}
                         aria-expanded={isExpanded}
@@ -140,7 +140,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                                     e.stopPropagation();
                                 }
                             }}
-                            className={cn('whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 transition-opacity', isDefaultState && 'opacity-0 pointer-events-none')}
+                            className={cn('whitespace-nowrap rounded-md border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 transition-opacity max-sm:min-h-[44px]', isDefaultState && 'opacity-0 pointer-events-none')}
                             aria-label="検索条件をクリア"
                             aria-hidden={isDefaultState}
                             tabIndex={isDefaultState ? -1 : 0}
@@ -188,7 +188,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             >
                 <button
                     type="button"
-                    className="flex items-center gap-2 text-left select-none cursor-pointer"
+                    className="flex items-center gap-2 text-left select-none cursor-pointer max-sm:min-h-[44px]"
                     onClick={handleToggleExpanded}
                     onKeyDown={handleToggleKeyDown}
                     aria-expanded={isExpanded}
@@ -222,7 +222,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             }
                         }}
                         className={cn(
-                            'text-xs px-2 py-0.5 transition-opacity',
+                            'text-xs px-2 py-0.5 transition-opacity max-sm:min-h-[44px]',
                             isDefaultState
                                 ? 'opacity-0 pointer-events-none border-transparent text-transparent'
                                 : 'opacity-100 border-white text-white bg-white/20 font-semibold hover:bg-white/30 hover:border-white'
