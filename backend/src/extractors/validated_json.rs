@@ -90,7 +90,7 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(data, json_data);
-            Ok::<_, hyper::Error>(axum::response::Response::new(Body::empty()))
+            Ok::<_, std::convert::Infallible>(axum::response::Response::new(Body::empty()))
         });
         assert_eq!(
             app.oneshot(json_request(serde_json::to_string(&json_data).unwrap()))
