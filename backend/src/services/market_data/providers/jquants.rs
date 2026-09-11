@@ -23,13 +23,6 @@ impl JQuantsClient {
         }
     }
 
-    pub fn from_optional_api_key(client: Client, api_key: Option<&str>) -> Result<Self, ApiError> {
-        let key = api_key.ok_or_else(|| {
-            ApiError::ApiError("JQUANTS_API_KEY が設定されていません".to_string())
-        })?;
-        Ok(Self::new(client, key.to_string()))
-    }
-
     #[cfg(test)]
     pub fn with_base_url(client: Client, api_key: String, base_url: String) -> Self {
         Self {

@@ -19,8 +19,8 @@ use crate::{
     config::{build_cors_layer, Config},
     handlers,
     middleware::{
-        add_security_headers, build_keyed_rate_limiter, build_rate_limiter, keyed_rate_limit,
-        rate_limit, validate_origin, PathOnlyMakeSpan,
+        add_security_headers, build_keyed_rate_limiter, keyed_rate_limit, validate_origin,
+        PathOnlyMakeSpan,
     },
     openapi::ApiDoc,
     state::AppState,
@@ -55,31 +55,25 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
     // 銘柄検索は未認証かつ前方ワイルドカード検索のため IP 単位の keyed limiter（DoS 対策）
     let stock_search_limiter = build_keyed_rate_limiter(config.stock_search_rate_limit_rps);
-    let market_data_limiter = build_rate_limiter(config.market_data_rate_limit_rps);
     spawn_keyed_limiter_cleanup(&auth_limiter);
     spawn_keyed_limiter_cleanup(&csv_limiter);
     spawn_keyed_limiter_cleanup(&stock_search_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let ready = Arc::clone(&startup_ready);
-    let gated_domain = domain_routes(
-        market_data_limiter,
-        auth_limiter,
-        csv_limiter,
-        stock_search_limiter,
-    )
-    .layer(middleware::from_fn(
-        move |req: axum::extract::Request, next: axum::middleware::Next| {
-            let ready = Arc::clone(&ready);
-            async move {
-                if ready.load(Ordering::Acquire) {
-                    next.run(req).await
-                } else {
-                    StatusCode::SERVICE_UNAVAILABLE.into_response()
+    let gated_domain =
+        domain_routes(auth_limiter, csv_limiter, stock_search_limiter).layer(middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let ready = Arc::clone(&ready);
+                async move {
+                    if ready.load(Ordering::Acquire) {
+                        next.run(req).await
+                    } else {
+                        StatusCode::SERVICE_UNAVAILABLE.into_response()
+                    }
                 }
-            }
-        },
-    ));
+            },
+        ));
 
     // /ready と /health は TraceLayer の対象外にする（startup 中の expected 503 を ERROR ログから除外）
     let ready_for_check = Arc::clone(&startup_ready);
@@ -135,19 +129,10 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
 
 /// ドメインルートをまとめたルーター（認証・コア機能）
 fn domain_routes(
-    market_data_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
     auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     stock_search_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
-    let market_data_routes = if let Some(l) = market_data_limiter {
-        handlers::v1::market_data_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { rate_limit(l, req, next).await }
-        }))
-    } else {
-        handlers::v1::market_data_routes()
-    };
     let auth_routes = if let Some(l) = auth_limiter {
         handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
             let l = l.clone();
@@ -174,7 +159,6 @@ fn domain_routes(
     };
 
     Router::new()
-        .merge(market_data_routes)
         .merge(auth_routes)
         .merge(csv_upload_routes)
         .merge(stock_search_routes)
@@ -217,7 +201,6 @@ mod tests {
     #[test]
     fn test_all_routes_creation() {
         let _ = handlers::v1::auth_routes();
-        let _ = handlers::v1::market_data_routes();
         let _ = handlers::v1::stock_search_routes();
         let _ = handlers::v1::data_routes();
         let _ = handlers::v1::csv_upload_routes();
@@ -235,16 +218,6 @@ mod tests {
         }
         .with_state(make_test_state());
         assert_rate_limited(router, Method::GET, "/api/v1/session", Some("1.2.3.4")).await;
-        let router = if let Some(l) = crate::middleware::build_rate_limiter(1) {
-            handlers::v1::market_data_routes().layer(middleware::from_fn(move |req, next| {
-                let l = l.clone();
-                async move { rate_limit(l, req, next).await }
-            }))
-        } else {
-            handlers::v1::market_data_routes()
-        }
-        .with_state(make_test_state());
-        assert_rate_limited(router, Method::GET, "/api/v1/financial-statements", None).await;
     }
     async fn assert_rate_limited(
         router: axum::Router,
@@ -285,11 +258,6 @@ mod tests {
     #[tokio::test]
     async fn test_all_endpoints_require_auth() {
         for (router, method, uri) in [
-            (
-                handlers::v1::market_data_routes(),
-                Method::GET,
-                "/api/v1/financial-statements?code=7203",
-            ),
             (
                 handlers::v1::data_routes(),
                 Method::DELETE,

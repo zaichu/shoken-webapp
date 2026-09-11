@@ -500,20 +500,6 @@ describe('ApiClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('financial-statements GETは失敗時に4回試行する（旧設定を維持）', async () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
-      failAll();
-
-      const resultPromise = apiClient.get('/api/v1/financial-statements', {
-        params: { code: '7203' },
-      });
-      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
-      await vi.runAllTimersAsync();
-      await expectation;
-
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-    });
-
     it('通常GETは一時的な失敗から回復できる', async () => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       const mockData = { data: [] };
@@ -574,31 +560,6 @@ describe('ApiClient', () => {
 
       // 10秒×2試行＋1秒待機＝約21秒で打ち切り。旧設定（30秒）なら30秒時点で1試行目が終わったばかりになる
       expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('financial-statements GETは旧タイムアウトを維持し31秒時点でも継続中', async () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
-      hangAll();
-
-      let settled = false;
-      const resultPromise = apiClient.get('/api/v1/financial-statements', {
-        params: { code: '7203' },
-      });
-      void resultPromise.then(
-        () => { settled = true; },
-        () => { settled = true; },
-      );
-      await vi.advanceTimersByTimeAsync(31_000);
-
-      // 30秒×1試行＋1秒待機の直後のため、2試行目が始まったばかりで未確定
-      expect(settled).toBe(false);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-
-      // 後始末：残りのリトライを消化して拒否で確定させる
-      const expectation = expect(resultPromise).rejects.toBeInstanceOf(ApiError);
-      await vi.runAllTimersAsync();
-      await expectation;
-      expect(mockFetch).toHaveBeenCalledTimes(4);
     });
   });
 

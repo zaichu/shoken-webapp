@@ -223,12 +223,7 @@ function getApiClient(): ApiClient {
 // 認証の専用クライアントと書き込み処理にはこの設定を適用しない。
 let _readApiClient: ApiClient | null = null;
 
-function getReadApiClient(url: string): ApiClient {
-  // J-Quants の決算情報は外部 API 応答を待つため、30秒・3リトライを維持。
-  // 配当推計は POST のため、従来の getApiClient() の設定で処理する。
-  if (url.split('?')[0] === '/api/v1/financial-statements') {
-    return getApiClient();
-  }
+function getReadApiClient(): ApiClient {
   if (!_readApiClient) {
     _readApiClient = new ApiClient({
       timeout: 10_000,
@@ -240,7 +235,7 @@ function getReadApiClient(url: string): ApiClient {
 
 // 後方互換性のため
 export const apiClient = {
-  get: <T>(url: string, config?: RequestConfig) => getReadApiClient(url).get<T>(url, config),
+  get: <T>(url: string, config?: RequestConfig) => getReadApiClient().get<T>(url, config),
   post: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().post<T>(url, data, config),
   put: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().put<T>(url, data, config),
   patch: <T>(url: string, data?: unknown, config?: RequestConfig) => getApiClient().patch<T>(url, data, config),
