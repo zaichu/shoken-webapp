@@ -49,10 +49,15 @@ export type SummaryResult<K extends string | number | symbol> = {
     [key: string]: unknown;
 } & Record<K, number>;
 
+/**
+ * グループごとに数値を合計する。
+ * @param order グループキーの並び順。日付キーで新しい順に出したい場合は 'desc' を渡す
+ */
 export function groupAndSummarizeData<T, K extends keyof T>(
     data: T[],
     groupByFn: (item: T) => string,
-    sumFields: K[]
+    sumFields: K[],
+    order: 'asc' | 'desc' = 'asc'
 ): SummaryResult<K>[] {
     const groupMap = new Map<string, Record<K, number>>();
 
@@ -79,5 +84,7 @@ export function groupAndSummarizeData<T, K extends keyof T>(
             ...values,
             [Symbol.for('key')]: undefined // インデックスシグネチャを満たすための仮のプロパティ
         } as SummaryResult<K>))
-        .sort((a, b) => a.filter.localeCompare(b.filter));
+        .sort((a, b) =>
+            order === 'desc' ? b.filter.localeCompare(a.filter) : a.filter.localeCompare(b.filter)
+        );
 }

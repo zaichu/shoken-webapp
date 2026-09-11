@@ -6,7 +6,7 @@ import {
 import { TAX_RATE, createISODateKey } from '@/lib/utils/formatters';
 
 /**
- * 日次データ集計
+ * 日次データ集計（新しい日付順）
  */
 export const calculateDailyData = (domesticStockData: DomesticStockData[]): DomesticStockSummary[] => {
     // データを日付ごとにグループ化
@@ -43,7 +43,7 @@ export const calculateDailyData = (domesticStockData: DomesticStockData[]): Dome
             total_taxes: tax,
             total_realized_profit_and_loss_after_tax: totalRealizedPnLAfterTax,
         };
-    }).sort((a, b) => a.filter.localeCompare(b.filter));
+    }).sort((a, b) => b.filter.localeCompare(a.filter));
 };
 
 /**

@@ -143,13 +143,13 @@ describe('groupAndSummarizeData', () => {
         { date: new Date('2023-02-15'), category: 'C', amount: 400, tax: 40 }
     ];
 
-    it('日付の月でグループ化する', () => {
+    it('日付の月でグループ化して新しい順に返す', () => {
         const groupByFn = (item: TestItemWithDate) => {
             const date = item.date;
             return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         };
 
-        const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
+        const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax'], 'desc');
         
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
@@ -160,14 +160,14 @@ describe('groupAndSummarizeData', () => {
         });
         
         expect(resultWithoutSymbol).toEqual([
-            { filter: '2023-01', amount: 300, tax: 30 },
-            { filter: '2023-02', amount: 700, tax: 70 }
+            { filter: '2023-02', amount: 700, tax: 70 },
+            { filter: '2023-01', amount: 300, tax: 30 }
         ]);
     });
 
     it('カテゴリでグループ化する', () => {
         const groupByFn = (item: TestItemWithDate) => item.category;
-        const result = groupAndSummarizeData(testData, groupByFn, ['amount', 'tax']);
+        const result = groupAndSummarizeData([...testData].reverse(), groupByFn, ['amount', 'tax']);
         
         // Symbol.for('key')を除外して比較
         const resultWithoutSymbol = result.map(item => {
@@ -182,6 +182,19 @@ describe('groupAndSummarizeData', () => {
             { filter: 'B', amount: 300, tax: 30 },
             { filter: 'C', amount: 400, tax: 40 }
         ]);
+    });
+
+    it.each([
+        ['asc', ['A', 'B', 'C']],
+        ['desc', ['C', 'B', 'A']],
+    ] as const)('order=%s で入力順によらずカテゴリを並べる', (order, expected) => {
+        const input = [testData[2], testData[0], testData[3], testData[1]];
+        const original = [...input];
+        const result = groupAndSummarizeData(input, item => item.category, ['amount', 'tax'], order);
+
+        expect(result.map(item => item.filter)).toEqual(expected);
+        expect(result.find(item => item.filter === 'A')).toMatchObject({ amount: 300, tax: 30 });
+        expect(input).toEqual(original);
     });
 
     it('検索クエリありでデータをグループ化する', () => {
