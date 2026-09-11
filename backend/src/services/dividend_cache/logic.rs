@@ -1,4 +1,4 @@
-use crate::models::market_data::financial_statement::FinancialStatementData;
+use crate::models::market_data::providers::jquants::FinSummaryData;
 use chrono::{DateTime, Utc};
 
 /// キャッシュエントリの is_stale を判定する
@@ -11,7 +11,7 @@ pub fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: Date
 
 /// 決算サマリーから1株配当を抽出する
 /// 優先順位: 来期予想(NxFDivAnn) > 今期予想(FDivAnn) > 実績(DivAnn)
-pub fn extract_dividend(data: &[FinancialStatementData]) -> (Option<f64>, String) {
+pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
     // 有効な配当値を持つ summary の中で開示日が最大のものを選ぶ
     // 同じ開示日の場合は入力順先勝ち（元の sort_by + 線形走査と同挙動）
     let best = data
@@ -48,14 +48,14 @@ pub fn extract_dividend(data: &[FinancialStatementData]) -> (Option<f64>, String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::market_data::financial_statement::FinancialStatementData;
+    use crate::models::market_data::providers::jquants::FinSummaryData;
 
     fn make_summary(
         disc_date: &str,
         nx_div: Option<&str>,
         f_div: Option<&str>,
         div: Option<&str>,
-    ) -> FinancialStatementData {
+    ) -> FinSummaryData {
         serde_json::from_value(serde_json::json!({
             "DiscDate": disc_date,
             "Code": "1234",
@@ -64,7 +64,7 @@ mod tests {
             "FDivAnn": f_div,
             "DivAnn": div,
         }))
-        .expect("FinancialStatementData のパースに失敗")
+        .expect("FinSummaryData のパースに失敗")
     }
 
     #[test]
@@ -138,6 +138,60 @@ mod tests {
         ]);
         assert_eq!(value, Some(30.0));
         assert_eq!(status, "ok");
+    }
+
+    #[test]
+    fn test_extract_dividend_from_upstream_response() {
+        use crate::models::market_data::providers::jquants::FinSummaryResponse;
+        use serde_json::json;
+
+        // HTTP と同じデシリアライズ経路で、欠損値と優先順位を固定する。
+        for (fields, expected, status) in [
+            (json!({}), 0.0, "zero"),
+            (
+                json!({"NxFDivAnn": null, "FDivAnn": null, "DivAnn": null}),
+                0.0,
+                "zero",
+            ),
+            (
+                json!({"NxFDivAnn": "12.345", "FDivAnn": "20", "DivAnn": "30"}),
+                12.345,
+                "ok",
+            ),
+            (
+                json!({"NxFDivAnn": "", "FDivAnn": "N/A", "DivAnn": "30"}),
+                30.0,
+                "ok",
+            ),
+            (json!({"NxFDivAnn": "0", "FDivAnn": "20"}), 0.0, "zero"),
+            (json!({"NxFDivAnn": "-2.5", "FDivAnn": "20"}), -2.5, "zero"),
+            (json!({"NxFDivAnn": "bad", "FDivAnn": "20"}), 20.0, "ok"),
+        ] {
+            let mut row = json!({
+                "DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
+                "Sales": "123456789", "UnknownField": {"nested": [1, 2]}
+            });
+            row.as_object_mut()
+                .expect("オブジェクト")
+                .extend(fields.as_object().expect("オブジェクト").clone());
+            let upstream: FinSummaryResponse =
+                serde_json::from_value(json!({"data": [row]})).expect("上流 JSON");
+            assert_eq!(
+                extract_dividend(&upstream.data),
+                (Some(expected), status.to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn test_extract_dividend_skips_newer_invalid_rows() {
+        let data = [
+            make_summary("2025-01-01", Some("N/A"), Some(""), None),
+            make_summary("2024-01-01", None, Some("42.5"), None),
+            make_summary("2023-01-01", Some("100"), None, None),
+            make_summary("2024-01-01", Some("99"), None, None),
+        ];
+        assert_eq!(extract_dividend(&data), (Some(42.5), "ok".to_string()));
     }
 
     #[test]
