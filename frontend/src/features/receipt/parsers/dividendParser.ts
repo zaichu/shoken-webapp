@@ -3,11 +3,11 @@ import type { DividendApiData, DividendData } from '@/features/receipt/types';
 type DividendSource = Partial<DividendApiData> | Record<string, unknown>;
 
 /**
- * 決済日でソート
+ * 決済日で降順（新しい順）にソート
  */
 export const sortDividendBySettlementDate = (data: DividendData[]): DividendData[] => {
     return [...data].sort((a, b) =>
-        a.settlement_date.getTime() - b.settlement_date.getTime()
+        b.settlement_date.getTime() - a.settlement_date.getTime()
     );
 };
 

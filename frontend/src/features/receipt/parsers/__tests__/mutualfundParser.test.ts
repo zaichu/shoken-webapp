@@ -35,7 +35,7 @@ const createZeroLikeInput = (shape: Record<string, unknown>) => {
 
 describe('mutualfundParser', () => {
   describe('sortMutualfundByTradeDate', () => {
-    it('sorts mutualfund records by trade_date in ascending order', () => {
+    it('sorts mutualfund records by trade_date in descending order', () => {
       const records = [
         transformDBMutualfund({ trade_date: '2024-03-12' }),
         transformDBMutualfund({ trade_date: '2024-01-05' }),
@@ -47,9 +47,9 @@ describe('mutualfundParser', () => {
       );
 
       expect(sorted).toEqual([
-        new Date('2024-01-05').toISOString(),
-        new Date('2024-02-18').toISOString(),
         new Date('2024-03-12').toISOString(),
+        new Date('2024-02-18').toISOString(),
+        new Date('2024-01-05').toISOString(),
       ]);
     });
   });

@@ -3,11 +3,11 @@ import type { MutualfundApiData, MutualfundData } from '@/features/receipt/types
 type MutualfundSource = Partial<MutualfundApiData> | Record<string, unknown>;
 
 /**
- * 取引日でソート
+ * 取引日で降順（新しい順）にソート
  */
 export const sortMutualfundByTradeDate = (data: MutualfundData[]): MutualfundData[] => {
     return [...data].sort((a, b) =>
-        a.trade_date.getTime() - b.trade_date.getTime()
+        b.trade_date.getTime() - a.trade_date.getTime()
     );
 };
 

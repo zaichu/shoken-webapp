@@ -136,28 +136,28 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             </div>
           ) : null}
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="portfolio-kpi-grid">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4" data-testid="portfolio-kpi-grid">
           <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
-            <p className="text-xl max-sm:break-words font-bold sm:text-3xl text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
+            <p className="text-base max-sm:break-words max-sm:tracking-tight font-bold sm:text-3xl text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
               {formatCurrency(totalPurchaseAmount)}
             </p>
           </div>
           <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">年間配当金額</p>
-            <p className="text-xl max-sm:break-words font-bold sm:text-3xl text-teal-700 tabular-nums" data-testid="portfolio-annual-dividends">
+            <p className="text-base max-sm:break-words max-sm:tracking-tight font-bold sm:text-3xl text-teal-700 tabular-nums" data-testid="portfolio-annual-dividends">
               {totalAnnualDividends !== null ? formatCurrency(totalAnnualDividends) : '---'}
             </p>
           </div>
           <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">配当利回り</p>
-            <p className="text-xl max-sm:break-words font-bold sm:text-3xl text-teal-700 tabular-nums" data-testid="portfolio-dividend-yield">
+            <p className="text-base max-sm:break-words max-sm:tracking-tight font-bold sm:text-3xl text-teal-700 tabular-nums" data-testid="portfolio-dividend-yield">
               {portfolioDividendYield !== null ? formatPercentageValue(portfolioDividendYield) : '---'}
             </p>
           </div>
           <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">保有銘柄数</p>
-            <p className="text-xl max-sm:break-words font-bold sm:text-3xl text-slate-700 tabular-nums">
+            <p className="text-base max-sm:break-words max-sm:tracking-tight font-bold sm:text-3xl text-slate-700 tabular-nums">
               {isFiltered
                 ? `${displayCount} / ${actualTotalCount}`
                 : `${displayCount}`

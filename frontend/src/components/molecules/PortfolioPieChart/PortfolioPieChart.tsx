@@ -130,7 +130,8 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
         </div>
       </div>
 
-      <div className="mt-2.5 h-2 w-full rounded-full bg-slate-100">
+      {/* パーセントを数値でも出しているためモバイルでは冗長。縦の圧縮を優先して隠す */}
+      <div className="mt-2.5 h-2 w-full rounded-full bg-slate-100 max-sm:hidden">
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{ width: `${Math.min(item.percentage, 100)}%`, backgroundColor: color }}
@@ -138,24 +139,24 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
       </div>
 
       <div
-        className="mt-2.5 grid grid-cols-2 overflow-hidden rounded-md bg-slate-50 sm:grid-cols-3"
+        className="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50"
         data-testid="portfolio-card-acquisition-stats"
       >
-        <div className="min-w-0 px-2 py-2">
+        <div className="min-w-0 px-2 py-2 max-sm:px-1.5">
           <p className="truncate text-[10px] font-medium text-slate-500">取得総額</p>
-          <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-800" title={formatCurrency(item.value)}>{formatCurrency(item.value)}</p>
+          <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-800 max-sm:text-[11px] max-sm:tracking-tight" title={formatCurrency(item.value)}>{formatCurrency(item.value)}</p>
         </div>
-        <div className="min-w-0 border-l border-slate-200/80 px-2 py-2">
+        <div className="min-w-0 border-l border-slate-200/80 px-2 py-2 max-sm:px-1.5">
           <p className="truncate text-[10px] font-medium text-slate-500">取得単価</p>
           <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-800" title={formatCurrency(item.averagePrice)}>{formatCurrency(item.averagePrice)}</p>
         </div>
-        <div className="col-span-2 min-w-0 border-t border-slate-200/80 px-2 py-2 sm:col-span-1 sm:border-l sm:border-t-0">
+        <div className="min-w-0 border-l border-slate-200/80 px-2 py-2 max-sm:px-1.5">
           <p className="truncate text-[10px] font-medium text-slate-500">数量</p>
           <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-800" title={`${formatNumber(item.shares)}株`}>{`${formatNumber(item.shares)}株`}</p>
         </div>
       </div>
 
-      <div className="mt-2.5 grid grid-cols-2 overflow-hidden rounded-md bg-emerald-50/55 sm:grid-cols-3">
+      <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-emerald-50/55">
         <div className="min-w-0 px-2 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">1株配当</p>
           <p
@@ -174,7 +175,7 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
             {formatAnnual(divInfo)}
           </p>
         </div>
-        <div className="col-span-2 min-w-0 border-t border-emerald-100/80 px-2 py-2 text-xs text-slate-600 sm:col-span-1 sm:border-l sm:border-t-0">
+        <div className="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
           <p className="truncate text-[10px] font-medium text-slate-500">配当利回り</p>
           <p
             className={cn('mt-0.5 truncate text-[12px] font-semibold', divInfo?.yieldValue != null ? 'text-emerald-600' : 'text-slate-500')}
