@@ -63,9 +63,13 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       <div className="space-y-1.5" data-testid="receipt-container">
         <WorkspaceShell
           testIdPrefix="receipt"
-          // Issue #837 PR1: 1024px未満は1列表示になるため、CSS order で
-          // rail（utilityRail + 検索）を main（集計 + 明細）より前に出す。
-          // DOM順・単一SearchCardインスタンス・lg:以上の配置は変えない。
+          // Issue #839: rail（utilityRail + 検索）を main（集計 + 明細）より前に
+          // DOMレンダリングする。CSS order と違い Tab 順・読み上げ順も検索先になる。
+          // lg以上では order クラスで main を左列・rail を右列に戻す
+          //（grid は order 順に自動配置されるためPC表示は不変）。
+          // 条件レンダリングではなく単一SearchCardインスタンスのままなので
+          // ブレークポイント跨ぎで内部stateは保持される。
+          railFirst
           mainClassName="space-y-2 order-2 lg:order-1"
           railClassName="order-1 lg:order-2"
           main={<>{header}{mainCard}</>}
