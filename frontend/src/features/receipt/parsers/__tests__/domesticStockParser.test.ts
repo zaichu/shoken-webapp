@@ -35,7 +35,7 @@ const createZeroLikeInput = (shape: Record<string, unknown>) => {
 
 describe('domesticStockParser', () => {
   describe('sortDomesticStockByTradeDate', () => {
-    it('sorts domestic stock records by trade_date in ascending order', () => {
+    it('sorts domestic stock records by trade_date in descending order', () => {
       const records = [
         transformDBDomesticStock({ trade_date: '2024-03-15' }),
         transformDBDomesticStock({ trade_date: '2024-01-10' }),
@@ -47,9 +47,9 @@ describe('domesticStockParser', () => {
       );
 
       expect(sorted).toEqual([
-        new Date('2024-01-10').toISOString(),
-        new Date('2024-02-20').toISOString(),
         new Date('2024-03-15').toISOString(),
+        new Date('2024-02-20').toISOString(),
+        new Date('2024-01-10').toISOString(),
       ]);
     });
   });

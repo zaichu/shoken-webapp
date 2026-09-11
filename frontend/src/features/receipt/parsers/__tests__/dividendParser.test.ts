@@ -35,7 +35,7 @@ const createZeroLikeInput = (shape: Record<string, unknown>) => {
 
 describe('dividendParser', () => {
   describe('sortDividendBySettlementDate', () => {
-    it('sorts dividends by settlement_date in ascending order', () => {
+    it('sorts dividends by settlement_date in descending order', () => {
       const records = [
         transformDBDividend({ settlement_date: '2024-03-31' }),
         transformDBDividend({ settlement_date: '2024-01-31' }),
@@ -47,9 +47,9 @@ describe('dividendParser', () => {
       );
 
       expect(sorted).toEqual([
-        new Date('2024-01-31').toISOString(),
-        new Date('2024-02-29').toISOString(),
         new Date('2024-03-31').toISOString(),
+        new Date('2024-02-29').toISOString(),
+        new Date('2024-01-31').toISOString(),
       ]);
     });
   });
