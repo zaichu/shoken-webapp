@@ -6,7 +6,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use governor::{DefaultDirectRateLimiter, DefaultKeyedRateLimiter, Quota, RateLimiter};
+use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 
 use crate::errors::simple_error_response;
 
@@ -16,14 +16,6 @@ fn rate_limit_error() -> Response {
         "RATE_LIMIT_EXCEEDED",
         "リクエストが多すぎます。しばらくしてから再試行してください。".to_string(),
     )
-}
-
-/// 毎秒 rps リクエストを許可するグローバルレート制限インスタンスを生成する
-/// （jquants など外部 API クォータ保護に使用）
-/// rps = 0 の場合は制限なし（None）を返す
-pub fn build_rate_limiter(rps: u32) -> Option<Arc<DefaultDirectRateLimiter>> {
-    let rps = std::num::NonZeroU32::new(rps)?;
-    Some(Arc::new(RateLimiter::direct(Quota::per_second(rps))))
 }
 
 /// IP 単位のレート制限インスタンスを生成する（auth など DoS 対策に使用）
@@ -50,18 +42,6 @@ fn extract_client_ip(req: &Request<Body>) -> std::net::IpAddr {
         .unwrap_or(std::net::IpAddr::from([0, 0, 0, 0]))
 }
 
-/// グローバルレート制限ミドルウェア。制限超過時は 429 を返す
-pub async fn rate_limit(
-    limiter: Arc<DefaultDirectRateLimiter>,
-    req: Request<Body>,
-    next: Next,
-) -> Response {
-    if limiter.check().is_err() {
-        return rate_limit_error();
-    }
-    next.run(req).await
-}
-
 /// IP 単位レート制限ミドルウェア。制限超過時は 429 を返す
 pub async fn keyed_rate_limit(
     limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>,
@@ -83,12 +63,6 @@ mod tests {
     };
     fn test_route() -> Router {
         Router::new().route("/test", post(|| async { "ok" }))
-    }
-    fn direct_app(limiter: Arc<DefaultDirectRateLimiter>) -> Router {
-        test_route().layer(middleware::from_fn(move |req, next| {
-            let limiter = limiter.clone();
-            async move { rate_limit(limiter, req, next).await }
-        }))
     }
     fn keyed_app(limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>) -> Router {
         test_route().layer(middleware::from_fn(move |req, next| {
@@ -117,16 +91,11 @@ mod tests {
     async fn test_rate_limiters() {
         assert_eq!(
             (
-                build_rate_limiter(0).is_none(),
-                build_rate_limiter(10).is_some(),
                 build_keyed_rate_limiter(0).is_none(),
                 build_keyed_rate_limiter(10).is_some()
             ),
-            (true, true, true, true)
+            (true, true)
         );
-        let router = direct_app(build_rate_limiter(1).unwrap());
-        assert_status(router.clone(), None, StatusCode::OK).await;
-        assert_status(router, None, StatusCode::TOO_MANY_REQUESTS).await;
         let router = keyed_app(build_keyed_rate_limiter(1).unwrap());
         assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await;
         assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await;

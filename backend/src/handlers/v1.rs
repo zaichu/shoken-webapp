@@ -8,7 +8,6 @@ pub mod asset_balances;
 pub mod auth;
 pub mod dividends;
 pub mod domestic_stocks;
-pub mod market_data;
 pub mod mutual_funds;
 pub mod stocks;
 
@@ -93,14 +92,6 @@ pub fn csv_upload_routes() -> Router<AppState> {
             "/api/v1/asset-balance-imports",
             post(asset_balances::import),
         )
-}
-
-/// Market data 系 v1 ルート（market_data_limiter 対象）
-pub fn market_data_routes() -> Router<AppState> {
-    Router::new().route(
-        "/api/v1/financial-statements",
-        get(market_data::get_financial_statements),
-    )
 }
 
 // テスト
@@ -267,11 +258,6 @@ mod tests {
                 data_routes().with_state(make_test_state()),
                 Method::DELETE,
                 "/api/v1/asset-balances",
-            ),
-            (
-                market_data_routes().with_state(make_test_state()),
-                Method::GET,
-                "/api/v1/financial-statements",
             ),
             (
                 auth_routes().with_state(make_test_state()),

@@ -13,8 +13,6 @@ pub struct Config {
     pub database_max_connections: u32,
     /// `/auth/*` ルートへのレート制限（リクエスト/秒）。0 は無制限
     pub auth_rate_limit_rps: u32,
-    /// market data 系ルート（`/api/v1/financial-statements` 等）へのレート制限（リクエスト/秒）。0 は無制限
-    pub market_data_rate_limit_rps: u32,
     /// CSV アップロードルートへの IP 単位レート制限（リクエスト/秒）。0 は無制限
     pub csv_rate_limit_rps: u32,
     /// 銘柄検索ルート（`GET /api/v1/stocks`）への IP 単位レート制限（リクエスト/秒）。0 は無制限
@@ -33,7 +31,6 @@ impl Default for Config {
             ],
             database_max_connections: 5,
             auth_rate_limit_rps: 10,
-            market_data_rate_limit_rps: 5,
             csv_rate_limit_rps: 2,
             stock_search_rate_limit_rps: 10,
         }
@@ -57,10 +54,6 @@ impl Config {
         }
         if let Some(v) = parse_rps("STOCK_SEARCH_RATE_LIMIT_RPS") {
             config.stock_search_rate_limit_rps = v;
-        }
-        // JQUANTS_RATE_LIMIT_RPS は後方互換のため環境変数名を維持
-        if let Some(v) = parse_rps("JQUANTS_RATE_LIMIT_RPS") {
-            config.market_data_rate_limit_rps = v;
         }
 
         config.csv_rate_limit_rps = csv_rate_limit_rps();
@@ -167,7 +160,6 @@ mod tests {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
             auth_rate_limit_rps: 10,
-            market_data_rate_limit_rps: 5,
             csv_rate_limit_rps: 2,
             stock_search_rate_limit_rps: 10,
         };
@@ -189,16 +181,6 @@ mod tests {
         assert_eq!(url, expected_url);
         assert!(server_addr().starts_with("0.0.0.0:"));
         let _ = is_secure_cookie();
-    }
-    #[test]
-    fn test_config_from_env_market_data_rps() {
-        let _guard = ENV_MUTEX.blocking_lock();
-        let _env = EnvGuard::set("JQUANTS_RATE_LIMIT_RPS", Some("7"));
-        let _env2 = EnvGuard::set("FRONTEND_URL", None);
-        let _env3 = EnvGuard::set("BACKEND_URL", None);
-
-        let config = Config::from_env();
-        assert_eq!(config.market_data_rate_limit_rps, 7);
     }
     #[test]
     fn test_config_from_env_stock_search_rps() {

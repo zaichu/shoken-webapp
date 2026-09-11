@@ -10,7 +10,6 @@ pub mod dividend_cache;
 pub mod domestic_stock;
 pub mod facets;
 pub mod market_data;
-pub mod market_data_cache;
 pub mod mutualfund;
 pub mod search_filters;
 pub mod stock;

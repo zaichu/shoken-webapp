@@ -13,7 +13,6 @@ use crate::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
         },
         domestic_stock::DomesticStock,
-        market_data::financial_statement::{FinancialStatementData, FinancialStatementsResponse},
         mutualfund::Mutualfund,
         stock::Stock,
         user::UserResponse,
@@ -49,7 +48,6 @@ use crate::{
         handlers::v1::asset_balances::delete_all,
         handlers::v1::asset_balances::validate_import,
         handlers::v1::asset_balances::import,
-        handlers::v1::market_data::get_financial_statements,
     ),
     components(
         schemas(
@@ -69,8 +67,6 @@ use crate::{
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,
-            FinancialStatementsResponse,
-            FinancialStatementData,
             ErrorResponse,
             ErrorDetails,
         )
