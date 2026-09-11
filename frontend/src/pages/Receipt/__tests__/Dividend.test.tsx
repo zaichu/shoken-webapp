@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import * as receiptHooks from '@/hooks/receipt/useReceiptData';
@@ -95,30 +95,33 @@ describe('Dividend', () => {
         render(<Dividend data={mockData} />);
 
         // テーブルヘッダーの確認（実際のカラム定義に合わせる）
+        // スマホカードにも同じラベルが出るためテーブル内にスコープする
+        const table = within(screen.getByRole('table'));
         // 「商品」「口座」は検索オプション内にも表示されるためgetAllByTextを使用
-        expect(screen.getByText('入金日')).toBeInTheDocument();
+        expect(table.getByText('入金日')).toBeInTheDocument();
         expect(screen.getAllByText('商品').length).toBeGreaterThan(0);
         expect(screen.getAllByText('口座').length).toBeGreaterThan(0);
-        expect(screen.getByText('銘柄コード')).toBeInTheDocument();
-        expect(screen.getByText('銘柄名')).toBeInTheDocument();
-        expect(screen.getByText('単価')).toBeInTheDocument();
-        expect(screen.getByText('数量')).toBeInTheDocument();
+        expect(table.getByText('銘柄コード')).toBeInTheDocument();
+        expect(table.getByText('銘柄名')).toBeInTheDocument();
+        expect(table.getByText('単価')).toBeInTheDocument();
+        expect(table.getByText('数量')).toBeInTheDocument();
         // 「配当金」はページタイトルとしても表示されるためgetAllByTextを使用
         const dividendElements = screen.getAllByText('配当金');
         expect(dividendElements.length).toBeGreaterThan(0);
         // 「税額」「受取金額」は集計情報にも表示されるためgetAllByTextを使用
         expect(screen.getAllByText('税額').length).toBeGreaterThan(0);
-        expect(screen.getByText('受取額')).toBeInTheDocument();
+        expect(table.getByText('受取額')).toBeInTheDocument();
     });
 
     it('CSVデータが正しく表示される', () => {
         render(<Dividend data={mockData} />);
 
-        // データの内容確認
-        expect(screen.getByText('1234')).toBeInTheDocument();
-        expect(screen.getByText('テスト株式1')).toBeInTheDocument();
-        expect(screen.getByText('5678')).toBeInTheDocument();
-        expect(screen.getByText('テスト株式2')).toBeInTheDocument();
+        // データの内容確認（スマホカードにも同じ値が出るためテーブル内にスコープする）
+        const table = within(screen.getByRole('table'));
+        expect(table.getByText('1234')).toBeInTheDocument();
+        expect(table.getByText('テスト株式1')).toBeInTheDocument();
+        expect(table.getByText('5678')).toBeInTheDocument();
+        expect(table.getByText('テスト株式2')).toBeInTheDocument();
     });
 
     it('銘柄名を右クリックしてもコピーされない', () => {
@@ -134,7 +137,7 @@ describe('Dividend', () => {
             security_name: 'ＫＤＤＩ',
         }]} />);
 
-        fireEvent.contextMenu(screen.getByText('ＫＤＤＩ'));
+        fireEvent.contextMenu(within(screen.getByRole('table')).getByText('ＫＤＤＩ'));
 
         expect(writeText).not.toHaveBeenCalled();
     });
@@ -152,7 +155,7 @@ describe('Dividend', () => {
             security_name: 'ＫＤＤＩ',
         }]} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
+        fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'ＫＤＤＩ(9433) をコピー' }));
 
         expect(writeText).toHaveBeenCalledWith('ＫＤＤＩ(9433)');
     });
@@ -404,8 +407,10 @@ describe('Dividend', () => {
         await user.click(await screen.findByRole('option', { name: '2023年' }));
 
         await waitFor(() => {
-            expect(screen.getByText('2023年1月')).toBeInTheDocument();
-            expect(screen.getByText('2023年2月')).toBeInTheDocument();
+            // グループ見出しはスマホカードにも出るためテーブル内にスコープする
+            const table = within(screen.getByRole('table'));
+            expect(table.getByText('2023年1月')).toBeInTheDocument();
+            expect(table.getByText('2023年2月')).toBeInTheDocument();
         });
     });
 
@@ -420,8 +425,9 @@ describe('Dividend', () => {
         try {
             render(<Dividend data={mockData} />);
 
-            expect(screen.getByText('2023年1月')).toBeInTheDocument();
-            expect(screen.queryByText('2023年2月')).not.toBeInTheDocument();
+            const table = within(screen.getByRole('table'));
+            expect(table.getByText('2023年1月')).toBeInTheDocument();
+            expect(table.queryByText('2023年2月')).not.toBeInTheDocument();
         } finally {
             useReceiptBaseDataSpy.mockRestore();
         }
@@ -495,8 +501,9 @@ describe('Dividend', () => {
         try {
             render(<Dividend data={mockData} />);
 
-            expect(screen.getByText('2023年1月')).toBeInTheDocument();
-            expect(screen.queryByText('2023年2月')).not.toBeInTheDocument();
+            const table = within(screen.getByRole('table'));
+            expect(table.getByText('2023年1月')).toBeInTheDocument();
+            expect(table.queryByText('2023年2月')).not.toBeInTheDocument();
         } finally {
             useReceiptBaseDataSpy.mockRestore();
         }

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { ReceiptTemplate } from '../ReceiptTemplate';
@@ -122,10 +122,11 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       expect(mockOnSearchExpandToggle).toHaveBeenCalledWith(false);
     });
 
-    // テーブルが正常に表示されることを確認
-    expect(screen.getByText('商品A')).toBeInTheDocument();
-    expect(screen.getByText('商品B')).toBeInTheDocument();
-    expect(screen.getByText('商品C')).toBeInTheDocument();
+    // テーブルが正常に表示されることを確認（スマホカードにも同じ値が出るためテーブル内にスコープする）
+    const tableInTemplate = within(screen.getByRole('table'));
+    expect(tableInTemplate.getByText('商品A')).toBeInTheDocument();
+    expect(tableInTemplate.getByText('商品B')).toBeInTheDocument();
+    expect(tableInTemplate.getByText('商品C')).toBeInTheDocument();
   });
 
   test('検索機能が正常に動作する', () => {
@@ -210,20 +211,21 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // ヘッダーの確認
-    expect(screen.getByText('ID')).toBeInTheDocument();
-    expect(screen.getByText('名前')).toBeInTheDocument();
-    expect(screen.getByText('金額')).toBeInTheDocument();
-    expect(screen.getByText('カテゴリ')).toBeInTheDocument();
+    // ヘッダーの確認（スマホカードにも同じラベルが出るためテーブル内にスコープする）
+    const tableHeaders = within(screen.getByRole('table'));
+    expect(tableHeaders.getByText('ID')).toBeInTheDocument();
+    expect(tableHeaders.getByText('名前')).toBeInTheDocument();
+    expect(tableHeaders.getByText('金額')).toBeInTheDocument();
+    expect(tableHeaders.getByText('カテゴリ')).toBeInTheDocument();
 
     // データの確認（複数箇所に同一テキストが出る場合は getAllByText を使用）
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
-    expect(screen.getByText('商品A')).toBeInTheDocument();
-    expect(screen.getByText('1000')).toBeInTheDocument();
+    expect(tableHeaders.getByText('商品A')).toBeInTheDocument();
+    expect(tableHeaders.getByText('1000')).toBeInTheDocument();
     expect(screen.getAllByText('カテゴリ1').length).toBeGreaterThan(0);
 
     // サマリーの確認（1500 はデータ行とサマリー行の両方に出る）
-    expect(screen.getByText('3000')).toBeInTheDocument();
+    expect(tableHeaders.getByText('3000')).toBeInTheDocument();
     expect(screen.getAllByText('1500').length).toBeGreaterThan(0);
   });
 
@@ -337,11 +339,12 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       />
     );
 
-    // テーブルが正常に表示されることを確認
+    // テーブルが正常に表示されることを確認（スマホカードにも同じ値が出るためテーブル内にスコープする）
     expect(screen.getByRole('table')).toBeInTheDocument();
-    expect(screen.getByText('商品A')).toBeInTheDocument();
-    expect(screen.getByText('商品B')).toBeInTheDocument();
-    expect(screen.getByText('商品C')).toBeInTheDocument();
+    const singleTable = within(screen.getByRole('table'));
+    expect(singleTable.getByText('商品A')).toBeInTheDocument();
+    expect(singleTable.getByText('商品B')).toBeInTheDocument();
+    expect(singleTable.getByText('商品C')).toBeInTheDocument();
   });
 
   test('ResizeObserverが設定されてもテーブルが正常に動作する', () => {
@@ -361,8 +364,8 @@ describe('ReceiptTemplate Context API統合テスト', () => {
       </ReceiptTemplate>
     );
 
-    // テーブルが正常に表示されることを確認
+    // テーブルが正常に表示されることを確認（スマホカードにも同じ値が出るためテーブル内にスコープする）
     expect(screen.getByRole('table')).toBeInTheDocument();
-    expect(screen.getByText('商品A')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('商品A')).toBeInTheDocument();
   });
 });
