@@ -76,4 +76,37 @@ describe('WorkspaceShell', () => {
 
     expect(screen.getByTestId('utility-rail').getAttribute('class')).toBeNull();
   });
+
+  it('デフォルトではmainがrailより前にレンダリングされる（DOM順）', () => {
+    render(
+      <WorkspaceShell
+        main={<div>メイン</div>}
+        rail={<div>サイド</div>}
+      />
+    );
+
+    const workspace = screen.getByTestId('workspace');
+    const mainStage = screen.getByTestId('main-stage');
+    const utilityRail = screen.getByTestId('utility-rail');
+    expect(workspace).toContainElement(mainStage);
+    expect(workspace).toContainElement(utilityRail);
+    expect(mainStage.compareDocumentPosition(utilityRail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('railFirstではrailがmainより前にレンダリングされる（Issue #839）', () => {
+    render(
+      <WorkspaceShell
+        main={<div>メイン</div>}
+        rail={<div>サイド</div>}
+        railFirst
+      />
+    );
+
+    const utilityRail = screen.getByTestId('utility-rail');
+    const mainStage = screen.getByTestId('main-stage');
+    expect(utilityRail.compareDocumentPosition(mainStage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 中身はそのまま（main・rail の対応関係は変わらない）
+    expect(mainStage).toHaveTextContent('メイン');
+    expect(utilityRail).toHaveTextContent('サイド');
+  });
 });

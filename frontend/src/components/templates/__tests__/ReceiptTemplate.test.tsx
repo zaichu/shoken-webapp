@@ -18,6 +18,18 @@ const MockReceiptTable = React.forwardRef<HTMLDivElement, React.HTMLAttributes<H
 );
 MockReceiptTable.displayName = 'ReceiptTable';
 
+// rail内state保持テスト用のstatefulプローブ
+const StatefulProbe: React.FC = () => {
+  const [value, setValue] = React.useState('');
+  return (
+    <input
+      data-testid="state-probe"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+    />
+  );
+};
+
 // SearchCardのモック
 vi.mock('@/components/organisms/SearchCard/SearchCard', () => ({
   SearchCard: ({ onSearch, onExpandToggle, initialExpanded }: {
@@ -282,7 +294,7 @@ describe('ReceiptTemplate', () => {
     expect(mainStage).toContainElement(screen.getByTestId('mock-receipt-table'));
   });
 
-  test('workspaceレイアウトでは1024px未満でrailがmainより前に表示される（Issue #837 PR1）', () => {
+  test('workspaceレイアウトではrailがmainより前にDOM配置される（Issue #839）', () => {
     const headerContent = <div data-testid="workspace-header">集計ヘッダー</div>;
     const railTools = <div data-testid="workspace-tools">CSV操作</div>;
 
@@ -296,13 +308,50 @@ describe('ReceiptTemplate', () => {
       />
     );
 
-    // CSS order のみで視覚順を変える。DOM順・PC配置（lg:）は従来どおり
-    expect(screen.getByTestId('receipt-utility-rail')).toHaveClass('order-1', 'lg:order-2');
-    expect(screen.getByTestId('receipt-main-stage')).toHaveClass('order-2', 'lg:order-1');
+    // DOM順自体が rail → main。Tab順・読み上げ順が視覚順（検索が先）と一致する
+    const utilityRail = screen.getByTestId('receipt-utility-rail');
+    const mainStage = screen.getByTestId('receipt-main-stage');
+    expect(utilityRail.compareDocumentPosition(mainStage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // lg以上では order で main を左列・rail を右列に戻す（PC表示は不変）
+    expect(utilityRail).toHaveClass('order-1', 'lg:order-2');
+    expect(mainStage).toHaveClass('order-2', 'lg:order-1');
 
     // 検索カードは単一インスタンスのまま rail 内に残る（DOM二重化なし）
     expect(screen.getAllByTestId('search-card')).toHaveLength(1);
-    expect(screen.getByTestId('receipt-utility-rail')).toContainElement(screen.getByTestId('search-card'));
+    expect(utilityRail).toContainElement(screen.getByTestId('search-card'));
+  });
+
+  test('再レンダー・リサイズ後もrail内のstateが保持される（Issue #839・単一インスタンス）', () => {
+    const { rerender } = render(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        onSearch={mockOnSearch}
+        utilityRail={<StatefulProbe />}
+      />
+    );
+
+    const probe = screen.getByTestId('state-probe');
+    fireEvent.change(probe, { target: { value: 'キープ' } });
+    expect(probe).toHaveValue('キープ');
+
+    // ブレークポイント跨ぎを模したリサイズ＋再レンダーでも同一ノード・state維持。
+    // 条件レンダリング（matchMediaでマウント位置切替）なら再マウントで失われる。
+    window.dispatchEvent(new Event('resize'));
+    rerender(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        onSearch={mockOnSearch}
+        utilityRail={<StatefulProbe />}
+      />
+    );
+
+    const probeAfter = screen.getByTestId('state-probe');
+    expect(probeAfter).toBe(probe);
+    expect(probeAfter).toHaveValue('キープ');
+    expect(screen.getAllByTestId('search-card')).toHaveLength(1);
   });
 
   test('stackレイアウトではorderクラスを付けない', () => {

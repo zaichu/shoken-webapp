@@ -22,102 +22,109 @@ const ROUTES = {
   assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   dividendPerShare: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
   stock: /\/api\/v1\/stocks(?:\?.*)?$/,
-  facets: /\/api\/v1\/.*facets(?:\?.*)?$/,
 };
 
-const DIVIDENDS = [
-  {
-    id: '00000000-0000-0000-0000-000000000001',
+const STOCKS = [
+  ['7203', 'トヨタ自動車'],
+  ['9432', '日本電信電話'],
+  ['6758', 'ソニーグループ'],
+  ['8306', '三菱UFJフィナンシャル・グループ'],
+  ['9984', 'ソフトバンクグループ'],
+  ['4502', '武田薬品工業'],
+  ['6861', 'キーエンス'],
+  ['8058', '三菱商事'],
+];
+
+// 実使用に近い件数で描画を確認するため、複数日付にまたがる明細を生成する
+const DIVIDENDS = Array.from({ length: 18 }, (_, i) => {
+  const [code, name] = STOCKS[i % STOCKS.length];
+  const month = String((i % 12) + 1).padStart(2, '0');
+  const day = String((i % 27) + 1).padStart(2, '0');
+  return {
+    id: `dividend-${i}`,
     user_id: MOCK_USER.id,
-    settlement_date: '2024-03-01',
-    product: '特定口座',
-    account: 'SBI証券',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
-    unit_price: '30.0',
-    shares: '100',
-    dividends_before_tax: '3000',
-    taxes: '609',
-    net_amount_received: '2391',
+    settlement_date: `2024-${month}-${day}`,
+    product: i % 2 === 0 ? '特定口座' : 'NISA口座',
+    account: i % 3 === 0 ? 'SBI証券' : '楽天証券',
+    security_code: code,
+    security_name: name,
+    unit_price: String(10 + i * 3),
+    shares: String(100 * ((i % 5) + 1)),
+    dividends_before_tax: String(3000 + i * 1234),
+    taxes: String(609 + i * 250),
+    net_amount_received: String(2391 + i * 984),
     created_at: '2024-03-01T00:00:00Z',
     updated_at: '2024-03-01T00:00:00Z',
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000002',
-    user_id: MOCK_USER.id,
-    settlement_date: '2024-06-28',
-    product: 'NISA口座',
-    account: '楽天証券',
-    security_code: '9432',
-    security_name: '日本電信電話',
-    unit_price: '2.5',
-    shares: '1000',
-    dividends_before_tax: '2500',
-    taxes: '507',
-    net_amount_received: '1993',
-    created_at: '2024-06-28T00:00:00Z',
-    updated_at: '2024-06-28T00:00:00Z',
-  },
-];
+  };
+});
 
-const DOMESTIC_STOCKS = [
-  {
-    id: '00000000-0000-0000-0000-000000000011',
-    trade_date: '2024-05-10',
-    settlement_date: '2024-05-14',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
-    account: '特定口座',
-    shares: '100',
-    asked_price: '2800',
-    proceeds: '280000',
-    purchase_price: '2500',
-    realized_profit_and_loss: '30000',
-    taxes: '6090',
-    realized_profit_and_loss_after_tax: '23910',
+const DOMESTIC_STOCKS = Array.from({ length: 15 }, (_, i) => {
+  const [code, name] = STOCKS[i % STOCKS.length];
+  const month = String((i % 12) + 1).padStart(2, '0');
+  const day = String((i % 27) + 1).padStart(2, '0');
+  return {
+    id: `domestic-${i}`,
+    trade_date: `2024-${month}-${day}`,
+    settlement_date: `2024-${month}-${day}`,
+    security_code: code,
+    security_name: name,
+    account: i % 2 === 0 ? '特定口座' : 'NISA口座',
+    shares: String(100 * ((i % 4) + 1)),
+    asked_price: String(2800 + i * 150),
+    proceeds: String(280000 + i * 15000),
+    purchase_price: String(2500 + i * 120),
+    realized_profit_and_loss: String(30000 - i * 2500),
+    taxes: String(6090 - i * 400),
+    realized_profit_and_loss_after_tax: String(23910 - i * 2100),
     created_at: '2024-05-10T00:00:00Z',
     updated_at: '2024-05-10T00:00:00Z',
-  },
-];
+  };
+});
 
-const MUTUALFUNDS = [
-  {
-    id: '00000000-0000-0000-0000-000000000021',
-    trade_date: '2024-04-02',
-    settlement_date: '2024-04-05',
-    fund_name: 'eMAXIS Slim 全世界株式（オール・カントリー）',
-    account: '特定口座',
-    shares: '10000',
+const MUTUALFUNDS = Array.from({ length: 12 }, (_, i) => {
+  const month = String((i % 12) + 1).padStart(2, '0');
+  const day = String((i % 27) + 1).padStart(2, '0');
+  return {
+    id: `mutualfund-${i}`,
+    trade_date: `2024-${month}-${day}`,
+    settlement_date: `2024-${month}-${day}`,
+    fund_name:
+      i % 2 === 0
+        ? 'eMAXIS Slim 全世界株式（オール・カントリー）'
+        : 'SBI・V・S&P500インデックス・ファンド',
+    account: i % 2 === 0 ? '特定口座' : 'NISA口座',
+    shares: String(10000 + i * 1500),
     exchange_rate: '1',
-    cancellation_unit_price_yen: '21000',
-    cancellation_amount_yen: '210000',
-    average_acquisition_price_yen: '18000',
+    cancellation_unit_price_yen: String(21000 + i * 800),
+    cancellation_amount_yen: String(210000 + i * 12000),
+    average_acquisition_price_yen: String(18000 + i * 600),
     dividends: '0',
-    realized_profit_and_loss: '30000',
-    taxes: '6090',
-    realized_profit_and_loss_after_tax: '23910',
+    realized_profit_and_loss: String(30000 - i * 1800),
+    taxes: String(6090 - i * 350),
+    realized_profit_and_loss_after_tax: String(23910 - i * 1450),
     created_at: '2024-04-02T00:00:00Z',
     updated_at: '2024-04-02T00:00:00Z',
-  },
-];
+  };
+});
 
-const ASSET_BALANCES = [
-  {
-    id: 'asset-balance-1',
+const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
+  const [code, name] = STOCKS[i % STOCKS.length];
+  return {
+    id: `asset-balance-${i}`,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
-    shares: 100,
+    security_code: code,
+    security_name: name,
+    shares: 100 * (i + 1),
     executing_shares: 0,
-    average_purchase_price: 2500,
-    total_purchase_amount: 250000,
-    current_price: 2600,
-    daily_change: 50,
-    market_value: 260000,
-    profit_loss_rate: 4.0,
-  },
-];
+    average_purchase_price: 2500 + i * 300,
+    total_purchase_amount: 250000 + i * 120000,
+    current_price: 2600 + i * 310,
+    daily_change: 50 - i * 12,
+    market_value: 260000 + i * 125000,
+    profit_loss_rate: 4.0 - i * 0.7,
+  };
+});
 
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
@@ -141,7 +148,12 @@ async function mockApi(page: Page) {
   await page.route(ROUTES.dividendPerShare, (route) =>
     route.fulfill(
       json({
-        data: [{ security_code: '7203', dividend_per_share: 30, status: 'ok', is_stale: false }],
+        data: STOCKS.map(([code]) => ({
+          security_code: code,
+          dividend_per_share: 30,
+          status: 'ok',
+          is_stale: false,
+        })),
       }),
     ),
   );
