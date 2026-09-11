@@ -56,13 +56,13 @@ describe('PortfolioPieChart', () => {
     expect(codeChips.map((chip) => chip.textContent)).toEqual(expect.arrayContaining(['7203', '6758', '7974']));
   });
 
-  it('取得総額・取得単価・数量はモバイル2列/sm以上3列の acquisition strip で表示される', () => {
+  it('取得総額・取得単価・数量は3列の acquisition strip で表示される', () => {
     const { container } = render(<PortfolioPieChart data={mockData} />);
 
     const acquisitionStrips = container.querySelectorAll('[data-testid="portfolio-card-acquisition-stats"]');
     expect(acquisitionStrips).toHaveLength(3);
     acquisitionStrips.forEach((strip) => {
-      expect(strip).toHaveClass('grid', 'grid-cols-2', 'sm:grid-cols-3');
+      expect(strip).toHaveClass('grid', 'grid-cols-3');
     });
   });
 
