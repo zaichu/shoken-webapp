@@ -54,7 +54,11 @@ const ReceiptTemplateContent: React.FC<ReceiptTemplateProps> = ({
       <div className="space-y-1.5" data-testid="receipt-container">
         <WorkspaceShell
           testIdPrefix="receipt"
-          mainClassName="space-y-2"
+          // Issue #837 PR1: 1024px未満は1列表示になるため、CSS order で
+          // rail（utilityRail + 検索）を main（集計 + 明細）より前に出す。
+          // DOM順・単一SearchCardインスタンス・lg:以上の配置は変えない。
+          mainClassName="space-y-2 order-2 lg:order-1"
+          railClassName="order-1 lg:order-2"
           main={<>{header}{mainCard}</>}
           rail={<>{utilityRail}{searchCard}</>}
         />
