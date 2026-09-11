@@ -5,10 +5,11 @@ interface WorkspaceShellProps {
   main: ReactNode;
   rail: ReactNode;
   mainClassName?: string;
+  railClassName?: string;
   testIdPrefix?: string;
 }
 
-export function WorkspaceShell({ main, rail, mainClassName, testIdPrefix = '' }: WorkspaceShellProps) {
+export function WorkspaceShell({ main, rail, mainClassName, railClassName, testIdPrefix = '' }: WorkspaceShellProps) {
   const prefix = testIdPrefix ? `${testIdPrefix}-` : '';
   return (
     <div
@@ -18,7 +19,7 @@ export function WorkspaceShell({ main, rail, mainClassName, testIdPrefix = '' }:
       <div className={cn('min-w-0', mainClassName)} data-testid={`${prefix}main-stage`}>
         {main}
       </div>
-      <aside data-testid={`${prefix}utility-rail`}>
+      <aside className={railClassName} data-testid={`${prefix}utility-rail`}>
         <div className="overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10">
           {rail}
         </div>

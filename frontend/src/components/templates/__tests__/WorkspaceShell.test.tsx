@@ -53,4 +53,27 @@ describe('WorkspaceShell', () => {
 
     expect(screen.getByTestId('main-stage')).toHaveClass('custom-main');
   });
+
+  it('railClassNameがutility railに適用される', () => {
+    render(
+      <WorkspaceShell
+        main={<div>メイン</div>}
+        rail={<div>サイド</div>}
+        railClassName="custom-rail"
+      />
+    );
+
+    expect(screen.getByTestId('utility-rail')).toHaveClass('custom-rail');
+  });
+
+  it('railClassNameなしではutility railにクラスが付かない', () => {
+    render(
+      <WorkspaceShell
+        main={<div>メイン</div>}
+        rail={<div>サイド</div>}
+      />
+    );
+
+    expect(screen.getByTestId('utility-rail').getAttribute('class')).toBeNull();
+  });
 });

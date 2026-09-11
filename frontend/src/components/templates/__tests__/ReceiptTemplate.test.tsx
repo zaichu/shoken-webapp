@@ -280,4 +280,39 @@ describe('ReceiptTemplate', () => {
     expect(mainStage).toContainElement(screen.getByTestId('workspace-header'));
     expect(mainStage).toContainElement(screen.getByTestId('mock-receipt-table'));
   });
+
+  test('workspaceレイアウトでは1024px未満でrailがmainより前に表示される（Issue #837 PR1）', () => {
+    const headerContent = <div data-testid="workspace-header">集計ヘッダー</div>;
+    const railTools = <div data-testid="workspace-tools">CSV操作</div>;
+
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        layout="workspace"
+        onSearch={mockOnSearch}
+        header={headerContent}
+        utilityRail={railTools}
+      />
+    );
+
+    // CSS order のみで視覚順を変える。DOM順・PC配置（lg:）は従来どおり
+    expect(screen.getByTestId('receipt-utility-rail')).toHaveClass('order-1', 'lg:order-2');
+    expect(screen.getByTestId('receipt-main-stage')).toHaveClass('order-2', 'lg:order-1');
+
+    // 検索カードは単一インスタンスのまま rail 内に残る（DOM二重化なし）
+    expect(screen.getAllByTestId('search-card')).toHaveLength(1);
+    expect(screen.getByTestId('receipt-utility-rail')).toContainElement(screen.getByTestId('search-card'));
+  });
+
+  test('stackレイアウトではorderクラスを付けない', () => {
+    render(
+      <ReceiptTemplate
+        {...defaultProps}
+        onSearch={mockOnSearch}
+      />
+    );
+
+    expect(screen.queryByTestId('receipt-workspace')).not.toBeInTheDocument();
+    expect(screen.getByTestId('search-card')).toBeInTheDocument();
+  });
 });
