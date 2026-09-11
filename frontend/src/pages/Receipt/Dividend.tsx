@@ -217,6 +217,10 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
                 />
             ) : (
                 <ReceiptTable
+                    primaryKey="net_amount_received"
+                    nameKey="security_name"
+                    dateKey="settlement_date"
+                    accountKey="account"
                     data={filteredData}
                     summary={groupedSummary}
                     columns={columns}

@@ -141,6 +141,10 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
                 />
             ) : (
                 <ReceiptTable
+                    primaryKey="realized_profit_and_loss_after_tax"
+                    nameKey="fund_name"
+                    dateKey="trade_date"
+                    accountKey="account"
                     data={filteredData}
                     summary={groupedSummary}
                     columns={columns}
