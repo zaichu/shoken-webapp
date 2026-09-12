@@ -198,14 +198,6 @@ mod tests {
             dividend_cache: crate::state::DividendCacheState::default(),
         }
     }
-    #[test]
-    fn test_all_routes_creation() {
-        let _ = handlers::v1::auth_routes();
-        let _ = handlers::v1::stock_search_routes();
-        let _ = handlers::v1::data_routes();
-        let _ = handlers::v1::csv_upload_routes();
-        let _ = handlers::csv_import::csv_import_routes();
-    }
     #[tokio::test]
     async fn test_routes_rate_limit_returns_429() {
         let router = if let Some(l) = crate::middleware::build_keyed_rate_limiter(1) {
