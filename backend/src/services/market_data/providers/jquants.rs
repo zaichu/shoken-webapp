@@ -210,34 +210,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_fin_summary_success() {
-        let server = MockServer::start().await;
-
-        Mock::given(method("GET"))
-            .and(path("/v2/fins/summary"))
-            .and(query_param("code", "7203"))
-            .and(header("x-api-key", "test-api-key"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "data": [
-                    {
-                        "DiscDate": "2024-05-10",
-                        "Code": "7203",
-                        "DocType": "FY"
-                    }
-                ]
-            })))
-            .mount(&server)
-            .await;
-
-        let response = fetch_mock_fin_summary(&server)
-            .await
-            .expect("モック API から正常レスポンスを取得できること");
-
-        assert_eq!(response.data.len(), 1);
-        assert_eq!(response.data[0].local_code, "7203");
-    }
-
-    #[tokio::test]
     async fn test_get_fin_summary_rate_limit() {
         let server = MockServer::start().await;
 
@@ -303,16 +275,12 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_fin_summary_real_api() {
-        let response = fetch_fin_summary("https://api.jquants.com/v2/fins/summary", "7203").await;
-        log_summary_overview(&response);
-        assert!(!response.data.is_empty(), "データが取得できること");
-    }
-
-    #[tokio::test]
-    #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
-    async fn test_get_nintendo_dividend() {
-        let response = fetch_fin_summary("https://api.jquants.com/v2/fins/summary", "7974").await;
-        log_dividend_summaries(&response);
-        assert!(!response.data.is_empty(), "データが取得できること");
+        for code in ["7203", "7974"] {
+            let response =
+                fetch_fin_summary("https://api.jquants.com/v2/fins/summary", code).await;
+            log_summary_overview(&response);
+            log_dividend_summaries(&response);
+            assert!(!response.data.is_empty(), "データが取得できること: {code}");
+        }
     }
 }

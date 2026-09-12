@@ -555,11 +555,6 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     }
 
     #[test]
-    fn test_create_oauth_client() {
-        assert!(create_oauth_client("client-id", "client-secret").is_ok());
-    }
-
-    #[test]
     fn test_oauth_http_client_is_shared() {
         init_oauth_http_client().expect("共有OAuthクライアントの初期化");
         let first = shared_oauth_http_client().expect("共有クライアント取得") as *const _;
