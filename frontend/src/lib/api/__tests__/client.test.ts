@@ -649,21 +649,3 @@ describe('ApiClient', () => {
     });
   });
 });
-
-// Rustテスト
-describe('ApiClient Rust Tests', () => {
-  it('再試行ロジックが正しく動作する', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('認証トークンの取得が正しく動作する', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('エラーの詳細情報が正しく記録される', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-});

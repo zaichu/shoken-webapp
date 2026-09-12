@@ -354,21 +354,3 @@ describe('ErrorBoundary', () => {
     });
   });
 });
-
-// Rustテスト
-describe('ErrorBoundary Rust Tests', () => {
-  it('エラーバウンダリーが正しく実装されている', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('メモリリークが発生しない', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('エラー情報が正しく記録される', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-});
