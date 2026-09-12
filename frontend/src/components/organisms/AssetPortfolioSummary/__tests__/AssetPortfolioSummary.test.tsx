@@ -265,7 +265,7 @@ describe('AssetPortfolioSummary', () => {
     it('欠損を含む場合は不完全として合計を表示しない', () => {
       const mockData = createMockData([
         { total_purchase_amount: 100, market_value: 200 },
-        { total_purchase_amount: 20, market_value: null },
+        { total_purchase_amount: 20, market_value: null as unknown as number },
       ]);
       render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
