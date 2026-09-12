@@ -821,4 +821,3 @@ async fn mutualfund_bulk_create_skips_duplicates() {
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 1);
 }
-

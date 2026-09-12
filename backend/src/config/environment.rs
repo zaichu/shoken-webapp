@@ -61,12 +61,7 @@ mod tests {
     fn test_is_production_env() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (RUST_ENV, APP_ENV, BACKEND_URL, expected)
-        let cases: [(
-            Option<&str>,
-            Option<&str>,
-            Option<&str>,
-            bool,
-        ); 5] = [
+        let cases = [
             (Some("production"), None, None, true),
             (None, Some("production"), None, true),
             (None, None, Some("https://api.example.com"), true),
@@ -107,16 +102,13 @@ mod tests {
             (None, None, "http://localhost:3001"),
         ];
         for (backend_url_var, port, expected) in cases {
-            with_vars(
-                [("BACKEND_URL", backend_url_var), ("PORT", port)],
-                || {
-                    assert_eq!(
-                        backend_url(),
-                        expected,
-                        "BACKEND_URL={backend_url_var:?} PORT={port:?}"
-                    );
-                },
-            );
+            with_vars([("BACKEND_URL", backend_url_var), ("PORT", port)], || {
+                assert_eq!(
+                    backend_url(),
+                    expected,
+                    "BACKEND_URL={backend_url_var:?} PORT={port:?}"
+                );
+            });
         }
     }
 

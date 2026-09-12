@@ -276,8 +276,7 @@ mod tests {
     #[ignore = "requires JQUANTS_API_KEY env var (real external API call)"]
     async fn test_get_fin_summary_real_api() {
         for code in ["7203", "7974"] {
-            let response =
-                fetch_fin_summary("https://api.jquants.com/v2/fins/summary", code).await;
+            let response = fetch_fin_summary("https://api.jquants.com/v2/fins/summary", code).await;
             log_summary_overview(&response);
             log_dividend_summaries(&response);
             assert!(!response.data.is_empty(), "データが取得できること: {code}");

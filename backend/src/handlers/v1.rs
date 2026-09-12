@@ -214,5 +214,4 @@ mod tests {
         assert_ne!(status, StatusCode::NOT_FOUND);
         assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);
     }
-
 }
