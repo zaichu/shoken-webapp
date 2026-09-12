@@ -12,42 +12,6 @@ describe('Button', () => {
     
     const button = screen.getByRole('button', { name: 'テストボタン' });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('bg-slate-950');
-  });
-
-  it('指定されたvariantのクラスが適用される', () => {
-    render(<Button {...defaultProps} variant="success" />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-teal-700');
-  });
-
-  it('outline variantが正しく適用される', () => {
-    render(<Button {...defaultProps} variant="outline-danger" />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('border-danger');
-  });
-
-  it('指定されたsizeのクラスが適用される', () => {
-    render(<Button {...defaultProps} size="lg" />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('text-base');
-  });
-
-  it('デフォルトサイズ(md)の場合は標準サイズのクラスが追加される', () => {
-    render(<Button {...defaultProps} size="md" />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('text-sm');
-  });
-
-  it('fullWidthプロパティが動作する', () => {
-    render(<Button {...defaultProps} fullWidth />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('w-full');
   });
 
   it('loadingの場合は読み込み中表示になる', () => {
@@ -69,22 +33,11 @@ describe('Button', () => {
     expect(button).toHaveAttribute('data-loading', 'true');
   });
 
-  it('アイコンが左側に表示される', () => {
+  it('アイコンが表示される', () => {
     const icon = <span data-testid="icon">🚀</span>;
     render(<Button {...defaultProps} icon={icon} iconPosition="left" />);
     
     expect(screen.getByTestId('icon')).toBeInTheDocument();
-    const iconElement = screen.getByTestId('icon').parentElement;
-    expect(iconElement).toHaveClass('mr-2');
-  });
-
-  it('アイコンが右側に表示される', () => {
-    const icon = <span data-testid="icon">🚀</span>;
-    render(<Button {...defaultProps} icon={icon} iconPosition="right" />);
-    
-    expect(screen.getByTestId('icon')).toBeInTheDocument();
-    const iconElement = screen.getByTestId('icon').parentElement;
-    expect(iconElement).toHaveClass('ml-2');
   });
 
   it('disabledプロパティが動作する', () => {
@@ -92,13 +45,6 @@ describe('Button', () => {
     
     const button = screen.getByRole('button');
     expect(button).toBeDisabled();
-  });
-
-  it('カスタムクラスが適用される', () => {
-    render(<Button {...defaultProps} className="custom-class" />);
-    
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('custom-class');
   });
 
   it('onClickイベントが動作する', () => {

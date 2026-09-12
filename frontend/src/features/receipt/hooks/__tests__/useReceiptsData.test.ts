@@ -77,9 +77,13 @@ function makeWrapper(qc: QueryClient) {
   return Wrapper;
 }
 
-// ────────────────────────────────────────────────────────
-// テスト
-// ────────────────────────────────────────────────────────
+// 3ドメインの API モジュールは同一シグネチャのためテーブルで切り替える。
+// 実装側も receiptApiByType ルックアップ1本で同一コードパス（useReceiptsData.ts:79-82）。
+const apiMocksByType = {
+  dividend: receiptApiModule.dividendApi,
+  domesticstock: receiptApiModule.domesticStockApi,
+  mutualfund: receiptApiModule.mutualfundApi,
+};
 
 describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
   beforeEach(() => {
@@ -226,160 +230,96 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toBeUndefined();
   });
 
-  it('uploadCsv mutation: dividend で invalidate と onSuccess が実行される', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
-    const onSuccess = vi.fn();
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.dividendApi.uploadCsv).mockResolvedValue({
-      inserted: 2,
-      skipped: 1,
-      errors: [],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.dividend('user-1'))).toEqual({ items: [], summary: undefined });
-    });
-
-    act(() => {
-      result.current.uploadCsv({
-        type: 'dividend',
-        file: new File([''], 'test.csv'),
-        onSuccess,
+  // uploadCsv は3ドメインとも同一コードパスのためパラメータ化する
+  it.each(['dividend', 'domesticstock', 'mutualfund'] as const)(
+    'uploadCsv mutation: %s で invalidate と onSuccess が実行される',
+    async (type) => {
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
       });
-    });
+      const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
+      const onSuccess = vi.fn();
+      const api = apiMocksByType[type];
 
-    await waitFor(() => {
-      expect(receiptApiModule.dividendApi.uploadCsv).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({ inserted: 2, skipped: 1, errors: [] });
-    });
-    await waitFor(() => {
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: receiptQueryKeys.dividend('user-1'),
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+      vi.mocked(api.uploadCsv).mockResolvedValue({
+        inserted: 2,
+        skipped: 1,
+        errors: [],
+      } as never);
+
+      const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+      await waitFor(() => {
+        expect(qc.getQueryData(receiptQueryKeys[type]('user-1'))).toEqual({ items: [], summary: undefined });
       });
-    });
-    await waitFor(() => {
-      expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(2);
-    });
-  });
 
-  it('dividend: total が per_page を超えても API 検索では次ページを取得しない', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
+      act(() => {
+        result.current.uploadCsv({
+          type,
+          file: new File([''], `${type}.csv`),
+          onSuccess,
+        });
+      });
 
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.dividendApi.list).mockImplementation(
-      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
-        if (page === 1) {
+      await waitFor(() => {
+        expect(vi.mocked(api.uploadCsv)).toHaveBeenCalledTimes(1);
+      });
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith({ inserted: 2, skipped: 1, errors: [] });
+      });
+      await waitFor(() => {
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+          queryKey: receiptQueryKeys[type]('user-1'),
+        });
+      });
+      await waitFor(() => {
+        expect(vi.mocked(api.list)).toHaveBeenCalledTimes(2);
+      });
+    }
+  );
+
+  // total > per_page の場合も3ドメインとも同一コードパスのためパラメータ化する
+  it.each(['dividend', 'domesticstock', 'mutualfund'] as const)(
+    '%s: total が per_page を超えても API 検索では次ページを取得しない',
+    async (type) => {
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+      });
+
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+      const api = apiMocksByType[type];
+      vi.mocked(api.list).mockImplementation(
+        ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
+          if (page === 1) {
+            return Promise.resolve({
+              data: Array.from({ length: 1000 }, (_, index) =>
+                ({ id: `${type}-${index + 1}` }) as never
+              ),
+              total: 1001,
+              page: 1,
+              per_page: 1000,
+            } as never);
+          }
           return Promise.resolve({
-            data: Array.from({ length: 1000 }, (_, index) =>
-              ({ id: String(index + 1), payment_date: '2023-01-01' }) as never
-            ),
+            data: [{ id: `${type}-1001` } as never],
             total: 1001,
-            page: 1,
+            page: 2,
             per_page: 1000,
           } as never);
         }
-        return Promise.resolve({
-          data: [{ id: '1001', payment_date: '2023-01-02' } as never],
-          total: 1001,
-          page: 2,
-          per_page: 1000,
-        } as never);
-      }
-    );
+      );
 
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+      const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
 
-    await waitFor(() => {
-      expect(result.current.data.dividend).toHaveLength(1000);
-    });
-    expect(receiptApiModule.dividendApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.dividendApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
-    expect(receiptApiModule.dividendApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
-  });
-
-  it('domesticstock: total が per_page を超えても API 検索では次ページを取得しない', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.domesticStockApi.list).mockImplementation(
-      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
-        if (page === 1) {
-          return Promise.resolve({
-            data: Array.from({ length: 1000 }, (_, index) =>
-              ({ id: 'stock-' + String(index + 1), trade_date: '2023-02-01' }) as never
-            ),
-            total: 1001,
-            page: 1,
-            per_page: 1000,
-          } as never);
-        }
-        return Promise.resolve({
-          data: [{ id: 'stock-1001', trade_date: '2023-02-02' } as never],
-          total: 1001,
-          page: 2,
-          per_page: 1000,
-        } as never);
-      }
-    );
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(result.current.data.domesticstock).toHaveLength(1000);
-    });
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.domesticStockApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
-    expect(receiptApiModule.domesticStockApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
-  });
-
-  it('mutualfund: total が per_page を超えても API 検索では次ページを取得しない', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.mutualfundApi.list).mockImplementation(
-      ({ page = 1 }: { page?: number; per_page?: number } = {}) => {
-        if (page === 1) {
-          return Promise.resolve({
-            data: Array.from({ length: 1000 }, (_, index) =>
-              ({ id: 'fund-' + String(index + 1), trade_date: '2023-03-01' }) as never
-            ),
-            total: 1001,
-            page: 1,
-            per_page: 1000,
-          } as never);
-        }
-        return Promise.resolve({
-          data: [{ id: 'fund-1001', trade_date: '2023-03-02' } as never],
-          total: 1001,
-          page: 2,
-          per_page: 1000,
-        } as never);
-      }
-    );
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(result.current.data.mutualfund).toHaveLength(1000);
-    });
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(1);
-    expect(receiptApiModule.mutualfundApi.list).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
-    expect(receiptApiModule.mutualfundApi.list).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
-  });
+      await waitFor(() => {
+        expect(result.current.data[type]).toHaveLength(1000);
+      });
+      expect(vi.mocked(api.list)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(api.list)).toHaveBeenNthCalledWith(1, { per_page: 1000, page: 1, include_summary: true });
+      expect(vi.mocked(api.list)).not.toHaveBeenCalledWith({ per_page: 1000, page: 2 });
+    }
+  );
 
   it('deleteAll mutation: domesticstock と mutualfund を削除できる', async () => {
     const qc = new QueryClient({
@@ -405,115 +345,44 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
     });
   });
 
-  it('previewCsv mutation: dividend 成功時に整形済み結果を返す', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const onSuccess = vi.fn();
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.dividendApi.previewCsv).mockResolvedValue({
-      total_rows: 3,
-      valid_rows: 3,
-      errors: [],
-      rows: [],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    act(() => {
-      result.current.previewCsv({
-        type: 'dividend',
-        file: new File([''], 'test.csv'),
-        onSuccess,
+  // previewCsv も3ドメインとも同一コードパスのためパラメータ化する
+  it.each(['dividend', 'domesticstock', 'mutualfund'] as const)(
+    'previewCsv mutation: %s で整形済み結果を返す',
+    async (type) => {
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
       });
-    });
+      const onSuccess = vi.fn();
+      const file = new File([''], `${type}.csv`);
+      const api = apiMocksByType[type];
 
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({
-        totalRows: 3,
-        validRows: 3,
-        errors: [],
-        rows: [],
-      });
-    });
-  });
-
-  it('previewCsv mutation: domesticstock で previewCsv が呼ばれる', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const onSuccess = vi.fn();
-    const file = new File([''], 'domesticstock.csv');
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.domesticStockApi.previewCsv).mockResolvedValue({
-      total_rows: 2,
-      valid_rows: 1,
-      errors: [{ row: 2, message: 'invalid' }],
-      rows: [{ id: 'ds-1' }],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    act(() => {
-      result.current.previewCsv({
-        type: 'domesticstock',
-        file,
-        onSuccess,
-      });
-    });
-
-    await waitFor(() => {
-      expect(receiptApiModule.domesticStockApi.previewCsv).toHaveBeenCalledWith(file);
-    });
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({
-        totalRows: 2,
-        validRows: 1,
+      vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
+      vi.mocked(api.previewCsv).mockResolvedValue({
+        total_rows: 2,
+        valid_rows: 1,
         errors: [{ row: 2, message: 'invalid' }],
-        rows: [{ id: 'ds-1' }],
+        rows: [{ id: `${type}-1` }],
+      } as never);
+
+      const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
+
+      act(() => {
+        result.current.previewCsv({ type, file, onSuccess });
       });
-    });
-  });
 
-  it('previewCsv mutation: mutualfund で previewCsv が呼ばれる', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const onSuccess = vi.fn();
-    const file = new File([''], 'mutualfund.csv');
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.mutualfundApi.previewCsv).mockResolvedValue({
-      total_rows: 3,
-      valid_rows: 3,
-      errors: [],
-      rows: [{ id: 'mf-1' }, { id: 'mf-2' }],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    act(() => {
-      result.current.previewCsv({
-        type: 'mutualfund',
-        file,
-        onSuccess,
+      await waitFor(() => {
+        expect(vi.mocked(api.previewCsv)).toHaveBeenCalledWith(file);
       });
-    });
-
-    await waitFor(() => {
-      expect(receiptApiModule.mutualfundApi.previewCsv).toHaveBeenCalledWith(file);
-    });
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({
-        totalRows: 3,
-        validRows: 3,
-        errors: [],
-        rows: [{ id: 'mf-1' }, { id: 'mf-2' }],
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith({
+          totalRows: 2,
+          validRows: 1,
+          errors: [{ row: 2, message: 'invalid' }],
+          rows: [{ id: `${type}-1` }],
+        });
       });
-    });
-  });
+    }
+  );
 
   it('previewCsv mutation: エラー時に onError が呼ばれる', async () => {    const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -557,94 +426,6 @@ describe('useReceiptsData: 認証境界・キャッシュ境界', () => {
 
     await waitFor(() => {
       expect(result.current.dbError).toBe('アップロード失敗');
-    });
-  });
-
-  it('uploadCsv mutation: domesticstock で invalidate と onSuccess が実行される', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
-    const onSuccess = vi.fn();
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.domesticStockApi.uploadCsv).mockResolvedValue({
-      inserted: 4,
-      skipped: 1,
-      errors: [],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.domesticstock('user-1'))).toEqual({ items: [], summary: undefined });
-    });
-
-    act(() => {
-      result.current.uploadCsv({
-        type: 'domesticstock',
-        file: new File([''], 'domesticstock.csv'),
-        onSuccess,
-      });
-    });
-
-    await waitFor(() => {
-      expect(receiptApiModule.domesticStockApi.uploadCsv).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({ inserted: 4, skipped: 1, errors: [] });
-    });
-    await waitFor(() => {
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: receiptQueryKeys.domesticstock('user-1'),
-      });
-    });
-    await waitFor(() => {
-      expect(receiptApiModule.domesticStockApi.list).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  it('uploadCsv mutation: mutualfund で invalidate と onSuccess が実行される', async () => {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    const invalidateQueriesSpy = vi.spyOn(qc, 'invalidateQueries');
-    const onSuccess = vi.fn();
-
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApiModule.mutualfundApi.uploadCsv).mockResolvedValue({
-      inserted: 5,
-      skipped: 0,
-      errors: [],
-    } as never);
-
-    const { result } = renderHook(() => useReceiptsData(), { wrapper: makeWrapper(qc) });
-
-    await waitFor(() => {
-      expect(qc.getQueryData(receiptQueryKeys.mutualfund('user-1'))).toEqual({ items: [], summary: undefined });
-    });
-
-    act(() => {
-      result.current.uploadCsv({
-        type: 'mutualfund',
-        file: new File([''], 'mutualfund.csv'),
-        onSuccess,
-      });
-    });
-
-    await waitFor(() => {
-      expect(receiptApiModule.mutualfundApi.uploadCsv).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith({ inserted: 5, skipped: 0, errors: [] });
-    });
-    await waitFor(() => {
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: receiptQueryKeys.mutualfund('user-1'),
-      });
-    });
-    await waitFor(() => {
-      expect(receiptApiModule.mutualfundApi.list).toHaveBeenCalledTimes(2);
     });
   });
 });

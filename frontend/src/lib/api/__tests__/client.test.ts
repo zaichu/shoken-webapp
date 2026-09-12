@@ -145,45 +145,22 @@ describe('ApiClient', () => {
       await expect(client.get('/test')).rejects.toBeInstanceOf(ApiError);
     });
 
-    it('HTTPステータスエラー(404)をApiErrorとして処理する', async () => {
+    // HTTPステータス→ApiError のマッピングは振る舞いとして意味があるため it.each で残す
+    it.each([
+      [404, ApiErrorType.NOT_FOUND_ERROR],
+      [401, ApiErrorType.AUTHENTICATION_ERROR],
+      [500, ApiErrorType.SERVER_ERROR],
+    ])('HTTPステータスエラー(%i)をApiErrorとして処理する', async (status, expectedType) => {
       mockFetch.mockResolvedValue({
         ok: false,
-        status: 404,
+        status,
         json: () => Promise.resolve({}),
       });
 
       const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
 
       await expect(client.get('/test')).rejects.toMatchObject({
-        type: ApiErrorType.NOT_FOUND_ERROR,
-      });
-    });
-
-    it('HTTPステータスエラー(401)をApiErrorとして処理する', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({}),
-      });
-
-      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
-
-      await expect(client.get('/test')).rejects.toMatchObject({
-        type: ApiErrorType.AUTHENTICATION_ERROR,
-      });
-    });
-
-    it('HTTPステータスエラー(500)をApiErrorとして処理する', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({}),
-      });
-
-      const client = createApiClient({ baseURL: 'http://api.test', retry: { maxRetries: 0 } });
-
-      await expect(client.get('/test')).rejects.toMatchObject({
-        type: ApiErrorType.SERVER_ERROR,
+        type: expectedType,
       });
     });
 
@@ -563,107 +540,46 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('カバレッジ補完', () => {
-    it('baseURL 省略時は VITE_SHOKEN_WEBAPI_API_URL または空文字を使う', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('null'),
-      });
-      const client = createApiClient({});
-      const resultPromise = client.get('/health');
-      await vi.runAllTimersAsync();
-      await resultPromise;
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/health'),
-        expect.objectContaining({ method: 'GET' })
-      );
-    });
-
-    it('params に undefined 値があるときはクエリから除外される', async () => {
+  // クエリ組み立てと credentials 振り分けは振る舞いとして意味があるため it.each で残す。
+  // baseURL 省略時のテストは stringContaining('/health') しか見ておらず
+  // env var の挙動を検証していないため削除する。
+  describe('クエリと認証設定', () => {
+    it.each([
+      [{ foo: 'bar', baz: undefined }, 'http://api.test/test?foo=bar'],
+      [{ foo: undefined }, 'http://api.test/test'],
+    ])('params の undefined 値はクエリから除外される (%s)', async (params, expectedUrl) => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         text: () => Promise.resolve('{}'),
       });
       const client = createApiClient({ baseURL: 'http://api.test' });
-      const resultPromise = client.get('/test', {
-        params: { foo: 'bar', baz: undefined },
-      });
+      const resultPromise = client.get('/test', { params });
       await vi.runAllTimersAsync();
       await resultPromise;
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://api.test/test?foo=bar',
+        expectedUrl,
         expect.objectContaining({ method: 'GET' })
       );
     });
 
-    it('params がすべて undefined のときはクエリなしの URL になる', async () => {
+    it.each([
+      [undefined, 'same-origin'],
+      [true, 'include'],
+    ])('withCredentials=%s のとき credentials が %s になる', async (withCredentials, expectedCredentials) => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         text: () => Promise.resolve('{}'),
       });
       const client = createApiClient({ baseURL: 'http://api.test' });
-      const resultPromise = client.get('/test', {
-        params: { foo: undefined },
-      });
-      await vi.runAllTimersAsync();
-      await resultPromise;
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://api.test/test',
-        expect.objectContaining({ method: 'GET' })
-      );
-    });
-
-    it('withCredentials 省略時は credentials が same-origin になる', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('{}'),
-      });
-      const client = createApiClient({ baseURL: 'http://api.test' });
-      const resultPromise = client.get('/test');
+      const resultPromise = client.get('/test', { withCredentials });
       await vi.runAllTimersAsync();
       await resultPromise;
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({ credentials: 'same-origin' })
+        expect.objectContaining({ credentials: expectedCredentials })
       );
     });
-
-    it('withCredentials: true のとき credentials が include になる', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('{}'),
-      });
-      const client = createApiClient({ baseURL: 'http://api.test' });
-      const resultPromise = client.get('/test', { withCredentials: true });
-      await vi.runAllTimersAsync();
-      await resultPromise;
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ credentials: 'include' })
-      );
-    });
-  });
-});
-
-// Rustテスト
-describe('ApiClient Rust Tests', () => {
-  it('再試行ロジックが正しく動作する', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('認証トークンの取得が正しく動作する', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('エラーの詳細情報が正しく記録される', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
   });
 });
