@@ -209,7 +209,9 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
   await expect(page.getByRole('button', { name: /全件削除 \(1件\)/ })).toBeVisible();
-  await expect(page.getByTestId('portfolio-pie-chart').getByText('トヨタ自動車')).toBeVisible();
+  await expect(
+    page.getByTestId('portfolio-pie-chart').getByText('トヨタ自動車').and(page.locator(':visible')),
+  ).toBeVisible();
 });
 
 test('資産管理データが2件あるときサマリーと検索オプションが表示される', async ({ page }) => {
@@ -229,20 +231,21 @@ test('検索オプションで銘柄を絞り込み解除できる', async ({ pa
   await gotoAssetBalancePage(page);
 
   const chart = page.getByTestId('portfolio-pie-chart');
+  const visible = page.locator(':visible');
 
-  await expect(chart.getByText('トヨタ自動車')).toBeVisible();
-  await expect(chart.getByText('ソニーグループ')).toBeVisible();
+  await expect(chart.getByText('トヨタ自動車').and(visible)).toBeVisible();
+  await expect(chart.getByText('ソニーグループ').and(visible)).toBeVisible();
 
   await page.getByLabel('銘柄').selectOption('6758');
 
   await expect(page.getByText('絞り込み中: 1/2件')).toBeVisible();
-  await expect(chart.getByText('ソニーグループ')).toBeVisible();
-  await expect(chart.getByText('トヨタ自動車')).not.toBeVisible();
+  await expect(chart.getByText('ソニーグループ').and(visible)).toBeVisible();
+  await expect(chart.getByText('トヨタ自動車').and(visible)).not.toBeVisible();
 
   await page.getByRole('button', { name: '検索条件をクリア' }).click();
 
   await expect(page.getByText('絞り込み中: 1/2件')).not.toBeVisible();
-  await expect(chart.getByText('トヨタ自動車')).toBeVisible();
+  await expect(chart.getByText('トヨタ自動車').and(visible)).toBeVisible();
 });
 
 test('全件削除で EmptyState に戻る', async ({ page }) => {
