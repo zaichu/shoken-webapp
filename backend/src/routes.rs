@@ -310,6 +310,11 @@ mod tests {
             ),
             (
                 handlers::v1::data_routes(),
+                Method::GET,
+                "/api/v1/asset-balances",
+            ),
+            (
+                handlers::v1::data_routes(),
                 Method::PUT,
                 "/api/v1/asset-balances",
             ),
@@ -327,6 +332,16 @@ mod tests {
                 handlers::v1::data_routes(),
                 Method::POST,
                 "/api/v1/dividend-per-share-estimates",
+            ),
+            (
+                handlers::v1::auth_routes(),
+                Method::DELETE,
+                "/api/v1/account",
+            ),
+            (
+                handlers::v1::auth_routes(),
+                Method::POST,
+                "/api/v1/account-deletion-confirmations",
             ),
         ] {
             check_unauthorized(router.with_state(make_test_state()), method, uri).await;
