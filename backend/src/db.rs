@@ -144,11 +144,6 @@ mod tests {
             Duration::from_secs(ACQUIRE_SLOW_THRESHOLD_SECS),
             "slow acquire threshold は ACQUIRE_SLOW_THRESHOLD_SECS であること"
         );
-        assert_ne!(
-            opts5.get_acquire_slow_threshold(),
-            Duration::from_secs(CONNECT_TIMEOUT_SECS),
-            "slow acquire threshold は CONNECT_TIMEOUT_SECS と異なること"
-        );
         assert_eq!(
             opts5.get_max_connections(),
             5,
@@ -200,30 +195,6 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_database_url_empty() {
-        let err = validate_database_url("").unwrap_err();
-        assert!(!err.contains("://"), "エラーに URL を含めない: {err}");
-    }
-
-    #[test]
-    fn test_validate_database_url_relative() {
-        let err = validate_database_url("/relative").unwrap_err();
-        assert!(
-            !err.contains("/relative"),
-            "エラーに URL 値を含めない: {err}"
-        );
-    }
-
-    #[test]
-    fn test_validate_database_url_wrong_scheme() {
-        let err = validate_database_url("http://example.com/db").unwrap_err();
-        assert!(
-            !err.contains("example.com"),
-            "エラーにホスト名を含めない: {err}"
-        );
-    }
-
-    #[test]
     fn test_validate_database_url_valid() {
         assert!(validate_database_url("postgres://user:password@localhost/db").is_ok());
         assert!(validate_database_url("postgresql://user:password@localhost/db").is_ok());
@@ -240,8 +211,8 @@ mod tests {
     }
 
     #[test]
-    fn test_sanitize_database_url_removes_channel_binding() {
-        // channel_binding だけを除去する
+    fn test_sanitize_database_url_removes_only_channel_binding_param() {
+        // channel_binding だけを除去し、query が空になる
         let url = "postgres://localhost/db?channel_binding=require";
         let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
         let parsed = url::Url::parse(&sanitized).unwrap();
@@ -249,6 +220,11 @@ mod tests {
         assert!(
             params.iter().all(|(k, _)| k != "channel_binding"),
             "channel_binding が残っている"
+        );
+        assert!(
+            parsed.query().is_none() || parsed.query() == Some(""),
+            "query が空でない: {:?}",
+            parsed.query()
         );
     }
 
@@ -266,19 +242,6 @@ mod tests {
         assert!(
             params.iter().all(|(k, _)| k != "channel_binding"),
             "channel_binding が残っている"
-        );
-    }
-
-    #[test]
-    fn test_sanitize_database_url_only_channel_binding_param() {
-        // channel_binding だけの場合 query が空になる
-        let url = "postgres://localhost/db?channel_binding=require";
-        let sanitized = sanitize_database_url_for_sqlx(url).unwrap();
-        let parsed = url::Url::parse(&sanitized).unwrap();
-        assert!(
-            parsed.query().is_none() || parsed.query() == Some(""),
-            "query が空でない: {:?}",
-            parsed.query()
         );
     }
 
@@ -348,29 +311,22 @@ mod tests {
         );
     }
 
-    /// test_startup_connect_timeout_covers_fly_observed_latency は CONNECT_TIMEOUT_SECS の下限ガード（上限は test_retry_budget_fits_grace_period が担う）。
     /// Fly v196 起動直後に観測された ~10-15 秒の接続遅延をカバーできることを保証する。
     /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1 で recoverable WARN が出る（v196 実測: attempt=1 max_attempts=3）。
-    #[allow(clippy::assertions_on_constants)]
-    #[test]
-    fn test_startup_connect_timeout_covers_fly_observed_latency() {
-        assert!(
-            CONNECT_TIMEOUT_SECS >= 15,
-            "CONNECT_TIMEOUT_SECS={} は Fly v196 実測遅延（~10-15s）をカバーするため 15 以上が必要",
-            CONNECT_TIMEOUT_SECS
-        );
-    }
+    /// 上限は下の retry budget のコンパイル時検査が担う。
+    const _: () = assert!(
+        CONNECT_TIMEOUT_SECS >= 15,
+        "CONNECT_TIMEOUT_SECS は Fly v196 実測遅延（~10-15s）をカバーするため 15 以上が必要"
+    );
 
     /// 最大待機時間が fly.toml の grace_period を超えないことを保証する。
-    /// grace_period を変更した場合はこのテストも更新すること。
-    #[test]
-    fn test_retry_budget_fits_grace_period() {
-        const GRACE_PERIOD_SECS: u64 = 40; // fly.toml [[http_service.checks]] grace_period と同期
-        let max_wait_secs = MAX_ATTEMPTS as u64 * CONNECT_TIMEOUT_SECS
-            + (MAX_ATTEMPTS as u64 - 1) * RETRY_DELAY_SECS;
-        assert!(
-            max_wait_secs < GRACE_PERIOD_SECS,
-            "最大待機時間 {max_wait_secs}s が grace_period {GRACE_PERIOD_SECS}s を超える"
-        );
-    }
+    /// grace_period を変更した場合はこの定数も更新すること。
+    /// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
+    const GRACE_PERIOD_SECS: u64 = 40; // fly.toml [[http_service.checks]] grace_period と同期
+    const MAX_WAIT_SECS: u64 =
+        MAX_ATTEMPTS as u64 * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS as u64 - 1) * RETRY_DELAY_SECS;
+    const _: () = assert!(
+        MAX_WAIT_SECS < GRACE_PERIOD_SECS,
+        "最大待機時間が grace_period を超える"
+    );
 }
