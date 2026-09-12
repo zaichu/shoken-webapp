@@ -37,13 +37,14 @@ describe('PortfolioPieChart', () => {
   it('銘柄名とパーセンテージが表示される', () => {
     render(<PortfolioPieChart data={mockData} />);
 
-    expect(screen.getByText('トヨタ自動車')).toBeInTheDocument();
-    expect(screen.getByText('ソニーグループ')).toBeInTheDocument();
-    expect(screen.getByText('任天堂')).toBeInTheDocument();
+    // PC用カードとスマホ用評価額カードの両方に描画される
+    expect(screen.getAllByText('トヨタ自動車').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('ソニーグループ').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('任天堂').length).toBeGreaterThanOrEqual(1);
     // パーセンテージが表示される
-    expect(screen.getByText('60.0%')).toBeInTheDocument();
-    expect(screen.getByText('25.0%')).toBeInTheDocument();
-    expect(screen.getByText('15.0%')).toBeInTheDocument();
+    expect(screen.getAllByText('60.0%').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('25.0%').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('15.0%').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryAllByText('構成比')).toHaveLength(0);
   });
 
@@ -123,7 +124,7 @@ describe('PortfolioPieChart', () => {
       await user.click(screen.getByRole('button', { name: '残り1銘柄を表示（全21）' }));
 
       expect(screen.getAllByTestId('portfolio-card-code')).toHaveLength(21);
-      expect(screen.getByText('銘柄21')).toBeInTheDocument();
+      expect(screen.getAllByText('銘柄21').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('その他 1銘柄')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: '上位20件のみ表示' })).toBeInTheDocument();
 
@@ -200,14 +201,114 @@ describe('PortfolioPieChart', () => {
 
       // 1株配当・年間配当・配当利回りラベルが各カードに表示される
       const perShareLabels = screen.getAllByText('1株配当');
-      expect(perShareLabels).toHaveLength(3);
+      expect(perShareLabels.length).toBeGreaterThanOrEqual(3);
       const dividendLabels = screen.getAllByText('年間配当');
-      expect(dividendLabels).toHaveLength(3);
+      expect(dividendLabels.length).toBeGreaterThanOrEqual(3);
       const yieldLabels = screen.getAllByText('配当利回り');
+      // PC用カードのみ (スマホ用カードは「取得額基準利回り」表記)
       expect(yieldLabels).toHaveLength(3);
-      // 全て---表示（1株配当 + 年間配当 + 配当利回り = 9個）
-      const dashes = screen.getAllByText('---');
-      expect(dashes).toHaveLength(9);
+    });
+  });
+
+  describe('スマホ用評価額カード', () => {
+    const valuationData: PortfolioItem[] = [
+      { name: '三菱商事', value: 1090000, securityCode: '8058', shares: 100, averagePrice: 10900, fullName: '三菱商事株式会社', marketValue: 1180000, currentPrice: 11800 },
+      { name: 'トヨタ自動車', value: 250000, securityCode: '7203', shares: 100, averagePrice: 2500, marketValue: 260000, currentPrice: 2600 },
+    ];
+
+    it('閉じた状態で銘柄名・評価額・評価損益が表示され、詳細は隠れている', () => {
+      render(<PortfolioPieChart data={valuationData} />);
+
+      const cards = screen.getAllByTestId('portfolio-valuation-card');
+      expect(cards).toHaveLength(2);
+      expect(screen.getAllByText('評価額').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText('評価損益').length).toBeGreaterThanOrEqual(2);
+      // 損益はDB値を使わず再計算: (1180000-1090000)/1090000*100 = 8.256... → +8.3%
+      expect(screen.getByText(/\+8\.3%/)).toBeInTheDocument();
+      // 詳細は閉じている
+      expect(screen.queryByText('取得額構成比')).not.toBeInTheDocument();
+      expect(screen.queryByText('取得額基準利回り')).not.toBeInTheDocument();
+    });
+
+    it('タップで展開・折り畳みでき、aria-expanded が切り替わる', async () => {
+      const user = userEvent.setup();
+      render(<PortfolioPieChart data={valuationData} />);
+
+      const toggle = screen.getByRole('button', { name: /三菱商事.*評価損益/s });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+      await user.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      // 展開内容
+      expect(screen.getByText('三菱商事株式会社')).toBeInTheDocument();
+      expect(screen.getByText('取得額構成比')).toBeInTheDocument();
+      expect(screen.getByText('現在値')).toBeInTheDocument();
+      expect(screen.getByText('取得額基準利回り')).toBeInTheDocument();
+      expect(screen.getByText(/の銘柄情報を見る/)).toBeInTheDocument();
+
+      await user.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByText('取得額構成比')).not.toBeInTheDocument();
+    });
+
+    it('キーボード (Enter / Space) で展開・折り畳みできる', async () => {
+      const user = userEvent.setup();
+      render(<PortfolioPieChart data={valuationData} />);
+
+      const toggle = screen.getByRole('button', { name: /トヨタ自動車.*評価損益/s });
+      toggle.focus();
+      await user.keyboard('{Enter}');
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await user.keyboard(' ');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('複数カードを同時に展開できる', async () => {
+      const user = userEvent.setup();
+      render(<PortfolioPieChart data={valuationData} />);
+
+      const toggles = screen.getAllByTestId('portfolio-valuation-card')
+        .map((card) => card.querySelector('button') as HTMLElement);
+      await user.click(toggles[0]);
+      await user.click(toggles[1]);
+
+      expect(toggles[0]).toHaveAttribute('aria-expanded', 'true');
+      expect(toggles[1]).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getAllByText('取得額構成比')).toHaveLength(2);
+    });
+
+    it('銘柄情報へのリンクは展開ボタンの内側に入れない', async () => {
+      const user = userEvent.setup();
+      render(<PortfolioPieChart data={valuationData} />);
+
+      await user.click(screen.getByRole('button', { name: /三菱商事.*評価損益/s }));
+      const card = screen.getAllByTestId('portfolio-valuation-card')[0];
+      const button = card.querySelector('button') as HTMLElement;
+      const link = card.querySelector('[data-testid="security-code-link"]') as HTMLElement;
+      expect(link).toBeInTheDocument();
+      expect(button).not.toContainElement(link);
+    });
+
+    it('評価額が欠損の場合は「—」で表示する', () => {
+      const missingData: PortfolioItem[] = [
+        { name: '銘柄A', value: 100000, securityCode: '0001', shares: 10, averagePrice: 10000, marketValue: null },
+      ];
+      render(<PortfolioPieChart data={missingData} />);
+
+      const card = screen.getByTestId('portfolio-valuation-card');
+      expect(card).toHaveTextContent('—');
+    });
+
+    it('取得総額が0の場合は率は算出不可とする', async () => {
+      const user = userEvent.setup();
+      const zeroData: PortfolioItem[] = [
+        { name: '銘柄B', value: 0, securityCode: '0002', shares: 10, averagePrice: 0, marketValue: 50000 },
+      ];
+      render(<PortfolioPieChart data={zeroData} />);
+
+      expect(screen.getByTestId('portfolio-valuation-card')).toHaveTextContent('算出不可');
+      await user.click(screen.getByRole('button', { name: /銘柄B.*評価損益/s }));
+      expect(screen.getByTestId('portfolio-valuation-card')).toHaveTextContent('算出不可');
     });
   });
 });

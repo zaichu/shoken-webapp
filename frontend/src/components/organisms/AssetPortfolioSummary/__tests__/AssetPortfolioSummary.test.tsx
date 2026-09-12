@@ -96,8 +96,8 @@ describe('AssetPortfolioSummary', () => {
     ]);
     render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
-    expect(screen.getByText('KDDI')).toBeInTheDocument();
-    expect(screen.getByText('INPEX')).toBeInTheDocument();
+    expect(screen.getAllByText('KDDI').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('INPEX').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('ＫＤＤＩ')).not.toBeInTheDocument();
   });
 
@@ -108,14 +108,25 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.getByText('CSVファイルをインポートするか、データを登録してください。')).toBeInTheDocument();
   });
 
-  it('取得総額がすべて0の場合はサマリーが表示されない', () => {
+  it('取得総額も評価額もすべて0の場合はサマリーが表示されない', () => {
     const mockData = createMockData([
-      { total_purchase_amount: 0 },
-      { total_purchase_amount: 0 },
+      { total_purchase_amount: 0, market_value: 0 },
+      { total_purchase_amount: 0, market_value: 0 },
     ]);
     const { container } = render(<AssetPortfolioSummary assetBalanceData={mockData} />);
 
     expect(container.firstChild).toBeNull();
+  });
+
+  it('取得総額が0でも評価額を持つ銘柄があればサマリーが表示される', () => {
+    const mockData = createMockData([
+      { total_purchase_amount: 0, market_value: 100000 },
+      { total_purchase_amount: 0, market_value: 0 },
+    ]);
+    render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+    expect(screen.getByTestId('portfolio-valuation-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('portfolio-valuation-summary')).toHaveTextContent(/100,000/);
   });
 
   it('取得総額がnull/undefinedの場合は0として扱う', () => {
@@ -221,6 +232,65 @@ describe('AssetPortfolioSummary', () => {
     expect(kpiGrid).toBeInTheDocument();
     expect(kpiGrid).toHaveClass('lg:grid-cols-4');
     expect(kpiGrid).not.toHaveClass('xl:grid-cols-3');
+  });
+
+  describe('評価額サマリー', () => {
+    it('保有資産の評価額と評価損益が表示される', () => {
+      const mockData = createMockData();
+      render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+      const summary = screen.getByTestId('portfolio-valuation-summary');
+      expect(summary).toBeInTheDocument();
+      expect(summary).toHaveTextContent('保有資産の評価額');
+      // 評価額: 260,000 + 650,000 = 910,000
+      expect(summary).toHaveTextContent(/910,000/);
+      // 評価損益: 910,000 - 850,000 = +60,000
+      expect(summary).toHaveTextContent(/\+.*60,000/);
+      expect(summary).toHaveTextContent('取込データ時点');
+    });
+
+    it('損益率はDB値を使わず金額から再計算する', () => {
+      const mockData = createMockData([
+        { total_purchase_amount: 100, market_value: 200, profit_loss_rate: 0 },
+        { total_purchase_amount: 900, market_value: 900, profit_loss_rate: 999 },
+      ]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+      const summary = screen.getByTestId('portfolio-valuation-summary');
+      // 合計: 評価額1,100 - 取得額1,000 = +100 (+10.0%)。DB値(0 / 999)は使わない
+      expect(summary).toHaveTextContent(/1,100/);
+      expect(summary).toHaveTextContent('+10.0%');
+    });
+
+    it('欠損を含む場合は不完全として合計を表示しない', () => {
+      const mockData = createMockData([
+        { total_purchase_amount: 100, market_value: 200 },
+        { total_purchase_amount: 20, market_value: null },
+      ]);
+      render(<AssetPortfolioSummary assetBalanceData={mockData} />);
+
+      const summary = screen.getByTestId('portfolio-valuation-summary');
+      expect(summary).toHaveTextContent('—');
+      expect(summary).toHaveTextContent('合計を算出できません');
+    });
+
+    it('API summary がある場合は評価額の合計にも summary を優先する', () => {
+      const mockData = createMockData();
+      render(
+        <AssetPortfolioSummary
+          assetBalanceData={mockData}
+          summary={{
+            total_purchase_amount: 1000,
+            total_market_value: 1100,
+            total_daily_change: 0,
+          }}
+        />
+      );
+
+      const summary = screen.getByTestId('portfolio-valuation-summary');
+      expect(summary).toHaveTextContent(/1,100/);
+      expect(summary).toHaveTextContent('+10.0%');
+    });
   });
 
   describe('配当金額・配当利回り', () => {

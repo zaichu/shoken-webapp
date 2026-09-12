@@ -10,6 +10,12 @@ import {
   normalizeSecurityName,
   safeAdd,
 } from '@/lib/utils/formatters';
+import {
+  formatValuationAmount,
+  formatValuationRate,
+  summarizeValuation,
+  toFiniteAmount,
+} from '@/features/assetBalance/valuation';
 import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
 
 interface AssetPortfolioSummaryProps {
@@ -61,12 +67,51 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
     return { totalAnnualDividends: total, portfolioDividendYield: yieldValue };
   })();
 
+  // 評価損益の集計。損益率はDB値を使わず金額から再計算する (Issue #851 改訂1)。
+  // summary がある場合は検索条件全体の集計を優先し、なければ表示中データから集計する。
+  // 欠損を含む場合は不完全として金額・率を表示しない (改訂2)。
+  const valuation = (() => {
+    const items = assetBalanceData.map((item) => ({
+      market_value: item.market_value,
+      total_purchase_amount: item.total_purchase_amount,
+    }));
+    const detail = summarizeValuation(items);
+    if (summary) {
+      const purchase = toFiniteAmount(summary.total_purchase_amount);
+      const market = toFiniteAmount(summary.total_market_value);
+      if (purchase === null || market === null || detail.incomplete) {
+        return { marketValue: null, amount: null, rate: null, incomplete: true };
+      }
+      const amount = market - purchase;
+      return {
+        marketValue: market,
+        amount,
+        rate: purchase === 0 ? null : (amount / purchase) * 100,
+        incomplete: false,
+      };
+    }
+    return detail;
+  })();
+
+  // 合計評価額 (全体の非表示判定用。欠損は含めない)
+  const totalMarketValue = valuation.marketValue;
+
   // 横棒グラフ用データを生成（詳細情報付き）
+  // 取得総額0の銘柄は従来どおり除外するが、評価額を持つ銘柄は残す (Issue #851 改訂2)。
+  // 欠損の market_value は toFiniteAmount で弾き、0円として扱わない。
   const chartData: PortfolioItem[] = assetBalanceData
-    .filter((item) => (item.total_purchase_amount || 0) > 0)
+    .filter((item) => {
+      const purchase = toFiniteAmount(item.total_purchase_amount);
+      if (purchase !== null && purchase > 0) return true;
+      const market = toFiniteAmount(item.market_value);
+      return market !== null && market !== 0;
+    })
     .map((item) => ({
       name: normalizeSecurityName(item.security_name || item.security_code),
-      value: item.total_purchase_amount || 0,
+      fullName: item.security_name || item.security_code,
+      value: toFiniteAmount(item.total_purchase_amount) ?? 0,
+      marketValue: toFiniteAmount(item.market_value),
+      currentPrice: toFiniteAmount(item.current_price),
       securityCode: item.security_code,
       shares: item.shares,
       averagePrice: item.average_purchase_price,
@@ -104,8 +149,9 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
     );
   }
 
-  // 合計取得総額が0の場合
-  if (totalPurchaseAmount === 0) {
+  // 合計取得総額も合計評価額もない場合のみ全体を非表示にする。
+  // 取得総額0でも評価額を持つ銘柄があれば表示する (Issue #851 改訂2)。
+  if (totalPurchaseAmount === 0 && (totalMarketValue === null || totalMarketValue === 0)) {
     return null;
   }
 
@@ -136,7 +182,34 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             </div>
           ) : null}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4" data-testid="portfolio-kpi-grid">
+        <div className="mt-4 sm:hidden" data-testid="portfolio-valuation-summary">
+          <p className="text-sm font-medium text-slate-600">保有資産の評価額</p>
+          <p className="mt-1 text-3xl font-black tabular-nums text-slate-950">
+            {valuation.marketValue === null ? '—' : formatCurrency(valuation.marketValue)}
+          </p>
+          <p className="mt-2 text-sm font-bold tabular-nums text-slate-800">
+            評価損益{' '}
+            {valuation.amount === null ? (
+              '—'
+            ) : (
+              <>
+                {formatValuationAmount(valuation.amount, formatCurrency)}
+                {valuation.rate === null ? (
+                  '（算出不可）'
+                ) : (
+                  `（${formatValuationRate(valuation.rate)}）`
+                )}
+              </>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">取込データ時点</p>
+          {valuation.incomplete ? (
+            <p className="mt-1 text-xs text-amber-700">
+              一部の銘柄の評価額が不足しているため、合計を算出できません
+            </p>
+          ) : null}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 max-sm:hidden sm:gap-3 lg:grid-cols-4" data-testid="portfolio-kpi-grid">
           <div className="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p className="mb-1 text-xs font-medium text-slate-600">合計取得総額</p>
             <p className="text-base max-sm:break-words max-sm:tracking-tight font-bold sm:text-3xl text-primary tabular-nums" data-negative={totalPurchaseAmount < 0 ? 'true' : undefined}>
@@ -172,7 +245,12 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
         <CardBody className="p-0">
           <div className="flex flex-col gap-3 border-b border-slate-950/10 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-black text-slate-900">保有内訳</h3>
+              <h3 className="text-sm font-black text-slate-900">
+                保有内訳
+                <span className="ml-1 font-medium text-slate-500 sm:hidden">
+                  保有{displayCount}銘柄
+                </span>
+              </h3>
             </div>
           </div>
           <div className="p-4">
