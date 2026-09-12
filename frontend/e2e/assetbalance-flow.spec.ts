@@ -222,7 +222,7 @@ test('資産管理データが2件あるときサマリーと検索オプショ�
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByText('合計取得総額')).toBeVisible();
   await expect(page.getByRole('button', { name: /全件削除 \(2件\)/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /検索オプション/ })).toBeVisible();
+  await expect(page.getByTestId('search-card-header')).toBeVisible();
 });
 
 test('検索オプションで銘柄を絞り込み解除できる', async ({ page }) => {
