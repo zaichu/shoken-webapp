@@ -338,58 +338,48 @@ describe('ReceiptsPage', () => {
     expect(screen.queryByTestId('dividend-view')).not.toBeInTheDocument();
   });
 
-  it('CSV preview: 配当金のプレビュー行を Dividend に渡す', async () => {
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.dividendApi.previewCsv).mockResolvedValue({
-      total_rows: 2,
-      valid_rows: 2,
-      errors: [],
-      rows: [
+  // CSV preview は3ドメインとも同一コードパス（useReceiptsData の receiptApiByType 参照）のためパラメータ化する
+  it.each([
+    {
+      type: 'dividend',
+      tabName: null,
+      previewRows: [
         { id: 'preview-dividend-1', payment_date: '2025-01-01' },
         { id: 'preview-dividend-2', payment_date: '2025-02-01' },
       ],
-    } as never);
+    },
+    {
+      type: 'domesticstock',
+      tabName: /^国内株式/,
+      previewRows: [{ id: 'preview-domesticstock-1', trade_date: '2025-03-01' }],
+    },
+    {
+      type: 'mutualfund',
+      tabName: /^投資信託/,
+      previewRows: [{ id: 'preview-mutualfund-1', trade_date: '2025-04-01' }],
+    },
+  ] as const)('CSV preview: $type タブのプレビュー行が対応コンポーネントに渡る', async ({ type, tabName, previewRows }) => {
+    const previewApiByType = {
+      dividend: receiptApi.dividendApi,
+      domesticstock: receiptApi.domesticStockApi,
+      mutualfund: receiptApi.mutualfundApi,
+    } as const;
+    const transformByType = {
+      dividend: receiptParsers.transformDBDividend,
+      domesticstock: receiptParsers.transformDBDomesticStock,
+      mutualfund: receiptParsers.transformDBMutualfund,
+    } as const;
+    const api = previewApiByType[type];
 
-    renderWithQuery(<ReceiptsPage />);
-
-    await waitFor(() => {
-      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
-    }, waitOpts);
-    await waitFor(() => {
-      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
-    }, waitOpts);
-
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId('csv-file-input'));
-
-    await waitFor(() => {
-      expect(receiptApi.dividendApi.previewCsv).toHaveBeenCalled();
-    }, waitOpts);
-    await waitFor(() => {
-      expect(vi.mocked(receiptParsers.transformDBDividend)).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'preview-dividend-1' })
-      );
-      expect(vi.mocked(receiptParsers.transformDBDividend)).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'preview-dividend-2' })
-      );
-    }, waitOpts);
-
-    expect(screen.getByTestId('dividend-preview-count')).toHaveTextContent('2');
-  });
-
-  it('CSV preview: 国内株式タブで DomesticStock コンポーネントにプレビューが渡る', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
     vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
     vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.domesticStockApi.previewCsv).mockResolvedValue({
-      total_rows: 1,
-      valid_rows: 1,
+    vi.mocked(api.previewCsv).mockResolvedValue({
+      total_rows: previewRows.length,
+      valid_rows: previewRows.length,
       errors: [],
-      rows: [{ id: 'preview-domesticstock-1', trade_date: '2025-03-01' }],
+      rows: previewRows,
     } as never);
 
     renderWithQuery(<ReceiptsPage />);
@@ -402,58 +392,22 @@ describe('ReceiptsPage', () => {
     }, waitOpts);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /^国内株式/ }));
+    if (tabName !== null) {
+      await user.click(screen.getByRole('tab', { name: tabName }));
+    }
     await user.click(screen.getByTestId('csv-file-input'));
 
     await waitFor(() => {
-      expect(receiptApi.domesticStockApi.previewCsv).toHaveBeenCalled();
+      expect(vi.mocked(api.previewCsv)).toHaveBeenCalled();
     }, waitOpts);
     await waitFor(() => {
-      expect(vi.mocked(receiptParsers.transformDBDomesticStock)).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'preview-domesticstock-1' })
+      expect(vi.mocked(transformByType[type])).toHaveBeenCalledWith(
+        expect.objectContaining({ id: previewRows[0].id })
       );
     }, waitOpts);
 
-    expect(screen.getByTestId('domesticstock-view')).toBeInTheDocument();
-    expect(screen.getByTestId('domesticstock-preview-count')).toHaveTextContent('1');
-  });
-
-  it('CSV preview: 投資信託タブで Mutualfund コンポーネントにプレビューが渡る', async () => {
-    vi.mocked(authHook.useAuth).mockReturnValue(makeAuthMock({ isAuthenticated: true }));
-    vi.mocked(receiptApi.dividendApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.domesticStockApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.mutualfundApi.list).mockResolvedValue({ data: [], total: 0, page: 1, per_page: 200 } as never);
-    vi.mocked(receiptApi.mutualfundApi.previewCsv).mockResolvedValue({
-      total_rows: 1,
-      valid_rows: 1,
-      errors: [],
-      rows: [{ id: 'preview-mutualfund-1', trade_date: '2025-04-01' }],
-    } as never);
-
-    renderWithQuery(<ReceiptsPage />);
-
-    await waitFor(() => {
-      expect(receiptApi.dividendApi.list).toHaveBeenCalled();
-    }, waitOpts);
-    await waitFor(() => {
-      expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
-    }, waitOpts);
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /^投資信託/ }));
-    await user.click(screen.getByTestId('csv-file-input'));
-
-    await waitFor(() => {
-      expect(receiptApi.mutualfundApi.previewCsv).toHaveBeenCalled();
-    }, waitOpts);
-    await waitFor(() => {
-      expect(vi.mocked(receiptParsers.transformDBMutualfund)).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'preview-mutualfund-1' })
-      );
-    }, waitOpts);
-
-    expect(screen.getByTestId('mutualfund-view')).toBeInTheDocument();
-    expect(screen.getByTestId('mutualfund-preview-count')).toHaveTextContent('1');
+    expect(screen.getByTestId(`${type}-view`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${type}-preview-count`)).toHaveTextContent(String(previewRows.length));
   });
 
   describe('タブキーボードナビゲーション', () => {

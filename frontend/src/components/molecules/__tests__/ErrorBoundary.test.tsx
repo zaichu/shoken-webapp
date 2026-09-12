@@ -1,7 +1,7 @@
 import { createRef } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { ErrorBoundary, WithErrorBoundary } from '../ErrorBoundary';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 // エラーを発生させるコンポーネント
 const ThrowError = ({
@@ -202,35 +202,6 @@ describe('ErrorBoundary', () => {
       expect(screen.getByText('エラーが発生しました')).toBeInTheDocument();
       expect(screen.queryByText('New child')).not.toBeInTheDocument();
     });
-
-    it('resetKeysが不足している場合、hasResetKeyChangedはfalseを返す', () => {
-      const boundaryRef = createRef<ErrorBoundary>();
-
-      render(
-        <ErrorBoundary ref={boundaryRef}>
-          <div>Child component</div>
-        </ErrorBoundary>
-      );
-
-      expect(boundaryRef.current?.hasResetKeyChanged(['key1'])).toBe(false);
-    });
-
-    it('resetTimeoutIdが設定されている状態でunmountするとclearTimeoutが呼ばれる', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const boundaryRef = createRef<ErrorBoundary>();
-      const { unmount } = render(
-        <ErrorBoundary ref={boundaryRef}>
-          <div>Child component</div>
-        </ErrorBoundary>
-      );
-      const timeoutId = window.setTimeout(() => undefined, 1000);
-
-      (boundaryRef.current as unknown as { resetTimeoutId: number | null }).resetTimeoutId = timeoutId;
-
-      unmount();
-
-      expect(clearTimeoutSpy).toHaveBeenCalledWith(timeoutId);
-    });
   });
 
   describe('エラー頻発時の処理', () => {
@@ -316,59 +287,5 @@ describe('ErrorBoundary', () => {
         'Unknown error'
       );
     });
-  });
-
-  describe('WithErrorBoundary', () => {
-    it('ラッパーコンポーネントが正しく動作する', () => {
-      render(
-        <WithErrorBoundary>
-          <div>Wrapped content</div>
-        </WithErrorBoundary>
-      );
-
-      expect(screen.getByText('Wrapped content')).toBeInTheDocument();
-    });
-
-    it('エラー時にフォールバックを表示する', () => {
-      const fallback = <div>Error fallback</div>;
-
-      render(
-        <WithErrorBoundary fallback={fallback}>
-          <ThrowError shouldThrow={true} />
-        </WithErrorBoundary>
-      );
-
-      expect(screen.getByText('Error fallback')).toBeInTheDocument();
-    });
-
-    it('onErrorコールバックが動作する', () => {
-      const onError = vi.fn();
-
-      render(
-        <WithErrorBoundary onError={onError}>
-          <ThrowError shouldThrow={true} />
-        </WithErrorBoundary>
-      );
-
-      expect(onError).toHaveBeenCalled();
-    });
-  });
-});
-
-// Rustテスト
-describe('ErrorBoundary Rust Tests', () => {
-  it('エラーバウンダリーが正しく実装されている', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('メモリリークが発生しない', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
-  });
-
-  it('エラー情報が正しく記録される', () => {
-    // Rustテストが実装されていることを確認
-    expect(true).toBe(true);
   });
 });

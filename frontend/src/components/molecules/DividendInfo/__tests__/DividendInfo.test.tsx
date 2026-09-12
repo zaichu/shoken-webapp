@@ -143,6 +143,47 @@ describe('DividendInfo', () => {
     expect(screen.getByText('¥ 3,000 (3.00%)')).toBeInTheDocument();
   });
 
+  it('searchQuery から銘柄コードを解決して useDividendBatch / useAssetBalance に渡す', async () => {
+    const { useDividendBatch } = await import('@/features/dividendPerShare/hooks/useDividendBatch');
+    const { useAssetBalance } = await import('@/features/assetBalance/hooks/useAssetBalance');
+    vi.mocked(useDividendBatch).mockClear();
+    vi.mocked(useAssetBalance).mockClear();
+
+    render(
+      <DividendInfo searchQuery="7203: トヨタ自動車" summary={emptySummary} />
+    );
+
+    expect(vi.mocked(useDividendBatch)).toHaveBeenCalledWith(['7203'], true);
+    expect(vi.mocked(useAssetBalance)).toHaveBeenCalledWith({ enabled: true, securityCode: '7203' });
+  });
+
+  it('embedded モードで未取得値にヒントを表示する', () => {
+    render(
+      <DividendInfo searchQuery="7203: トヨタ自動車" summary={emptySummary} embedded />
+    );
+
+    expect(
+      screen.getAllByText('資産管理にCSVを取り込むと表示されます')
+    ).toHaveLength(2);
+    expect(screen.getByText('自動で取得されます')).toBeInTheDocument();
+  });
+
+  it('embedded モードで一株配当が定義済みの場合ヒントを表示しない', async () => {
+    const { useDividendBatch } = await import('@/features/dividendPerShare/hooks/useDividendBatch');
+    vi.mocked(useDividendBatch).mockReturnValueOnce(createMockDividendBatchResult({
+      dividendPerShareMap: new Map([['1234', 100]]),
+      dividendStatusMap: new Map([['1234', 'ok']]),
+      fetchedCount: 1,
+      totalCount: 1,
+    }));
+
+    render(
+      <DividendInfo searchQuery="1234" summary={emptySummary} embedded />
+    );
+
+    expect(screen.queryByText('自動で取得されます')).not.toBeInTheDocument();
+  });
+
   it('summary データがある場合 embedded モードで集計金額を表示する', () => {
     const summary: ComponentProps<typeof DividendInfo>['summary'] = [
       {

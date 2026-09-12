@@ -86,4 +86,19 @@ describe('ReceiptsAlerts', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('hasCsvFile=false なら csvPreview があってもプレビューセクションを表示しない', () => {
+    render(
+      <ReceiptsAlerts
+        dbError={null}
+        dbWarning={null}
+        hasCsvFile={false}
+        previewing={false}
+        csvPreview={{ ...csvPreview, errors: [] }}
+      />
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText('3件 追加で保存されます')).not.toBeInTheDocument();
+  });
 });

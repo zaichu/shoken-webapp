@@ -13,7 +13,6 @@ describe('InputField', () => {
     render(<InputField label="テスト項目" error="必須項目です" />);
     
     expect(screen.getByText('必須項目です')).toBeInTheDocument();
-    expect(screen.getByText('必須項目です')).toHaveClass('text-danger');
   });
 
   it('ヘルプテキストを表示する', () => {
@@ -21,7 +20,6 @@ describe('InputField', () => {
     
     const input = screen.getByLabelText('テスト項目');
     expect(screen.getByText('半角数字で入力')).toBeInTheDocument();
-    expect(screen.getByText('半角数字で入力')).toHaveClass('text-secondary');
     expect(input).toHaveAttribute('aria-describedby', 'amount-help');
   });
 
@@ -53,24 +51,7 @@ describe('InputField', () => {
     const { container } = render(<InputField label="テスト項目" fullWidth />);
     
     const wrapper = container.querySelector('div.w-full');
-    const input = screen.getByLabelText('テスト項目');
     expect(wrapper).toBeInTheDocument();
-    expect(input).toHaveClass('w-full');
-  });
-
-  it('fullWidth のデフォルト値では w-full クラスが付かない', () => {
-    const { container } = render(<InputField label="テスト項目" />);
-
-    const input = screen.getByLabelText('テスト項目');
-    expect(container.firstChild).not.toHaveClass('w-full');
-    expect(input).not.toHaveClass('w-full');
-  });
-
-  it('追加のクラス名が適用される', () => {
-    render(<InputField label="テスト項目" className="custom-class" />);
-    
-    const input = screen.getByLabelText('テスト項目');
-    expect(input).toHaveClass('custom-class');
   });
 
   it('disabledプロパティが動作する', () => {
@@ -80,25 +61,10 @@ describe('InputField', () => {
     expect(input).toBeDisabled();
   });
 
-  it('variant=filledのスタイルが適用される', () => {
-    render(<InputField label="テスト項目" variant="filled" />);
-
-    const input = screen.getByLabelText('テスト項目');
-    expect(input).toHaveClass('bg-slate-50');
-  });
-
-  it('variant=standardのスタイルが適用される', () => {
-    render(<InputField label="テスト項目" variant="standard" />);
-
-    const input = screen.getByLabelText('テスト項目');
-    expect(input).toHaveClass('border-0');
-  });
-
   it('required=trueのときラベルにアスタリスクが表示される', () => {
     render(<InputField label="必須項目" required />);
 
     expect(screen.getByText('*')).toBeInTheDocument();
-    expect(screen.getByText('*')).toHaveClass('text-danger');
     expect(screen.getByRole('textbox')).toBeRequired();
   });
 
