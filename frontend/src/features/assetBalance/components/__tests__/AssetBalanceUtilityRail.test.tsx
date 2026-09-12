@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AssetBalanceUtilityRail } from '../AssetBalanceUtilityRail';
 
@@ -75,5 +75,52 @@ describe('AssetBalanceUtilityRail', () => {
     );
 
     expect(screen.queryByTestId('search-card')).not.toBeInTheDocument();
+  });
+
+  describe('スマホ幅のCSV折り畳み (Issue #859 追加対応、取引明細と同方式)', () => {
+    const renderRail = () =>
+      render(
+        <AssetBalanceUtilityRail
+          actionRailProps={actionRailProps}
+          error={null}
+          searchCardProps={{
+            visible: false,
+            categories: {},
+            value: '',
+            onSearch: vi.fn(),
+          }}
+          reviewPromptCardProps={reviewPromptCardProps}
+        />
+      );
+
+    it('折り畳み入口を表示し、初期は折りたたまれている', () => {
+      renderRail();
+
+      const toggle = screen.getByTestId('assetbalance-csv-toggle');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(toggle).toHaveAccessibleName('CSV取り込み・削除 開く');
+      // aria-controls が展開部の id を指す
+      const region = screen.getByRole('region', { name: 'CSV取り込み・削除' });
+      expect(toggle.getAttribute('aria-controls')).toBe(region.getAttribute('id'));
+      // シェブロンは装飾として支援技術から隠す
+      expect(toggle.querySelector('svg[aria-hidden="true"]')).toBeInTheDocument();
+      // DataActionRail 自体はマウントされたまま (状態の二重化なし)
+      expect(screen.getByTestId('data-action-rail')).toBeInTheDocument();
+    });
+
+    it('クリックで展開・折り畳みできる', () => {
+      renderRail();
+
+      const toggle = screen.getByTestId('assetbalance-csv-toggle');
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(toggle).toHaveAccessibleName('CSV取り込み・削除 閉じる');
+      expect(screen.getByTestId('data-action-rail')).toHaveTextContent('2件 全件置換で保存');
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(toggle).toHaveAccessibleName('CSV取り込み・削除 開く');
+    });
   });
 });

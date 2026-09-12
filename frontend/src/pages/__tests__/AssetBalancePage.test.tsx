@@ -245,6 +245,27 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
     expect(screen.getByTestId('assetbalance-workspace').className).toContain('xl:grid-cols-[minmax(0,1fr)_20rem]');
   });
 
+  it('Issue #859: スマホ幅で検索(rail)が銘柄一覧(main)より先にDOM配置される', async () => {
+    vi.mocked(authHook.useAuth).mockReturnValue(
+      makeAuthMock({ isAuthenticated: true, userId: 'user-1' })
+    );
+    vi.mocked(assetBalanceApiModule.assetBalanceApi.list).mockResolvedValue({ data: [mockDbRow], total: 1, page: 1, per_page: 200 } as never);
+
+    await act(async () => { renderWithQuery(<AssetBalancePage />); });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assetbalance-workspace')).toBeInTheDocument();
+    });
+
+    const rail = screen.getByTestId('assetbalance-utility-rail');
+    const main = screen.getByTestId('assetbalance-main-stage');
+    // railFirst: DOM順自体が rail → main（Tab順・読み上げ順も検索先）。
+    // クラス名ではなく DOM 順序を見る（#857 の方針）。
+    // sm以上での見た目の順序（PC表示不変）は jsdom にレイアウトがないため検証不可で、
+    // 390/640/1920px のスクリーンショットのピクセル差分で補う。
+    expect(rail.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('保存後: right rail に軽い confirmation strip が表示される', async () => {
     vi.mocked(authHook.useAuth).mockReturnValue(
       makeAuthMock({ isAuthenticated: true, userId: 'user-1' })

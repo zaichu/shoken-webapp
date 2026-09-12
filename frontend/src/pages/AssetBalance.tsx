@@ -92,6 +92,15 @@ export function AssetBalancePage() {
       <div className="mt-2" aria-busy={workspaceBusy}>
         <WorkspaceShell
           testIdPrefix="assetbalance"
+          // Issue #859: rail（検索オプション含む AssetBalanceUtilityRail）を main（銘柄一覧）より
+          // 前にDOMレンダリングする。CSS order と違い Tab 順・読み上げ順も検索先になる。
+          // sm以上では order クラスで main を先・rail を後に戻す（640pxの1カラムも
+          // 1920pxの2カラムもPC表示は不変。grid は order 順に自動配置される）。
+          // 条件レンダリングではなく単一インスタンスのままなので
+          // ブレークポイント跨ぎで内部stateは保持される。
+          railFirst
+          mainClassName="order-2 sm:order-1"
+          railClassName="order-1 sm:order-2"
           main={
             <>
               {mainStatusMessage && (

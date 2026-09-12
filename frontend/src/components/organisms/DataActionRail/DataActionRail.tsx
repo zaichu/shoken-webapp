@@ -1,6 +1,7 @@
 import { CSVFileInput } from '@/components/molecules/CSVFileInput';
 import { CsvSaveResultNotice } from '@/components/molecules/CsvSaveResultNotice';
 import { Button } from '@/components/atoms/Button';
+import { cn } from '@/lib/utils/classNames';
 import type { CsvUploadResult } from '@/lib/csvImport';
 
 export interface DataActionRailProps {
@@ -24,6 +25,12 @@ export interface DataActionRailProps {
   // 保存結果通知
   saveResult?: CsvUploadResult | null;
   saveModeLabel: string;
+
+  /**
+   * section 要素への追加クラス（任意）。
+   * 未指定時は従来どおりで、既存利用箇所（取引明細）の出力は変わらない。
+   */
+  sectionClassName?: string;
 }
 
 /**
@@ -44,9 +51,10 @@ export function DataActionRail({
   deleteDisabled,
   saveResult,
   saveModeLabel,
+  sectionClassName,
 }: DataActionRailProps) {
   return (
-    <section className="space-y-3 bg-slate-50/60 px-5 py-5" role="group" aria-label="データ操作">
+    <section className={cn('space-y-3 bg-slate-50/60 px-5 py-5', sectionClassName)} role="group" aria-label="データ操作">
       <div className="space-y-3">
         <CSVFileInput
           onFileSelect={onFileSelect}
