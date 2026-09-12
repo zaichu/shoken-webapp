@@ -313,16 +313,33 @@ describe('SearchCard', () => {
     expect(mockOnSearch).toHaveBeenCalledWith('');
   });
 
-  test('initialExpandedプロパティが変わると展開状態が同期される', () => {
+  test('initialExpandedは初期値としてのみ扱い、変化しても展開状態を上書きしない（Issue #854）', () => {
     const { rerender } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+
+    // ユーザーが開いた後に親が initialExpanded を変えても上書きしない
+    fireEvent.click(screen.getByTestId('search-card-header'));
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    rerender(
       <SearchCard
         onSearch={mockOnSearch}
         categories={defaultCategories}
         initialExpanded={true}
       />
     );
-
     expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    // ユーザーが閉じた後に親が initialExpanded を変えても上書きしない
+    fireEvent.click(screen.getByTestId('search-card-header'));
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
 
     rerender(
       <SearchCard
@@ -331,7 +348,75 @@ describe('SearchCard', () => {
         initialExpanded={false}
       />
     );
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+  });
 
+  test('initialExpanded=falseが渡され続けてもトグルで開閉できる（Issue #854 回帰）', () => {
+    // スマホの ReceiptTemplate は initialExpanded={false} を渡し続ける。
+    // 親の再レンダー（検索操作など）でもユーザー操作が維持されること。
+    const { rerender } = render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+        compact
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-header'));
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    // 親が同じ initialExpanded=false で再レンダーしても開いたまま
+    rerender(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+        compact
+      />
+    );
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-header'));
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+  });
+
+  test('compactモードで矢印ボタンを押すと開閉できる（Issue #854 回帰）', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+        compact
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-chevron-toggle'));
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-chevron-toggle'));
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+  });
+
+  test('通常モードで矢印ボタンを押すと開閉できる（Issue #854 回帰）', () => {
+    render(
+      <SearchCard
+        onSearch={mockOnSearch}
+        categories={defaultCategories}
+        initialExpanded={false}
+      />
+    );
+
+    expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-chevron-toggle'));
+    expect(screen.getByText('銘柄')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('search-card-chevron-toggle'));
     expect(screen.queryByText('銘柄')).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card, CardBody, CardHeader } from '@/components/atoms/Card';
 import { cn } from '@/lib/utils/classNames';
@@ -20,12 +20,12 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     initialExpanded = true,
     compact = false,
 }) => {
-    // 展開/折りたたみの UI 表示 state（API クエリには影響しない）
+    // 展開/折りたたみの UI 表示 state（API クエリには影響しない）。
+    // initialExpanded はあくまで初期値。ユーザー操作後は上書きしない
+    // （Issue #854: スマホでは initialExpanded=false が渡され続けるため、
+    // 同期 effect があるとユーザー操作が無効化される。layout はマウント中不変で
+    // タブ切替は再マウントになるため、同期の必要はない）。
     const [isExpanded, setIsExpanded] = useState(initialExpanded);
-    // layout 切り替えなどで initialExpanded が変化したときに展開状態を同期する
-    useEffect(() => {
-        setIsExpanded(initialExpanded);
-    }, [initialExpanded]);
 
     // 年ピッカーの開閉も検索クエリに影響しない UI 表示 state
     const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
@@ -148,16 +148,25 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         >
                             解除
                         </Button>
-                        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700" aria-hidden="true">
+                        <button
+                            type="button"
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700"
+                            onClick={handleToggleExpanded}
+                            aria-expanded={isExpanded}
+                            aria-controls="search-options-body"
+                            aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                            data-testid="search-card-chevron-toggle"
+                        >
                             <svg
                                 className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', isExpanded && 'rotate-180')}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
+                                aria-hidden="true"
                             >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
-                        </span>
+                        </button>
                     </div>
                 </div>
                 {isExpanded && categories && (
@@ -237,10 +246,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                         </svg>
                         <span className="ml-1">絞り込み解除</span>
                     </Button>
-                    {/* シェブロンアイコン: 回転で開閉状態を表現 */}
-                    <span
-                        className="flex items-center gap-1.5 rounded-md border border-white/25 bg-white/10 px-2 py-0.5"
-                        aria-hidden="true"
+                    {/* シェブロンアイコン: 回転で開閉状態を表現。ヘッダーとは別のタップ位置としても操作できる */}
+                    <button
+                        type="button"
+                        className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/25 bg-white/10 px-2 py-0.5"
+                        onClick={handleToggleExpanded}
+                        aria-expanded={isExpanded}
+                        aria-controls="search-options-body"
+                        aria-label={`検索オプション ${isExpanded ? '閉じる' : '開く'}`}
+                        data-testid="search-card-chevron-toggle"
                     >
                         <span className="text-xs font-semibold whitespace-nowrap text-white">
                             {isExpanded ? '閉じる' : '開く'}
@@ -250,10 +264,11 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
+                            aria-hidden="true"
                         >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </span>
+                            </svg>
+                        </button>
                 </div>
             </CardHeader>
             {isExpanded && categories && (
