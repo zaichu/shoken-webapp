@@ -259,13 +259,11 @@ describe('AssetBalancePage 認証境界・キャッシュ境界', () => {
 
     const rail = screen.getByTestId('assetbalance-utility-rail');
     const main = screen.getByTestId('assetbalance-main-stage');
-    // railFirst: DOM順自体が rail → main（Tab順・読み上げ順も検索先）
+    // railFirst: DOM順自体が rail → main（Tab順・読み上げ順も検索先）。
+    // クラス名ではなく DOM 順序を見る（#857 の方針）。
+    // sm以上での見た目の順序（PC表示不変）は jsdom にレイアウトがないため検証不可で、
+    // 390/640/1920px のスクリーンショットのピクセル差分で補う。
     expect(rail.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // sm以上では order クラスで main 先・rail 後に戻す（640px/1920pxのPC表示は不変）
-    expect(main.classList.contains('order-2')).toBe(true);
-    expect(main.classList.contains('sm:order-1')).toBe(true);
-    expect(rail.classList.contains('order-1')).toBe(true);
-    expect(rail.classList.contains('sm:order-2')).toBe(true);
   });
 
   it('保存後: right rail に軽い confirmation strip が表示される', async () => {
