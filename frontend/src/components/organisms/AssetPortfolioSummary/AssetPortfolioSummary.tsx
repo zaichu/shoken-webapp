@@ -248,7 +248,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
               <h3 className="text-sm font-black text-slate-900">
                 保有内訳
                 <span className="ml-1 font-medium text-slate-500 sm:hidden">
-                  保有{displayCount}銘柄
+                  （保有{displayCount}銘柄）
                 </span>
               </h3>
             </div>
