@@ -144,7 +144,7 @@ function PortfolioValuationCard({ item, dividendPerShareMap, dividendStatusMap }
         aria-expanded={open}
         aria-controls={detailId}
         onClick={() => setOpen((prev) => !prev)}
-        className="block min-h-[44px] w-full px-3.5 py-3 text-left"
+        className="block min-h-[44px] w-full px-3.5 py-4 text-left"
       >
         <span className="flex min-w-0 items-center gap-2">
           <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
@@ -157,13 +157,13 @@ function PortfolioValuationCard({ item, dividendPerShareMap, dividendStatusMap }
             {item.securityCode}
           </span>
         </span>
-        <span className="mt-1.5 flex items-baseline justify-between gap-2">
+        <span className="mt-2 flex items-baseline justify-between gap-2">
           <span className="shrink-0 text-xs font-medium text-slate-500">評価額</span>
           <span className="truncate text-base font-bold tabular-nums text-slate-800">
             {marketDisplay}
           </span>
         </span>
-        <span className="mt-1.5 flex items-center justify-between gap-2">
+        <span className="mt-2 flex items-center justify-between gap-2">
           <span className="shrink-0 text-xs font-medium text-slate-500">評価損益</span>
           <span className="flex min-w-0 items-center gap-1">
             <span className="truncate text-sm font-bold tabular-nums text-slate-800">
