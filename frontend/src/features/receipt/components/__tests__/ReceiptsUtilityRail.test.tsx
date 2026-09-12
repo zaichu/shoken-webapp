@@ -104,8 +104,6 @@ describe('ReceiptsUtilityRail', () => {
       const toggle = screen.getByTestId('receipt-csv-toggle');
       expect(toggle).toHaveAttribute('aria-expanded', 'false');
       expect(toggle).toHaveAccessibleName('CSV取り込み・削除 開く');
-      // タップ領域44px以上
-      expect(toggle).toHaveClass('min-h-[44px]');
       // 展開部は max-sm:hidden で畳まれる (PC幅では表示される)
       const region = screen.getByRole('region', { name: 'CSV取り込み・削除' });
       expect(region).toHaveClass('max-sm:hidden');

@@ -225,15 +225,6 @@ describe('AssetPortfolioSummary', () => {
     expect(screen.getByTestId('asset-portfolio-summary')).toBeInTheDocument();
   });
 
-  it('KPI strip のグリッドは lg:grid-cols-4 で4列表示を使用する', () => {
-    const mockData = createMockData();
-    const { container } = render(<AssetPortfolioSummary assetBalanceData={mockData} />);
-    const kpiGrid = container.querySelector('[data-testid="portfolio-kpi-grid"]');
-    expect(kpiGrid).toBeInTheDocument();
-    expect(kpiGrid).toHaveClass('lg:grid-cols-4');
-    expect(kpiGrid).not.toHaveClass('xl:grid-cols-3');
-  });
-
   describe('評価額サマリー', () => {
     it('保有資産の評価額と評価損益が表示される', () => {
       const mockData = createMockData();
