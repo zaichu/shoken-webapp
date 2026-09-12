@@ -88,8 +88,9 @@ describe('AssetBalanceInfo', { timeout: 20000 }, () => {
   it('銘柄名が表示される', async () => {
     render(<AssetBalanceInfo {...defaultProps} />);
     await waitFor(() => {
-      expect(screen.getByText('トヨタ自動車')).toBeInTheDocument();
-      expect(screen.getByText('ソニーグループ')).toBeInTheDocument();
+      // PC用カードとスマホ用評価額カードの両方に描画される
+      expect(screen.getAllByText('トヨタ自動車').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ソニーグループ').length).toBeGreaterThanOrEqual(1);
     }, waitOpts);
   });
 

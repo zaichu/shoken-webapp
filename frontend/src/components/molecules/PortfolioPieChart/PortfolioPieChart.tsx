@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { SecurityCodeLink } from '@/components/atoms/SecurityCodeLink';
 import { formatCurrency, formatNumber, formatPercentageValue } from '@/lib/utils/formatters';
 import { DividendStatus } from '@/features/dividendPerShare/api/dividendPerShareApi';
+import {
+  calculateValuation,
+  formatValuationAmount,
+  formatValuationRate,
+  toFiniteAmount,
+} from '@/features/assetBalance/valuation';
 import { cn } from '@/lib/utils/classNames';
 
 // 横棒グラフ用の配色（視認性を考慮した10色）
@@ -26,6 +32,12 @@ export interface PortfolioItem {
   averagePrice: number;
   securityCode: string;
   shares: number;
+  /** 展開内に表示する銘柄名全文 (未指定時は name を使う) */
+  fullName?: string;
+  /** 評価額。欠損時は null/undefined のまま渡す (0円として扱わない) */
+  marketValue?: number | null;
+  /** 現在値 (取込値)。欠損時は null/undefined のまま渡す */
+  currentPrice?: number | null;
 }
 
 interface ChartDataItem extends PortfolioItem {
@@ -95,6 +107,128 @@ function formatYield(divInfo: DividendInfoResult | null): string {
 
 // --- サブコンポーネント ---
 
+interface PortfolioValuationCardProps {
+  item: ChartDataItem;
+  dividendPerShareMap?: Map<string, number>;
+  dividendStatusMap?: Map<string, DividendStatus>;
+}
+
+/**
+ * スマホ幅 (640px未満) 専用の評価額カード。
+ * 閉じた状態は銘柄名・評価額・評価損益のみ。詳細はタップ展開で表示する。
+ * 各カードが独立した開閉状態を持ち、複数同時展開できる。
+ * PC幅では表示しない (sm:hidden)。PC表示は PortfolioItemCard が担う。
+ */
+function PortfolioValuationCard({ item, dividendPerShareMap, dividendStatusMap }: PortfolioValuationCardProps) {
+  const [open, setOpen] = useState(false);
+  const detailId = `portfolio-item-detail-${item.securityCode}`;
+  const divInfo = getDividendInfo(item.securityCode, item.shares, item.averagePrice, dividendPerShareMap, dividendStatusMap);
+  // 損益率はDB値を使わず valuation.ts で再計算する (Issue #851 改訂1)
+  const valuation = calculateValuation(item.marketValue, item.value);
+  const fullName = item.fullName || item.name;
+
+  // 評価額そのものの表示。欠損は0円とせず「—」にする (Issue #851 改訂2)
+  const marketDisplay = (() => {
+    const market = toFiniteAmount(item.marketValue);
+    return market === null ? '—' : formatCurrency(market);
+  })();
+  const currentPriceDisplay = (() => {
+    const current = toFiniteAmount(item.currentPrice);
+    return current === null ? '—' : formatCurrency(current);
+  })();
+
+  return (
+    <div className="rounded-lg border border-slate-950/10 bg-white shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={detailId}
+        onClick={() => setOpen((prev) => !prev)}
+        className="block min-h-[44px] w-full px-3.5 py-4 text-left"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
+            {item.name}
+          </span>
+          <span
+            className="inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold tracking-[0.16em] text-blue-700"
+            data-testid="portfolio-valuation-card-code"
+          >
+            {item.securityCode}
+          </span>
+        </span>
+        <span className="mt-2 flex items-baseline justify-between gap-2">
+          <span className="shrink-0 text-xs font-medium text-slate-500">評価額</span>
+          <span className="truncate text-base font-bold tabular-nums text-slate-800">
+            {marketDisplay}
+          </span>
+        </span>
+        <span className="mt-2 flex items-center justify-between gap-2">
+          <span className="shrink-0 text-xs font-medium text-slate-500">評価損益</span>
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate text-sm font-bold tabular-nums text-slate-800">
+              {valuation.amount === null || valuation.rate === null
+                ? valuation.amount === null
+                  ? '—'
+                  : `${formatValuationAmount(valuation.amount, formatCurrency)}（算出不可）`
+                : `${formatValuationAmount(valuation.amount, formatCurrency)}（${formatValuationRate(valuation.rate)}）`}
+            </span>
+            <span aria-hidden="true" className="shrink-0 text-xs text-slate-400">
+              {open ? '▴' : '▾'}
+            </span>
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div id={detailId} className="border-t border-slate-950/10 px-3.5 py-3">
+          <dl className="space-y-1.5 text-xs text-slate-600">
+            <div className="flex items-start justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">銘柄名</dt>
+              <dd className="min-w-0 break-words text-right font-semibold text-slate-800">{fullName}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">取得総額</dt>
+              <dd className="truncate font-semibold tabular-nums text-slate-800">{formatCurrency(item.value)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">取得単価</dt>
+              <dd className="truncate font-semibold tabular-nums text-slate-800">{formatCurrency(item.averagePrice)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">数量</dt>
+              <dd className="truncate font-semibold tabular-nums text-slate-800">{`${formatNumber(item.shares)}株`}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">現在値</dt>
+              <dd className="truncate font-semibold tabular-nums text-slate-800">{currentPriceDisplay}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">取得額構成比</dt>
+              <dd className="truncate font-semibold tabular-nums text-slate-800">{Number.isNaN(item.percentage) ? '—' : formatPercentageValue(item.percentage, 1)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">予想年間配当</dt>
+              <dd className="truncate font-semibold text-emerald-600">{formatAnnual(divInfo)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">1株配当</dt>
+              <dd className="truncate font-semibold text-emerald-600">{formatPerShare(divInfo)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="shrink-0 font-medium text-slate-500">取得額基準利回り</dt>
+              <dd className="truncate font-semibold text-emerald-600">{formatYield(divInfo)}</dd>
+            </div>
+          </dl>
+          <p className="mt-2.5 border-t border-slate-100 pt-2.5 text-xs">
+            <SecurityCodeLink value={item.securityCode} className="text-xs" />
+            <span className="ml-1 text-slate-500">の銘柄情報を見る</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PortfolioItemCardProps {
   item: ChartDataItem;
   index: number;
@@ -107,7 +241,8 @@ function PortfolioItemCard({ item, index, dividendPerShareMap, dividendStatusMap
   const color = COLORS[index % COLORS.length];
 
   return (
-    <div className="rounded-lg border border-slate-950/10 bg-white px-3.5 py-3 shadow-sm">
+    // PC幅の表示は従来どおり。スマホ幅では PortfolioValuationCard を使う
+    <div className="rounded-lg border border-slate-950/10 bg-white px-3.5 py-3 shadow-sm max-sm:hidden">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -203,12 +338,20 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
   const [showAll, setShowAll] = useState(false);
 
   // パーセンテージを計算してデータに追加（降順ソート済み）
+  // 取得総額の合計が0でも、評価額を持つ銘柄があればカードを表示する (Issue #851 改訂2)。
+  // その場合の取得額構成比は分母が0のため算出不可 (NaN) とする。
   const chartData: ChartDataItem[] = (() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
-    if (total === 0) return [];
+    if (total === 0) {
+      const hasValuation = data.some((item) => {
+        const market = toFiniteAmount(item.marketValue);
+        return market !== null && market !== 0;
+      });
+      if (!hasValuation) return [];
+    }
 
     return data
-      .map((item) => ({ ...item, percentage: (item.value / total) * 100 }))
+      .map((item) => ({ ...item, percentage: total === 0 ? Number.NaN : (item.value / total) * 100 }))
       .sort((a, b) => b.percentage - a.percentage);
   })();
 
@@ -238,13 +381,19 @@ export const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({
       {/* 横棒グラフリスト（2-3列グリッド） */}
       <div className={gridClassName} data-testid="portfolio-items-grid">
         {displayData.map((item, index) => (
-          <PortfolioItemCard
-            key={item.securityCode}
-            item={item}
-            index={index}
-            dividendPerShareMap={dividendPerShareMap}
-            dividendStatusMap={dividendStatusMap}
-          />
+          <div key={item.securityCode}>
+            <PortfolioItemCard
+              item={item}
+              index={index}
+              dividendPerShareMap={dividendPerShareMap}
+              dividendStatusMap={dividendStatusMap}
+            />
+            <PortfolioValuationCard
+              item={item}
+              dividendPerShareMap={dividendPerShareMap}
+              dividendStatusMap={dividendStatusMap}
+            />
+          </div>
         ))}
 
         {/* その他（折りたたみ時） */}

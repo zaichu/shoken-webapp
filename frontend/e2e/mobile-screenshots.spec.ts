@@ -214,3 +214,14 @@ test('スマホ幅の未ログイン画面スクリーンショット', async ({
   await page.goto('/login');
   await shoot(page, 'login');
 });
+
+for (const width of [390, 639, 640, 1920]) {
+  test(`資産評価レイアウト ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 1920 ? 1080 : 844 });
+    await mockApi(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('portfolio-pie-chart').last()).toBeVisible();
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: `${SHOT_DIR}/asset-valuation-${width}.png`, fullPage: true, scale: 'css' });
+  });
+}
