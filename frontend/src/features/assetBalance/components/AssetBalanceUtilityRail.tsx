@@ -42,7 +42,14 @@ export function AssetBalanceUtilityRail({
 
   return (
     <>
-      <div>
+      {/* 外側ラッパーの divide 線は sm 以上で消す（:where() のため sm:border-b-0 が勝つ）。
+          代わりに DataActionRail の section 自体へ sm 限定で同じ下線を付ける。
+          divide の色は半透明のため境界線の仕上がり色は下地の背景色に依存し、
+          ラッパー（透明）の線では PC 幅の hairline 1px の色が変わってしまう。
+          section 自身の線（下地は自身の bg-slate-50/60）なら従来の直置き時と
+          同一の重なり順になり PC 表示が保たれる。sm 未満では従来どおり
+          divide 線が付くため取引明細と同一構造。 */}
+      <div className="sm:border-b-0">
         {/* スマホ幅 (<sm) のみ: 折り畳み入口。PC幅では hidden */}
         <div className="bg-slate-50/60 px-5 sm:hidden">
           <button
@@ -80,7 +87,10 @@ export function AssetBalanceUtilityRail({
             csvExpanded && 'max-sm:border-t max-sm:border-slate-950/10'
           )}
         >
-          <DataActionRail {...actionRailProps} />
+          <DataActionRail
+            {...actionRailProps}
+            sectionClassName="sm:border-b sm:border-slate-950/10"
+          />
         </div>
       </div>
 
