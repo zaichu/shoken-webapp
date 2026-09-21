@@ -28,3 +28,31 @@
 | 実装エージェント | OpenCode (`opencode/muse-spark-1.3-contributor-free`) |
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
+
+## Issueの振り分けの補助(Jev)
+
+`scripts/triage-issue.sh <issue番号>` が、Issueの規模・リスク・担当候補・API契約の同期の要否・
+マイグレーションの要否を Jev(TypeSafe AIのSystem One Model)で判定する。
+**結果は提案で、決定ではない。**
+
+```bash
+export TYPESAFE_API_KEY=<TypeSafe AIのAPIキー>   # ~/.bashrc などに置く。Gitへ入れない
+bash scripts/triage-issue.sh 867
+```
+
+出力の形(値は見本で、実際の判定結果ではない):
+
+```text
+Issue #867 の判定 (model: jev-latest)
+  規模:          medium (確信度 0.71)
+  リスク:        low (確信度 0.83)
+  担当候補:      opencode (確信度 0.64)
+  API契約の同期: いいえ (確率 0.12)
+  マイグレーション: いいえ (確率 0.08)
+```
+
+- 確信度が0.5未満の項目があるときは警告が出る。**モデルが迷っている合図**なので人間が判断する。
+- `TYPESAFE_API_KEY` 未設定・API障害・想定外の応答では終了コード2で終わり、**他の作業には影響しない**。
+- 送るのはIssueのタイトルと本文だけ。APIキー・接続情報・個人情報は送らない。
+- **backend / frontend の実行時には組み込まない。** 外部APIへの依存を増やさないため、開発時の補助に限る。
+- 外部依存のため CI には入れない。
