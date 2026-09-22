@@ -63,14 +63,10 @@ interface DividendProps {
     utilityRail?: React.ReactNode;
 }
 
-/**
- * 配当金データを表示するコンポーネント
- */
 export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: apiSummary, utilityRail }) => {
     const { sortedData: dividendData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortDividendBySettlementDate, FILTER_CONFIG);
 
-    // 検索カテゴリーの生成
     const searchCategories = {
         securities: createSearchOptions(dividendData, 'security_code', 'security_name', true, 'settlement_date'),
         products: getUniqueValues(dividendData, item => item.product),
@@ -96,7 +92,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
         }
     }
 
-    // 検索タイプに応じたグループキー関数
     const getGroupKey = createGroupKeyFn<DividendData>(
         searchQuery,
         item => createYearMonthKey(item.settlement_date),
@@ -119,7 +114,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
         ]
     );
 
-    // サマリーデータの集計
     const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
@@ -127,13 +121,11 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
         'desc',
     );
 
-    // 銘柄名検索時に銘柄コードを補完
     const searchSecurityCode = deriveSecurityCodeFromQuery(searchQuery, filteredData);
 
     // 銘柄コード検索かどうかを判定（配当シミュレーション表示の条件）
     const isSecurityCodeSearch = !!searchSecurityCode && SECURITY_CODE_REGEX.test(searchSecurityCode);
 
-    // ヘッダー項目の定義
     const allHeaderItems = [
         {
             title: '配当金',
@@ -158,7 +150,6 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
     // 銘柄検索時は内部に同等の指標があるため上段の集計は非表示
     const headerItems = isSecurityCodeSearch ? [] : allHeaderItems;
 
-    // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     const baseColumns: TableColumnConfig[] = [
         { key: 'settlement_date', header: '入金日', width: '84px', format: formatJPDate },
         { key: 'product', header: '商品', width: '64px' },
@@ -178,10 +169,8 @@ export const Dividend: React.FC<DividendProps> = ({ data, previewData, summary: 
         { columnKey: 'account', match: (item, q) => item.account.toLowerCase().includes(q) },
     ];
 
-    // 検索タイプに応じて重要なカラムを前面に配置
     const columns = reorderColumnsBySearch(baseColumns, filteredData, searchQuery, columnRules, 1);
 
-    // サマリーカラムの定義
     const summaryColumns: SummaryColumnConfig[] = [
         { key: 'dividends_before_tax', colSpan: columns.length - 2, textAlign: 'right', format: formatCurrency },
         { key: 'taxes', textAlign: 'right', format: formatCurrency },

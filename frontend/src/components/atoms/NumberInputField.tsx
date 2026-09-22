@@ -12,10 +12,6 @@ interface NumberInputFieldProps extends Omit<InputFieldProps, 'type' | 'value' |
   precision?: number;
 }
 
-/**
- * 数値入力専用のフィールドコンポーネント
- * InputFieldをラップして、数値入力用のプロパティを簡略化
- */
 const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
   (
     {
@@ -35,33 +31,27 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
 
-      // 空文字の場合はundefinedを返す
       if (inputValue === '') {
         onChange(undefined);
         return;
       }
 
-      // 数値変換
       let numberValue = parseFloat(inputValue);
 
-      // NaNの場合は処理しない
       if (isNaN(numberValue)) {
         return;
       }
 
-      // 負の値の制限
       if (!allowNegative && numberValue < 0) {
         numberValue = 0;
       }
 
-      // 小数点の制限
       if (!allowDecimal) {
         numberValue = Math.round(numberValue);
       } else if (precision >= 0) {
         numberValue = Math.round(numberValue * Math.pow(10, precision)) / Math.pow(10, precision);
       }
 
-      // 最小値・最大値の制限
       if (min !== undefined && numberValue < min) {
         numberValue = min;
       }
@@ -75,21 +65,17 @@ const NumberInputField = forwardRef<HTMLInputElement, NumberInputFieldProps>(
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
 
-      // 空文字の場合は何もしない
       if (inputValue === '') {
         return;
       }
 
-      // 数値変換してフォーマット
       const numberValue = parseFloat(inputValue);
       if (!isNaN(numberValue)) {
-        // 入力フィールドの値を適切な形式で更新
         e.target.value = allowDecimal
           ? numberValue.toFixed(precision).replace(/\.?0+$/, '')
           : numberValue.toString();
       }
 
-      // 元のonBlurイベントがあれば実行
       rest.onBlur?.(e);
     };
 

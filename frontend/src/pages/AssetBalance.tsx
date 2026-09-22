@@ -29,9 +29,6 @@ interface AssetBalanceInfoProps {
   portfolioSummary?: AssetBalanceSummary;
 }
 
-/**
- * 保有銘柄データを表示するコンポーネント（概要重視）
- */
 export function AssetBalanceInfo({
   assetBalanceData,
   filteredData,
@@ -58,9 +55,6 @@ export function AssetBalanceInfo({
   );
 }
 
-/**
- * 保有銘柄管理ページコンポーネント
- */
 export function AssetBalancePage() {
   usePageTitle('資産管理');
 
@@ -115,7 +109,6 @@ export function AssetBalancePage() {
                 </div>
               )}
 
-              {/* ローディング完了後に表示（空データでもEmptyStateを表示） */}
               {showPortfolioSummary && (
                 <AssetBalanceInfo
                   assetBalanceData={assetBalanceData}

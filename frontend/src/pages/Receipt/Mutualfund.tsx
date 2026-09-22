@@ -44,14 +44,10 @@ interface MutualfundProps {
     utilityRail?: React.ReactNode;
 }
 
-/**
- * 投資信託データを表示するコンポーネント
- */
 export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summary: apiSummary, utilityRail }) => {
     const { sortedData: mutualfundData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortMutualfundByTradeDate, FILTER_CONFIG);
 
-    // 検索オプションの生成
     const searchCategories = {
         securities: createSearchOptions(mutualfundData, '', 'fund_name', true, 'trade_date'),
         years: createYearOptions(mutualfundData, item => item.trade_date),
@@ -76,7 +72,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
         ]
     );
 
-    // サマリーデータの集計
     const groupedSummary = groupAndSummarizeData(
         filteredData,
         getGroupKey,
@@ -84,7 +79,6 @@ export const Mutualfund: React.FC<MutualfundProps> = ({ data, previewData, summa
         'desc',
     );
 
-    // ヘッダー項目の定義
     const headerItems = [
         {
             title: '実現損益',

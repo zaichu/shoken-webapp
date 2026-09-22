@@ -1,8 +1,5 @@
 import type { TableColumnConfig } from '@/features/receipt/types';
 
-/**
- * 列の前面配置ルール
- */
 export interface ColumnReorderRule<T> {
     /** 前面に配置する列のkey */
     columnKey: string;

@@ -28,7 +28,6 @@ const TONE_VALUE_COLOR: Record<KpiTone, string> = {
 
 const resolveTone = (item: HeaderItem): KpiTone => item.tone ?? 'slate';
 
-// KPI 1枚分の描画
 interface KpiCardProps {
     item: HeaderItem;
     cardClassName: string;
@@ -49,7 +48,6 @@ function KpiCard({ item, cardClassName, valueSizeClassName }: KpiCardProps) {
     );
 }
 
-// KPI グリッド描画
 interface KpiGridProps {
     items: HeaderItem[];
     gridClassName: string;
@@ -74,7 +72,6 @@ function KpiGrid({ items, gridClassName, cardBg, cardBaseClassName, valueSizeCla
     );
 }
 
-// children セクション描画（KPI グリッドとの境界線を含む）
 interface ChildrenSectionProps {
     children: ReactNode;
     hasItems: boolean;
@@ -132,7 +129,6 @@ export const ReceiptHeader: React.FC<ReceiptHeaderProps> = ({
             className="rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)] max-sm:px-3 max-sm:py-0"
             data-testid="receipt-summary-strip"
         >
-            {/* スマホ幅 (<sm) のみ: 主要金額1行＋タップ展開。PC幅では hidden */}
             <div className="sm:hidden" data-testid="receipt-summary-compact">
                 <button
                     type="button"

@@ -10,9 +10,6 @@ import { ReceiptsTabNav } from '@/features/receipt/components/ReceiptsTabNav';
 import { ReceiptsUtilityRail } from '@/features/receipt/components/ReceiptsUtilityRail';
 import { useReceiptsState } from '@/features/receipt/hooks/useReceiptsState';
 
-/**
- * 明細種類ごとにCSVデータを管理するページコンポーネント
- */
 export function ReceiptsPage() {
   usePageTitle('取引明細');
 

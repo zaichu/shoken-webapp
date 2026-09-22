@@ -1,10 +1,3 @@
-/**
- * 検索カテゴリーとフィルタリングに関する共通ユーティリティ
- */
-
-/**
- * 年度の検索オプションを生成
- */
 export function createYearOptions<T>(
   data: T[],
   dateGetter: (item: T) => Date
@@ -19,9 +12,6 @@ export function createYearOptions<T>(
   return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
 }
 
-/**
- * 配列から重複を除いたユニーク値を取得
- */
 export function getUniqueValues<T>(
   data: T[],
   fieldGetter: (item: T) => string
@@ -30,16 +20,10 @@ export function getUniqueValues<T>(
     .filter(value => value && value.trim() !== '');
 }
 
-/**
- * 年度検索マッチャー
- */
 export function matchesYear(date: Date, query: string): boolean {
   return date.getFullYear().toString() === query;
 }
 
-/**
- * 年月検索マッチャー
- */
 export function matchesYearMonth(date: Date, query: string): boolean {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -47,16 +31,12 @@ export function matchesYearMonth(date: Date, query: string): boolean {
   return yearMonth === query;
 }
 
-/**
- * 日付検索マッチャー
- */
 function matchesDate(date: Date, query: string): boolean {
   const dateStr = date.toISOString().split('T')[0];
   return dateStr === query;
 }
 
 /**
- * 日付範囲検索マッチャー
  * クエリ形式: "YYYY-MM-DD..YYYY-MM-DD" / "YYYY-MM-DD.." / "..YYYY-MM-DD"
  */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -82,11 +62,6 @@ function matchesDateRange(date: Date, query: string): boolean {
   return dateStr <= end;
 }
 
-// ==================== 汎用フィルタ設定 ====================
-
-/**
- * フィルタ設定
- */
 export interface FilterConfig<T> {
   /** 文字列完全一致検索対象フィールド */
   stringFields?: ((item: T) => string)[];
@@ -155,10 +130,6 @@ function matchesToken<T>(item: T, token: string, config: FilterConfig<T>): boole
 /**
  * 設定ベースの汎用フィルタ関数
  * スペース区切りの複数トークンはAND条件として扱う（日付範囲 ".." はトークン分割しない）
- * @param data フィルタ対象データ
- * @param query 検索クエリ
- * @param config フィルタ設定
- * @returns フィルタ結果
  */
 export function filterByConfig<T>(
   data: T[],

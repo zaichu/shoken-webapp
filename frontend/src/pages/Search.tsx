@@ -34,7 +34,6 @@ export function SearchPage() {
     searchByCode
   } = useStockSearch(normalizedCodeParam || undefined);
 
-  // URLパラメータが変更された場合に検索を実行
   useEffect(() => {
     if (normalizedCodeParam && normalizedCodeParam !== stockCode) {
       searchByCode(normalizedCodeParam);
