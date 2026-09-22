@@ -12,16 +12,26 @@
 
 ## ディレクトリ構成
 
+親モジュールは `foo.rs`、子モジュールは `foo/bar.rs` に置く（`mod.rs` は使わない）。
+
 ```
 backend/src/
 ├── handlers/     # ドメイン別ハンドラー
 ├── models/       # データモデル・バリデーション
 ├── extractors/   # カスタム Axum エクストラクター
 ├── services/     # ビジネスロジック
+├── middleware/   # CORS・CSRF などのミドルウェア
+├── config/       # 環境ごとの設定
+├── bin/          # 補助バイナリ
 ├── main.rs       # エントリーポイント
 ├── lib.rs        # モジュール定義
+├── routes.rs     # ルーティング定義
 ├── state.rs      # AppState (DB/secrets/クライアント)
-└── errors.rs     # 統一エラーハンドリング
+├── db.rs         # コネクションプール・マイグレーション
+├── openapi.rs    # utoipa の OpenAPI 定義
+├── logging.rs    # ロギング初期化
+├── errors.rs     # 統一エラーハンドリング
+└── test_env.rs   # テスト用の環境変数セットアップ
 ```
 
 ## SQLx
