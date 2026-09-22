@@ -1,4 +1,6 @@
 use crate::api::Stock;
+use crate::auth::{SessionUser, redirect_to, use_session};
+use crate::home_page::HomePage;
 use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
 use leptos::prelude::*;
@@ -49,13 +51,60 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
     ),
 ];
 
+#[derive(Clone, Copy, PartialEq)]
+enum Route {
+    Home,
+    Search,
+    Receipts,
+    Login,
+    NotFound,
+}
+
+impl Route {
+    fn title(&self) -> &'static str {
+        match self {
+            Route::Home => "ホーム",
+            Route::Search => "銘柄検索",
+            Route::Receipts => "取引明細",
+            Route::Login => "ログイン",
+            Route::NotFound => "ページが見つかりません",
+        }
+    }
+
+    fn protected(&self) -> bool {
+        matches!(self, Route::Receipts)
+    }
+}
+
+fn current_route() -> Route {
+    match current_path().as_str() {
+        "/" => Route::Home,
+        "/search" => Route::Search,
+        "/receipts" => Route::Receipts,
+        "/login" => Route::Login,
+        "/404" => Route::NotFound,
+        _ => Route::NotFound,
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
-    let is_receipts = current_path().starts_with("/receipts");
+    let route = current_route();
+    let (user, loaded) = use_session();
     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-        let title = if is_receipts { "取引明細" } else { "銘柄検索" };
-        document.set_title(&format!("{title} - {BASE_TITLE}"));
+        document.set_title(&format!("{} - {BASE_TITLE}", route.title()));
     }
+    Effect::new(move |_| {
+        if !loaded.get() {
+            return;
+        }
+        let authed = user.get().is_some();
+        if route.protected() && !authed {
+            redirect_to("/login");
+        } else if route == Route::Login && authed {
+            redirect_to("/");
+        }
+    });
     view! {
         <div class="min-h-screen flex flex-col bg-slate-50 text-slate-950">
             <a
@@ -64,12 +113,14 @@ pub fn App() -> impl IntoView {
             >
                 "メインコンテンツへスキップ"
             </a>
-            <SiteHeader />
+            <SiteHeader user=user />
             <main id="main-content" class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-1 flex-col py-5">
-                {if is_receipts {
-                    view! { <ReceiptsPage /> }.into_any()
-                } else {
-                    view! { <SearchPage /> }.into_any()
+                {match route {
+                    Route::Home => view! { <HomePage /> }.into_any(),
+                    Route::Search => view! { <SearchPage /> }.into_any(),
+                    Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
+                    Route::Login => view! { <LoginPlaceholder /> }.into_any(),
+                    Route::NotFound => view! { <NotFoundPlaceholder /> }.into_any(),
                 }}
             </main>
             <SiteFooter />
@@ -84,7 +135,7 @@ fn current_path() -> String {
 }
 
 #[component]
-fn SiteHeader() -> impl IntoView {
+fn SiteHeader(user: RwSignal<Option<SessionUser>>) -> impl IntoView {
     view! {
         <header class="border-b border-slate-200 bg-white">
             <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between">
@@ -95,12 +146,53 @@ fn SiteHeader() -> impl IntoView {
                     <a href="/search" class="text-sm font-bold text-slate-700 hover:text-slate-950">
                         "銘柄検索"
                     </a>
+                    <a href="/assetbalance" class="ml-4 text-sm font-bold text-slate-700 hover:text-slate-950">
+                        "資産管理"
+                    </a>
                     <a href="/receipts" class="ml-4 text-sm font-bold text-slate-700 hover:text-slate-950">
                         "取引明細"
                     </a>
                 </nav>
+                <div class="flex items-center gap-3">
+                    {move || {
+                        user.get()
+                            .map(|session| {
+                                view! { <span class="text-sm font-semibold">{session.display_name()}</span> }
+                                    .into_any()
+                            })
+                            .unwrap_or_else(|| {
+                                view! {
+                                    <a
+                                        href="/login"
+                                        class="text-sm font-bold text-slate-700 hover:text-slate-950"
+                                    >
+                                        "ログイン"
+                                    </a>
+                                }
+                                    .into_any()
+                            })
+                    }}
+                </div>
             </div>
         </header>
+    }
+}
+
+#[component]
+fn LoginPlaceholder() -> impl IntoView {
+    view! {
+        <div class="mx-auto flex max-w-md flex-col items-center py-12">
+            <h2 class="text-xl font-semibold">"ログイン"</h2>
+        </div>
+    }
+}
+
+#[component]
+fn NotFoundPlaceholder() -> impl IntoView {
+    view! {
+        <div class="min-h-[50vh] flex items-center justify-center">
+            <h1 class="text-xl font-black">"404 - ページが見つかりません"</h1>
+        </div>
     }
 }
 

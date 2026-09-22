@@ -1,4 +1,6 @@
 mod api;
+mod auth;
+mod home_page;
 mod page;
 mod receipts;
 mod receipts_page;
