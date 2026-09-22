@@ -47,7 +47,6 @@ fn build_startup_state(
 
 #[tokio::main]
 async fn main() {
-    // 環境変数の読み込み
     dotenv().ok();
 
     let _sentry_guard = std::env::var("SENTRY_DSN")
@@ -60,10 +59,8 @@ async fn main() {
             ))
         });
 
-    // ロギングの初期化
     logging::init_tracing();
 
-    // シークレットの読み込み
     let secrets = Secrets::from_env().expect("シークレットの読み込みに失敗しました");
     let secrets = Arc::new(secrets);
 

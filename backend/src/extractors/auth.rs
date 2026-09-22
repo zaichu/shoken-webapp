@@ -11,7 +11,6 @@ use axum_extra::extract::CookieJar;
 pub struct AuthenticatedUser(pub User);
 
 impl AuthenticatedUser {
-    /// ユーザーIDを取得
     pub fn id(&self) -> uuid::Uuid {
         self.0.id
     }
@@ -30,12 +29,10 @@ where
     ) -> Result<Self, Self::Rejection> {
         let app_state = AppState::from_ref(state);
 
-        // CookieJarを取得
         let jar = CookieJar::from_request_parts(parts, state)
             .await
             .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました".to_string()))?;
 
-        // セッショントークンを取得してセッションIDにパース
         let session_token = jar
             .get(auth_service::SESSION_COOKIE_NAME)
             .map(|c| c.value().to_string())
