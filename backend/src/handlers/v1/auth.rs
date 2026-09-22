@@ -39,9 +39,6 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
         .build()
 }
 
-// セッション・アカウントハンドラー
-// ---------------------------------------------------------------------------
-
 /// 現在ログイン中のユーザー情報を取得（v1）
 #[utoipa::path(
     get,
@@ -189,8 +186,6 @@ pub async fn google_callback(
 ) -> Result<impl IntoResponse, ApiError> {
     crate::handlers::auth::google_callback(State(state), Query(query), jar).await
 }
-
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

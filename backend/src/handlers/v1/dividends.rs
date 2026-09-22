@@ -15,9 +15,6 @@ use axum::{
     response::IntoResponse,
 };
 
-// 配当金ハンドラー
-// ---------------------------------------------------------------------------
-
 /// 配当金一覧を取得（v1）
 #[utoipa::path(
     get,
@@ -148,5 +145,3 @@ pub async fn estimate_per_share(
 ) -> Result<impl IntoResponse, ApiError> {
     crate::handlers::dividend_per_share::batch(State(state), auth_user, ValidatedJson(data)).await
 }
-
-// ---------------------------------------------------------------------------

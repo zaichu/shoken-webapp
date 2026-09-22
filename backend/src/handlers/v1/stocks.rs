@@ -14,9 +14,6 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
-// 銘柄ハンドラー
-// ---------------------------------------------------------------------------
-
 /// 銘柄検索クエリパラメータ（v1）
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct StockSearchQuery {
@@ -85,8 +82,6 @@ pub async fn create(
     let stock = stock_service::create(&state.pool, &data).await?;
     Ok((StatusCode::CREATED, Json(stock)))
 }
-
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests;
