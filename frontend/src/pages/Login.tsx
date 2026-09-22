@@ -12,7 +12,6 @@ export function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // すでにログイン済みの場合はホームにリダイレクト
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
       navigate('/');

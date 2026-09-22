@@ -56,14 +56,10 @@ interface DomesticStockProps {
     utilityRail?: React.ReactNode;
 }
 
-/**
- * 国内株式取引データを表示するコンポーネント
- */
 export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData, summary: apiSummary, utilityRail }) => {
     const { sortedData: domesticStockData, searchQuery, setSearchQuery, filteredData } =
         useReceiptBaseData(data, previewData, sortDomesticStockByTradeDate, FILTER_CONFIG);
 
-    // 検索カテゴリーの生成
     const searchCategories = {
         securities: createSearchOptions(domesticStockData, 'security_code', 'security_name', true, 'trade_date'),
         accounts: getUniqueValues(domesticStockData, item => item.account),
@@ -80,10 +76,8 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
     // プレビュー中や絞り込み中は取得済みデータから計算した値を使う。
     const calculations = useReceiptHeaderSummary(apiSummary, previewData, searchQuery, clientCalculations);
 
-    // グループキーの取得
     const getGroupKey = (item: DomesticStockData): string => createISODateKey(item.trade_date);
 
-    // ヘッダー項目の定義
     const headerItems = [
         {
             title: '実現損益',
@@ -105,7 +99,6 @@ export const DomesticStock: React.FC<DomesticStockProps> = ({ data, previewData,
         }
     ];
 
-    // テーブルカラムの定義（検索タイプに応じて表示順序を調整）
     // サマリーと一致するよう、最後の3カラムは「実現損益」「税額」「税引後」にする
     const baseColumns: TableColumnConfig[] = [
         { key: 'trade_date', header: '約定日', width: '84px', format: formatJPDate },
