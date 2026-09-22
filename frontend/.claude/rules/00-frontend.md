@@ -34,21 +34,22 @@ src/components/
 src/
 ├── components/    # Atomic Design コンポーネント
 ├── features/      # ドメイン別機能
-│   ├── auth/      # 認証
-│   ├── jquants/   # J-Quants API連携
-│   ├── receipt/   # 取引履歴
-│   └── stock/     # 株式検索
+│   ├── assetBalance/      # 資産管理
+│   ├── auth/              # 認証
+│   ├── dividendPerShare/  # 1株当たり配当（J-Quants API連携）
+│   ├── receipt/           # 取引明細
+│   └── stock/             # 銘柄検索
 ├── pages/         # ルートページコンポーネント
 ├── hooks/         # カスタムフック
 ├── lib/           # ユーティリティ
 │   ├── api/       # APIクライアント
-│   ├── csv/       # CSV処理
-│   ├── interfaces/
 │   ├── types/
 │   └── utils/
-├── contexts/      # React Context
+├── generated/     # OpenAPI から自動生成（手で編集しない）
+├── types/         # 全体で使う型定義
 ├── routes/        # ルーティング設定
-└── styles/        # グローバルスタイル
+├── styles/        # グローバルスタイル
+└── test/          # テストのセットアップ・共通ヘルパー
 ```
 
 ## TypeScript
@@ -63,8 +64,8 @@ import { Button } from '@/components/atoms/Button';
 
 ### 型定義
 
-- インターフェースは `lib/interfaces/` に配置
-- 型は `lib/types/` に配置
+- 型は `lib/types/`（frontend 内で完結するもの）と `types/`（全体で使うもの）に配置
+- API のリクエスト/レスポンス型は `generated/api.ts` を使う（`docs/openapi.json` から生成されるので手で書かない）
 - コンポーネントの Props は同一ファイル内で定義
 
 ## React Compiler
