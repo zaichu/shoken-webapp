@@ -1,15 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Leptos PoC 用の実験設定（本番の playwright.ci.config.ts は変更しない）
+ * Receipts挙動検証用の実験設定（PoC専用に新規作成したspecを実行する）
  *
- * - 対象は frontend/e2e/search-flow.spec.ts と receipt-flow.spec.ts を無改修で実行する
- * - baseURL は Trunk dev サーバ（experiments/leptos-search）を指す
+ * - testDir は experiments/leptos-search/e2e を指す
+ * - リクエスト回数・順序でキャッシュ挙動を検証するため API モックは各spec内で行う
  */
 export default defineConfig({
-  testDir: '../../frontend/e2e',
-  testMatch: ['**/search-flow.spec.ts', '**/receipt-flow.spec.ts'],
-  outputDir: '/tmp/leptos-e2e-out',
+  testDir: './e2e',
+  testMatch: ['**/*.spec.ts'],
+  outputDir: '/tmp/leptos-receipts-e2e-out',
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,

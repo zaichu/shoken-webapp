@@ -187,8 +187,11 @@ impl ReceiptsStore {
     }
 
     pub fn logout(&self) {
-        self.cache.update(|map| map.clear());
-        self.user_id.set(String::new());
+        let this = self.clone();
+        batch(move || {
+            this.user_id.set(String::new());
+            this.cache.update(|map| map.clear());
+        });
     }
 
     pub fn login_as(&self, user_id: String) {
@@ -220,7 +223,7 @@ impl ReceiptsStore {
 }
 
 fn tab_settled(store: &ReceiptsStore, user: &str, tab: ReceiptsTab) -> bool {
-    store.cache.with_untracked(|map| {
+    store.cache.with(|map| {
         matches!(
             map.get(&(user.to_string(), tab)),
             Some(TabState::Ready(_)) | Some(TabState::Failed(_))
