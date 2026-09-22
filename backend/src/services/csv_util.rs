@@ -12,7 +12,6 @@ pub fn decode_bytes(bytes: &[u8]) -> String {
     if let Ok(s) = std::str::from_utf8(bytes) {
         return s.strip_prefix('\u{FEFF}').unwrap_or(s).to_string();
     }
-    // UTF-8 でない場合は Shift-JIS にフォールバック
     let (result, _, _) = SHIFT_JIS.decode(bytes);
     result.into_owned()
 }
@@ -24,7 +23,6 @@ pub fn parse_number(s: &str) -> Result<Decimal, String> {
     if s.is_empty() || s == "-" {
         return Ok(Decimal::ZERO);
     }
-    // 括弧表記はマイナス
     let (negative, s) = if s.starts_with('(') && s.ends_with(')') {
         (true, &s[1..s.len() - 1])
     } else {
