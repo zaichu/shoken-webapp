@@ -55,8 +55,6 @@ pub struct ErrorDetails {
     pub details: Option<String>,
 }
 
-// --- ヘルパー関数 ---
-
 /// `ErrorDetails` を生成する唯一のコンストラクタ
 ///
 /// 本番環境では内部エラー詳細を露出させないため、`debug_detail` があっても
@@ -85,12 +83,10 @@ pub fn simple_error_response(status: StatusCode, code: &str, message: String) ->
     (status, Json(error_response)).into_response()
 }
 
-/// details なしのシンプルなエラーレスポンスパーツを生成
 fn simple_error(status: StatusCode, code: &str, message: String) -> (StatusCode, ErrorDetails) {
     (status, error_details_with_debug(code, message, None))
 }
 
-/// ApiError を HTTP ステータスと ErrorDetails に変換
 fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
     match err {
         ApiError::ValidationError(msg) => {

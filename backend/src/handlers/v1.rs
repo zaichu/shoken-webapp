@@ -94,9 +94,6 @@ pub fn csv_upload_routes() -> Router<AppState> {
         )
 }
 
-// テスト
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use {

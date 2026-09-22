@@ -64,8 +64,6 @@ impl AssetBalanceFilter {
     }
 }
 
-/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
-///
 /// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &AssetBalanceFilter) {
     push_search_filters(
@@ -81,7 +79,6 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &AssetBa
     );
 }
 
-/// 認証ユーザーの保有銘柄一覧を検索（ページネーション・summary・facets 対応）
 pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
@@ -155,7 +152,6 @@ async fn fetch_facets(
     })
 }
 
-/// 銘柄コードごとに銘柄名・件数を facets として返す
 async fn fetch_security_facets(
     pool: &PgPool,
     user_id: Uuid,
@@ -176,7 +172,6 @@ pub async fn bulk_create(
     let total = items.len();
     let timer = BulkTimer::new("asset_balance", total);
 
-    // 各フィールドを配列に変換
     let user_ids = user_ids_for_bulk_insert(user_id, total);
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
     let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
@@ -191,7 +186,6 @@ pub async fn bulk_create(
     let market_values: Vec<Decimal> = items.iter().map(|i| i.market_value).collect();
     let profit_loss_rates: Vec<Decimal> = items.iter().map(|i| i.profit_loss_rate).collect();
 
-    // トランザクション内で全削除 → 全件挿入（スナップショット置き換え）
     let mut tx = pool.begin().await?;
 
     // ユーザー単位のadvisory lockで並行bulk_createを直列化（READ COMMITTEDでのA∪B混入を防止）
@@ -247,7 +241,6 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
     )
 }
 
-/// CSV bytes をパースして保有銘柄を一括登録
 pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
@@ -262,7 +255,6 @@ pub async fn upload_csv(
     .await
 }
 
-/// 認証ユーザーの保有銘柄を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::AssetBalances).await
 }

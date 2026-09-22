@@ -14,7 +14,6 @@ use axum_extra::extract::{
 use oauth2::{CsrfToken, Scope};
 use serde::Deserialize;
 
-/// コールバック時のクエリパラメータ
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
     pub code: String,
@@ -98,7 +97,6 @@ pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<uuid::Uuid, ApiError> 
     Ok(session_id)
 }
 
-/// Google OAuth認証を開始（直接リダイレクト）
 pub async fn google_auth(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -113,7 +111,6 @@ pub async fn google_auth(
         .add_scope(Scope::new("profile".to_string()))
         .url();
 
-    // CSRF トークンを Cookie に保存（10分間有効）
     let is_secure = config::is_secure_cookie();
     let state_cookie = build_state_cookie(csrf_token.secret(), is_secure);
 
@@ -122,13 +119,11 @@ pub async fn google_auth(
     Ok((jar, Redirect::to(auth_url.as_str())))
 }
 
-/// Google OAuthコールバックを処理
 pub async fn google_callback(
     State(state): State<AppState>,
     Query(query): Query<AuthCallbackQuery>,
     jar: CookieJar,
 ) -> Result<Response, ApiError> {
-    // CSRF トークンを検証
     let stored_state = jar
         .get(auth_service::OAUTH_STATE_COOKIE_NAME)
         .map(|c| c.value().to_string())
@@ -140,7 +135,6 @@ pub async fn google_callback(
         ));
     }
 
-    // state Cookie を削除
     let is_secure = config::is_secure_cookie();
     let jar = jar.remove(clear_state_cookie(is_secure));
 
@@ -155,20 +149,17 @@ pub async fn google_callback(
     )
     .await?;
 
-    // Cookieを設定
     // クロスオリジン（フロントエンド: GitHub Pages, バックエンド: Fly.io）で
     // Cookieを送受信するには SameSite=None + Secure が必要
     let cookie = build_session_cookie(&session_token, is_secure);
     let jar = jar.add(cookie);
 
-    // フロントエンドにリダイレクト
     let frontend_url = &state.secrets.frontend_url;
     let redirect_url = format!("{}?login=success", frontend_url);
 
     Ok((jar, Redirect::to(&redirect_url)).into_response())
 }
 
-/// 現在ログイン中のユーザー情報を取得
 pub async fn get_current_user(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -183,9 +174,7 @@ pub async fn get_current_user(
     Ok(Json(user.into()))
 }
 
-/// ログアウト処理
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    // セッションをデータベースから削除
     if let Some(session_token) = jar
         .get(auth_service::SESSION_COOKIE_NAME)
         .map(|c| c.value().to_string())

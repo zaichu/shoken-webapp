@@ -67,7 +67,6 @@ impl DomesticStockFilter {
     }
 }
 
-/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DomesticStockFilter) {
     push_search_filters(
         qb,
@@ -83,7 +82,6 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Domesti
     );
 }
 
-/// 認証ユーザーの国内株式取引一覧を検索（ページネーション・summary・facets 対応）
 pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
@@ -197,7 +195,6 @@ async fn fetch_facets(
     })
 }
 
-/// group_field の値ごとに件数を集計して FacetOption を返す共通ヘルパー
 async fn fetch_group_facets(
     pool: &PgPool,
     user_id: Uuid,
@@ -249,7 +246,6 @@ pub async fn bulk_create(
         Err(empty) => return Ok(empty),
     };
 
-    // 各フィールドを配列に変換
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
@@ -268,7 +264,6 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
     // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
     // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
@@ -357,7 +352,6 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
     )
 }
 
-/// CSV バイト列から国内株式取引をパースして一括挿入
 pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
@@ -403,7 +397,6 @@ fn transform_domestic_stock_row(
     })
 }
 
-/// 認証ユーザーの国内株式取引を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::DomesticStocks).await
 }

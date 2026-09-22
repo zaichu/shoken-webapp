@@ -13,7 +13,6 @@ pub struct Secrets {
 }
 
 impl Secrets {
-    /// 環境変数からシークレット情報を読み込む
     pub fn from_env() -> Result<Self, String> {
         Ok(Self {
             database_url: std::env::var("DATABASE_URL").map_err(|_| {

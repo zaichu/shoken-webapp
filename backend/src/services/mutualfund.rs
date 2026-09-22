@@ -68,7 +68,6 @@ impl MutualfundFilter {
     }
 }
 
-/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &MutualfundFilter) {
     push_search_filters(
         qb,
@@ -84,7 +83,6 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Mutualf
     );
 }
 
-/// 認証ユーザーの投資信託一覧を検索（ページネーション・summary・facets 対応）
 pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
@@ -178,7 +176,6 @@ async fn fetch_facets(
     })
 }
 
-/// group_field の値ごとに件数を集計して FacetOption を返す共通ヘルパー
 async fn fetch_group_facets(
     pool: &PgPool,
     user_id: Uuid,
@@ -207,7 +204,6 @@ pub async fn bulk_create(
         Err(empty) => return Ok(empty),
     };
 
-    // 各フィールドを配列に変換
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
@@ -234,7 +230,6 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
     let result = sqlx::query(
         r#"
         INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
@@ -275,7 +270,6 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
     build_csv_preview(bytes, &MUTUALFUND_CSV_CONFIG, transform_mutualfund_rows)
 }
 
-/// CSV バイト列から投資信託をパースして一括挿入
 pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
@@ -303,7 +297,6 @@ fn transform_mutualfund_row(
     let account = parse_required_string_row(row, "口座", row_num)?;
     let realized_pnl = parse_required_number_row(row, "実現損益［円］", row_num)?;
     let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
-    // 分配金フィールドは空文字を None に変換
     let dividends_raw = get_row_cell(row, "分配金");
     let dividends = if dividends_raw.trim().is_empty() {
         None
@@ -331,7 +324,6 @@ fn transform_mutualfund_row(
     })
 }
 
-/// 認証ユーザーの投資信託を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::MutualFunds).await
 }

@@ -45,7 +45,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .has_headers(true)
         .from_reader(reader);
 
-    // 全レコードを読み込み
     let mut records: Vec<StockRecord> = Vec::new();
     for result in rdr.records() {
         let record = result?;
@@ -68,7 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("総レコード数: {}", records.len());
 
-    // バルクインサート（100件ずつ）
     let batch_size = 100;
     let total_batches = records.len().div_ceil(batch_size);
 

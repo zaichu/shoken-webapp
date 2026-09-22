@@ -69,7 +69,6 @@ impl DividendFilter {
     }
 }
 
-/// user_id と検索条件を WHERE 句として QueryBuilder へ積む
 fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DividendFilter) {
     push_search_filters(
         qb,
@@ -86,7 +85,6 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Dividen
     );
 }
 
-/// 認証ユーザーの配当金一覧を検索（ページネーション・summary・facets 対応）
 pub async fn search(
     pool: &PgPool,
     user_id: Uuid,
@@ -183,7 +181,6 @@ async fn fetch_facets(
     })
 }
 
-/// group_field の値ごとに件数を集計して FacetOption を返す共通ヘルパー
 async fn fetch_group_facets(
     pool: &PgPool,
     user_id: Uuid,
@@ -220,7 +217,6 @@ pub async fn bulk_create(
         Err(empty) => return Ok(empty),
     };
 
-    // 各フィールドを配列に変換
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
@@ -235,7 +231,6 @@ pub async fn bulk_create(
     let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
     let net_amounts: Vec<Decimal> = items.iter().map(|i| i.net_amount_received).collect();
 
-    // UNNESTを使ったバルクINSERT（1回のクエリで全件挿入）
     let result = sqlx::query(
         r#"
         INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
@@ -272,7 +267,6 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
     build_csv_preview(bytes, &DIVIDEND_CSV_CONFIG, transform_dividend_rows)
 }
 
-/// CSV バイト列から配当金をパースして一括挿入
 pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
@@ -313,7 +307,6 @@ fn transform_dividend_row(
     })
 }
 
-/// 認証ユーザーの配当金を全削除
 pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::Dividends).await
 }

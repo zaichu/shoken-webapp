@@ -15,7 +15,6 @@ pub fn is_production_env() -> bool {
         .unwrap_or(false)
 }
 
-/// バックエンドのベースURLを取得
 pub fn backend_url() -> String {
     env::var("BACKEND_URL").unwrap_or_else(|_| {
         let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
@@ -23,7 +22,6 @@ pub fn backend_url() -> String {
     })
 }
 
-/// サーバーのバインドアドレスを取得
 pub fn server_addr() -> String {
     let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
     format!("0.0.0.0:{}", port)
