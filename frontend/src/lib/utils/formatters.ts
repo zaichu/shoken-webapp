@@ -18,10 +18,6 @@ const JP_DATE_FORMAT_OPTIONS = {
  */
 export const TAX_RATE = 0.20315;
 
-/**
- * 銘柄コードのリンクHTML生成
- * 銘柄検索ページへ遷移するリンクを生成
- */
 export const SECURITY_CODE_REGEX = /^[0-9A-Za-z.]+$/;
 
 /**
