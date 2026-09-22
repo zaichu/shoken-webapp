@@ -1,4 +1,5 @@
 use crate::api::Stock;
+use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
 use leptos::prelude::*;
 
@@ -50,8 +51,10 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
 
 #[component]
 pub fn App() -> impl IntoView {
+    let is_receipts = current_path().starts_with("/receipts");
     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-        document.set_title(&format!("銘柄検索 - {BASE_TITLE}"));
+        let title = if is_receipts { "取引明細" } else { "銘柄検索" };
+        document.set_title(&format!("{title} - {BASE_TITLE}"));
     }
     view! {
         <div class="min-h-screen flex flex-col bg-slate-50 text-slate-950">
@@ -63,11 +66,21 @@ pub fn App() -> impl IntoView {
             </a>
             <SiteHeader />
             <main id="main-content" class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-1 flex-col py-5">
-                <SearchPage />
+                {if is_receipts {
+                    view! { <ReceiptsPage /> }.into_any()
+                } else {
+                    view! { <SearchPage /> }.into_any()
+                }}
             </main>
             <SiteFooter />
         </div>
     }
+}
+
+fn current_path() -> String {
+    web_sys::window()
+        .and_then(|window| window.location().pathname().ok())
+        .unwrap_or_default()
 }
 
 #[component]
@@ -81,6 +94,9 @@ fn SiteHeader() -> impl IntoView {
                 <nav aria-label="メインナビゲーション">
                     <a href="/search" class="text-sm font-bold text-slate-700 hover:text-slate-950">
                         "銘柄検索"
+                    </a>
+                    <a href="/receipts" class="ml-4 text-sm font-bold text-slate-700 hover:text-slate-950">
+                        "取引明細"
                     </a>
                 </nav>
             </div>

@@ -1,5 +1,7 @@
 mod api;
 mod page;
+mod receipts;
+mod receipts_page;
 mod search;
 
 use page::App;
