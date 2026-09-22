@@ -10,7 +10,6 @@ interface SecurityCodeLinkProps {
 const FONT_WEIGHT_CLASS_REGEX = /(?:^|\s)(?:[a-z-]+:)*font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
 
 /**
- * 銘柄コードをリンクとして表示するコンポーネント
  * - 銘柄コードを正規化してパラメータ検証
  * - 有効なコードのみリンク化
  */

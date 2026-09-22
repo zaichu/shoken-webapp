@@ -7,10 +7,6 @@ interface CSVFileInputProps {
   disabled?: boolean;
 }
 
-/**
- * CSVファイル選択コンポーネント
- * ファイル選択UIとファイル名表示を提供
- */
 export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = false }: CSVFileInputProps) {
   const inputId = useId();
   const ref = useRef<HTMLInputElement>(null);
@@ -21,7 +17,7 @@ export function CSVFileInput({ onFileSelect, selectedFileName = '', disabled = f
       const file = files[0];
       onFileSelect(file);
       if (ref.current) {
-        ref.current.value = ''; // ファイル選択後にinputをリセット
+        ref.current.value = '';
       }
     }
   };

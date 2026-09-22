@@ -29,7 +29,6 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // isOpen=true になった時に dialog へ focus する
   // !isOpen 時は div が DOM にないため dialogRef.current が null → no-op
   useEffect(() => {
     dialogRef.current?.focus();

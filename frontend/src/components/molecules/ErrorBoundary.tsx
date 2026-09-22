@@ -40,7 +40,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     const { onError } = this.props;
 
-    // エラー情報をstateに保存
     this.setState(prevState => ({
       errorInfo,
       errorCount: prevState.errorCount + 1
@@ -50,12 +49,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const errorMessage = error.message || 'Unknown error';
     console.error('ErrorBoundary caught an error:', errorMessage);
 
-    // カスタムエラーハンドラーを実行
     if (onError) {
       onError(error, errorInfo);
     }
 
-    // 開発環境でのみ詳細なエラー情報を表示
     if (import.meta.env.DEV) {
       console.group('Error Details');
       console.error('Error:', errorMessage);
@@ -68,12 +65,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const { resetKeys, resetOnPropsChange } = this.props;
     const { hasError } = this.state;
 
-    // resetKeysが変更された場合、エラー状態をリセット
     if (hasError && resetKeys && this.hasResetKeyChanged(prevProps.resetKeys)) {
       this.resetErrorBoundary();
     }
 
-    // resetOnPropsChangeが有効で、propsが変更された場合リセット
     if (hasError && resetOnPropsChange && prevProps.children !== this.props.children) {
       this.resetErrorBoundary();
     }
@@ -126,17 +121,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         );
       }
 
-      // カスタムフォールバックコンポーネント
       if (typeof fallback === 'function') {
         return <>{fallback(error, errorInfo!)}</>;
       }
 
-      // 静的フォールバックコンポーネント
       if (fallback) {
         return <>{fallback}</>;
       }
 
-      // デフォルトフォールバック
       return (
         <div className={cn('p-4', isolate && 'isolated')}>
           <div className="bg-danger/10 border-l-4 border-danger text-danger rounded-lg p-4" role="alert">
@@ -166,7 +158,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 }
 
-// 便利なラッパーコンポーネント
 interface WithErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;

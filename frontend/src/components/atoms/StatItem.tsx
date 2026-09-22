@@ -11,10 +11,6 @@ interface StatItemProps {
   variant?: 'default' | 'card' | 'inline' | 'flat';
 }
 
-/**
- * 統計情報アイテムを表示するコンポーネント
- * タイトルと値をセットで表示
- */
 export const StatItem: React.FC<StatItemProps> = ({
   title,
   value,
@@ -78,10 +74,6 @@ interface StatItemWithRateProps {
   variant?: StatItemProps['variant'];
 }
 
-/**
- * 統計情報アイテムを表示するコンポーネント（レート表示付き）
- * 金額などの値とレート（パーセンテージ）を併せて表示
- */
 export const StatItemWithRate: React.FC<StatItemWithRateProps> = ({
   title,
   value,
