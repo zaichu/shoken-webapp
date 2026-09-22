@@ -50,7 +50,6 @@ export type SummaryResult<K extends string | number | symbol> = {
 } & Record<K, number>;
 
 /**
- * グループごとに数値を合計する。
  * @param order グループキーの並び順。日付キーで新しい順に出したい場合は 'desc' を渡す
  */
 export function groupAndSummarizeData<T, K extends keyof T>(

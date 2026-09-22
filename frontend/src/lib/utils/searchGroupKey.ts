@@ -1,8 +1,5 @@
 import { parseSearchTokens } from './searchUtils';
 
-/**
- * グループキー決定ルール
- */
 export interface GroupKeyRule<T> {
     /** ANDトークンとデータ行の一致判定 */
     test: (item: T, token: string) => boolean;

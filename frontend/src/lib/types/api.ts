@@ -45,15 +45,11 @@ export class ApiError extends Error {
     this.requestUrl = requestUrl;
     this.requestMethod = requestMethod;
 
-    // スタックトレースを保持
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, ApiError);
     }
   }
 
-  /**
-   * エラーの詳細情報を含む文字列を返す
-   */
   public toDetailedString(): string {
     const parts = [`[${this.type}] ${this.message}`];
 
@@ -74,9 +70,6 @@ export class ApiError extends Error {
     return parts.join(' | ');
   }
 
-  /**
-   * ユーザーフレンドリーなエラーメッセージを返す
-   */
   public getUserMessage(): string {
     switch (this.type) {
       case ApiErrorType.NETWORK_ERROR:
@@ -100,9 +93,6 @@ export class ApiError extends Error {
     }
   }
 
-  /**
-   * HTTPレスポンスからApiErrorを生成
-   */
   static fromHttpResponse(
     status: number,
     data: unknown,
@@ -155,9 +145,6 @@ export class ApiError extends Error {
     return new ApiError(errorType, message, status, details, url, method);
   }
 
-  /**
-   * 再試行可能なエラーかどうかを判定
-   */
   public isRetryable(): boolean {
     return [
       ApiErrorType.NETWORK_ERROR,
@@ -166,9 +153,6 @@ export class ApiError extends Error {
     ].includes(this.type);
   }
 
-  /**
-   * エラーがユーザーの操作で解決可能かどうかを判定
-   */
   public isUserActionable(): boolean {
     return [
       ApiErrorType.VALIDATION_ERROR,

@@ -24,7 +24,6 @@ interface ApiClientConfig {
 
 // 低速な外部 API と書き込み処理で維持する従来の設定
 const DEFAULT_TIMEOUT_MS = 30_000;
-// デフォルトリトライ設定
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 1000;
 const DEFAULT_RETRY_DELAY_MULTIPLIER = 2;
@@ -88,7 +87,6 @@ class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort('timeout'), this.timeout);
 
-    // 外部シグナルが既にabort済みならすぐに中断
     if (externalSignal?.aborted) {
       clearTimeout(timeoutId);
       throw new ApiError(
@@ -101,7 +99,6 @@ class ApiClient {
       );
     }
 
-    // 外部シグナルのabortをタイムアウトコントローラに伝播
     const onExternalAbort = () => controller.abort(externalSignal?.reason);
     externalSignal?.addEventListener('abort', onExternalAbort);
 
@@ -160,7 +157,6 @@ class ApiClient {
         );
       }
 
-      // 統一リトライ判定
       if (
         retryCount < effectiveRetryConfig.maxRetries &&
         effectiveRetryConfig.shouldRetry!(apiError)
@@ -187,7 +183,6 @@ class ApiClient {
     }
   }
 
-  // HTTPメソッド
   async get<T>(url: string, config?: RequestConfig): Promise<T> {
     return this.executeRequest<T>('GET', url, undefined, config);
   }
@@ -209,7 +204,6 @@ class ApiClient {
   }
 }
 
-// シングルトンインスタンスの遅延初期化
 let _apiClient: ApiClient | null = null;
 
 function getApiClient(): ApiClient {
@@ -242,7 +236,6 @@ export const apiClient = {
   delete: <T>(url: string, config?: RequestConfig) => getApiClient().delete<T>(url, config),
 };
 
-// 型付きAPIクライアントのファクトリー関数
 export function createApiClient(config?: ApiClientConfig): ApiClient {
   return new ApiClient(config);
 }

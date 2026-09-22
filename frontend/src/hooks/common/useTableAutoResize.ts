@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-/**
- * テーブルの自動リサイズ機能を提供するカスタムフック
- */
 interface UseTableAutoResizeOptions {
   /** 自動リサイズを有効にするか */
   enabled?: boolean;
@@ -30,11 +27,9 @@ export function useTableAutoResize({
   const [height, setHeight] = useState<string>('auto');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // すべての高さ計算とイベント監視を1つのuseEffectで管理
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    // 高さを計算する関数
     const calculateHeight = () => {
       if (!containerRef.current) {
         setHeight('auto');
@@ -43,11 +38,8 @@ export function useTableAutoResize({
 
       const rect = containerRef.current.getBoundingClientRect();
       const availableHeight = window.innerHeight - rect.top - bottomMargin;
-
-      // 最小高さの制約を適用
       let finalHeight = Math.max(availableHeight, minHeight);
 
-      // 最大高さの制約を適用
       if (typeof maxHeight === 'number') {
         finalHeight = Math.min(finalHeight, maxHeight);
       }
@@ -57,7 +49,6 @@ export function useTableAutoResize({
 
     const currentContainer = containerRef.current;
 
-    // 初回計算
     calculateHeight();
 
     // コンテナ自体に加え、周辺レイアウト変化で top が変わるケースも監視する
@@ -75,7 +66,6 @@ export function useTableAutoResize({
       }
     }
 
-    // ウィンドウリサイズイベントの設定
     window.addEventListener('resize', calculateHeight);
 
     return () => {
