@@ -1,4 +1,5 @@
 use crate::api::Stock;
+use crate::asset_balance_page::AssetBalancePage;
 use crate::auth::{SessionUser, redirect_to, use_session};
 use crate::home_page::HomePage;
 use crate::receipts_page::ReceiptsPage;
@@ -56,6 +57,7 @@ enum Route {
     Home,
     Search,
     Receipts,
+    AssetBalance,
     Login,
     NotFound,
 }
@@ -66,13 +68,14 @@ impl Route {
             Route::Home => "ホーム",
             Route::Search => "銘柄検索",
             Route::Receipts => "取引明細",
+            Route::AssetBalance => "資産管理",
             Route::Login => "ログイン",
             Route::NotFound => "ページが見つかりません",
         }
     }
 
     fn protected(&self) -> bool {
-        matches!(self, Route::Receipts)
+        matches!(self, Route::Receipts | Route::AssetBalance)
     }
 }
 
@@ -81,6 +84,7 @@ fn current_route() -> Route {
         "/" => Route::Home,
         "/search" => Route::Search,
         "/receipts" => Route::Receipts,
+        "/assetbalance" => Route::AssetBalance,
         "/login" => Route::Login,
         "/404" => Route::NotFound,
         _ => Route::NotFound,
@@ -119,6 +123,7 @@ pub fn App() -> impl IntoView {
                     Route::Home => view! { <HomePage /> }.into_any(),
                     Route::Search => view! { <SearchPage /> }.into_any(),
                     Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
+                    Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                     Route::Login => view! { <LoginPlaceholder /> }.into_any(),
                     Route::NotFound => view! { <NotFoundPlaceholder /> }.into_any(),
                 }}

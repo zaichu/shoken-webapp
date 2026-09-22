@@ -1,4 +1,5 @@
 mod api;
+mod asset_balance_page;
 mod auth;
 mod home_page;
 mod page;
