@@ -3,6 +3,7 @@ use crate::asset_balance_page::AssetBalancePage;
 use crate::auth::{SessionUser, redirect_to, use_session};
 use crate::home_page::HomePage;
 use crate::login_page::LoginPage;
+use crate::not_found_page::NotFoundPage;
 use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
 use leptos::prelude::*;
@@ -126,7 +127,7 @@ pub fn App() -> impl IntoView {
                     Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                     Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                     Route::Login => view! { <LoginPage user=user loaded=loaded /> }.into_any(),
-                    Route::NotFound => view! { <NotFoundPlaceholder /> }.into_any(),
+                    Route::NotFound => view! { <NotFoundPage /> }.into_any(),
                 }}
             </main>
             <SiteFooter />
@@ -181,15 +182,6 @@ fn SiteHeader(user: RwSignal<Option<SessionUser>>) -> impl IntoView {
                 </div>
             </div>
         </header>
-    }
-}
-
-#[component]
-fn NotFoundPlaceholder() -> impl IntoView {
-    view! {
-        <div class="min-h-[50vh] flex items-center justify-center">
-            <h1 class="text-xl font-black">"404 - ページが見つかりません"</h1>
-        </div>
     }
 }
 
