@@ -107,7 +107,7 @@ pub async fn validate_origin(
             // Origin なし: Referer フォールバック検証
             // ブラウザはクロスオリジンリクエストで Origin を付与するが、
             // 一部の環境（リダイレクト後など）では省略されることがある。
-            // Referer が存在する場合は許可済みオリジンとの前方一致で検証する。
+            // Referer が存在する場合はオリジン部分を切り出し、許可済みオリジンと完全一致で検証する。
             // Referer も存在しない場合は厳格な環境では拒否し、それ以外では通過する。
             let referer = request
                 .headers()
