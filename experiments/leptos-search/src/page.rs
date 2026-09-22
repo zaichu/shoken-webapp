@@ -2,6 +2,7 @@ use crate::api::Stock;
 use crate::asset_balance_page::AssetBalancePage;
 use crate::auth::{SessionUser, redirect_to, use_session};
 use crate::home_page::HomePage;
+use crate::login_page::LoginPage;
 use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
 use leptos::prelude::*;
@@ -124,7 +125,7 @@ pub fn App() -> impl IntoView {
                     Route::Search => view! { <SearchPage /> }.into_any(),
                     Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                     Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
-                    Route::Login => view! { <LoginPlaceholder /> }.into_any(),
+                    Route::Login => view! { <LoginPage user=user loaded=loaded /> }.into_any(),
                     Route::NotFound => view! { <NotFoundPlaceholder /> }.into_any(),
                 }}
             </main>
@@ -180,15 +181,6 @@ fn SiteHeader(user: RwSignal<Option<SessionUser>>) -> impl IntoView {
                 </div>
             </div>
         </header>
-    }
-}
-
-#[component]
-fn LoginPlaceholder() -> impl IntoView {
-    view! {
-        <div class="mx-auto flex max-w-md flex-col items-center py-12">
-            <h2 class="text-xl font-semibold">"ログイン"</h2>
-        </div>
     }
 }
 
