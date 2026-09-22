@@ -435,3 +435,4 @@ fn StockInfoLinks(code: String) -> impl IntoView {
         </div>
     }
 }
+
