@@ -50,14 +50,14 @@ issue_json="$(gh issue view "$issue_number" --json title,body 2>/dev/null)" \
 
 # 送るのはIssueのタイトルと本文だけ。APIキー・接続情報・個人情報は含めない。
 # 質問の型と応答の形は公式仕様(choice / noul / score)に合わせる。
-request_body="$(ISSUE_JSON="$issue_json" JEV_MODEL="$JEV_MODEL" python3 <<'PY'
+request_body="$(ISSUE_JSON="$issue_json" JEV_MODEL_VALUE="$JEV_MODEL" python3 <<'PY'
 import json, os
 
 issue = json.loads(os.environ["ISSUE_JSON"])
 state = f"タイトル: {issue.get('title', '')}\n\n本文:\n{issue.get('body', '') or '(本文なし)'}"
 
 print(json.dumps({
-    "model": os.environ["JEV_MODEL"],
+    "model": os.environ["JEV_MODEL_VALUE"],
     "state": state,
     "questions": {
         "size": {
