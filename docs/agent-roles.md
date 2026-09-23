@@ -29,7 +29,7 @@
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
 
-OpenCode が停止した場合は、共通 skill の代替手順に従って Codex に切り替える。切り替えるときは元の worker を close し、Issue に切替を記録してから投げる（二重作業を防ぐため）。
+OpenCode が停止した場合は、共通 skill の「止まったときの代替」の順に切り替える。
 
 ## 実装エージェントのモデル選択
 
