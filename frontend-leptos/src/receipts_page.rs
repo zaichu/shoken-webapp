@@ -1,11 +1,12 @@
-use crate::receipts::{use_receipts_data, ReceiptRow, ReceiptsStore, ReceiptsTab, TabState};
+use crate::receipts::{use_receipts_data, ReceiptItem, ReceiptsStore, ReceiptsTab, TabState};
+use crate::session::use_session;
 use leptos::prelude::*;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
-    let store = use_receipts_data(ReceiptsTab::Dividend);
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
 
     view! {
         <div class="page-surface">
@@ -24,7 +25,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                     </div>
                 </div>
             </div>
-            <AuthSimulator store=store.clone() />
             {{
                 let failed = store.clone();
                 move || {
@@ -58,42 +58,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                         .collect_view()}
                 </div>
             </div>
-        </div>
-    }
-}
-
-#[component]
-fn AuthSimulator(store: ReceiptsStore) -> impl IntoView {
-    view! {
-        <div data-testid="poc-auth-bar" class="mb-3 flex items-center gap-3 text-sm">
-            <span data-testid="poc-user-id">
-                {move || {
-                    let id = store.user_id.get();
-                    if id.is_empty() { "未ログイン".to_string() } else { id }
-                }}
-            </span>
-            <button
-                type="button"
-                data-testid="poc-logout"
-                on:click={
-                    let store = store.clone();
-                    move |_| store.logout()
-                }
-            >
-                "ログアウト"
-            </button>
-            <button
-                type="button"
-                data-testid="poc-login-b"
-                on:click={
-                    let store = store.clone();
-                    move |_| {
-                        store.login_as("00000000-0000-0000-0000-000000000009".to_string());
-                    }
-                }
-            >
-                "ユーザーBでログイン"
-            </button>
         </div>
     }
 }
@@ -147,7 +111,14 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 match store.tab_state(tab) {
                     TabState::Loading => view! { <p role="status">"読み込み中..."</p> }.into_any(),
                     TabState::Failed(message) => {
-                        view! { <div role="alert">{message}</div> }.into_any()
+                        view! {
+                            <div role="alert">
+                                <strong>"エラー:"</strong>
+                                " "
+                                {message}
+                            </div>
+                        }
+                            .into_any()
                     }
                     TabState::Ready(rows) => {
                         if rows.is_empty() {
@@ -177,7 +148,7 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 }
 
 #[component]
-fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptRow>) -> impl IntoView {
+fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptItem>) -> impl IntoView {
     let headers: &[&str] = match tab {
         ReceiptsTab::Dividend => &[
             "入金日",
@@ -212,36 +183,7 @@ fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptRow>) -> impl IntoView {
                 {rows
                     .into_iter()
                     .map(|row| {
-                        let cells: Vec<String> = match tab {
-                            ReceiptsTab::Dividend => vec![
-                                row.date(tab).to_string(),
-                                row.product.clone(),
-                                row.account.clone(),
-                                row.security_code.clone(),
-                                row.name(tab).to_string(),
-                                row.unit_price.clone(),
-                                row.dividends_before_tax.clone(),
-                                row.taxes.clone(),
-                                row.net_amount_received.clone(),
-                            ],
-                            ReceiptsTab::DomesticStock => vec![
-                                row.date(tab).to_string(),
-                                row.security_code.clone(),
-                                row.name(tab).to_string(),
-                                row.account.clone(),
-                                row.shares.clone(),
-                                row.realized_profit_and_loss.clone(),
-                                row.taxes.clone(),
-                            ],
-                            ReceiptsTab::MutualFund => vec![
-                                row.date(tab).to_string(),
-                                row.name(tab).to_string(),
-                                row.account.clone(),
-                                row.shares.clone(),
-                                row.realized_profit_and_loss.clone(),
-                                row.taxes.clone(),
-                            ],
-                        };
+                        let cells = row.cells();
                         view! {
                             <tr>
                                 {cells.into_iter().map(|cell| view! { <td>{cell}</td> }).collect_view()}

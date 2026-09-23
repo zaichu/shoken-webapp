@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const FIXTURE_DIR = path.join(__dirname, '__fixtures__/csv');
 
-const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザー' };
+const MOCK_USER = { id: '1', email: 'test@example.com', name: 'テストユーザー' };
 
 // ホスト非依存のパターン（VITE_SHOKEN_WEBAPI_API_URL の値に関わらず一致する）
 const ROUTES = {

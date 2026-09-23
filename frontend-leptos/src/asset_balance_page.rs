@@ -1,64 +1,61 @@
-use crate::auth::{redirect_to, use_session};
+use crate::api::{ApiClient, ApiError};
+use crate::dto::{AssetBalance, AssetBalanceListResponse};
+use crate::session::use_session;
 use leptos::prelude::*;
-use serde::Deserialize;
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
-pub struct AssetBalance {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub security_code: String,
-    #[serde(default)]
-    pub security_name: String,
-    #[serde(default)]
-    pub shares: f64,
-    #[serde(default)]
-    pub market_value: f64,
-    #[serde(default)]
-    pub total_purchase_amount: f64,
-    #[serde(default)]
-    pub profit_loss_rate: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct AssetBalanceList {
-    #[serde(default)]
-    data: Vec<AssetBalance>,
-}
-
-async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, String> {
-    let url = "/api/v1/asset-balances?per_page=200&page=1&include_summary=true";
-    let response = gloo_net::http::Request::get(url)
-        .send()
+async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, ApiError> {
+    ApiClient::read_client()
+        .get_json::<AssetBalanceListResponse>(
+            "/api/v1/asset-balances",
+            &[
+                ("per_page", "200"),
+                ("page", "1"),
+                ("include_summary", "true"),
+            ],
+        )
         .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    if !response.ok() {
-        return Err("データ取得に失敗しました".to_string());
+        .map(|list| list.data)
+}
+
+fn asset_balance_error_message(error: &ApiError) -> String {
+    if error.is_unauthorized() {
+        error.user_message()
+    } else {
+        "データ取得に失敗しました".to_string()
     }
-    let list = response
-        .json::<AssetBalanceList>()
-        .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    Ok(list.data)
+}
+
+fn should_apply_asset_balance_result(
+    session: &crate::session::SessionStore,
+    generation: u64,
+) -> bool {
+    session.is_current(generation)
 }
 
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
-    let (user, loaded) = use_session();
-    let balances = RwSignal::new(None::<Result<Vec<AssetBalance>, String>>);
+    let session = use_session();
+    let balances = RwSignal::new(None::<(u64, Result<Vec<AssetBalance>, String>)>);
     Effect::new(move |_| {
-        if !loaded.get() {
+        let generation = session.generation.get();
+        if session.user.get().is_none() {
             return;
         }
-        if user.get().is_none() {
-            redirect_to("/login");
+        if balances
+            .get_untracked()
+            .is_some_and(|(cached, _)| cached == generation)
+        {
             return;
         }
-        if balances.get_untracked().is_some() {
-            return;
-        }
+        let session = session.clone();
         leptos::task::spawn_local(async move {
-            balances.set(Some(fetch_asset_balances().await));
+            let result = match fetch_asset_balances().await {
+                Ok(rows) => Ok(rows),
+                Err(error) => Err(asset_balance_error_message(&error)),
+            };
+            if should_apply_asset_balance_result(&session, generation) {
+                balances.set(Some((generation, result)));
+            }
         });
     });
     view! {
@@ -79,9 +76,18 @@ pub fn AssetBalancePage() -> impl IntoView {
                 </div>
             </div>
             <div data-testid="assetbalance-workspace">
-                {move || match balances.get() {
+                {move || match balances.get().map(|(_, result)| result) {
                     None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
-                    Some(Err(message)) => view! { <div role="alert">{message}</div> }.into_any(),
+                    Some(Err(message)) => {
+                        view! {
+                            <div role="alert">
+                                <strong>"エラー:"</strong>
+                                " "
+                                {message}
+                            </div>
+                        }
+                            .into_any()
+                    }
                     Some(Ok(rows)) => {
                         if rows.is_empty() {
                             view! {
@@ -131,5 +137,49 @@ fn AssetBalanceTable(rows: Vec<AssetBalance>) -> impl IntoView {
                     .collect_view()}
             </tbody>
         </table>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dto::SessionUser;
+    use crate::session::SessionStore;
+
+    fn user(id: &str) -> SessionUser {
+        SessionUser {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            name: None,
+            picture_url: None,
+        }
+    }
+
+    #[test]
+    fn stale_asset_balance_result_is_rejected_after_same_or_different_user_login() {
+        let owner = Owner::new();
+        owner.with(|| {
+            for next_user in [user("alice"), user("bob")] {
+                let session = SessionStore::new();
+                session.user.set(Some(user("alice")));
+                let fetch_generation = session.generation.get_untracked();
+
+                session.mark_unauthenticated();
+                session.user.set(Some(next_user));
+
+                assert!(!should_apply_asset_balance_result(
+                    &session,
+                    fetch_generation
+                ));
+            }
+        });
+    }
+
+    #[test]
+    fn unauthorized_asset_balance_error_uses_react_message() {
+        assert_eq!(
+            asset_balance_error_message(&ApiError::Http { status: 401 }),
+            "認証が必要です"
+        );
     }
 }

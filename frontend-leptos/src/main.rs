@@ -1,6 +1,6 @@
 mod api;
 mod asset_balance_page;
-mod auth;
+mod dto;
 mod home_page;
 mod login_page;
 mod not_found_page;
@@ -8,6 +8,7 @@ mod page;
 mod receipts;
 mod receipts_page;
 mod search;
+mod session;
 
 use page::App;
 

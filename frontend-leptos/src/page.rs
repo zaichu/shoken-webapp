@@ -1,11 +1,11 @@
-use crate::api::Stock;
 use crate::asset_balance_page::AssetBalancePage;
-use crate::auth::{redirect_to, use_session, SessionUser};
+use crate::dto::Stock;
 use crate::home_page::HomePage;
 use crate::login_page::LoginPage;
 use crate::not_found_page::NotFoundPage;
 use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
+use crate::session::{provide_session, SessionStore};
 use leptos::prelude::*;
 
 const BASE_TITLE: &str = "証券Web";
@@ -96,19 +96,19 @@ fn current_route() -> Route {
 #[component]
 pub fn App() -> impl IntoView {
     let route = current_route();
-    let (user, loaded) = use_session();
+    let session = provide_session();
     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
         document.set_title(&format!("{} - {BASE_TITLE}", route.title()));
     }
     Effect::new(move |_| {
-        if !loaded.get() {
+        if !session.loaded.get() {
             return;
         }
-        let authed = user.get().is_some();
+        let authed = session.user.get().is_some();
         if route.protected() && !authed {
-            redirect_to("/login");
+            SessionStore::redirect_to("/login");
         } else if route == Route::Login && authed {
-            redirect_to("/");
+            SessionStore::redirect_to("/");
         }
     });
     view! {
@@ -119,15 +119,23 @@ pub fn App() -> impl IntoView {
             >
                 "メインコンテンツへスキップ"
             </a>
-            <SiteHeader user=user />
+            <SiteHeader />
             <main id="main-content" class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-1 flex-col py-5">
-                {match route {
-                    Route::Home => view! { <HomePage /> }.into_any(),
-                    Route::Search => view! { <SearchPage /> }.into_any(),
-                    Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
-                    Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
-                    Route::Login => view! { <LoginPage user=user loaded=loaded /> }.into_any(),
-                    Route::NotFound => view! { <NotFoundPage /> }.into_any(),
+                {move || {
+                    if !session.loaded.get() {
+                        return view! { <p role="status">"読み込み中..."</p> }.into_any();
+                    }
+                    if route.protected() && session.user.get().is_none() {
+                        return view! { <p role="status">"読み込み中..."</p> }.into_any();
+                    }
+                    match route {
+                        Route::Home => view! { <HomePage /> }.into_any(),
+                        Route::Search => view! { <SearchPage /> }.into_any(),
+                        Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
+                        Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
+                        Route::Login => view! { <LoginPage /> }.into_any(),
+                        Route::NotFound => view! { <NotFoundPage /> }.into_any(),
+                    }
                 }}
             </main>
             <SiteFooter />
@@ -142,7 +150,8 @@ fn current_path() -> String {
 }
 
 #[component]
-fn SiteHeader(user: RwSignal<Option<SessionUser>>) -> impl IntoView {
+fn SiteHeader() -> impl IntoView {
+    let session = crate::session::use_session();
     view! {
         <header class="border-b border-slate-200 bg-white">
             <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between">
@@ -162,9 +171,28 @@ fn SiteHeader(user: RwSignal<Option<SessionUser>>) -> impl IntoView {
                 </nav>
                 <div class="flex items-center gap-3">
                     {move || {
-                        user.get()
-                            .map(|session| {
-                                view! { <span class="text-sm font-semibold">{session.display_name()}</span> }
+                        let logout_session = session.clone();
+                        let logout = move |_| {
+                            let session = logout_session.clone();
+                            leptos::task::spawn_local(async move {
+                                session.logout().await;
+                            });
+                        };
+                        session
+                            .user
+                            .get()
+                            .map(|user| {
+                                view! {
+                                    <span class="text-sm font-semibold">{user.display_name()}</span>
+                                    <button
+                                        type="button"
+                                        data-testid="logout"
+                                        class="text-sm font-bold text-slate-700 hover:text-slate-950"
+                                        on:click=logout
+                                    >
+                                        "ログアウト"
+                                    </button>
+                                }
                                     .into_any()
                             })
                             .unwrap_or_else(|| {
