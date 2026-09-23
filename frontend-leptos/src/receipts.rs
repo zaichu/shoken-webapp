@@ -1,5 +1,8 @@
+use crate::dto::{
+    Dividend, DividendListResponse, DomesticStock, DomesticStockListResponse, Mutualfund,
+    MutualfundListResponse, SessionUser,
+};
 use leptos::prelude::*;
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -33,64 +36,46 @@ impl ReceiptsTab {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
-pub struct ReceiptRow {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub settlement_date: String,
-    #[serde(default)]
-    pub trade_date: String,
-    #[serde(default)]
-    pub product: String,
-    #[serde(default)]
-    pub account: String,
-    #[serde(default)]
-    pub security_code: String,
-    #[serde(default)]
-    pub security_name: String,
-    #[serde(default)]
-    pub fund_name: String,
-    #[serde(default)]
-    pub unit_price: String,
-    #[serde(default)]
-    pub shares: String,
-    #[serde(default)]
-    pub dividends_before_tax: String,
-    #[serde(default)]
-    pub taxes: String,
-    #[serde(default)]
-    pub net_amount_received: String,
-    #[serde(default)]
-    pub realized_profit_and_loss: String,
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReceiptItem {
+    Dividend(Dividend),
+    DomesticStock(DomesticStock),
+    MutualFund(Mutualfund),
 }
 
-impl ReceiptRow {
-    pub fn date(&self, tab: ReceiptsTab) -> &str {
-        match tab {
-            ReceiptsTab::Dividend => &self.settlement_date,
-            _ => &self.trade_date,
+impl ReceiptItem {
+    pub fn cells(&self) -> Vec<String> {
+        match self {
+            ReceiptItem::Dividend(row) => vec![
+                row.settlement_date.clone(),
+                row.product.clone(),
+                row.account.clone(),
+                row.security_code.clone(),
+                row.security_name.clone(),
+                row.unit_price.to_string(),
+                row.dividends_before_tax.to_string(),
+                row.taxes.to_string(),
+                row.net_amount_received.to_string(),
+            ],
+            ReceiptItem::DomesticStock(row) => vec![
+                row.trade_date.clone(),
+                row.security_code.clone(),
+                row.security_name.clone(),
+                row.account.clone(),
+                row.shares.to_string(),
+                row.realized_profit_and_loss.to_string(),
+                row.taxes.to_string(),
+            ],
+            ReceiptItem::MutualFund(row) => vec![
+                row.trade_date.clone(),
+                row.fund_name.clone(),
+                row.account.clone(),
+                row.shares.to_string(),
+                row.realized_profit_and_loss.to_string(),
+                row.taxes.to_string(),
+            ],
         }
     }
-
-    pub fn name(&self, tab: ReceiptsTab) -> &str {
-        match tab {
-            ReceiptsTab::MutualFund => &self.fund_name,
-            _ => &self.security_name,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct PaginatedList {
-    #[serde(default)]
-    data: Vec<ReceiptRow>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct SessionUser {
-    #[serde(default)]
-    id: String,
 }
 
 async fn fetch_session_user_id() -> Result<String, String> {
@@ -111,7 +96,7 @@ async fn fetch_session_user_id() -> Result<String, String> {
     Ok(user.id)
 }
 
-async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptRow>, String> {
+async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, String> {
     let url = format!(
         "{}?per_page=1000&page=1&include_summary=true",
         tab.list_path()
@@ -123,17 +108,34 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptRow>, String> {
     if !response.ok() {
         return Err("データ取得に失敗しました".to_string());
     }
-    let list = response
-        .json::<PaginatedList>()
-        .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    Ok(list.data)
+    match tab {
+        ReceiptsTab::Dividend => response
+            .json::<DividendListResponse>()
+            .await
+            .map(|list| list.data.into_iter().map(ReceiptItem::Dividend).collect())
+            .map_err(|_| "データ取得に失敗しました".to_string()),
+        ReceiptsTab::DomesticStock => response
+            .json::<DomesticStockListResponse>()
+            .await
+            .map(|list| {
+                list.data
+                    .into_iter()
+                    .map(ReceiptItem::DomesticStock)
+                    .collect()
+            })
+            .map_err(|_| "データ取得に失敗しました".to_string()),
+        ReceiptsTab::MutualFund => response
+            .json::<MutualfundListResponse>()
+            .await
+            .map(|list| list.data.into_iter().map(ReceiptItem::MutualFund).collect())
+            .map_err(|_| "データ取得に失敗しました".to_string()),
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum TabState {
     Loading,
-    Ready(Vec<ReceiptRow>),
+    Ready(Vec<ReceiptItem>),
     Failed(String),
 }
 #[derive(Clone)]
@@ -146,7 +148,7 @@ pub struct ReceiptsStore {
 }
 
 impl ReceiptsStore {
-    pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptRow> {
+    pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let user = self.user_id.get();
         self.cache.with(|map| match map.get(&(user, tab)) {
             Some(TabState::Ready(rows)) => rows.clone(),

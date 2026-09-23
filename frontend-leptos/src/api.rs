@@ -1,24 +1,4 @@
-use serde::Deserialize;
-
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct Stock {
-    pub code: String,
-    pub name: String,
-    pub date: String,
-    pub market_category: String,
-    #[serde(default)]
-    pub industry_code_33: Option<String>,
-    #[serde(default)]
-    pub industry_category_33: Option<String>,
-    #[serde(default)]
-    pub industry_code_17: Option<String>,
-    #[serde(default)]
-    pub industry_category_17: Option<String>,
-    #[serde(default)]
-    pub size_code: Option<String>,
-    #[serde(default)]
-    pub size_category: Option<String>,
-}
+pub use crate::dto::Stock;
 
 pub async fn fetch_stock(query: &str) -> Result<Stock, String> {
     let url = format!("/api/v1/stocks?query={}", urlencoding::encode(query));

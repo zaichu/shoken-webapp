@@ -1,25 +1,6 @@
 use leptos::prelude::*;
-use serde::Deserialize;
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
-pub struct SessionUser {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub email: String,
-    #[serde(default)]
-    pub name: Option<String>,
-}
-
-impl SessionUser {
-    pub fn display_name(&self) -> String {
-        match &self.name {
-            Some(name) if !name.is_empty() => name.clone(),
-            _ if !self.email.is_empty() => self.email.clone(),
-            _ => self.id.clone(),
-        }
-    }
-}
+pub use crate::dto::SessionUser;
 
 pub async fn fetch_session_user() -> Option<SessionUser> {
     let response = gloo_net::http::Request::get("/api/v1/session")

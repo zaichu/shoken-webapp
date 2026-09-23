@@ -1,30 +1,6 @@
 use crate::auth::{redirect_to, use_session};
+use crate::dto::{AssetBalance, AssetBalanceListResponse};
 use leptos::prelude::*;
-use serde::Deserialize;
-
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
-pub struct AssetBalance {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub security_code: String,
-    #[serde(default)]
-    pub security_name: String,
-    #[serde(default)]
-    pub shares: f64,
-    #[serde(default)]
-    pub market_value: f64,
-    #[serde(default)]
-    pub total_purchase_amount: f64,
-    #[serde(default)]
-    pub profit_loss_rate: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct AssetBalanceList {
-    #[serde(default)]
-    data: Vec<AssetBalance>,
-}
 
 async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, String> {
     let url = "/api/v1/asset-balances?per_page=200&page=1&include_summary=true";
@@ -36,7 +12,7 @@ async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, String> {
         return Err("データ取得に失敗しました".to_string());
     }
     let list = response
-        .json::<AssetBalanceList>()
+        .json::<AssetBalanceListResponse>()
         .await
         .map_err(|_| "データ取得に失敗しました".to_string())?;
     Ok(list.data)

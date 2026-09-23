@@ -1,4 +1,4 @@
-use crate::receipts::{use_receipts_data, ReceiptRow, ReceiptsStore, ReceiptsTab, TabState};
+use crate::receipts::{use_receipts_data, ReceiptItem, ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -177,7 +177,7 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 }
 
 #[component]
-fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptRow>) -> impl IntoView {
+fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptItem>) -> impl IntoView {
     let headers: &[&str] = match tab {
         ReceiptsTab::Dividend => &[
             "入金日",
@@ -212,36 +212,7 @@ fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptRow>) -> impl IntoView {
                 {rows
                     .into_iter()
                     .map(|row| {
-                        let cells: Vec<String> = match tab {
-                            ReceiptsTab::Dividend => vec![
-                                row.date(tab).to_string(),
-                                row.product.clone(),
-                                row.account.clone(),
-                                row.security_code.clone(),
-                                row.name(tab).to_string(),
-                                row.unit_price.clone(),
-                                row.dividends_before_tax.clone(),
-                                row.taxes.clone(),
-                                row.net_amount_received.clone(),
-                            ],
-                            ReceiptsTab::DomesticStock => vec![
-                                row.date(tab).to_string(),
-                                row.security_code.clone(),
-                                row.name(tab).to_string(),
-                                row.account.clone(),
-                                row.shares.clone(),
-                                row.realized_profit_and_loss.clone(),
-                                row.taxes.clone(),
-                            ],
-                            ReceiptsTab::MutualFund => vec![
-                                row.date(tab).to_string(),
-                                row.name(tab).to_string(),
-                                row.account.clone(),
-                                row.shares.clone(),
-                                row.realized_profit_and_loss.clone(),
-                                row.taxes.clone(),
-                            ],
-                        };
+                        let cells = row.cells();
                         view! {
                             <tr>
                                 {cells.into_iter().map(|cell| view! { <td>{cell}</td> }).collect_view()}

@@ -1,6 +1,3 @@
-// ページ未接続の型があるため。接続が終わったら外す
-#![allow(dead_code)]
-
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -296,7 +293,7 @@ mod tests {
         sample_primitive(&serde_json::json!({"type": non_null, "format": schema.get("format")}))
     }
 
-    fn base_types<'a>(schema: &'a serde_json::Value) -> Vec<&'a str> {
+    fn base_types(schema: &serde_json::Value) -> Vec<&str> {
         match &schema["type"] {
             serde_json::Value::String(single) => vec![single.as_str()],
             serde_json::Value::Array(multiple) => multiple
@@ -350,10 +347,9 @@ mod tests {
         }
     }
 
-    const TABLE: &[(
-        &str,
-        fn(serde_json::Value) -> Result<serde_json::Value, serde_json::Error>,
-    )] = &[
+    type Roundtrip = fn(serde_json::Value) -> Result<serde_json::Value, serde_json::Error>;
+
+    const TABLE: &[(&str, Roundtrip)] = &[
         ("Stock", roundtrip::<Stock>),
         ("DomesticStock", roundtrip::<DomesticStock>),
         ("DomesticStockSummary", roundtrip::<DomesticStockSummary>),
