@@ -1,13 +1,17 @@
-use crate::auth::{redirect_to, SessionUser};
+use crate::session::use_session;
 use leptos::prelude::*;
 
 #[component]
-pub fn LoginPage(user: RwSignal<Option<SessionUser>>, loaded: RwSignal<bool>) -> impl IntoView {
-    let login = move |_| redirect_to("/api/v1/oauth/google/authorize");
+pub fn LoginPage() -> impl IntoView {
+    let session = use_session();
     view! {
         <div class="mx-auto flex max-w-md flex-col items-center py-12">
             {move || {
-                if !loaded.get() {
+                let login_session = session.clone();
+                let login = move |_| {
+                    login_session.login();
+                };
+                if !session.loaded.get() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
                             <p role="status">"読み込み中..."</p>
@@ -15,7 +19,7 @@ pub fn LoginPage(user: RwSignal<Option<SessionUser>>, loaded: RwSignal<bool>) ->
                     }
                         .into_any();
                 }
-                if user.get().is_some() {
+                if session.user.get().is_some() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
                             <p role="status">"読み込み中..."</p>

@@ -1,40 +1,51 @@
-use crate::auth::{redirect_to, use_session};
+use crate::api::{ApiClient, ApiError};
 use crate::dto::{AssetBalance, AssetBalanceListResponse};
+use crate::session::use_session;
 use leptos::prelude::*;
 
-async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, String> {
-    let url = "/api/v1/asset-balances?per_page=200&page=1&include_summary=true";
-    let response = gloo_net::http::Request::get(url)
-        .send()
+async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, ApiError> {
+    ApiClient::read_client()
+        .get_json::<AssetBalanceListResponse>(
+            "/api/v1/asset-balances",
+            &[
+                ("per_page", "200"),
+                ("page", "1"),
+                ("include_summary", "true"),
+            ],
+        )
         .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    if !response.ok() {
-        return Err("データ取得に失敗しました".to_string());
-    }
-    let list = response
-        .json::<AssetBalanceListResponse>()
-        .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    Ok(list.data)
+        .map(|list| list.data)
 }
 
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
-    let (user, loaded) = use_session();
-    let balances = RwSignal::new(None::<Result<Vec<AssetBalance>, String>>);
+    let session = use_session();
+    let balances = RwSignal::new(None::<(u64, Result<Vec<AssetBalance>, String>)>);
     Effect::new(move |_| {
-        if !loaded.get() {
+        let generation = session.generation.get();
+        if session.user.get().is_none() {
             return;
         }
-        if user.get().is_none() {
-            redirect_to("/login");
+        if balances
+            .get_untracked()
+            .is_some_and(|(cached, _)| cached == generation)
+        {
             return;
         }
-        if balances.get_untracked().is_some() {
-            return;
-        }
+        let session = session.clone();
         leptos::task::spawn_local(async move {
-            balances.set(Some(fetch_asset_balances().await));
+            let result = match fetch_asset_balances().await {
+                Ok(rows) => Ok(rows),
+                Err(error) => {
+                    if error.is_unauthorized() {
+                        session.mark_unauthenticated();
+                    }
+                    Err("データ取得に失敗しました".to_string())
+                }
+            };
+            if session.is_current(generation) {
+                balances.set(Some((generation, result)));
+            }
         });
     });
     view! {
@@ -55,7 +66,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 </div>
             </div>
             <div data-testid="assetbalance-workspace">
-                {move || match balances.get() {
+                {move || match balances.get().map(|(_, result)| result) {
                     None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
                     Some(Err(message)) => view! { <div role="alert">{message}</div> }.into_any(),
                     Some(Ok(rows)) => {

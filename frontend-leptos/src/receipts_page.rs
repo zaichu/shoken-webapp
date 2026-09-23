@@ -1,11 +1,12 @@
 use crate::receipts::{use_receipts_data, ReceiptItem, ReceiptsStore, ReceiptsTab, TabState};
+use crate::session::use_session;
 use leptos::prelude::*;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
-    let store = use_receipts_data(ReceiptsTab::Dividend);
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
 
     view! {
         <div class="page-surface">
@@ -24,7 +25,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                     </div>
                 </div>
             </div>
-            <AuthSimulator store=store.clone() />
             {{
                 let failed = store.clone();
                 move || {
@@ -58,42 +58,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                         .collect_view()}
                 </div>
             </div>
-        </div>
-    }
-}
-
-#[component]
-fn AuthSimulator(store: ReceiptsStore) -> impl IntoView {
-    view! {
-        <div data-testid="poc-auth-bar" class="mb-3 flex items-center gap-3 text-sm">
-            <span data-testid="poc-user-id">
-                {move || {
-                    let id = store.user_id.get();
-                    if id.is_empty() { "未ログイン".to_string() } else { id }
-                }}
-            </span>
-            <button
-                type="button"
-                data-testid="poc-logout"
-                on:click={
-                    let store = store.clone();
-                    move |_| store.logout()
-                }
-            >
-                "ログアウト"
-            </button>
-            <button
-                type="button"
-                data-testid="poc-login-b"
-                on:click={
-                    let store = store.clone();
-                    move |_| {
-                        store.login_as("00000000-0000-0000-0000-000000000009".to_string());
-                    }
-                }
-            >
-                "ユーザーBでログイン"
-            </button>
         </div>
     }
 }

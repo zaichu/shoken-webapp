@@ -1,7 +1,8 @@
+use crate::api::{ApiClient, ApiError};
 use crate::dto::{
-    Dividend, DividendListResponse, DomesticStock, DomesticStockListResponse, Mutualfund,
-    MutualfundListResponse, SessionUser,
+    DividendListResponse, DomesticStockListResponse, MutualfundListResponse,
 };
+use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -38,9 +39,9 @@ impl ReceiptsTab {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReceiptItem {
-    Dividend(Dividend),
-    DomesticStock(DomesticStock),
-    MutualFund(Mutualfund),
+    Dividend(crate::dto::Dividend),
+    DomesticStock(crate::dto::DomesticStock),
+    MutualFund(crate::dto::Mutualfund),
 }
 
 impl ReceiptItem {
@@ -78,57 +79,27 @@ impl ReceiptItem {
     }
 }
 
-async fn fetch_session_user_id() -> Result<String, String> {
-    let response = gloo_net::http::Request::get("/api/v1/session")
-        .send()
-        .await
-        .map_err(|_| "セッションの取得に失敗しました。".to_string())?;
-    if !response.ok() {
-        return Err(format!("未認証: {}", response.status()));
-    }
-    let user = response
-        .json::<SessionUser>()
-        .await
-        .map_err(|_| "セッションの解析に失敗しました。".to_string())?;
-    if user.id.is_empty() {
-        return Err("ユーザーIDが空です。".to_string());
-    }
-    Ok(user.id)
-}
-
-async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, String> {
-    let url = format!(
-        "{}?per_page=1000&page=1&include_summary=true",
-        tab.list_path()
-    );
-    let response = gloo_net::http::Request::get(&url)
-        .send()
-        .await
-        .map_err(|_| "データ取得に失敗しました".to_string())?;
-    if !response.ok() {
-        return Err("データ取得に失敗しました".to_string());
-    }
+async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
+    let client = ApiClient::read_client();
+    let query = &[("per_page", "1000"), ("page", "1"), ("include_summary", "true")];
     match tab {
-        ReceiptsTab::Dividend => response
-            .json::<DividendListResponse>()
+        ReceiptsTab::Dividend => client
+            .get_json::<DividendListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::Dividend).collect())
-            .map_err(|_| "データ取得に失敗しました".to_string()),
-        ReceiptsTab::DomesticStock => response
-            .json::<DomesticStockListResponse>()
+            .map(|list| list.data.into_iter().map(ReceiptItem::Dividend).collect()),
+        ReceiptsTab::DomesticStock => client
+            .get_json::<DomesticStockListResponse>(tab.list_path(), query)
             .await
             .map(|list| {
                 list.data
                     .into_iter()
                     .map(ReceiptItem::DomesticStock)
                     .collect()
-            })
-            .map_err(|_| "データ取得に失敗しました".to_string()),
-        ReceiptsTab::MutualFund => response
-            .json::<MutualfundListResponse>()
+            }),
+        ReceiptsTab::MutualFund => client
+            .get_json::<MutualfundListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::MutualFund).collect())
-            .map_err(|_| "データ取得に失敗しました".to_string()),
+            .map(|list| list.data.into_iter().map(ReceiptItem::MutualFund).collect()),
     }
 }
 
@@ -140,17 +111,17 @@ pub enum TabState {
 }
 #[derive(Clone)]
 pub struct ReceiptsStore {
-    pub user_id: RwSignal<String>,
+    session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
-    cache: RwSignal<HashMap<(String, ReceiptsTab), TabState>>,
-    fetch: Action<(String, ReceiptsTab), ()>,
+    cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
+    fetch: Action<(u64, ReceiptsTab), ()>,
 }
 
 impl ReceiptsStore {
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
-        let user = self.user_id.get();
-        self.cache.with(|map| match map.get(&(user, tab)) {
+        let generation = self.session.generation.get();
+        self.cache.with(|map| match map.get(&(generation, tab)) {
             Some(TabState::Ready(rows)) => rows.clone(),
             _ => Vec::new(),
         })
@@ -161,11 +132,11 @@ impl ReceiptsStore {
     }
 
     pub fn error(&self) -> Option<String> {
-        let user = self.user_id.get();
+        let generation = self.session.generation.get();
         self.cache.with(|map| {
             ReceiptsTab::ALL
                 .iter()
-                .find_map(|tab| match map.get(&(user.clone(), *tab)) {
+                .find_map(|tab| match map.get(&(generation, *tab)) {
                     Some(TabState::Failed(message)) => Some(message.clone()),
                     _ => None,
                 })
@@ -173,13 +144,16 @@ impl ReceiptsStore {
     }
 
     pub fn tab_state(&self, tab: ReceiptsTab) -> TabState {
-        let user = self.user_id.get();
-        self.cache
-            .with(|map| map.get(&(user, tab)).cloned().unwrap_or(TabState::Loading))
+        let generation = self.session.generation.get();
+        self.cache.with(|map| {
+            map.get(&(generation, tab))
+                .cloned()
+                .unwrap_or(TabState::Loading)
+        })
     }
 
     pub fn is_authenticated(&self) -> bool {
-        !self.user_id.get().is_empty()
+        self.session.user.get().is_some()
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
@@ -190,26 +164,17 @@ impl ReceiptsStore {
         self.ensure(tab);
     }
 
-    pub fn logout(&self) {
-        let this = self.clone();
-        batch(move || {
-            this.user_id.set(String::new());
-            this.cache.update(|map| map.clear());
-        });
-    }
-
-    pub fn login_as(&self, user_id: String) {
-        self.user_id.set(user_id);
-    }
-
     fn ensure(&self, tab: ReceiptsTab) {
-        let user = self.user_id.get_untracked();
-        if user.is_empty() {
+        if self.session.user.get_untracked().is_none() {
             return;
         }
+        let generation = self.session.generation.get_untracked();
+        self.cache.update(|map| {
+            map.retain(|key, _| key.0 == generation);
+        });
         let in_flight_or_ready = self.cache.with_untracked(|map| {
             matches!(
-                map.get(&(user.clone(), tab)),
+                map.get(&(generation, tab)),
                 Some(TabState::Loading) | Some(TabState::Ready(_))
             )
         });
@@ -220,40 +185,47 @@ impl ReceiptsStore {
             visited.insert(tab);
         });
         self.cache.update(|map| {
-            map.insert((user.clone(), tab), TabState::Loading);
+            map.insert((generation, tab), TabState::Loading);
         });
-        self.fetch.dispatch((user, tab));
+        self.fetch.dispatch((generation, tab));
     }
 }
 
-fn tab_settled(store: &ReceiptsStore, user: &str, tab: ReceiptsTab) -> bool {
+fn tab_settled(store: &ReceiptsStore, generation: u64, tab: ReceiptsTab) -> bool {
     store.cache.with(|map| {
         matches!(
-            map.get(&(user.to_string(), tab)),
+            map.get(&(generation, tab)),
             Some(TabState::Ready(_)) | Some(TabState::Failed(_))
         )
     })
 }
 
-pub fn use_receipts_data(initial_tab: ReceiptsTab) -> ReceiptsStore {
-    let user_id = RwSignal::new(String::new());
+pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
     let active_tab = RwSignal::new(initial_tab);
     let visited = RwSignal::new(HashSet::from([initial_tab]));
     let cache = RwSignal::new(HashMap::new());
 
-    let fetch = Action::new_unsync(move |(user, tab): &(String, ReceiptsTab)| {
-        let (user, tab) = (user.clone(), *tab);
+    let fetch_session = session.clone();
+    let cache_signal = cache;
+    let fetch = Action::new_unsync(move |(generation, tab): &(u64, ReceiptsTab)| {
+        let (generation, tab) = (*generation, *tab);
+        let session = fetch_session.clone();
         async move {
             let rows = fetch_list(tab).await;
-            if user_id.get_untracked() != user {
+            if !session.is_current(generation) {
                 return;
             }
-            cache.update(|map| {
+            if let Err(error) = &rows {
+                if error.is_unauthorized() {
+                    session.mark_unauthenticated();
+                }
+            }
+            cache_signal.update(|map| {
                 map.insert(
-                    (user, tab),
+                    (generation, tab),
                     match rows {
                         Ok(rows) => TabState::Ready(rows),
-                        Err(message) => TabState::Failed(message),
+                        Err(_) => TabState::Failed("データ取得に失敗しました".to_string()),
                     },
                 );
             });
@@ -261,29 +233,24 @@ pub fn use_receipts_data(initial_tab: ReceiptsTab) -> ReceiptsStore {
     });
 
     let store = ReceiptsStore {
-        user_id,
+        session: session.clone(),
         active_tab,
         visited,
         cache,
         fetch,
     };
 
-    leptos::task::spawn_local(async move {
-        if let Ok(id) = fetch_session_user_id().await {
-            user_id.set(id);
-        }
-    });
-
     Effect::new({
         let store = store.clone();
         move |_| {
-            let user = user_id.get();
+            let user = session.user.get();
             let active = active_tab.get();
-            if user.is_empty() {
+            if user.is_none() {
                 return;
             }
+            let generation = session.generation.get();
             store.ensure(active);
-            if tab_settled(&store, &user, active) {
+            if tab_settled(&store, generation, active) {
                 let mut background: Vec<ReceiptsTab> = ReceiptsTab::ALL
                     .iter()
                     .copied()
