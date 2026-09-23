@@ -31,22 +31,25 @@
 
 ## Issueの振り分けの補助(Jev)
 
-`scripts/triage-issue.sh <issue番号>` が、Issueの規模・リスク・担当候補・API契約の同期の要否・
-マイグレーションの要否を Jev(TypeSafe AIのSystem One Model)で判定する。
+Issueの規模・リスク・担当候補を Jev(TypeSafe AIのSystem One Model)で判定する。
+仕組み自体は全プロジェクト共通の `issue-triage` skill が正本。
 **結果は提案で、決定ではない。**
 
 ```bash
-export TYPESAFE_API_KEY=<TypeSafe AIのAPIキー>   # ~/.bashrc などに置く。Gitへ入れない
-bash scripts/triage-issue.sh 867
+export TYPESAFE_API_KEY=<TypeSafe AIのAPIキー>   # ~/.claude/settings.json の env に置く。Gitへ入れない
+~/.claude/skills/issue-triage/scripts/triage-issue.sh 867
 ```
+
+共通3問(規模/リスク/担当候補)に加え、本プロジェクトでは `docs/jev-extra-questions.json` で
+API契約の同期・マイグレーションの要否も追加質問している。
 
 出力の形(値は見本で、実際の判定結果ではない):
 
 ```text
 Issue #867 の判定 (model: jev-latest)
-  規模:          medium (確信度 0.71)
-  リスク:        low (確信度 0.83)
-  担当候補:      opencode (確信度 0.64)
+  規模: medium (確信度 0.71)
+  リスク: low (確信度 0.83)
+  担当候補: opencode (確信度 0.64)
   API契約の同期: いいえ (確率 0.12)
   マイグレーション: いいえ (確率 0.08)
 ```
@@ -56,3 +59,4 @@ Issue #867 の判定 (model: jev-latest)
 - 送るのはIssueのタイトルと本文だけ。APIキー・接続情報・個人情報は送らない。
 - **backend / frontend の実行時には組み込まない。** 外部APIへの依存を増やさないため、開発時の補助に限る。
 - 外部依存のため CI には入れない。
+- 質問の追加・変更方法は `issue-triage` skillを参照。
