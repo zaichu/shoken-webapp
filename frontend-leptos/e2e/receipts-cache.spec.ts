@@ -194,44 +194,58 @@ test('タブ切替で再フェッチが走らずキャッシュが使われる',
   expect(logs.funds.count).toBe(1);
 });
 
-test('データ取得APIが失敗しても全タブのリクエスト回数が上限内に収まる', async ({ page }) => {
-  const requestCounts = {
-    dividends: 0,
-    domestic: 0,
-    funds: 0,
-  };
+for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
+  test(`データ取得APIで${failedTab}だけ失敗しても全タブのリクエスト回数が上限内に収まる`, async ({ page }) => {
+    const requestCounts = {
+      dividends: 0,
+      domestic: 0,
+      funds: 0,
+    };
 
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(USER_A),
-    }),
-  );
-  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
-    requestCounts.dividends += 1;
-    return route.fulfill({ status: 401, body: '{}' });
-  });
-  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) => {
-    requestCounts.domestic += 1;
-    return route.fulfill({ status: 401, body: '{}' });
-  });
-  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) => {
-    requestCounts.funds += 1;
-    return route.fulfill({ status: 401, body: '{}' });
-  });
+    await page.route(/\/api\/v1\/session$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(USER_A),
+      }),
+    );
+    await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+      requestCounts.dividends += 1;
+      return route.fulfill(
+        failedTab === 'dividends'
+          ? { status: 401, body: '{}' }
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([DIVIDEND_A])) },
+      );
+    });
+    await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) => {
+      requestCounts.domestic += 1;
+      return route.fulfill(
+        failedTab === 'domestic'
+          ? { status: 401, body: '{}' }
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([DOMESTIC])) },
+      );
+    });
+    await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) => {
+      requestCounts.funds += 1;
+      return route.fulfill(
+        failedTab === 'funds'
+          ? { status: 401, body: '{}' }
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([FUND])) },
+      );
+    });
 
-  await page.goto('/receipts');
-  await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
-  await page.waitForTimeout(500);
+    await page.goto('/receipts');
+    await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
+    await page.waitForTimeout(500);
 
-  expect(requestCounts.dividends).toBeGreaterThan(0);
-  expect(requestCounts.domestic).toBeGreaterThan(0);
-  expect(requestCounts.funds).toBeGreaterThan(0);
-  expect(requestCounts.dividends).toBeLessThanOrEqual(2);
-  expect(requestCounts.domestic).toBeLessThanOrEqual(2);
-  expect(requestCounts.funds).toBeLessThanOrEqual(2);
-});
+    expect(requestCounts.dividends).toBeGreaterThan(0);
+    expect(requestCounts.domestic).toBeGreaterThan(0);
+    expect(requestCounts.funds).toBeGreaterThan(0);
+    expect(requestCounts.dividends).toBeLessThanOrEqual(2);
+    expect(requestCounts.domestic).toBeLessThanOrEqual(2);
+    expect(requestCounts.funds).toBeLessThanOrEqual(2);
+  });
+}
 
 test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザーで再取得する', async ({ page }) => {
   const logs = freshLogs();
