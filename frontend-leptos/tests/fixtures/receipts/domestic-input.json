@@ -1,0 +1,37 @@
+{
+  "cases": [
+    {
+      "name": "same_day_offset",
+      "rows": [
+        { "trade_date": "2024-03-01", "account": "特定口座", "realized_profit_and_loss": 10000, "taxes": 2031 },
+        { "trade_date": "2024-03-01", "account": "特定口座", "realized_profit_and_loss": -10000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "loss_day",
+      "rows": [
+        { "trade_date": "2024-03-02", "account": "特定口座", "realized_profit_and_loss": -5000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "mixed_taxable_and_nisa",
+      "rows": [
+        { "trade_date": "2024-03-03", "account": "特定口座", "realized_profit_and_loss": 10000, "taxes": 2031 },
+        { "trade_date": "2024-03-03", "account": "NISA口座", "realized_profit_and_loss": 5000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "decimal_values",
+      "rows": [
+        { "trade_date": "2024-03-04", "account": "特定口座", "realized_profit_and_loss": 10.25, "taxes": 2.08 }
+      ]
+    },
+    {
+      "name": "floor_boundary",
+      "rows": [
+        { "trade_date": "2024-03-05", "account": "特定口座", "realized_profit_and_loss": 5000, "taxes": 1015 }
+      ]
+    },
+    { "name": "empty", "rows": [] }
+  ]
+}

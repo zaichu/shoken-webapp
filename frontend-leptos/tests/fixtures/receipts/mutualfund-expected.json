@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "name": "decimal_values", "total": { "total_realized_profit_and_loss": 10, "total_taxes": 2, "total_realized_profit_and_loss_after_tax": 8 } },
+    { "name": "empty", "total": { "total_realized_profit_and_loss": 0, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": 0 } }
+  ]
+}

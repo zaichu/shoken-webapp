@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "name": "same_day_offset",
+      "daily": [{ "filter": "2024-03-01", "total_realized_profit_and_loss": 0, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": 0 }],
+      "total": { "total_realized_profit_and_loss": 0, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": 0 },
+      "row_taxes_total": 2031
+    },
+    {
+      "name": "loss_day",
+      "daily": [{ "filter": "2024-03-02", "total_realized_profit_and_loss": -5000, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": -5000 }],
+      "total": { "total_realized_profit_and_loss": -5000, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": -5000 },
+      "row_taxes_total": 0
+    },
+    {
+      "name": "mixed_taxable_and_nisa",
+      "daily": [{ "filter": "2024-03-03", "total_realized_profit_and_loss": 15000, "total_taxes": 2031, "total_realized_profit_and_loss_after_tax": 12969 }],
+      "total": { "total_realized_profit_and_loss": 15000, "total_taxes": 2031, "total_realized_profit_and_loss_after_tax": 12969 },
+      "row_taxes_total": 2031
+    },
+    {
+      "name": "decimal_values",
+      "daily": [{ "filter": "2024-03-04", "total_realized_profit_and_loss": 10.25, "total_taxes": 2, "total_realized_profit_and_loss_after_tax": 8.25 }],
+      "total": { "total_realized_profit_and_loss": 10.25, "total_taxes": 2, "total_realized_profit_and_loss_after_tax": 8.25 },
+      "row_taxes_total": 2.08
+    },
+    {
+      "name": "floor_boundary",
+      "daily": [{ "filter": "2024-03-05", "total_realized_profit_and_loss": 5000, "total_taxes": 1015, "total_realized_profit_and_loss_after_tax": 3985 }],
+      "total": { "total_realized_profit_and_loss": 5000, "total_taxes": 1015, "total_realized_profit_and_loss_after_tax": 3985 },
+      "row_taxes_total": 1015
+    },
+    {
+      "name": "empty",
+      "daily": [],
+      "total": { "total_realized_profit_and_loss": 0, "total_taxes": 0, "total_realized_profit_and_loss_after_tax": 0 },
+      "row_taxes_total": 0
+    }
+  ]
+}

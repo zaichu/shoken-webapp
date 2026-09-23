@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "name": "decimal_values", "rows": [{ "realized_profit_and_loss": 10.25, "taxes": 2.08, "realized_profit_and_loss_after_tax": 8.17 }, { "realized_profit_and_loss": -0.25, "taxes": -0.08, "realized_profit_and_loss_after_tax": -0.17 }] },
+    { "name": "empty", "rows": [] }
+  ]
+}

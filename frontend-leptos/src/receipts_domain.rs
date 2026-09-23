@@ -1,10 +1,11 @@
 use crate::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund};
 use rust_decimal::{Decimal, RoundingStrategy};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 const TAX_RATE: Decimal = Decimal::from_parts(20315, 0, 0, false, 5);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DomesticDailySummary {
     pub filter: String,
     pub total_realized_profit_and_loss: Decimal,
@@ -12,7 +13,7 @@ pub struct DomesticDailySummary {
     pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct DividendTotals {
     pub total_dividends_before_tax: Decimal,
     pub total_taxes: Decimal,
@@ -361,6 +362,167 @@ mod tests {
     use super::*;
     use crate::dto::{Dividend, DomesticStock, Mutualfund};
     use rust_decimal_macros::dec;
+    use serde::de::DeserializeOwned;
+
+    #[derive(Deserialize)]
+    struct FixtureDocument<T> {
+        cases: Vec<T>,
+    }
+
+    #[derive(Deserialize)]
+    struct DomesticInputCase {
+        name: String,
+        rows: Vec<DomesticFixtureRow>,
+    }
+
+    #[derive(Deserialize)]
+    struct DomesticFixtureRow {
+        trade_date: String,
+        account: String,
+        realized_profit_and_loss: Decimal,
+        taxes: Decimal,
+    }
+
+    #[derive(Deserialize)]
+    struct DomesticExpectedCase {
+        name: String,
+        daily: Vec<DomesticDailySummary>,
+        total: DomesticStockSummary,
+        row_taxes_total: Decimal,
+    }
+
+    #[derive(Deserialize)]
+    struct DividendInputCase {
+        name: String,
+        rows: Vec<DividendFixtureRow>,
+    }
+
+    #[derive(Deserialize)]
+    struct DividendFixtureRow {
+        dividends_before_tax: Decimal,
+        taxes: Decimal,
+        net_amount_received: Decimal,
+    }
+
+    #[derive(Deserialize)]
+    struct DividendExpectedCase {
+        name: String,
+        total: DividendTotals,
+    }
+
+    #[derive(Deserialize)]
+    struct MutualFundInputCase {
+        name: String,
+        rows: Vec<MutualFundFixtureRow>,
+    }
+
+    #[derive(Deserialize)]
+    struct MutualFundFixtureRow {
+        realized_profit_and_loss: Decimal,
+        taxes: Decimal,
+        realized_profit_and_loss_after_tax: Decimal,
+    }
+
+    #[derive(Deserialize)]
+    struct MutualFundExpectedCase {
+        name: String,
+        total: DomesticStockSummary,
+    }
+
+    fn fixture<T: DeserializeOwned>(json: &str) -> FixtureDocument<T> {
+        serde_json::from_str(json).expect("shared receipt fixture parses")
+    }
+
+    #[test]
+    fn shared_domestic_fixtures_match() {
+        let input: FixtureDocument<DomesticInputCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/domestic-input.json"
+        ));
+        let expected: FixtureDocument<DomesticExpectedCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/domestic-expected.json"
+        ));
+
+        for (input, expected) in input.cases.into_iter().zip(expected.cases) {
+            assert_eq!(input.name, expected.name);
+            let rows: Vec<_> = input
+                .rows
+                .into_iter()
+                .map(|row| {
+                    domestic(
+                        &row.trade_date,
+                        &row.account,
+                        row.realized_profit_and_loss,
+                        row.taxes,
+                    )
+                })
+                .collect();
+            let daily = calculate_domestic_daily(&rows);
+            assert_eq!(daily, expected.daily, "{} daily", input.name);
+            assert_eq!(
+                calculate_domestic_total(&rows),
+                expected.total,
+                "{} total",
+                input.name
+            );
+            assert_eq!(
+                rows.iter().map(|row| row.taxes).sum::<Decimal>(),
+                expected.row_taxes_total,
+                "{} row taxes",
+                input.name
+            );
+        }
+    }
+
+    #[test]
+    fn shared_dividend_fixtures_match() {
+        let input: FixtureDocument<DividendInputCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/dividend-input.json"
+        ));
+        let expected: FixtureDocument<DividendExpectedCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/dividend-expected.json"
+        ));
+
+        for (input, expected) in input.cases.into_iter().zip(expected.cases) {
+            assert_eq!(input.name, expected.name);
+            let rows: Vec<_> = input
+                .rows
+                .into_iter()
+                .map(|row| dividend(row.dividends_before_tax, row.taxes, row.net_amount_received))
+                .collect();
+            assert_eq!(calculate_dividends(&rows), expected.total, "{}", input.name);
+        }
+    }
+
+    #[test]
+    fn shared_mutual_fund_fixtures_match() {
+        let input: FixtureDocument<MutualFundInputCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/mutualfund-input.json"
+        ));
+        let expected: FixtureDocument<MutualFundExpectedCase> = fixture(include_str!(
+            "../tests/fixtures/receipts/mutualfund-expected.json"
+        ));
+
+        for (input, expected) in input.cases.into_iter().zip(expected.cases) {
+            assert_eq!(input.name, expected.name);
+            let rows: Vec<_> = input
+                .rows
+                .into_iter()
+                .map(|row| {
+                    mutual_fund(
+                        row.realized_profit_and_loss,
+                        row.taxes,
+                        row.realized_profit_and_loss_after_tax,
+                    )
+                })
+                .collect();
+            assert_eq!(
+                calculate_mutual_funds(&rows),
+                expected.total,
+                "{}",
+                input.name
+            );
+        }
+    }
 
     #[test]
     fn domestic_daily_groups_rows_with_the_same_date() {
