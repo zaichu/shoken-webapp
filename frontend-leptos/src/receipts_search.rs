@@ -26,7 +26,10 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
         }
         let label_code_re = regex::Regex::new(LABEL_CODE_TOKEN_RE).unwrap();
         let final_token = if let Some(caps) = label_code_re.captures(&token) {
-            caps.get(1).map(|m| m.as_str()).unwrap_or(&token).to_string()
+            caps.get(1)
+                .map(|m| m.as_str())
+                .unwrap_or(&token)
+                .to_string()
         } else {
             token
         };
@@ -35,7 +38,7 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
     tokens
 }
 
-fn is_valid_iso_date(value: &str) -> bool {
+pub(crate) fn is_valid_iso_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() != 10
         || bytes[4] != b'-'
@@ -108,11 +111,7 @@ fn matches_date_range(date: &str, query: &str) -> bool {
     }
 }
 
-fn matches_token<T>(
-    item: &T,
-    token: &str,
-    config: &FilterConfig<T>,
-) -> bool {
+fn matches_token<T>(item: &T, token: &str, config: &FilterConfig<T>) -> bool {
     if let Some(string_fields) = &config.string_fields {
         for getter in string_fields {
             if getter(item).to_lowercase() == token {
@@ -172,7 +171,11 @@ pub fn filter_by_config<'a, T>(data: &'a [T], query: &str, config: &FilterConfig
     }
 
     data.iter()
-        .filter(|item| tokens.iter().all(|token| matches_token(*item, token, config)))
+        .filter(|item| {
+            tokens
+                .iter()
+                .all(|token| matches_token(*item, token, config))
+        })
         .collect()
 }
 
@@ -209,9 +212,9 @@ pub fn get_unique_values<T>(data: &[T], getter: impl Fn(&T) -> &str) -> Vec<Stri
 
     for item in data {
         let value = getter(item);
-        let trimmed = value.trim();
-        if !trimmed.is_empty() && seen.insert(trimmed.to_string()) {
-            result.push(trimmed.to_string());
+        let trimmed = value.trim_matches(is_whitespace_char);
+        if !trimmed.is_empty() && seen.insert(value.to_string()) {
+            result.push(value.to_string());
         }
     }
 
