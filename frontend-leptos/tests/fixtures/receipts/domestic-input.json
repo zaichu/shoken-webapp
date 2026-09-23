@@ -32,6 +32,31 @@
         { "trade_date": "2024-03-05", "account": "特定口座", "realized_profit_and_loss": 5000, "taxes": 1015 }
       ]
     },
+    {
+      "name": "tax_rate_sensitive_100000",
+      "rows": [
+        { "trade_date": "2024-03-06", "account": "特定口座", "realized_profit_and_loss": 100000, "taxes": 20315 }
+      ]
+    },
+    {
+      "name": "tax_rate_exact_integer_boundary_20000",
+      "rows": [
+        { "trade_date": "2024-03-07", "account": "特定口座", "realized_profit_and_loss": 20000, "taxes": 4063 }
+      ]
+    },
+    {
+      "name": "tax_rate_sensitive_1234567",
+      "rows": [
+        { "trade_date": "2024-03-08", "account": "特定口座", "realized_profit_and_loss": 1234567, "taxes": 250802 }
+      ]
+    },
+    {
+      "name": "same_day_taxable_offset",
+      "rows": [
+        { "trade_date": "2024-03-09", "account": "特定口座", "realized_profit_and_loss": 150000, "taxes": 30472 },
+        { "trade_date": "2024-03-09", "account": "特定口座", "realized_profit_and_loss": -30000, "taxes": 0 }
+      ]
+    },
     { "name": "empty", "rows": [] }
   ]
 }
