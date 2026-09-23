@@ -25,9 +25,55 @@
 
 | 役割 | 担当 |
 |---|---|
-| 実装エージェント | OpenCode (`opencode/muse-spark-1.3-contributor-free`) |
+| 実装エージェント | OpenCode（無料モデルを用途別に使い分け。下記）、Codex（難度別プロファイル。下記） |
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
+
+OpenCode は無料枠のためレート制限で止まることがある。止まったら Codex に切り替える。
+切り替えるときは元の worker を止め、Issue に切り替えを記録してから投げる（二重作業を防ぐため）。
+
+## 実装エージェントのモデル選択
+
+タスク開始時に作業を FAST / DEFAULT / DEEP のどれかに分類し、**必要最低限のモデル**を選ぶ。
+**迷ったら DEFAULT。DEFAULT で難しければ DEEP。単純だと明確な場合だけ FAST。**
+どの分類で投げたかは、着手宣言（`claim-issue.sh`）のコメントに書く。
+
+### OpenCode（第一選択）
+
+| 分類 | モデル | 対象 |
+|---|---|---|
+| FAST | `opencode/mimo-v2.6-flash-free` | 単純な置換、import整理、formatter/lint修正、小さなテスト追加、明確な1箇所のバグ修正、一括リネーム、定型コード生成、コメント・ドキュメントの軽微な修正、大量だが機械的な変更。**設計判断を伴う作業には使わない** |
+| DEFAULT | `opencode/muse-spark-1.3-contributor-free` | 通常の機能実装、数ファイル程度の変更、一般的なバグ修正、リファクタ、テスト追加、UI・API実装、ドキュメント修正 |
+| DEEP | `opencode/nemotron-3-ultra-free` | アーキテクチャ設計、技術選定、大規模リファクタ、複数モジュールにまたがる変更、原因不明のバグ、パフォーマンス調査、大規模移行、Cargo Workspace 等の構造変更、既存設計の妥当性レビュー |
+
+```bash
+opencode-agent spawn --project <worktree> --model opencode/nemotron-3-ultra-free --label <名前> --file <依頼文>
+```
+
+**コストより品質を優先して必ず DEEP にするもの**: セキュリティ、認証・認可、DBマイグレーション、データ消失の可能性がある処理、大規模なアーキテクチャ変更、公開APIの破壊的変更。
+
+設計判断が重要なタスクは、DEEP で方針を決めてから DEFAULT で実装してよい。
+
+### エスカレーション
+
+- FAST で解決できなければ DEFAULT へ
+- DEFAULT で次の状態になったら DEEP へ: 同じ修正の繰り返し、原因が特定できない、複数の設計案から判断が要る、影響範囲が想定より広い、大規模な変更が必要になった、テスト失敗の原因が不明、既存アーキテクチャの変更が必要
+
+### レビュー
+
+重要な変更は、実装したのとは別の分類でレビューさせる（DEFAULT で実装 → DEEP でレビュー、DEEP で設計 → DEFAULT で実装 → DEEP で最終レビュー、FAST で大量変更 → DEFAULT で差分確認）。最終的な merge 判断は統合エージェントが持つ。
+
+### 無料モデルが変わったら
+
+役割（FAST = 高速・軽作業、DEFAULT = 通常開発、DEEP = 高推論・大規模コンテキスト）は維持し、その時点で使える無料モデルから同等のものへ置き換えてこの表を更新する。使えるモデルは `opencode models` で確認する。
+
+### Codex（OpenCode がレート制限で止まったとき）
+
+モデルと推論強度は全プロジェクト共通の `agent-delegation` skill の「Codexのモデル選択」に従い、プロファイル名で指定する（`codex exec -p hard` 等）。FAST/DEFAULT/DEEP との対応の目安: FAST → `-p simple` か `-p bulk`、DEFAULT → 指定なし（Sol / Medium）か `-p hard`、DEEP → `-p design`（解けなければ `-p design-max`）。
+
+### モデルに関係なく守ること
+
+既存コードを確認してから変更する。推測で実装しない。既存の設計・規約を優先し、不要なリファクタを混ぜない。変更範囲は必要最小限。実装後に関連テストと lint / typecheck / build / test を可能な限り回す。エラーを隠すためだけの変更や一時的な回避策より、根本原因の修正を優先する。
 
 ## Issueの振り分けの補助(Jev)
 
