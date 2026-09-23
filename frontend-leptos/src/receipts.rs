@@ -187,13 +187,13 @@ impl ReceiptsStore {
                 map.retain(|key, _| key.0 == generation);
             });
         }
-        let in_flight_or_ready = self.cache.with_untracked(|map| {
+        let already_requested = self.cache.with_untracked(|map| {
             matches!(
                 map.get(&(generation, tab)),
-                Some(TabState::Loading) | Some(TabState::Ready(_))
+                Some(TabState::Loading) | Some(TabState::Ready(_)) | Some(TabState::Failed(_))
             )
         });
-        if in_flight_or_ready {
+        if already_requested {
             return;
         }
         self.visited.update(|visited| {
@@ -321,6 +321,40 @@ mod tests {
             fetch_error_message(&ApiError::Http { status: 401 }),
             "認証が必要です"
         );
+    }
+
+    #[test]
+    fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let fetch = Action::new_unsync(|_: &(u64, ReceiptsTab)| async {});
+
+            for tab in ReceiptsTab::ALL {
+                let cache = RwSignal::new(HashMap::from([(
+                    (generation, tab),
+                    TabState::Failed("データ取得に失敗しました".to_string()),
+                )]));
+                let store = ReceiptsStore {
+                    session: session.clone(),
+                    active_tab: RwSignal::new(tab),
+                    visited: RwSignal::new(HashSet::from([tab])),
+                    cache,
+                    fetch,
+                };
+
+                let ensure_result =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| store.ensure(tab)));
+
+                assert!(ensure_result.is_ok(), "失敗済みタブを再取得しようとした");
+                assert!(matches!(
+                    cache.with_untracked(|map| map.get(&(generation, tab)).cloned()),
+                    Some(TabState::Failed(_))
+                ));
+            }
+        });
     }
 
     #[test]
