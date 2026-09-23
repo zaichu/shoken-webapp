@@ -1,0 +1,6 @@
+/target
+/dist
+/node_modules
+/style/output.css
+/test-results
+/playwright-report
