@@ -4,6 +4,7 @@ use crate::dto::{
     MutualfundListResponse, MutualfundSummary,
 };
 use crate::receipts_domain::{format_currency, format_date, format_number};
+use crate::receipts_filter::{filter_receipts, ReceiptSearch};
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -170,12 +171,17 @@ pub enum TabState {
 pub struct ReceiptsStore {
     session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
+    pub search: RwSignal<ReceiptSearch>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
     fetch: Action<(u64, ReceiptsTab), ()>,
 }
 
 impl ReceiptsStore {
+    pub fn filtered_rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
+        filter_receipts(tab, &self.rows(tab), &self.search.get().query)
+    }
+
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
@@ -214,6 +220,9 @@ impl ReceiptsStore {
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
+        if self.active_tab.get_untracked() != tab {
+            self.search.set(ReceiptSearch::default());
+        }
         self.visited.update(|visited| {
             visited.insert(tab);
         });
@@ -296,6 +305,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     let store = ReceiptsStore {
         session: session.clone(),
         active_tab,
+        search: RwSignal::new(ReceiptSearch::default()),
         visited,
         cache,
         fetch,
@@ -412,6 +422,7 @@ mod tests {
                 let store = ReceiptsStore {
                     session: session.clone(),
                     active_tab: RwSignal::new(tab),
+                    search: RwSignal::new(ReceiptSearch::default()),
                     visited: RwSignal::new(HashSet::from([tab])),
                     cache,
                     fetch,
@@ -463,5 +474,52 @@ mod tests {
                 "¥ 2,391",
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+    use crate::receipts_filter::tests::dividends;
+
+    #[test]
+    fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let store = ReceiptsStore {
+                session: SessionStore::new(),
+                active_tab: RwSignal::new(ReceiptsTab::Dividend),
+                search: RwSignal::new(ReceiptSearch {
+                    query: "9432".into(),
+                    ..Default::default()
+                }),
+                visited: RwSignal::new(HashSet::new()),
+                cache: RwSignal::new(HashMap::from([(
+                    (0, ReceiptsTab::Dividend),
+                    TabState::Ready(ReceiptTabData {
+                        rows: dividends(),
+                        summary: None,
+                    }),
+                )])),
+                fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            };
+            assert_eq!(
+                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                2
+            );
+            assert_eq!(
+                leptos::prelude::untrack(|| store.count(ReceiptsTab::Dividend)),
+                3
+            );
+            store.select_tab(ReceiptsTab::Dividend);
+            assert_eq!(store.search.get_untracked().query, "9432");
+            store.select_tab(ReceiptsTab::DomesticStock);
+            assert_eq!(store.search.get_untracked(), ReceiptSearch::default());
+            store.select_tab(ReceiptsTab::Dividend);
+            assert_eq!(
+                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                3
+            );
+        });
     }
 }
