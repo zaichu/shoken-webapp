@@ -29,7 +29,7 @@
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
 
-OpenCode は無料枠のためレート制限で止まることがある。止まったら Codex に切り替える。
+OpenCode は無料枠のためレート制限で止まることがある。止まったら下の「制限中の代替」の順に切り替える。
 切り替えるときは元の worker を止め、Issue に切り替えを記録してから投げる（二重作業を防ぐため）。
 
 ## 実装エージェントのモデル選択
@@ -56,15 +56,21 @@ opencode-agent spawn --project <worktree> --model opencode/nemotron-3-ultra-free
 
 ### 制限中の代替
 
-無料モデルは2系統に分かれる。`muse-spark-*`・`mimo-*`・`ling-*`・`big-pickle` はアカウント単位で1つのレート制限を共有しており、1つが `Rate limit exceeded` なら他も同時に止まる（この中で切り替えても意味がない）。`nemotron-*` は提供元が Nvidia で枠が別（止まるときは制限ではなく `503 overloaded`）。
+無料モデルは3系統に分かれる。`muse-spark-*`・`mimo-*`・`ling-*`・`big-pickle` はアカウント単位で1つのレート制限を共有しており、1つが `Rate limit exceeded` なら他も同時に止まる（この中で切り替えても意味がない）。`nemotron-*` は提供元が Nvidia で枠が別（止まるときは制限ではなく `503 overloaded` や `504 Upstream idle timeout`）。`space-bunny-free` は muse 系が制限中でも応答した（2026-09-24 確認）ので、別枠として扱う。
 
-| 分類 | 制限中の代替 |
+| 分類 | 制限中の代替（上から順に試す） |
 |---|---|
 | FAST | `opencode/nemotron-3.5-lightning-free` |
-| DEFAULT | Codex（下記）。同等の無料モデルが無いため |
-| DEEP | Codex `-p design`（nemotron-3-ultra が 503 のとき） |
+| DEFAULT | `opencode/space-bunny-free`（試用中）→ Codex（下記） |
+| DEEP | `opencode/space-bunny-free`（試用中。nemotron-3-ultra が 503/504 のとき）→ Codex `-p design` |
 
 代替を使ったときは、着手宣言のコメントにその旨を書く。
+
+#### `space-bunny-free`（試用中）
+
+- 2026-09-23 公開。コンテキスト 1M、画像入力あり、推論強度 low〜max の切替があるが、`opencode-agent` からは指定できないため既定の強度で動く
+- **試用中は代替としてだけ使う。** 主担当の表（上の FAST/DEFAULT/DEEP）には入れない。DEEP の代替に使うときも、「必ず DEEP にするもの」（セキュリティ、認証・認可、DBマイグレーション、データ消失の可能性がある処理など）の**実装**には使わず、Codex `-p design` を待つ。計画・調査の段階なら使ってよい
+- 使ったら、受け取り時の検証（diff、品質ゲート、破壊テスト）の結果と差し戻しの有無を Issue に書く。統合側の検証で大きな差し戻しなしに通った作業が3件たまったら、DEFAULT の主担当へ上げるかを検討してこの表を更新する。品質が足りなければ表から外す
 
 ### エスカレーション
 
