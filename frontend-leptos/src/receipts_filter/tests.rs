@@ -143,16 +143,91 @@ fn categories_use_latest_name_sorted_dates_and_react_tab_fields() {
 }
 #[test]
 fn category_selections_quote_spaces_and_combine_with_year() {
-    let mut state = ReceiptSearch::default();
-    state.select(0, "Alpha Fund A".into());
-    state.select(3, "2024".into());
-    assert_eq!(state.query, "\"Alpha Fund A\" 2024");
+    let mut state = ReceiptSearch::new(true);
+    state.select_quick(SearchKey::Securities, "Alpha Fund A".into());
+    state.select_year("2024".into());
+    assert_eq!(state.query, "2024 \"Alpha Fund A\"");
     assert_eq!(
         filter_receipts(ReceiptsTab::MutualFund, &funds(), &state.query),
         funds()
     );
-    state.select(0, "".into());
+    state.select_quick(SearchKey::Securities, "".into());
     assert_eq!(state.query, "2024");
+}
+
+#[test]
+fn combined_query_uses_react_order_and_quotes_whitespace() {
+    let queries = SelectedQueries {
+        date: " 2026-06 ".into(),
+        securities: "9433: KDDI".into(),
+        years: "2025".into(),
+        products: "国内 株式".into(),
+        accounts: "特定・一般".into(),
+    };
+    assert_eq!(
+        build_combined_query(&queries),
+        "2026-06 \"9433: KDDI\" 2025 \"国内 株式\" 特定・一般"
+    );
+    assert_eq!(
+        format_query_token("  Alpha \"Fund\"  "),
+        "\"Alpha \\\"Fund\\\"\""
+    );
+}
+
+#[test]
+fn range_query_matches_react_empty_and_open_ranges() {
+    assert_eq!(build_range_query("", ""), "");
+    assert_eq!(build_range_query("2026-06-01", ""), "2026-06-01..");
+    assert_eq!(build_range_query("", "2026-06-30"), "..2026-06-30");
+    assert_eq!(
+        build_range_query("2026-06-01", "2026-06-30"),
+        "2026-06-01..2026-06-30"
+    );
+}
+
+#[test]
+fn quick_buttons_toggle_and_date_condition_precedes_other_conditions() {
+    let mut state = ReceiptSearch::new(true);
+    assert_eq!(state.date_segment, DateSegment::Year);
+
+    state.select_quick(SearchKey::Securities, "9433".into());
+    state.select_quick(SearchKey::Products, "国内株式".into());
+    state.set_month("2026-06".into());
+    assert_eq!(state.query, "2026-06 9433 国内株式");
+
+    state.select_quick(SearchKey::Products, "国内株式".into());
+    assert_eq!(state.query, "2026-06 9433");
+    assert!(state.selected_queries.products.is_empty());
+}
+
+#[test]
+fn changing_date_segment_only_clears_date_state() {
+    let mut state = ReceiptSearch::new(true);
+    state.select_quick(SearchKey::Accounts, "特定".into());
+    state.select_year("2026".into());
+    assert_eq!(state.query, "2026 特定");
+
+    state.change_date_segment(DateSegment::Month);
+    assert_eq!(state.query, "特定");
+    assert_eq!(state.date_segment, DateSegment::Month);
+    assert_eq!(state.date_inputs, DateInputs::default());
+    assert_eq!(state.selected_queries.accounts, "特定");
+}
+
+#[test]
+fn range_inputs_and_clear_match_react_state() {
+    let mut state = ReceiptSearch::new(true);
+    state.change_date_segment(DateSegment::Range);
+    state.set_range_start("2026-06-01".into());
+    assert_eq!(state.query, "2026-06-01..");
+    state.set_range_end("2026-06-30".into());
+    assert_eq!(state.query, "2026-06-01..2026-06-30");
+
+    state.clear(false);
+    assert!(state.query.is_empty());
+    assert_eq!(state.selected_queries, SelectedQueries::default());
+    assert_eq!(state.date_inputs, DateInputs::default());
+    assert_eq!(state.date_segment, DateSegment::Month);
 }
 #[test]
 fn tab_column_rules_use_whole_query_not_tokens() {

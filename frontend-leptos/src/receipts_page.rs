@@ -8,7 +8,9 @@ use crate::receipts_domain::{
     calculate_mutual_funds, create_year_month_key, format_currency, sort_dividends,
     sort_domestic_stocks, sort_mutual_funds,
 };
-use crate::receipts_filter::{column_order, search_categories, ReceiptSearch};
+use crate::receipts_filter::{
+    column_order, search_categories, DateSegment, ReceiptSearch, SearchKey,
+};
 use crate::receipts_search::SearchOption;
 use crate::receipts_search_group_key::{create_group_key_fn, GroupKeyRule};
 use crate::receipts_search_support::group_and_summarize;
@@ -156,6 +158,13 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
     let search = store.search;
     let categories = search_categories(tab, &data.rows);
+    let has_years = !categories.years.is_empty();
+    if !has_years
+        && search
+            .with_untracked(|state| state.is_default() && state.date_segment == DateSegment::Year)
+    {
+        search.set(ReceiptSearch::new(false));
+    }
     let filtered = Memo::new(move |_| store.filtered_rows(tab));
     let all_rows = data.rows.clone();
     view! {
@@ -164,31 +173,17 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <h2 class="text-sm font-bold text-slate-950">"検索オプション"</h2>
                     <button type="button" class="rounded border border-slate-300 px-3 py-1 text-sm" aria-label="検索条件をクリア"
-                        disabled=move || search.with(|s| s.query.is_empty())
-                        on:click=move |_| search.set(ReceiptSearch::default())>"絞り込み解除"</button>
+                        disabled=move || search.with(|state| state.is_default())
+                        on:click=move |_| search.update(|state| state.clear(has_years))>"絞り込み解除"</button>
                 </div>
-                <label class="mb-1 block text-sm font-semibold" for="receipt-search-query">"検索"</label>
-                <input id="receipt-search-query" type="search" class="mb-3 w-full rounded border border-slate-300 px-3 py-2"
-                    placeholder="銘柄・口座・金額など（空白区切りでAND検索）"
-                    aria-describedby="receipt-search-help"
-                    prop:value=move || search.with(|s| s.query.clone())
-                    on:input=move |ev| search.set(ReceiptSearch { query: event_target_value(&ev), ..Default::default() }) />
+                <div class="mb-3.5">
+                    <DatePeriod search=search years=categories.years />
+                </div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <SearchCategory search=search index=0 label="銘柄" options=categories.securities />
-                    <SearchCategory search=search index=1 label="商品" options=categories.products />
-                    <SearchCategory search=search index=2 label="口座" options=categories.accounts />
-                    <div>
-                        <label class="mb-1 block text-sm font-semibold" for="receipt-search-period">"年・年月・日付・期間"</label>
-                        <input id="receipt-search-period" type="text" list="receipt-search-years" class="w-full rounded border border-slate-300 px-3 py-2"
-                            placeholder="例: 2024 / 2024-03"
-                            prop:value=move || search.with(|s| s.selections[3].clone())
-                            on:input=move |ev| search.update(|s| s.select(3, event_target_value(&ev))) />
-                        <datalist id="receipt-search-years">
-                            {categories.years.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
-                        </datalist>
-                    </div>
+                    <SecurityDropdown search=search options=categories.securities />
+                    <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=categories.products />
+                    <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=categories.accounts />
                 </div>
-                <p id="receipt-search-help" class="mt-3 text-xs text-slate-600">"空白を含む名前は引用符で囲みます。期間は 2024-01-01..2024-12-31 の形式で入力できます。"</p>
             </div>
             {move || {
                 if all_rows.is_empty() {
@@ -197,7 +192,6 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 let query = search.with(|s| s.query.clone());
                 let rows = filtered.get();
                 let header = header_summary(tab, &ReceiptTabData { rows: rows.clone(), summary: data.summary.clone() }, &query);
-                let count = rows.len();
                 view! {
                     <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="集計情報">
                         {header.into_iter().map(|(label, value)| view! {
@@ -207,12 +201,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                             </div>
                         }).collect_view()}
                     </div>
-                    <p class="mb-2 text-sm text-slate-600" role="status">{format!("{count}件")}</p>
-                    {if rows.is_empty() {
-                        view! { <p class="rounded-lg border border-slate-200 bg-white p-4">"検索条件に一致するデータがありません"</p> }.into_any()
-                    } else {
-                        view! { <ReceiptTable tab=tab rows=rows all_rows=all_rows.clone() query=query /> }.into_any()
-                    }}
+                    <ReceiptTable tab=tab rows=rows all_rows=all_rows.clone() query=query />
                 }.into_any()
             }}
         </section>
@@ -220,27 +209,155 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
 }
 
 #[component]
-fn SearchCategory(
+fn SecurityDropdown(search: RwSignal<ReceiptSearch>, options: Vec<SearchOption>) -> impl IntoView {
+    if options.is_empty() {
+        return ().into_any();
+    }
+    view! {
+        <div>
+            <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
+            <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                prop:value=move || search.with(|state| state.selected_queries.securities.clone())
+                on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
+                <option value="">"全て表示"</option>
+                {options.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
+            </select>
+        </div>
+    }.into_any()
+}
+
+#[component]
+fn ToggleCategory(
     search: RwSignal<ReceiptSearch>,
-    index: usize,
+    search_key: SearchKey,
     label: &'static str,
     options: Vec<SearchOption>,
 ) -> impl IntoView {
     if options.is_empty() {
         return ().into_any();
     }
-    let id = format!("receipt-search-category-{index}");
     view! {
         <div>
-            <label class="mb-1 block text-sm font-semibold" for=id.clone()>{label}</label>
-            <select id=id class="w-full rounded border border-slate-300 px-3 py-2"
-                prop:value=move || search.with(|s| s.selections[index].clone())
-                on:change=move |ev| search.update(|s| s.select(index, event_target_value(&ev)))>
-                <option value="">"すべて"</option>
-                {options.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
-            </select>
+            <div class="mb-1 text-sm font-bold text-slate-800">{label}</div>
+            <div class="flex flex-wrap gap-1">
+                {options.into_iter().map(|option| {
+                    let selected_value = option.value.clone();
+                    let aria_value = option.value.clone();
+                    let clicked_value = option.value.clone();
+                    view! {
+                        <button
+                            type="button"
+                            class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
+                                "rounded border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-900"
+                            } else {
+                                "rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                            }
+                            aria-pressed=move || search.with(|state| state.selected_queries.get(search_key) == aria_value)
+                            aria-label=move || search.with(|state| {
+                                if state.selected_queries.get(search_key) == option.value {
+                                    format!("{}（選択中）", option.value)
+                                } else {
+                                    option.value.clone()
+                                }
+                            })
+                            on:click=move |_| search.update(|state| state.select_quick(search_key, clicked_value.clone()))
+                        >
+                            {option.label}
+                        </button>
+                    }
+                }).collect_view()}
+            </div>
         </div>
     }.into_any()
+}
+
+#[component]
+fn DatePeriod(search: RwSignal<ReceiptSearch>, years: Vec<SearchOption>) -> impl IntoView {
+    let has_years = !years.is_empty();
+    let segments = [
+        DateSegment::Year,
+        DateSegment::Month,
+        DateSegment::Date,
+        DateSegment::Range,
+    ];
+    view! {
+        <div class="space-y-2">
+            <div class="text-sm font-bold text-slate-800">"期間"</div>
+            <div class="flex gap-1">
+                {segments.into_iter().filter(|segment| has_years || *segment != DateSegment::Year).map(|segment| view! {
+                    <button
+                        type="button"
+                        class=move || if search.with(|state| state.date_segment == segment) {
+                            "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
+                        } else {
+                            "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                        }
+                        aria-pressed=move || search.with(|state| state.date_segment == segment)
+                        on:click=move |_| search.update(|state| state.change_date_segment(segment))
+                    >
+                        {segment.label()}
+                    </button>
+                }).collect_view()}
+            </div>
+            {move || match search.with(|state| state.date_segment) {
+                DateSegment::Year => view! {
+                    <label class="sr-only" for="receipt-search-year">"年を選択"</label>
+                    <select
+                        id="receipt-search-year"
+                        aria-label="年を選択"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || search.with(|state| state.date_inputs.year_value.clone())
+                        on:change=move |event| search.update(|state| state.select_year(event_target_value(&event)))
+                    >
+                        <option value="">"年を選択"</option>
+                        {years.clone().into_iter().map(|year| view! { <option value=year.value>{year.label}</option> }).collect_view()}
+                    </select>
+                }.into_any(),
+                DateSegment::Month => view! {
+                    <label class="sr-only" for="receipt-search-month">"月を選択"</label>
+                    <input
+                        id="receipt-search-month"
+                        aria-label="月を選択"
+                        type="month"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || search.with(|state| state.date_inputs.month_value.clone())
+                        on:input=move |event| search.update(|state| state.set_month(event_target_value(&event)))
+                    />
+                }.into_any(),
+                DateSegment::Date => view! {
+                    <label class="sr-only" for="receipt-search-date">"日を選択"</label>
+                    <input
+                        id="receipt-search-date"
+                        aria-label="日を選択"
+                        type="date"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || search.with(|state| state.date_inputs.date_value.clone())
+                        on:input=move |event| search.update(|state| state.set_date(event_target_value(&event)))
+                    />
+                }.into_any(),
+                DateSegment::Range => view! {
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-semibold text-slate-700" for="receipt-search-range-start">"開始日"</label>
+                        <input
+                            id="receipt-search-range-start"
+                            type="date"
+                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            prop:value=move || search.with(|state| state.date_inputs.range_start.clone())
+                            on:input=move |event| search.update(|state| state.set_range_start(event_target_value(&event)))
+                        />
+                        <label class="text-xs font-semibold text-slate-700" for="receipt-search-range-end">"終了日"</label>
+                        <input
+                            id="receipt-search-range-end"
+                            type="date"
+                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            prop:value=move || search.with(|state| state.date_inputs.range_end.clone())
+                            on:input=move |event| search.update(|state| state.set_range_end(event_target_value(&event)))
+                        />
+                    </div>
+                }.into_any(),
+            }}
+        </div>
+    }
 }
 
 fn header_summary(

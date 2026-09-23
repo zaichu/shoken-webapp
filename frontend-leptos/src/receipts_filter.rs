@@ -1,35 +1,216 @@
 use crate::receipts::{ReceiptItem, ReceiptsTab};
 use crate::receipts_search::{
-    create_year_options, filter_by_config, get_unique_values, FilterConfig, SearchOption,
+    create_year_options, filter_by_config, get_unique_values, is_js_whitespace, FilterConfig,
+    SearchOption,
 };
 use crate::receipts_search_support::{
     create_search_options, reorder_columns_by_search, ColumnReorderRule,
 };
 use rust_decimal::Decimal;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchKey {
+    Securities,
+    Years,
+    Products,
+    Accounts,
+    Date,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SelectedQueries {
+    pub securities: String,
+    pub years: String,
+    pub products: String,
+    pub accounts: String,
+    pub date: String,
+}
+
+impl SelectedQueries {
+    pub fn get(&self, key: SearchKey) -> &str {
+        match key {
+            SearchKey::Securities => &self.securities,
+            SearchKey::Years => &self.years,
+            SearchKey::Products => &self.products,
+            SearchKey::Accounts => &self.accounts,
+            SearchKey::Date => &self.date,
+        }
+    }
+
+    fn set(&mut self, key: SearchKey, value: String) {
+        match key {
+            SearchKey::Securities => self.securities = value,
+            SearchKey::Years => self.years = value,
+            SearchKey::Products => self.products = value,
+            SearchKey::Accounts => self.accounts = value,
+            SearchKey::Date => self.date = value,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DateSegment {
+    Year,
+    Month,
+    Date,
+    Range,
+}
+
+impl DateSegment {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Year => "年",
+            Self::Month => "月",
+            Self::Date => "日",
+            Self::Range => "範囲",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DateInputs {
+    pub year_value: String,
+    pub month_value: String,
+    pub date_value: String,
+    pub range_start: String,
+    pub range_end: String,
+}
+
+pub fn build_range_query(start: &str, end: &str) -> String {
+    if start.is_empty() && end.is_empty() {
+        String::new()
+    } else {
+        format!("{start}..{end}")
+    }
+}
+
+pub fn format_query_token(value: &str) -> String {
+    let trimmed = value.trim_matches(is_js_whitespace);
+    if trimmed.chars().any(is_js_whitespace) {
+        format!("\"{}\"", trimmed.replace('"', "\\\""))
+    } else {
+        trimmed.to_string()
+    }
+}
+
+pub fn build_combined_query(queries: &SelectedQueries) -> String {
+    [
+        SearchKey::Date,
+        SearchKey::Securities,
+        SearchKey::Years,
+        SearchKey::Products,
+        SearchKey::Accounts,
+    ]
+    .into_iter()
+    .map(|key| queries.get(key).trim_matches(is_js_whitespace))
+    .filter(|value| !value.is_empty())
+    .map(format_query_token)
+    .collect::<Vec<_>>()
+    .join(" ")
+}
+
+pub fn initial_date_segment(has_years: bool) -> DateSegment {
+    if has_years {
+        DateSegment::Year
+    } else {
+        DateSegment::Month
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReceiptSearch {
     pub query: String,
-    pub selections: [String; 4],
+    pub selected_queries: SelectedQueries,
+    pub date_segment: DateSegment,
+    pub date_inputs: DateInputs,
 }
+
+impl Default for ReceiptSearch {
+    fn default() -> Self {
+        Self::new(true)
+    }
+}
+
 impl ReceiptSearch {
-    pub fn select(&mut self, index: usize, value: String) {
-        self.selections[index] = value;
-        self.query = [0, 3, 1, 2]
-            .into_iter()
-            .filter_map(|i| {
-                let value =
-                    self.selections[i].trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
-                if value.is_empty() {
-                    None
-                } else if value.chars().any(char::is_whitespace) {
-                    Some(format!("\"{}\"", value.replace('"', "\\\"")))
-                } else {
-                    Some(value.to_string())
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
+    pub fn new(has_years: bool) -> Self {
+        Self {
+            query: String::new(),
+            selected_queries: SelectedQueries::default(),
+            date_segment: initial_date_segment(has_years),
+            date_inputs: DateInputs::default(),
+        }
+    }
+
+    pub fn is_default(&self) -> bool {
+        self.query.is_empty()
+    }
+
+    pub fn select_quick(&mut self, key: SearchKey, value: String) {
+        let should_toggle_off = matches!(key, SearchKey::Products | SearchKey::Accounts)
+            && self.selected_queries.get(key) == value;
+        self.selected_queries.set(
+            key,
+            if value.is_empty() || should_toggle_off {
+                String::new()
+            } else {
+                value
+            },
+        );
+        self.rebuild_query();
+    }
+
+    pub fn change_date_segment(&mut self, segment: DateSegment) {
+        if self.date_segment == segment {
+            return;
+        }
+        self.date_segment = segment;
+        self.date_inputs = DateInputs::default();
+        self.selected_queries.date.clear();
+        self.rebuild_query();
+    }
+
+    pub fn select_year(&mut self, value: String) {
+        self.date_inputs.year_value = value.clone();
+        self.set_date_query(value);
+    }
+
+    pub fn set_month(&mut self, value: String) {
+        self.date_inputs.month_value = value.clone();
+        self.set_date_query(value);
+    }
+
+    pub fn set_date(&mut self, value: String) {
+        self.date_inputs.date_value = value.clone();
+        self.set_date_query(value);
+    }
+
+    pub fn set_range_start(&mut self, value: String) {
+        self.date_inputs.range_start = value;
+        self.update_range_query();
+    }
+
+    pub fn set_range_end(&mut self, value: String) {
+        self.date_inputs.range_end = value;
+        self.update_range_query();
+    }
+
+    pub fn clear(&mut self, has_years: bool) {
+        *self = Self::new(has_years);
+    }
+
+    fn set_date_query(&mut self, value: String) {
+        self.selected_queries.date = value;
+        self.rebuild_query();
+    }
+
+    fn update_range_query(&mut self) {
+        self.selected_queries.date =
+            build_range_query(&self.date_inputs.range_start, &self.date_inputs.range_end);
+        self.rebuild_query();
+    }
+
+    fn rebuild_query(&mut self) {
+        self.query = build_combined_query(&self.selected_queries);
     }
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
