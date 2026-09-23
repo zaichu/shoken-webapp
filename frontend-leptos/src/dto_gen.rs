@@ -1,3 +1,4 @@
+// 生成物の未使用型と、試作のためページ未接続。接続時に外す
 #[allow(dead_code)]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/dto_gen.rs"));

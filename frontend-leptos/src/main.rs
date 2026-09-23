@@ -2,6 +2,7 @@ mod api;
 mod asset_balance_page;
 mod auth;
 mod dto_gen;
+mod dto_manual;
 mod home_page;
 mod login_page;
 mod not_found_page;
