@@ -1,4 +1,4 @@
-use crate::api::{Stock, fetch_stock};
+use crate::api::{fetch_stock, Stock};
 use leptos::prelude::*;
 
 pub struct StockSearch {

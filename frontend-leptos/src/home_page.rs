@@ -7,7 +7,11 @@ const STATUS_ITEMS: &[(&str, &str, Option<&str>)] = &[
     ("CSV取込", "CSV反映", None),
 ];
 
-const NEXT_ACTIONS: &[(&str, &str)] = &[("/search", "銘柄検索"), ("/assetbalance", "資産管理"), ("/receipts", "取引明細")];
+const NEXT_ACTIONS: &[(&str, &str)] = &[
+    ("/search", "銘柄検索"),
+    ("/assetbalance", "資産管理"),
+    ("/receipts", "取引明細"),
+];
 
 const FLOW_STEPS: &[(&str, &str)] = &[
     ("01", "CSV取得"),

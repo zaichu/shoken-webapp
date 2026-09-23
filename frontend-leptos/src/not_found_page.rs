@@ -1,6 +1,10 @@
 use leptos::prelude::*;
 
-const RELATED_LINKS: &[(&str, &str)] = &[("/", "ホーム"), ("/search", "銘柄検索"), ("/receipts", "取引明細")];
+const RELATED_LINKS: &[(&str, &str)] = &[
+    ("/", "ホーム"),
+    ("/search", "銘柄検索"),
+    ("/receipts", "取引明細"),
+];
 
 #[component]
 pub fn NotFoundPage() -> impl IntoView {

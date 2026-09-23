@@ -1,6 +1,6 @@
 use crate::api::Stock;
 use crate::asset_balance_page::AssetBalancePage;
-use crate::auth::{SessionUser, redirect_to, use_session};
+use crate::auth::{redirect_to, use_session, SessionUser};
 use crate::home_page::HomePage;
 use crate::login_page::LoginPage;
 use crate::not_found_page::NotFoundPage;
@@ -532,4 +532,3 @@ fn StockInfoLinks(code: String) -> impl IntoView {
         </div>
     }
 }
-

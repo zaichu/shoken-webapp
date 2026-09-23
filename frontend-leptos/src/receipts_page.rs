@@ -1,4 +1,4 @@
-use crate::receipts::{ReceiptRow, ReceiptsStore, ReceiptsTab, TabState, use_receipts_data};
+use crate::receipts::{use_receipts_data, ReceiptRow, ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];

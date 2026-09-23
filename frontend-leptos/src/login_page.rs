@@ -1,4 +1,4 @@
-use crate::auth::{SessionUser, redirect_to};
+use crate::auth::{redirect_to, SessionUser};
 use leptos::prelude::*;
 
 #[component]

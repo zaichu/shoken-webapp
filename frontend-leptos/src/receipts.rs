@@ -161,10 +161,12 @@ impl ReceiptsStore {
     pub fn error(&self) -> Option<String> {
         let user = self.user_id.get();
         self.cache.with(|map| {
-            ReceiptsTab::ALL.iter().find_map(|tab| match map.get(&(user.clone(), *tab)) {
-                Some(TabState::Failed(message)) => Some(message.clone()),
-                _ => None,
-            })
+            ReceiptsTab::ALL
+                .iter()
+                .find_map(|tab| match map.get(&(user.clone(), *tab)) {
+                    Some(TabState::Failed(message)) => Some(message.clone()),
+                    _ => None,
+                })
         })
     }
 
