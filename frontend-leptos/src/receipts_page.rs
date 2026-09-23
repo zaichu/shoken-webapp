@@ -1,6 +1,15 @@
-use crate::receipts::{use_receipts_data, ReceiptItem, ReceiptsStore, ReceiptsTab, TabState};
+use crate::receipts::{
+    select_header_summary, use_receipts_data, ReceiptItem, ReceiptSummary, ReceiptTabData,
+    ReceiptsStore, ReceiptsTab, TabState,
+};
+use crate::receipts_domain::{
+    calculate_dividends, calculate_domestic_daily, calculate_domestic_total,
+    calculate_mutual_funds, create_year_month_key, format_currency, group_dividends_by_month,
+    group_mutual_funds_by_month, sort_dividends, sort_domestic_stocks, sort_mutual_funds,
+};
 use crate::session::use_session;
 use leptos::prelude::*;
+use rust_decimal::Decimal;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
@@ -120,8 +129,8 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         }
                             .into_any()
                     }
-                    TabState::Ready(rows) => {
-                        if rows.is_empty() {
+                    TabState::Ready(data) => {
+                        if data.rows.is_empty() {
                             view! {
                                 <div>
                                     <h3>"データがありません"</h3>
@@ -130,7 +139,7 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                             }
                                 .into_any()
                         } else {
-                            view! { <ReceiptTable tab=tab rows=rows /> }.into_any()
+                            view! { <ReceiptContent tab=tab data=data /> }.into_any()
                         }
                     }
                 }
@@ -148,6 +157,255 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 }
 
 #[component]
+fn ReceiptContent(tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
+    let header = header_summary(tab, &data);
+    view! {
+        <section>
+            <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="集計情報">
+                {header
+                    .into_iter()
+                    .map(|(label, value)| {
+                        view! {
+                            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                                <div class="text-xs font-semibold text-slate-600">{label}</div>
+                                <div class="mt-1 text-right font-mono text-lg font-bold tabular-nums">
+                                    {format_currency(value)}
+                                </div>
+                            </div>
+                        }
+                    })
+                    .collect_view()}
+            </div>
+            <ReceiptTable tab=tab rows=data.rows />
+        </section>
+    }
+}
+
+fn header_summary(tab: ReceiptsTab, data: &ReceiptTabData) -> Vec<(&'static str, Decimal)> {
+    match tab {
+        ReceiptsTab::Dividend => {
+            let rows: Vec<_> = data
+                .rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::Dividend(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let client = calculate_dividends(&rows);
+            let api = match &data.summary {
+                Some(ReceiptSummary::Dividend(summary)) => Some([
+                    summary.total_dividends_before_tax,
+                    summary.total_taxes,
+                    summary.total_net_amount_received,
+                ]),
+                _ => None,
+            };
+            let values = select_header_summary(
+                api.as_ref(),
+                false,
+                "",
+                [
+                    client.total_dividends_before_tax,
+                    client.total_taxes,
+                    client.total_net_amount_received,
+                ],
+            );
+            vec![
+                ("配当金", values[0]),
+                ("税額", values[1]),
+                ("受取金額", values[2]),
+            ]
+        }
+        ReceiptsTab::DomesticStock => {
+            let rows: Vec<_> = data
+                .rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::DomesticStock(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let client = calculate_domestic_total(&rows);
+            let api = match &data.summary {
+                Some(ReceiptSummary::DomesticStock(summary)) => Some([
+                    summary.total_realized_profit_and_loss,
+                    summary.total_taxes,
+                    summary.total_realized_profit_and_loss_after_tax,
+                ]),
+                _ => None,
+            };
+            let values = select_header_summary(
+                api.as_ref(),
+                false,
+                "",
+                [
+                    client.total_realized_profit_and_loss,
+                    client.total_taxes,
+                    client.total_realized_profit_and_loss_after_tax,
+                ],
+            );
+            vec![
+                ("実現損益", values[0]),
+                ("税額", values[1]),
+                ("実現損益(税引)", values[2]),
+            ]
+        }
+        ReceiptsTab::MutualFund => {
+            let rows: Vec<_> = data
+                .rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::MutualFund(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let client = calculate_mutual_funds(&rows);
+            let api = match &data.summary {
+                Some(ReceiptSummary::MutualFund(summary)) => Some([
+                    summary.total_realized_profit_and_loss,
+                    summary.total_taxes,
+                    summary.total_realized_profit_and_loss_after_tax,
+                ]),
+                _ => None,
+            };
+            let values = select_header_summary(
+                api.as_ref(),
+                false,
+                "",
+                [
+                    client.total_realized_profit_and_loss,
+                    client.total_taxes,
+                    client.total_realized_profit_and_loss_after_tax,
+                ],
+            );
+            vec![
+                ("実現損益", values[0]),
+                ("税額", values[1]),
+                ("実現損益(税引)", values[2]),
+            ]
+        }
+    }
+}
+
+struct TableGroup {
+    label: String,
+    summary: Vec<String>,
+    rows: Vec<Vec<String>>,
+}
+
+fn group_label(key: &str) -> String {
+    let parts: Vec<_> = key.split('-').collect();
+    match parts.as_slice() {
+        [year, month, day] => format!(
+            "{year}年{}月{}日",
+            month.parse::<u32>().unwrap_or(0),
+            day.parse::<u32>().unwrap_or(0)
+        ),
+        [year, month] => format!("{year}年{}月", month.parse::<u32>().unwrap_or(0)),
+        _ => key.to_string(),
+    }
+}
+
+fn table_groups(tab: ReceiptsTab, rows: &[ReceiptItem]) -> Vec<TableGroup> {
+    match tab {
+        ReceiptsTab::Dividend => {
+            let typed: Vec<_> = rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::Dividend(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let sorted = sort_dividends(&typed);
+            group_dividends_by_month(&sorted)
+                .into_iter()
+                .map(|summary| {
+                    let group_rows = sorted
+                        .iter()
+                        .filter(|row| create_year_month_key(&row.settlement_date) == summary.filter)
+                        .cloned()
+                        .map(ReceiptItem::Dividend)
+                        .map(|item| item.cells())
+                        .collect();
+                    TableGroup {
+                        label: group_label(&summary.filter),
+                        summary: vec![
+                            format_currency(summary.total_dividends_before_tax),
+                            format_currency(summary.total_taxes),
+                            format_currency(summary.total_net_amount_received),
+                        ],
+                        rows: group_rows,
+                    }
+                })
+                .collect()
+        }
+        ReceiptsTab::DomesticStock => {
+            let typed: Vec<_> = rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::DomesticStock(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let sorted = sort_domestic_stocks(&typed);
+            calculate_domestic_daily(&sorted)
+                .into_iter()
+                .map(|summary| {
+                    let group_rows = sorted
+                        .iter()
+                        .filter(|row| row.trade_date == summary.filter)
+                        .cloned()
+                        .map(ReceiptItem::DomesticStock)
+                        .map(|item| item.cells())
+                        .collect();
+                    TableGroup {
+                        label: group_label(&summary.filter),
+                        summary: vec![
+                            format_currency(summary.total_realized_profit_and_loss),
+                            format_currency(summary.total_taxes),
+                            format_currency(summary.total_realized_profit_and_loss_after_tax),
+                        ],
+                        rows: group_rows,
+                    }
+                })
+                .collect()
+        }
+        ReceiptsTab::MutualFund => {
+            let typed: Vec<_> = rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::MutualFund(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let sorted = sort_mutual_funds(&typed);
+            group_mutual_funds_by_month(&sorted)
+                .into_iter()
+                .map(|summary| {
+                    let group_rows = sorted
+                        .iter()
+                        .filter(|row| create_year_month_key(&row.trade_date) == summary.filter)
+                        .cloned()
+                        .map(ReceiptItem::MutualFund)
+                        .map(|item| item.cells())
+                        .collect();
+                    TableGroup {
+                        label: group_label(&summary.filter),
+                        summary: vec![
+                            format_currency(summary.realized_profit_and_loss),
+                            format_currency(summary.taxes),
+                            format_currency(summary.realized_profit_and_loss_after_tax),
+                        ],
+                        rows: group_rows,
+                    }
+                })
+                .collect()
+        }
+    }
+}
+
+#[component]
 fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptItem>) -> impl IntoView {
     let headers: &[&str] = match tab {
         ReceiptsTab::Dividend => &[
@@ -157,6 +415,7 @@ fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptItem>) -> impl IntoView {
             "銘柄コード",
             "銘柄名",
             "単価",
+            "数量",
             "配当金",
             "税額",
             "受取額",
@@ -167,31 +426,74 @@ fn ReceiptTable(tab: ReceiptsTab, rows: Vec<ReceiptItem>) -> impl IntoView {
             "銘柄名",
             "口座",
             "数量",
+            "売却単価",
+            "売却額",
+            "取得価額",
             "損益",
             "税額",
+            "税引後",
         ],
-        ReceiptsTab::MutualFund => &["約定日", "ファンド名", "口座", "数量", "損益", "税額"],
+        ReceiptsTab::MutualFund => &[
+            "約定日",
+            "ファンド名",
+            "口座",
+            "数量",
+            "解約単価",
+            "解約額",
+            "取得価額",
+            "実現損益",
+            "税額",
+            "税引損益",
+        ],
     };
+    let groups = table_groups(tab, &rows);
     view! {
-        <table>
-            <thead>
-                <tr>
-                    {headers.iter().map(|header| view! { <th>{*header}</th> }).collect_view()}
-                </tr>
-            </thead>
-            <tbody>
-                {rows
-                    .into_iter()
-                    .map(|row| {
-                        let cells = row.cells();
-                        view! {
-                            <tr>
-                                {cells.into_iter().map(|cell| view! { <td>{cell}</td> }).collect_view()}
-                            </tr>
-                        }
-                    })
-                    .collect_view()}
-            </tbody>
-        </table>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table class="min-w-full border-collapse text-sm">
+                <thead>
+                    <tr class="bg-slate-800 text-left text-white">
+                        {headers
+                            .iter()
+                            .map(|header| view! { <th class="whitespace-nowrap px-3 py-2">{*header}</th> })
+                            .collect_view()}
+                    </tr>
+                </thead>
+                <tbody>
+                    {groups
+                        .into_iter()
+                        .map(|group| {
+                            let count = group.rows.len();
+                            view! {
+                                <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold">
+                                    <td colspan={headers.len() - 3} class="whitespace-nowrap px-3 py-2">
+                                        {group.label}
+                                        <span class="ml-2 text-xs text-slate-600">{format!("{count}件")}</span>
+                                    </td>
+                                    {group
+                                        .summary
+                                        .into_iter()
+                                        .map(|value| view! { <td class="whitespace-nowrap px-3 py-2 text-right font-mono">{value}</td> })
+                                        .collect_view()}
+                                </tr>
+                                {group
+                                    .rows
+                                    .into_iter()
+                                    .map(|cells| {
+                                        view! {
+                                            <tr class="border-t border-slate-200">
+                                                {cells
+                                                    .into_iter()
+                                                    .map(|cell| view! { <td class="whitespace-nowrap px-3 py-2">{cell}</td> })
+                                                    .collect_view()}
+                                            </tr>
+                                        }
+                                    })
+                                    .collect_view()}
+                            }
+                        })
+                        .collect_view()}
+                </tbody>
+            </table>
+        </div>
     }
 }

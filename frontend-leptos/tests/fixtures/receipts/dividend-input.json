@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "name": "decimal_values", "rows": [{ "dividends_before_tax": 10.25, "taxes": 2.08, "net_amount_received": 8.17 }, { "dividends_before_tax": -0.25, "taxes": -0.08, "net_amount_received": -0.17 }] },
+    { "name": "empty", "rows": [] }
+  ]
+}

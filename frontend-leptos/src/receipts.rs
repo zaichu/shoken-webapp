@@ -1,5 +1,9 @@
 use crate::api::{ApiClient, ApiError};
-use crate::dto::{DividendListResponse, DomesticStockListResponse, MutualfundListResponse};
+use crate::dto::{
+    DividendListResponse, DividendSummary, DomesticStockListResponse, DomesticStockSummary,
+    MutualfundListResponse, MutualfundSummary,
+};
+use crate::receipts_domain::{format_currency, format_date, format_number};
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -46,38 +50,73 @@ impl ReceiptItem {
     pub fn cells(&self) -> Vec<String> {
         match self {
             ReceiptItem::Dividend(row) => vec![
-                row.settlement_date.clone(),
+                format_date(&row.settlement_date),
                 row.product.clone(),
                 row.account.clone(),
                 row.security_code.clone(),
                 row.security_name.clone(),
-                row.unit_price.to_string(),
-                row.dividends_before_tax.to_string(),
-                row.taxes.to_string(),
-                row.net_amount_received.to_string(),
+                format_currency(row.unit_price),
+                format_number(row.shares, 2),
+                format_currency(row.dividends_before_tax),
+                format_currency(row.taxes),
+                format_currency(row.net_amount_received),
             ],
             ReceiptItem::DomesticStock(row) => vec![
-                row.trade_date.clone(),
+                format_date(&row.trade_date),
                 row.security_code.clone(),
                 row.security_name.clone(),
                 row.account.clone(),
-                row.shares.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
+                format_number(row.shares, 2),
+                format_currency(row.asked_price),
+                format_currency(row.proceeds),
+                format_currency(row.purchase_price),
+                format_currency(row.realized_profit_and_loss),
+                format_currency(row.taxes),
+                format_currency(row.realized_profit_and_loss_after_tax),
             ],
             ReceiptItem::MutualFund(row) => vec![
-                row.trade_date.clone(),
+                format_date(&row.trade_date),
                 row.fund_name.clone(),
                 row.account.clone(),
-                row.shares.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
+                format_number(row.shares, 2),
+                format_currency(row.cancellation_unit_price_yen),
+                format_currency(row.cancellation_amount_yen),
+                format_currency(row.average_acquisition_price_yen),
+                format_currency(row.realized_profit_and_loss),
+                format_currency(row.taxes),
+                format_currency(row.realized_profit_and_loss_after_tax),
             ],
         }
     }
 }
 
-async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReceiptSummary {
+    Dividend(DividendSummary),
+    DomesticStock(DomesticStockSummary),
+    MutualFund(MutualfundSummary),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReceiptTabData {
+    pub rows: Vec<ReceiptItem>,
+    pub summary: Option<ReceiptSummary>,
+}
+
+pub fn select_header_summary<T: Clone>(
+    api_summary: Option<&T>,
+    has_preview: bool,
+    search_query: &str,
+    client_summary: T,
+) -> T {
+    if let Some(summary) = api_summary.filter(|_| !has_preview && search_query.is_empty()) {
+        summary.clone()
+    } else {
+        client_summary
+    }
+}
+
+async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     let client = ApiClient::read_client();
     let query = &[
         ("per_page", "1000"),
@@ -88,20 +127,28 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
         ReceiptsTab::Dividend => client
             .get_json::<DividendListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::Dividend).collect()),
+            .map(|list| ReceiptTabData {
+                rows: list.data.into_iter().map(ReceiptItem::Dividend).collect(),
+                summary: list.summary.map(ReceiptSummary::Dividend),
+            }),
         ReceiptsTab::DomesticStock => client
             .get_json::<DomesticStockListResponse>(tab.list_path(), query)
             .await
-            .map(|list| {
-                list.data
+            .map(|list| ReceiptTabData {
+                rows: list
+                    .data
                     .into_iter()
                     .map(ReceiptItem::DomesticStock)
-                    .collect()
+                    .collect(),
+                summary: list.summary.map(ReceiptSummary::DomesticStock),
             }),
         ReceiptsTab::MutualFund => client
             .get_json::<MutualfundListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::MutualFund).collect()),
+            .map(|list| ReceiptTabData {
+                rows: list.data.into_iter().map(ReceiptItem::MutualFund).collect(),
+                summary: list.summary.map(ReceiptSummary::MutualFund),
+            }),
     }
 }
 
@@ -116,7 +163,7 @@ fn fetch_error_message(error: &ApiError) -> String {
 #[derive(Clone, Debug)]
 pub enum TabState {
     Loading,
-    Ready(Vec<ReceiptItem>),
+    Ready(ReceiptTabData),
     Failed(String),
 }
 #[derive(Clone)]
@@ -132,7 +179,7 @@ impl ReceiptsStore {
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
-            Some(TabState::Ready(rows)) => rows.clone(),
+            Some(TabState::Ready(data)) => data.rows.clone(),
             _ => Vec::new(),
         })
     }
@@ -324,6 +371,31 @@ mod tests {
     }
 
     #[test]
+    fn header_summary_uses_api_value_without_preview_or_search() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), false, "", "client"),
+            "api"
+        );
+    }
+
+    #[test]
+    fn header_summary_uses_client_value_during_search() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), false, "7203", "client"),
+            "client"
+        );
+    }
+
+    #[test]
+    fn header_summary_uses_client_value_during_preview_or_without_api_summary() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), true, "", "client"),
+            "client"
+        );
+        assert_eq!(select_header_summary(None, false, "", "client"), "client");
+    }
+
+    #[test]
     fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
         let owner = Owner::new();
         owner.with(|| {
@@ -358,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn cells_keep_decimal_text() {
+    fn dividend_cells_match_react_columns_and_formatting() {
         let row: crate::dto::Dividend = serde_json::from_value(serde_json::json!({
             "id": "550e8400-e29b-41d4-a716-446655440000",
             "settlement_date": "2024-03-01",
@@ -379,15 +451,16 @@ mod tests {
         assert_eq!(
             cells,
             vec![
-                "2024-03-01",
+                "2024/03/01",
                 "特定口座",
                 "SBI証券",
                 "7203",
                 "トヨタ自動車",
-                "30.0",
-                "3000",
-                "609",
-                "2391",
+                "¥ 30",
+                "100",
+                "¥ 3,000",
+                "¥ 609",
+                "¥ 2,391",
             ]
         );
     }
