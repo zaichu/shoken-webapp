@@ -8,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: '../frontend/e2e',
-  testMatch: ['**/search-flow.spec.ts', '**/receipt-flow.spec.ts'],
+  testMatch: ['**/search-flow.spec.ts', '**/receipt-flow.spec.ts', '**/auth-flow.spec.ts'],
   outputDir: '/tmp/leptos-e2e-out',
   fullyParallel: false,
   forbidOnly: true,
@@ -27,7 +27,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'trunk serve --port 8081',
+    command: 'trunk serve --port 8081 --no-autoreload',
     url: 'http://127.0.0.1:8081',
     reuseExistingServer: true,
     timeout: 300_000,

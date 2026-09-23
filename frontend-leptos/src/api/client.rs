@@ -48,14 +48,18 @@ impl ApiError {
     pub fn user_message(&self) -> String {
         match self {
             ApiError::Network => "ネットワーク接続を確認してください".to_string(),
-            ApiError::Timeout => "リクエストがタイムアウトしました。もう一度お試しください".to_string(),
+            ApiError::Timeout => {
+                "リクエストがタイムアウトしました。もう一度お試しください".to_string()
+            }
             ApiError::Parse => "応答の解析に失敗しました".to_string(),
             ApiError::Http { status } => match status {
                 400 => "入力内容を確認してください".to_string(),
                 401 => "ログインが必要です".to_string(),
                 403 => "このリソースへのアクセス権限がありません".to_string(),
                 404 => "指定されたリソースが見つかりません".to_string(),
-                500..=599 => "サーバーエラーが発生しました。しばらくしてから再度お試しください".to_string(),
+                500..=599 => {
+                    "サーバーエラーが発生しました。しばらくしてから再度お試しください".to_string()
+                }
                 _ => format!("エラーが発生しました (ステータス: {status})"),
             },
         }
@@ -187,9 +191,7 @@ impl ApiClient {
                 .header("Content-Type", "application/json")
                 .body(json)
                 .map_err(|_| ApiError::Network)?,
-            RequestBody::Form(form) => {
-                builder.body(form).map_err(|_| ApiError::Network)?
-            }
+            RequestBody::Form(form) => builder.body(form).map_err(|_| ApiError::Network)?,
         };
         let response = request.send().await.map_err(|_| {
             if timed_out.get() {

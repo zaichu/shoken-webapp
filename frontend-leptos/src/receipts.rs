@@ -1,7 +1,5 @@
 use crate::api::{ApiClient, ApiError};
-use crate::dto::{
-    DividendListResponse, DomesticStockListResponse, MutualfundListResponse,
-};
+use crate::dto::{DividendListResponse, DomesticStockListResponse, MutualfundListResponse};
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -81,7 +79,11 @@ impl ReceiptItem {
 
 async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
     let client = ApiClient::read_client();
-    let query = &[("per_page", "1000"), ("page", "1"), ("include_summary", "true")];
+    let query = &[
+        ("per_page", "1000"),
+        ("page", "1"),
+        ("include_summary", "true"),
+    ];
     match tab {
         ReceiptsTab::Dividend => client
             .get_json::<DividendListResponse>(tab.list_path(), query)
@@ -169,9 +171,14 @@ impl ReceiptsStore {
             return;
         }
         let generation = self.session.generation.get_untracked();
-        self.cache.update(|map| {
-            map.retain(|key, _| key.0 == generation);
-        });
+        let needs_prune = self
+            .cache
+            .with_untracked(|map| map.keys().any(|(cached, _)| *cached != generation));
+        if needs_prune {
+            self.cache.update(|map| {
+                map.retain(|key, _| key.0 == generation);
+            });
+        }
         let in_flight_or_ready = self.cache.with_untracked(|map| {
             matches!(
                 map.get(&(generation, tab)),
