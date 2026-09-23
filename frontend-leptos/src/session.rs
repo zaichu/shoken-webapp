@@ -35,7 +35,8 @@ impl SessionStore {
     }
 
     fn set_user(&self, user: Option<SessionUser>) {
-        if !Self::same_identity(&self.user.get_untracked(), &user) {
+        let previous = self.user.get_untracked();
+        if previous.is_some() && !Self::same_identity(&previous, &user) {
             self.generation.update(|generation| *generation += 1);
         }
         self.user.set(user);
@@ -63,7 +64,6 @@ impl SessionStore {
         self.loaded.set(true);
         let client = ApiClient::default_client();
         let _ = client.delete_empty("/api/v1/session").await;
-        Self::redirect_to("/login");
     }
 
     pub fn login(&self) {
@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn generation_advances_on_identity_change() {
+    fn generation_advances_on_identity_loss() {
         let owner = leptos::prelude::Owner::new();
         owner.with(|| {
             let session = SessionStore::new();
@@ -127,15 +127,17 @@ mod tests {
             session.set_user(None);
             assert_eq!(session.generation.get_untracked(), 0);
             session.set_user(alice());
-            assert_eq!(session.generation.get_untracked(), 1);
+            assert_eq!(session.generation.get_untracked(), 0);
             session.set_user(alice());
-            assert_eq!(session.generation.get_untracked(), 1);
+            assert_eq!(session.generation.get_untracked(), 0);
             session.set_user(None);
-            assert_eq!(session.generation.get_untracked(), 2);
+            assert_eq!(session.generation.get_untracked(), 1);
+            // ログアウト時の世代進行で、再ログイン後の同一ユーザー応答と
+            // ログアウト前の古い応答は区別できる
             session.set_user(alice());
-            assert_eq!(session.generation.get_untracked(), 3);
-            assert!(session.is_current(3));
-            assert!(!session.is_current(2));
+            assert_eq!(session.generation.get_untracked(), 1);
+            assert!(session.is_current(1));
+            assert!(!session.is_current(0));
         });
     }
 }

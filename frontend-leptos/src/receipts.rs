@@ -277,3 +277,43 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
 
     store
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cells_keep_decimal_text() {
+        let row: crate::dto::Dividend = serde_json::from_value(serde_json::json!({
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "settlement_date": "2024-03-01",
+            "product": "特定口座",
+            "account": "SBI証券",
+            "security_code": "7203",
+            "security_name": "トヨタ自動車",
+            "unit_price": 30.0,
+            "shares": 100,
+            "dividends_before_tax": 3000,
+            "taxes": 609,
+            "net_amount_received": 2391,
+            "created_at": "2024-03-01T00:00:00Z",
+            "updated_at": "2024-03-01T00:00:00Z"
+        }))
+        .expect("deserialize");
+        let cells = ReceiptItem::Dividend(row).cells();
+        assert_eq!(
+            cells,
+            vec![
+                "2024-03-01",
+                "特定口座",
+                "SBI証券",
+                "7203",
+                "トヨタ自動車",
+                "30.0",
+                "3000",
+                "609",
+                "2391",
+            ]
+        );
+    }
+}
