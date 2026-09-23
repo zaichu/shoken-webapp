@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "name": "decimal_values", "total": { "total_dividends_before_tax": 10, "total_taxes": 2, "total_net_amount_received": 8 } },
+    { "name": "empty", "total": { "total_dividends_before_tax": 0, "total_taxes": 0, "total_net_amount_received": 0 } }
+  ]
+}

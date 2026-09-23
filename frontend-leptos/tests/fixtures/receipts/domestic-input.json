@@ -1,0 +1,62 @@
+{
+  "cases": [
+    {
+      "name": "same_day_offset",
+      "rows": [
+        { "trade_date": "2024-03-01", "account": "特定口座", "realized_profit_and_loss": 10000, "taxes": 2031 },
+        { "trade_date": "2024-03-01", "account": "特定口座", "realized_profit_and_loss": -10000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "loss_day",
+      "rows": [
+        { "trade_date": "2024-03-02", "account": "特定口座", "realized_profit_and_loss": -5000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "mixed_taxable_and_nisa",
+      "rows": [
+        { "trade_date": "2024-03-03", "account": "特定口座", "realized_profit_and_loss": 10000, "taxes": 2031 },
+        { "trade_date": "2024-03-03", "account": "NISA口座", "realized_profit_and_loss": 5000, "taxes": 0 }
+      ]
+    },
+    {
+      "name": "decimal_values",
+      "rows": [
+        { "trade_date": "2024-03-04", "account": "特定口座", "realized_profit_and_loss": 10.25, "taxes": 2.08 }
+      ]
+    },
+    {
+      "name": "floor_boundary",
+      "rows": [
+        { "trade_date": "2024-03-05", "account": "特定口座", "realized_profit_and_loss": 5000, "taxes": 1015 }
+      ]
+    },
+    {
+      "name": "tax_rate_sensitive_100000",
+      "rows": [
+        { "trade_date": "2024-03-06", "account": "特定口座", "realized_profit_and_loss": 100000, "taxes": 20315 }
+      ]
+    },
+    {
+      "name": "tax_rate_exact_integer_boundary_20000",
+      "rows": [
+        { "trade_date": "2024-03-07", "account": "特定口座", "realized_profit_and_loss": 20000, "taxes": 4063 }
+      ]
+    },
+    {
+      "name": "tax_rate_sensitive_1234567",
+      "rows": [
+        { "trade_date": "2024-03-08", "account": "特定口座", "realized_profit_and_loss": 1234567, "taxes": 250802 }
+      ]
+    },
+    {
+      "name": "same_day_taxable_offset",
+      "rows": [
+        { "trade_date": "2024-03-09", "account": "特定口座", "realized_profit_and_loss": 150000, "taxes": 30472 },
+        { "trade_date": "2024-03-09", "account": "特定口座", "realized_profit_and_loss": -30000, "taxes": 0 }
+      ]
+    },
+    { "name": "empty", "rows": [] }
+  ]
+}

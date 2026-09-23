@@ -12,4 +12,4 @@ command_arguments = ["--no-install", "tailwindcss", "-i", "style/input.css", "-o
 
 [[proxy]]
 rewrite = "/api"
-backend = "http://127.0.0.1:3001/"
+backend = "http://127.0.0.1:3001/api/"

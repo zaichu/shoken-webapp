@@ -6,6 +6,7 @@ mod login_page;
 mod not_found_page;
 mod page;
 mod receipts;
+mod receipts_domain;
 mod receipts_page;
 mod search;
 mod session;
