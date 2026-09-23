@@ -1428,6 +1428,52 @@
       "expected_ids": [
         "n"
       ]
+    },
+    {
+      "name": "feff_token_separator",
+      "data": [
+        {
+          "id": "feff-match",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "1234﻿2023",
+      "config": {
+        "stringFields": [
+          "code"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "feff-match"
+      ]
+    },
+    {
+      "name": "u0085_is_not_token_separator",
+      "data": [
+        {
+          "id": "u0085-no-match",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "12342023",
+      "config": {
+        "stringFields": [
+          "code"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": []
     }
   ]
 }

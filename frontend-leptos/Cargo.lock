@@ -396,7 +396,6 @@ dependencies = [
  "gloo-timers",
  "http",
  "leptos",
- "regex",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",

@@ -15,33 +15,125 @@ pub struct FilterConfig<T> {
     pub amount_fields: Option<Vec<AmountFieldFn<T>>>,
 }
 
-const LABEL_CODE_TOKEN_RE: &str = r"^([0-9a-z]+)[:：]$";
-static TOKEN_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-static LABEL_CODE_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+pub(crate) fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}'
+            ..='\u{000D}'
+                | '\u{0020}'
+                | '\u{00A0}'
+                | '\u{1680}'
+                | '\u{2000}'..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
+}
+
+fn is_js_line_terminator(c: char) -> bool {
+    matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
+}
+
+fn parse_quoted_token(query: &str, mut index: usize) -> Option<(String, usize)> {
+    let mut token = String::new();
+
+    while index < query.len() {
+        let current = query[index..].chars().next()?;
+        if current == '"' {
+            return Some((token, index + current.len_utf8()));
+        }
+        if current == '\\' {
+            let escaped_index = index + current.len_utf8();
+            let escaped = query[escaped_index..].chars().next()?;
+            if is_js_line_terminator(escaped) {
+                return None;
+            }
+            token.push(current);
+            token.push(escaped);
+            index = escaped_index + escaped.len_utf8();
+            continue;
+        }
+        token.push(current);
+        index += current.len_utf8();
+    }
+
+    None
+}
+
+fn normalize_search_token(raw_token: &str) -> Option<String> {
+    let token = raw_token
+        .replace(r#"\""#, "\"")
+        .trim_matches(is_js_whitespace)
+        .to_lowercase();
+    if token.is_empty() {
+        return None;
+    }
+
+    let label = token.strip_suffix(':').or_else(|| token.strip_suffix('：'));
+    if let Some(code) = label.filter(|code| {
+        !code.is_empty()
+            && code
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || byte.is_ascii_lowercase())
+    }) {
+        return Some(code.to_string());
+    }
+
+    Some(token)
+}
 
 pub fn parse_search_tokens(query: &str) -> Vec<String> {
     let mut tokens = Vec::new();
-    let token_regex =
-        TOKEN_REGEX.get_or_init(|| regex::Regex::new(r#""((?:\\.|[^"\\])*)"|(\S+)"#).unwrap());
-    let label_code_re =
-        LABEL_CODE_REGEX.get_or_init(|| regex::Regex::new(LABEL_CODE_TOKEN_RE).unwrap());
+    let mut index = 0;
 
-    for cap in token_regex.captures_iter(query) {
-        let raw_token = cap.get(1).or(cap.get(2)).map(|m| m.as_str()).unwrap_or("");
-        let token = raw_token.replace(r#"\""#, "\"").trim().to_lowercase();
-        if token.is_empty() {
-            continue;
+    while index < query.len() {
+        while index < query.len() {
+            let current = query[index..].chars().next().unwrap();
+            if !is_js_whitespace(current) {
+                break;
+            }
+            index += current.len_utf8();
         }
-        let final_token = if let Some(caps) = label_code_re.captures(&token) {
-            caps.get(1)
-                .map(|m| m.as_str())
-                .unwrap_or(&token)
-                .to_string()
+        if index == query.len() {
+            break;
+        }
+
+        let start = index;
+        let current = query[index..].chars().next().unwrap();
+        let (raw_token, next_index) = if current == '"' {
+            parse_quoted_token(query, index + current.len_utf8()).unwrap_or_else(|| {
+                let mut end = start;
+                while end < query.len() {
+                    let c = query[end..].chars().next().unwrap();
+                    if is_js_whitespace(c) {
+                        break;
+                    }
+                    end += c.len_utf8();
+                }
+                (query[start..end].to_string(), end)
+            })
         } else {
-            token
+            let mut end = start;
+            while end < query.len() {
+                let c = query[end..].chars().next().unwrap();
+                if is_js_whitespace(c) {
+                    break;
+                }
+                end += c.len_utf8();
+            }
+            (query[start..end].to_string(), end)
         };
-        tokens.push(final_token);
+        index = next_index;
+
+        let Some(token) = normalize_search_token(&raw_token) else {
+            continue;
+        };
+        tokens.push(token);
     }
+
     tokens
 }
 
@@ -162,13 +254,9 @@ fn matches_token<T>(item: &T, token: &str, config: &FilterConfig<T>) -> bool {
     false
 }
 
-fn is_whitespace_char(c: char) -> bool {
-    c.is_whitespace() || c == '\u{FEFF}'
-}
-
 pub fn filter_by_config<'a, T>(data: &'a [T], query: &str, config: &FilterConfig<T>) -> Vec<&'a T> {
-    let trimmed = query.trim_matches(is_whitespace_char);
-    if trimmed.is_empty() || trimmed.chars().all(is_whitespace_char) {
+    let trimmed = query.trim_matches(is_js_whitespace);
+    if trimmed.is_empty() {
         return data.iter().collect();
     }
 
@@ -219,7 +307,7 @@ pub fn get_unique_values<T>(data: &[T], getter: impl Fn(&T) -> &str) -> Vec<Stri
 
     for item in data {
         let value = getter(item);
-        let trimmed = value.trim_matches(is_whitespace_char);
+        let trimmed = value.trim_matches(is_js_whitespace);
         if !trimmed.is_empty() && seen.insert(value.to_string()) {
             result.push(value.to_string());
         }

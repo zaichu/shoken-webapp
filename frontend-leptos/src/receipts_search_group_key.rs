@@ -1,4 +1,4 @@
-use crate::receipts_search::parse_search_tokens;
+use crate::receipts_search::{is_js_whitespace, parse_search_tokens};
 
 pub struct GroupKeyRule<'a, T> {
     pub test: fn(&T, &str) -> bool,
@@ -37,10 +37,21 @@ pub fn derive_security_code_from_query<T>(
         return String::new();
     }
 
-    let label_match = regex::Regex::new(r"(?i)^\s*([0-9a-z]+)\s*[:：]")
-        .unwrap()
-        .captures(query)
-        .and_then(|cap| cap.get(1).map(|m| m.as_str().to_lowercase()));
+    let trimmed_start = query.trim_start_matches(is_js_whitespace);
+    let code_end = trimmed_start
+        .char_indices()
+        .take_while(|(_, c)| c.is_ascii_alphanumeric())
+        .map(|(index, c)| index + c.len_utf8())
+        .last()
+        .unwrap_or(0);
+    let label_match = (code_end > 0)
+        .then(|| {
+            let suffix = trimmed_start[code_end..].trim_start_matches(is_js_whitespace);
+            suffix
+                .starts_with([':', '：'])
+                .then(|| trimmed_start[..code_end].to_ascii_lowercase())
+        })
+        .flatten();
 
     if let Some(lower_code) = label_match {
         if let Some(item) = data
@@ -290,6 +301,32 @@ mod tests {
                 name_getter
             ),
             "ABC1"
+        );
+    }
+
+    #[test]
+    fn derive_security_code_treats_feff_as_whitespace() {
+        assert_eq!(
+            derive_security_code_from_query(
+                "\u{FEFF}7203\u{FEFF}:トヨタ自動車",
+                &security_data(),
+                code_getter,
+                name_getter
+            ),
+            "7203"
+        );
+    }
+
+    #[test]
+    fn derive_security_code_does_not_treat_u0085_as_whitespace() {
+        assert_eq!(
+            derive_security_code_from_query(
+                "\u{0085}7203:トヨタ自動車",
+                &security_data(),
+                code_getter,
+                name_getter
+            ),
+            ""
         );
     }
 }
