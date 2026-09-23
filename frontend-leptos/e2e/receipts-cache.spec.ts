@@ -260,6 +260,7 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
   session.responder = unauthorizedSession();
   await page.getByTestId('logout').click();
   await page.waitForURL('**/login');
+  await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
   expect(session.deleteCount).toBe(1);
 
   session.responder = userSession(USER_B);
@@ -287,6 +288,7 @@ test('ログアウト後に旧データが残らない', async ({ page }) => {
   session.responder = unauthorizedSession();
   await page.getByTestId('logout').click();
   await page.waitForURL('**/login');
+  await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
 
   await page.waitForTimeout(1200);
   await expect(page).toHaveURL(/\/login$/);
@@ -310,6 +312,7 @@ test('同一ユーザーでログアウト→再ログインしても明細が�
   session.responder = unauthorizedSession();
   await page.getByTestId('logout').click();
   await page.waitForURL('**/login');
+  await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
   expect(session.deleteCount).toBe(1);
 
   session.responder = userSession(USER_A);
