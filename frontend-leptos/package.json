@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "file:../frontend/node_modules/@playwright/test"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
