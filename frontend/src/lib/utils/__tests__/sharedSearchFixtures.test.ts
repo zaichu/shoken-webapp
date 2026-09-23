@@ -7,7 +7,7 @@ import {
     matchesYear,
     matchesYearMonth,
 } from '../searchUtils';
-import fixtureData from '../../../../tests/fixtures/receipts/search.json' with { type: 'json' };
+import fixtureData from '../../../../../frontend-leptos/tests/fixtures/receipts/search.json' with { type: 'json' };
 
 interface FixtureItem {
     id: string;
