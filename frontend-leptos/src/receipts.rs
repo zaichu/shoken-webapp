@@ -3,6 +3,7 @@ use crate::dto::{
     DividendListResponse, DividendSummary, DomesticStockListResponse, DomesticStockSummary,
     MutualfundListResponse, MutualfundSummary,
 };
+use crate::receipts_domain::{format_currency, format_date, format_number};
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -49,32 +50,41 @@ impl ReceiptItem {
     pub fn cells(&self) -> Vec<String> {
         match self {
             ReceiptItem::Dividend(row) => vec![
-                row.settlement_date.clone(),
+                format_date(&row.settlement_date),
                 row.product.clone(),
                 row.account.clone(),
                 row.security_code.clone(),
                 row.security_name.clone(),
-                row.unit_price.to_string(),
-                row.dividends_before_tax.to_string(),
-                row.taxes.to_string(),
-                row.net_amount_received.to_string(),
+                format_currency(row.unit_price),
+                format_number(row.shares, 2),
+                format_currency(row.dividends_before_tax),
+                format_currency(row.taxes),
+                format_currency(row.net_amount_received),
             ],
             ReceiptItem::DomesticStock(row) => vec![
-                row.trade_date.clone(),
+                format_date(&row.trade_date),
                 row.security_code.clone(),
                 row.security_name.clone(),
                 row.account.clone(),
-                row.shares.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
+                format_number(row.shares, 2),
+                format_currency(row.asked_price),
+                format_currency(row.proceeds),
+                format_currency(row.purchase_price),
+                format_currency(row.realized_profit_and_loss),
+                format_currency(row.taxes),
+                format_currency(row.realized_profit_and_loss_after_tax),
             ],
             ReceiptItem::MutualFund(row) => vec![
-                row.trade_date.clone(),
+                format_date(&row.trade_date),
                 row.fund_name.clone(),
                 row.account.clone(),
-                row.shares.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
+                format_number(row.shares, 2),
+                format_currency(row.cancellation_unit_price_yen),
+                format_currency(row.cancellation_amount_yen),
+                format_currency(row.average_acquisition_price_yen),
+                format_currency(row.realized_profit_and_loss),
+                format_currency(row.taxes),
+                format_currency(row.realized_profit_and_loss_after_tax),
             ],
         }
     }
@@ -171,14 +181,6 @@ impl ReceiptsStore {
         self.cache.with(|map| match map.get(&(generation, tab)) {
             Some(TabState::Ready(data)) => data.rows.clone(),
             _ => Vec::new(),
-        })
-    }
-
-    pub fn summary(&self, tab: ReceiptsTab) -> Option<ReceiptSummary> {
-        let generation = self.session.generation.get();
-        self.cache.with(|map| match map.get(&(generation, tab)) {
-            Some(TabState::Ready(data)) => data.summary.clone(),
-            _ => None,
         })
     }
 
@@ -428,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn cells_keep_decimal_text() {
+    fn dividend_cells_match_react_columns_and_formatting() {
         let row: crate::dto::Dividend = serde_json::from_value(serde_json::json!({
             "id": "550e8400-e29b-41d4-a716-446655440000",
             "settlement_date": "2024-03-01",
@@ -449,15 +451,16 @@ mod tests {
         assert_eq!(
             cells,
             vec![
-                "2024-03-01",
+                "2024/03/01",
                 "特定口座",
                 "SBI証券",
                 "7203",
                 "トヨタ自動車",
-                "30.0",
-                "3000",
-                "609",
-                "2391",
+                "¥ 30",
+                "100",
+                "¥ 3,000",
+                "¥ 609",
+                "¥ 2,391",
             ]
         );
     }

@@ -206,6 +206,7 @@ pub fn create_year_month_key(value: &str) -> String {
     }
 }
 
+#[cfg(test)]
 pub fn create_iso_date_key(value: &str) -> String {
     if valid_iso_date(value) {
         value.to_string()
@@ -286,10 +287,12 @@ pub fn format_currency_with_options(
     }
 }
 
+#[cfg(test)]
 pub fn parse_number(value: &str) -> Decimal {
     value.replace(',', "").parse().unwrap_or(Decimal::ZERO)
 }
 
+#[cfg(test)]
 pub fn normalize_security_code(value: &str) -> String {
     value
         .split([':', '：'])
@@ -300,6 +303,7 @@ pub fn normalize_security_code(value: &str) -> String {
         .to_uppercase()
 }
 
+#[cfg(test)]
 pub fn normalize_security_name(value: &str) -> String {
     value
         .chars()
@@ -312,18 +316,22 @@ pub fn normalize_security_name(value: &str) -> String {
         .collect()
 }
 
+#[cfg(test)]
 pub fn safe_add(a: Decimal, b: Decimal) -> Decimal {
     a + b
 }
 
+#[cfg(test)]
 pub fn safe_subtract(a: Decimal, b: Decimal) -> Decimal {
     a - b
 }
 
+#[cfg(test)]
 pub fn safe_multiply(a: Decimal, b: Decimal) -> Decimal {
     a * b
 }
 
+#[cfg(test)]
 pub fn safe_divide(a: Decimal, b: Decimal) -> Decimal {
     if b.is_zero() {
         Decimal::ZERO
@@ -332,6 +340,7 @@ pub fn safe_divide(a: Decimal, b: Decimal) -> Decimal {
     }
 }
 
+#[cfg(test)]
 pub fn calculate_percentage(value: Decimal, total: Decimal, decimals: u32) -> Decimal {
     if total.is_zero() {
         Decimal::ZERO
@@ -342,6 +351,7 @@ pub fn calculate_percentage(value: Decimal, total: Decimal, decimals: u32) -> De
     }
 }
 
+#[cfg(test)]
 pub fn format_percentage(value: Decimal, total: Decimal, decimals: u32) -> String {
     if total.is_zero() {
         "0%".to_string()
@@ -350,6 +360,7 @@ pub fn format_percentage(value: Decimal, total: Decimal, decimals: u32) -> Strin
     }
 }
 
+#[cfg(test)]
 pub fn format_percentage_value(value: Decimal, decimals: u32) -> String {
     format!(
         "{}%",
