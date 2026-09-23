@@ -497,4 +497,124 @@ mod tests {
         assert_eq!(securities[0].count, None);
         assert!(facets.years.is_none());
     }
+
+    #[test]
+    fn other_endpoints_deserialize_numbers() {
+        let dividends: DividendListResponse = serde_json::from_str(
+            r#"{
+                "data": [{
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "settlement_date": "2024-03-01",
+                    "product": "特定口座",
+                    "account": "SBI証券",
+                    "security_code": "7203",
+                    "security_name": "トヨタ自動車",
+                    "unit_price": 30.0,
+                    "shares": 100,
+                    "dividends_before_tax": 3000,
+                    "taxes": 609,
+                    "net_amount_received": 2391,
+                    "created_at": "2024-03-01T00:00:00Z",
+                    "updated_at": "2024-03-01T00:00:00Z"
+                }],
+                "total": 1,
+                "page": 1,
+                "per_page": 1
+            }"#,
+        )
+        .expect("dividends");
+        let row = dividends.data.first().expect("one row");
+        assert_eq!(row.unit_price, dec!(30.0));
+        assert_eq!(row.net_amount_received, dec!(2391));
+
+        let funds: MutualfundListResponse = serde_json::from_str(
+            r#"{
+                "data": [{
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "trade_date": "2024-01-15",
+                    "settlement_date": "2024-01-17",
+                    "fund_name": "eMAXIS Slim 全世界株式",
+                    "account": "楽天証券",
+                    "shares": 10000,
+                    "exchange_rate": 150.25,
+                    "cancellation_unit_price_yen": 12345,
+                    "cancellation_amount_yen": 120000,
+                    "average_acquisition_price_yen": 11000.5,
+                    "realized_profit_and_loss": 12000,
+                    "taxes": 2437,
+                    "realized_profit_and_loss_after_tax": 9563,
+                    "created_at": "2024-01-15T01:23:45Z",
+                    "updated_at": "2024-01-16T01:23:45Z"
+                }],
+                "total": 1,
+                "page": 1,
+                "per_page": 1
+            }"#,
+        )
+        .expect("mutualfunds");
+        let fund = funds.data.first().expect("one row");
+        assert_eq!(fund.exchange_rate, dec!(150.25));
+        assert!(fund.dividends.is_none());
+
+        let balances: AssetBalanceListResponse = serde_json::from_str(
+            r#"{
+                "data": [{
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "security_code": "7974",
+                    "security_name": "任天堂",
+                    "shares": 100,
+                    "executing_shares": 0,
+                    "average_purchase_price": 5000.5,
+                    "total_purchase_amount": 500050,
+                    "current_price": 6000,
+                    "daily_change": 100.25,
+                    "market_value": 600000,
+                    "profit_loss_rate": 20.5,
+                    "created_at": "2024-01-15T01:23:45Z",
+                    "updated_at": "2024-01-16T01:23:45Z"
+                }],
+                "total": 1,
+                "page": 1,
+                "per_page": 200,
+                "summary": {
+                    "total_market_value": 600000,
+                    "total_purchase_amount": 500050,
+                    "total_daily_change": 100.25
+                }
+            }"#,
+        )
+        .expect("asset-balances");
+        let balance = balances.data.first().expect("one row");
+        assert_eq!(balance.market_value, dec!(600000));
+        assert_eq!(balance.profit_loss_rate, dec!(20.5));
+        assert_eq!(
+            balances
+                .summary
+                .as_ref()
+                .expect("summary")
+                .total_daily_change,
+            dec!(100.25)
+        );
+
+        let stock: Stock = serde_json::from_str(
+            r#"{
+                "date": "2024-03-01",
+                "code": "7974",
+                "name": "任天堂",
+                "market_category": "プライム",
+                "industry_code_33": "37",
+                "industry_category_33": "情報・通信業"
+            }"#,
+        )
+        .expect("stock");
+        assert_eq!(stock.code, "7974");
+        assert!(stock.size_code.is_none());
+
+        let user: SessionUser = serde_json::from_str(
+            r#"{"id": "00000000-0000-0000-0000-000000000002", "email": "test@example.com", "name": "テストユーザー"}"#,
+        )
+        .expect("session");
+        assert_eq!(user.display_name(), "テストユーザー");
+        assert!(user.picture_url.is_none());
+    }
 }
