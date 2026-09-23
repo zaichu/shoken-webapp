@@ -5,6 +5,11 @@ dist = "dist"
 [serve]
 port = 8081
 
+[[hooks]]
+stage = "pre_build"
+command = "npx"
+command_arguments = ["--no-install", "tailwindcss", "-i", "style/input.css", "-o", "style/output.css", "--minify"]
+
 [[proxy]]
 rewrite = "/api"
 backend = "http://127.0.0.1:3001/"

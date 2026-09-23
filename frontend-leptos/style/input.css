@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@source "../src/**/*.rs";
+
+@theme {
+  --color-primary: #111827;
+  --color-primary-hover: #1f2937;
+  --color-primary-dark: #030712;
+  --color-secondary: #64748b;
+  --color-secondary-hover: #475569;
+  --color-success: #0f766e;
+  --color-success-hover: #115e59;
+  --color-info: #2563eb;
+  --color-info-hover: #1d4ed8;
+  --color-warning: #d97706;
+  --color-warning-hover: #b45309;
+  --color-danger: #dc3545;
+  --color-danger-hover: #bb2d3b;
+  --color-light: #f8fafc;
+  --color-dark: #111827;
+  --color-negative: #dc3545;
+  --color-negative-dark: #ff6b6b;
+  --color-accent: #c08403;
+  --color-accent-soft: #fff7ed;
+
+  --color-bg-body: #f6f7f4;
+  --color-bg-dark: #111827;
+  --color-bg-card-dark: #1e1e1e;
+
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-dark: #333;
+
+  --container-wide: 1600px;
+
+  --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+}
