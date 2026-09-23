@@ -105,6 +105,14 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
     }
 }
 
+fn fetch_error_message(error: &ApiError) -> String {
+    if error.is_unauthorized() {
+        error.user_message()
+    } else {
+        "データ取得に失敗しました".to_string()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum TabState {
     Loading,
@@ -226,17 +234,12 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
             if !should_apply_fetch_result(&session, generation) {
                 return;
             }
-            if let Err(error) = &rows {
-                if error.is_unauthorized() {
-                    session.mark_unauthenticated();
-                }
-            }
             cache_signal.update(|map| {
                 map.insert(
                     (generation, tab),
                     match rows {
                         Ok(rows) => TabState::Ready(rows),
-                        Err(_) => TabState::Failed("データ取得に失敗しました".to_string()),
+                        Err(error) => TabState::Failed(fetch_error_message(&error)),
                     },
                 );
             });
@@ -310,6 +313,14 @@ mod tests {
                 assert!(!should_apply_fetch_result(&session, fetch_generation));
             }
         });
+    }
+
+    #[test]
+    fn unauthorized_receipts_error_uses_react_message() {
+        assert_eq!(
+            fetch_error_message(&ApiError::Http { status: 401 }),
+            "認証が必要です"
+        );
     }
 
     #[test]

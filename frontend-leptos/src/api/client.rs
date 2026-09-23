@@ -54,7 +54,7 @@ impl ApiError {
             ApiError::Parse => "応答の解析に失敗しました".to_string(),
             ApiError::Http { status } => match status {
                 400 => "入力内容を確認してください".to_string(),
-                401 => "ログインが必要です".to_string(),
+                401 => "認証が必要です".to_string(),
                 403 => "このリソースへのアクセス権限がありません".to_string(),
                 404 => "指定されたリソースが見つかりません".to_string(),
                 500..=599 => {
@@ -282,6 +282,14 @@ mod tests {
         assert!(ApiError::Http { status: 401 }.is_unauthorized());
         assert!(!ApiError::Http { status: 403 }.is_unauthorized());
         assert!(!ApiError::Network.is_unauthorized());
+    }
+
+    #[test]
+    fn unauthorized_message_matches_react() {
+        assert_eq!(
+            ApiError::Http { status: 401 }.user_message(),
+            "認証が必要です"
+        );
     }
 
     #[test]

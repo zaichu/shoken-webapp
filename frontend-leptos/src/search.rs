@@ -40,6 +40,7 @@ impl StockSearch {
 fn stock_error_message(error: &ApiError) -> String {
     match error.status() {
         Some(404) => "指定された銘柄が見つかりませんでした。".to_string(),
+        Some(401) => error.user_message(),
         Some(_) => "銘柄情報の取得に失敗しました。".to_string(),
         None => match error {
             ApiError::Parse => {
@@ -56,19 +57,12 @@ pub fn use_stock_search() -> StockSearch {
     let session = use_session();
     let stock_code = RwSignal::new(initial.clone());
     let fetch_generation = RwSignal::new(session.generation.get_untracked());
-    let search_session = session.clone();
     let search = Action::new_unsync(move |query: &String| {
         let query = query.clone();
-        let session = search_session.clone();
         async move {
             match fetch_stock(&query).await {
                 Ok(stock) => Ok(stock),
-                Err(error) => {
-                    if error.is_unauthorized() {
-                        session.mark_unauthenticated();
-                    }
-                    Err(stock_error_message(&error))
-                }
+                Err(error) => Err(stock_error_message(&error)),
             }
         }
     });
@@ -149,5 +143,13 @@ mod tests {
                 assert!(!should_apply_search_result(&session, fetch_generation));
             }
         });
+    }
+
+    #[test]
+    fn unauthorized_search_error_uses_react_message() {
+        assert_eq!(
+            stock_error_message(&ApiError::Http { status: 401 }),
+            "認証が必要です"
+        );
     }
 }

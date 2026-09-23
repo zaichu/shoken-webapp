@@ -17,6 +17,14 @@ async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, ApiError> {
         .map(|list| list.data)
 }
 
+fn asset_balance_error_message(error: &ApiError) -> String {
+    if error.is_unauthorized() {
+        error.user_message()
+    } else {
+        "データ取得に失敗しました".to_string()
+    }
+}
+
 fn should_apply_asset_balance_result(
     session: &crate::session::SessionStore,
     generation: u64,
@@ -43,12 +51,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         leptos::task::spawn_local(async move {
             let result = match fetch_asset_balances().await {
                 Ok(rows) => Ok(rows),
-                Err(error) => {
-                    if error.is_unauthorized() {
-                        session.mark_unauthenticated();
-                    }
-                    Err("データ取得に失敗しました".to_string())
-                }
+                Err(error) => Err(asset_balance_error_message(&error)),
             };
             if should_apply_asset_balance_result(&session, generation) {
                 balances.set(Some((generation, result)));
@@ -170,5 +173,13 @@ mod tests {
                 ));
             }
         });
+    }
+
+    #[test]
+    fn unauthorized_asset_balance_error_uses_react_message() {
+        assert_eq!(
+            asset_balance_error_message(&ApiError::Http { status: 401 }),
+            "認証が必要です"
+        );
     }
 }
