@@ -16,14 +16,14 @@ fn string_getter(field: &str) -> fn(&Item) -> &str {
 }
 fn fixture() -> Fixture { serde_json::from_str(include_str!("../../tests/fixtures/receipts/search.json")).unwrap() }
 fn check(case: &Case) {
- let c = &case.config;
- let config = FilterConfig {
- string_fields: c.string_fields.iter().map(|s| string_getter(s)).collect(),
- partial_string_fields: c.partial_string_fields.iter().map(|s| string_getter(s)).collect(),
- date_field: c.date_field.as_ref().map(|_| (|r: &Item| r.date.as_str()) as fn(&Item)->&str),
- year_search: c.year_search, year_month_search: c.year_month_search, date_search: c.date_search, date_range_search: c.date_range_search,
- amount_fields: c.amount_fields.iter().map(|_| (|r: &Item| r.amount) as fn(&Item)->Decimal).collect(),
- };
+  let c = &case.config;
+  let config = FilterConfig {
+  string_fields: if c.string_fields.is_empty() { None } else { Some(c.string_fields.iter().map(|s| string_getter(s)).collect()) },
+  partial_string_fields: if c.partial_string_fields.is_empty() { None } else { Some(c.partial_string_fields.iter().map(|s| string_getter(s)).collect()) },
+  date_field: c.date_field.as_ref().map(|_| (|r: &Item| r.date.as_str()) as fn(&Item)->&str),
+  year_search: c.year_search, year_month_search: c.year_month_search, date_search: c.date_search, date_range_search: c.date_range_search,
+  amount_fields: if c.amount_fields.is_empty() { None } else { Some(c.amount_fields.iter().map(|_| (|r: &Item| r.amount) as fn(&Item)->Decimal).collect()) },
+  };
  let actual: Vec<_> = filter_by_config(&case.data, &case.query, &config).iter().map(|r| r.id.clone()).collect();
  assert_eq!(actual, case.expected_ids, "{}", case.name);
 }
