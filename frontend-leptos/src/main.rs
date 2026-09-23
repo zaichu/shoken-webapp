@@ -8,6 +8,7 @@ mod page;
 mod receipts;
 mod receipts_domain;
 mod receipts_page;
+mod receipts_search;
 mod search;
 mod session;
 
