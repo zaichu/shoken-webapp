@@ -121,7 +121,7 @@ pub fn format_number(value: Decimal, maximum_fraction_digits: u32) -> String {
         .rev()
         .enumerate()
         .flat_map(|(index, character)| {
-            if index > 0 && index % 3 == 0 {
+            if (index + 1) % 3 == 0 && index + 1 < integer.len() {
                 vec![character, ',']
             } else {
                 vec![character]
