@@ -47,7 +47,7 @@
 - 複数エージェントが同時に動き得る場合の重複防止・git状態分離は `parallel-agent-coordination` skill
   - **実装を委譲する前（spawn/依頼プロンプトを渡す前）に、必ず対象Issueへ着手を宣言する**
     （`~/.claude/skills/parallel-agent-coordination/scripts/claim-issue.sh`）。規模を問わず省略しない
-- Issue振り分けの補助（Jev）は `issue-triage` skill（全プロジェクト共通）。使い方は `docs/agent-roles.md` の当該セクションを参照。結果は提案であり決定ではない
+- Issue振り分けの補助（Jev）は `issue-triage` skill（全プロジェクト共通）。**実装を委譲する前（着手宣言の前）に必ず回す。** 判定の使い方は `docs/agent-roles.md` の当該セクションを参照。結果は提案であり決定ではない
 
 ## 参照ルール
 
