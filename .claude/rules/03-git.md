@@ -25,7 +25,8 @@ README や skills の記載と衝突した場合は、本ドキュメントを�
 
 - Claude 実装を委譲するタスクは、原則として専用 `git worktree` を作ってその中で行う
 - Codex は repo ルートの `main` をレビュー/統合用に clean に保つ
-- worktree の配置先は `/tmp/<repo>-<topic>` のような一時パスを標準とする
+- worktree の配置先はリポジトリの親ディレクトリの `.worktrees/<repo>-<topic>` とする（例: `/home/zaichu/project/.worktrees/shoken-webapp-<topic>`）。**`/tmp` には作らない**（再起動・シャットダウンで消え、未 push の作業が失われる）
+- 委譲の依頼文は `.worktrees/.requests/` に置く。シャットダウン・中断の前に、各 worktree に未コミット・未 push が無いこと、途中の作業は WIP コミットして push し再開手順を Issue に書いたことを確認する
 - 1 作業ブランチ = 1 worktree を守る
 
 ## コミットルール
@@ -71,10 +72,10 @@ git switch main
 git pull --ff-only origin main
 
 # 2) 1タスク1ブランチ + 1worktree を作成
-git worktree add -b feature/<topic> /tmp/<repo>-<topic> main
+git worktree add -b feature/<topic> ../.worktrees/<repo>-<topic> main
 
 # 3) worktree で変更を選択してコミット
-cd /tmp/<repo>-<topic>
+cd ../.worktrees/<repo>-<topic>
 git add -p
 git commit -m "feat: <変更内容の要約>"
 
@@ -88,7 +89,7 @@ git switch main
 git pull --ff-only origin main
 git push origin --delete feature/<topic>
 git fetch origin --prune
-git worktree remove /tmp/<repo>-<topic>
+git worktree remove ../.worktrees/<repo>-<topic>
 git branch -D feature/<topic>  # squash merge 済みの短期ブランチのみ
 ```
 
