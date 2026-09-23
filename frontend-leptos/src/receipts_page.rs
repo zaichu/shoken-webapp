@@ -120,8 +120,8 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         }
                             .into_any()
                     }
-                    TabState::Ready(rows) => {
-                        if rows.is_empty() {
+                    TabState::Ready(data) => {
+                        if data.rows.is_empty() {
                             view! {
                                 <div>
                                     <h3>"データがありません"</h3>
@@ -130,7 +130,7 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                             }
                                 .into_any()
                         } else {
-                            view! { <ReceiptTable tab=tab rows=rows /> }.into_any()
+                            view! { <ReceiptTable tab=tab rows=data.rows /> }.into_any()
                         }
                     }
                 }

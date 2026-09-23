@@ -1,5 +1,8 @@
 use crate::api::{ApiClient, ApiError};
-use crate::dto::{DividendListResponse, DomesticStockListResponse, MutualfundListResponse};
+use crate::dto::{
+    DividendListResponse, DividendSummary, DomesticStockListResponse, DomesticStockSummary,
+    MutualfundListResponse, MutualfundSummary,
+};
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -77,7 +80,33 @@ impl ReceiptItem {
     }
 }
 
-async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReceiptSummary {
+    Dividend(DividendSummary),
+    DomesticStock(DomesticStockSummary),
+    MutualFund(MutualfundSummary),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReceiptTabData {
+    pub rows: Vec<ReceiptItem>,
+    pub summary: Option<ReceiptSummary>,
+}
+
+pub fn select_header_summary<T: Clone>(
+    api_summary: Option<&T>,
+    has_preview: bool,
+    search_query: &str,
+    client_summary: T,
+) -> T {
+    if let Some(summary) = api_summary.filter(|_| !has_preview && search_query.is_empty()) {
+        summary.clone()
+    } else {
+        client_summary
+    }
+}
+
+async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     let client = ApiClient::read_client();
     let query = &[
         ("per_page", "1000"),
@@ -88,20 +117,28 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<Vec<ReceiptItem>, ApiError> {
         ReceiptsTab::Dividend => client
             .get_json::<DividendListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::Dividend).collect()),
+            .map(|list| ReceiptTabData {
+                rows: list.data.into_iter().map(ReceiptItem::Dividend).collect(),
+                summary: list.summary.map(ReceiptSummary::Dividend),
+            }),
         ReceiptsTab::DomesticStock => client
             .get_json::<DomesticStockListResponse>(tab.list_path(), query)
             .await
-            .map(|list| {
-                list.data
+            .map(|list| ReceiptTabData {
+                rows: list
+                    .data
                     .into_iter()
                     .map(ReceiptItem::DomesticStock)
-                    .collect()
+                    .collect(),
+                summary: list.summary.map(ReceiptSummary::DomesticStock),
             }),
         ReceiptsTab::MutualFund => client
             .get_json::<MutualfundListResponse>(tab.list_path(), query)
             .await
-            .map(|list| list.data.into_iter().map(ReceiptItem::MutualFund).collect()),
+            .map(|list| ReceiptTabData {
+                rows: list.data.into_iter().map(ReceiptItem::MutualFund).collect(),
+                summary: list.summary.map(ReceiptSummary::MutualFund),
+            }),
     }
 }
 
@@ -116,7 +153,7 @@ fn fetch_error_message(error: &ApiError) -> String {
 #[derive(Clone, Debug)]
 pub enum TabState {
     Loading,
-    Ready(Vec<ReceiptItem>),
+    Ready(ReceiptTabData),
     Failed(String),
 }
 #[derive(Clone)]
@@ -132,8 +169,16 @@ impl ReceiptsStore {
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
-            Some(TabState::Ready(rows)) => rows.clone(),
+            Some(TabState::Ready(data)) => data.rows.clone(),
             _ => Vec::new(),
+        })
+    }
+
+    pub fn summary(&self, tab: ReceiptsTab) -> Option<ReceiptSummary> {
+        let generation = self.session.generation.get();
+        self.cache.with(|map| match map.get(&(generation, tab)) {
+            Some(TabState::Ready(data)) => data.summary.clone(),
+            _ => None,
         })
     }
 
@@ -321,6 +366,31 @@ mod tests {
             fetch_error_message(&ApiError::Http { status: 401 }),
             "認証が必要です"
         );
+    }
+
+    #[test]
+    fn header_summary_uses_api_value_without_preview_or_search() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), false, "", "client"),
+            "api"
+        );
+    }
+
+    #[test]
+    fn header_summary_uses_client_value_during_search() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), false, "7203", "client"),
+            "client"
+        );
+    }
+
+    #[test]
+    fn header_summary_uses_client_value_during_preview_or_without_api_summary() {
+        assert_eq!(
+            select_header_summary(Some(&"api"), true, "", "client"),
+            "client"
+        );
+        assert_eq!(select_header_summary(None, false, "", "client"), "client");
     }
 
     #[test]
