@@ -217,7 +217,7 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
   expect(logs.dividends.count).toBe(2);
 });
 
-test('ログアウト→再ログイン中の古いレスポンスは表示を上書きしない', async ({ page }) => {
+test('ログアウト後に旧データが残らない', async ({ page }) => {
   const logs = freshLogs();
   const session = { responder: userSession(USER_A), deleteCount: 0 };
   await setupMocks(

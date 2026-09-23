@@ -17,6 +17,13 @@ async fn fetch_asset_balances() -> Result<Vec<AssetBalance>, ApiError> {
         .map(|list| list.data)
 }
 
+fn should_apply_asset_balance_result(
+    session: &crate::session::SessionStore,
+    generation: u64,
+) -> bool {
+    session.is_current(generation)
+}
+
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
@@ -43,7 +50,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     Err("データ取得に失敗しました".to_string())
                 }
             };
-            if session.is_current(generation) {
+            if should_apply_asset_balance_result(&session, generation) {
                 balances.set(Some((generation, result)));
             }
         });
@@ -127,5 +134,41 @@ fn AssetBalanceTable(rows: Vec<AssetBalance>) -> impl IntoView {
                     .collect_view()}
             </tbody>
         </table>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dto::SessionUser;
+    use crate::session::SessionStore;
+
+    fn user(id: &str) -> SessionUser {
+        SessionUser {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            name: None,
+            picture_url: None,
+        }
+    }
+
+    #[test]
+    fn stale_asset_balance_result_is_rejected_after_same_or_different_user_login() {
+        let owner = Owner::new();
+        owner.with(|| {
+            for next_user in [user("alice"), user("bob")] {
+                let session = SessionStore::new();
+                session.user.set(Some(user("alice")));
+                let fetch_generation = session.generation.get_untracked();
+
+                session.mark_unauthenticated();
+                session.user.set(Some(next_user));
+
+                assert!(!should_apply_asset_balance_result(
+                    &session,
+                    fetch_generation
+                ));
+            }
+        });
     }
 }

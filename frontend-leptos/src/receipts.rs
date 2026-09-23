@@ -207,6 +207,10 @@ fn tab_settled(store: &ReceiptsStore, generation: u64, tab: ReceiptsTab) -> bool
     })
 }
 
+fn should_apply_fetch_result(session: &SessionStore, generation: u64) -> bool {
+    session.is_current(generation)
+}
+
 pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
     let active_tab = RwSignal::new(initial_tab);
     let visited = RwSignal::new(HashSet::from([initial_tab]));
@@ -219,7 +223,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         let session = fetch_session.clone();
         async move {
             let rows = fetch_list(tab).await;
-            if !session.is_current(generation) {
+            if !should_apply_fetch_result(&session, generation) {
                 return;
             }
             if let Err(error) = &rows {
@@ -281,6 +285,32 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn user(id: &str) -> crate::dto::SessionUser {
+        crate::dto::SessionUser {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            name: None,
+            picture_url: None,
+        }
+    }
+
+    #[test]
+    fn stale_receipts_result_is_rejected_after_same_or_different_user_login() {
+        let owner = Owner::new();
+        owner.with(|| {
+            for next_user in [user("alice"), user("bob")] {
+                let session = SessionStore::new();
+                session.user.set(Some(user("alice")));
+                let fetch_generation = session.generation.get_untracked();
+
+                session.mark_unauthenticated();
+                session.user.set(Some(next_user));
+
+                assert!(!should_apply_fetch_result(&session, fetch_generation));
+            }
+        });
+    }
 
     #[test]
     fn cells_keep_decimal_text() {
