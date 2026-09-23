@@ -4,10 +4,10 @@ import { defineConfig, devices } from '@playwright/test';
  * Leptos PoC 用の実験設定（本番の playwright.ci.config.ts は変更しない）
  *
  * - 対象は frontend/e2e/search-flow.spec.ts と receipt-flow.spec.ts を無改修で実行する
- * - baseURL は Trunk dev サーバ（experiments/leptos-search）を指す
+ * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
  */
 export default defineConfig({
-  testDir: '../../frontend/e2e',
+  testDir: '../frontend/e2e',
   testMatch: ['**/search-flow.spec.ts', '**/receipt-flow.spec.ts'],
   outputDir: '/tmp/leptos-e2e-out',
   fullyParallel: false,

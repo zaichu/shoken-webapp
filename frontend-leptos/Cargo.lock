@@ -346,6 +346,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "frontend-leptos"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "gloo-net",
+ "leptos",
+ "serde",
+ "serde_json",
+ "urlencoding",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -729,20 +743,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm_split_helpers",
- "web-sys",
-]
-
-[[package]]
-name = "leptos-search"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "gloo-net",
- "leptos",
- "serde",
- "serde_json",
- "urlencoding",
- "wasm-bindgen",
  "web-sys",
 ]
 
