@@ -14,7 +14,7 @@ pub struct FilterConfig<T> {
 
 const LABEL_CODE_TOKEN_RE: &str = r"^([0-9a-z]+)[:：]$";
 
-fn parse_search_tokens(query: &str) -> Vec<String> {
+pub fn parse_search_tokens(query: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let token_regex = regex::Regex::new(r#""((?:\\.|[^"\\])*)"|(\S+)"#).unwrap();
 
