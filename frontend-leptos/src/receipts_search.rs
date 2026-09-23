@@ -1,22 +1,30 @@
 use rust_decimal::Decimal;
 use std::collections::HashSet;
 
+type StringFieldFn<T> = fn(&T) -> &str;
+type AmountFieldFn<T> = fn(&T) -> Decimal;
+
 pub struct FilterConfig<T> {
-    pub string_fields: Option<Vec<fn(&T) -> &str>>,
-    pub partial_string_fields: Option<Vec<fn(&T) -> &str>>,
-    pub date_field: Option<fn(&T) -> &str>,
+    pub string_fields: Option<Vec<StringFieldFn<T>>>,
+    pub partial_string_fields: Option<Vec<StringFieldFn<T>>>,
+    pub date_field: Option<StringFieldFn<T>>,
     pub year_search: bool,
     pub year_month_search: bool,
     pub date_search: bool,
     pub date_range_search: bool,
-    pub amount_fields: Option<Vec<fn(&T) -> Decimal>>,
+    pub amount_fields: Option<Vec<AmountFieldFn<T>>>,
 }
 
 const LABEL_CODE_TOKEN_RE: &str = r"^([0-9a-z]+)[:：]$";
+static TOKEN_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+static LABEL_CODE_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
 pub fn parse_search_tokens(query: &str) -> Vec<String> {
     let mut tokens = Vec::new();
-    let token_regex = regex::Regex::new(r#""((?:\\.|[^"\\])*)"|(\S+)"#).unwrap();
+    let token_regex =
+        TOKEN_REGEX.get_or_init(|| regex::Regex::new(r#""((?:\\.|[^"\\])*)"|(\S+)"#).unwrap());
+    let label_code_re =
+        LABEL_CODE_REGEX.get_or_init(|| regex::Regex::new(LABEL_CODE_TOKEN_RE).unwrap());
 
     for cap in token_regex.captures_iter(query) {
         let raw_token = cap.get(1).or(cap.get(2)).map(|m| m.as_str()).unwrap_or("");
@@ -24,7 +32,6 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
         if token.is_empty() {
             continue;
         }
-        let label_code_re = regex::Regex::new(LABEL_CODE_TOKEN_RE).unwrap();
         let final_token = if let Some(caps) = label_code_re.captures(&token) {
             caps.get(1)
                 .map(|m| m.as_str())

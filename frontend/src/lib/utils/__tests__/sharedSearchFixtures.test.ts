@@ -7,6 +7,7 @@ import {
     matchesYear,
     matchesYearMonth,
 } from '../searchUtils';
+import fixtureData from '../../../../tests/fixtures/receipts/search.json' with { type: 'json' };
 
 interface FixtureItem {
     id: string;
@@ -18,14 +19,14 @@ interface FixtureItem {
 }
 
 interface FixtureConfig {
-    stringFields: string[];
-    partialStringFields: string[];
+    stringFields?: string[];
+    partialStringFields?: string[];
     dateField?: string;
-    yearSearch: boolean;
-    yearMonthSearch: boolean;
-    dateSearch: boolean;
-    dateRangeSearch: boolean;
-    amountFields: string[];
+    yearSearch?: boolean;
+    yearMonthSearch?: boolean;
+    dateSearch?: boolean;
+    dateRangeSearch?: boolean;
+    amountFields?: string[];
 }
 
 interface FixtureCase {
@@ -40,7 +41,7 @@ interface Fixture {
     cases: FixtureCase[];
 }
 
-const fixture: Fixture = require('../../../../tests/fixtures/receipts/search.json');
+const fixture: Fixture = fixtureData;
 
 function createConfig(config: FixtureConfig): FilterConfig<FixtureItem> {
     const stringGetters: FilterConfig<FixtureItem>['stringFields'] = (config.stringFields || []).map(field => {

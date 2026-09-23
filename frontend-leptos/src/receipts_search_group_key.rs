@@ -26,6 +26,7 @@ pub fn create_group_key_fn<'a, T>(
     })
 }
 
+#[allow(dead_code)]
 pub fn derive_security_code_from_query<T>(
     query: &str,
     data: &[T],
