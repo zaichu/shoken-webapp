@@ -25,9 +25,12 @@
 
 | 役割 | 担当 |
 |---|---|
-| 実装エージェント | OpenCode (`opencode/muse-spark-1.3-contributor-free`) |
+| 実装エージェント | OpenCode (`opencode/muse-spark-1.3-contributor-free`)、Codex (`gpt-5.6-sol`) |
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
+
+OpenCode は無料枠のためレート制限で止まることがある。止まったら Codex に切り替える。
+切り替えるときは元の worker を止め、Issue に切り替えを記録してから投げる（二重作業を防ぐため）。
 
 ## Issueの振り分けの補助(Jev)
 
