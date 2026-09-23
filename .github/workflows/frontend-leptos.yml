@@ -74,11 +74,14 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Run Clippy
+      - name: Run Clippy (wasm32)
         run: cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 
       - name: Run tests
         run: cargo test
+
+      - name: Run Clippy (host)
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Build release bundle
         # trunk 0.21.4 は NO_COLOR=1 を予期しない引数として解釈するため解除する。
