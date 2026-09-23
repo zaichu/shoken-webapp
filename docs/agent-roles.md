@@ -42,7 +42,7 @@ OpenCode は無料枠のためレート制限で止まることがある。止�
 
 | 分類 | モデル | 対象 |
 |---|---|---|
-| FAST | `opencode/mimo-v2.6-flash-free` | 単純な置換、import整理、formatter/lint修正、小さなテスト追加、明確な1箇所のバグ修正、一括リネーム、定型コード生成、コメント・ドキュメントの軽微な修正、大量だが機械的な変更。**設計判断を伴う作業には使わない** |
+| FAST | `opencode/mimo-v2.6-flash-free`（レート制限中は `opencode/nemotron-3.5-lightning-free`） | 単純な置換、import整理、formatter/lint修正、小さなテスト追加、明確な1箇所のバグ修正、一括リネーム、定型コード生成、コメント・ドキュメントの軽微な修正、大量だが機械的な変更。**設計判断を伴う作業には使わない** |
 | DEFAULT | `opencode/muse-spark-1.3-contributor-free` | 通常の機能実装、数ファイル程度の変更、一般的なバグ修正、リファクタ、テスト追加、UI・API実装、ドキュメント修正 |
 | DEEP | `opencode/nemotron-3-ultra-free` | アーキテクチャ設計、技術選定、大規模リファクタ、複数モジュールにまたがる変更、原因不明のバグ、パフォーマンス調査、大規模移行、Cargo Workspace 等の構造変更、既存設計の妥当性レビュー |
 
@@ -53,6 +53,18 @@ opencode-agent spawn --project <worktree> --model opencode/nemotron-3-ultra-free
 **コストより品質を優先して必ず DEEP にするもの**: セキュリティ、認証・認可、DBマイグレーション、データ消失の可能性がある処理、大規模なアーキテクチャ変更、公開APIの破壊的変更。
 
 設計判断が重要なタスクは、DEEP で方針を決めてから DEFAULT で実装してよい。
+
+### 制限中の代替
+
+無料モデルは2系統に分かれる。`muse-spark-*`・`mimo-*`・`ling-*`・`big-pickle` はアカウント単位で1つのレート制限を共有しており、1つが `Rate limit exceeded` なら他も同時に止まる（この中で切り替えても意味がない）。`nemotron-*` は提供元が Nvidia で枠が別（止まるときは制限ではなく `503 overloaded`）。
+
+| 分類 | 制限中の代替 |
+|---|---|
+| FAST | `opencode/nemotron-3.5-lightning-free` |
+| DEFAULT | Codex（下記）。同等の無料モデルが無いため |
+| DEEP | Codex `-p design`（nemotron-3-ultra が 503 のとき） |
+
+代替を使ったときは、着手宣言のコメントにその旨を書く。
 
 ### エスカレーション
 
