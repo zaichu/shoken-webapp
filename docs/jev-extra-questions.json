@@ -1,0 +1,20 @@
+{
+  "needs_openapi_sync": {
+    "type": "noul",
+    "label": "API契約の同期",
+    "instructions": "API契約の変更を伴い、docs/openapi.json と frontend/src/generated/api.ts の同期が必要か。",
+    "criteria": {
+      "true": "エンドポイント・リクエスト・レスポンスの形が変わる。",
+      "false": "API契約は変わらない。"
+    }
+  },
+  "needs_migration": {
+    "type": "noul",
+    "label": "マイグレーション",
+    "instructions": "backend/migrations へのDBマイグレーションの追加・変更が必要か。",
+    "criteria": {
+      "true": "テーブル・カラム・インデックスの変更を伴う。",
+      "false": "既存のスキーマのままで実装できる。"
+    }
+  }
+}
