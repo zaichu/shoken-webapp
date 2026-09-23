@@ -111,7 +111,14 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 match store.tab_state(tab) {
                     TabState::Loading => view! { <p role="status">"読み込み中..."</p> }.into_any(),
                     TabState::Failed(message) => {
-                        view! { <div role="alert">{message}</div> }.into_any()
+                        view! {
+                            <div role="alert">
+                                <strong>"エラー:"</strong>
+                                " "
+                                {message}
+                            </div>
+                        }
+                            .into_any()
                     }
                     TabState::Ready(rows) => {
                         if rows.is_empty() {

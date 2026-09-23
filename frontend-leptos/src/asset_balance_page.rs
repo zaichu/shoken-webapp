@@ -68,7 +68,16 @@ pub fn AssetBalancePage() -> impl IntoView {
             <div data-testid="assetbalance-workspace">
                 {move || match balances.get().map(|(_, result)| result) {
                     None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
-                    Some(Err(message)) => view! { <div role="alert">{message}</div> }.into_any(),
+                    Some(Err(message)) => {
+                        view! {
+                            <div role="alert">
+                                <strong>"エラー:"</strong>
+                                " "
+                                {message}
+                            </div>
+                        }
+                            .into_any()
+                    }
                     Some(Ok(rows)) => {
                         if rows.is_empty() {
                             view! {
