@@ -1,3 +1,65 @@
+use crate::csv_flow::CsvPreview;
+use crate::dto::{AssetBalance, CsvPreviewResponse};
+use rust_decimal::Decimal;
+use serde::Deserialize;
+
+pub const LIST_PATH: &str = "/api/v1/asset-balances";
+pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
+pub const IMPORT_PATH: &str = "/api/v1/asset-balance-imports";
+
+// プレビュー行は backend が CreateAssetBalanceRequest をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+pub struct AssetBalanceCsvRow {
+    #[serde(default)]
+    pub security_code: String,
+    #[serde(default)]
+    pub security_name: String,
+    #[serde(default)]
+    pub shares: Decimal,
+    #[serde(default)]
+    pub executing_shares: Decimal,
+    #[serde(default)]
+    pub average_purchase_price: Decimal,
+    #[serde(default)]
+    pub total_purchase_amount: Decimal,
+    #[serde(default)]
+    pub current_price: Decimal,
+    #[serde(default)]
+    pub daily_change: Decimal,
+    #[serde(default)]
+    pub market_value: Decimal,
+    #[serde(default)]
+    pub profit_loss_rate: Decimal,
+}
+
+impl AssetBalanceCsvRow {
+    // 一覧表示に載せるため AssetBalance に揃える。id・タイムスタンプは未確定なので空
+    #[allow(dead_code)]
+    pub fn to_asset_balance(&self) -> AssetBalance {
+        AssetBalance {
+            id: String::new(),
+            security_code: self.security_code.clone(),
+            security_name: self.security_name.clone(),
+            shares: self.shares,
+            executing_shares: self.executing_shares,
+            average_purchase_price: self.average_purchase_price,
+            total_purchase_amount: self.total_purchase_amount,
+            current_price: self.current_price,
+            daily_change: self.daily_change,
+            market_value: self.market_value,
+            profit_loss_rate: self.profit_loss_rate,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+}
+
+pub fn to_preview(response: CsvPreviewResponse) -> CsvPreview<AssetBalanceCsvRow> {
+    CsvPreview::from_response(response, |row| {
+        serde_json::from_value(row).unwrap_or_default()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,4 +1,5 @@
 mod api;
+mod asset_balance_csv;
 mod asset_balance_domain;
 mod asset_balance_lookup;
 mod asset_balance_page;
