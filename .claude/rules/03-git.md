@@ -59,7 +59,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ## PR とマージ
 
 - PR は作業ブランチから `main` へ作成する
-- PR マージ前に共通の `pr-review` skill で統合エージェントによるレビューを実施する
+- PR マージ前に、実装した本人以外のレビューを通す（手順は `agent-delegation` skill の「受け取ったとき」）
 - タイトルと説明は日本語で、変更内容とテスト結果を明記する
 - マージ方式は `Squash and merge` を標準とする
 - マージ後は `main` を更新して作業ブランチを削除する
