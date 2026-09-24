@@ -1,8 +1,10 @@
 use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, calculate_valuation, chart_percentages, should_include_chart_item,
-    summarize_valuation_with_summary, to_fixed, KpiHolding, SummaryOverride, ValuationItem,
+    calculate_portfolio_kpi, calculate_valuation, chart_percentages, normalize_security_code,
+    normalize_security_name, should_include_chart_item, summarize_valuation_with_summary, to_fixed,
+    KpiHolding, SummaryOverride, ValuationItem,
 };
+use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
 use crate::session::use_session;
 use leptos::prelude::*;
@@ -13,6 +15,11 @@ use std::collections::HashMap;
 
 const ASSET_BALANCE_LIST_LIMIT: &str = "1000";
 const TOP_ITEMS: usize = 20;
+const DIVIDEND_RETRY_DELAY_MS: u32 = 15_000;
+const DIVIDEND_NETWORK_MAX_RETRIES: u32 = 3;
+const DIVIDEND_PENDING_MAX_RETRIES: u32 = 100;
+const DIVIDEND_BASE_RETRIES: u32 = 3;
+const DIVIDEND_MILLIS_PER_CODE: u64 = 12_000;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
@@ -67,37 +74,99 @@ async fn fetch_asset_balances() -> Result<AssetBalanceListResponse, ApiError> {
         .await
 }
 
-async fn fetch_dividend_maps(mut codes: Vec<String>) -> DividendMaps {
-    codes.sort();
-    codes.dedup();
-    if codes.is_empty() {
-        return DividendMaps::default();
-    }
-    let response = ApiClient::default_client()
-        .post_json::<DividendBatchRequest, DividendBatchResponse>(
-            "/api/v1/dividend-per-share-estimates",
-            &DividendBatchRequest {
-                security_codes: codes,
-            },
-        )
-        .await;
+fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
+    let mut unique: Vec<String> = codes.to_vec();
+    unique.sort();
+    unique.dedup();
+    unique
+}
+
+fn dividend_pending_max_retries(unique_count: usize) -> u32 {
+    let windows = (unique_count as u64)
+        .saturating_mul(DIVIDEND_MILLIS_PER_CODE)
+        .div_ceil(u64::from(DIVIDEND_RETRY_DELAY_MS));
+    let dynamic = windows.saturating_add(u64::from(DIVIDEND_BASE_RETRIES));
+    DIVIDEND_BASE_RETRIES.max(dynamic.min(u64::from(DIVIDEND_PENDING_MAX_RETRIES)) as u32)
+}
+
+fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (DividendMaps, bool) {
     let mut maps = DividendMaps::default();
-    if let Ok(batch) = response {
-        for item in batch.items {
-            if let Some(status) = &item.status {
-                maps.status
-                    .insert(item.security_code.clone(), status.clone());
+    let mut has_pending = false;
+    for item in &batch.items {
+        if let Some(status) = &item.status {
+            maps.status
+                .insert(item.security_code.clone(), status.clone());
+            if status == "pending" {
+                has_pending = true;
             }
-            if item.status.as_deref() == Some("ok") {
-                if let Some(per_share) = item.dividend_per_share {
-                    if per_share > 0.0 {
-                        maps.per_share.insert(item.security_code, per_share);
-                    }
+        }
+        if item.status.as_deref() == Some("ok") {
+            if let Some(per_share) = item.dividend_per_share {
+                if per_share > 0.0 {
+                    maps.per_share.insert(item.security_code.clone(), per_share);
                 }
             }
         }
     }
-    maps
+    (maps, has_pending)
+}
+
+async fn fetch_dividend_batch(codes: &[String]) -> Result<DividendBatchResponse, ApiError> {
+    ApiClient::default_client()
+        .post_json::<DividendBatchRequest, DividendBatchResponse>(
+            "/api/v1/dividend-per-share-estimates",
+            &DividendBatchRequest {
+                security_codes: codes.to_vec(),
+            },
+        )
+        .await
+}
+
+type BalanceSlot = Option<(u64, Result<LoadedAssetBalances, String>)>;
+
+fn apply_dividend_maps(balances: &RwSignal<BalanceSlot>, generation: u64, dividends: DividendMaps) {
+    balances.update(|slot| {
+        if let Some((cached, Ok(loaded))) = slot {
+            if *cached == generation {
+                loaded.dividends = dividends;
+            }
+        }
+    });
+}
+
+async fn poll_dividend_maps(
+    session: crate::session::SessionStore,
+    generation: u64,
+    codes: Vec<String>,
+    balances: RwSignal<BalanceSlot>,
+) {
+    let max_pending = dividend_pending_max_retries(codes.len());
+    let mut pending_used = 0u32;
+    let mut network_used = 0u32;
+    loop {
+        if !session.is_current(generation) {
+            break;
+        }
+        match fetch_dividend_batch(&codes).await {
+            Ok(batch) => {
+                let (maps, has_pending) = dividend_maps_from_batch(&batch);
+                if session.is_current(generation) {
+                    apply_dividend_maps(&balances, generation, maps);
+                }
+                if !has_pending || pending_used >= max_pending {
+                    break;
+                }
+                pending_used += 1;
+            }
+            Err(_) => {
+                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                    break;
+                }
+                network_used += 1;
+            }
+        }
+        gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+    }
 }
 
 fn asset_balance_error_message(error: &ApiError) -> String {
@@ -148,7 +217,7 @@ fn format_signed_number(value: f64) -> Option<(bool, String)> {
 }
 
 fn format_currency(value: f64) -> String {
-    match format_signed_number(value) {
+    match format_signed_number(to_fixed(value, 15)) {
         None => "-".to_string(),
         Some((true, body)) => format!("¥ -{body}"),
         Some((false, body)) => format!("¥ {body}"),
@@ -156,7 +225,7 @@ fn format_currency(value: f64) -> String {
 }
 
 fn format_number_value(value: f64) -> String {
-    match format_signed_number(value) {
+    match format_signed_number(to_fixed(value, 2)) {
         None => "-".to_string(),
         Some((true, body)) => format!("-{body}"),
         Some((false, body)) => body,
@@ -164,6 +233,9 @@ fn format_number_value(value: f64) -> String {
 }
 
 fn format_fixed_percent(value: f64, decimals: u32) -> String {
+    if value.is_nan() {
+        return "-".to_string();
+    }
     format!(
         "{:.prec$}%",
         to_fixed(value, decimals),
@@ -193,17 +265,6 @@ fn format_valuation_rate(rate: Option<f64>, decimals: u32) -> String {
         }
         None => "—".to_string(),
     }
-}
-
-fn normalize_security_name(name: &str) -> String {
-    name.chars()
-        .map(|character| match character {
-            'Ａ'..='Ｚ' | 'ａ'..='ｚ' | '０'..='９' => {
-                char::from_u32(character as u32 - 0xfee0).unwrap_or(character)
-            }
-            _ => character,
-        })
-        .collect()
 }
 
 fn is_searchable_code(code: &str) -> bool {
@@ -326,12 +387,17 @@ fn format_dividend_yield(dividend: &HoldingDividend) -> String {
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
-    let balances = RwSignal::new(None::<(u64, Result<LoadedAssetBalances, String>)>);
+    let render_session = session.clone();
+    let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+    let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
+            lookup.update(|store| store.clear());
+            balances.set(None);
             return;
         }
+        lookup.update(|store| store.clear_if_stale(generation));
         if balances
             .get_untracked()
             .is_some_and(|(cached, _)| cached == generation)
@@ -340,24 +406,66 @@ pub fn AssetBalancePage() -> impl IntoView {
         }
         let session = session.clone();
         leptos::task::spawn_local(async move {
-            let result = match fetch_asset_balances().await {
-                Err(error) => Err(asset_balance_error_message(&error)),
-                Ok(list) => {
-                    let codes: Vec<String> = list
-                        .data
-                        .iter()
-                        .map(|row| row.security_code.clone())
-                        .collect();
-                    let dividends = fetch_dividend_maps(codes).await;
-                    Ok(LoadedAssetBalances {
-                        rows: list.data,
-                        summary: list.summary,
-                        dividends,
-                    })
+            match fetch_asset_balances().await {
+                Err(error) => {
+                    if should_apply_asset_balance_result(&session, generation) {
+                        balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
+                    }
                 }
-            };
-            if should_apply_asset_balance_result(&session, generation) {
-                balances.set(Some((generation, result)));
+                Ok(list) => {
+                    if !should_apply_asset_balance_result(&session, generation) {
+                        return;
+                    }
+                    lookup.update(|store| store.seed(generation, &list.data));
+                    let codes = unique_sorted_codes(
+                        &list
+                            .data
+                            .iter()
+                            .map(|row| row.security_code.clone())
+                            .collect::<Vec<_>>(),
+                    );
+                    balances.set(Some((
+                        generation,
+                        Ok(LoadedAssetBalances {
+                            rows: list.data,
+                            summary: list.summary,
+                            dividends: DividendMaps::default(),
+                        }),
+                    )));
+                    let missing: Vec<String> = codes
+                        .iter()
+                        .filter(|code| {
+                            lookup.with_untracked(|store| store.needs_fetch(generation, code, true))
+                        })
+                        .cloned()
+                        .collect();
+                    if !missing.is_empty() {
+                        let session = session.clone();
+                        leptos::task::spawn_local(async move {
+                            for code in missing {
+                                if !session.is_current(generation) {
+                                    break;
+                                }
+                                if let Ok(rows) =
+                                    fetch_single_asset_balance(&ApiClient::read_client(), &code)
+                                        .await
+                                {
+                                    if !session.is_current(generation) {
+                                        break;
+                                    }
+                                    lookup.update(|store| {
+                                        store.store_single(generation, &code, rows);
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    if !codes.is_empty() {
+                        leptos::task::spawn_local(poll_dividend_maps(
+                            session, generation, codes, balances,
+                        ));
+                    }
+                }
             }
         });
     });
@@ -379,36 +487,55 @@ pub fn AssetBalancePage() -> impl IntoView {
                 </div>
             </div>
             <div data-testid="assetbalance-workspace">
-                {move || match balances.get().map(|(_, result)| result) {
-                    None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
-                    Some(Err(message)) => {
-                        view! {
-                            <div role="alert">
-                                <strong>"エラー:"</strong>
-                                " "
-                                {message}
-                            </div>
-                        }
-                            .into_any()
-                    }
-                    Some(Ok(loaded)) => {
-                        if loaded.rows.is_empty() {
+                {move || {
+                    let current = render_session.generation.get();
+                    match balances
+                        .get()
+                        .filter(|(cached, _)| *cached == current)
+                        .map(|(_, result)| result)
+                    {
+                        None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
+                        Some(Err(message)) => {
                             view! {
-                                <div>
-                                    <h3>"資産管理データがありません"</h3>
-                                    <p>"CSVファイルをインポートするか、データを登録してください。"</p>
+                                <div role="alert">
+                                    <strong>"エラー:"</strong>
+                                    " "
+                                    {message}
                                 </div>
                             }
                                 .into_any()
-                        } else {
-                            view! {
-                                <PortfolioSummary
-                                    rows=loaded.rows
-                                    summary=loaded.summary
-                                    dividends=loaded.dividends
-                                />
+                        }
+                        Some(Ok(loaded)) => {
+                            if loaded.rows.is_empty() {
+                                view! {
+                                    <div>
+                                        <h3>"資産管理データがありません"</h3>
+                                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
+                                    </div>
+                                }
+                                    .into_any()
+                            } else {
+                                let views: Vec<HoldingView> = loaded
+                                    .rows
+                                    .iter()
+                                    .map(|row| {
+                                        let resolved = lookup
+                                            .with(|store| {
+                                                store.get(current, &row.security_code).cloned()
+                                            })
+                                            .unwrap_or_else(|| row.clone());
+                                        holding_view(&resolved)
+                                    })
+                                    .collect();
+                                view! {
+                                    <PortfolioSummary
+                                        views=views
+                                        summary=loaded.summary
+                                        dividends=loaded.dividends
+                                    />
+                                }
+                                    .into_any()
                             }
-                                .into_any()
                         }
                     }
                 }}
@@ -425,11 +552,10 @@ struct ChartItem {
 
 #[component]
 fn PortfolioSummary(
-    rows: Vec<AssetBalance>,
+    views: Vec<HoldingView>,
     summary: Option<AssetBalanceSummary>,
     dividends: DividendMaps,
 ) -> impl IntoView {
-    let views: Vec<HoldingView> = rows.iter().map(holding_view).collect();
     let valuation_items: Vec<ValuationItem> = views
         .iter()
         .map(|view| ValuationItem {
@@ -455,6 +581,7 @@ fn PortfolioSummary(
         .map(|summary| dec_to_f64(&summary.total_purchase_amount));
     let kpi = calculate_portfolio_kpi(&kpi_holdings, &dividends.per_share, summary_total);
 
+    let display_count = views.len();
     let mut chart_views: Vec<HoldingView> = views
         .into_iter()
         .filter(|view| should_include_chart_item(Some(view.purchase), Some(view.market)))
@@ -470,7 +597,6 @@ fn PortfolioSummary(
         .map(|(view, percentage)| ChartItem { view, percentage })
         .collect();
 
-    let display_count = rows.len();
     let total_purchase_amount = kpi.total_purchase_amount;
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
@@ -695,6 +821,10 @@ fn ChartList(
 
 #[component]
 fn SecurityCodeAnchor(code: String, #[prop(optional)] class: Option<String>) -> impl IntoView {
+    let code = normalize_security_code(&code);
+    if code.is_empty() {
+        return view! { <span>"-"</span> }.into_any();
+    }
     if !is_searchable_code(&code) {
         return view! { <span>{code}</span> }.into_any();
     }
@@ -718,7 +848,7 @@ fn HoldingCard(item: ChartItem, index: usize, dividends: DividendMaps) -> impl I
     let percentage_text = item
         .percentage
         .map(|percentage| format_fixed_percent(percentage, 1))
-        .unwrap_or("NaN%".to_string());
+        .unwrap_or("-".to_string());
     let bar_width = item
         .percentage
         .map(|percentage| format!("{}%", percentage.min(100.0)))
@@ -1085,9 +1215,125 @@ mod tests {
     fn security_name_normalization_matches_react_cases() {
         assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
         assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
+        assert_eq!(normalize_security_code(" 7203: トヨタ自動車 "), "7203");
         assert!(is_searchable_code("7203"));
         assert!(is_searchable_code("BRK.B"));
         assert!(!is_searchable_code(""));
         assert!(!is_searchable_code("7203: トヨタ"));
+    }
+
+    #[test]
+    fn number_formatter_matches_intl_cases() {
+        assert_eq!(format_number_value(100.0), "100");
+        assert_eq!(format_number_value(1.5), "1.5");
+        assert_eq!(format_number_value(1.2345), "1.23");
+        assert_eq!(format_number_value(-0.001), "-0");
+        assert_eq!(format_number_value(-12345.678), "-12,345.68");
+        assert_eq!(
+            format_currency("0.123456789012345678".parse::<f64>().unwrap()),
+            "¥ 0.123456789012346"
+        );
+        assert_eq!(format_currency(850000.0), "¥ 850,000");
+        assert_eq!(format_fixed_percent(f64::NAN, 1), "-");
+    }
+
+    #[test]
+    fn unique_sorted_codes_dedupes() {
+        assert_eq!(
+            unique_sorted_codes(&["6758".to_string(), "7203".to_string(), "6758".to_string()]),
+            vec!["6758".to_string(), "7203".to_string()]
+        );
+        assert!(unique_sorted_codes(&[]).is_empty());
+    }
+
+    #[test]
+    fn dividend_pending_max_retries_matches_hook() {
+        assert_eq!(dividend_pending_max_retries(0), 3);
+        assert_eq!(dividend_pending_max_retries(1), 4);
+        assert_eq!(dividend_pending_max_retries(2), 5);
+        assert_eq!(dividend_pending_max_retries(100), 83);
+        assert_eq!(dividend_pending_max_retries(usize::MAX), 100);
+    }
+
+    fn estimate(code: &str, per_share: Option<f64>, status: &str) -> DividendEstimateItem {
+        DividendEstimateItem {
+            security_code: code.to_string(),
+            dividend_per_share: per_share,
+            status: Some(status.to_string()),
+        }
+    }
+
+    #[test]
+    fn dividend_batch_maps_match_hook() {
+        let batch = DividendBatchResponse {
+            items: vec![
+                estimate("7203", Some(50.0), "ok"),
+                estimate("6758", Some(0.0), "ok"),
+                estimate("0001", None, "pending"),
+                estimate("0002", None, "error"),
+                estimate("0003", Some(10.0), "zero"),
+                estimate("0004", None, "ok"),
+            ],
+        };
+        let (maps, has_pending) = dividend_maps_from_batch(&batch);
+        assert!(has_pending);
+        assert_eq!(maps.per_share.get("7203"), Some(&50.0));
+        assert!(!maps.per_share.contains_key("6758"));
+        assert!(!maps.per_share.contains_key("0003"));
+        assert!(!maps.per_share.contains_key("0004"));
+        assert_eq!(maps.status.get("0001").map(String::as_str), Some("pending"));
+        assert_eq!(maps.status.get("0002").map(String::as_str), Some("error"));
+        assert_eq!(maps.status.get("0003").map(String::as_str), Some("zero"));
+
+        let settled = DividendBatchResponse {
+            items: vec![estimate("7203", Some(50.0), "ok")],
+        };
+        let (_, settled_pending) = dividend_maps_from_batch(&settled);
+        assert!(!settled_pending);
+        let (_, empty_pending) = dividend_maps_from_batch(&DividendBatchResponse { items: vec![] });
+        assert!(!empty_pending);
+    }
+
+    #[test]
+    fn dividend_maps_apply_only_to_current_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let fresh = DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            };
+            apply_dividend_maps(&balances, 7, fresh.clone());
+            assert!(balances.get_untracked().is_none());
+            balances.set(Some((
+                7,
+                Ok(LoadedAssetBalances {
+                    rows: vec![],
+                    summary: None,
+                    dividends: DividendMaps::default(),
+                }),
+            )));
+            apply_dividend_maps(&balances, 8, fresh.clone());
+            assert!(balances
+                .get_untracked()
+                .unwrap()
+                .1
+                .unwrap()
+                .dividends
+                .per_share
+                .is_empty());
+            apply_dividend_maps(&balances, 7, fresh);
+            assert_eq!(
+                balances
+                    .get_untracked()
+                    .unwrap()
+                    .1
+                    .unwrap()
+                    .dividends
+                    .per_share
+                    .get("7203"),
+                Some(&50.0)
+            );
+        });
     }
 }

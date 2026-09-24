@@ -356,6 +356,34 @@ pub fn calculate_portfolio_kpi(
     }
 }
 
+/// `formatters.ts` の `normalizeSecurityCode` に対応する。
+pub fn normalize_security_code(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    trimmed
+        .split([':', '：'])
+        .next()
+        .unwrap_or_default()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>()
+        .to_uppercase()
+}
+
+/// `formatters.ts` の `normalizeSecurityName` に対応する。
+pub fn normalize_security_name(name: &str) -> String {
+    name.chars()
+        .map(|character| match character {
+            'Ａ'..='Ｚ' | 'ａ'..='ｚ' | '０'..='９' => {
+                char::from_u32(character as u32 - 0xfee0).unwrap_or(character)
+            }
+            _ => character,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -783,5 +811,16 @@ mod tests {
             Some(1180000.0)
         );
         assert_eq!(to_finite_amount(&Value::Null), None);
+    }
+
+    #[test]
+    fn security_normalization_matches_react_cases() {
+        assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
+        assert_eq!(normalize_security_code("7203: トヨタ自動車"), "7203");
+        assert_eq!(normalize_security_code("brk.b"), "BRK.B");
+        assert_eq!(normalize_security_code("  "), "");
+        assert_eq!(normalize_security_code(""), "");
+        assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
+        assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
     }
 }
