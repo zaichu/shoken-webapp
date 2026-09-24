@@ -6,6 +6,7 @@ use crate::not_found_page::NotFoundPage;
 use crate::receipts_page::ReceiptsPage;
 use crate::search::use_stock_search;
 use crate::session::{provide_session, SessionStore};
+use crate::ui::{current_path, Alert, Loading, PageHeader, SiteFooter, SiteHeader, Spinner};
 use leptos::prelude::*;
 
 const BASE_TITLE: &str = "証券Web";
@@ -36,21 +37,6 @@ const STOCK_LINKS: &[(&str, &str)] = &[
     (
         "JPX Explorer",
         "https://jpx-explorer.com/ja-JP/{code}-TSE",
-    ),
-];
-
-const FOOTER_LINKS: &[(&str, &str)] = &[
-    (
-        "プライバシーポリシー",
-        "https://github.com/zaichu/shoken-webapp/blob/main/docs/privacy-policy.md",
-    ),
-    (
-        "利用規約",
-        "https://github.com/zaichu/shoken-webapp/blob/main/docs/terms.md",
-    ),
-    (
-        "Cookie ポリシー",
-        "https://github.com/zaichu/shoken-webapp/blob/main/docs/cookie-policy.md",
     ),
 ];
 
@@ -123,10 +109,10 @@ pub fn App() -> impl IntoView {
             <main id="main-content" class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-1 flex-col py-5">
                 {move || {
                     if !session.loaded.get() {
-                        return view! { <p role="status">"読み込み中..."</p> }.into_any();
+                        return view! { <Loading /> }.into_any();
                     }
                     if route.protected() && session.user.get().is_none() {
-                        return view! { <p role="status">"読み込み中..."</p> }.into_any();
+                        return view! { <Loading /> }.into_any();
                     }
                     match route {
                         Route::Home => view! { <HomePage /> }.into_any(),
@@ -140,103 +126,6 @@ pub fn App() -> impl IntoView {
             </main>
             <SiteFooter />
         </div>
-    }
-}
-
-fn current_path() -> String {
-    web_sys::window()
-        .and_then(|window| window.location().pathname().ok())
-        .unwrap_or_default()
-}
-
-#[component]
-fn SiteHeader() -> impl IntoView {
-    let session = crate::session::use_session();
-    view! {
-        <header class="border-b border-slate-200 bg-white">
-            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between">
-                <a href="/" class="text-base font-black tracking-tight text-slate-950">
-                    "証券Web"
-                </a>
-                <nav aria-label="メインナビゲーション">
-                    <a href="/search" class="text-sm font-bold text-slate-700 hover:text-slate-950">
-                        "銘柄検索"
-                    </a>
-                    <a href="/assetbalance" class="ml-4 text-sm font-bold text-slate-700 hover:text-slate-950">
-                        "資産管理"
-                    </a>
-                    <a href="/receipts" class="ml-4 text-sm font-bold text-slate-700 hover:text-slate-950">
-                        "取引明細"
-                    </a>
-                </nav>
-                <div class="flex items-center gap-3">
-                    {move || {
-                        let logout_session = session.clone();
-                        let logout = move |_| {
-                            let session = logout_session.clone();
-                            leptos::task::spawn_local(async move {
-                                session.logout().await;
-                            });
-                        };
-                        session
-                            .user
-                            .get()
-                            .map(|user| {
-                                view! {
-                                    <span class="text-sm font-semibold">{user.display_name()}</span>
-                                    <button
-                                        type="button"
-                                        data-testid="logout"
-                                        class="text-sm font-bold text-slate-700 hover:text-slate-950"
-                                        on:click=logout
-                                    >
-                                        "ログアウト"
-                                    </button>
-                                }
-                                    .into_any()
-                            })
-                            .unwrap_or_else(|| {
-                                view! {
-                                    <a
-                                        href="/login"
-                                        class="text-sm font-bold text-slate-700 hover:text-slate-950"
-                                    >
-                                        "ログイン"
-                                    </a>
-                                }
-                                    .into_any()
-                            })
-                    }}
-                </div>
-            </div>
-        </header>
-    }
-}
-
-#[component]
-fn SiteFooter() -> impl IntoView {
-    view! {
-        <footer class="mt-auto border-t border-slate-200 bg-white py-4">
-            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
-                {FOOTER_LINKS
-                    .iter()
-                    .map(|(label, href)| {
-                        view! {
-                            <a
-                                href={*href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="hover:text-slate-700 hover:underline"
-                                aria-label={format!("{label}（新しいタブで開く）")}
-                            >
-                                {*label}
-                            </a>
-                        }
-                    })
-                    .collect_view()}
-                <span>"© 2026 shoken-webapp"</span>
-            </div>
-        </footer>
     }
 }
 
@@ -298,29 +187,6 @@ fn SearchPage() -> impl IntoView {
 }
 
 #[component]
-fn PageHeader(
-    title: &'static str,
-    eyebrow: &'static str,
-    description: &'static str,
-) -> impl IntoView {
-    view! {
-        <div class="mb-5 max-sm:mb-2">
-            <div class="flex flex-col gap-3 border-l-4 border-amber-500 pl-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 max-sm:hidden">
-                        {eyebrow}
-                    </p>
-                    <h1 class="text-2xl font-black leading-tight tracking-normal text-slate-950 max-sm:text-lg">
-                        {title}
-                    </h1>
-                    <p class="mt-1 text-sm font-medium text-slate-600 max-sm:hidden">{description}</p>
-                </div>
-            </div>
-        </div>
-    }
-}
-
-#[component]
 fn SearchForm(
     stock_code: RwSignal<String>,
     loading: Signal<bool>,
@@ -360,30 +226,7 @@ fn SearchForm(
                             {move || {
                                 if loading.get() {
                                     view! {
-                                        <span class="inline-flex items-center mr-2">
-                                            <svg
-                                                class="animate-spin h-4 w-4"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                role="status"
-                                                aria-label="読み込み中..."
-                                            >
-                                                <circle
-                                                    class="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    stroke-width="4"
-                                                />
-                                                <path
-                                                    class="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                />
-                                            </svg>
-                                        </span>
+                                        <Spinner size="sm" class="mr-2" />
                                         "読み込み中..."
                                     }
                                         .into_any()
@@ -395,26 +238,6 @@ fn SearchForm(
                     </div>
                 </form>
             </div>
-        </div>
-    }
-}
-
-#[component]
-fn Alert(variant: &'static str, children: Children) -> impl IntoView {
-    let variant_class = match variant {
-        "warning" => "border-amber-200 bg-amber-50 text-amber-900",
-        "danger" => "border-red-200 bg-red-50 text-red-700",
-        "success" => "border-teal-200 bg-teal-50 text-teal-800",
-        _ => "border-blue-200 bg-blue-50 text-blue-800",
-    };
-    view! {
-        <div
-            class={format!(
-                "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {variant_class}"
-            )}
-            role="alert"
-        >
-            {children()}
         </div>
     }
 }

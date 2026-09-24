@@ -34,3 +34,92 @@
 
   --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
+
+@layer base {
+  html {
+    background: var(--color-bg-body);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    color: var(--color-dark);
+    background-color: var(--color-bg-body);
+    background-image:
+      linear-gradient(rgba(17, 24, 39, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(17, 24, 39, 0.025) 1px, transparent 1px),
+      linear-gradient(180deg, #f9faf7 0%, #eef2f3 100%);
+    background-size: 44px 44px, 44px 44px, 100% 100%;
+    font-feature-settings: "palt" 1;
+  }
+
+  ::selection {
+    background: rgba(192, 132, 3, 0.24);
+  }
+
+  [data-negative="true"] {
+    color: var(--color-negative) !important;
+    font-weight: 500;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+}
+
+@layer components {
+  .page-surface {
+    @apply relative flex-1 overflow-hidden rounded-[1.25rem] border border-slate-950/10 bg-white/90 p-6 shadow-[0_18px_60px_-48px_rgba(15,23,42,0.85)] backdrop-blur-sm;
+  }
+
+  .page-surface::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-950 via-amber-500 to-teal-700;
+  }
+
+  .form-input-container {
+    @apply w-full max-w-[400px];
+  }
+
+  .stat-grid {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-3;
+  }
+
+  .action-toolbar {
+    @apply flex flex-wrap items-center gap-3 rounded-xl border border-slate-950/10 bg-white/85 p-3 shadow-sm backdrop-blur;
+  }
+
+  .action-button-group {
+    @apply flex flex-wrap items-center gap-3;
+  }
+
+  .status-message {
+    @apply my-4 flex flex-col items-center gap-2;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-border {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+}

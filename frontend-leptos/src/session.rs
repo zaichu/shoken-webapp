@@ -6,7 +6,7 @@ fn oauth_authorize_url() -> String {
     format!("{}/api/v1/oauth/google/authorize", ApiClient::base_url())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
     pub loaded: RwSignal<bool>,
@@ -85,8 +85,8 @@ impl Default for SessionStore {
 
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
-    provide_context(session.clone());
-    let startup = session.clone();
+    provide_context(session);
+    let startup = session;
     leptos::task::spawn_local(async move {
         startup.check().await;
     });

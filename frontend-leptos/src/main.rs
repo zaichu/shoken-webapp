@@ -22,6 +22,7 @@ mod receipts_search_group_key;
 mod receipts_search_support;
 mod search;
 mod session;
+mod ui;
 
 use page::App;
 

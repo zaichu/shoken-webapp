@@ -593,11 +593,11 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     let csv = RwSignal::new(HashMap::new());
     let csv_files = RwSignal::new(HashMap::new());
 
-    let fetch_session = session.clone();
+    let fetch_session = session;
     let cache_signal = cache;
     let fetch = Action::new_unsync(move |(generation, tab): &(u64, ReceiptsTab)| {
         let (generation, tab) = (*generation, *tab);
-        let session = fetch_session.clone();
+        let session = fetch_session;
         async move {
             let rows = fetch_list(tab).await;
             if !should_apply_fetch_result(&session, generation) {
@@ -616,7 +616,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     });
 
     let store = ReceiptsStore {
-        session: session.clone(),
+        session,
         active_tab,
         search: RwSignal::new(ReceiptSearch::default()),
         visited,
@@ -735,7 +735,7 @@ mod tests {
                     TabState::Failed("データ取得に失敗しました".to_string()),
                 )]));
                 let store = ReceiptsStore {
-                    session: session.clone(),
+                    session,
                     active_tab: RwSignal::new(tab),
                     search: RwSignal::new(ReceiptSearch::default()),
                     visited: RwSignal::new(HashSet::from([tab])),
@@ -813,7 +813,7 @@ mod csv_tests {
         csv: HashMap<(u64, ReceiptsTab), CsvTabState>,
     ) -> ReceiptsStore {
         ReceiptsStore {
-            session: session.clone(),
+            session: *session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
             visited: RwSignal::new(HashSet::new()),
