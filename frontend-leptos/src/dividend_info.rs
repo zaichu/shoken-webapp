@@ -37,10 +37,13 @@ fn format_percentage_value(value: f64) -> String {
     format!("{:.2}%", to_fixed(value, 2))
 }
 
+/// 非同期応答の後着で表示が巻き戻らないよう、銘柄切替ごとのリビジョンを持つ
 #[derive(Clone, Copy)]
 pub(crate) struct DividendInfoStore {
     session: SessionStore,
     current: RwSignal<Option<(u64, String)>>,
+    code_revision: RwSignal<u64>,
+    balance_revision: RwSignal<u64>,
     asset_balance: RwSignal<Option<AssetBalance>>,
     per_share: RwSignal<Option<f64>>,
     per_share_loading: RwSignal<bool>,
@@ -51,6 +54,8 @@ impl DividendInfoStore {
         Self {
             session,
             current: RwSignal::new(None),
+            code_revision: RwSignal::new(0),
+            balance_revision: RwSignal::new(0),
             asset_balance: RwSignal::new(None),
             per_share: RwSignal::new(None),
             per_share_loading: RwSignal::new(false),
@@ -63,6 +68,7 @@ impl DividendInfoStore {
         if self.current.get_untracked() == next {
             return;
         }
+        self.code_revision.update(|revision| *revision += 1);
         self.current.set(next.clone());
         self.asset_balance.set(None);
         self.per_share.set(None);
@@ -71,24 +77,36 @@ impl DividendInfoStore {
             return;
         };
 
+        self.refresh_balance();
+        let revision = self.code_revision.get_untracked();
         let store = *self;
-        leptos::task::spawn_local({
-            let code = code.clone();
-            async move {
-                let client = ApiClient::read_client();
-                if let Ok(rows) = fetch_single_asset_balance(&client, &code).await {
-                    if store.is_active(generation, &code) {
-                        store.asset_balance.set(find_by_code(&rows, &code).cloned());
-                    }
-                }
-            }
-        });
         leptos::task::spawn_local(async move {
-            store.poll_dividend(generation, code).await;
+            store.poll_dividend(generation, revision, code).await;
         });
     }
 
-    fn is_active(&self, generation: u64, code: &str) -> bool {
+    /// 保有状況だけを再取得する。配当ポーリングは継続させるため code_revision は据え置く
+    pub fn refresh_balance(&self) {
+        let Some((generation, code)) = self.current.get_untracked() else {
+            return;
+        };
+        if !self.session.is_current(generation) {
+            return;
+        }
+        self.balance_revision.update(|revision| *revision += 1);
+        let revision = self.balance_revision.get_untracked();
+        let store = *self;
+        leptos::task::spawn_local(async move {
+            let client = ApiClient::read_client();
+            if let Ok(rows) = fetch_single_asset_balance(&client, &code).await {
+                if store.is_balance_active(generation, revision, &code) {
+                    store.asset_balance.set(find_by_code(&rows, &code).cloned());
+                }
+            }
+        });
+    }
+
+    fn is_current_code(&self, generation: u64, code: &str) -> bool {
         self.session.is_current(generation)
             && self
                 .current
@@ -96,21 +114,29 @@ impl DividendInfoStore {
                 .is_some_and(|(g, c)| g == generation && c == code)
     }
 
+    fn is_balance_active(&self, generation: u64, revision: u64, code: &str) -> bool {
+        self.balance_revision.get_untracked() == revision && self.is_current_code(generation, code)
+    }
+
+    fn is_poll_active(&self, generation: u64, revision: u64, code: &str) -> bool {
+        self.code_revision.get_untracked() == revision && self.is_current_code(generation, code)
+    }
+
     /// pending（バックエンド処理待ち）と通信失敗は別カウンタで打ち切る
-    async fn poll_dividend(&self, generation: u64, code: String) {
+    async fn poll_dividend(&self, generation: u64, revision: u64, code: String) {
         let codes = vec![code.clone()];
         let max_pending = dividend_pending_max_retries(1);
         let mut pending_used = 0u32;
         let mut network_used = 0u32;
         loop {
-            if !self.is_active(generation, &code) {
+            if !self.is_poll_active(generation, revision, &code) {
                 return;
             }
             self.per_share_loading.set(true);
             match fetch_dividend_batch(&codes).await {
                 Ok(batch) => {
                     let (maps, has_pending) = dividend_maps_from_batch(&batch);
-                    if !self.is_active(generation, &code) {
+                    if !self.is_poll_active(generation, revision, &code) {
                         return;
                     }
                     self.per_share.set(maps.per_share.get(&code).copied());
@@ -121,7 +147,7 @@ impl DividendInfoStore {
                     pending_used += 1;
                 }
                 Err(_) => {
-                    if !self.is_active(generation, &code) {
+                    if !self.is_poll_active(generation, revision, &code) {
                         return;
                     }
                     self.per_share_loading.set(false);
@@ -424,6 +450,21 @@ mod tests {
         }
     }
 
+    fn authenticated_session() -> SessionStore {
+        let session = SessionStore::new();
+        session.user.set(Some(crate::dto::SessionUser {
+            id: "a".to_string(),
+            email: "a@example.com".to_string(),
+            name: None,
+            picture_url: None,
+        }));
+        session
+    }
+
+    fn init_test_executor() {
+        let _ = any_spawner::Executor::init_futures_executor();
+    }
+
     #[test]
     fn search_security_code_matches_react_gating() {
         let rows = vec![dividend("7203", "トヨタ自動車"), dividend("6758", "ソニー")];
@@ -446,13 +487,7 @@ mod tests {
     fn set_code_dedupes_same_generation_code_and_clears_when_disabled() {
         let owner = Owner::new();
         owner.with(|| {
-            let session = SessionStore::new();
-            session.user.set(Some(crate::dto::SessionUser {
-                id: "a".to_string(),
-                email: "a@example.com".to_string(),
-                name: None,
-                picture_url: None,
-            }));
+            let session = authenticated_session();
             let generation = session.generation.get_untracked();
             let store = DividendInfoStore::new(session);
 
@@ -473,6 +508,31 @@ mod tests {
             assert!(store.current.get_untracked().is_none());
             assert!(store.asset_balance.get_untracked().is_none());
             assert!(store.per_share.get_untracked().is_none());
+        });
+    }
+
+    #[test]
+    fn set_code_bumps_revisions_so_stale_requests_stay_inactive() {
+        init_test_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = authenticated_session();
+            let generation = session.generation.get_untracked();
+            let store = DividendInfoStore::new(session);
+
+            store.set_code(generation, true, "7203");
+            let first_poll = store.code_revision.get_untracked();
+            let first_balance = store.balance_revision.get_untracked();
+
+            store.set_code(generation, true, "6758");
+            store.set_code(generation, true, "7203");
+            let latest_poll = store.code_revision.get_untracked();
+            assert!(latest_poll > first_poll);
+
+            // A→B→A と戻っても、先に投げたポーリング・保有数取得は再有効化しない
+            assert!(!store.is_poll_active(generation, first_poll, "7203"));
+            assert!(!store.is_balance_active(generation, first_balance, "7203"));
+            assert!(store.is_poll_active(generation, latest_poll, "7203"));
         });
     }
 
