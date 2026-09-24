@@ -151,8 +151,7 @@ jobs:
                 ? statusParts.join(' / ')
                 : 'Issue 紐づけ済み・未解決コメントなし';
 
-            const headSha =
-              context.payload.pull_request?.head?.sha ?? pr.headRefOid;
+            const headSha = pr.headRefOid;
             try {
               await github.rest.repos.createCommitStatus({
                 owner,
