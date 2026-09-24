@@ -64,7 +64,7 @@ jobs:
         run: |
           curl -sSfLO https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz
           curl -sSfLO https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz.sha256
-          sha256sum --check trunk-x86_64-unknown-linux-gnu.tar.gz.sha256
+          echo "$(tr -d '[:space:]' < trunk-x86_64-unknown-linux-gnu.tar.gz.sha256)  trunk-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
           tar -xzf trunk-x86_64-unknown-linux-gnu.tar.gz
           install -m 755 trunk ~/.cargo/bin/
 
