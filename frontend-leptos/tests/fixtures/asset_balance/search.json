@@ -1,0 +1,167 @@
+{
+  "filter_cases": [
+    {
+      "name": "empty_query",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "",
+      "expected_ids": ["toyota", "sony", "softbank"]
+    },
+    {
+      "name": "blank_query",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "   ",
+      "expected_ids": ["toyota", "sony", "softbank"]
+    },
+    {
+      "name": "code_partial",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "7203",
+      "expected_ids": ["toyota"]
+    },
+    {
+      "name": "code_substring",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "720",
+      "expected_ids": ["toyota"]
+    },
+    {
+      "name": "name_partial",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "ソニー",
+      "expected_ids": ["sony"]
+    },
+    {
+      "name": "name_shared_word",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "グループ",
+      "expected_ids": ["sony", "softbank"]
+    },
+    {
+      "name": "and_tokens",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "9984 グループ",
+      "expected_ids": ["softbank"]
+    },
+    {
+      "name": "and_tokens_no_match",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "7203 グループ",
+      "expected_ids": []
+    },
+    {
+      "name": "quoted_name",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "\"ソフトバンクグループ\"",
+      "expected_ids": ["softbank"]
+    },
+    {
+      "name": "label_half_width_colon",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "6758: ソニーグループ",
+      "expected_ids": ["sony"]
+    },
+    {
+      "name": "label_full_width_colon",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "6758： ソニーグループ",
+      "expected_ids": ["sony"]
+    },
+    {
+      "name": "no_match",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" },
+        { "id": "sony", "security_code": "6758", "security_name": "ソニーグループ" },
+        { "id": "softbank", "security_code": "9984", "security_name": "ソフトバンクグループ" }
+      ],
+      "query": "9999",
+      "expected_ids": []
+    }
+  ],
+  "suggest_cases": [
+    {
+      "name": "facets_first",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" }
+      ],
+      "facets": {
+        "securities": [
+          { "value": "9984", "label": "9984: ソフトバンクグループ", "count": 1 }
+        ]
+      },
+      "has_csv_file": false,
+      "expected": [
+        { "value": "9984", "label": "9984: ソフトバンクグループ" }
+      ]
+    },
+    {
+      "name": "from_display_data_without_facets",
+      "data": [
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" }
+      ],
+      "facets": null,
+      "has_csv_file": false,
+      "expected": [
+        { "value": "7203", "label": "7203: トヨタ自動車" }
+      ]
+    },
+    {
+      "name": "preview_ignores_facets",
+      "data": [
+        { "id": "preview", "security_code": "4568", "security_name": "プレビュー銘柄" }
+      ],
+      "facets": {
+        "securities": [
+          { "value": "9984", "label": "9984: ソフトバンクグループ", "count": 1 }
+        ]
+      },
+      "has_csv_file": true,
+      "expected": [
+        { "value": "4568", "label": "4568: プレビュー銘柄" }
+      ]
+    }
+  ]
+}
