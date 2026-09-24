@@ -516,6 +516,10 @@ pub fn AssetBalancePage() -> impl IntoView {
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
+    // React では showAll が PortfolioPieChart 内の useState にあり、
+    // AssetPortfolioSummary が子を描かなくなる(0件・全ゼロ・非表示)と
+    // アンマウントで破棄される。ページ側に持ち上げた show_all も、
+    // グラフを描かない分岐では上位20件表示(false)へ戻す。
     let show_all = RwSignal::new(false);
     Effect::new(move |_| {
         let generation = session.generation.get();
@@ -624,8 +628,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .filter(|(cached, _)| *cached == current)
                         .map(|(_, result)| result)
                     {
-                        None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
+                        None => {
+                            show_all.set(false);
+                            view! { <p role="status">"読み込み中..."</p> }.into_any()
+                        }
                         Some(Err(message)) => {
+                            show_all.set(false);
                             view! {
                                 <div role="alert">
                                     <strong>"エラー:"</strong>
@@ -637,6 +645,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         }
                         Some(Ok(loaded)) => {
                             if loaded.rows.is_empty() {
+                                show_all.set(false);
                                 view! {
                                     <div>
                                         <h3>"資産管理データがありません"</h3>
@@ -748,6 +757,7 @@ fn PortfolioSummary(
     show_all: RwSignal<bool>,
 ) -> impl IntoView {
     if views.is_empty() {
+        show_all.set(false);
         return view! {
             <div>
                 <h3>"該当する銘柄がありません"</h3>
@@ -809,6 +819,7 @@ fn PortfolioSummary(
 
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
+        show_all.set(false);
         return ().into_any();
     }
 
@@ -1567,6 +1578,60 @@ mod tests {
                     .summary
                     .map(|summary| summary.total_purchase_amount),
                 Some(rust_decimal_macros::dec!(888888))
+            );
+        });
+    }
+
+    #[test]
+    fn show_all_resets_when_summary_stops_drawing_the_chart() {
+        // React では showAll が PortfolioPieChart の useState にあり、
+        // AssetPortfolioSummary が子を描かなくなる(0件・全ゼロ)と
+        // アンマウントされて上位20件表示に戻る。ページ側の show_all も
+        // 同じ寿命にする。
+        let owner = Owner::new();
+        owner.with(|| {
+            let dividends = RwSignal::new(DividendMaps::default());
+            let show_all = RwSignal::new(true);
+            let views: Vec<HoldingView> =
+                (0..21).map(|id| holding_view(&balance_row(id))).collect();
+            let summary_view = |views: Vec<HoldingView>| {
+                PortfolioSummary(
+                    PortfolioSummaryProps::builder()
+                        .views(views)
+                        .total_count(21)
+                        .is_filtered(true)
+                        .on_clear_filter(|| {})
+                        .summary(None)
+                        .dividends(dividends)
+                        .show_all(show_all)
+                        .build(),
+                )
+            };
+
+            // グラフが描かれている間は全件表示を保持する
+            let _ = summary_view(views.clone());
+            assert!(show_all.get_untracked());
+
+            // 絞り込み0件でグラフが消えると上位20件表示に戻る
+            let _ = summary_view(Vec::new());
+            assert!(!show_all.get_untracked());
+
+            // 価値ゼロの銘柄だけに絞ってサマリーごと消えても同じく戻る
+            show_all.set(true);
+            let mut zero = balance_row(9999);
+            zero.total_purchase_amount = rust_decimal_macros::dec!(0);
+            zero.market_value = rust_decimal_macros::dec!(0);
+            let _ = summary_view(vec![holding_view(&zero)]);
+            assert!(!show_all.get_untracked());
+
+            // 絞り込み解除で戻っても全件表示は復活しない
+            let _ = summary_view(views);
+            assert!(!show_all.get_untracked());
+            let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
+            assert_eq!(display.visible_count, 20);
+            assert_eq!(
+                display.toggle_label.as_deref(),
+                Some("残り1銘柄を表示（全21）")
             );
         });
     }
