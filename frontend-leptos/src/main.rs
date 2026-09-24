@@ -6,6 +6,8 @@ mod asset_balance_portfolio;
 mod asset_balance_search;
 mod confirm_modal;
 mod csv_rail;
+mod dividend_info;
+mod dividend_per_share;
 mod dto;
 mod home_page;
 mod login_page;
@@ -21,6 +23,7 @@ mod receipts_search;
 mod receipts_search_group_key;
 mod receipts_search_support;
 mod search;
+mod security_link;
 mod session;
 mod ui;
 

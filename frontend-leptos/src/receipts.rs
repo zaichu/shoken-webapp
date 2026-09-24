@@ -67,45 +67,73 @@ pub enum ReceiptItem {
     MutualFund(crate::dto::Mutualfund),
 }
 
+/// テーブル1セルの内容。React の列定義で銘柄コードは `/search` へのリンク、
+/// 銘柄名・ファンド名はコピーボタンを出すため、表示文字列とは別に種別を持つ。
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReceiptCell {
+    Text(String),
+    SecurityCode(String),
+    InstrumentName { name: String, code: Option<String> },
+}
+
+#[cfg(test)]
+impl ReceiptCell {
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Text(value) | Self::SecurityCode(value) => value,
+            Self::InstrumentName { name, .. } => name,
+        }
+    }
+}
+
 impl ReceiptItem {
-    pub fn cells(&self) -> Vec<String> {
+    pub fn cells(&self) -> Vec<ReceiptCell> {
         match self {
             ReceiptItem::Dividend(row) => vec![
-                format_date(&row.settlement_date),
-                row.product.clone(),
-                row.account.clone(),
-                row.security_code.clone(),
-                row.security_name.clone(),
-                format_currency(row.unit_price),
-                format_number(row.shares, 2),
-                format_currency(row.dividends_before_tax),
-                format_currency(row.taxes),
-                format_currency(row.net_amount_received),
+                ReceiptCell::Text(format_date(&row.settlement_date)),
+                ReceiptCell::Text(row.product.clone()),
+                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::SecurityCode(row.security_code.clone()),
+                ReceiptCell::InstrumentName {
+                    name: row.security_name.clone(),
+                    code: Some(row.security_code.clone()),
+                },
+                ReceiptCell::Text(format_currency(row.unit_price)),
+                ReceiptCell::Text(format_number(row.shares, 2)),
+                ReceiptCell::Text(format_currency(row.dividends_before_tax)),
+                ReceiptCell::Text(format_currency(row.taxes)),
+                ReceiptCell::Text(format_currency(row.net_amount_received)),
             ],
             ReceiptItem::DomesticStock(row) => vec![
-                format_date(&row.trade_date),
-                row.security_code.clone(),
-                row.security_name.clone(),
-                row.account.clone(),
-                format_number(row.shares, 2),
-                format_currency(row.asked_price),
-                format_currency(row.proceeds),
-                format_currency(row.purchase_price),
-                format_currency(row.realized_profit_and_loss),
-                format_currency(row.taxes),
-                format_currency(row.realized_profit_and_loss_after_tax),
+                ReceiptCell::Text(format_date(&row.trade_date)),
+                ReceiptCell::SecurityCode(row.security_code.clone()),
+                ReceiptCell::InstrumentName {
+                    name: row.security_name.clone(),
+                    code: Some(row.security_code.clone()),
+                },
+                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::Text(format_number(row.shares, 2)),
+                ReceiptCell::Text(format_currency(row.asked_price)),
+                ReceiptCell::Text(format_currency(row.proceeds)),
+                ReceiptCell::Text(format_currency(row.purchase_price)),
+                ReceiptCell::Text(format_currency(row.realized_profit_and_loss)),
+                ReceiptCell::Text(format_currency(row.taxes)),
+                ReceiptCell::Text(format_currency(row.realized_profit_and_loss_after_tax)),
             ],
             ReceiptItem::MutualFund(row) => vec![
-                format_date(&row.trade_date),
-                row.fund_name.clone(),
-                row.account.clone(),
-                format_number(row.shares, 2),
-                format_currency(row.cancellation_unit_price_yen),
-                format_currency(row.cancellation_amount_yen),
-                format_currency(row.average_acquisition_price_yen),
-                format_currency(row.realized_profit_and_loss),
-                format_currency(row.taxes),
-                format_currency(row.realized_profit_and_loss_after_tax),
+                ReceiptCell::Text(format_date(&row.trade_date)),
+                ReceiptCell::InstrumentName {
+                    name: row.fund_name.clone(),
+                    code: None,
+                },
+                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::Text(format_number(row.shares, 2)),
+                ReceiptCell::Text(format_currency(row.cancellation_unit_price_yen)),
+                ReceiptCell::Text(format_currency(row.cancellation_amount_yen)),
+                ReceiptCell::Text(format_currency(row.average_acquisition_price_yen)),
+                ReceiptCell::Text(format_currency(row.realized_profit_and_loss)),
+                ReceiptCell::Text(format_currency(row.taxes)),
+                ReceiptCell::Text(format_currency(row.realized_profit_and_loss_after_tax)),
             ],
         }
     }
@@ -801,7 +829,7 @@ mod tests {
         .expect("deserialize");
         let cells = ReceiptItem::Dividend(row).cells();
         assert_eq!(
-            cells,
+            cells.iter().map(ReceiptCell::text).collect::<Vec<_>>(),
             vec![
                 "2024/03/01",
                 "特定口座",
@@ -814,6 +842,14 @@ mod tests {
                 "¥ 609",
                 "¥ 2,391",
             ]
+        );
+        assert_eq!(cells[3], ReceiptCell::SecurityCode("7203".to_string()));
+        assert_eq!(
+            cells[4],
+            ReceiptCell::InstrumentName {
+                name: "トヨタ自動車".to_string(),
+                code: Some("7203".to_string()),
+            }
         );
     }
 }
