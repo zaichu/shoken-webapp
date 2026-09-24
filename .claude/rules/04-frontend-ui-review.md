@@ -6,10 +6,11 @@
 **MCPでもE2Eでも、やることと成果物は同じ。**
 
 ## Usage
-```
-/ui-review                    # 完全自動レビュー
-/ui-review --screenshots-only # スクリーンショットのみ
-/ui-review --review-only      # 既存画像の分析のみ
+
+UIレビューの標準入口は `./scripts/run-ui-e2e.sh` です。主要ページと CSV CRUD のスクリーンショットは、引数なしでまとめて取得します。
+
+```bash
+./scripts/run-ui-e2e.sh
 ```
 
 ## 完了条件
