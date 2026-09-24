@@ -31,6 +31,8 @@ cargo clippy --target wasm32-unknown-unknown -- -D warnings
 
 `playwright.leptos.config.ts` は `frontend/e2e` の既存 spec (search-flow / receipt-flow) を無改修で実行する。`playwright.receipts.config.ts` は `e2e/receipts-cache.spec.ts` (4件) を実行する。
 
+E2E のポートは `LEPTOS_E2E_PORT` で変えられる (既定 8081)。複数の worktree で並行して Playwright を回すときは、worktree ごとに別ポートを指定する (`LEPTOS_E2E_PORT=8091 npx playwright test ...`)。同じポートだと `reuseExistingServer` が別 worktree の trunk serve を拾い、自分のコード以外に対してテストが走る。
+
 ## CSS
 
 Tailwind browser CDN は使わない。`style/input.css` (`@theme` は `frontend/src/styles/tailwind.css` から流用) を Trunk の pre_build フックで `@tailwindcss/cli` (lock 済み) により `style/output.css` へ生成し、`index.html` の `<link data-trunk rel="css">` で成果物に含める。生成物は git 管理外。
