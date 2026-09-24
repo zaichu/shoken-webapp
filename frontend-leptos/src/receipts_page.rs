@@ -2,8 +2,8 @@ use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_rail::CsvActionRail;
 use crate::dto::{Dividend, Mutualfund};
 use crate::receipts::{
-    select_header_summary, use_receipts_data, ReceiptItem, ReceiptSummary, ReceiptTabData,
-    ReceiptsStore, ReceiptsTab, TabState,
+    select_header_summary, truncated_list_warning, use_receipts_data, ReceiptItem, ReceiptSummary,
+    ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
 use crate::receipts_csv::{row_error_text, CsvPreviewRow};
 use crate::receipts_domain::{
@@ -237,6 +237,7 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                                         data=ReceiptTabData {
                                             rows: Vec::new(),
                                             summary: None,
+                                            truncated: false,
                                         }
                                     />
                                 </div>
@@ -435,6 +436,7 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
+    let truncated = data.truncated;
     let display_store = store.clone();
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => preview
@@ -467,6 +469,15 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     let clear_picker = year_picker_open;
     view! {
         <section>
+            {truncated.then(|| {
+                view! {
+                    <section class="px-5 py-4" role="status" aria-live="polite">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                            {truncated_list_warning()}
+                        </div>
+                    </section>
+                }
+            })}
             <div
                 class="mb-3 rounded-lg border border-slate-200 bg-white p-4"
                 role="search"
@@ -528,6 +539,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                     &ReceiptTabData {
                         rows: rows.clone(),
                         summary: summary.clone(),
+                        truncated: false,
                     },
                     &query,
                     preview_active.get(),

@@ -9,6 +9,7 @@ use crate::receipts_filter::ReceiptSearch;
 use crate::receipts_pagination::PageCollector;
 use crate::session::SessionStore;
 use leptos::prelude::*;
+use rust_decimal::Decimal;
 use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 
@@ -121,6 +122,7 @@ pub enum ReceiptSummary {
 pub struct ReceiptTabData {
     pub rows: Vec<ReceiptItem>,
     pub summary: Option<ReceiptSummary>,
+    pub truncated: bool,
 }
 
 pub fn select_header_summary<T: Clone>(
@@ -140,29 +142,46 @@ const RECEIPT_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
 const RECEIPT_LIST_MAX_PAGES: usize = 100;
 
-async fn fetch_pages<R, T, S>(
+pub fn truncated_list_warning() -> String {
+    format!(
+        "一覧は最大{}件まで表示しています。検索条件を絞り込んでください。",
+        format_number(
+            Decimal::from(RECEIPT_LIST_PER_PAGE * RECEIPT_LIST_MAX_PAGES),
+            0
+        )
+    )
+}
+
+async fn fetch_receipt_page<R: DeserializeOwned>(
     client: &ApiClient,
     path: &str,
+    page_no: usize,
+) -> Result<R, ApiError> {
+    let per_page = RECEIPT_LIST_PER_PAGE.to_string();
+    let page = page_no.to_string();
+    let query = [
+        ("per_page", per_page.as_str()),
+        ("page", page.as_str()),
+        (
+            "include_summary",
+            if page_no == 1 { "true" } else { "false" },
+        ),
+    ];
+    client.get_json::<R>(path, &query).await
+}
+
+async fn fetch_pages<R, T, S, Fut>(
+    fetch_page: impl Fn(usize) -> Fut,
     into_parts: impl Fn(R) -> (Vec<T>, i64, Option<S>),
-) -> Result<(Vec<T>, Option<S>), ApiError>
+) -> Result<(Vec<T>, Option<S>, bool), ApiError>
 where
-    R: DeserializeOwned,
+    Fut: std::future::Future<Output = Result<R, ApiError>>,
 {
     let mut pages = PageCollector::new(RECEIPT_LIST_PER_PAGE, RECEIPT_LIST_MAX_PAGES);
-    let per_page = RECEIPT_LIST_PER_PAGE.to_string();
     let mut summary = None;
     loop {
         let page_no = pages.next_page();
-        let page = page_no.to_string();
-        let query = [
-            ("per_page", per_page.as_str()),
-            ("page", page.as_str()),
-            (
-                "include_summary",
-                if page_no == 1 { "true" } else { "false" },
-            ),
-        ];
-        let (data, total, page_summary) = into_parts(client.get_json::<R>(path, &query).await?);
+        let (data, total, page_summary) = into_parts(fetch_page(page_no).await?);
         if page_no == 1 {
             summary = page_summary;
         }
@@ -170,42 +189,43 @@ where
             break;
         }
     }
-    Ok((pages.into_rows(), summary))
+    let truncated = pages.truncated();
+    Ok((pages.into_rows(), summary, truncated))
 }
 
 async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     let client = ApiClient::read_client();
     match tab {
-        ReceiptsTab::Dividend => {
-            fetch_pages(&client, tab.list_path(), |r: DividendListResponse| {
-                (r.data, r.total, r.summary)
-            })
-            .await
-            .map(|(rows, summary)| ReceiptTabData {
-                rows: rows.into_iter().map(ReceiptItem::Dividend).collect(),
-                summary: summary.map(ReceiptSummary::Dividend),
-            })
-        }
-        ReceiptsTab::DomesticStock => {
-            fetch_pages(&client, tab.list_path(), |r: DomesticStockListResponse| {
-                (r.data, r.total, r.summary)
-            })
-            .await
-            .map(|(rows, summary)| ReceiptTabData {
-                rows: rows.into_iter().map(ReceiptItem::DomesticStock).collect(),
-                summary: summary.map(ReceiptSummary::DomesticStock),
-            })
-        }
-        ReceiptsTab::MutualFund => {
-            fetch_pages(&client, tab.list_path(), |r: MutualfundListResponse| {
-                (r.data, r.total, r.summary)
-            })
-            .await
-            .map(|(rows, summary)| ReceiptTabData {
-                rows: rows.into_iter().map(ReceiptItem::MutualFund).collect(),
-                summary: summary.map(ReceiptSummary::MutualFund),
-            })
-        }
+        ReceiptsTab::Dividend => fetch_pages(
+            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
+            |r: DividendListResponse| (r.data, r.total, r.summary),
+        )
+        .await
+        .map(|(rows, summary, truncated)| ReceiptTabData {
+            rows: rows.into_iter().map(ReceiptItem::Dividend).collect(),
+            summary: summary.map(ReceiptSummary::Dividend),
+            truncated,
+        }),
+        ReceiptsTab::DomesticStock => fetch_pages(
+            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
+            |r: DomesticStockListResponse| (r.data, r.total, r.summary),
+        )
+        .await
+        .map(|(rows, summary, truncated)| ReceiptTabData {
+            rows: rows.into_iter().map(ReceiptItem::DomesticStock).collect(),
+            summary: summary.map(ReceiptSummary::DomesticStock),
+            truncated,
+        }),
+        ReceiptsTab::MutualFund => fetch_pages(
+            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
+            |r: MutualfundListResponse| (r.data, r.total, r.summary),
+        )
+        .await
+        .map(|(rows, summary, truncated)| ReceiptTabData {
+            rows: rows.into_iter().map(ReceiptItem::MutualFund).collect(),
+            summary: summary.map(ReceiptSummary::MutualFund),
+            truncated,
+        }),
     }
 }
 
@@ -524,6 +544,7 @@ impl ReceiptsStore {
                         *entry = TabState::Ready(ReceiptTabData {
                             rows: Vec::new(),
                             summary: None,
+                            truncated: false,
                         });
                     }
                 });
@@ -656,6 +677,9 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
 
     store
 }
+
+#[cfg(test)]
+mod fetch_tests;
 
 #[cfg(test)]
 mod tests {
@@ -888,6 +912,7 @@ mod csv_tests {
                     TabState::Ready(ReceiptTabData {
                         rows: Vec::new(),
                         summary: None,
+                        truncated: false,
                     }),
                 )]),
                 HashMap::from([(
@@ -1045,6 +1070,7 @@ mod csv_tests {
                             .expect("dividend"),
                         )],
                         summary: None,
+                        truncated: false,
                     }),
                 )]),
                 HashMap::from([(
@@ -1256,6 +1282,7 @@ mod csv_tests {
                     TabState::Ready(ReceiptTabData {
                         rows: Vec::new(),
                         summary: None,
+                        truncated: false,
                     }),
                 )]),
                 HashMap::new(),
@@ -1283,6 +1310,7 @@ mod csv_tests {
             TabState::Ready(ReceiptTabData {
                 rows: Vec::new(),
                 summary: None,
+                truncated: false,
             }),
         );
         assert!(mark_tab_for_refresh(&mut map, 0, ReceiptsTab::Dividend));
@@ -1338,6 +1366,7 @@ mod search_tests {
                     TabState::Ready(ReceiptTabData {
                         rows: dividends(),
                         summary: None,
+                        truncated: false,
                     }),
                 )])),
                 fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),

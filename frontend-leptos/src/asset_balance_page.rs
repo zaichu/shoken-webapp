@@ -44,6 +44,7 @@ struct LoadedAssetBalances {
     rows: Vec<AssetBalance>,
     summary: Option<AssetBalanceSummary>,
     facets: Option<SearchFacets>,
+    truncated: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -95,11 +96,12 @@ struct AssetBalancePages {
 
 impl AssetBalancePages {
     fn new() -> Self {
+        Self::with_limits(ASSET_BALANCE_LIST_PER_PAGE, ASSET_BALANCE_LIST_MAX_PAGES)
+    }
+
+    fn with_limits(per_page: usize, max_pages: usize) -> Self {
         Self {
-            collector: PageCollector::new(
-                ASSET_BALANCE_LIST_PER_PAGE,
-                ASSET_BALANCE_LIST_MAX_PAGES,
-            ),
+            collector: PageCollector::new(per_page, max_pages),
             summary: None,
             facets: None,
         }
@@ -117,25 +119,18 @@ impl AssetBalancePages {
         self.collector.push(page.data, page.total)
     }
 
-    fn finish(
-        self,
-    ) -> (
-        Vec<AssetBalance>,
-        Option<AssetBalanceSummary>,
-        Option<SearchFacets>,
-    ) {
-        (self.collector.into_rows(), self.summary, self.facets)
+    fn finish(self) -> LoadedAssetBalances {
+        let truncated = self.collector.truncated();
+        LoadedAssetBalances {
+            rows: self.collector.into_rows(),
+            summary: self.summary,
+            facets: self.facets,
+            truncated,
+        }
     }
 }
 
-async fn fetch_asset_balances() -> Result<
-    (
-        Vec<AssetBalance>,
-        Option<AssetBalanceSummary>,
-        Option<SearchFacets>,
-    ),
-    ApiError,
-> {
+async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
     let mut pages = AssetBalancePages::new();
     loop {
         let response = fetch_asset_balance_page(pages.next_page()).await?;
@@ -144,6 +139,13 @@ async fn fetch_asset_balances() -> Result<
         }
     }
     Ok(pages.finish())
+}
+
+fn truncated_list_warning() -> String {
+    format!(
+        "一覧は最大{}件まで表示しています。未表示の銘柄がある可能性があります。",
+        format_number_value((ASSET_BALANCE_LIST_PER_PAGE * ASSET_BALANCE_LIST_MAX_PAGES) as f64)
+    )
 }
 
 fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
@@ -541,26 +543,20 @@ pub fn AssetBalancePage() -> impl IntoView {
                         balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
                     }
                 }
-                Ok((rows, summary, facets)) => {
+                Ok(loaded) => {
                     if !should_apply_asset_balance_result(&session, generation) {
                         return;
                     }
-                    lookup.update(|store| store.seed(generation, &rows));
+                    lookup.update(|store| store.seed(generation, &loaded.rows));
                     let codes = unique_sorted_codes(
-                        &rows
+                        &loaded
+                            .rows
                             .iter()
                             .map(|row| row.security_code.clone())
                             .collect::<Vec<_>>(),
                     );
                     dividends.set(DividendMaps::default());
-                    balances.set(Some((
-                        generation,
-                        Ok(LoadedAssetBalances {
-                            rows,
-                            summary,
-                            facets,
-                        }),
-                    )));
+                    balances.set(Some((generation, Ok(loaded))));
                     let missing: Vec<String> = codes
                         .iter()
                         .filter(|code| {
@@ -656,9 +652,19 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     false,
                                 );
                                 let total_count = loaded.rows.len();
+                                let truncated = loaded.truncated;
                                 let FilteredPortfolio { views, summary } =
                                     filtered_portfolio(&loaded, &query, lookup, current);
                                 view! {
+                                    {truncated.then(|| {
+                                        view! {
+                                            <section class="px-5 py-4" role="status" aria-live="polite">
+                                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                                                    {truncated_list_warning()}
+                                                </div>
+                                            </section>
+                                        }
+                                    })}
                                     <AssetBalanceSearchCard query=search_query options=options />
                                     <PortfolioSummary
                                         views=views
@@ -1329,6 +1335,9 @@ fn HoldingValuationCard(item: ChartItem, dividends: RwSignal<DividendMaps>) -> i
 }
 
 #[cfg(test)]
+mod pages_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::dto::SessionUser;
@@ -1504,6 +1513,7 @@ mod tests {
                     total_daily_change: rust_decimal_macros::dec!(0),
                 }),
                 facets: None,
+                truncated: false,
             };
             let lookup = RwSignal::new(AssetBalanceLookupStore::new());
             lookup.update(|store| store.seed(1, &loaded.rows));
@@ -1696,6 +1706,7 @@ mod tests {
                     rows: vec![],
                     summary: None,
                     facets: None,
+                    truncated: false,
                 }),
             )));
             apply_dividend_maps(&balances, &dividends, 8, fresh.clone());
@@ -1717,6 +1728,7 @@ mod tests {
                     rows: vec![],
                     summary: None,
                     facets: None,
+                    truncated: false,
                 }),
             )));
             let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
@@ -1801,17 +1813,18 @@ mod tests {
         assert_eq!(pages.next_page(), 3);
         assert!(!pages.push(balance_page(2000..2300, 2300, None)));
 
-        let (rows, summary, facets) = pages.finish();
-        assert_eq!(rows.len(), 2300);
-        assert_eq!(rows[0].id, "id-0");
-        assert_eq!(rows[2299].id, "id-2299");
+        let loaded = pages.finish();
+        assert_eq!(loaded.rows.len(), 2300);
+        assert_eq!(loaded.rows[0].id, "id-0");
+        assert_eq!(loaded.rows[2299].id, "id-2299");
         // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
         assert_eq!(
-            summary.map(|summary| summary.total_purchase_amount),
+            loaded.summary.map(|summary| summary.total_purchase_amount),
             Some(rust_decimal_macros::dec!(10))
         );
         assert_eq!(
-            facets
+            loaded
+                .facets
                 .and_then(|facets| facets.securities)
                 .map(|securities| securities.len()),
             Some(1)
@@ -1822,8 +1835,8 @@ mod tests {
     fn asset_balance_pages_stop_when_first_page_is_short() {
         let mut pages = AssetBalancePages::new();
         assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
-        let (rows, summary, _facets) = pages.finish();
-        assert_eq!(rows.len(), 3);
-        assert!(summary.is_some());
+        let loaded = pages.finish();
+        assert_eq!(loaded.rows.len(), 3);
+        assert!(loaded.summary.is_some());
     }
 }
