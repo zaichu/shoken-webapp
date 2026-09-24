@@ -1,0 +1,145 @@
+name: PR gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  issue_comment:
+  pull_request_review:
+  pull_request_review_comment:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gate:
+    name: PR gate
+    runs-on: ubuntu-latest
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      statuses: write
+    steps:
+      - name: Check linked issue and unresolved comments
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
+        with:
+          script: |
+            const prNumber =
+              context.payload.pull_request?.number ?? context.payload.issue?.number;
+            const { owner, repo } = context.repo;
+
+            const prQuery = `
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    body
+                    headRefOid
+                    closingIssuesReferences(first: 1) {
+                      totalCount
+                    }
+                  }
+                }
+              }
+            `;
+            const listQuery = (field) => `
+              query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    ${field}(first: 100, after: $cursor) {
+                      nodes {
+                        isMinimized
+                        body
+                        url
+                        author {
+                          __typename
+                          login
+                        }
+                      }
+                      pageInfo {
+                        hasNextPage
+                        endCursor
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const prResult = await github.graphql(prQuery, {
+              owner,
+              repo,
+              pr: prNumber,
+            });
+            const pr = prResult.repository.pullRequest;
+            if (!pr) {
+              core.setFailed(`pull request #${prNumber} not found`);
+              return;
+            }
+
+            const fetchAll = async (field) => {
+              const nodes = [];
+              let cursor = null;
+              do {
+                const result = await github.graphql(listQuery(field), {
+                  owner,
+                  repo,
+                  pr: prNumber,
+                  cursor,
+                });
+                const connection = result.repository.pullRequest[field];
+                nodes.push(...connection.nodes.filter(Boolean));
+                cursor = connection.pageInfo.hasNextPage
+                  ? connection.pageInfo.endCursor
+                  : null;
+              } while (cursor);
+              return nodes;
+            };
+            const comments = await fetchAll('comments');
+            const reviews = await fetchAll('reviews');
+
+            const linked =
+              pr.closingIssuesReferences.totalCount > 0 ||
+              /(Refs|Part of)\s+#\d+/i.test(pr.body ?? '');
+
+            // author=null(退会済みアカウント)は bot と判定できないため人のコメントとして扱う
+            const isBot = (author) =>
+              author?.__typename === 'Bot' ||
+              (author?.login ?? '').endsWith('[bot]');
+            const unresolved = [...comments, ...reviews].filter((node) => {
+              const body = node.body ?? '';
+              return (
+                !isBot(node.author) &&
+                !node.isMinimized &&
+                body.trim() !== '' &&
+                !body.includes('<!-- no-action -->')
+              );
+            });
+
+            const problems = [];
+            if (!linked) problems.push('Issue が紐づいていません');
+            if (unresolved.length > 0) {
+              problems.push(`未解決のコメントが ${unresolved.length} 件あります`);
+            }
+
+            core.info(`linked issue: ${linked}`);
+            for (const node of unresolved) {
+              core.info(`unresolved comment: ${node.url}`);
+            }
+
+            const headSha =
+              context.payload.pull_request?.head?.sha ?? pr.headRefOid;
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: headSha,
+              state: problems.length > 0 ? 'failure' : 'success',
+              context: 'PR gate',
+              description: (
+                problems.length > 0
+                  ? problems.join(' / ')
+                  : 'Issue 紐づけ済み・未解決コメントなし'
+              ).slice(0, 140),
+              target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
+            });
