@@ -76,28 +76,28 @@ impl SessionStore {
     }
 
     pub async fn delete_account(&self) -> Result<(), ApiError> {
-        let client = ApiClient::default_client();
-        let result = async {
-            client
-                .with_max_retries(0)
-                .post_json::<serde_json::Value, MessageResponse>(
-                    "/api/v1/account-deletion-confirmations",
-                    &serde_json::json!({}),
-                )
-                .await?;
-            client.delete_empty("/api/v1/account").await
-        }
-        .await;
-        // 削除要求がサーバーへ届いたか曖昧な失敗では、セッション無効化をもって削除完了とみなす
-        let result = match result {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                if session_invalidated().await {
-                    Ok(())
-                } else {
-                    Err(error)
+        let client = ApiClient::default_client().with_max_retries(0);
+        let result = match client
+            .post_json::<serde_json::Value, MessageResponse>(
+                "/api/v1/account-deletion-confirmations",
+                &serde_json::json!({}),
+            )
+            .await
+        {
+            Err(error) => Err(error),
+            Ok(_) => match client.delete_empty("/api/v1/account").await {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    // 削除要求が届いたか曖昧な失敗(応答喪失)だけ、セッション無効化をもって削除完了とみなす
+                    if matches!(error, ApiError::Network | ApiError::Timeout)
+                        && session_invalidated().await
+                    {
+                        Ok(())
+                    } else {
+                        Err(error)
+                    }
                 }
-            }
+            },
         };
         self.mark_unauthenticated();
         self.loaded.set(true);
