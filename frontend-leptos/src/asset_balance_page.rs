@@ -10,7 +10,9 @@ use crate::asset_balance_portfolio::{chart_display, chart_plan};
 use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
+use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_flow::{csv_error_message, CsvTabState};
+use crate::csv_rail::CsvActionRail;
 use crate::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
     unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
@@ -31,6 +33,7 @@ use rust_decimal::Decimal;
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
 const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
+const ASSET_BALANCE_LIST_LIMIT: usize = ASSET_BALANCE_LIST_PER_PAGE * ASSET_BALANCE_LIST_MAX_PAGES;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
@@ -40,6 +43,8 @@ const CHART_COLORS: [&str; 10] = [
 #[derive(Clone, Debug)]
 struct LoadedAssetBalances {
     rows: Vec<AssetBalance>,
+    // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
+    total: usize,
     summary: Option<AssetBalanceSummary>,
     facets: Option<SearchFacets>,
     truncated: bool,
@@ -97,9 +102,12 @@ impl AssetBalancePages {
     }
 
     fn finish(self) -> LoadedAssetBalances {
+        let total = self.collector.total();
         let truncated = self.collector.truncated();
+        let rows = self.collector.into_rows();
         LoadedAssetBalances {
-            rows: self.collector.into_rows(),
+            total: total.unwrap_or(rows.len()),
+            rows,
             summary: self.summary,
             facets: self.facets,
             truncated,
@@ -183,9 +191,10 @@ async fn poll_dividend_maps(
 fn effective_summary(
     summary: Option<AssetBalanceSummary>,
     query: &str,
+    has_csv_file: bool,
 ) -> Option<AssetBalanceSummary> {
-    // 検索中は API の summary が絞り込み前の全体集計のままなので使わない
-    if query.is_empty() {
+    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない
+    if query.is_empty() && !has_csv_file {
         summary
     } else {
         None
@@ -199,23 +208,30 @@ struct FilteredPortfolio {
 }
 
 fn filtered_portfolio(
-    loaded: &LoadedAssetBalances,
+    rows: &[AssetBalance],
+    summary: Option<AssetBalanceSummary>,
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: u64,
+    has_csv_file: bool,
 ) -> FilteredPortfolio {
-    let views = filter_asset_balances(&loaded.rows, query)
+    let views = filter_asset_balances(rows, query)
         .into_iter()
         .map(|row| {
-            let resolved = lookup
-                .with(|store| store.get(generation, &row.security_code).cloned())
-                .unwrap_or_else(|| row.clone());
+            // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
+            let resolved = if has_csv_file {
+                row.clone()
+            } else {
+                lookup
+                    .with(|store| store.get(generation, &row.security_code).cloned())
+                    .unwrap_or_else(|| row.clone())
+            };
             holding_view(&resolved)
         })
         .collect();
     FilteredPortfolio {
         views,
-        summary: effective_summary(loaded.summary.clone(), query),
+        summary: effective_summary(summary, query, has_csv_file),
     }
 }
 
@@ -247,13 +263,12 @@ fn load_asset_balances(
                     balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
                 }
             }
-            Ok((rows, summary, facets)) => {
+            Ok(loaded) => {
                 if !should_apply_asset_balance_result(&session, generation) {
                     return;
                 }
-                let (codes, missing) = apply_loaded_asset_balances(
-                    generation, rows, summary, facets, balances, dividends, lookup,
-                );
+                let (codes, missing) =
+                    apply_loaded_asset_balances(generation, loaded, balances, dividends, lookup);
                 if !missing.is_empty() {
                     let session = session.clone();
                     leptos::task::spawn_local(async move {
@@ -287,29 +302,21 @@ fn load_asset_balances(
 // 戻り値は (配当ポーリング対象の全コード, 個別再取得が必要なコード)
 fn apply_loaded_asset_balances(
     generation: u64,
-    rows: Vec<AssetBalance>,
-    summary: Option<AssetBalanceSummary>,
-    facets: Option<SearchFacets>,
+    loaded: LoadedAssetBalances,
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
 ) -> (Vec<String>, Vec<String>) {
-    lookup.update(|store| store.seed(generation, &rows));
+    lookup.update(|store| store.seed(generation, &loaded.rows));
     let codes = unique_sorted_codes(
-        &rows
+        &loaded
+            .rows
             .iter()
             .map(|row| row.security_code.clone())
             .collect::<Vec<_>>(),
     );
     dividends.set(DividendMaps::default());
-    balances.set(Some((
-        generation,
-        Ok(LoadedAssetBalances {
-            rows,
-            summary,
-            facets,
-        }),
-    )));
+    balances.set(Some((generation, Ok(loaded))));
     let missing: Vec<String> = codes
         .iter()
         .filter(|code| lookup.with_untracked(|store| store.needs_fetch(generation, code, true)))
@@ -331,7 +338,6 @@ fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
 
 // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
 #[derive(Clone)]
-#[allow(dead_code)]
 struct AssetBalanceCsvStore {
     session: SessionStore,
     balances: RwSignal<BalanceSlot>,
@@ -341,7 +347,6 @@ struct AssetBalanceCsvStore {
     csv_file: RwSignal<AssetCsvFileSlot>,
 }
 
-#[allow(dead_code)]
 impl AssetBalanceCsvStore {
     fn new(
         session: SessionStore,
@@ -369,6 +374,27 @@ impl AssetBalanceCsvStore {
 
     fn csv_busy(&self) -> bool {
         self.csv_state().busy()
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.session.user.get().is_some()
+    }
+
+    // 削除件数はプレビューではなく DB 側の total を使う
+    fn db_count(&self) -> usize {
+        let generation = self.session.generation.get();
+        self.balances.with(|slot| match slot {
+            Some((cached, Ok(loaded))) if *cached == generation => loaded.total,
+            _ => 0,
+        })
+    }
+
+    fn list_loading(&self) -> bool {
+        let generation = self.session.generation.get();
+        self.session.user.get().is_some()
+            && self
+                .balances
+                .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation))
     }
 
     fn update_csv(
@@ -555,6 +581,7 @@ impl AssetBalanceCsvStore {
                         if *cached == generation {
                             *loaded = LoadedAssetBalances {
                                 rows: Vec::new(),
+                                total: 0,
                                 summary: None,
                                 facets: None,
                             };
@@ -767,10 +794,114 @@ fn format_dividend_yield(dividend: &HoldingDividend) -> String {
     }
 }
 
+fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalance> {
+    state
+        .preview
+        .as_ref()
+        .map(|preview| {
+            preview
+                .rows
+                .iter()
+                .map(AssetBalanceCsvRow::to_asset_balance)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+// 保存・削除中は一覧と並べて出し、プレビュー解析中はこれだけを出す
+fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option<&'static str> {
+    if state.saving {
+        Some("データを保存しています...")
+    } else if state.deleting {
+        Some("データを削除しています...")
+    } else if state.previewing {
+        Some("CSVファイルを解析しています...")
+    } else {
+        None
+    }
+}
+
+#[component]
+fn AssetBalanceContent(
+    state: CsvTabState<AssetBalanceCsvRow>,
+    rows: Vec<AssetBalance>,
+    summary: Option<AssetBalanceSummary>,
+    facets: Option<SearchFacets>,
+    warning: Option<String>,
+    search_query: RwSignal<String>,
+    dividends: RwSignal<DividendMaps>,
+    show_all: RwSignal<bool>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: u64,
+) -> impl IntoView {
+    if state.previewing {
+        show_all.set(false);
+        return view! { <CsvStatusMessage text="CSVファイルを解析しています..." /> }.into_any();
+    }
+    let has_csv_file = state.file_name.is_some();
+    let has_rows = !rows.is_empty();
+    let options = asset_balance_search_options(&rows, facets.as_ref(), has_csv_file);
+    let total_count = rows.len();
+    let status = csv_status_text(&state);
+    view! {
+        {warning.map(|text| {
+            view! {
+                <div class="px-5 py-4" role="status" aria-live="polite">
+                    <div
+                        class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm"
+                        role="alert"
+                    >
+                        {text}
+                    </div>
+                </div>
+            }
+        })}
+        {has_rows.then(|| view! { <AssetBalanceSearchCard query=search_query options=options /> })}
+        {status.map(|text| view! { <CsvStatusMessage text=text /> })}
+        {move || {
+            let query = search_query.get();
+            if rows.is_empty() && query.is_empty() {
+                show_all.set(false);
+                return view! {
+                    <div>
+                        <h3>"資産管理データがありません"</h3>
+                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
+                    </div>
+                }
+                    .into_any();
+            }
+            let FilteredPortfolio { views, summary } = filtered_portfolio(
+                &rows,
+                summary.clone(),
+                &query,
+                lookup,
+                generation,
+                has_csv_file,
+            );
+            view! {
+                <PortfolioSummary
+                    views=views
+                    total_count=total_count
+                    is_filtered=!query.is_empty()
+                    on_clear_filter=move || {
+                        search_query.set(clear_search_query())
+                    }
+                    summary=summary
+                    dividends=dividends
+                    show_all=show_all
+                />
+            }
+                .into_any()
+        }}
+    }
+    .into_any()
+}
+
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
-    let render_session = session;
+    let render_session = session.clone();
+    let busy_session = session.clone();
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -778,6 +909,12 @@ pub fn AssetBalancePage() -> impl IntoView {
     let reset_query = search_query;
     // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
     let show_all = RwSignal::new(false);
+    let csv_store = AssetBalanceCsvStore::new(session.clone(), balances, dividends, lookup);
+    let busy_csv = csv_store.clone();
+    let view_csv = csv_store.clone();
+    let modal_csv = csv_store.clone();
+    let alert_csv = csv_store.clone();
+    let alert_session = session.clone();
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
@@ -804,80 +941,223 @@ pub fn AssetBalancePage() -> impl IntoView {
                 eyebrow="Portfolio"
                 description="保有している銘柄の一覧と評価額を確認できます。"
             />
-            <div data-testid="assetbalance-workspace">
-                {move || {
-                    let current = render_session.generation.get();
-                    match balances
-                        .get()
-                        .filter(|(cached, _)| *cached == current)
-                        .map(|(_, result)| result)
-                    {
-                        None => {
-                            show_all.set(false);
-                            view! { <Loading /> }.into_any()
-                        }
-                        Some(Err(message)) => {
-                            show_all.set(false);
-                            view! {
-                                <div role="alert">
-                                    <strong>"エラー:"</strong>
-                                    " "
-                                    {message}
-                                </div>
-                            }
-                                .into_any()
-                        }
-                        Some(Ok(loaded)) => {
-                            if loaded.rows.is_empty() {
+            <div
+                class="mt-2"
+                aria-busy=move || {
+                    !busy_session.loaded.get()
+                        || busy_csv.csv_busy()
+                        || (busy_session.user.get().is_some()
+                            && balances
+                                .get()
+                                .filter(|(cached, _)| {
+                                    *cached == busy_session.generation.get()
+                                })
+                                .is_none())
+                }
+            >
+                <div data-testid="assetbalance-workspace">
+                    <AssetBalanceCsvSection store=view_csv.clone() />
+                    {move || {
+                        // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
+                        let generation = alert_session.generation.get();
+                        balances
+                            .with(|slot| match slot {
+                                Some((cached, Err(message))) if *cached == generation => {
+                                    Some(message.clone())
+                                }
+                                _ => None,
+                            })
+                            .or_else(|| alert_csv.csv_state().error)
+                            .map(|message| {
+                                view! {
+                                    <section class="px-5 py-4">
+                                        <div
+                                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                            role="alert"
+                                        >
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                        </div>
+                                    </section>
+                                }
+                            })
+                    }}
+                    {move || {
+                        let current = render_session.generation.get();
+                        let state = view_csv.csv_state();
+                        let has_csv_file = state.file_name.is_some();
+                        match balances
+                            .get()
+                            .filter(|(cached, _)| *cached == current)
+                            .map(|(_, result)| result)
+                        {
+                            None => {
                                 show_all.set(false);
                                 view! {
-                                    <div>
-                                        <h3>"資産管理データがありません"</h3>
-                                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
-                                    </div>
+                                    <CsvStatusMessage text="データを読み込んでいます..." />
                                 }
                                     .into_any()
-                            } else {
-                                let query = search_query.get();
-                                let options = asset_balance_search_options(
-                                    &loaded.rows,
-                                    loaded.facets.as_ref(),
-                                    false,
-                                );
-                                let total_count = loaded.rows.len();
-                                let truncated = loaded.truncated;
-                                let FilteredPortfolio { views, summary } =
-                                    filtered_portfolio(&loaded, &query, lookup, current);
+                            }
+                            Some(Err(_)) => {
+                                let rows = csv_preview_rows(&state);
                                 view! {
-                                    {truncated.then(|| {
-                                        view! {
-                                            <section class="px-5 py-4" role="status" aria-live="polite">
-                                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-                                                    {truncated_list_warning()}
-                                                </div>
-                                            </section>
-                                        }
-                                    })}
-                                    <AssetBalanceSearchCard query=search_query options=options />
-                                    <PortfolioSummary
-                                        views=views
-                                        total_count=total_count
-                                        is_filtered=!query.is_empty()
-                                        on_clear_filter=move || {
-                                            search_query.set(clear_search_query())
-                                        }
-                                        summary=summary
+                                    <AssetBalanceContent
+                                        state=state
+                                        rows=rows
+                                        summary=None
+                                        facets=None
+                                        warning=None
+                                        search_query=search_query
                                         dividends=dividends
                                         show_all=show_all
+                                        lookup=lookup
+                                        generation=current
+                                    />
+                                }
+                                    .into_any()
+                            }
+                            Some(Ok(loaded)) => {
+                                let rows = if has_csv_file {
+                                    csv_preview_rows(&state)
+                                } else {
+                                    loaded.rows.clone()
+                                };
+                                let warning = (!has_csv_file
+                                    && loaded.total > ASSET_BALANCE_LIST_LIMIT)
+                                    .then(|| {
+                                        format!(
+                                            "一覧は最大{ASSET_BALANCE_LIST_LIMIT}件まで表示しています。未表示の銘柄がある可能性があります。"
+                                        )
+                                    });
+                                view! {
+                                    <AssetBalanceContent
+                                        state=state
+                                        rows=rows
+                                        summary=loaded.summary.clone()
+                                        facets=loaded.facets.clone()
+                                        warning=warning
+                                        search_query=search_query
+                                        dividends=dividends
+                                        show_all=show_all
+                                        lookup=lookup
+                                        generation=current
                                     />
                                 }
                                     .into_any()
                             }
                         }
+                    }}
+                </div>
+                {move || {
+                    if !modal_csv.csv_state().show_delete_confirm {
+                        return ().into_any();
                     }
+                    let count = modal_csv.db_count();
+                    let deleting_csv = modal_csv.clone();
+                    let deleting = Memo::new(move |_| deleting_csv.csv_state().deleting);
+                    let confirm = modal_csv.clone();
+                    let cancel = modal_csv.clone();
+                    view! {
+                        <ConfirmDeleteModal
+                            title="資産管理データの全件削除".to_string()
+                            description="保存された資産管理データをすべて削除します。".to_string()
+                            item_count=count
+                            confirm_label="削除する"
+                            loading=deleting
+                            on_confirm=move || confirm.confirm_delete_all()
+                            on_cancel=move || cancel.close_delete_confirm()
+                        />
+                    }
+                        .into_any()
                 }}
             </div>
         </div>
+    }
+}
+
+#[component]
+fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
+    let selected = store.clone();
+    let selected_file_name = Memo::new(move |_| selected.csv_state().file_name.unwrap_or_default());
+    let disabled_store = store.clone();
+    let file_input_disabled = Memo::new(move |_| {
+        !disabled_store.is_authenticated()
+            || disabled_store.csv_busy()
+            || disabled_store.list_loading()
+    });
+    let has_file = store.clone();
+    let has_csv_file =
+        Memo::new(move |_| has_file.is_authenticated() && has_file.csv_state().file_name.is_some());
+    let label_store = store.clone();
+    let save_label = Memo::new(move |_| label_store.csv_state().save_label("全件置換で保存"));
+    let save_dis = store.clone();
+    let save_disabled =
+        Memo::new(move |_| save_dis.csv_state().busy() || !can_save_csv(&save_dis.csv_state()));
+    let has_db = store.clone();
+    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.db_count() > 0);
+    let del_label = store.clone();
+    let delete_label = Memo::new(move |_| del_label.csv_state().delete_label(del_label.db_count()));
+    let del_dis = store.clone();
+    let delete_disabled = Memo::new(move |_| {
+        let state = del_dis.csv_state();
+        state.saving || state.deleting || del_dis.list_loading()
+    });
+    let result_store = store.clone();
+    let save_result = Memo::new(move |_| result_store.csv_state().import_result);
+    let file_select = store.clone();
+    let save = store.clone();
+    let delete_request = store.clone();
+    view! {
+        <CsvActionRail
+            input_id="csv-file-input-assetbalance"
+            on_file_select=move |file| file_select.select_file(file)
+            selected_file_name=selected_file_name
+            file_input_disabled=file_input_disabled
+            has_csv_file=has_csv_file
+            save_label=save_label
+            on_save=move || save.save_csv()
+            save_disabled=save_disabled
+            has_db_data=has_db_data
+            delete_label=delete_label
+            on_delete_request=move || delete_request.open_delete_confirm()
+            delete_disabled=delete_disabled
+            save_result=save_result
+            mode_label="全件置換"
+        />
+    }
+}
+
+#[component]
+fn CsvStatusMessage(text: &'static str) -> impl IntoView {
+    view! {
+        <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
+            <div class="flex items-center gap-2 text-slate-600">
+                <svg
+                    class="animate-spin h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    role="status"
+                    aria-label="読み込み中..."
+                >
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    />
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                </svg>
+                <p class="text-sm">{text}</p>
+            </div>
+        </section>
     }
 }
 
@@ -1666,9 +1946,10 @@ mod tests {
                 total_daily_change: Decimal::ZERO,
             })
         };
-        assert_eq!(effective_summary(summary(), ""), summary());
-        assert_eq!(effective_summary(summary(), "7203"), None);
-        assert_eq!(effective_summary(None, ""), None);
+        assert_eq!(effective_summary(summary(), "", false), summary());
+        assert_eq!(effective_summary(summary(), "7203", false), None);
+        assert_eq!(effective_summary(summary(), "", true), None);
+        assert_eq!(effective_summary(None, "", false), None);
     }
 
     #[test]
@@ -1685,6 +1966,7 @@ mod tests {
             sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
             sony.market_value = rust_decimal_macros::dec!(180000);
             let loaded = LoadedAssetBalances {
+                total: 2,
                 rows: vec![toyota, sony],
                 summary: Some(AssetBalanceSummary {
                     total_market_value: rust_decimal_macros::dec!(999999),
@@ -1697,7 +1979,14 @@ mod tests {
             let lookup = RwSignal::new(AssetBalanceLookupStore::new());
             lookup.update(|store| store.seed(1, &loaded.rows));
 
-            let filtered = filtered_portfolio(&loaded, "7203", lookup, 1);
+            let filtered = filtered_portfolio(
+                &loaded.rows,
+                loaded.summary.clone(),
+                "7203",
+                lookup,
+                1,
+                false,
+            );
             assert_eq!(filtered.views.len(), 1);
             assert_eq!(filtered.views[0].code, "7203");
             assert!(filtered.summary.is_none());
@@ -1752,7 +2041,8 @@ mod tests {
                 assert_eq!(kpi.holdings_count, 1);
             });
 
-            let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
+            let unfiltered =
+                filtered_portfolio(&loaded.rows, loaded.summary.clone(), "", lookup, 1, false);
             assert_eq!(unfiltered.views.len(), 2);
             assert_eq!(
                 unfiltered
@@ -1826,6 +2116,7 @@ mod tests {
                 7,
                 Ok(LoadedAssetBalances {
                     rows: vec![],
+                    total: 0,
                     summary: None,
                     facets: None,
                     truncated: false,
@@ -1848,6 +2139,7 @@ mod tests {
                 7,
                 Ok(LoadedAssetBalances {
                     rows: vec![],
+                    total: 0,
                     summary: None,
                     facets: None,
                     truncated: false,
@@ -1937,6 +2229,7 @@ mod tests {
 
         let loaded = pages.finish();
         assert_eq!(loaded.rows.len(), 2300);
+        assert_eq!(loaded.total, 2300);
         assert_eq!(loaded.rows[0].id, "id-0");
         assert_eq!(loaded.rows[2299].id, "id-2299");
         // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
@@ -1959,6 +2252,7 @@ mod tests {
         assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
         let loaded = pages.finish();
         assert_eq!(loaded.rows.len(), 3);
+        assert_eq!(loaded.total, 3);
         assert!(loaded.summary.is_some());
     }
 
@@ -2247,6 +2541,7 @@ mod tests {
                 generation,
                 Ok(LoadedAssetBalances {
                     rows: vec![balance_row(7203)],
+                    total: 1,
                     summary: None,
                     facets: None,
                 }),
@@ -2290,6 +2585,7 @@ mod tests {
                 generation,
                 Ok(LoadedAssetBalances {
                     rows: vec![balance_row(6758)],
+                    total: 1,
                     summary: None,
                     facets: None,
                 }),
@@ -2304,9 +2600,12 @@ mod tests {
             let new_row = balance_row(7203);
             let (codes, missing) = apply_loaded_asset_balances(
                 generation,
-                vec![new_row],
-                None,
-                None,
+                LoadedAssetBalances {
+                    rows: vec![new_row],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                },
                 balances,
                 dividends,
                 lookup,

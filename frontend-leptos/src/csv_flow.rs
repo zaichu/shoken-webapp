@@ -98,7 +98,6 @@ impl<R> CsvTabState<R> {
     }
 
     // 資産管理側はプレビュー失敗を画面に出す
-    #[allow(dead_code)]
     pub fn fail_preview(&mut self, message: String) {
         self.previewing = false;
         self.error = Some(message);

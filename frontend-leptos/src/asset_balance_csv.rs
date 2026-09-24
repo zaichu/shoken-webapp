@@ -34,7 +34,6 @@ pub struct AssetBalanceCsvRow {
 
 impl AssetBalanceCsvRow {
     // 一覧表示に載せるため AssetBalance に揃える。id・タイムスタンプは未確定なので空
-    #[allow(dead_code)]
     pub fn to_asset_balance(&self) -> AssetBalance {
         AssetBalance {
             id: String::new(),
