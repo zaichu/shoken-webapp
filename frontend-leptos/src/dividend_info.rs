@@ -12,6 +12,7 @@ use crate::security_link::is_searchable_code;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 
 const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
 const JQUANTS_HINT: &str = "自動で取得されます";
@@ -35,6 +36,17 @@ fn format_percentage_value(value: f64) -> String {
         return "-".to_string();
     }
     format!("{:.2}%", to_fixed(value, 2))
+}
+
+fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
+    if loading {
+        "取得中...".to_string()
+    } else {
+        per_share
+            .and_then(|value| value.to_string().parse::<Decimal>().ok())
+            .map(format_currency)
+            .unwrap_or_else(|| "---".to_string())
+    }
 }
 
 /// 非同期応答の後着で表示が巻き戻らないよう、銘柄切替ごとのリビジョンを持つ
@@ -213,16 +225,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
             .map(|a| format_number(a.shares, 2))
             .unwrap_or_else(|| "---".to_string())
     };
-    let per_share_text = move || {
-        if loading() {
-            "取得中...".to_string()
-        } else {
-            per_share()
-                .and_then(rust_decimal::Decimal::from_f64_retain)
-                .map(format_currency)
-                .unwrap_or_else(|| "---".to_string())
-        }
-    };
+    let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
         <div>
@@ -560,6 +563,16 @@ mod tests {
             store.refresh_balance();
             assert_eq!(store.balance_revision.get_untracked(), bumped);
         });
+    }
+
+    #[test]
+    fn per_share_display_uses_short_decimal_digits() {
+        assert_eq!(per_share_display(Some(50.1), false), "¥ 50.1");
+        assert_eq!(per_share_display(Some(50.0), false), "¥ 50");
+        assert_eq!(per_share_display(Some(50.12345), false), "¥ 50.12345");
+        assert_eq!(per_share_display(None, false), "---");
+        assert_eq!(per_share_display(Some(50.1), true), "取得中...");
+        assert_eq!(per_share_display(Some(f64::NAN), false), "---");
     }
 
     #[test]
