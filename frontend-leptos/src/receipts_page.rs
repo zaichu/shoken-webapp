@@ -1,4 +1,5 @@
 use crate::confirm_modal::ConfirmDeleteModal;
+use crate::csv_flow::row_error_text;
 use crate::csv_rail::CsvActionRail;
 use crate::dividend_info::{search_security_code, DividendInfoStore, DividendSummarySection};
 use crate::dto::{Dividend, Mutualfund};
@@ -6,7 +7,7 @@ use crate::receipts::{
     select_header_summary, truncated_list_warning, use_receipts_data, ReceiptCell, ReceiptItem,
     ReceiptSummary, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::receipts_csv::{row_error_text, CsvPreviewRow};
+use crate::receipts_csv::CsvPreviewRow;
 use crate::receipts_domain::{
     calculate_dividends, calculate_domestic_daily, calculate_domestic_total,
     calculate_mutual_funds, create_year_month_key, format_currency, sort_dividends,
@@ -251,7 +252,7 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
         has_file.is_authenticated() && has_file.csv_state(tab).file_name.is_some()
     });
     let label_store = store.clone();
-    let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label());
+    let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label("追加で保存"));
     let save_dis = store.clone();
     let save_disabled = Memo::new(move |_| save_dis.csv_busy(tab));
     let has_db = store.clone();

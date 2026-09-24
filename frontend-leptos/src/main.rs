@@ -5,6 +5,7 @@ mod asset_balance_page;
 mod asset_balance_portfolio;
 mod asset_balance_search;
 mod confirm_modal;
+mod csv_flow;
 mod csv_rail;
 mod dividend_info;
 mod dividend_per_share;
