@@ -345,7 +345,6 @@ impl ReceiptsStore {
         self.csv_state(tab).busy()
     }
 
-    // React の previewData.length > 0 相当。プレビュー行があれば一覧の表示を置き換える
     pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
         self.csv_state(tab)
             .preview
@@ -519,7 +518,7 @@ impl ReceiptsStore {
                         .or_default()
                         .finish_delete(Ok(()));
                 });
-                // React はキャッシュが残っている場合だけ空データで上書きし、無ければ再生成しない
+                // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
                 self.cache.update(|map| {
                     if let Some(entry) = map.get_mut(&(generation, tab)) {
                         *entry = TabState::Ready(ReceiptTabData {
@@ -540,8 +539,7 @@ impl ReceiptsStore {
         }
     }
 
-    // 取込成功後の一覧無効化。再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
-    // React の invalidateQueries と同じく、再取得してもタブを訪問済みにはしない
+    // 再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
     fn refresh_tab_list(&self, generation: u64, tab: ReceiptsTab) -> bool {
         let mut refresh = false;
         self.cache.update(|map| {
@@ -550,7 +548,7 @@ impl ReceiptsStore {
         refresh
     }
 
-    // 外部からの強制再取得。取込・削除の成功時は内部で refresh_tab_list されるため未使用
+    // 取込・削除成功時は内部で refresh_tab_list するため外部からの呼び出しは現在未使用
     #[allow(dead_code)]
     pub fn invalidate_tab(&self, tab: ReceiptsTab) {
         if self.session.user.get_untracked().is_none() {
@@ -581,7 +579,6 @@ fn mark_tab_for_refresh(
     generation: u64,
     tab: ReceiptsTab,
 ) -> bool {
-    // React の invalidateQueries 相当: キャッシュが残っているタブだけ再取得する
     if !map.contains_key(&(generation, tab)) {
         return false;
     }
@@ -929,7 +926,6 @@ mod csv_tests {
             let tab = ReceiptsTab::MutualFund;
             let store = test_store(&session, HashMap::new(), HashMap::new());
 
-            // React の invalidateQueries 相当: キャッシュが無いタブは再取得しない
             assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
 
             assert!(store
@@ -965,7 +961,6 @@ mod csv_tests {
             assert!(!state.saving);
             assert_eq!(state.file_name.as_deref(), Some("stocks.csv"));
             assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-            // ページ上部の error() は一覧取得失敗専用。CSV エラーは操作レール側が出す
             assert!(store.error().is_none());
         });
     }
@@ -1007,7 +1002,7 @@ mod csv_tests {
             let preview = state.preview.expect("preview set");
             assert_eq!(preview.rows.len(), 2);
 
-            // プレビュー失敗は React と同様に通知せず解析中だけ解除する
+            // プレビュー失敗は通知せず解析中だけ解除する
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
@@ -1129,7 +1124,6 @@ mod csv_tests {
             assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
             store.apply_delete_result(generation, tab, Ok(()));
 
-            // 旧世代のエントリは一切変化しない(新世代からも見えない)
             let stale = store
                 .csv
                 .with_untracked(|map| map.get(&(generation, tab)).cloned())
@@ -1200,7 +1194,6 @@ mod csv_tests {
             assert!(store.try_begin_save(tab).is_none(), "ファイル未選択");
             assert!(!store.csv_state(tab).saving);
 
-            // プレビュー中は保存を開始しない(ファイルの有無に関わらず)
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
@@ -1297,7 +1290,6 @@ mod csv_tests {
             map.get(&(0, ReceiptsTab::Dividend)),
             Some(TabState::Loading)
         ));
-        // 他世代・未取得タブは対象外
         assert!(!mark_tab_for_refresh(&mut map, 1, ReceiptsTab::Dividend));
         assert!(!mark_tab_for_refresh(&mut map, 0, ReceiptsTab::MutualFund));
     }
@@ -1311,7 +1303,6 @@ mod csv_tests {
             let tab = ReceiptsTab::Dividend;
             let store = test_store(&session, HashMap::new(), HashMap::new());
 
-            // 確認を開いていなければ開始しない(dispatch も発生しない)
             store.confirm_delete_all(tab);
             let state = store.csv_state(tab);
             assert!(!state.deleting);

@@ -256,7 +256,6 @@ impl ApiClient {
         serde_json::from_str(&text).map_err(|_| ApiError::Parse)
     }
 
-    // CSV取込(#884/#885)のmultipart送信
     pub async fn post_multipart<T: DeserializeOwned>(
         &self,
         path: &str,

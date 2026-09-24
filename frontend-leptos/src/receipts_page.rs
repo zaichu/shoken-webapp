@@ -85,8 +85,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                 <div data-testid="receipts-workspace">
                     {move || {
                         let workspace = panels_store.clone();
-                        // React は authLoading または選択中タブの取得中にパネル全体を
-                        // 1つのローディング表示へ置き換える
                         if workspace.auth_loading()
                             || matches!(
                                 workspace.tab_state(workspace.active_tab.get()),
@@ -257,7 +255,6 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     }
 }
 
-// React の ReceiptsUtilityRail 相当。CSV 操作レールとプレビュー通知を store につなぐ
 #[component]
 fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let input_id = match tab {
@@ -438,7 +435,6 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
-    // React は previewData があれば一覧・検索カテゴリ・集計をプレビュー行で構築する
     let display_store = store.clone();
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => preview

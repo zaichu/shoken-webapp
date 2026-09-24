@@ -8,8 +8,6 @@ const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-s
 const BADGE_MUTED_CLASS: &str = "inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600";
 const BADGE_WARN_CLASS: &str = "inline-flex items-center rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-amber-700";
 
-// React の DataActionRail 相当。utility rail 内の CSV 操作セクション
-// (ファイル入力・保存・削除・結果通知)で、取引明細・資産管理の両ページで共用する
 #[component]
 pub fn CsvActionRail(
     input_id: &'static str,
@@ -88,7 +86,6 @@ pub fn CsvActionRail(
     }
 }
 
-// React の CSVFileInput 相当。label トリガー + 非表示の file input + 選択中ファイル名の表示
 #[component]
 fn CsvFileInput(
     input_id: &'static str,
@@ -103,7 +100,7 @@ fn CsvFileInput(
         let input = event_target::<web_sys::HtmlInputElement>(&event);
         if let Some(file) = input.files().and_then(|files| files.get(0)) {
             on_file_select(file);
-            // React と同じく、同じファイルを続けて選択できるよう値をリセットする
+            // 同じファイルを続けて選択できるよう値をリセットする
             input.set_value("");
         }
     };
@@ -165,7 +162,6 @@ fn CsvFileInput(
     }
 }
 
-// React の CsvSaveResultNotice 相当。取込結果の件数とエラー詳細を表示する
 #[component]
 fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> impl IntoView {
     let has_errors = !result.errors.is_empty();

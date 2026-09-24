@@ -1,7 +1,6 @@
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-// React の ConfirmDeleteModal と同じフォーカス可能要素の集合
 const FOCUSABLE_SELECTOR: &str =
     "button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])";
 
@@ -13,7 +12,6 @@ fn same_element(a: &web_sys::HtmlElement, b: &web_sys::HtmlElement) -> bool {
         .is_same_node(Some(b.unchecked_ref()))
 }
 
-// Tab フォーカストラップ: dialog 全体で一元管理し、フォーカス逸脱を防ぐ
 fn trap_focus(event: &web_sys::KeyboardEvent) {
     let Some(container) = event
         .current_target()
@@ -54,8 +52,6 @@ fn trap_focus(event: &web_sys::KeyboardEvent) {
     }
 }
 
-/// 削除確認モーダル（資産管理など他画面でも共用する）
-/// 破壊的操作の実行前に影響範囲を明示し、誤操作を防止する
 #[component]
 pub fn ConfirmDeleteModal(
     title: String,

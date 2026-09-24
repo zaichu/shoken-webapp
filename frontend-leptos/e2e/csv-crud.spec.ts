@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import * as path from 'path';
 
 /**
- * 取引明細 CSV 取込・削除の E2E（React 版 csv-crud.spec.ts の取引明細3タブ相当）。
+ * 取引明細 CSV 取込・削除の E2E。
  * API はモックし、fixture CSV は frontend/e2e の既存ファイルをそのまま使う。
  */
 
@@ -443,12 +443,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
       const additionalCount = additional.insertedRows.length;
       const totalCount = baseCount + additionalCount;
 
-      // ── base 取込 ──
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
       await expect(
         page.getByText(`${base.previewRows.length}件 追加で保存されます`),
       ).toBeVisible();
-      // プレビュー行が一覧に表示される
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
       await page
         .getByRole('button', { name: `${base.previewRows.length}件 追加で保存` })
@@ -460,7 +458,6 @@ test.describe('取引明細 CSV 取込・削除', () => {
       ).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
 
-      // ── additional 取込（重複スキップあり）──
       await fileInput.setInputFiles(
         path.join(fixtureDir(), scenario.additionalFile),
       );
@@ -479,14 +476,12 @@ test.describe('取引明細 CSV 取込・削除', () => {
       ).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.additionalName })).toBeVisible();
 
-      // ── 全件削除 ──
       await page.getByRole('button', { name: /全件削除/ }).click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toContainText('この操作は取り消せません');
       await expect(dialog).toContainText(`${totalCount}件`);
       // 確認モーダルを開いただけでは DELETE を送らない
       expect(deleteCounts[scenario.tab]).toBe(0);
-      // Escape で閉じる（削除は実行されない）
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       await expect(
@@ -500,7 +495,6 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
       // 確定時に DELETE が1回だけ送られる
       expect(deleteCounts[scenario.tab]).toBe(1);
-      // 取込結果通知もクリアされる
       await expect(notice).toHaveCount(0);
     });
   }

@@ -26,8 +26,7 @@ impl CsvPreview {
     }
 }
 
-// プレビュー行は backend が Create*Request をシリアライズしたもので、id・タイムスタンプを持たない。
-// React の transformDB* が欠損を 0/空文字で埋めるのと同じく、全フィールドを lenient に受け取る
+// プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct DividendCsvRow {
     #[serde(default)]
@@ -119,7 +118,6 @@ pub enum CsvPreviewRow {
 
 impl CsvPreviewRow {
     // ReceiptItem::cells と同じ列順。プレビュー表は一覧と同じカラムで表示する
-    // モバイルの折り畳み表示(層3)で使う
     #[allow(dead_code)]
     pub fn cells(&self) -> Vec<String> {
         match self {
@@ -163,8 +161,6 @@ impl CsvPreviewRow {
         }
     }
 
-    // React はプレビュー行を transformDB* で一覧と同じ型に変換し、検索・集計のパイプラインに
-    // そのまま通す。一覧に無い id・タイムスタンプは空で埋める
     pub fn to_receipt_item(&self) -> ReceiptItem {
         match self {
             CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::dto::Dividend {
@@ -215,7 +211,6 @@ impl CsvPreviewRow {
                 realized_profit_and_loss: row.realized_profit_and_loss,
                 taxes: row.taxes,
                 realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
-                // React の transformDBMutualfund は欠損を '' で埋める
                 dividends: Some(row.dividends.clone().unwrap_or_default()),
                 created_at: String::new(),
                 updated_at: String::new(),
@@ -253,7 +248,7 @@ impl CsvTabState {
         true
     }
 
-    // React はプレビュー失敗を画面に出さない(ファイル選択は残り preview のみ未設定)
+    // プレビュー失敗は画面に出さない(ファイル選択は残し preview のみ未設定)
     pub fn finish_preview(&mut self, preview: Option<CsvPreview>) {
         self.previewing = false;
         if let Some(preview) = preview {
@@ -275,8 +270,7 @@ impl CsvTabState {
         match result {
             Ok(result) => {
                 self.file_name = None;
-                // React は保存成功時の SET_RAW_FILE(null) で rawFile と csvPreviews を両方消す。
-                // 消さないと全件削除後もプレビュー行が一覧に残ってしまう
+                // 消さないと全件削除後もプレビュー行が一覧に残る
                 self.preview = None;
                 self.import_result = Some(result);
             }
@@ -292,7 +286,7 @@ impl CsvTabState {
         self.show_delete_confirm = false;
     }
 
-    // React はモーダル内の確定ボタンからのみ呼ぶ。画面配線前でも誤起動しないよう確認表示中だけ開始する
+    // 誤起動しないよう確認表示中だけ開始する
     pub fn begin_delete(&mut self) -> bool {
         if self.deleting || !self.show_delete_confirm {
             return false;
@@ -375,8 +369,7 @@ pub fn to_preview(tab: ReceiptsTab, response: CsvPreviewResponse) -> CsvPreview 
     }
 }
 
-// React は mutation エラーに ApiError.message(HTTP ステータス別の既定文)を使う。
-// user_message() とは別の文言体系なので専用に写す
+// user_message() とは別の文言体系(HTTP ステータス別の既定文)を使う
 pub fn csv_error_message(error: &ApiError) -> String {
     match error {
         ApiError::Network => "ネットワークエラーが発生しました".to_string(),
@@ -595,7 +588,6 @@ mod tests {
             panic!("mutual fund item expected")
         };
         assert_eq!(item.fund_name, "eMAXIS Slim 全世界株式");
-        // React の transformDBMutualfund は欠損 dividends を空文字で表示する
         assert_eq!(item.dividends.as_deref(), Some(""));
     }
 
@@ -772,7 +764,6 @@ mod tests {
 
     #[test]
     fn begin_delete_requires_open_confirmation() {
-        // 全件削除はデータ消失の操作なので、確認表示が開いていなければ開始しない
         let mut state = CsvTabState::default();
         assert!(!state.begin_delete());
         assert!(!state.deleting);
