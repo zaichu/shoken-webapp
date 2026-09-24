@@ -261,6 +261,35 @@ fn effective_summary(
     }
 }
 
+#[derive(Clone, Debug)]
+struct FilteredPortfolio {
+    views: Vec<HoldingView>,
+    summary: Option<AssetBalanceSummary>,
+}
+
+// 検索中は API の全体 summary を捨てる。渡すと絞り込み前の
+// 全体金額が画面に出るため、PortfolioSummary が表示中の行から再集計する。
+fn filtered_portfolio(
+    loaded: &LoadedAssetBalances,
+    query: &str,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: u64,
+) -> FilteredPortfolio {
+    let views = filter_asset_balances(&loaded.rows, query)
+        .into_iter()
+        .map(|row| {
+            let resolved = lookup
+                .with(|store| store.get(generation, &row.security_code).cloned())
+                .unwrap_or_else(|| row.clone());
+            holding_view(&resolved)
+        })
+        .collect();
+    FilteredPortfolio {
+        views,
+        summary: effective_summary(loaded.summary.clone(), query),
+    }
+}
+
 fn asset_balance_error_message(error: &ApiError) -> String {
     if error.is_unauthorized() {
         error.user_message()
@@ -621,19 +650,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     false,
                                 );
                                 let total_count = loaded.rows.len();
-                                let views: Vec<HoldingView> =
-                                    filter_asset_balances(&loaded.rows, &query)
-                                        .into_iter()
-                                        .map(|row| {
-                                            let resolved = lookup
-                                                .with(|store| {
-                                                    store.get(current, &row.security_code).cloned()
-                                                })
-                                                .unwrap_or_else(|| row.clone());
-                                            holding_view(&resolved)
-                                        })
-                                        .collect();
-                                let summary = effective_summary(loaded.summary, &query);
+                                let FilteredPortfolio { views, summary } =
+                                    filtered_portfolio(&loaded, &query, lookup, current);
                                 view! {
                                     <AssetBalanceSearchCard query=search_query options=options />
                                     <PortfolioSummary
@@ -1478,6 +1496,100 @@ mod tests {
         assert_eq!(effective_summary(summary(), ""), summary());
         assert_eq!(effective_summary(summary(), "7203"), None);
         assert_eq!(effective_summary(None, ""), None);
+    }
+
+    #[test]
+    fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
+        let owner = Owner::new();
+        owner.with(|| {
+            // 行合計とも絞り込み後の合計とも異なる API summary を使い、
+            // 画面の金額が summary 由来でなく表示中の行から来ることを確認する
+            let mut toyota = balance_row(7203);
+            toyota.security_name = "トヨタ自動車".to_string();
+            toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
+            toyota.market_value = rust_decimal_macros::dec!(110000);
+            let mut sony = balance_row(6758);
+            sony.security_name = "ソニーグループ".to_string();
+            sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
+            sony.market_value = rust_decimal_macros::dec!(180000);
+            let loaded = LoadedAssetBalances {
+                rows: vec![toyota, sony],
+                summary: Some(AssetBalanceSummary {
+                    total_market_value: rust_decimal_macros::dec!(999999),
+                    total_purchase_amount: rust_decimal_macros::dec!(888888),
+                    total_daily_change: rust_decimal_macros::dec!(0),
+                }),
+                facets: None,
+            };
+            let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+            lookup.update(|store| store.seed(1, &loaded.rows));
+
+            let filtered = filtered_portfolio(&loaded, "7203", lookup, 1);
+            assert_eq!(filtered.views.len(), 1);
+            assert_eq!(filtered.views[0].code, "7203");
+            assert!(filtered.summary.is_none());
+
+            // PortfolioSummary と同じ手順で画面に出る金額を計算する
+            let valuation_items: Vec<ValuationItem> = filtered
+                .views
+                .iter()
+                .map(|view| ValuationItem {
+                    market_value: serde_json::json!(view.market),
+                    total_purchase_amount: serde_json::json!(view.purchase),
+                })
+                .collect();
+            let summary_override = filtered.summary.as_ref().map(|summary| SummaryOverride {
+                total_purchase_amount: serde_json::json!(dec_to_f64(
+                    &summary.total_purchase_amount,
+                )),
+                total_market_value: serde_json::json!(dec_to_f64(&summary.total_market_value)),
+            });
+            let valuation =
+                summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());
+            let kpi_holdings: Vec<KpiHolding> = filtered
+                .views
+                .iter()
+                .map(|view| KpiHolding {
+                    security_code: view.code.clone(),
+                    shares: view.shares,
+                    total_purchase_amount: view.purchase,
+                })
+                .collect();
+            let summary_total = filtered
+                .summary
+                .as_ref()
+                .map(|summary| dec_to_f64(&summary.total_purchase_amount));
+            let total_purchase = total_purchase_amount(&kpi_holdings, summary_total);
+            let dividends = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let kpi = Memo::new(move |_| {
+                calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
+            });
+
+            // 絞り込んだ行(7203のみ)の合計が出る。API summary の 999,999/888,888 は使われない
+            assert_eq!(valuation.market_value, Some(110000.0));
+            assert_eq!(valuation.amount, Some(10000.0));
+            assert_eq!(valuation.rate, Some(10.0));
+            assert_eq!(format_currency(total_purchase), "¥ 100,000");
+            kpi.with(|kpi| {
+                assert_eq!(kpi.total_purchase_amount, 100000.0);
+                assert_eq!(kpi.total_annual_dividends, Some(5000.0));
+                assert_eq!(kpi.dividend_yield, Some(5.0));
+                assert_eq!(kpi.holdings_count, 1);
+            });
+
+            // 検索していないときは API summary がそのまま画面の金額に使われる
+            let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
+            assert_eq!(unfiltered.views.len(), 2);
+            assert_eq!(
+                unfiltered
+                    .summary
+                    .map(|summary| summary.total_purchase_amount),
+                Some(rust_decimal_macros::dec!(888888))
+            );
+        });
     }
 
     #[test]
