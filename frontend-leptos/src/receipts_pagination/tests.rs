@@ -45,5 +45,30 @@ fn stops_at_max_pages_when_pages_never_run_short() {
     let mut pages = PageCollector::new(3, 2);
     assert!(pages.push(rows(0..3), 100));
     assert!(!pages.push(rows(3..6), 100));
+    assert!(pages.truncated());
     assert_eq!(pages.into_rows(), rows(0..6));
+}
+
+#[test]
+fn natural_end_before_max_pages_is_not_truncated() {
+    let mut pages = PageCollector::new(1000, 100);
+    assert!(!pages.push(rows(0..3), 3));
+    assert!(!pages.truncated());
+}
+
+#[test]
+fn reaching_total_exactly_at_max_pages_is_not_truncated() {
+    let mut pages = PageCollector::new(3, 2);
+    assert!(pages.push(rows(0..3), 6));
+    assert!(!pages.push(rows(3..6), 6));
+    assert!(!pages.truncated());
+}
+
+#[test]
+fn short_last_page_at_max_pages_is_not_truncated() {
+    let mut pages = PageCollector::new(3, 2);
+    assert!(pages.push(rows(0..3), 100));
+    assert!(!pages.push(rows(3..5), 100));
+    assert!(!pages.truncated());
+    assert_eq!(pages.into_rows(), rows(0..5));
 }

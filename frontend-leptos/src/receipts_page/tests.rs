@@ -47,6 +47,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         let mut data = ReceiptTabData {
             rows: rows.clone(),
             summary: Some(summary),
+            truncated: false,
         };
         assert_eq!(
             header_summary(tab, &data, "", false)
