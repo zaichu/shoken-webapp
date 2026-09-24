@@ -10,6 +10,7 @@ mod login_page;
 mod not_found_page;
 mod page;
 mod receipts;
+mod receipts_csv;
 mod receipts_domain;
 mod receipts_filter;
 mod receipts_page;
