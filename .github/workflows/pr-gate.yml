@@ -110,9 +110,35 @@ jobs:
             const comments = await fetchAll('comments');
             const reviews = await fetchAll('reviews');
 
-            const linked =
-              pr.closingIssuesReferences.totalCount > 0 ||
-              /(Refs|Part of)\s+#\d+/i.test(pr.body ?? '');
+            const refNumbers = [
+              ...new Set(
+                [...(pr.body ?? '').matchAll(/(?:Refs|Part of)\s+#(\d+)/gi)].map(
+                  (m) => Number(m[1])
+                )
+              ),
+            ];
+            let linked = pr.closingIssuesReferences.totalCount > 0;
+            for (const n of refNumbers) {
+              if (linked) break;
+              try {
+                const result = await github.graphql(
+                  `query($owner: String!, $repo: String!, $n: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      issue(number: $n) {
+                        state
+                      }
+                    }
+                  }`,
+                  { owner, repo, n }
+                );
+                if (result.repository.issue?.state === 'OPEN') linked = true;
+              } catch (error) {
+                // 実在しない番号や PR 番号は NOT_FOUND エラーになる → 紐づけなしとして扱う
+                if (!(error.errors ?? []).every((e) => e.type === 'NOT_FOUND')) {
+                  throw error;
+                }
+              }
+            }
 
             // author=null(退会済みアカウント)は bot と判定できないため人のコメントとして扱う
             const isBot = (author) =>
