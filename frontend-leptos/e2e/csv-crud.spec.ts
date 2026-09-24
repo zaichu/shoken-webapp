@@ -499,3 +499,191 @@ test.describe('取引明細 CSV 取込・削除', () => {
     });
   }
 });
+
+// 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
+const ASSET_TOYOTA = {
+  security_code: '7203',
+  security_name: 'トヨタ自動車',
+  shares: 100,
+  executing_shares: 0,
+  average_purchase_price: 2500,
+  total_purchase_amount: 250000,
+  current_price: 2600,
+  daily_change: 50,
+  market_value: 260000,
+  profit_loss_rate: 4.0,
+};
+const ASSET_SONY = {
+  security_code: '6758',
+  security_name: 'ソニーグループ',
+  shares: 50,
+  executing_shares: 0,
+  average_purchase_price: 3000,
+  total_purchase_amount: 150000,
+  current_price: 3200,
+  daily_change: -20,
+  market_value: 160000,
+  profit_loss_rate: 6.67,
+};
+const ASSET_NINTENDO = {
+  security_code: '7974',
+  security_name: '任天堂',
+  shares: 30,
+  executing_shares: 0,
+  average_purchase_price: 8000,
+  total_purchase_amount: 240000,
+  current_price: 8200,
+  daily_change: 100,
+  market_value: 246000,
+  profit_loss_rate: 2.5,
+};
+const ASSET_MUFJ = {
+  security_code: '8306',
+  security_name: '三菱ＵＦＪフィナンシャル・グループ',
+  shares: 200,
+  executing_shares: 0,
+  average_purchase_price: 600,
+  total_purchase_amount: 120000,
+  current_price: 650,
+  daily_change: 5,
+  market_value: 130000,
+  profit_loss_rate: 8.33,
+};
+const ASSET_BASE = [ASSET_TOYOTA, ASSET_SONY];
+// 置換の証明のため、base のソニーを含まない別3件にする
+const ASSET_UPDATED = [ASSET_TOYOTA, ASSET_NINTENDO, ASSET_MUFJ];
+const ASSET_FILES: Record<string, unknown[]> = {
+  'assetbalance-base.csv': ASSET_BASE,
+  'assetbalance-updated.csv': ASSET_UPDATED,
+};
+
+test.describe('資産管理 CSV 取込・削除', () => {
+  test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
+    let db: unknown[] = [];
+    // DELETE が確認前・キャンセル後に出ないことを回数で固定する
+    let deleteCount = 0;
+    await page.route(/\/api\/v1\/session$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(USER),
+      }),
+    );
+    await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      }),
+    );
+    await page.route(/\/api\/v1\/asset-balance-import-validations$/, (route) => {
+      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')] ?? [];
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_rows: rows.length,
+          valid_rows: rows.length,
+          errors: [],
+          rows,
+        }),
+      });
+    });
+    await page.route(/\/api\/v1\/asset-balance-imports$/, (route) => {
+      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')];
+      if (!rows) {
+        return route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: '不正なファイルです' }),
+        });
+      }
+      // 全件置換なので既存行を残さず入れ替える
+      db = rows.map(asDbRow);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ inserted: rows.length, skipped: 0, errors: [] }),
+      });
+    });
+    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteCount += 1;
+        db = [];
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '{}',
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: db, total: db.length, page: 1, per_page: db.length }),
+      });
+    });
+
+    const card = (name: string) =>
+      page.locator('[data-testid="portfolio-card-identity"]', { hasText: name });
+
+    await page.goto('/assetbalance');
+    const fileInput = page.getByTestId('csv-file-input');
+    await expect(fileInput).toBeAttached();
+    // DB が空の間は全件削除ボタンを出さない
+    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
+    await expect(
+      page.getByRole('button', { name: '2件 全件置換で保存' }),
+    ).toBeEnabled();
+    // プレビュー行が一覧に出る
+    await expect(card('トヨタ自動車')).toBeVisible();
+    await expect(card('ソニーグループ')).toBeVisible();
+
+    await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
+    const notice = page.getByTestId('csv-save-result-notice');
+    await expect(notice).toContainText('2件反映');
+    await expect(notice).toContainText('全件置換');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (2件)' }),
+    ).toBeVisible();
+
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
+    await expect(
+      page.getByRole('button', { name: '3件 全件置換で保存' }),
+    ).toBeEnabled();
+    await expect(card('任天堂')).toBeVisible();
+
+    await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
+    await expect(notice).toContainText('3件反映');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (3件)' }),
+    ).toBeVisible();
+    // 追加ではなく置換なので base にだけあった行は消える
+    await expect(card('ソニーグループ')).toHaveCount(0);
+    await expect(card('任天堂')).toBeVisible();
+
+    await page.getByRole('button', { name: /全件削除/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('資産管理データの全件削除');
+    await expect(dialog).toContainText('この操作は取り消せません');
+    await expect(dialog).toContainText('3件');
+    // 確認モーダルを開いただけでは DELETE を送らない
+    expect(deleteCount).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: '全件削除 (3件)' }),
+    ).toBeVisible();
+    expect(deleteCount).toBe(0);
+
+    await page.getByRole('button', { name: /全件削除/ }).click();
+    await page.getByRole('button', { name: '削除する' }).click();
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+    // 確定時に DELETE が1回だけ送られる
+    expect(deleteCount).toBe(1);
+    await expect(notice).toHaveCount(0);
+  });
+});
