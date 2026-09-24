@@ -5,7 +5,7 @@ use crate::dto::{
 };
 use crate::receipts_csv::{csv_error_message, to_preview, CsvTabState};
 use crate::receipts_domain::{format_currency, format_date, format_number};
-use crate::receipts_filter::{filter_receipts, ReceiptSearch};
+use crate::receipts_filter::ReceiptSearch;
 use crate::receipts_pagination::PageCollector;
 use crate::session::SessionStore;
 use leptos::prelude::*;
@@ -42,8 +42,6 @@ impl ReceiptsTab {
         }
     }
 
-    // 画面への接続は層2
-    #[allow(dead_code)]
     pub(crate) fn preview_path(&self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-import-validations",
@@ -52,8 +50,6 @@ impl ReceiptsTab {
         }
     }
 
-    // 画面への接続は層2
-    #[allow(dead_code)]
     pub(crate) fn import_path(&self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-imports",
@@ -241,10 +237,6 @@ pub struct ReceiptsStore {
 }
 
 impl ReceiptsStore {
-    pub fn filtered_rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
-        filter_receipts(tab, &self.rows(tab), &self.search.get().query)
-    }
-
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
@@ -257,25 +249,17 @@ impl ReceiptsStore {
         self.rows(tab).len()
     }
 
+    // CSV エラーはタブ内の操作レール側が表示するため、ここでは一覧取得失敗だけを返す
     pub fn error(&self) -> Option<String> {
         let generation = self.session.generation.get();
-        self.cache
-            .with(|map| {
-                ReceiptsTab::ALL
-                    .iter()
-                    .find_map(|tab| match map.get(&(generation, *tab)) {
-                        Some(TabState::Failed(message)) => Some(message.clone()),
-                        _ => None,
-                    })
-            })
-            .or_else(|| {
-                self.csv.with(|map| {
-                    ReceiptsTab::ALL.iter().find_map(|tab| {
-                        map.get(&(generation, *tab))
-                            .and_then(|state| state.error.clone())
-                    })
+        self.cache.with(|map| {
+            ReceiptsTab::ALL
+                .iter()
+                .find_map(|tab| match map.get(&(generation, *tab)) {
+                    Some(TabState::Failed(message)) => Some(message.clone()),
+                    _ => None,
                 })
-            })
+        })
     }
 
     pub fn tab_state(&self, tab: ReceiptsTab) -> TabState {
@@ -289,6 +273,10 @@ impl ReceiptsStore {
 
     pub fn is_authenticated(&self) -> bool {
         self.session.user.get().is_some()
+    }
+
+    pub fn auth_loading(&self) -> bool {
+        !self.session.loaded.get()
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
@@ -346,8 +334,6 @@ impl ReceiptsStore {
     }
 }
 
-// CSV操作の画面への接続は層2で行う。それまで公開APIは呼ばれない
-#[allow(dead_code)]
 impl ReceiptsStore {
     pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState {
         let generation = self.session.generation.get();
@@ -357,6 +343,13 @@ impl ReceiptsStore {
 
     pub fn csv_busy(&self, tab: ReceiptsTab) -> bool {
         self.csv_state(tab).busy()
+    }
+
+    pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
+        self.csv_state(tab)
+            .preview
+            .map(|preview| !preview.rows.is_empty())
+            .unwrap_or(false)
     }
 
     pub fn any_tab_fetching(&self) -> bool {
@@ -525,7 +518,7 @@ impl ReceiptsStore {
                         .or_default()
                         .finish_delete(Ok(()));
                 });
-                // React はキャッシュが残っている場合だけ空データで上書きし、無ければ再生成しない
+                // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
                 self.cache.update(|map| {
                     if let Some(entry) = map.get_mut(&(generation, tab)) {
                         *entry = TabState::Ready(ReceiptTabData {
@@ -546,20 +539,17 @@ impl ReceiptsStore {
         }
     }
 
-    // 取込成功後の一覧無効化。再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
+    // 再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
     fn refresh_tab_list(&self, generation: u64, tab: ReceiptsTab) -> bool {
         let mut refresh = false;
         self.cache.update(|map| {
             refresh = mark_tab_for_refresh(map, generation, tab);
         });
-        if refresh {
-            self.visited.update(|visited| {
-                visited.insert(tab);
-            });
-        }
         refresh
     }
 
+    // 取込・削除成功時は内部で refresh_tab_list するため外部からの呼び出しは現在未使用
+    #[allow(dead_code)]
     pub fn invalidate_tab(&self, tab: ReceiptsTab) {
         if self.session.user.get_untracked().is_none() {
             return;
@@ -584,14 +574,11 @@ fn should_apply_fetch_result(session: &SessionStore, generation: u64) -> bool {
     session.is_current(generation)
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 fn mark_tab_for_refresh(
     map: &mut HashMap<(u64, ReceiptsTab), TabState>,
     generation: u64,
     tab: ReceiptsTab,
 ) -> bool {
-    // React の invalidateQueries 相当: キャッシュが残っているタブだけ再取得する
     if !map.contains_key(&(generation, tab)) {
         return false;
     }
@@ -939,7 +926,6 @@ mod csv_tests {
             let tab = ReceiptsTab::MutualFund;
             let store = test_store(&session, HashMap::new(), HashMap::new());
 
-            // React の invalidateQueries 相当: キャッシュが無いタブは再取得しない
             assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
 
             assert!(store
@@ -975,7 +961,7 @@ mod csv_tests {
             assert!(!state.saving);
             assert_eq!(state.file_name.as_deref(), Some("stocks.csv"));
             assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-            assert_eq!(store.error().as_deref(), Some("認証が必要です"));
+            assert!(store.error().is_none());
         });
     }
 
@@ -1016,7 +1002,7 @@ mod csv_tests {
             let preview = state.preview.expect("preview set");
             assert_eq!(preview.rows.len(), 2);
 
-            // プレビュー失敗は React と同様に通知せず解析中だけ解除する
+            // プレビュー失敗は通知せず解析中だけ解除する
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
@@ -1138,7 +1124,6 @@ mod csv_tests {
             assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
             store.apply_delete_result(generation, tab, Ok(()));
 
-            // 旧世代のエントリは一切変化しない(新世代からも見えない)
             let stale = store
                 .csv
                 .with_untracked(|map| map.get(&(generation, tab)).cloned())
@@ -1209,7 +1194,6 @@ mod csv_tests {
             assert!(store.try_begin_save(tab).is_none(), "ファイル未選択");
             assert!(!store.csv_state(tab).saving);
 
-            // プレビュー中は保存を開始しない(ファイルの有無に関わらず)
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
@@ -1218,7 +1202,7 @@ mod csv_tests {
     }
 
     #[test]
-    fn error_prefers_fetch_error_over_csv_error() {
+    fn error_returns_list_fetch_errors_only() {
         let owner = Owner::new();
         owner.with(|| {
             let session = SessionStore::new();
@@ -1254,7 +1238,7 @@ mod csv_tests {
                     },
                 )]),
             );
-            assert_eq!(store.error().as_deref(), Some("リクエストが不正です"));
+            assert!(store.error().is_none());
         });
     }
 
@@ -1306,7 +1290,6 @@ mod csv_tests {
             map.get(&(0, ReceiptsTab::Dividend)),
             Some(TabState::Loading)
         ));
-        // 他世代・未取得タブは対象外
         assert!(!mark_tab_for_refresh(&mut map, 1, ReceiptsTab::Dividend));
         assert!(!mark_tab_for_refresh(&mut map, 0, ReceiptsTab::MutualFund));
     }
@@ -1320,7 +1303,6 @@ mod csv_tests {
             let tab = ReceiptsTab::Dividend;
             let store = test_store(&session, HashMap::new(), HashMap::new());
 
-            // 確認を開いていなければ開始しない(dispatch も発生しない)
             store.confirm_delete_all(tab);
             let state = store.csv_state(tab);
             assert!(!state.deleting);
@@ -1336,6 +1318,7 @@ mod csv_tests {
 #[cfg(test)]
 mod search_tests {
     use super::*;
+    use crate::receipts_filter::filter_receipts;
     use crate::receipts_filter::tests::dividends;
 
     #[test]
@@ -1362,7 +1345,14 @@ mod search_tests {
                 csv_files: RwSignal::new(HashMap::new()),
             };
             assert_eq!(
-                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                leptos::prelude::untrack(|| {
+                    filter_receipts(
+                        ReceiptsTab::Dividend,
+                        &store.rows(ReceiptsTab::Dividend),
+                        &store.search.get().query,
+                    )
+                })
+                .len(),
                 2
             );
             assert_eq!(
@@ -1375,7 +1365,14 @@ mod search_tests {
             assert_eq!(store.search.get_untracked(), ReceiptSearch::default());
             store.select_tab(ReceiptsTab::Dividend);
             assert_eq!(
-                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                leptos::prelude::untrack(|| {
+                    filter_receipts(
+                        ReceiptsTab::Dividend,
+                        &store.rows(ReceiptsTab::Dividend),
+                        &store.search.get().query,
+                    )
+                })
+                .len(),
                 3
             );
         });

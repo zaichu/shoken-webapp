@@ -1,6 +1,6 @@
 use crate::api::{ApiClient, ApiError};
 use crate::dto::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::receipts::ReceiptsTab;
+use crate::receipts::{ReceiptItem, ReceiptsTab};
 use crate::receipts_domain::{format_currency, format_date, format_number};
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -13,7 +13,7 @@ pub struct CsvPreview {
     pub rows: Vec<CsvPreviewRow>,
 }
 
-// 画面への接続は層2
+// 画面は有効件数とエラー件数を別々のスタイルで描画するため、連結済みのこの文言は未使用
 #[allow(dead_code)]
 impl CsvPreview {
     pub fn summary_text(&self) -> String {
@@ -26,8 +26,7 @@ impl CsvPreview {
     }
 }
 
-// プレビュー行は backend が Create*Request をシリアライズしたもので、id・タイムスタンプを持たない。
-// React の transformDB* が欠損を 0/空文字で埋めるのと同じく、全フィールドを lenient に受け取る
+// プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct DividendCsvRow {
     #[serde(default)]
@@ -110,8 +109,6 @@ pub struct MutualfundCsvRow {
     pub realized_profit_and_loss_after_tax: Decimal,
 }
 
-// 画面への接続は層2(層1では variant を構築する箇所が非同期境界の内側だけ)
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum CsvPreviewRow {
     Dividend(DividendCsvRow),
@@ -119,10 +116,9 @@ pub enum CsvPreviewRow {
     MutualFund(MutualfundCsvRow),
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 impl CsvPreviewRow {
     // ReceiptItem::cells と同じ列順。プレビュー表は一覧と同じカラムで表示する
+    #[allow(dead_code)]
     pub fn cells(&self) -> Vec<String> {
         match self {
             CsvPreviewRow::Dividend(row) => vec![
@@ -164,6 +160,63 @@ impl CsvPreviewRow {
             ],
         }
     }
+
+    pub fn to_receipt_item(&self) -> ReceiptItem {
+        match self {
+            CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::dto::Dividend {
+                id: String::new(),
+                settlement_date: row.settlement_date.clone(),
+                product: row.product.clone(),
+                account: row.account.clone(),
+                security_code: row.security_code.clone(),
+                security_name: row.security_name.clone(),
+                unit_price: row.unit_price,
+                shares: row.shares,
+                dividends_before_tax: row.dividends_before_tax,
+                taxes: row.taxes,
+                net_amount_received: row.net_amount_received,
+                created_at: String::new(),
+                updated_at: String::new(),
+            }),
+            CsvPreviewRow::DomesticStock(row) => {
+                ReceiptItem::DomesticStock(crate::dto::DomesticStock {
+                    id: String::new(),
+                    trade_date: row.trade_date.clone(),
+                    settlement_date: row.settlement_date.clone(),
+                    security_code: row.security_code.clone(),
+                    security_name: row.security_name.clone(),
+                    account: row.account.clone(),
+                    shares: row.shares,
+                    asked_price: row.asked_price,
+                    proceeds: row.proceeds,
+                    purchase_price: row.purchase_price,
+                    realized_profit_and_loss: row.realized_profit_and_loss,
+                    taxes: row.taxes,
+                    realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
+                    created_at: String::new(),
+                    updated_at: String::new(),
+                })
+            }
+            CsvPreviewRow::MutualFund(row) => ReceiptItem::MutualFund(crate::dto::Mutualfund {
+                id: String::new(),
+                trade_date: row.trade_date.clone(),
+                settlement_date: row.settlement_date.clone(),
+                fund_name: row.fund_name.clone(),
+                account: row.account.clone(),
+                shares: row.shares,
+                exchange_rate: row.exchange_rate,
+                cancellation_unit_price_yen: row.cancellation_unit_price_yen,
+                cancellation_amount_yen: row.cancellation_amount_yen,
+                average_acquisition_price_yen: row.average_acquisition_price_yen,
+                realized_profit_and_loss: row.realized_profit_and_loss,
+                taxes: row.taxes,
+                realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
+                dividends: Some(row.dividends.clone().unwrap_or_default()),
+                created_at: String::new(),
+                updated_at: String::new(),
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -178,8 +231,6 @@ pub struct CsvTabState {
     pub show_delete_confirm: bool,
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 impl CsvTabState {
     pub fn busy(&self) -> bool {
         self.previewing || self.saving || self.deleting
@@ -197,7 +248,7 @@ impl CsvTabState {
         true
     }
 
-    // React はプレビュー失敗を画面に出さない(ファイル選択は残り preview のみ未設定)
+    // プレビュー失敗は画面に出さない(ファイル選択は残し preview のみ未設定)
     pub fn finish_preview(&mut self, preview: Option<CsvPreview>) {
         self.previewing = false;
         if let Some(preview) = preview {
@@ -219,8 +270,7 @@ impl CsvTabState {
         match result {
             Ok(result) => {
                 self.file_name = None;
-                // React は保存成功時の SET_RAW_FILE(null) で rawFile と csvPreviews を両方消す。
-                // 消さないと全件削除後もプレビュー行が一覧に残ってしまう
+                // 消さないと全件削除後もプレビュー行が一覧に残る
                 self.preview = None;
                 self.import_result = Some(result);
             }
@@ -236,7 +286,7 @@ impl CsvTabState {
         self.show_delete_confirm = false;
     }
 
-    // React はモーダル内の確定ボタンからのみ呼ぶ。画面配線前でも誤起動しないよう確認表示中だけ開始する
+    // 誤起動しないよう確認表示中だけ開始する
     pub fn begin_delete(&mut self) -> bool {
         if self.deleting || !self.show_delete_confirm {
             return false;
@@ -277,8 +327,6 @@ impl CsvTabState {
     }
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 impl CsvUploadResponse {
     pub fn inserted_text(&self) -> String {
         format!("{}件反映", self.inserted)
@@ -293,14 +341,10 @@ impl CsvUploadResponse {
     }
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 pub fn row_error_text(error: &CsvRowError) -> String {
     format!("{}行目: {}", error.row, error.message)
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 pub fn to_preview(tab: ReceiptsTab, response: CsvPreviewResponse) -> CsvPreview {
     let rows = response
         .rows
@@ -325,10 +369,7 @@ pub fn to_preview(tab: ReceiptsTab, response: CsvPreviewResponse) -> CsvPreview 
     }
 }
 
-// React は mutation エラーに ApiError.message(HTTP ステータス別の既定文)を使う。
-// user_message() とは別の文言体系なので専用に写す
-// 画面への接続は層2
-#[allow(dead_code)]
+// user_message() とは別の文言体系(HTTP ステータス別の既定文)を使う
 pub fn csv_error_message(error: &ApiError) -> String {
     match error {
         ApiError::Network => "ネットワークエラーが発生しました".to_string(),
@@ -345,8 +386,6 @@ pub fn csv_error_message(error: &ApiError) -> String {
     }
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
     let form = web_sys::FormData::new().map_err(|_| ApiError::Network)?;
     form.append_with_blob("file", file)
@@ -354,8 +393,6 @@ fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
     Ok(form)
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 pub async fn preview_csv(
     tab: ReceiptsTab,
     file: &web_sys::File,
@@ -365,8 +402,6 @@ pub async fn preview_csv(
         .await
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 pub async fn upload_csv(
     tab: ReceiptsTab,
     file: &web_sys::File,
@@ -376,8 +411,6 @@ pub async fn upload_csv(
         .await
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 pub async fn delete_all(tab: ReceiptsTab) -> Result<(), ApiError> {
     ApiClient::default_client()
         .delete_empty(tab.list_path())
@@ -514,6 +547,48 @@ mod tests {
                 "¥ 2,391",
             ]
         );
+    }
+
+    #[test]
+    fn preview_rows_convert_to_receipt_items_like_react_transform() {
+        let dividend = CsvPreviewRow::Dividend(DividendCsvRow {
+            settlement_date: "2024-03-01".to_string(),
+            product: "特定口座".to_string(),
+            security_name: "トヨタ自動車".to_string(),
+            net_amount_received: dec!(2391),
+            ..Default::default()
+        });
+        let ReceiptItem::Dividend(item) = dividend.to_receipt_item() else {
+            panic!("dividend item expected")
+        };
+        assert_eq!(item.security_name, "トヨタ自動車");
+        assert_eq!(item.net_amount_received, dec!(2391));
+        assert!(item.id.is_empty());
+        assert!(item.created_at.is_empty());
+        assert!(item.updated_at.is_empty());
+
+        let domestic = CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
+            trade_date: "2024-02-01".to_string(),
+            security_name: "任天堂".to_string(),
+            realized_profit_and_loss_after_tax: dec!(3985),
+            ..Default::default()
+        });
+        let ReceiptItem::DomesticStock(item) = domestic.to_receipt_item() else {
+            panic!("domestic stock item expected")
+        };
+        assert_eq!(item.security_name, "任天堂");
+        assert_eq!(item.realized_profit_and_loss_after_tax, dec!(3985));
+
+        let fund = CsvPreviewRow::MutualFund(MutualfundCsvRow {
+            fund_name: "eMAXIS Slim 全世界株式".to_string(),
+            dividends: None,
+            ..Default::default()
+        });
+        let ReceiptItem::MutualFund(item) = fund.to_receipt_item() else {
+            panic!("mutual fund item expected")
+        };
+        assert_eq!(item.fund_name, "eMAXIS Slim 全世界株式");
+        assert_eq!(item.dividends.as_deref(), Some(""));
     }
 
     #[test]
@@ -689,7 +764,6 @@ mod tests {
 
     #[test]
     fn begin_delete_requires_open_confirmation() {
-        // 全件削除はデータ消失の操作なので、確認表示が開いていなければ開始しない
         let mut state = CsvTabState::default();
         assert!(!state.begin_delete());
         assert!(!state.deleting);

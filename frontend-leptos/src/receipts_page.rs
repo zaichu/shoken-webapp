@@ -1,15 +1,18 @@
+use crate::confirm_modal::ConfirmDeleteModal;
+use crate::csv_rail::CsvActionRail;
 use crate::dto::{Dividend, Mutualfund};
 use crate::receipts::{
     select_header_summary, use_receipts_data, ReceiptItem, ReceiptSummary, ReceiptTabData,
     ReceiptsStore, ReceiptsTab, TabState,
 };
+use crate::receipts_csv::{row_error_text, CsvPreviewRow};
 use crate::receipts_domain::{
     calculate_dividends, calculate_domestic_daily, calculate_domestic_total,
     calculate_mutual_funds, create_year_month_key, format_currency, sort_dividends,
     sort_domestic_stocks, sort_mutual_funds,
 };
 use crate::receipts_filter::{
-    column_order, search_categories, DateSegment, ReceiptSearch, SearchKey,
+    column_order, filter_receipts, search_categories, DateSegment, ReceiptSearch, SearchKey,
 };
 use crate::receipts_search::SearchOption;
 use crate::receipts_search_group_key::{create_group_key_fn, GroupKeyRule};
@@ -25,6 +28,9 @@ const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let busy = store.clone();
+    let panels_store = store.clone();
+    let modal_store = store.clone();
 
     view! {
         <div class="page-surface">
@@ -65,16 +71,93 @@ pub fn ReceiptsPage() -> impl IntoView {
                         .collect_view()}
                 </div>
             </nav>
-            <div class="mt-0">
-                <div data-testid="receipts-workspace">
-                    {ReceiptsTab::ALL
-                        .iter()
-                        .copied()
-                        .map(|tab| {
-                            view! { <TabPanel store=store.clone() tab=tab /> }
+            <div
+                class="mt-0"
+                aria-busy=move || {
+                    busy.auth_loading()
+                        || busy.any_tab_fetching()
+                        || ReceiptsTab::ALL.iter().any(|tab| {
+                            let state = busy.csv_state(*tab);
+                            state.saving || state.deleting
                         })
-                        .collect_view()}
+                }
+            >
+                <div data-testid="receipts-workspace">
+                    {move || {
+                        let workspace = panels_store.clone();
+                        if workspace.auth_loading()
+                            || matches!(
+                                workspace.tab_state(workspace.active_tab.get()),
+                                TabState::Loading
+                            )
+                        {
+                            view! {
+                                <section class="px-5 py-4" role="status">
+                                    <div class="flex items-center gap-2 text-slate-600">
+                                        <svg
+                                            class="animate-spin h-4 w-4"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            role="status"
+                                            aria-label="読み込み中..."
+                                        >
+                                            <circle
+                                                class="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                stroke-width="4"
+                                            />
+                                            <path
+                                                class="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            />
+                                        </svg>
+                                        <p class="text-sm">"データを読み込んでいます..."</p>
+                                    </div>
+                                </section>
+                            }
+                                .into_any()
+                        } else {
+                            view! {
+                                {ReceiptsTab::ALL
+                                    .iter()
+                                    .copied()
+                                    .map(|tab| {
+                                        view! { <TabPanel store=workspace.clone() tab=tab /> }
+                                    })
+                                    .collect_view()}
+                            }
+                                .into_any()
+                        }
+                    }}
                 </div>
+                {move || {
+                    let tab = modal_store.active_tab.get();
+                    if !modal_store.csv_state(tab).show_delete_confirm {
+                        return ().into_any();
+                    }
+                    let count = modal_store.count(tab);
+                    let deleting_store = modal_store.clone();
+                    let deleting = Memo::new(move |_| deleting_store.csv_state(tab).deleting);
+                    let confirm = modal_store.clone();
+                    let cancel = modal_store.clone();
+                    view! {
+                        <ConfirmDeleteModal
+                            title=format!("{}データの全件削除", tab.label())
+                            description=format!("【{}】のデータをすべて削除します。", tab.label())
+                            item_count=count
+                            confirm_label="削除する"
+                            loading=deleting
+                            on_confirm=move || confirm.confirm_delete_all(tab)
+                            on_cancel=move || cancel.close_delete_confirm(tab)
+                        />
+                    }
+                        .into_any()
+                }}
             </div>
         </div>
     }
@@ -111,6 +194,7 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let hidden = store.clone();
     let rendered = store.clone();
+    let rail = store.clone();
     view! {
         <div
             id={format!("tabpanel-{slug}")}
@@ -118,6 +202,13 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
             aria-labelledby={format!("tab-{slug}")}
             hidden=move || hidden.active_tab.get() != tab
         >
+            {move || {
+                let store = rail.clone();
+                if store.active_tab.get() != tab || !store.is_authenticated() {
+                    return ().into_any();
+                }
+                view! { <ReceiptsCsvSection store=store tab=tab /> }.into_any()
+            }}
             {move || {
                 let store = rendered.clone();
                 if store.active_tab.get() != tab {
@@ -129,20 +220,205 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 match store.tab_state(tab) {
                     TabState::Loading => view! { <p role="status">"読み込み中..."</p> }.into_any(),
                     TabState::Failed(message) => {
-                        view! {
+                        let alert = view! {
                             <div role="alert">
                                 <strong>"エラー:"</strong>
                                 " "
                                 {message}
                             </div>
+                        };
+                        if store.has_csv_preview(tab) {
+                            view! {
+                                <div>
+                                    {alert}
+                                    <ReceiptContent
+                                        store=store
+                                        tab=tab
+                                        data=ReceiptTabData {
+                                            rows: Vec::new(),
+                                            summary: None,
+                                        }
+                                    />
+                                </div>
+                            }
+                                .into_any()
+                        } else {
+                            alert.into_any()
                         }
-                            .into_any()
                     }
                     TabState::Ready(data) => {
                         view! { <ReceiptContent store=store tab=tab data=data /> }.into_any()
                     }
                 }
             }}
+        </div>
+    }
+}
+
+#[component]
+fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    let input_id = match tab {
+        ReceiptsTab::Dividend => "csv-file-input-dividend",
+        ReceiptsTab::DomesticStock => "csv-file-input-domesticstock",
+        ReceiptsTab::MutualFund => "csv-file-input-mutualfund",
+    };
+    let selected = store.clone();
+    let selected_file_name =
+        Memo::new(move |_| selected.csv_state(tab).file_name.unwrap_or_default());
+    let disabled_store = store.clone();
+    let file_input_disabled = Memo::new(move |_| {
+        disabled_store.auth_loading()
+            || !disabled_store.is_authenticated()
+            || disabled_store.csv_busy(tab)
+            || disabled_store.any_tab_fetching()
+    });
+    let has_file = store.clone();
+    let has_csv_file = Memo::new(move |_| {
+        has_file.is_authenticated() && has_file.csv_state(tab).file_name.is_some()
+    });
+    let label_store = store.clone();
+    let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label());
+    let save_dis = store.clone();
+    let save_disabled = Memo::new(move |_| save_dis.csv_busy(tab));
+    let has_db = store.clone();
+    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.count(tab) > 0);
+    let del_label = store.clone();
+    let delete_label =
+        Memo::new(move |_| del_label.csv_state(tab).delete_label(del_label.count(tab)));
+    let del_dis = store.clone();
+    let delete_disabled = Memo::new(move |_| {
+        let state = del_dis.csv_state(tab);
+        state.saving || state.deleting || del_dis.any_tab_fetching()
+    });
+    let result_store = store.clone();
+    let save_result = Memo::new(move |_| result_store.csv_state(tab).import_result);
+    let file_select = store.clone();
+    let save = store.clone();
+    let delete_request = store.clone();
+    let alert_store = store.clone();
+    let preview_alert_store = store.clone();
+    let loading_store = store.clone();
+    view! {
+        <div>
+            <CsvActionRail
+                input_id=input_id
+                on_file_select=move |file| file_select.select_file(tab, file)
+                selected_file_name=selected_file_name
+                file_input_disabled=file_input_disabled
+                has_csv_file=has_csv_file
+                save_label=save_label
+                on_save=move || save.save_csv(tab)
+                save_disabled=save_disabled
+                has_db_data=has_db_data
+                delete_label=delete_label
+                on_delete_request=move || delete_request.open_delete_confirm(tab)
+                delete_disabled=delete_disabled
+                save_result=save_result
+                mode_label="追加保存"
+            />
+            {move || {
+                let Some(message) = alert_store.csv_state(tab).error else {
+                    return ().into_any();
+                };
+                view! {
+                    <section class="px-5 py-4">
+                        <div
+                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                            role="alert"
+                        >
+                            <strong>"エラー:"</strong>
+                            " "
+                            {message}
+                        </div>
+                    </section>
+                }
+                    .into_any()
+            }}
+            {move || {
+                let state = preview_alert_store.csv_state(tab);
+                let authenticated = preview_alert_store.is_authenticated();
+                let has_file = state.file_name.is_some();
+                let previewing = state.previewing;
+                let Some(preview) = state
+                    .preview
+                    .filter(|_| authenticated && has_file && !previewing)
+                else {
+                    return ().into_any();
+                };
+                let has_errors = !preview.errors.is_empty();
+                let alert_class = if has_errors {
+                    "border-amber-200 bg-amber-50 text-amber-900"
+                } else {
+                    "border-blue-200 bg-blue-50 text-blue-800"
+                };
+                view! {
+                    <section class="px-5 py-4" role="status" aria-live="polite">
+                        <div class=format!(
+                            "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {alert_class}"
+                        )>
+                            <p>
+                                <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
+                                {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
+                                <span class="ml-2 text-xs text-secondary">"（保存モード: 追加）"</span>
+                            </p>
+                            {has_errors.then(|| {
+                                view! {
+                                    <ul class="mt-2 list-disc list-inside text-sm space-y-1">
+                                        {preview
+                                            .errors
+                                            .iter()
+                                            .map(|error| view! { <li>{row_error_text(error)}</li> })
+                                            .collect_view()}
+                                    </ul>
+                                }
+                            })}
+                        </div>
+                    </section>
+                }
+                    .into_any()
+            }}
+            <div aria-live="polite" aria-atomic="true">
+                {move || {
+                    let auth_loading = loading_store.auth_loading();
+                    let fetching = loading_store.any_tab_fetching();
+                    if !auth_loading && !fetching {
+                        return ().into_any();
+                    }
+                    view! {
+                        <section class="px-5 py-4" role="status">
+                            <div class="flex items-center gap-2 text-slate-600">
+                                <svg
+                                    class="animate-spin h-4 w-4"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    role="status"
+                                    aria-label="読み込み中..."
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    />
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    />
+                                </svg>
+                                <p class="text-sm">
+                                    {auth_loading.then_some("認証状態を確認しています...")}
+                                    {fetching.then_some("データを読み込んでいます...")}
+                                </p>
+                            </div>
+                        </section>
+                    }
+                        .into_any()
+                }}
+            </div>
         </div>
     }
 }
@@ -158,39 +434,35 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 #[component]
 fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
     let search = store.search;
-    let categories = search_categories(tab, &data.rows);
-    let has_years = !categories.years.is_empty();
-    let dates = categories.dates;
-    let years = categories.years.clone();
+    let summary = data.summary.clone();
+    let display_store = store.clone();
+    let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
+        Some(preview) if !preview.rows.is_empty() => preview
+            .rows
+            .iter()
+            .map(CsvPreviewRow::to_receipt_item)
+            .collect(),
+        _ => data.rows.clone(),
+    });
+    let preview_store = store.clone();
+    let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
+    let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
+    let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
+    let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
+    let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
+    let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
+    let has_years = move || categories.with(|c| !c.years.is_empty());
+    let has_dates = move || categories.with(|c| c.dates);
     let year_picker_open = RwSignal::new(false);
-    if dates
-        && !has_years
+    if categories.with_untracked(|c| c.dates)
+        && categories.with_untracked(|c| c.years.is_empty())
         && search
             .with_untracked(|state| state.is_default() && state.date_segment == DateSegment::Year)
     {
         search.set(ReceiptSearch::new(false));
     }
-    let date_period = if dates {
-        view! {
-            <div class="mb-3.5">
-                <DatePeriod
-                    search=search
-                    years=years.clone()
-                    year_picker_open=year_picker_open
-                />
-            </div>
-        }
-        .into_any()
-    } else {
-        ().into_any()
-    };
-    let year_dropdown = if !dates && !years.is_empty() {
-        view! { <YearDropdown search=search options=years.clone() /> }.into_any()
-    } else {
-        ().into_any()
-    };
-    let filtered = Memo::new(move |_| store.filtered_rows(tab));
-    let all_rows = data.rows.clone();
+    let filtered =
+        Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
     let clear_search = search;
     let clear_picker = year_picker_open;
     view! {
@@ -211,25 +483,55 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                         disabled=move || search.with(|state| state.is_default())
                         on:click=move |_| {
                             clear_picker.set(false);
-                            clear_search.update(|state| state.clear(has_years));
+                            clear_search.update(|state| state.clear(has_years()));
                         }
                     >"絞り込み解除"</button>
                 </div>
-                {date_period}
+                {move || {
+                    if has_dates() {
+                        view! {
+                            <div class="mb-3.5">
+                                <DatePeriod
+                                    search=search
+                                    years=years
+                                    year_picker_open=year_picker_open
+                                />
+                            </div>
+                        }
+                            .into_any()
+                    } else {
+                        ().into_any()
+                    }
+                }}
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <SecurityDropdown search=search options=categories.securities />
-                    {year_dropdown}
-                    <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=categories.products />
-                    <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=categories.accounts />
+                    <SecurityDropdown search=search options=securities />
+                    {move || {
+                        if !has_dates() && has_years() {
+                            view! { <YearDropdown search=search options=years /> }.into_any()
+                        } else {
+                            ().into_any()
+                        }
+                    }}
+                    <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=products />
+                    <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=accounts />
                 </div>
             </div>
             {move || {
-                if all_rows.is_empty() {
+                let display = display_rows.get();
+                if display.is_empty() {
                     return view! { <div><h3>"データがありません"</h3><p>{empty_hint(tab)}</p></div> }.into_any();
                 }
                 let query = search.with(|s| s.query.clone());
                 let rows = filtered.get();
-                let header = header_summary(tab, &ReceiptTabData { rows: rows.clone(), summary: data.summary.clone() }, &query);
+                let header = header_summary(
+                    tab,
+                    &ReceiptTabData {
+                        rows: rows.clone(),
+                        summary: summary.clone(),
+                    },
+                    &query,
+                    preview_active.get(),
+                );
                 view! {
                     <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="集計情報">
                         {header.into_iter().map(|(label, value)| view! {
@@ -239,7 +541,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                             </div>
                         }).collect_view()}
                     </div>
-                    <ReceiptTable tab=tab rows=rows all_rows=all_rows.clone() query=query />
+                    <ReceiptTable tab=tab rows=rows all_rows=display query=query />
                 }.into_any()
             }}
         </section>
@@ -247,45 +549,61 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
 }
 
 #[component]
-fn SecurityDropdown(search: RwSignal<ReceiptSearch>, options: Vec<SearchOption>) -> impl IntoView {
-    if options.is_empty() {
-        return ().into_any();
-    }
+fn SecurityDropdown(
+    search: RwSignal<ReceiptSearch>,
+    options: Memo<Vec<SearchOption>>,
+) -> impl IntoView {
     view! {
-        <div>
-            <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
-            <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                prop:value=move || search.with(|state| state.selected_queries.securities.clone())
-                on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
-                <option value="">"全て表示"</option>
-                {options.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
-            </select>
-        </div>
-    }.into_any()
+        {move || {
+            let options = options.get();
+            if options.is_empty() {
+                return ().into_any();
+            }
+            view! {
+                <div>
+                    <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
+                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || search.with(|state| state.selected_queries.securities.clone())
+                        on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
+                        <option value="">"全て表示"</option>
+                        {options.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
+                    </select>
+                </div>
+            }.into_any()
+        }}
+    }
 }
 
 #[component]
-fn YearDropdown(search: RwSignal<ReceiptSearch>, options: Vec<SearchOption>) -> impl IntoView {
-    if options.is_empty() {
-        return ().into_any();
-    }
+fn YearDropdown(
+    search: RwSignal<ReceiptSearch>,
+    options: Memo<Vec<SearchOption>>,
+) -> impl IntoView {
     view! {
-        <div>
-            <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
-            <select
-                id="years-search"
-                class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                prop:value=move || search.with(|state| state.selected_queries.years.clone())
-                on:change=move |event| search.update(|state| {
-                    state.select_quick(SearchKey::Years, event_target_value(&event))
-                })
-            >
-                <option value="">"全て表示"</option>
-                {options.into_iter().map(|option| view! { <option value=option.value>{option.label}</option> }).collect_view()}
-            </select>
-        </div>
+        {move || {
+            let options = options.get();
+            if options.is_empty() {
+                return ().into_any();
+            }
+            view! {
+                <div>
+                    <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
+                    <select
+                        id="years-search"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || search.with(|state| state.selected_queries.years.clone())
+                        on:change=move |event| search.update(|state| {
+                            state.select_quick(SearchKey::Years, event_target_value(&event))
+                        })
+                    >
+                        <option value="">"全て表示"</option>
+                        {options.into_iter().map(|option| view! { <option value=option.value>{option.label}</option> }).collect_view()}
+                    </select>
+                </div>
+            }
+            .into_any()
+        }}
     }
-    .into_any()
 }
 
 #[component]
@@ -293,44 +611,49 @@ fn ToggleCategory(
     search: RwSignal<ReceiptSearch>,
     search_key: SearchKey,
     label: &'static str,
-    options: Vec<SearchOption>,
+    options: Memo<Vec<SearchOption>>,
 ) -> impl IntoView {
-    if options.is_empty() {
-        return ().into_any();
-    }
     view! {
-        <div>
-            <div class="mb-1 text-sm font-bold text-slate-800">{label}</div>
-            <div class="flex flex-wrap gap-1">
-                {options.into_iter().map(|option| {
-                    let selected_value = option.value.clone();
-                    let aria_value = option.value.clone();
-                    let clicked_value = option.value.clone();
-                    view! {
-                        <button
-                            type="button"
-                            class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
-                                "rounded border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-900"
-                            } else {
-                                "rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+        {move || {
+            let options = options.get();
+            if options.is_empty() {
+                return ().into_any();
+            }
+            view! {
+                <div>
+                    <div class="mb-1 text-sm font-bold text-slate-800">{label}</div>
+                    <div class="flex flex-wrap gap-1">
+                        {options.into_iter().map(|option| {
+                            let selected_value = option.value.clone();
+                            let aria_value = option.value.clone();
+                            let clicked_value = option.value.clone();
+                            view! {
+                                <button
+                                    type="button"
+                                    class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
+                                        "rounded border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-900"
+                                    } else {
+                                        "rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                                    }
+                                    aria-pressed=move || search.with(|state| state.selected_queries.get(search_key) == aria_value)
+                                    aria-label=move || search.with(|state| {
+                                        if state.selected_queries.get(search_key) == option.value {
+                                            format!("{}（選択中）", option.value)
+                                        } else {
+                                            option.value.clone()
+                                        }
+                                    })
+                                    on:click=move |_| search.update(|state| state.select_quick(search_key, clicked_value.clone()))
+                                >
+                                    {option.label}
+                                </button>
                             }
-                            aria-pressed=move || search.with(|state| state.selected_queries.get(search_key) == aria_value)
-                            aria-label=move || search.with(|state| {
-                                if state.selected_queries.get(search_key) == option.value {
-                                    format!("{}（選択中）", option.value)
-                                } else {
-                                    option.value.clone()
-                                }
-                            })
-                            on:click=move |_| search.update(|state| state.select_quick(search_key, clicked_value.clone()))
-                        >
-                            {option.label}
-                        </button>
-                    }
-                }).collect_view()}
-            </div>
-        </div>
-    }.into_any()
+                        }).collect_view()}
+                    </div>
+                </div>
+            }.into_any()
+        }}
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -464,28 +787,29 @@ fn focus_year_option(index: usize) {
 #[component]
 fn YearPicker(
     search: RwSignal<ReceiptSearch>,
-    years: Vec<SearchOption>,
+    years: Memo<Vec<SearchOption>>,
     is_open: RwSignal<bool>,
 ) -> impl IntoView {
-    let option_count = years.len();
+    let option_count = move || years.with_untracked(|years| years.len());
     let trigger_ref = NodeRef::<leptos::html::Button>::new();
     let label_search = search;
-    let label_years = years.clone();
     let selected_label = move || {
         let value = label_search.with(|state| state.date_inputs.year_value.clone());
         if value.is_empty() {
             "年を選択".to_string()
         } else {
-            label_years
-                .iter()
-                .find(|year| year.value == value)
-                .map(|year| year.label.clone())
+            years
+                .with(|years| {
+                    years
+                        .iter()
+                        .find(|year| year.value == value)
+                        .map(|year| year.label.clone())
+                })
                 .unwrap_or(value)
         }
     };
     let toggle_search = search;
     let toggle_open = is_open;
-    let options = years.clone();
     view! {
         <div class="relative">
             <button
@@ -506,7 +830,7 @@ fn YearPicker(
                     }
                     let index = match event.key().as_str() {
                         "ArrowDown" | "ArrowRight" => Some(0),
-                        "ArrowUp" | "ArrowLeft" => option_count.checked_sub(1),
+                        "ArrowUp" | "ArrowLeft" => option_count().checked_sub(1),
                         "Escape" => {
                             event.prevent_default();
                             is_open.set(false);
@@ -530,8 +854,8 @@ fn YearPicker(
                             aria-label="年候補"
                             class="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5"
                         >
-                            {options
-                                .clone()
+                            {years
+                                .get()
                                 .into_iter()
                                 .enumerate()
                                 .map(|(index, year)| {
@@ -565,7 +889,7 @@ fn YearPicker(
                                                         let _ = trigger.focus();
                                                     }
                                                 } else if let Some(next) =
-                                                    next_year_option_index(Some(index), option_count, &key)
+                                                    next_year_option_index(Some(index), option_count(), &key)
                                                 {
                                                     event.prevent_default();
                                                     focus_year_option(next);
@@ -591,10 +915,10 @@ fn YearPicker(
 #[component]
 fn DatePeriod(
     search: RwSignal<ReceiptSearch>,
-    years: Vec<SearchOption>,
+    years: Memo<Vec<SearchOption>>,
     year_picker_open: RwSignal<bool>,
 ) -> impl IntoView {
-    let has_years = !years.is_empty();
+    let has_years = move || years.with(|years| !years.is_empty());
     let segments = [
         DateSegment::Year,
         DateSegment::Month,
@@ -605,37 +929,39 @@ fn DatePeriod(
         <div class="space-y-2">
             <div class="text-sm font-bold text-slate-800">"期間"</div>
             <div class="flex gap-1">
-                {segments
-                    .into_iter()
-                    .filter(|segment| has_years || *segment != DateSegment::Year)
-                    .map(|segment| {
-                        let click_search = search;
-                        let click_picker = year_picker_open;
-                        view! {
-                            <button
-                                type="button"
-                                class=move || if search.with(|state| visible_date_segment(state, has_years) == segment) {
-                                    "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
-                                } else {
-                                    "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
-                                }
-                                aria-pressed=move || search.with(|state| visible_date_segment(state, has_years) == segment)
-                                on:click=move |_| {
-                                    click_picker.set(false);
-                                    click_search.update(|state| state.change_date_segment(segment));
-                                }
-                            >
-                                {segment.label()}
-                            </button>
-                        }
-                    })
-                    .collect_view()}
+                {move || {
+                    segments
+                        .into_iter()
+                        .filter(|segment| has_years() || *segment != DateSegment::Year)
+                        .map(|segment| {
+                            let click_search = search;
+                            let click_picker = year_picker_open;
+                            view! {
+                                <button
+                                    type="button"
+                                    class=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) {
+                                        "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
+                                    } else {
+                                        "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                                    }
+                                    aria-pressed=move || search.with(|state| visible_date_segment(state, has_years()) == segment)
+                                    on:click=move |_| {
+                                        click_picker.set(false);
+                                        click_search.update(|state| state.change_date_segment(segment));
+                                    }
+                                >
+                                    {segment.label()}
+                                </button>
+                            }
+                        })
+                        .collect_view()
+                }}
             </div>
-            {move || match search.with(|state| visible_date_segment(state, has_years)) {
+            {move || match search.with(|state| visible_date_segment(state, has_years())) {
                 DateSegment::Year => view! {
                     <YearPicker
                         search=search
-                        years=years.clone()
+                        years=years
                         is_open=year_picker_open
                     />
                 }
@@ -664,6 +990,7 @@ fn header_summary(
     tab: ReceiptsTab,
     data: &ReceiptTabData,
     query: &str,
+    has_preview: bool,
 ) -> Vec<(&'static str, Decimal)> {
     match tab {
         ReceiptsTab::Dividend => {
@@ -686,7 +1013,7 @@ fn header_summary(
             };
             let values = select_header_summary(
                 api.as_ref(),
-                false,
+                has_preview,
                 query,
                 [
                     client.total_dividends_before_tax,
@@ -720,7 +1047,7 @@ fn header_summary(
             };
             let values = select_header_summary(
                 api.as_ref(),
-                false,
+                has_preview,
                 query,
                 [
                     client.total_realized_profit_and_loss,
@@ -754,7 +1081,7 @@ fn header_summary(
             };
             let values = select_header_summary(
                 api.as_ref(),
-                false,
+                has_preview,
                 query,
                 [
                     client.total_realized_profit_and_loss,
