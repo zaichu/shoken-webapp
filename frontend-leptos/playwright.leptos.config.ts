@@ -5,8 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * - 対象は frontend/e2e の各 spec を無改修で実行する
  * - error-scenarios は CSV ケース（CSV画面は #884/#885 の範囲）を除く
- * - assetbalance-flow は EmptyState と検索・クリアのみ（CSV・削除は #918/#919 の範囲）
- * - frontend-leptos/e2e の PoC 専用 spec は leptos-e2e project で実行する
+ * - assetbalance-flow は EmptyState と検索・クリアのみ
  * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
  */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';

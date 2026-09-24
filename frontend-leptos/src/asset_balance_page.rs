@@ -267,8 +267,6 @@ struct FilteredPortfolio {
     summary: Option<AssetBalanceSummary>,
 }
 
-// 検索中は API の全体 summary を捨てる。渡すと絞り込み前の
-// 全体金額が画面に出るため、PortfolioSummary が表示中の行から再集計する。
 fn filtered_portfolio(
     loaded: &LoadedAssetBalances,
     query: &str,
@@ -516,10 +514,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
-    // React では showAll が PortfolioPieChart 内の useState にあり、
-    // AssetPortfolioSummary が子を描かなくなる(0件・全ゼロ・非表示)と
-    // アンマウントで破棄される。ページ側に持ち上げた show_all も、
-    // グラフを描かない分岐では上位20件表示(false)へ戻す。
+    // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
     let show_all = RwSignal::new(false);
     Effect::new(move |_| {
         let generation = session.generation.get();
@@ -1492,8 +1487,7 @@ mod tests {
     fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let owner = Owner::new();
         owner.with(|| {
-            // 行合計とも絞り込み後の合計とも異なる API summary を使い、
-            // 画面の金額が summary 由来でなく表示中の行から来ることを確認する
+            // 行合計と一致しない API summary を使い、画面の金額が表示中の行から来ることを確認する
             let mut toyota = balance_row(7203);
             toyota.security_name = "トヨタ自動車".to_string();
             toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
@@ -1558,7 +1552,6 @@ mod tests {
                 calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
             });
 
-            // 絞り込んだ行(7203のみ)の合計が出る。API summary の 999,999/888,888 は使われない
             assert_eq!(valuation.market_value, Some(110000.0));
             assert_eq!(valuation.amount, Some(10000.0));
             assert_eq!(valuation.rate, Some(10.0));
@@ -1570,7 +1563,6 @@ mod tests {
                 assert_eq!(kpi.holdings_count, 1);
             });
 
-            // 検索していないときは API summary がそのまま画面の金額に使われる
             let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
             assert_eq!(unfiltered.views.len(), 2);
             assert_eq!(
@@ -1584,10 +1576,6 @@ mod tests {
 
     #[test]
     fn show_all_resets_when_summary_stops_drawing_the_chart() {
-        // React では showAll が PortfolioPieChart の useState にあり、
-        // AssetPortfolioSummary が子を描かなくなる(0件・全ゼロ)と
-        // アンマウントされて上位20件表示に戻る。ページ側の show_all も
-        // 同じ寿命にする。
         let owner = Owner::new();
         owner.with(|| {
             let dividends = RwSignal::new(DividendMaps::default());
@@ -1608,15 +1596,12 @@ mod tests {
                 )
             };
 
-            // グラフが描かれている間は全件表示を保持する
             let _ = summary_view(views.clone());
             assert!(show_all.get_untracked());
 
-            // 絞り込み0件でグラフが消えると上位20件表示に戻る
             let _ = summary_view(Vec::new());
             assert!(!show_all.get_untracked());
 
-            // 価値ゼロの銘柄だけに絞ってサマリーごと消えても同じく戻る
             show_all.set(true);
             let mut zero = balance_row(9999);
             zero.total_purchase_amount = rust_decimal_macros::dec!(0);
@@ -1624,7 +1609,6 @@ mod tests {
             let _ = summary_view(vec![holding_view(&zero)]);
             assert!(!show_all.get_untracked());
 
-            // 絞り込み解除で戻っても全件表示は復活しない
             let _ = summary_view(views);
             assert!(!show_all.get_untracked());
             let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
