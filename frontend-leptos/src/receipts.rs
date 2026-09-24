@@ -249,25 +249,17 @@ impl ReceiptsStore {
         self.rows(tab).len()
     }
 
+    // CSV エラーはタブ内の操作レール側が表示するため、ここでは一覧取得失敗だけを返す
     pub fn error(&self) -> Option<String> {
         let generation = self.session.generation.get();
-        self.cache
-            .with(|map| {
-                ReceiptsTab::ALL
-                    .iter()
-                    .find_map(|tab| match map.get(&(generation, *tab)) {
-                        Some(TabState::Failed(message)) => Some(message.clone()),
-                        _ => None,
-                    })
-            })
-            .or_else(|| {
-                self.csv.with(|map| {
-                    ReceiptsTab::ALL.iter().find_map(|tab| {
-                        map.get(&(generation, *tab))
-                            .and_then(|state| state.error.clone())
-                    })
+        self.cache.with(|map| {
+            ReceiptsTab::ALL
+                .iter()
+                .find_map(|tab| match map.get(&(generation, *tab)) {
+                    Some(TabState::Failed(message)) => Some(message.clone()),
+                    _ => None,
                 })
-            })
+        })
     }
 
     pub fn tab_state(&self, tab: ReceiptsTab) -> TabState {
@@ -973,7 +965,8 @@ mod csv_tests {
             assert!(!state.saving);
             assert_eq!(state.file_name.as_deref(), Some("stocks.csv"));
             assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-            assert_eq!(store.error().as_deref(), Some("認証が必要です"));
+            // ページ上部の error() は一覧取得失敗専用。CSV エラーは操作レール側が出す
+            assert!(store.error().is_none());
         });
     }
 
@@ -1216,7 +1209,7 @@ mod csv_tests {
     }
 
     #[test]
-    fn error_prefers_fetch_error_over_csv_error() {
+    fn error_returns_list_fetch_errors_only() {
         let owner = Owner::new();
         owner.with(|| {
             let session = SessionStore::new();
@@ -1252,7 +1245,7 @@ mod csv_tests {
                     },
                 )]),
             );
-            assert_eq!(store.error().as_deref(), Some("リクエストが不正です"));
+            assert!(store.error().is_none());
         });
     }
 
