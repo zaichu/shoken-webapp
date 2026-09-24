@@ -7,7 +7,12 @@ mod not_found_page;
 mod page;
 mod receipts;
 mod receipts_domain;
+mod receipts_filter;
 mod receipts_page;
+mod receipts_pagination;
+mod receipts_search;
+mod receipts_search_group_key;
+mod receipts_search_support;
 mod search;
 mod session;
 

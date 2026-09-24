@@ -4,8 +4,11 @@ use crate::dto::{
     MutualfundListResponse, MutualfundSummary,
 };
 use crate::receipts_domain::{format_currency, format_date, format_number};
+use crate::receipts_filter::{filter_receipts, ReceiptSearch};
+use crate::receipts_pagination::PageCollector;
 use crate::session::SessionStore;
 use leptos::prelude::*;
+use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -116,39 +119,76 @@ pub fn select_header_summary<T: Clone>(
     }
 }
 
+const RECEIPT_LIST_PER_PAGE: usize = 1000;
+// API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
+const RECEIPT_LIST_MAX_PAGES: usize = 100;
+
+async fn fetch_pages<R, T, S>(
+    client: &ApiClient,
+    path: &str,
+    into_parts: impl Fn(R) -> (Vec<T>, i64, Option<S>),
+) -> Result<(Vec<T>, Option<S>), ApiError>
+where
+    R: DeserializeOwned,
+{
+    let mut pages = PageCollector::new(RECEIPT_LIST_PER_PAGE, RECEIPT_LIST_MAX_PAGES);
+    let per_page = RECEIPT_LIST_PER_PAGE.to_string();
+    let mut summary = None;
+    loop {
+        let page_no = pages.next_page();
+        let page = page_no.to_string();
+        let query = [
+            ("per_page", per_page.as_str()),
+            ("page", page.as_str()),
+            (
+                "include_summary",
+                if page_no == 1 { "true" } else { "false" },
+            ),
+        ];
+        let (data, total, page_summary) = into_parts(client.get_json::<R>(path, &query).await?);
+        if page_no == 1 {
+            summary = page_summary;
+        }
+        if !pages.push(data, total) {
+            break;
+        }
+    }
+    Ok((pages.into_rows(), summary))
+}
+
 async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     let client = ApiClient::read_client();
-    let query = &[
-        ("per_page", "1000"),
-        ("page", "1"),
-        ("include_summary", "true"),
-    ];
     match tab {
-        ReceiptsTab::Dividend => client
-            .get_json::<DividendListResponse>(tab.list_path(), query)
+        ReceiptsTab::Dividend => {
+            fetch_pages(&client, tab.list_path(), |r: DividendListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list.data.into_iter().map(ReceiptItem::Dividend).collect(),
-                summary: list.summary.map(ReceiptSummary::Dividend),
-            }),
-        ReceiptsTab::DomesticStock => client
-            .get_json::<DomesticStockListResponse>(tab.list_path(), query)
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::Dividend).collect(),
+                summary: summary.map(ReceiptSummary::Dividend),
+            })
+        }
+        ReceiptsTab::DomesticStock => {
+            fetch_pages(&client, tab.list_path(), |r: DomesticStockListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list
-                    .data
-                    .into_iter()
-                    .map(ReceiptItem::DomesticStock)
-                    .collect(),
-                summary: list.summary.map(ReceiptSummary::DomesticStock),
-            }),
-        ReceiptsTab::MutualFund => client
-            .get_json::<MutualfundListResponse>(tab.list_path(), query)
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::DomesticStock).collect(),
+                summary: summary.map(ReceiptSummary::DomesticStock),
+            })
+        }
+        ReceiptsTab::MutualFund => {
+            fetch_pages(&client, tab.list_path(), |r: MutualfundListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list.data.into_iter().map(ReceiptItem::MutualFund).collect(),
-                summary: list.summary.map(ReceiptSummary::MutualFund),
-            }),
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::MutualFund).collect(),
+                summary: summary.map(ReceiptSummary::MutualFund),
+            })
+        }
     }
 }
 
@@ -170,12 +210,17 @@ pub enum TabState {
 pub struct ReceiptsStore {
     session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
+    pub search: RwSignal<ReceiptSearch>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
     fetch: Action<(u64, ReceiptsTab), ()>,
 }
 
 impl ReceiptsStore {
+    pub fn filtered_rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
+        filter_receipts(tab, &self.rows(tab), &self.search.get().query)
+    }
+
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
@@ -214,6 +259,9 @@ impl ReceiptsStore {
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
+        if self.active_tab.get_untracked() != tab {
+            self.search.set(ReceiptSearch::default());
+        }
         self.visited.update(|visited| {
             visited.insert(tab);
         });
@@ -296,6 +344,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     let store = ReceiptsStore {
         session: session.clone(),
         active_tab,
+        search: RwSignal::new(ReceiptSearch::default()),
         visited,
         cache,
         fetch,
@@ -412,6 +461,7 @@ mod tests {
                 let store = ReceiptsStore {
                     session: session.clone(),
                     active_tab: RwSignal::new(tab),
+                    search: RwSignal::new(ReceiptSearch::default()),
                     visited: RwSignal::new(HashSet::from([tab])),
                     cache,
                     fetch,
@@ -463,5 +513,52 @@ mod tests {
                 "¥ 2,391",
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+    use crate::receipts_filter::tests::dividends;
+
+    #[test]
+    fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let store = ReceiptsStore {
+                session: SessionStore::new(),
+                active_tab: RwSignal::new(ReceiptsTab::Dividend),
+                search: RwSignal::new(ReceiptSearch {
+                    query: "9432".into(),
+                    ..Default::default()
+                }),
+                visited: RwSignal::new(HashSet::new()),
+                cache: RwSignal::new(HashMap::from([(
+                    (0, ReceiptsTab::Dividend),
+                    TabState::Ready(ReceiptTabData {
+                        rows: dividends(),
+                        summary: None,
+                    }),
+                )])),
+                fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            };
+            assert_eq!(
+                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                2
+            );
+            assert_eq!(
+                leptos::prelude::untrack(|| store.count(ReceiptsTab::Dividend)),
+                3
+            );
+            store.select_tab(ReceiptsTab::Dividend);
+            assert_eq!(store.search.get_untracked().query, "9432");
+            store.select_tab(ReceiptsTab::DomesticStock);
+            assert_eq!(store.search.get_untracked(), ReceiptSearch::default());
+            store.select_tab(ReceiptsTab::Dividend);
+            assert_eq!(
+                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                3
+            );
+        });
     }
 }

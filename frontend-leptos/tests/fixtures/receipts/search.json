@@ -1,0 +1,1479 @@
+{
+  "cases": [
+    {
+      "name": "exact_match",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "1234",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "exact_rejects_partial",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "123",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "partial_match",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "テスト",
+      "config": {
+        "partialStringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "9012"
+      ]
+    },
+    {
+      "name": "case_insensitive",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "a",
+      "config": {
+        "partialStringFields": [
+          "category"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "9012"
+      ]
+    },
+    {
+      "name": "multiple_partial_fields",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "12",
+      "config": {
+        "partialStringFields": [
+          "code",
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "9012"
+      ]
+    },
+    {
+      "name": "and_tokens",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "A 2023",
+      "config": {
+        "stringFields": [
+          "category"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "quoted_token",
+      "data": [
+        {
+          "id": "1",
+          "code": "1",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "2",
+          "code": "2",
+          "name": "Alpha Fund B",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "3",
+          "code": "3",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2024-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "\"Alpha Fund A\" 2023",
+      "config": {
+        "stringFields": [
+          "name"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "1"
+      ]
+    },
+    {
+      "name": "half_width_label",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "1234: テスト商品1",
+      "config": {
+        "stringFields": [
+          "code",
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "full_width_colon_label",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "1234： テスト商品1",
+      "config": {
+        "stringFields": [
+          "code",
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "exact_or_partial",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "テスト",
+      "config": {
+        "stringFields": [
+          "code"
+        ],
+        "partialStringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "9012"
+      ]
+    },
+    {
+      "name": "empty_query",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "",
+      "config": {
+        "partialStringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "year",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023",
+      "config": {
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "1234",
+        "5678"
+      ]
+    },
+    {
+      "name": "year_month",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-01",
+      "config": {
+        "dateField": "date",
+        "yearMonthSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "date",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-02-20",
+      "config": {
+        "dateField": "date",
+        "dateSearch": true
+      },
+      "expected_ids": [
+        "5678"
+      ]
+    },
+    {
+      "name": "closed_range",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-01-01..2023-01-31",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "range_start",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-02-01..",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": [
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "range_end",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "..2023-01-31",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "invalid_range",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "invalid..range",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "invalid_date",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "..2023-99-99",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "reversed_range",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-02-01..2023-01-01",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "amount_partial",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "00",
+      "config": {
+        "amountFields": [
+          "amount"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "amount_exact",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "100",
+      "config": {
+        "amountFields": [
+          "amount"
+        ]
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "quoted_exact_rejects_suffix",
+      "data": [
+        {
+          "id": "1",
+          "code": "1",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "2",
+          "code": "2",
+          "name": "Alpha Fund B",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "3",
+          "code": "3",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2024-01-15",
+          "amount": 100
+        },
+        {
+          "id": "4",
+          "code": "4",
+          "name": "Alpha Fund A Extra",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "\"Alpha Fund A\" 2023",
+      "config": {
+        "stringFields": [
+          "name"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "1"
+      ]
+    },
+    {
+      "name": "spaces",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "   ",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "unicode_spaces",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "　\t\n ﻿",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "empty_quotes",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "\"\" \"   \"",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": [
+        "1234",
+        "5678",
+        "9012"
+      ]
+    },
+    {
+      "name": "full_width_digits_are_distinct",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "１２３４",
+      "config": {
+        "stringFields": [
+          "code"
+        ]
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "full_width_and_separator",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "A　2023",
+      "config": {
+        "stringFields": [
+          "category"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "label_without_space_is_not_split",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "1234：テスト商品1",
+      "config": {
+        "stringFields": [
+          "code",
+          "name"
+        ]
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "range_inclusive",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-01-15..2023-01-15",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": [
+        "1234"
+      ]
+    },
+    {
+      "name": "empty_range",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "..",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "non_leap_date",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "..2023-02-29",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "multiple_ranges",
+      "data": [
+        {
+          "id": "1234",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "5678",
+          "code": "5678",
+          "name": "サンプル品",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        },
+        {
+          "id": "9012",
+          "code": "9012",
+          "name": "テスト商品2",
+          "category": "A",
+          "date": "2024-01-10",
+          "amount": 300
+        }
+      ],
+      "query": "2023-01-01..2023-02-01..",
+      "config": {
+        "dateField": "date",
+        "dateRangeSearch": true
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "quoted_partial",
+      "data": [
+        {
+          "id": "1",
+          "code": "1",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "2",
+          "code": "2",
+          "name": "Alpha Fund B",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "3",
+          "code": "3",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2024-01-15",
+          "amount": 100
+        },
+        {
+          "id": "4",
+          "code": "4",
+          "name": "Alpha Fund A Extra",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "\"Alpha Fund\"",
+      "config": {
+        "partialStringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "name": "unclosed_quote",
+      "data": [
+        {
+          "id": "1",
+          "code": "1",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "2",
+          "code": "2",
+          "name": "Alpha Fund B",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "3",
+          "code": "3",
+          "name": "Alpha Fund A",
+          "category": "A",
+          "date": "2024-01-15",
+          "amount": 100
+        },
+        {
+          "id": "4",
+          "code": "4",
+          "name": "Alpha Fund A Extra",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "\"Alpha",
+      "config": {
+        "partialStringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": []
+    },
+    {
+      "name": "escaped_quote",
+      "data": [
+        {
+          "id": "q",
+          "code": "1234",
+          "name": "Alpha \"Fund\"",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "\"Alpha \\\"Fund\\\"\"",
+      "config": {
+        "stringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "q"
+      ]
+    },
+    {
+      "name": "full_width_name",
+      "data": [
+        {
+          "id": "full",
+          "code": "1234",
+          "name": "ＮＴＴ",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        },
+        {
+          "id": "half",
+          "code": "5678",
+          "name": "NTT",
+          "category": "B",
+          "date": "2023-02-20",
+          "amount": 200
+        }
+      ],
+      "query": "ＮＴＴ",
+      "config": {
+        "stringFields": [
+          "name"
+        ]
+      },
+      "expected_ids": [
+        "full"
+      ]
+    },
+    {
+      "name": "decimal_and_negative",
+      "data": [
+        {
+          "id": "n",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": -12.5
+        }
+      ],
+      "query": "-12.5",
+      "config": {
+        "amountFields": [
+          "amount"
+        ]
+      },
+      "expected_ids": [
+        "n"
+      ]
+    },
+    {
+      "name": "feff_token_separator",
+      "data": [
+        {
+          "id": "feff-match",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "1234﻿2023",
+      "config": {
+        "stringFields": [
+          "code"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": [
+        "feff-match"
+      ]
+    },
+    {
+      "name": "u0085_is_not_token_separator",
+      "data": [
+        {
+          "id": "u0085-no-match",
+          "code": "1234",
+          "name": "テスト商品1",
+          "category": "A",
+          "date": "2023-01-15",
+          "amount": 100
+        }
+      ],
+      "query": "12342023",
+      "config": {
+        "stringFields": [
+          "code"
+        ],
+        "dateField": "date",
+        "yearSearch": true
+      },
+      "expected_ids": []
+    }
+  ]
+}
