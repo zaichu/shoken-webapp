@@ -256,8 +256,7 @@ impl ApiClient {
         serde_json::from_str(&text).map_err(|_| ApiError::Parse)
     }
 
-    // CSV取込(#884/#885)のmultipart送信。画面への接続は層2
-    #[allow(dead_code)]
+    // CSV取込(#884/#885)のmultipart送信
     pub async fn post_multipart<T: DeserializeOwned>(
         &self,
         path: &str,

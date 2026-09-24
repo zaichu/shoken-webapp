@@ -49,7 +49,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
             summary: Some(summary),
         };
         assert_eq!(
-            header_summary(tab, &data, "")
+            header_summary(tab, &data, "", false)
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
@@ -57,23 +57,23 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         );
         data.rows = filter_receipts(tab, &rows, query);
         assert_eq!(
-            header_summary(tab, &data, query)
+            header_summary(tab, &data, query, false)
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             expected
         );
         data.rows = filter_receipts(tab, &rows, "　");
-        assert_ne!(header_summary(tab, &data, "　")[0].1, dec!(9999));
+        assert_ne!(header_summary(tab, &data, "　", false)[0].1, dec!(9999));
         data.rows = filter_receipts(tab, &rows, "該当なし");
         assert_eq!(
-            header_summary(tab, &data, "該当なし")
+            header_summary(tab, &data, "該当なし", false)
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             [Decimal::ZERO; 3]
         );
-        assert_eq!(header_summary(tab, &data, "")[0].1, dec!(9999));
+        assert_eq!(header_summary(tab, &data, "", false)[0].1, dec!(9999));
     }
 }
 #[test]

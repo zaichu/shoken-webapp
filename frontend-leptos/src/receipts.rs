@@ -5,7 +5,7 @@ use crate::dto::{
 };
 use crate::receipts_csv::{csv_error_message, to_preview, CsvTabState};
 use crate::receipts_domain::{format_currency, format_date, format_number};
-use crate::receipts_filter::{filter_receipts, ReceiptSearch};
+use crate::receipts_filter::ReceiptSearch;
 use crate::receipts_pagination::PageCollector;
 use crate::session::SessionStore;
 use leptos::prelude::*;
@@ -42,8 +42,6 @@ impl ReceiptsTab {
         }
     }
 
-    // 画面への接続は層2
-    #[allow(dead_code)]
     pub(crate) fn preview_path(&self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-import-validations",
@@ -52,8 +50,6 @@ impl ReceiptsTab {
         }
     }
 
-    // 画面への接続は層2
-    #[allow(dead_code)]
     pub(crate) fn import_path(&self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-imports",
@@ -241,10 +237,6 @@ pub struct ReceiptsStore {
 }
 
 impl ReceiptsStore {
-    pub fn filtered_rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
-        filter_receipts(tab, &self.rows(tab), &self.search.get().query)
-    }
-
     pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
@@ -289,6 +281,10 @@ impl ReceiptsStore {
 
     pub fn is_authenticated(&self) -> bool {
         self.session.user.get().is_some()
+    }
+
+    pub fn auth_loading(&self) -> bool {
+        !self.session.loaded.get()
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
@@ -346,8 +342,6 @@ impl ReceiptsStore {
     }
 }
 
-// CSV操作の画面への接続は層2で行う。それまで公開APIは呼ばれない
-#[allow(dead_code)]
 impl ReceiptsStore {
     pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState {
         let generation = self.session.generation.get();
@@ -357,6 +351,14 @@ impl ReceiptsStore {
 
     pub fn csv_busy(&self, tab: ReceiptsTab) -> bool {
         self.csv_state(tab).busy()
+    }
+
+    // React の previewData.length > 0 相当。プレビュー行があれば一覧の表示を置き換える
+    pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
+        self.csv_state(tab)
+            .preview
+            .map(|preview| !preview.rows.is_empty())
+            .unwrap_or(false)
     }
 
     pub fn any_tab_fetching(&self) -> bool {
@@ -547,19 +549,17 @@ impl ReceiptsStore {
     }
 
     // 取込成功後の一覧無効化。再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
+    // React の invalidateQueries と同じく、再取得してもタブを訪問済みにはしない
     fn refresh_tab_list(&self, generation: u64, tab: ReceiptsTab) -> bool {
         let mut refresh = false;
         self.cache.update(|map| {
             refresh = mark_tab_for_refresh(map, generation, tab);
         });
-        if refresh {
-            self.visited.update(|visited| {
-                visited.insert(tab);
-            });
-        }
         refresh
     }
 
+    // 外部からの強制再取得。取込・削除の成功時は内部で refresh_tab_list されるため未使用
+    #[allow(dead_code)]
     pub fn invalidate_tab(&self, tab: ReceiptsTab) {
         if self.session.user.get_untracked().is_none() {
             return;
@@ -584,8 +584,6 @@ fn should_apply_fetch_result(session: &SessionStore, generation: u64) -> bool {
     session.is_current(generation)
 }
 
-// 画面への接続は層2
-#[allow(dead_code)]
 fn mark_tab_for_refresh(
     map: &mut HashMap<(u64, ReceiptsTab), TabState>,
     generation: u64,
@@ -1336,6 +1334,7 @@ mod csv_tests {
 #[cfg(test)]
 mod search_tests {
     use super::*;
+    use crate::receipts_filter::filter_receipts;
     use crate::receipts_filter::tests::dividends;
 
     #[test]
@@ -1362,7 +1361,14 @@ mod search_tests {
                 csv_files: RwSignal::new(HashMap::new()),
             };
             assert_eq!(
-                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                leptos::prelude::untrack(|| {
+                    filter_receipts(
+                        ReceiptsTab::Dividend,
+                        &store.rows(ReceiptsTab::Dividend),
+                        &store.search.get().query,
+                    )
+                })
+                .len(),
                 2
             );
             assert_eq!(
@@ -1375,7 +1381,14 @@ mod search_tests {
             assert_eq!(store.search.get_untracked(), ReceiptSearch::default());
             store.select_tab(ReceiptsTab::Dividend);
             assert_eq!(
-                leptos::prelude::untrack(|| store.filtered_rows(ReceiptsTab::Dividend)).len(),
+                leptos::prelude::untrack(|| {
+                    filter_receipts(
+                        ReceiptsTab::Dividend,
+                        &store.rows(ReceiptsTab::Dividend),
+                        &store.search.get().query,
+                    )
+                })
+                .len(),
                 3
             );
         });
