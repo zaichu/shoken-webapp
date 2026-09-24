@@ -312,7 +312,7 @@ test('投資信託タブでもカードが開きファンド名をコピーで�
   await expect(region.getByText('税引損益', { exact: true })).toBeVisible();
 });
 
-test('検索条件を変えても開いていたカードと集計は閉じない', async ({ page }) => {
+test('検索条件を変えても同じカードと集計は閉じない', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
@@ -346,8 +346,28 @@ test('検索条件を変えても開いていたカードと集計は閉じな�
   ).toBeVisible();
   await expect(
     cardList.getByRole('button', { name: /1件 受取額 ¥ 1,594/ }),
-  ).toHaveAttribute('aria-expanded', 'true');
+  ).toHaveAttribute('aria-expanded', 'false');
   await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('開いたカードは絞り込みで位置が変わっても開いたまま追従する', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const cardList = page.getByTestId('receipt-card-list');
+  const sony = cardList.getByRole('button', { name: 'ソニーグループ ¥ 797' });
+  await sony.click();
+  await expect(sony).toHaveAttribute('aria-expanded', 'true');
+
+  await page
+    .getByTestId('search-card')
+    .getByRole('button', { name: 'NISA口座' })
+    .click();
+  await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
+  await expect(sony).toHaveAttribute('aria-expanded', 'true');
+  await expect(
+    cardList.getByRole('region', { name: 'ソニーグループ ¥ 797' }),
+  ).toBeVisible();
 });
 
 test('CSV操作レールはスマホ幅で折り畳み開閉できる', async ({ page }) => {

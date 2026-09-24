@@ -1384,9 +1384,10 @@ fn SummaryStrip(
 }
 
 struct TableGroup {
+    key: String,
     label: String,
     summary: Vec<String>,
-    rows: Vec<Vec<ReceiptCell>>,
+    rows: Vec<(String, Vec<ReceiptCell>)>,
 }
 
 fn group_label(key: &str) -> String {
@@ -1479,9 +1480,10 @@ fn table_groups(
                     .filter(|row| key(row) == summary.filter)
                     .cloned()
                     .map(ReceiptItem::Dividend)
-                    .map(|item| item.cells())
+                    .map(|item| (item.id().to_string(), item.cells()))
                     .collect();
                 TableGroup {
+                    key: summary.filter.clone(),
                     label: group_label(&summary.filter),
                     summary: vec![
                         format_currency(summary.values[0]),
@@ -1510,9 +1512,10 @@ fn table_groups(
                         .filter(|row| row.trade_date == summary.filter)
                         .cloned()
                         .map(ReceiptItem::DomesticStock)
-                        .map(|item| item.cells())
+                        .map(|item| (item.id().to_string(), item.cells()))
                         .collect();
                     TableGroup {
+                        key: summary.filter.clone(),
                         label: group_label(&summary.filter),
                         summary: vec![
                             format_currency(summary.total_realized_profit_and_loss),
@@ -1555,9 +1558,10 @@ fn table_groups(
                     .filter(|row| key(row) == summary.filter)
                     .cloned()
                     .map(ReceiptItem::MutualFund)
-                    .map(|item| item.cells())
+                    .map(|item| (item.id().to_string(), item.cells()))
                     .collect();
                 TableGroup {
+                    key: summary.filter.clone(),
                     label: group_label(&summary.filter),
                     summary: vec![
                         format_currency(summary.values[0]),
@@ -1648,6 +1652,7 @@ struct CardDetail {
 }
 
 struct CardRowData {
+    key: String,
     name: String,
     amount: String,
     amount_negative: bool,
@@ -1702,6 +1707,7 @@ fn cell_text(cell: &ReceiptCell) -> &str {
 }
 
 fn card_row_data(
+    key: String,
     cells: &[ReceiptCell],
     headers: &[&'static str],
     order: &[usize],
@@ -1715,6 +1721,7 @@ fn card_row_data(
     };
     let amount = text(fields.primary);
     CardRowData {
+        key,
         name: text(fields.name),
         amount_negative: is_negative_text(&amount),
         amount,
@@ -1804,7 +1811,7 @@ fn ReceiptItemCard(
     id_prefix: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let expanded_id = id_prefix.clone();
+    let expanded_id = card.key.clone();
     let toggle_id = expanded_id.clone();
     let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&expanded_id)));
     let button_id = format!("{id_prefix}-button");
@@ -1816,6 +1823,7 @@ fn ReceiptItemCard(
         date,
         account,
         details,
+        ..
     } = card;
     let aria_label = format!("{name} {amount}");
     let amount_class = if amount_negative {
@@ -1928,9 +1936,10 @@ fn MobileCardGroup(
     summary: Vec<(&'static str, String)>,
     cards: Vec<CardRowData>,
     id_prefix: String,
+    expanded_key: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let expanded_id = id_prefix.clone();
+    let expanded_id = expanded_key;
     let toggle_id = expanded_id.clone();
     let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&expanded_id)));
     let button_id = format!("{id_prefix}-group-button");
@@ -2139,10 +2148,19 @@ fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|cells| card_row_data(cells, headers, &order, fields))
+                .enumerate()
+                .map(|(index, (id, cells))| {
+                    let key = if id.is_empty() {
+                        format!("{slug}:g{}:{index}", group.key)
+                    } else {
+                        format!("{slug}:r:{id}")
+                    };
+                    card_row_data(key, cells, headers, &order, fields)
+                })
                 .collect();
             (
                 group_index,
+                group.key.clone(),
                 group.label.clone(),
                 group.rows.len(),
                 summary,
@@ -2183,7 +2201,7 @@ fn ReceiptTable(
                                     {group
                                         .rows
                                         .iter()
-                                        .map(|cells| {
+                                        .map(|(_, cells)| {
                                             let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
                                             view! {
                                                 <tr class="border-t border-slate-200">
@@ -2223,7 +2241,7 @@ fn ReceiptTable(
         <div class="space-y-4">
             {card_groups
                 .into_iter()
-                .map(|(group_index, label, count, summary, cards)| {
+                .map(|(group_index, key, label, count, summary, cards)| {
                     view! {
                         <MobileCardGroup
                             label=label
@@ -2231,6 +2249,7 @@ fn ReceiptTable(
                             summary=summary
                             cards=cards
                             id_prefix=format!("receipt-{slug}-group-{group_index}")
+                            expanded_key=format!("{slug}:g:{key}")
                             expanded_ids=expanded_ids
                         />
                     }

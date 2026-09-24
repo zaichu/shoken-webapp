@@ -210,19 +210,18 @@ fn card_fields_point_at_expected_columns() {
             expected
         );
     }
-    assert_eq!(
-        card_fields(ReceiptsTab::Dividend)
-            .code
-            .map(|i| table_headers(ReceiptsTab::Dividend)[i]),
-        Some("銘柄コード")
-    );
-    assert_eq!(
-        card_fields(ReceiptsTab::DomesticStock)
-            .code
-            .map(|i| table_headers(ReceiptsTab::DomesticStock)[i]),
-        Some("銘柄コード")
-    );
-    assert_eq!(card_fields(ReceiptsTab::MutualFund).code, None);
+    assert!(matches!(
+        dividends()[0].cells()[3],
+        ReceiptCell::SecurityCode(_)
+    ));
+    assert!(matches!(
+        domestic()[0].cells()[1],
+        ReceiptCell::SecurityCode(_)
+    ));
+    assert!(!funds()[0]
+        .cells()
+        .iter()
+        .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_))));
 }
 
 #[test]
@@ -231,11 +230,13 @@ fn card_row_data_matches_react_card_fields() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
+        "dividend:r:old".to_string(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
         card_fields(ReceiptsTab::Dividend),
     );
+    assert_eq!(card.key, "dividend:r:old");
     assert_eq!(card.name, "日本電信電話");
     assert_eq!(card.amount, "¥ 400");
     assert!(!card.amount_negative);
@@ -255,6 +256,7 @@ fn card_details_link_security_code_and_copy_name() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
+        String::new(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
@@ -262,7 +264,7 @@ fn card_details_link_security_code_and_copy_name() {
     );
     assert!(card.details.iter().any(|detail| matches!(
         &detail.value,
-        CardDetailValue::SecurityCode(raw) if raw == &cells[3]
+        CardDetailValue::SecurityCode(raw) if raw == "9432"
     )));
     assert!(card.details.iter().any(|detail| matches!(
         &detail.value,
@@ -274,6 +276,7 @@ fn card_details_link_security_code_and_copy_name() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
+        String::new(),
         &cells,
         table_headers(ReceiptsTab::MutualFund),
         &order,
@@ -287,6 +290,19 @@ fn card_details_link_security_code_and_copy_name() {
         &detail.value,
         CardDetailValue::CopyName { display, copy } if display == copy
     )));
+}
+
+#[test]
+fn table_groups_carry_group_key_and_row_ids() {
+    let rows = dividends();
+    let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "");
+    assert_eq!(groups[0].key, "2026-06");
+    assert_eq!(groups[0].label, "2026年6月");
+    let ids: Vec<&str> = groups
+        .iter()
+        .flat_map(|group| group.rows.iter().map(|(id, _)| id.as_str()))
+        .collect();
+    assert_eq!(ids, ["new", "other", "old"]);
 }
 
 #[test]
@@ -306,6 +322,7 @@ fn card_row_data_details_follow_column_reorder() {
     assert_eq!(order[1], 2);
     let cells = rows[0].cells();
     let card = card_row_data(
+        String::new(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,

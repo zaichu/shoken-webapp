@@ -88,6 +88,14 @@ impl ReceiptCell {
 }
 
 impl ReceiptItem {
+    pub fn id(&self) -> &str {
+        match self {
+            ReceiptItem::Dividend(row) => &row.id,
+            ReceiptItem::DomesticStock(row) => &row.id,
+            ReceiptItem::MutualFund(row) => &row.id,
+        }
+    }
+
     pub fn cells(&self) -> Vec<ReceiptCell> {
         match self {
             ReceiptItem::Dividend(row) => vec![
