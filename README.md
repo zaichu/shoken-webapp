@@ -88,6 +88,14 @@ cp .env.example .env
 VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001
 ```
 
+### Git フック
+
+```bash
+git config core.hooksPath .githooks
+```
+
+worktree でも有効です。緊急時は `git commit --no-verify` / `git push --no-verify` でフックをスキップできます。
+
 ## ローカル起動
 
 ### 一括起動（推奨）
