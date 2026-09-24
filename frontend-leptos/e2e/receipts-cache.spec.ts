@@ -148,6 +148,12 @@ function userSession(user: unknown): SessionResponder {
   return () => ({ status: 200, body: user });
 }
 
+// ログアウトはヘッダーのユーザーメニュー内にあるため、開いてから項目を押す
+async function logoutViaUserMenu(page: Page) {
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByTestId('logout').click();
+}
+
 function unauthorizedSession(): SessionResponder {
   return () => ({ status: 401, body: {} });
 }
@@ -258,7 +264,7 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
   await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
 
   session.responder = unauthorizedSession();
-  await page.getByTestId('logout').click();
+  await logoutViaUserMenu(page);
   await page.waitForURL('**/login');
   await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
   expect(session.deleteCount).toBe(1);
@@ -286,7 +292,7 @@ test('ログアウト後に旧データが残らない', async ({ page }) => {
   await page.waitForRequest(/\/api\/v1\/dividends/);
 
   session.responder = unauthorizedSession();
-  await page.getByTestId('logout').click();
+  await logoutViaUserMenu(page);
   await page.waitForURL('**/login');
   await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
 
@@ -310,7 +316,7 @@ test('同一ユーザーでログアウト→再ログインしても明細が�
   await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
 
   session.responder = unauthorizedSession();
-  await page.getByTestId('logout').click();
+  await logoutViaUserMenu(page);
   await page.waitForURL('**/login');
   await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
   expect(session.deleteCount).toBe(1);
