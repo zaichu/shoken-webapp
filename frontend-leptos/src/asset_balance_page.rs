@@ -2,7 +2,7 @@ use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::{
     calculate_portfolio_kpi, calculate_valuation, chart_percentages, normalize_security_code,
     normalize_security_name, should_include_chart_item, summarize_valuation_with_summary, to_fixed,
-    KpiHolding, SummaryOverride, ValuationItem,
+    total_purchase_amount, KpiHolding, SummaryOverride, ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
@@ -36,7 +36,6 @@ struct DividendMaps {
 struct LoadedAssetBalances {
     rows: Vec<AssetBalance>,
     summary: Option<AssetBalanceSummary>,
-    dividends: DividendMaps,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -124,14 +123,21 @@ async fn fetch_dividend_batch(codes: &[String]) -> Result<DividendBatchResponse,
 
 type BalanceSlot = Option<(u64, Result<LoadedAssetBalances, String>)>;
 
-fn apply_dividend_maps(balances: &RwSignal<BalanceSlot>, generation: u64, dividends: DividendMaps) {
-    balances.update(|slot| {
-        if let Some((cached, Ok(loaded))) = slot {
-            if *cached == generation {
-                loaded.dividends = dividends;
-            }
-        }
-    });
+// 配当は balances とは別の signal に書く。balances を更新すると
+// ページ側の動的 view が作り直されてカードの開閉状態が失われるため、
+// ここでは slot の世代確認だけを balances から非追跡で読み、
+// 配当 signal だけを更新して子側の表示だけを差し替える。
+fn apply_dividend_maps(
+    balances: &RwSignal<BalanceSlot>,
+    dividends: &RwSignal<DividendMaps>,
+    generation: u64,
+    maps: DividendMaps,
+) {
+    let current = balances
+        .with_untracked(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation));
+    if current {
+        dividends.set(maps);
+    }
 }
 
 async fn poll_dividend_maps(
@@ -139,6 +145,7 @@ async fn poll_dividend_maps(
     generation: u64,
     codes: Vec<String>,
     balances: RwSignal<BalanceSlot>,
+    dividends: RwSignal<DividendMaps>,
 ) {
     let max_pending = dividend_pending_max_retries(codes.len());
     let mut pending_used = 0u32;
@@ -151,7 +158,7 @@ async fn poll_dividend_maps(
             Ok(batch) => {
                 let (maps, has_pending) = dividend_maps_from_batch(&batch);
                 if session.is_current(generation) {
-                    apply_dividend_maps(&balances, generation, maps);
+                    apply_dividend_maps(&balances, &dividends, generation, maps);
                 }
                 if !has_pending || pending_used >= max_pending {
                     break;
@@ -302,7 +309,7 @@ fn holding_view(row: &AssetBalance) -> HoldingView {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct HoldingDividend {
     per_share: Option<f64>,
     annual: Option<f64>,
@@ -389,12 +396,14 @@ pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
     let render_session = session.clone();
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+    let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
             lookup.update(|store| store.clear());
             balances.set(None);
+            dividends.set(DividendMaps::default());
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -424,12 +433,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                             .map(|row| row.security_code.clone())
                             .collect::<Vec<_>>(),
                     );
+                    dividends.set(DividendMaps::default());
                     balances.set(Some((
                         generation,
                         Ok(LoadedAssetBalances {
                             rows: list.data,
                             summary: list.summary,
-                            dividends: DividendMaps::default(),
                         }),
                     )));
                     let missing: Vec<String> = codes
@@ -462,7 +471,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     }
                     if !codes.is_empty() {
                         leptos::task::spawn_local(poll_dividend_maps(
-                            session, generation, codes, balances,
+                            session, generation, codes, balances, dividends,
                         ));
                     }
                 }
@@ -531,7 +540,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     <PortfolioSummary
                                         views=views
                                         summary=loaded.summary
-                                        dividends=loaded.dividends
+                                        dividends=dividends
                                     />
                                 }
                                     .into_any()
@@ -554,7 +563,7 @@ struct ChartItem {
 fn PortfolioSummary(
     views: Vec<HoldingView>,
     summary: Option<AssetBalanceSummary>,
-    dividends: DividendMaps,
+    dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
     let valuation_items: Vec<ValuationItem> = views
         .iter()
@@ -579,7 +588,10 @@ fn PortfolioSummary(
     let summary_total = summary
         .as_ref()
         .map(|summary| dec_to_f64(&summary.total_purchase_amount));
-    let kpi = calculate_portfolio_kpi(&kpi_holdings, &dividends.per_share, summary_total);
+    let total_purchase_amount = total_purchase_amount(&kpi_holdings, summary_total);
+    let kpi = Memo::new(move |_| {
+        calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
+    });
 
     let display_count = views.len();
     let mut chart_views: Vec<HoldingView> = views
@@ -597,15 +609,12 @@ fn PortfolioSummary(
         .map(|(view, percentage)| ChartItem { view, percentage })
         .collect();
 
-    let total_purchase_amount = kpi.total_purchase_amount;
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
         return ().into_any();
     }
 
     let show_all = RwSignal::new(false);
-    let annual_dividends = kpi.total_annual_dividends;
-    let dividend_yield = kpi.dividend_yield;
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
             <section
@@ -677,7 +686,13 @@ fn PortfolioSummary(
                             class="text-base font-bold sm:text-3xl text-teal-700 tabular-nums"
                             data-testid="portfolio-annual-dividends"
                         >
-                            {annual_dividends.map(format_currency).unwrap_or("---".to_string())}
+                            {move || {
+                                kpi.with(|kpi| {
+                                    kpi.total_annual_dividends
+                                        .map(format_currency)
+                                        .unwrap_or("---".to_string())
+                                })
+                            }}
                         </p>
                     </div>
                     <div class="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
@@ -686,7 +701,13 @@ fn PortfolioSummary(
                             class="text-base font-bold sm:text-3xl text-teal-700 tabular-nums"
                             data-testid="portfolio-dividend-yield"
                         >
-                            {dividend_yield.map(format_percentage_value).unwrap_or("---".to_string())}
+                            {move || {
+                                kpi.with(|kpi| {
+                                    kpi.dividend_yield
+                                        .map(format_percentage_value)
+                                        .unwrap_or("---".to_string())
+                                })
+                            }}
                         </p>
                     </div>
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
@@ -722,7 +743,7 @@ fn PortfolioSummary(
 #[component]
 fn ChartList(
     items: Vec<ChartItem>,
-    dividends: DividendMaps,
+    dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
 ) -> impl IntoView {
     let total = items.len();
@@ -758,13 +779,12 @@ fn ChartList(
                         show_all.get() || total <= TOP_ITEMS || *index < TOP_ITEMS
                     })
                     .map(|(index, item)| {
-                        let dividends = dividends.clone();
                         view! {
                             <div>
                                 <HoldingCard
                                     item=item.clone()
                                     index=index
-                                    dividends=dividends.clone()
+                                    dividends=dividends
                                 />
                                 <HoldingValuationCard item=item dividends=dividends />
                             </div>
@@ -837,14 +857,13 @@ fn SecurityCodeAnchor(code: String, #[prop(optional)] class: Option<String>) -> 
 }
 
 #[component]
-fn HoldingCard(item: ChartItem, index: usize, dividends: DividendMaps) -> impl IntoView {
+fn HoldingCard(item: ChartItem, index: usize, dividends: RwSignal<DividendMaps>) -> impl IntoView {
     let color = CHART_COLORS[index % CHART_COLORS.len()];
-    let dividend = holding_dividend(
-        &item.view.code,
-        item.view.shares,
-        item.view.average_price,
-        &dividends,
-    );
+    let code = item.view.code.clone();
+    let shares = item.view.shares;
+    let average_price = item.view.average_price;
+    let dividend =
+        Memo::new(move |_| holding_dividend(&code, shares, average_price, &dividends.get()));
     let percentage_text = item
         .percentage
         .map(|percentage| format_fixed_percent(percentage, 1))
@@ -853,17 +872,12 @@ fn HoldingCard(item: ChartItem, index: usize, dividends: DividendMaps) -> impl I
         .percentage
         .map(|percentage| format!("{}%", percentage.min(100.0)))
         .unwrap_or("NaN%".to_string());
-    let per_share_class = match dividend.per_share {
-        Some(_) => "mt-0.5 truncate text-[12px] font-semibold text-emerald-600",
-        None => "mt-0.5 truncate text-[12px] font-semibold text-slate-500",
-    };
-    let annual_class = match dividend.annual {
-        Some(_) => "mt-0.5 truncate text-[12px] font-semibold text-emerald-600",
-        None => "mt-0.5 truncate text-[12px] font-semibold text-slate-500",
-    };
-    let yield_class = match dividend.yield_value {
-        Some(_) => "mt-0.5 truncate text-[12px] font-semibold text-emerald-600",
-        None => "mt-0.5 truncate text-[12px] font-semibold text-slate-500",
+    let dividend_class = move |present: bool| {
+        if present {
+            "mt-0.5 truncate text-[12px] font-semibold text-emerald-600"
+        } else {
+            "mt-0.5 truncate text-[12px] font-semibold text-slate-500"
+        }
     };
     view! {
         <div class="rounded-lg border border-slate-950/10 bg-white px-3.5 py-3 shadow-sm max-sm:hidden">
@@ -936,20 +950,29 @@ fn HoldingCard(item: ChartItem, index: usize, dividends: DividendMaps) -> impl I
             <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-emerald-50/55">
                 <div class="min-w-0 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"1株配当"</p>
-                    <p class=per_share_class title=format_dividend_per_share(&dividend)>
-                        {format_dividend_per_share(&dividend)}
+                    <p
+                        class=move || dividend_class(dividend.with(|d| d.per_share.is_some()))
+                        title=move || dividend.with(format_dividend_per_share)
+                    >
+                        {move || dividend.with(format_dividend_per_share)}
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"年間配当"</p>
-                    <p class=annual_class title=format_dividend_annual(&dividend)>
-                        {format_dividend_annual(&dividend)}
+                    <p
+                        class=move || dividend_class(dividend.with(|d| d.annual.is_some()))
+                        title=move || dividend.with(format_dividend_annual)
+                    >
+                        {move || dividend.with(format_dividend_annual)}
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"配当利回り"</p>
-                    <p class=yield_class title=format_dividend_yield(&dividend)>
-                        {format_dividend_yield(&dividend)}
+                    <p
+                        class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
+                        title=move || dividend.with(format_dividend_yield)
+                    >
+                        {move || dividend.with(format_dividend_yield)}
                     </p>
                 </div>
             </div>
@@ -958,15 +981,9 @@ fn HoldingCard(item: ChartItem, index: usize, dividends: DividendMaps) -> impl I
 }
 
 #[component]
-fn HoldingValuationCard(item: ChartItem, dividends: DividendMaps) -> impl IntoView {
+fn HoldingValuationCard(item: ChartItem, dividends: RwSignal<DividendMaps>) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let dividend = holding_dividend(
-        &item.view.code,
-        item.view.shares,
-        item.view.average_price,
-        &dividends,
-    );
     let valuation = calculate_valuation(
         &serde_json::json!(item.view.market),
         &serde_json::json!(item.view.purchase),
@@ -1029,6 +1046,12 @@ fn HoldingValuationCard(item: ChartItem, dividends: DividendMaps) -> impl IntoVi
                 </span>
             </button>
             {move || {
+                let dividend = holding_dividend(
+                    &item.view.code,
+                    item.view.shares,
+                    item.view.average_price,
+                    &dividends.get(),
+                );
                 open.get()
                     .then(|| {
                         view! {
@@ -1299,41 +1322,62 @@ mod tests {
         let owner = Owner::new();
         owner.with(|| {
             let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
             let fresh = DividendMaps {
                 per_share: HashMap::from([("7203".to_string(), 50.0)]),
                 status: HashMap::new(),
             };
-            apply_dividend_maps(&balances, 7, fresh.clone());
+            apply_dividend_maps(&balances, &dividends, 7, fresh.clone());
             assert!(balances.get_untracked().is_none());
+            assert!(dividends.get_untracked().per_share.is_empty());
             balances.set(Some((
                 7,
                 Ok(LoadedAssetBalances {
                     rows: vec![],
                     summary: None,
-                    dividends: DividendMaps::default(),
                 }),
             )));
-            apply_dividend_maps(&balances, 8, fresh.clone());
-            assert!(balances
-                .get_untracked()
-                .unwrap()
-                .1
-                .unwrap()
-                .dividends
-                .per_share
-                .is_empty());
-            apply_dividend_maps(&balances, 7, fresh);
-            assert_eq!(
-                balances
-                    .get_untracked()
-                    .unwrap()
-                    .1
-                    .unwrap()
-                    .dividends
-                    .per_share
-                    .get("7203"),
-                Some(&50.0)
+            apply_dividend_maps(&balances, &dividends, 8, fresh.clone());
+            assert!(dividends.get_untracked().per_share.is_empty());
+            apply_dividend_maps(&balances, &dividends, 7, fresh);
+            assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
+        });
+    }
+
+    #[test]
+    fn dividend_update_does_not_notify_balance_view() {
+        // 配当更新で balances の購読者(ページ側の動的 view)を再実行させないこと。
+        // 再実行されると子コンポーネントが作り直され、開閉状態が失われる。
+        let owner = Owner::new();
+        owner.with(|| {
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
+                7,
+                Ok(LoadedAssetBalances {
+                    rows: vec![],
+                    summary: None,
+                }),
+            )));
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
+            let runs = RwSignal::new(0u32);
+            let balance_view = Memo::new(move |_| {
+                runs.update(|count| *count += 1);
+                balances.get().is_some()
+            });
+            assert!(balance_view.get());
+
+            apply_dividend_maps(
+                &balances,
+                &dividends,
+                7,
+                DividendMaps {
+                    per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                    status: HashMap::new(),
+                },
             );
+
+            assert!(balance_view.get());
+            assert_eq!(runs.get_untracked(), 1);
+            assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
         });
     }
 }
