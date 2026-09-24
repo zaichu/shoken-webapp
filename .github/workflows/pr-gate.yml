@@ -1,7 +1,8 @@
 name: PR gate
 
 on:
-  pull_request:
+  # fork PR では pull_request 系イベントの GITHUB_TOKEN が read-only に降格しステータスを書けないため pull_request_target を使う(コードの checkout はしない)
+  pull_request_target:
     types: [opened, edited, synchronize, reopened]
   issue_comment:
   pull_request_review:
@@ -36,6 +37,7 @@ jobs:
                   pullRequest(number: $pr) {
                     body
                     headRefOid
+                    isCrossRepository
                     closingIssuesReferences(first: 1) {
                       totalCount
                     }
@@ -130,16 +132,22 @@ jobs:
 
             const headSha =
               context.payload.pull_request?.head?.sha ?? pr.headRefOid;
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha: headSha,
-              state: problems.length > 0 ? 'failure' : 'success',
-              context: 'PR gate',
-              description: (
-                problems.length > 0
-                  ? problems.join(' / ')
-                  : 'Issue 紐づけ済み・未解決コメントなし'
-              ).slice(0, 140),
-              target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
-            });
+            try {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: headSha,
+                state: problems.length > 0 ? 'failure' : 'success',
+                context: 'PR gate',
+                description: (
+                  problems.length > 0
+                    ? problems.join(' / ')
+                    : 'Issue 紐づけ済み・未解決コメントなし'
+                ).slice(0, 140),
+                target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
+              });
+            } catch (error) {
+              // fork PR へのコメント/レビューイベントでは write が read に降格される。ステータスは pull_request_target か手動再実行で付け直す
+              if (!pr.isCrossRepository) throw error;
+              core.warning(`commit status not written for fork PR: ${error.message}`);
+            }
