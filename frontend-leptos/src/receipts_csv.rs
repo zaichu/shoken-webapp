@@ -219,7 +219,9 @@ impl CsvTabState {
         match result {
             Ok(result) => {
                 self.file_name = None;
-                // React の SET_IMPORT_RESULT はプレビュー表示を残す
+                // React は保存成功時の SET_RAW_FILE(null) で rawFile と csvPreviews を両方消す。
+                // 消さないと全件削除後もプレビュー行が一覧に残ってしまう
+                self.preview = None;
                 self.import_result = Some(result);
             }
             Err(message) => self.error = Some(message),
@@ -620,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    fn save_success_keeps_preview_and_sets_result() {
+    fn save_success_clears_preview_and_sets_result() {
         let mut state = CsvTabState {
             file_name: Some("a.csv".to_string()),
             preview: Some(CsvPreview::default()),
@@ -635,8 +637,8 @@ mod tests {
         assert!(!state.saving);
         assert!(state.file_name.is_none());
         assert!(
-            state.preview.is_some(),
-            "React の SET_IMPORT_RESULT はプレビューを残す"
+            state.preview.is_none(),
+            "React は保存成功の SET_RAW_FILE でプレビューも消す"
         );
         assert_eq!(
             state.import_result.as_ref().map(|result| result.inserted),
