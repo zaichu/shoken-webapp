@@ -145,3 +145,112 @@ fn next_year_option_index_returns_none_without_options_or_for_other_keys() {
     assert_eq!(next_year_option_index(Some(0), 3, "Enter"), None);
     assert_eq!(next_year_option_index(Some(0), 3, "Escape"), None);
 }
+
+#[test]
+fn next_tab_index_cycles_like_react_tablist() {
+    assert_eq!(next_tab_index(0, "ArrowRight"), Some(1));
+    assert_eq!(next_tab_index(2, "ArrowRight"), Some(0));
+    assert_eq!(next_tab_index(0, "ArrowLeft"), Some(2));
+    assert_eq!(next_tab_index(1, "ArrowLeft"), Some(0));
+    assert_eq!(next_tab_index(1, "Home"), Some(0));
+    assert_eq!(next_tab_index(0, "End"), Some(2));
+    assert_eq!(next_tab_index(1, "Enter"), None);
+    assert_eq!(next_tab_index(1, "Escape"), None);
+}
+
+#[test]
+fn negative_text_detection_matches_formatted_values() {
+    assert!(is_negative_text("¥ -1,234"));
+    assert!(is_negative_text("-500"));
+    assert!(is_negative_text("-1.5"));
+    assert!(!is_negative_text("¥ 1,234"));
+    assert!(!is_negative_text("¥ -0"));
+    assert!(!is_negative_text("+3"));
+    assert!(!is_negative_text(""));
+    assert!(!is_negative_text("ＮＴＴ"));
+    assert!(!is_negative_text("-"));
+    assert!(!is_negative_text("12."));
+    assert!(!is_negative_text("1.2.3"));
+}
+
+#[test]
+fn short_date_strips_year_only_for_iso_formatted() {
+    assert_eq!(short_date("2024/03/01"), "03/01");
+    assert_eq!(short_date("-"), "-");
+    assert_eq!(short_date("ＮＴＴ"), "ＮＴＴ");
+    assert_eq!(short_date("03/01"), "03/01");
+}
+
+#[test]
+fn card_fields_point_at_expected_columns() {
+    let cases = [
+        (
+            ReceiptsTab::Dividend,
+            ("銘柄名", "受取額", "入金日", "口座"),
+        ),
+        (
+            ReceiptsTab::DomesticStock,
+            ("銘柄名", "税引後", "約定日", "口座"),
+        ),
+        (
+            ReceiptsTab::MutualFund,
+            ("ファンド名", "税引損益", "約定日", "口座"),
+        ),
+    ];
+    for (tab, expected) in cases {
+        let fields = card_fields(tab);
+        let headers = table_headers(tab);
+        assert_eq!(
+            (
+                headers[fields.name],
+                headers[fields.primary],
+                headers[fields.date],
+                headers[fields.account]
+            ),
+            expected
+        );
+    }
+}
+
+#[test]
+fn card_row_data_matches_react_card_fields() {
+    let rows = dividends();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert_eq!(card.name, "日本電信電話");
+    assert_eq!(card.amount, "¥ 400");
+    assert!(!card.amount_negative);
+    assert_eq!(card.date, "06/21");
+    assert_eq!(card.account, "特定");
+    assert_eq!(card.details.len(), 10);
+    assert_eq!(card.details[0].0, "入金日");
+    assert!(card
+        .details
+        .iter()
+        .all(|(_, value, negative)| *negative == is_negative_text(value)));
+}
+
+#[test]
+fn card_row_data_details_follow_column_reorder() {
+    let rows = dividends();
+    let query = "特定";
+    let order = column_order(ReceiptsTab::Dividend, &rows, query);
+    assert_eq!(order[1], 2);
+    let cells = rows[0].cells();
+    let card = card_row_data(
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert_eq!(card.details[1].0, "口座");
+    // 先頭行の項目は並び替えに影響されない
+    assert_eq!(card.name, "日本電信電話");
+    assert_eq!(card.account, "特定");
+}

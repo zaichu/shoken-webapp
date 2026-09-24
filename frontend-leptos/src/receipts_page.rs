@@ -137,27 +137,100 @@ pub fn ReceiptsPage() -> impl IntoView {
     }
 }
 
+const TAB_BUTTON_BASE: &str = "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-[44px] max-sm:shrink-0 max-sm:px-3";
+const TAB_BUTTON_ACTIVE: &str =
+    "border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]";
+const TAB_BUTTON_INACTIVE: &str =
+    "border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950";
+const TAB_COUNT_BASE: &str =
+    "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold";
+const TAB_COUNT_ACTIVE: &str = "border border-white/20 bg-white text-slate-950";
+const TAB_COUNT_INACTIVE: &str = "border border-slate-200 bg-white text-slate-700";
+
+fn next_tab_index(current: usize, key: &str) -> Option<usize> {
+    let count = TAB_IDS.len();
+    match key {
+        "ArrowRight" => Some((current + 1) % count),
+        "ArrowLeft" => Some((current + count - 1) % count),
+        "Home" => Some(0),
+        "End" => Some(count - 1),
+        _ => None,
+    }
+}
+
+fn focus_tab(index: usize) {
+    let Some(element) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[index])))
+    else {
+        return;
+    };
+    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
+        let _ = element.focus();
+    }
+}
+
 #[component]
 fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
     let selected = store.clone();
-    let index = store.clone();
+    let keyed = store.clone();
     let clicked = store.clone();
     let counted = store.clone();
+    let counted_store = store.clone();
     view! {
         <button
             id={format!("tab-{slug}")}
             type="button"
             role="tab"
-            aria-selected=move || selected.active_tab.get() == tab
+            class=move || {
+                format!(
+                    "{TAB_BUTTON_BASE} {}",
+                    if selected.active_tab.get() == tab {
+                        TAB_BUTTON_ACTIVE
+                    } else {
+                        TAB_BUTTON_INACTIVE
+                    }
+                )
+            }
+            aria-selected=move || {
+                if selected.active_tab.get() == tab {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
             aria-controls={format!("tabpanel-{slug}")}
-            tabindex=move || if index.active_tab.get() == tab { "0" } else { "-1" }
+            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
             on:click=move |_| clicked.select_tab(tab)
+            on:keydown=move |event| {
+                let current = ReceiptsTab::ALL
+                    .iter()
+                    .position(|item| *item == keyed.active_tab.get_untracked())
+                    .unwrap_or(0);
+                if let Some(next) = next_tab_index(current, &event.key()) {
+                    event.prevent_default();
+                    keyed.select_tab(ReceiptsTab::ALL[next]);
+                    focus_tab(next);
+                }
+            }
         >
             {label}
-            <span data-testid={format!("tab-count-{slug}")}>
-                {move || counted.count(tab).to_string()}
+            <span
+                data-testid={format!("tab-count-{slug}")}
+                class=move || {
+                    format!(
+                        "{TAB_COUNT_BASE} {}",
+                        if counted.active_tab.get() == tab {
+                            TAB_COUNT_ACTIVE
+                        } else {
+                            TAB_COUNT_INACTIVE
+                        }
+                    )
+                }
+            >
+                {move || counted_store.count(tab).to_string()}
             </span>
         </button>
     }
@@ -566,14 +639,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                     preview_active.get(),
                 );
                 view! {
-                    <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="集計情報">
-                        {header.into_iter().map(|(label, value)| view! {
-                            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
-                                <div class="text-xs font-semibold text-slate-600">{label}</div>
-                                <div class="mt-1 text-right font-mono text-lg font-bold tabular-nums">{format_currency(value)}</div>
-                            </div>
-                        }).collect_view()}
-                    </div>
+                    <SummaryStrip items=header />
                     <ReceiptTable tab=tab rows=rows all_rows=display query=query />
                 }.into_any()
             }}
@@ -1024,7 +1090,7 @@ fn header_summary(
     data: &ReceiptTabData,
     query: &str,
     has_preview: bool,
-) -> Vec<(&'static str, Decimal)> {
+) -> Vec<(&'static str, Decimal, &'static str)> {
     match tab {
         ReceiptsTab::Dividend => {
             let rows: Vec<_> = data
@@ -1055,9 +1121,9 @@ fn header_summary(
                 ],
             );
             vec![
-                ("配当金", values[0]),
-                ("税額", values[1]),
-                ("受取金額", values[2]),
+                ("配当金", values[0], "emerald"),
+                ("税額", values[1], "red"),
+                ("受取金額", values[2], "emerald"),
             ]
         }
         ReceiptsTab::DomesticStock => {
@@ -1089,9 +1155,9 @@ fn header_summary(
                 ],
             );
             vec![
-                ("実現損益", values[0]),
-                ("税額", values[1]),
-                ("実現損益(税引)", values[2]),
+                ("実現損益", values[0], "emerald"),
+                ("税額", values[1], "red"),
+                ("実現損益(税引)", values[2], "emerald"),
             ]
         }
         ReceiptsTab::MutualFund => {
@@ -1123,11 +1189,180 @@ fn header_summary(
                 ],
             );
             vec![
-                ("実現損益", values[0]),
-                ("税額", values[1]),
-                ("実現損益(税引)", values[2]),
+                ("実現損益", values[0], "emerald"),
+                ("税額", values[1], "red"),
+                ("実現損益(税引)", values[2], "emerald"),
             ]
         }
+    }
+}
+
+fn kpi_card_bg(tone: &str) -> &'static str {
+    match tone {
+        "emerald" => "border-teal-200 bg-teal-50",
+        "red" => "border-rose-100 bg-rose-50",
+        _ => "border-slate-200 bg-white",
+    }
+}
+
+fn kpi_value_color(tone: &str) -> &'static str {
+    match tone {
+        "emerald" => "text-teal-700",
+        "red" => "text-red-500",
+        _ => "text-slate-800",
+    }
+}
+
+#[component]
+fn KpiGrid(
+    items: Vec<(&'static str, Decimal, &'static str)>,
+    grid_class: &'static str,
+) -> impl IntoView {
+    view! {
+        <div class=grid_class data-testid="kpi-grid">
+            {items
+                .into_iter()
+                .map(|(label, value, tone)| {
+                    view! {
+                        <div class=format!(
+                            "rounded-lg border px-3.5 py-3 {}",
+                            kpi_card_bg(tone)
+                        )>
+                            <p class="mb-1 text-xs font-medium text-slate-600">{label}</p>
+                            <p
+                                class=format!(
+                                    "text-2xl font-bold tabular-nums {}",
+                                    kpi_value_color(tone)
+                                )
+                                data-negative=(value < Decimal::ZERO).then_some("true")
+                            >
+                                {format_currency(value)}
+                            </p>
+                        </div>
+                    }
+                })
+                .collect_view()}
+        </div>
+    }
+}
+
+#[component]
+fn SummaryStrip(items: Vec<(&'static str, Decimal, &'static str)>) -> impl IntoView {
+    let mobile_expanded = RwSignal::new(false);
+    let mobile_body_id = "receipt-summary-mobile-body";
+    let primary = items.last().copied();
+    let mobile_items = items.clone();
+    view! {
+        <section
+            class="mb-3 rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)] max-sm:px-3 max-sm:py-0"
+            data-testid="receipt-summary-strip"
+        >
+            <div class="sm:hidden" data-testid="receipt-summary-compact">
+                <button
+                    type="button"
+                    class="flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    on:click=move |_| mobile_expanded.update(|expanded| *expanded = !*expanded)
+                    aria-expanded=move || {
+                        if mobile_expanded.get() {
+                            "true"
+                        } else {
+                            "false"
+                        }
+                    }
+                    aria-controls=mobile_body_id
+                    aria-label=primary
+                        .map(|(label, value, _)| format!("{label} {}", format_currency(value)))
+                        .unwrap_or_else(|| "集計情報".to_string())
+                    data-testid="receipt-summary-compact-toggle"
+                >
+                    {primary
+                        .map(|(label, value, tone)| {
+                            view! {
+                                <span class="flex min-w-0 items-baseline gap-2">
+                                    <span class="shrink-0 text-xs font-medium text-slate-600">
+                                        {label}
+                                    </span>
+                                    <span
+                                        class=format!(
+                                            "truncate text-base font-bold tabular-nums {}",
+                                            kpi_value_color(tone)
+                                        )
+                                        data-negative=(value < Decimal::ZERO).then_some("true")
+                                    >
+                                        {format_currency(value)}
+                                    </span>
+                                </span>
+                            }
+                                .into_any()
+                        })
+                        .unwrap_or_else(|| {
+                            view! {
+                                <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                            }
+                                .into_any()
+                        })}
+                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                        <span class="text-xs font-semibold">
+                            {move || if mobile_expanded.get() { "閉じる" } else { "開く" }}
+                        </span>
+                        <svg
+                            aria-hidden="true"
+                            class=move || {
+                                if mobile_expanded.get() {
+                                    "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                } else {
+                                    "h-4 w-4 text-slate-500 transition-transform duration-200"
+                                }
+                            }
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 9l-7 7-7-7"
+                            />
+                        </svg>
+                    </span>
+                </button>
+                {move || {
+                    mobile_expanded
+                        .get()
+                        .then(|| {
+                            view! {
+                                <div
+                                    id=mobile_body_id
+                                    role="region"
+                                    class="border-t border-slate-950/10 py-3"
+                                >
+                                    <KpiGrid
+                                        items=mobile_items.clone()
+                                        grid_class="grid grid-cols-1 gap-2.5"
+                                    />
+                                </div>
+                            }
+                        })
+                }}
+            </div>
+            <div class="hidden sm:block" data-testid="receipt-summary-desktop">
+                <div
+                    class="flex items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5"
+                    data-testid="receipt-header"
+                >
+                    <div>
+                        <h2 class="text-sm font-black text-slate-950">"集計情報"</h2>
+                    </div>
+                </div>
+                <div class="pt-3">
+                    <KpiGrid
+                        items=items
+                        grid_class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3"
+                    />
+                </div>
+            </div>
+        </section>
     }
 }
 
@@ -1320,14 +1555,368 @@ fn table_groups(
     }
 }
 
+// カードの先頭行に出す項目の cells() 上の位置（React の nameKey/primaryKey/dateKey/accountKey 相当）
+#[derive(Clone, Copy)]
+struct CardFields {
+    name: usize,
+    primary: usize,
+    date: usize,
+    account: usize,
+}
+
+fn card_fields(tab: ReceiptsTab) -> CardFields {
+    match tab {
+        ReceiptsTab::Dividend => CardFields {
+            name: 4,
+            primary: 9,
+            date: 0,
+            account: 2,
+        },
+        ReceiptsTab::DomesticStock => CardFields {
+            name: 2,
+            primary: 10,
+            date: 0,
+            account: 3,
+        },
+        ReceiptsTab::MutualFund => CardFields {
+            name: 1,
+            primary: 9,
+            date: 0,
+            account: 2,
+        },
+    }
+}
+
+// グループ集計のラベル。React の resolveSummaryLabel（total_ プレフィックス吸収）に相当
+fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
+    match tab {
+        ReceiptsTab::Dividend => ["配当金", "税額", "受取額"],
+        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後"],
+        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引損益"],
+    }
+}
+
+fn is_negative_text(value: &str) -> bool {
+    let normalized: String = value
+        .trim()
+        .chars()
+        .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
+        .collect();
+    let digits = normalized
+        .strip_prefix('-')
+        .or_else(|| normalized.strip_prefix('+'))
+        .unwrap_or(normalized.as_str());
+    let valid = !digits.is_empty()
+        && digits
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
+    valid && normalized.parse::<f64>().is_ok_and(|n| n < 0.0)
+}
+
+// グループ見出しに年月があるため、カード先頭の日付は年を落として MM/DD にする
+fn short_date(formatted: &str) -> &str {
+    match formatted.split_once('/') {
+        Some((year, rest)) if year.len() == 4 && year.bytes().all(|b| b.is_ascii_digit()) => rest,
+        _ => formatted,
+    }
+}
+
+struct CardRowData {
+    name: String,
+    amount: String,
+    amount_negative: bool,
+    date: String,
+    account: String,
+    details: Vec<(String, String, bool)>,
+}
+
+fn cell_text(cell: &ReceiptCell) -> &str {
+    match cell {
+        ReceiptCell::Text(value) | ReceiptCell::SecurityCode(value) => value,
+        ReceiptCell::InstrumentName { name, .. } => name,
+    }
+}
+
+fn card_row_data(
+    cells: &[ReceiptCell],
+    headers: &[&'static str],
+    order: &[usize],
+    fields: CardFields,
+) -> CardRowData {
+    let text = |index: usize| {
+        cells
+            .get(index)
+            .map(|cell| cell_text(cell).to_string())
+            .unwrap_or_default()
+    };
+    let amount = text(fields.primary);
+    CardRowData {
+        name: text(fields.name),
+        amount_negative: is_negative_text(&amount),
+        amount,
+        date: short_date(&text(fields.date)).to_string(),
+        account: text(fields.account),
+        details: order
+            .iter()
+            .map(|&i| {
+                (
+                    headers[i].to_string(),
+                    cell_text(&cells[i]).to_string(),
+                    is_negative_text(cell_text(&cells[i])),
+                )
+            })
+            .collect(),
+    }
+}
+
 #[component]
-fn ReceiptTable(
-    tab: ReceiptsTab,
-    rows: Vec<ReceiptItem>,
-    all_rows: Vec<ReceiptItem>,
-    query: String,
+fn ReceiptItemCard(card: CardRowData, id_prefix: String) -> impl IntoView {
+    let expanded = RwSignal::new(false);
+    let button_id = format!("{id_prefix}-button");
+    let details_id = format!("{id_prefix}-details");
+    let CardRowData {
+        name,
+        amount,
+        amount_negative,
+        date,
+        account,
+        details,
+    } = card;
+    let aria_label = format!("{name} {amount}");
+    let amount_class = if amount_negative {
+        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-red-800"
+    } else {
+        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-slate-950"
+    };
+    view! {
+        <div data-testid="receipt-card" class="rounded-lg border border-slate-300 bg-white">
+            <button
+                id=button_id.clone()
+                type="button"
+                aria-label=aria_label
+                aria-expanded=move || if expanded.get() { "true" } else { "false" }
+                aria-controls=details_id.clone()
+                on:click=move |_| expanded.update(|value| *value = !*value)
+                class="flex min-h-[90px] w-full flex-col justify-center gap-2 rounded-lg px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+                <span class="flex w-full items-baseline gap-2">
+                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-slate-950">
+                        {name}
+                    </span>
+                    <span class=amount_class>{amount}</span>
+                </span>
+                <span
+                    class="flex w-full items-center gap-2 text-xs text-slate-600"
+                    aria-hidden="true"
+                >
+                    <span class="shrink-0">{date}</span>
+                    <span class="min-w-0 flex-1 truncate">{account}</span>
+                    <svg
+                        class=move || {
+                            if expanded.get() {
+                                "h-4 w-4 shrink-0 rotate-180"
+                            } else {
+                                "h-4 w-4 shrink-0"
+                            }
+                        }
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="m6 9 6 6 6-6"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                </span>
+            </button>
+            <div
+                id=details_id
+                role="region"
+                aria-labelledby=button_id
+                hidden=move || !expanded.get()
+                class="border-t border-slate-300 px-3 py-2"
+            >
+                {move || {
+                    expanded
+                        .get()
+                        .then(|| {
+                            view! {
+                                <dl>
+                                    {details
+                                        .iter()
+                                        .map(|(label, value, negative)| {
+                                            let value_class = if *negative {
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                            } else {
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
+                                            };
+                                            view! {
+                                                <div class="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
+                                                    <dt class="shrink-0 pt-0.5 text-xs text-slate-600">
+                                                        {label.clone()}
+                                                    </dt>
+                                                    <dd class=value_class title=value.clone()>
+                                                        {value.clone()}
+                                                    </dd>
+                                                </div>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </dl>
+                            }
+                        })
+                }}
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn MobileCardGroup(
+    label: String,
+    count: usize,
+    summary: Vec<(&'static str, String)>,
+    cards: Vec<CardRowData>,
+    id_prefix: String,
 ) -> impl IntoView {
-    let headers: &[&str] = match tab {
+    let expanded = RwSignal::new(false);
+    let button_id = format!("{id_prefix}-group-button");
+    let details_id = format!("{id_prefix}-group-details");
+    let card_list = view! {
+        <div class="mt-2 space-y-2">
+            {cards
+                .into_iter()
+                .enumerate()
+                .map(|(index, card)| {
+                    view! {
+                        <ReceiptItemCard
+                            card=card
+                            id_prefix=format!("{id_prefix}-card-{index}")
+                        />
+                    }
+                })
+                .collect_view()}
+        </div>
+    };
+    if summary.is_empty() {
+        return view! {
+            <section data-testid="receipt-card-group">
+                <div class="flex min-h-[44px] items-center rounded-lg bg-slate-700 px-3 py-2">
+                    <span class="text-sm font-semibold text-white">{label}</span>
+                    <span class="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                        {format!("{count}件")}
+                    </span>
+                </div>
+                {card_list}
+            </section>
+        }
+        .into_any();
+    }
+    let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
+    let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
+    view! {
+        <section data-testid="receipt-card-group">
+            <div class="overflow-hidden rounded-lg border border-slate-700">
+                <button
+                    id=button_id.clone()
+                    type="button"
+                    aria-label=aria_label
+                    aria-expanded=move || if expanded.get() { "true" } else { "false" }
+                    aria-controls=details_id.clone()
+                    on:click=move |_| expanded.update(|value| *value = !*value)
+                    class="flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                        {label}
+                        <span class="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                            {format!("{count}件")}
+                        </span>
+                    </span>
+                    <span
+                        class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"
+                        aria-hidden="true"
+                    >
+                        <span class="text-xs text-slate-200">{primary_label}</span>
+                        <span class="font-mono text-sm font-semibold tabular-nums text-white">
+                            {primary_value}
+                        </span>
+                        <svg
+                            class=move || {
+                                if expanded.get() {
+                                    "h-4 w-4 shrink-0 self-center text-slate-200 rotate-180"
+                                } else {
+                                    "h-4 w-4 shrink-0 self-center text-slate-200"
+                                }
+                            }
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="m6 9 6 6 6-6"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
+                <div
+                    id=details_id
+                    role="region"
+                    aria-labelledby=button_id
+                    hidden=move || !expanded.get()
+                    class="border-t border-slate-200 bg-white px-3 py-1"
+                >
+                    {move || {
+                        expanded
+                            .get()
+                            .then(|| {
+                                view! {
+                                    <dl>
+                                        {summary
+                                            .iter()
+                                            .map(|(label, value)| {
+                                                let negative = is_negative_text(value);
+                                                let value_class = if negative {
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                                } else {
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
+                                                };
+                                                view! {
+                                                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
+                                                        <dt class="shrink-0 pt-0.5 text-xs text-slate-600">
+                                                            {*label}
+                                                        </dt>
+                                                        <dd
+                                                            class=value_class
+                                                            data-negative=negative.then_some("true")
+                                                        >
+                                                            {value.clone()}
+                                                        </dd>
+                                                    </div>
+                                                }
+                                            })
+                                            .collect_view()}
+                                    </dl>
+                                }
+                            })
+                    }}
+                </div>
+            </div>
+            {card_list}
+        </section>
+    }
+    .into_any()
+}
+
+fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
         ReceiptsTab::Dividend => &[
             "入金日",
             "商品",
@@ -1365,66 +1954,103 @@ fn ReceiptTable(
             "税額",
             "税引損益",
         ],
-    };
+    }
+}
+
+#[component]
+fn ReceiptTable(
+    tab: ReceiptsTab,
+    rows: Vec<ReceiptItem>,
+    all_rows: Vec<ReceiptItem>,
+    query: String,
+) -> impl IntoView {
+    let headers: &[&'static str] = table_headers(tab);
     let groups = table_groups(tab, &rows, &all_rows, &query);
     let order = column_order(tab, &rows, &query);
+    let fields = card_fields(tab);
+    let labels = summary_labels(tab);
+    let slug = TAB_IDS[tab as usize];
+    let card_groups: Vec<_> = groups
+        .iter()
+        .enumerate()
+        .map(|(group_index, group)| {
+            let summary: Vec<(&'static str, String)> = labels
+                .iter()
+                .copied()
+                .zip(group.summary.iter().cloned())
+                .collect();
+            let cards: Vec<CardRowData> = group
+                .rows
+                .iter()
+                .map(|cells| card_row_data(cells, headers, &order, fields))
+                .collect();
+            (
+                group_index,
+                group.label.clone(),
+                group.rows.len(),
+                summary,
+                cards,
+            )
+        })
+        .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
     view! {
-        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table class="min-w-full border-collapse text-sm">
-                <thead>
-                    <tr class="bg-slate-800 text-left text-white">
-                        {headers
+        <div class="hidden sm:block">
+            <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="min-w-full border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-800 text-left text-white">
+                            {headers
+                                .iter()
+                                .map(|header| view! { <th class="whitespace-nowrap px-3 py-2">{*header}</th> })
+                                .collect_view()}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {groups
                             .iter()
-                            .map(|header| view! { <th class="whitespace-nowrap px-3 py-2">{*header}</th> })
-                            .collect_view()}
-                    </tr>
-                </thead>
-                <tbody>
-                    {groups
-                        .into_iter()
-                        .map(|group| {
-                            let count = group.rows.len();
-                            view! {
-                                <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold">
-                                    <td colspan={headers.len() - 3} class="whitespace-nowrap px-3 py-2">
-                                        {group.label}
-                                        <span class="ml-2 text-xs text-slate-600">{format!("{count}件")}</span>
-                                    </td>
+                            .map(|group| {
+                                let count = group.rows.len();
+                                view! {
+                                    <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold">
+                                        <td colspan={headers.len() - 3} class="whitespace-nowrap px-3 py-2">
+                                            {group.label.clone()}
+                                            <span class="ml-2 text-xs text-slate-600">{format!("{count}件")}</span>
+                                        </td>
+                                        {group
+                                            .summary
+                                            .iter()
+                                            .map(|value| view! { <td class="whitespace-nowrap px-3 py-2 text-right font-mono">{value.clone()}</td> })
+                                            .collect_view()}
+                                    </tr>
                                     {group
-                                        .summary
-                                        .into_iter()
-                                        .map(|value| view! { <td class="whitespace-nowrap px-3 py-2 text-right font-mono">{value}</td> })
-                                        .collect_view()}
-                                </tr>
-                                {group
-                                    .rows
-                                    .into_iter()
-                                    .map(|cells| {
-                                        let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
-                                        view! {
-                                            <tr class="border-t border-slate-200">
-                                                {cells
-                                                    .into_iter()
-                                                    .map(|cell| match cell {
-                                                        ReceiptCell::SecurityCode(code) => view! {
-                                                            <td class="whitespace-nowrap px-3 py-2 text-center">
-                                                                <SecurityCodeLink value=code />
-                                                            </td>
-                                                        }
-                                                        .into_any(),
-                                                        ReceiptCell::InstrumentName { name, code } => view! {
-                                                            <td class="whitespace-nowrap px-3 py-2">
-                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
-                                                            </td>
-                                                        }
-                                                        .into_any(),
-                                                        ReceiptCell::Text(value) => view! {
-                                                            <td class="whitespace-nowrap px-3 py-2">{value}</td>
-                                                        }
-                                                        .into_any(),
-                                                    })
-                                                    .collect_view()}
+                                        .rows
+                                        .iter()
+                                        .map(|cells| {
+                                            let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
+                                            view! {
+                                                <tr class="border-t border-slate-200">
+                                                    {cells
+                                                        .into_iter()
+                                                        .map(|cell| match cell {
+                                                            ReceiptCell::SecurityCode(code) => view! {
+                                                                <td class="whitespace-nowrap px-3 py-2 text-center">
+                                                                    <SecurityCodeLink value=code />
+                                                                </td>
+                                                            }
+                                                            .into_any(),
+                                                            ReceiptCell::InstrumentName { name, code } => view! {
+                                                                <td class="whitespace-nowrap px-3 py-2">
+                                                                    <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                                </td>
+                                                            }
+                                                            .into_any(),
+                                                            ReceiptCell::Text(value) => view! {
+                                                                <td class="whitespace-nowrap px-3 py-2">{value}</td>
+                                                            }
+                                                            .into_any(),
+                                                        })
+                                                        .collect_view()}
                                             </tr>
                                         }
                                     })
@@ -1434,6 +2060,25 @@ fn ReceiptTable(
                         .collect_view()}
                 </tbody>
             </table>
+        </div>
+    </div>
+    <div class="sm:hidden" data-testid="receipt-card-list">
+        <div class="space-y-4">
+            {card_groups
+                .into_iter()
+                .map(|(group_index, label, count, summary, cards)| {
+                    view! {
+                        <MobileCardGroup
+                            label=label
+                            count=count
+                            summary=summary
+                            cards=cards
+                            id_prefix=format!("receipt-{slug}-group-{group_index}")
+                        />
+                    }
+                })
+                .collect_view()}
+        </div>
         </div>
     }
 }
