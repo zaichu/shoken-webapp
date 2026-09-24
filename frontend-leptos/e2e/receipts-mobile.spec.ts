@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -74,6 +75,24 @@ const DOMESTIC = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
+const FUND = {
+  id: '00000000-0000-0000-0000-000000000005',
+  trade_date: '2024-02-01',
+  settlement_date: '2024-02-03',
+  fund_name: 'eMAXIS Slim 米国株式(S&P500)',
+  account: 'NISA',
+  shares: 1000,
+  exchange_rate: 1,
+  cancellation_unit_price_yen: 20000,
+  cancellation_amount_yen: 20000,
+  average_acquisition_price_yen: 18000,
+  realized_profit_and_loss: 2000,
+  taxes: 406,
+  realized_profit_and_loss_after_tax: 1594,
+  created_at: '2024-02-01T00:00:00Z',
+  updated_at: '2024-02-01T00:00:00Z',
+};
+
 function paginatedResponse(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: data.length };
 }
@@ -105,6 +124,13 @@ async function mockApi(page: Page) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(paginatedResponse([DOMESTIC])),
+    }),
+  );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([FUND])),
     }),
   );
 }
@@ -162,6 +188,11 @@ test('カードはタップで全列の明細を開閉できる', async ({ page 
     await expect(region.getByText(label, { exact: true })).toBeVisible();
   }
   await expect(region.getByText('2024/03/01', { exact: true })).toBeVisible();
+  const codeLink = region.getByRole('link', { name: '7203' });
+  await expect(codeLink).toHaveAttribute('href', '/search?code=7203');
+  await expect(
+    region.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
+  ).toBeVisible();
 
   await cardButton.click();
   await expect(cardButton).toHaveAttribute('aria-expanded', 'false');
@@ -226,8 +257,237 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  const region = page.getByRole('region').filter({ has: page.getByTestId('kpi-grid') });
+  const region = page.getByRole('region', { name: '集計情報' });
   await expect(region).toBeVisible();
   await expect(region.getByText('配当金', { exact: true })).toBeVisible();
   await expect(region.getByText('受取金額', { exact: true })).toBeVisible();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(region).toBeHidden();
+});
+
+test('国内株式タブでもカードが開き銘柄リンクとコピーが使える', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  await page.getByRole('tab', { name: '国内株式' }).click();
+  const cardList = page.getByTestId('receipt-card-list');
+  const cardButton = cardList.getByRole('button', { name: '任天堂 ¥ 3,985' });
+  await cardButton.click();
+  const region = cardList.getByRole('region', { name: '任天堂 ¥ 3,985' });
+  await expect(region).toBeVisible();
+  await expect(region.getByText('銘柄コード', { exact: true })).toBeVisible();
+  await expect(region.getByRole('link', { name: '7974' })).toHaveAttribute(
+    'href',
+    '/search?code=7974',
+  );
+  await expect(
+    region.getByRole('button', { name: '任天堂(7974) をコピー' }),
+  ).toBeVisible();
+  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
+});
+
+test('投資信託タブでもカードが開きファンド名をコピーできる', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  await page.getByRole('tab', { name: '投資信託' }).click();
+  const cardList = page.getByTestId('receipt-card-list');
+  const cardButton = cardList.getByRole('button', {
+    name: /eMAXIS Slim 米国株式\(S&P500\)/,
+  });
+  await cardButton.click();
+  const region = cardList.getByRole('region', {
+    name: /eMAXIS Slim 米国株式\(S&P500\)/,
+  });
+  await expect(region).toBeVisible();
+  await expect(region.getByText('ファンド名', { exact: true })).toBeVisible();
+  await expect(region.getByText('銘柄コード', { exact: true })).toHaveCount(0);
+  await expect(
+    region.getByRole('button', {
+      name: 'eMAXIS Slim 米国株式(S&P500) をコピー',
+    }),
+  ).toBeVisible();
+  await expect(region.getByText('税引損益', { exact: true })).toBeVisible();
+});
+
+test('検索条件を変えても開いていたカードと集計は閉じない', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const cardList = page.getByTestId('receipt-card-list');
+  const firstCard = cardList.getByTestId('receipt-card').first();
+  await expect(firstCard.getByRole('button')).toHaveAttribute(
+    'aria-label',
+    '日本電信電話 ¥ 1,594',
+  );
+  const cardButton = cardList.getByRole('button', {
+    name: '日本電信電話 ¥ 1,594',
+  });
+  await cardButton.click();
+  await expect(
+    cardList.getByRole('region', { name: '日本電信電話 ¥ 1,594' }),
+  ).toBeVisible();
+
+  const groupToggle = cardList.getByRole('button', {
+    name: /2024年3月 2件 受取額/,
+  });
+  await groupToggle.click();
+  const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
+  await summaryToggle.click();
+
+  await page.locator('#securities-search').selectOption('9432');
+  await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
+
+  await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
+  await expect(
+    cardList.getByRole('region', { name: '日本電信電話 ¥ 1,594' }),
+  ).toBeVisible();
+  await expect(
+    cardList.getByRole('button', { name: /1件 受取額 ¥ 1,594/ }),
+  ).toHaveAttribute('aria-expanded', 'true');
+  await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('CSV操作レールはスマホ幅で折り畳み開閉できる', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const toggle = page.getByTestId('receipt-csv-toggle');
+  const region = page.getByRole('region', { name: 'CSV取り込み・削除' });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(region).toBeHidden();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(region).toBeVisible();
+  await expect(page.getByTestId('csv-file-input')).toBeAttached();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(region).toBeHidden();
+});
+
+test('640px境界でカードとテーブルが切り替わる', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 639, height: 844 });
+  await page.goto('/receipts');
+  await expect(page.getByTestId('receipt-card-list')).toBeVisible();
+  await expect(page.getByRole('table')).toBeHidden();
+
+  await page.setViewportSize({ width: 640, height: 844 });
+  await expect(page.getByRole('table')).toBeVisible();
+  await expect(page.getByTestId('receipt-card-list')).toBeHidden();
+});
+
+test('全件削除は確認モーダル経由で実行される', async ({ page }) => {
+  let rows: unknown[] = [...DIVIDENDS];
+  let deleteCount = 0;
+  await page.route(/\/api\/v1\//, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([])),
+    }),
+  );
+  await page.route(/\/api\/v1\/session$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_USER),
+    }),
+  );
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+    if (route.request().method() === 'DELETE') {
+      deleteCount += 1;
+      rows = [];
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{}',
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse(rows)),
+    });
+  });
+  await page.goto('/receipts');
+
+  await page.getByTestId('receipt-csv-toggle').click();
+  await page.getByRole('button', { name: /全件削除/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('この操作は取り消せません');
+  await expect(dialog).toContainText('3件');
+  expect(deleteCount).toBe(0);
+
+  await dialog.getByRole('button', { name: '削除する' }).click();
+  await expect(page.getByText('データがありません')).toBeVisible();
+  expect(deleteCount).toBe(1);
+});
+
+test('CSV取込の保存結果は一覧再取得後もレールが開いて見える', async ({ page }) => {
+  const imported = { ...DIVIDENDS[0], id: '00000000-0000-0000-0000-000000000009' };
+  const rows: unknown[] = [...DIVIDENDS];
+  await page.route(/\/api\/v1\//, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([])),
+    }),
+  );
+  await page.route(/\/api\/v1\/session$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_USER),
+    }),
+  );
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse(rows)),
+    }),
+  );
+  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 1,
+        valid_rows: 1,
+        errors: [],
+        rows: [imported],
+      }),
+    }),
+  );
+  await page.route(/\/api\/v1\/dividend-imports$/, (route) => {
+    rows.push(imported);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ inserted: 1, skipped: 0, errors: [] }),
+    });
+  });
+  await page.goto('/receipts');
+
+  const toggle = page.getByTestId('receipt-csv-toggle');
+  await toggle.click();
+  await page
+    .getByTestId('csv-file-input')
+    .setInputFiles(
+      path.resolve(
+        test.info().project.testDir,
+        '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',
+      ),
+    );
+  await page.getByRole('button', { name: '1件 追加で保存' }).click();
+
+  const notice = page.getByTestId('csv-save-result-notice');
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText('1件反映');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 });
