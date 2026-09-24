@@ -1,10 +1,3 @@
-//! React `components/molecules/DividendInfo/DividendInfo.tsx`（embedded モード）と
-//! `pages/Receipt/Dividend.tsx` の銘柄コード検索時ヘッダー配線に対応する。
-//!
-//! 1株配当は `/api/v1/dividend-per-share-estimates`、保有状況は
-//! `/api/v1/asset-balances?security_code=` を既存バックエンド経由で取得する。
-//! standalone モード（配当シミュレーション入力フォーム）は検索詳細では使われないため対象外。
-
 use crate::api::ApiClient;
 use crate::asset_balance_domain::{normalize_security_code, to_fixed};
 use crate::asset_balance_lookup::{fetch_single_asset_balance, find_by_code};
@@ -23,9 +16,6 @@ use rust_decimal::prelude::ToPrimitive;
 const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
 const JQUANTS_HINT: &str = "自動で取得されます";
 
-/// `deriveSecurityCodeFromQuery` + `isSecurityCodeSearch`（生コードへの
-/// `SECURITY_CODE_REGEX` 判定）に対応する。対象外は空文字を返す。
-/// 返すコードはデータ行の `security_code` そのままで、正規化は取得側で行う。
 pub(crate) fn search_security_code(rows: &[Dividend], query: &str) -> String {
     let code = derive_security_code_from_query(
         query,
@@ -40,7 +30,6 @@ pub(crate) fn search_security_code(rows: &[Dividend], query: &str) -> String {
     }
 }
 
-/// React の `formatPercentageValue(value, 2)`（`toFixed(2)` + `%`）に対応する。
 fn format_percentage_value(value: f64) -> String {
     if value.is_nan() {
         return "-".to_string();
@@ -48,8 +37,6 @@ fn format_percentage_value(value: f64) -> String {
     format!("{:.2}%", to_fixed(value, 2))
 }
 
-/// DividendInfo の取得状態。React の `useAssetBalance` + `useDividendBatch` 相当で、
-/// セッション世代と銘柄コードをキーにして古い結果の適用を防ぐ。
 #[derive(Clone, Copy)]
 pub(crate) struct DividendInfoStore {
     session: SessionStore,
@@ -70,9 +57,6 @@ impl DividendInfoStore {
         }
     }
 
-    /// 検索クエリ由来の生コードをセットする。React の `enabled` ゲート相当で、
-    /// 未認証・無効コード・空では取得せず表示をクリアする。
-    /// 同じ（世代, 正規化コード）への再セットは `codesKey` の重複排除と同じく何もしない。
     pub fn set_code(&self, generation: u64, authenticated: bool, raw_code: &str) {
         let code = normalize_security_code(raw_code);
         let next = (authenticated && is_searchable_code(&code)).then_some((generation, code));
@@ -104,7 +88,6 @@ impl DividendInfoStore {
         });
     }
 
-    /// その世代・コードがまだ表示対象か（`isActive` と session 世代確認に相当）。
     fn is_active(&self, generation: u64, code: &str) -> bool {
         self.session.is_current(generation)
             && self
@@ -113,9 +96,7 @@ impl DividendInfoStore {
                 .is_some_and(|(g, c)| g == generation && c == code)
     }
 
-    /// `useDividendBatch` のリトライ方針を1銘柄に適用する。
-    /// pending はバックエンド処理待ちとして銘柄数連動の上限まで、
-    /// 通信失敗は固定少数回で打ち切る。
+    /// pending（バックエンド処理待ち）と通信失敗は別カウンタで打ち切る
     async fn poll_dividend(&self, generation: u64, code: String) {
         let codes = vec![code.clone()];
         let max_pending = dividend_pending_max_retries(1);
@@ -132,7 +113,6 @@ impl DividendInfoStore {
                     if !self.is_active(generation, &code) {
                         return;
                     }
-                    // React は status=ok かつ正値のみ採用する（maps.per_share 済み）
                     self.per_share.set(maps.per_share.get(&code).copied());
                     self.per_share_loading.set(false);
                     if !has_pending || pending_used >= max_pending {
@@ -165,15 +145,12 @@ fn AssetBadge() -> impl IntoView {
     }
 }
 
-/// React `DividendInfo` の embedded モードに対応する。
-/// `totals` はフィルタ済み配当行の合計（React の `groupedSummary` 相当）。
 #[component]
 pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> impl IntoView {
     let asset = move || store.asset_balance.get();
     let per_share = move || store.per_share.get();
     let loading = move || store.per_share_loading.get();
 
-    // React: totalInvestment = parseNumber(averageUnitPrice) * parseNumber(holdingQuantity)
     let investment = move || {
         asset()
             .map(|a| {
@@ -312,8 +289,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     }
 }
 
-/// React `ReceiptHeader`（collapsible + items=[] + children=DividendInfo）に対応する。
-/// 展開状態は呼び出し側の signal を使い、フィルタ変更で view が作り直されても保持する。
+/// 展開状態は呼び出し側の signal を持たせ、フィルタ変更で view が作り直されても消えないようにする
 #[component]
 pub(crate) fn DividendSummarySection(
     store: DividendInfoStore,
@@ -454,7 +430,6 @@ mod tests {
         assert_eq!(search_security_code(&rows, "7203"), "7203");
         assert_eq!(search_security_code(&rows, "トヨタ自動車"), "7203");
         assert_eq!(search_security_code(&rows, "7203: トヨタ自動車"), "7203");
-        // 完全一致しないクエリ・空クエリ・データ外コードは対象外
         assert_eq!(search_security_code(&rows, "トヨタ"), "");
         assert_eq!(search_security_code(&rows, ""), "");
         assert_eq!(search_security_code(&rows, "9999"), "");
@@ -464,7 +439,6 @@ mod tests {
     #[test]
     fn search_security_code_rejects_non_regex_codes() {
         let rows = vec![dividend("７２０３", "トヨタ自動車")];
-        // 生コードが正規表現に合わなければリンク対象にしない（React と同じ）
         assert_eq!(search_security_code(&rows, "７２０３"), "");
     }
 
@@ -482,15 +456,12 @@ mod tests {
             let generation = session.generation.get_untracked();
             let store = DividendInfoStore::new(session);
 
-            // 未認証ならセットしない
             store.set_code(generation, false, "7203");
             assert!(store.current.get_untracked().is_none());
 
-            // 正規化後も無効なコードはセットしない
             store.set_code(generation, true, "７２０３");
             assert!(store.current.get_untracked().is_none());
 
-            // 正規化コードがキーになる（小文字入力は大文字化される）
             store.current.set(Some((generation, "7203".to_string())));
             store.set_code(generation, true, " 7203 ");
             assert_eq!(
@@ -498,7 +469,6 @@ mod tests {
                 Some((generation, "7203".to_string()))
             );
 
-            // 未認証に戻すとクリア
             store.set_code(generation, false, "7203");
             assert!(store.current.get_untracked().is_none());
             assert!(store.asset_balance.get_untracked().is_none());

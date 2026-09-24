@@ -1,11 +1,8 @@
-//! React `components/atoms/SecurityCodeLink.tsx` に対応する。
-
 use crate::asset_balance_domain::normalize_security_code;
 use leptos::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 
-/// `formatters.ts` の `SECURITY_CODE_REGEX`（`/^[0-9A-Za-z.]+$/`）に対応する。
 pub(crate) fn is_searchable_code(code: &str) -> bool {
     !code.is_empty()
         && code
@@ -13,8 +10,7 @@ pub(crate) fn is_searchable_code(code: &str) -> bool {
             .all(|character| character.is_ascii_alphanumeric() || character == '.')
 }
 
-/// React `FONT_WEIGHT_CLASS_REGEX` 相当。呼び出し側が font-weight を
-/// 指定済みなら `font-bold` を付けない（クラス競合を防ぐため）。
+/// 呼び出し側の font-weight 指定と競合しないよう、指定済みクラスを検出する
 fn has_font_weight_class(class: &str) -> bool {
     const WEIGHTS: [&str; 9] = [
         "font-thin",
@@ -41,8 +37,6 @@ fn has_font_weight_class(class: &str) -> bool {
     })
 }
 
-/// 銘柄コードを正規化して検索詳細 `/search?code=` へのリンクにする。
-/// 正規化後が空なら "-"、想定外の文字列はリンク化せずテキストのみ（React 同様）。
 #[component]
 pub(crate) fn SecurityCodeLink(
     #[prop(into)] value: String,
@@ -65,7 +59,6 @@ pub(crate) fn SecurityCodeLink(
     view! { <a href=href class=classes data-search=code>{code.clone()}</a> }.into_any()
 }
 
-/// `toDisplayText` に対応する。空白のみ・空文字は "-" 表示。
 fn display_text(value: &str) -> String {
     let text = value.trim();
     if text.is_empty() {
@@ -75,7 +68,6 @@ fn display_text(value: &str) -> String {
     }
 }
 
-/// `createInstrumentCopyText` に対応する。コピー内容は `銘柄名(コード)`。
 fn instrument_copy_text(name: &str, code: Option<&str>) -> String {
     let display = display_text(name);
     let normalized = normalize_security_code(code.unwrap_or_default());
@@ -86,7 +78,7 @@ fn instrument_copy_text(name: &str, code: Option<&str>) -> String {
     }
 }
 
-/// `navigator.clipboard?.writeText` 相当。API が無い環境では何もしない。
+/// clipboard API が無い環境では何もしない
 fn copy_to_clipboard(text: String) {
     let Some(window) = web_sys::window() else {
         return;
@@ -120,8 +112,6 @@ fn copy_to_clipboard(text: String) {
     });
 }
 
-/// React `CopyableInstrumentName` に対応する。
-/// クリックで `銘柄名(コード)` をクリップボードへコピーするボタン。
 #[component]
 pub(crate) fn CopyableInstrumentName(
     #[prop(into)] name: String,
@@ -179,7 +169,6 @@ mod tests {
         );
         assert_eq!(instrument_copy_text("トヨタ自動車", None), "トヨタ自動車");
         assert_eq!(instrument_copy_text("  ", Some("7203")), "-(7203)");
-        // ラベル形式・小文字のコードは正規化してから連結する
         assert_eq!(
             instrument_copy_text("名", Some("7203: トヨタ自動車")),
             "名(7203)"
