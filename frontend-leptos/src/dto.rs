@@ -192,7 +192,6 @@ pub struct CsvPreviewResponse {
     pub rows: Vec<serde_json::Value>,
 }
 
-// 共有E2E specのモックが数値idを返すため両方を受け付ける
 fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
