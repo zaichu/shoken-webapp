@@ -260,7 +260,10 @@ fn group_thousands(digits: &str) -> String {
     grouped
 }
 
-fn format_signed_number(value: f64) -> Option<(bool, String)> {
+// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（React の
+// `formatSignedAbsNumber` と同じく `-0.0` は負としない）。
+// この関数は絶対値の桁区切りだけを返す。
+fn format_abs_number(value: f64) -> Option<String> {
     if !value.is_finite() {
         return None;
     }
@@ -270,26 +273,25 @@ fn format_signed_number(value: f64) -> Option<(bool, String)> {
         None => (text.as_str(), None),
     };
     let grouped = group_thousands(integer);
-    let body = match fraction {
+    Some(match fraction {
         Some(fraction) => format!("{grouped}.{fraction}"),
         None => grouped,
-    };
-    Some((value.is_sign_negative(), body))
+    })
 }
 
 fn format_currency(value: f64) -> String {
-    match format_signed_number(to_fixed(value, 15)) {
+    match format_abs_number(to_fixed(value, 15)) {
         None => "-".to_string(),
-        Some((true, body)) => format!("¥ -{body}"),
-        Some((false, body)) => format!("¥ {body}"),
+        Some(body) if value < 0.0 => format!("¥ -{body}"),
+        Some(body) => format!("¥ {body}"),
     }
 }
 
 fn format_number_value(value: f64) -> String {
-    match format_signed_number(intl_fixed(value, 2)) {
+    match format_abs_number(intl_fixed(value, 2)) {
         None => "-".to_string(),
-        Some((true, body)) => format!("-{body}"),
-        Some((false, body)) => body,
+        Some(body) if value < 0.0 => format!("-{body}"),
+        Some(body) => body,
     }
 }
 
@@ -1301,6 +1303,9 @@ mod tests {
         assert_eq!(format_number_value(1.5), "1.5");
         assert_eq!(format_number_value(1.2345), "1.23");
         assert_eq!(format_number_value(-0.001), "-0");
+        // React は符号を丸め前の値の `num < 0` で判定するため -0 は `0` と表示する
+        assert_eq!(format_number_value(-0.0), "0");
+        assert_eq!(format_currency(-0.0), "¥ 0");
         assert_eq!(format_number_value(-12345.678), "-12,345.68");
         // Intl.NumberFormat は toFixed と異なり10進の値で半分以上を切り上げる
         assert_eq!(format_number_value(1.005), "1.01");
