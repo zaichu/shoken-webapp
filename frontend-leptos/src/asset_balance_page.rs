@@ -6,6 +6,7 @@ use crate::asset_balance_domain::{
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
+use crate::receipts_pagination::PageCollector;
 use crate::session::use_session;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
@@ -13,7 +14,9 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const ASSET_BALANCE_LIST_LIMIT: &str = "1000";
+const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
+// API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
+const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
 const TOP_ITEMS: usize = 20;
 const DIVIDEND_RETRY_DELAY_MS: u32 = 15_000;
 const DIVIDEND_NETWORK_MAX_RETRIES: u32 = 3;
@@ -59,18 +62,68 @@ struct DividendBatchRequest {
     security_codes: Vec<String>,
 }
 
-async fn fetch_asset_balances() -> Result<AssetBalanceListResponse, ApiError> {
+async fn fetch_asset_balance_page(page_no: usize) -> Result<AssetBalanceListResponse, ApiError> {
+    let page = page_no.to_string();
+    let per_page = ASSET_BALANCE_LIST_PER_PAGE.to_string();
+    // summary・facets はどのページも同じ全体集計を返すため、取引明細と同じく1ページ目だけ取る
+    let include_aggregates = if page_no == 1 { "true" } else { "false" };
     ApiClient::read_client()
         .get_json::<AssetBalanceListResponse>(
             "/api/v1/asset-balances",
             &[
-                ("page", "1"),
-                ("per_page", ASSET_BALANCE_LIST_LIMIT),
-                ("include_summary", "true"),
-                ("include_facets", "true"),
+                ("page", page.as_str()),
+                ("per_page", per_page.as_str()),
+                ("include_summary", include_aggregates),
+                ("include_facets", include_aggregates),
             ],
         )
         .await
+}
+
+/// 一覧 API の全ページ結合。取引明細(`receipts.rs`)と同じく
+/// `PageCollector` で末尾ページまで逐次取得し、summary は1ページ目のものを採用する。
+struct AssetBalancePages {
+    collector: PageCollector<AssetBalance>,
+    summary: Option<AssetBalanceSummary>,
+}
+
+impl AssetBalancePages {
+    fn new() -> Self {
+        Self {
+            collector: PageCollector::new(
+                ASSET_BALANCE_LIST_PER_PAGE,
+                ASSET_BALANCE_LIST_MAX_PAGES,
+            ),
+            summary: None,
+        }
+    }
+
+    fn next_page(&self) -> usize {
+        self.collector.next_page()
+    }
+
+    fn push(&mut self, page: AssetBalanceListResponse) -> bool {
+        if self.collector.next_page() == 1 {
+            self.summary = page.summary;
+        }
+        self.collector.push(page.data, page.total)
+    }
+
+    fn finish(self) -> (Vec<AssetBalance>, Option<AssetBalanceSummary>) {
+        (self.collector.into_rows(), self.summary)
+    }
+}
+
+async fn fetch_asset_balances() -> Result<(Vec<AssetBalance>, Option<AssetBalanceSummary>), ApiError>
+{
+    let mut pages = AssetBalancePages::new();
+    loop {
+        let response = fetch_asset_balance_page(pages.next_page()).await?;
+        if !pages.push(response) {
+            break;
+        }
+    }
+    Ok(pages.finish())
 }
 
 fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
@@ -421,14 +474,13 @@ pub fn AssetBalancePage() -> impl IntoView {
                         balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
                     }
                 }
-                Ok(list) => {
+                Ok((rows, summary)) => {
                     if !should_apply_asset_balance_result(&session, generation) {
                         return;
                     }
-                    lookup.update(|store| store.seed(generation, &list.data));
+                    lookup.update(|store| store.seed(generation, &rows));
                     let codes = unique_sorted_codes(
-                        &list
-                            .data
+                        &rows
                             .iter()
                             .map(|row| row.security_code.clone())
                             .collect::<Vec<_>>(),
@@ -436,10 +488,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     dividends.set(DividendMaps::default());
                     balances.set(Some((
                         generation,
-                        Ok(LoadedAssetBalances {
-                            rows: list.data,
-                            summary: list.summary,
-                        }),
+                        Ok(LoadedAssetBalances { rows, summary }),
                     )));
                     let missing: Vec<String> = codes
                         .iter()
@@ -1379,5 +1428,80 @@ mod tests {
             assert_eq!(runs.get_untracked(), 1);
             assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
         });
+    }
+
+    fn balance_row(id: usize) -> AssetBalance {
+        AssetBalance {
+            id: format!("id-{id}"),
+            security_code: format!("{id:04}"),
+            security_name: "銘柄".to_string(),
+            shares: rust_decimal_macros::dec!(100),
+            executing_shares: rust_decimal_macros::dec!(0),
+            average_purchase_price: rust_decimal_macros::dec!(2500),
+            total_purchase_amount: rust_decimal_macros::dec!(250000),
+            current_price: rust_decimal_macros::dec!(2600),
+            daily_change: rust_decimal_macros::dec!(50),
+            market_value: rust_decimal_macros::dec!(260000),
+            profit_loss_rate: rust_decimal_macros::dec!(4),
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
+    fn balance_page(
+        range: std::ops::Range<usize>,
+        total: i64,
+        summary_total: Option<Decimal>,
+    ) -> AssetBalanceListResponse {
+        AssetBalanceListResponse {
+            data: range.map(balance_row).collect(),
+            total,
+            page: 1,
+            per_page: ASSET_BALANCE_LIST_PER_PAGE as i64,
+            summary: summary_total.map(|total_purchase_amount| AssetBalanceSummary {
+                total_market_value: rust_decimal_macros::dec!(0),
+                total_purchase_amount,
+                total_daily_change: rust_decimal_macros::dec!(0),
+            }),
+            facets: None,
+        }
+    }
+
+    #[test]
+    fn asset_balance_pages_join_all_pages_in_order() {
+        let mut pages = AssetBalancePages::new();
+        assert_eq!(pages.next_page(), 1);
+        assert!(pages.push(balance_page(
+            0..1000,
+            2300,
+            Some(rust_decimal_macros::dec!(10))
+        )));
+        assert_eq!(pages.next_page(), 2);
+        assert!(pages.push(balance_page(
+            1000..2000,
+            2300,
+            Some(rust_decimal_macros::dec!(20))
+        )));
+        assert_eq!(pages.next_page(), 3);
+        assert!(!pages.push(balance_page(2000..2300, 2300, None)));
+
+        let (rows, summary) = pages.finish();
+        assert_eq!(rows.len(), 2300);
+        assert_eq!(rows[0].id, "id-0");
+        assert_eq!(rows[2299].id, "id-2299");
+        // summary は1ページ目のものだけを採用し、以降のページの summary は捨てる
+        assert_eq!(
+            summary.map(|summary| summary.total_purchase_amount),
+            Some(rust_decimal_macros::dec!(10))
+        );
+    }
+
+    #[test]
+    fn asset_balance_pages_stop_when_first_page_is_short() {
+        let mut pages = AssetBalancePages::new();
+        assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
+        let (rows, summary) = pages.finish();
+        assert_eq!(rows.len(), 3);
+        assert!(summary.is_some());
     }
 }
