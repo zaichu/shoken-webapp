@@ -7,9 +7,16 @@ on:
   issue_comment:
   pull_request_review:
   pull_request_review_comment:
+  # コメントの非表示/再表示では webhook が発火しないため、非表示後の再評価は手動で実行する
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 再評価する PR 番号
+        required: true
+        type: number
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,7 +35,9 @@ jobs:
         with:
           script: |
             const prNumber =
-              context.payload.pull_request?.number ?? context.payload.issue?.number;
+              context.payload.pull_request?.number ??
+              context.payload.issue?.number ??
+              Number(context.payload.inputs?.pr);
             const { owner, repo } = context.repo;
 
             const prQuery = `
