@@ -558,10 +558,15 @@ const ASSET_FILES: Record<string, unknown[]> = {
 };
 
 test.describe('資産管理 CSV 取込・削除', () => {
-  test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
-    let db: unknown[] = [];
-    // DELETE が確認前・キャンセル後に出ないことを回数で固定する
-    let deleteCount = 0;
+  async function setupAssetApi(
+    page: Page,
+    overrides?: {
+      previewBody?: (rows: unknown[]) => object;
+      importBody?: (rows: unknown[]) => object;
+      savedRows?: (rows: unknown[]) => unknown[];
+    },
+  ) {
+    const api = { db: [] as unknown[], deleteCount: 0 };
     await page.route(/\/api\/v1\/session$/, (route) =>
       route.fulfill({
         status: 200,
@@ -581,12 +586,14 @@ test.describe('資産管理 CSV 取込・削除', () => {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          total_rows: rows.length,
-          valid_rows: rows.length,
-          errors: [],
-          rows,
-        }),
+        body: JSON.stringify(
+          overrides?.previewBody?.(rows) ?? {
+            total_rows: rows.length,
+            valid_rows: rows.length,
+            errors: [],
+            rows,
+          },
+        ),
       });
     });
     await page.route(/\/api\/v1\/asset-balance-imports$/, (route) => {
@@ -598,18 +605,23 @@ test.describe('資産管理 CSV 取込・削除', () => {
           body: JSON.stringify({ message: '不正なファイルです' }),
         });
       }
-      // 全件置換なので既存行を残さず入れ替える
-      db = rows.map(asDbRow);
+      api.db = (overrides?.savedRows?.(rows) ?? rows).map(asDbRow);
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ inserted: rows.length, skipped: 0, errors: [] }),
+        body: JSON.stringify(
+          overrides?.importBody?.(rows) ?? {
+            inserted: rows.length,
+            skipped: 0,
+            errors: [],
+          },
+        ),
       });
     });
     await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
       if (route.request().method() === 'DELETE') {
-        deleteCount += 1;
-        db = [];
+        api.deleteCount += 1;
+        api.db = [];
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -619,12 +631,22 @@ test.describe('資産管理 CSV 取込・削除', () => {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: db, total: db.length, page: 1, per_page: db.length }),
+        body: JSON.stringify({
+          data: api.db,
+          total: api.db.length,
+          page: 1,
+          per_page: api.db.length,
+        }),
       });
     });
+    return api;
+  }
 
-    const card = (name: string) =>
-      page.locator('[data-testid="portfolio-card-identity"]', { hasText: name });
+  const card = (page: Page, name: string) =>
+    page.locator('[data-testid="portfolio-card-identity"]', { hasText: name });
+
+  test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
+    const api = await setupAssetApi(page);
 
     await page.goto('/assetbalance');
     const fileInput = page.getByTestId('csv-file-input');
@@ -638,8 +660,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: '2件 全件置換で保存' }),
     ).toBeEnabled();
     // プレビュー行が一覧に出る
-    await expect(card('トヨタ自動車')).toBeVisible();
-    await expect(card('ソニーグループ')).toBeVisible();
+    await expect(card(page, 'トヨタ自動車')).toBeVisible();
+    await expect(card(page, 'ソニーグループ')).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -653,7 +675,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(
       page.getByRole('button', { name: '3件 全件置換で保存' }),
     ).toBeEnabled();
-    await expect(card('任天堂')).toBeVisible();
+    await expect(card(page, '任天堂')).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
     await expect(notice).toContainText('3件反映');
@@ -661,8 +683,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: '全件削除 (3件)' }),
     ).toBeVisible();
     // 追加ではなく置換なので base にだけあった行は消える
-    await expect(card('ソニーグループ')).toHaveCount(0);
-    await expect(card('任天堂')).toBeVisible();
+    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
+    await expect(card(page, '任天堂')).toBeVisible();
 
     await page.getByRole('button', { name: /全件削除/ }).click();
     const dialog = page.getByRole('dialog');
@@ -670,20 +692,82 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(dialog).toContainText('この操作は取り消せません');
     await expect(dialog).toContainText('3件');
     // 確認モーダルを開いただけでは DELETE を送らない
-    expect(deleteCount).toBe(0);
+    expect(api.deleteCount).toBe(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(
       page.getByRole('button', { name: '全件削除 (3件)' }),
     ).toBeVisible();
-    expect(deleteCount).toBe(0);
+    expect(api.deleteCount).toBe(0);
 
     await page.getByRole('button', { name: /全件削除/ }).click();
     await page.getByRole('button', { name: '削除する' }).click();
     await expect(page.getByText('資産管理データがありません')).toBeVisible();
     await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
     // 確定時に DELETE が1回だけ送られる
-    expect(deleteCount).toBe(1);
+    expect(api.deleteCount).toBe(1);
     await expect(notice).toHaveCount(0);
+  });
+
+  test('不正行を含むCSVは有効件数で保存しスキップとエラー件数を表示する', async ({ page }) => {
+    const rowErrors = [
+      { row: 2, message: '銘柄コードが不正です' },
+      { row: 3, message: '株数が不正です' },
+    ];
+    await setupAssetApi(page, {
+      previewBody: () => ({
+        total_rows: 3,
+        valid_rows: 1,
+        errors: rowErrors,
+        rows: [ASSET_TOYOTA],
+      }),
+      importBody: () => ({ inserted: 1, skipped: 2, errors: rowErrors }),
+      savedRows: () => [ASSET_TOYOTA],
+    });
+
+    await page.goto('/assetbalance');
+    const fileInput = page.getByTestId('csv-file-input');
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
+    await expect(
+      page.getByRole('button', { name: '1件 全件置換で保存' }),
+    ).toBeEnabled();
+    await expect(card(page, 'トヨタ自動車')).toBeVisible();
+    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
+
+    await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
+    const notice = page.getByTestId('csv-save-result-notice');
+    await expect(notice).toContainText('1件反映');
+    await expect(notice).toContainText('2件スキップ');
+    await expect(notice).toContainText('2件エラー');
+    await expect(notice).toContainText('2行目: 銘柄コードが不正です');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (1件)' }),
+    ).toBeVisible();
+    await expect(card(page, 'トヨタ自動車')).toBeVisible();
+    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
+  });
+
+  test('モバイル幅ではCSV操作を折りたたむ', async ({ page }) => {
+    await setupAssetApi(page);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto('/assetbalance');
+
+    const toggle = page.getByTestId('assetbalance-csv-toggle');
+    const body = page.locator('#assetbalance-csv-body');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(body).toBeHidden();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(body).toBeVisible();
+    await expect(page.getByTestId('csv-file-input')).toBeAttached();
+
+    await toggle.click();
+    await expect(body).toBeHidden();
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(toggle).toBeHidden();
+    await expect(body).toBeVisible();
   });
 });
