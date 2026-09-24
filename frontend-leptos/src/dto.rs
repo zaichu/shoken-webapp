@@ -172,6 +172,27 @@ pub struct AssetBalanceListResponse {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct CsvRowError {
+    pub row: usize,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct CsvUploadResponse {
+    pub inserted: usize,
+    pub skipped: usize,
+    pub errors: Vec<CsvRowError>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct CsvPreviewResponse {
+    pub total_rows: usize,
+    pub valid_rows: usize,
+    pub errors: Vec<CsvRowError>,
+    pub rows: Vec<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SessionUser {
     pub id: String,
     pub email: String,
@@ -280,8 +301,13 @@ mod tests {
         let types = base_types(schema);
         if types.contains(&"object") || schema.get("properties").is_some() {
             let mut object = serde_json::Map::new();
-            for (name, property) in schema["properties"].as_object().expect("properties") {
-                object.insert(name.clone(), sample_value(schemas, property));
+            if let Some(properties) = schema
+                .get("properties")
+                .and_then(serde_json::Value::as_object)
+            {
+                for (name, property) in properties {
+                    object.insert(name.clone(), sample_value(schemas, property));
+                }
             }
             return serde_json::Value::Object(object);
         }
@@ -378,6 +404,9 @@ mod tests {
         ("UserResponse", roundtrip::<SessionUser>),
         ("FacetOption", roundtrip::<FacetOption>),
         ("SearchFacets", roundtrip::<SearchFacets>),
+        ("CsvRowError", roundtrip::<CsvRowError>),
+        ("CsvUploadResponse", roundtrip::<CsvUploadResponse>),
+        ("CsvPreviewResponse", roundtrip::<CsvPreviewResponse>),
     ];
 
     #[test]
