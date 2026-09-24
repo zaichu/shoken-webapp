@@ -11,12 +11,16 @@
 //!   `calculatePercentage`（既定 `decimals = 2`）と `safeAdd` に対応する。
 //!   丸めは JS の `toFixed` 仕様どおり（2進の値で最も近い n、同距離なら大きい n、
 //!   負は符号を分けて処理）に実装する。
+//! - [`intl_fixed`] は `formatters.ts` の `formatNumber` が使う
+//!   `Intl.NumberFormat` の丸め（10進の値で半分以上を切り上げる）に対応する。
 //! - [`should_include_chart_item`], [`chart_percentages`] は
 //!   `AssetPortfolioSummary.tsx` のチャート除外条件と
 //!   `PortfolioPieChart.tsx` の未丸めパーセンテージに対応する（fixture 対象外）。
 //! - [`total_purchase_amount`], [`calculate_portfolio_kpi`] は
 //!   `AssetPortfolioSummary.tsx` の合計取得総額・年間配当・配当利回り・銘柄数に対応する。
 
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::{Decimal, RoundingStrategy};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -84,6 +88,32 @@ pub fn to_fixed(value: f64, decimals: u32) -> f64 {
         return if negative { -0.0 } else { 0.0 };
     }
     let result = rounded as f64 / 10f64.powi(decimals as i32);
+    if negative {
+        -result
+    } else {
+        result
+    }
+}
+
+/// `Intl.NumberFormat`(maximumFractionDigits) 相当の丸め。
+/// `toFixed` と異なり、f64 の最短10進表記を10進の値として丸めるため、
+/// 捨てる部分が半分以上なら切り上げる（`1.005` → `1.01`、`2.675` → `2.68`）。
+/// `Decimal` に載らない巨大値・多桁値は `to_fixed` にフォールバックする。
+pub fn intl_fixed(value: f64, decimals: u32) -> f64 {
+    if !value.is_finite() {
+        return value;
+    }
+    let negative = value.is_sign_negative();
+    let fallback = || to_fixed(value, decimals);
+    let Ok(decimal) = Decimal::from_str_exact(&value.abs().to_string()) else {
+        return fallback();
+    };
+    let Some(result) = decimal
+        .round_dp_with_strategy(decimals, RoundingStrategy::MidpointAwayFromZero)
+        .to_f64()
+    else {
+        return fallback();
+    };
     if negative {
         -result
     } else {
@@ -736,6 +766,26 @@ mod tests {
         assert_eq!(negative_zero, 0.0);
         assert!(negative_zero.is_sign_negative());
         assert!(!to_fixed(-0.0, 2).is_sign_negative());
+    }
+
+    #[test]
+    fn intl_fixed_matches_number_format_boundary_cases() {
+        // toFixed とは異なり、最短10進表記を10進の値として半分以上で切り上げる
+        assert_eq!(intl_fixed(1.005, 2), 1.01);
+        assert_eq!(intl_fixed(2.675, 2), 2.68);
+        assert_eq!(intl_fixed(-1.005, 2), -1.01);
+        assert_eq!(intl_fixed(-2.675, 2), -2.68);
+        assert_eq!(intl_fixed(0.995, 2), 1.0);
+        assert_eq!(intl_fixed(1.004, 2), 1.0);
+        assert_eq!(intl_fixed(0.125, 2), 0.13);
+        assert_eq!(intl_fixed(1.5, 2), 1.5);
+        assert_eq!(intl_fixed(100.0, 2), 100.0);
+        let negative_zero = intl_fixed(-0.001, 2);
+        assert_eq!(negative_zero, 0.0);
+        assert!(negative_zero.is_sign_negative());
+        // Decimal に載らない巨大値は to_fixed にフォールバックする
+        assert_eq!(intl_fixed(1e30, 2), 1e30);
+        assert_eq!(intl_fixed(f64::INFINITY, 2), f64::INFINITY);
     }
 
     #[test]

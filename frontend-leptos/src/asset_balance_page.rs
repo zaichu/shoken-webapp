@@ -1,8 +1,9 @@
 use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, calculate_valuation, chart_percentages, normalize_security_code,
-    normalize_security_name, should_include_chart_item, summarize_valuation_with_summary, to_fixed,
-    total_purchase_amount, KpiHolding, SummaryOverride, ValuationItem,
+    calculate_portfolio_kpi, calculate_valuation, chart_percentages, intl_fixed,
+    normalize_security_code, normalize_security_name, should_include_chart_item,
+    summarize_valuation_with_summary, to_fixed, total_purchase_amount, KpiHolding, SummaryOverride,
+    ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
@@ -285,7 +286,7 @@ fn format_currency(value: f64) -> String {
 }
 
 fn format_number_value(value: f64) -> String {
-    match format_signed_number(to_fixed(value, 2)) {
+    match format_signed_number(intl_fixed(value, 2)) {
         None => "-".to_string(),
         Some((true, body)) => format!("-{body}"),
         Some((false, body)) => body,
@@ -1301,6 +1302,11 @@ mod tests {
         assert_eq!(format_number_value(1.2345), "1.23");
         assert_eq!(format_number_value(-0.001), "-0");
         assert_eq!(format_number_value(-12345.678), "-12,345.68");
+        // Intl.NumberFormat は toFixed と異なり10進の値で半分以上を切り上げる
+        assert_eq!(format_number_value(1.005), "1.01");
+        assert_eq!(format_number_value(-1.005), "-1.01");
+        assert_eq!(format_number_value(2.675), "2.68");
+        assert_eq!(format_number_value(0.995), "1");
         assert_eq!(
             format_currency("0.123456789012345678".parse::<f64>().unwrap()),
             "¥ 0.123456789012346"
