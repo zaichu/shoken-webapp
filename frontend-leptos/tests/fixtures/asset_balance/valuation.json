@@ -1,0 +1,230 @@
+{
+  "valuation_cases": [
+    {
+      "name": "profit_basic",
+      "market_value": 1180000,
+      "purchase_amount": 1090000,
+      "expected": { "amount": 90000, "rate": 8.256880733944955 }
+    },
+    {
+      "name": "loss_basic",
+      "market_value": 90000,
+      "purchase_amount": 100000,
+      "expected": { "amount": -10000, "rate": -10 }
+    },
+    {
+      "name": "break_even",
+      "market_value": 500000,
+      "purchase_amount": 500000,
+      "expected": { "amount": 0, "rate": 0 }
+    },
+    {
+      "name": "comma_strings",
+      "market_value": "1,180,000",
+      "purchase_amount": "1,090,000",
+      "expected": { "amount": 90000, "rate": 8.256880733944955 }
+    },
+    {
+      "name": "null_market",
+      "market_value": null,
+      "purchase_amount": 100000,
+      "expected": { "amount": null, "rate": null }
+    },
+    {
+      "name": "empty_purchase",
+      "market_value": 260000,
+      "purchase_amount": "",
+      "expected": { "amount": null, "rate": null }
+    },
+    {
+      "name": "dash_market",
+      "market_value": "-",
+      "purchase_amount": 100000,
+      "expected": { "amount": null, "rate": null }
+    },
+    {
+      "name": "zero_purchase_with_market",
+      "market_value": 100000,
+      "purchase_amount": 0,
+      "expected": { "amount": 100000, "rate": null }
+    },
+    {
+      "name": "zero_both",
+      "market_value": 0,
+      "purchase_amount": 0,
+      "expected": { "amount": 0, "rate": null }
+    }
+  ],
+  "summary_cases": [
+    {
+      "name": "weighted_total_not_average",
+      "items": [
+        { "market_value": 200, "total_purchase_amount": 100 },
+        { "market_value": 900, "total_purchase_amount": 900 }
+      ],
+      "expected": { "marketValue": 1100, "amount": 100, "rate": 10, "incomplete": false }
+    },
+    {
+      "name": "same_rate_holdings",
+      "items": [
+        { "market_value": 110, "total_purchase_amount": 100 },
+        { "market_value": 220, "total_purchase_amount": 200 }
+      ],
+      "expected": { "marketValue": 330, "amount": 30, "rate": 10, "incomplete": false }
+    },
+    {
+      "name": "incomplete_null_market",
+      "items": [
+        { "market_value": 100, "total_purchase_amount": 80 },
+        { "market_value": null, "total_purchase_amount": 20 }
+      ],
+      "expected": { "marketValue": null, "amount": null, "rate": null, "incomplete": true }
+    },
+    {
+      "name": "incomplete_dash_market",
+      "items": [
+        { "market_value": "-", "total_purchase_amount": 100 },
+        { "market_value": 200, "total_purchase_amount": 100 }
+      ],
+      "expected": { "marketValue": null, "amount": null, "rate": null, "incomplete": true }
+    },
+    {
+      "name": "zero_purchase_total",
+      "items": [
+        { "market_value": 100000, "total_purchase_amount": 0 },
+        { "market_value": 50000, "total_purchase_amount": 0 }
+      ],
+      "expected": { "marketValue": 150000, "amount": 150000, "rate": null, "incomplete": false }
+    },
+    {
+      "name": "empty_items",
+      "items": [],
+      "expected": { "marketValue": 0, "amount": 0, "rate": null, "incomplete": false }
+    },
+    {
+      "name": "comma_strings",
+      "items": [
+        { "market_value": "260,000", "total_purchase_amount": "250,000" },
+        { "market_value": "650,000", "total_purchase_amount": "600,000" }
+      ],
+      "expected": { "marketValue": 910000, "amount": 60000, "rate": 7.0588235294117645, "incomplete": false }
+    },
+    {
+      "name": "loss_total",
+      "items": [
+        { "market_value": 90000, "total_purchase_amount": 100000 },
+        { "market_value": 40000, "total_purchase_amount": 50000 }
+      ],
+      "expected": { "marketValue": 130000, "amount": -20000, "rate": -13.333333333333334, "incomplete": false }
+    }
+  ],
+  "composition_cases": [
+    {
+      "name": "two_holdings",
+      "values": [250000, 600000],
+      "expected_percentages": [29.41, 70.59]
+    },
+    {
+      "name": "equal_three_holdings",
+      "values": [100, 100, 100],
+      "expected_percentages": [33.33, 33.33, 33.33]
+    },
+    {
+      "name": "with_zero_member",
+      "values": [0, 500000, 500000],
+      "expected_percentages": [0, 50, 50]
+    },
+    {
+      "name": "single_holding",
+      "values": [850000],
+      "expected_percentages": [100]
+    },
+    {
+      "name": "zero_total",
+      "values": [0, 0],
+      "expected_percentages": [0, 0]
+    }
+  ],
+  "kpi_cases": [
+    {
+      "name": "full_dividends",
+      "holdings": [
+        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+      ],
+      "dividends_per_share": { "7203": 50, "6758": 240 },
+      "expected": {
+        "total_purchase_amount": 850000,
+        "total_annual_dividends": 17000,
+        "dividend_yield": 2,
+        "holdings_count": 2
+      }
+    },
+    {
+      "name": "no_dividend_map",
+      "holdings": [
+        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+      ],
+      "dividends_per_share": {},
+      "expected": {
+        "total_purchase_amount": 850000,
+        "total_annual_dividends": null,
+        "dividend_yield": null,
+        "holdings_count": 2
+      }
+    },
+    {
+      "name": "partial_dividend_map",
+      "holdings": [
+        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+      ],
+      "dividends_per_share": { "7203": 50 },
+      "expected": {
+        "total_purchase_amount": 850000,
+        "total_annual_dividends": 5000,
+        "dividend_yield": 0.5882352941176471,
+        "holdings_count": 2
+      }
+    },
+    {
+      "name": "zero_per_share",
+      "holdings": [
+        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+      ],
+      "dividends_per_share": { "7203": 0, "6758": 0 },
+      "expected": {
+        "total_purchase_amount": 850000,
+        "total_annual_dividends": null,
+        "dividend_yield": null,
+        "holdings_count": 2
+      }
+    },
+    {
+      "name": "zero_purchase_yield_unavailable",
+      "holdings": [
+        { "security_code": "9999", "shares": 10, "total_purchase_amount": 0 }
+      ],
+      "dividends_per_share": { "9999": 100 },
+      "expected": {
+        "total_purchase_amount": 0,
+        "total_annual_dividends": 1000,
+        "dividend_yield": null,
+        "holdings_count": 1
+      }
+    },
+    {
+      "name": "empty_holdings",
+      "holdings": [],
+      "dividends_per_share": {},
+      "expected": {
+        "total_purchase_amount": 0,
+        "total_annual_dividends": null,
+        "dividend_yield": null,
+        "holdings_count": 0
+      }
+    }
+  ]
+}
