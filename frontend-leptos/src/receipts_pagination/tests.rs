@@ -50,6 +50,32 @@ fn stops_at_max_pages_when_pages_never_run_short() {
 }
 
 #[test]
+fn one_row_over_the_cap_is_truncated() {
+    let mut pages = PageCollector::new(3, 2);
+    assert!(pages.push(rows(0..3), 7));
+    assert!(!pages.push(rows(3..6), 7));
+    assert!(pages.truncated());
+    assert_eq!(pages.into_rows(), rows(0..6));
+}
+
+#[test]
+fn empty_first_page_is_not_truncated() {
+    let mut pages = PageCollector::<usize>::new(1000, 100);
+    assert!(!pages.push(Vec::new(), 0));
+    assert!(!pages.truncated());
+    assert!(pages.into_rows().is_empty());
+}
+
+#[test]
+fn empty_last_page_at_max_pages_is_not_truncated() {
+    let mut pages = PageCollector::new(3, 2);
+    assert!(pages.push(rows(0..3), 100));
+    assert!(!pages.push(Vec::new(), 100));
+    assert!(!pages.truncated());
+    assert_eq!(pages.into_rows(), rows(0..3));
+}
+
+#[test]
 fn natural_end_before_max_pages_is_not_truncated() {
     let mut pages = PageCollector::new(1000, 100);
     assert!(!pages.push(rows(0..3), 3));
