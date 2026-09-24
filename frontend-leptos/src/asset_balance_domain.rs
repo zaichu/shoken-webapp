@@ -1,22 +1,24 @@
 //! 資産管理の一覧・評価・構成比・KPI の純粋ロジック。
 //!
+//! 受け入れ条件「React と同じ入力で同じ結果」のため、計算は React と同じ f64 で行う。
 //! React 側の正本との対応:
 //! - [`to_finite_amount`], [`calculate_valuation`], [`summarize_valuation`]
 //!   は `frontend/src/features/assetBalance/valuation.ts` の同名関数に対応する。
-//! - [`calculate_composition_percentage`], [`composition_percentages`]
-//!   は `frontend/src/lib/utils/formatters.ts` の `calculatePercentage`
-//!   （既定 `decimals = 2`）に対応する。fixture の構成比ケースはこの関数で作られている。
+//! - [`summarize_valuation_with_summary`] は `AssetPortfolioSummary.tsx` の
+//!   評価損益集計（API summary 優先）に対応する。
+//! - [`to_fixed`], [`safe_add`], [`calculate_composition_percentage`],
+//!   [`composition_percentages`] は `frontend/src/lib/utils/formatters.ts` の
+//!   `calculatePercentage`（既定 `decimals = 2`）と `safeAdd` に対応する。
+//!   丸めは JS の `toFixed` 仕様どおり（2進の値で最も近い n、同距離なら大きい n、
+//!   負は符号を分けて処理）に実装する。
 //! - [`should_include_chart_item`], [`chart_percentages`] は
 //!   `AssetPortfolioSummary.tsx` のチャート除外条件と
 //!   `PortfolioPieChart.tsx` の未丸めパーセンテージに対応する（fixture 対象外）。
-//! - [`calculate_portfolio_kpi`] は `AssetPortfolioSummary.tsx` の
-//!   合計取得総額・年間配当・配当利回り・銘柄数の計算に対応する。
+//! - [`total_purchase_amount`], [`calculate_portfolio_kpi`] は
+//!   `AssetPortfolioSummary.tsx` の合計取得総額・年間配当・配当利回り・銘柄数に対応する。
 
-use rust_decimal::Decimal;
-use rust_decimal::RoundingStrategy;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::str::FromStr;
 
 /// `valuation.ts` の `MISSING_MARKERS` と同じ集合（比較は小文字化後）。
 const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "undefined"];
@@ -24,38 +26,81 @@ const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "
 /// 任意の値を有限数に正規化する。欠損は `None` を返す。
 /// 数値文字列（カンマ区切り可）は数値として扱う。
 /// `valuation.ts` の `toFiniteAmount` に対応する。
-pub fn to_finite_amount(value: &Value) -> Option<Decimal> {
+pub fn to_finite_amount(value: &Value) -> Option<f64> {
     match value {
         Value::Null => None,
-        Value::Number(number) => Decimal::from_str(&number.to_string()).ok(),
+        Value::Number(number) => number.as_f64(),
         Value::String(raw) => {
             let trimmed = raw.replace(',', "").trim().to_string();
             if trimmed.is_empty() {
                 return None;
             }
-            let lowered = trimmed.to_lowercase();
-            if MISSING_MARKERS.contains(&lowered.as_str()) {
+            if MISSING_MARKERS.contains(&trimmed.to_lowercase().as_str()) {
                 return None;
             }
-            if let Ok(exact) = Decimal::from_str(&trimmed) {
-                return Some(exact);
+            match trimmed.parse::<f64>() {
+                Ok(parsed) if parsed.is_finite() => Some(parsed),
+                _ => None,
             }
-            if let Ok(float) = trimmed.parse::<f64>() {
-                if float.is_finite() {
-                    return Decimal::from_f64_retain(float);
-                }
-            }
-            None
         }
         _ => None,
     }
 }
 
+/// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
+/// f64 の2進の値で最も近い `10^-decimals` の倍数を選び、同距離なら大きい方を選ぶ。
+/// 負値は符号を分けて絶対値で丸めてから符号を戻す。
+/// 非有限値と巨大値はそのまま返し、panic しない。
+pub fn to_fixed(value: f64, decimals: u32) -> f64 {
+    if !value.is_finite() {
+        return value;
+    }
+    let negative = value.is_sign_negative();
+    let magnitude = value.abs();
+    if magnitude == 0.0 {
+        return 0.0;
+    }
+    let bits = magnitude.to_bits();
+    let raw_exponent = ((bits >> 52) & 0x7ff) as i32;
+    let (mantissa, exponent) = if raw_exponent == 0 {
+        (bits & 0xfffffffffffff, -1074)
+    } else {
+        (
+            bits & 0xfffffffffffff | 0x10000000000000,
+            raw_exponent - 1075,
+        )
+    };
+    if exponent >= 0 {
+        return value;
+    }
+    let shift = -exponent;
+    if shift >= 128 {
+        return if negative { -0.0 } else { 0.0 };
+    }
+    let numerator = (mantissa as u128) * 10u128.pow(decimals);
+    let quantum = 1u128 << (shift as u32);
+    let rounded = numerator / quantum + u128::from(numerator % quantum * 2 >= quantum);
+    if rounded == 0 {
+        return if negative { -0.0 } else { 0.0 };
+    }
+    let result = rounded as f64 / 10f64.powi(decimals as i32);
+    if negative {
+        -result
+    } else {
+        result
+    }
+}
+
+/// `formatters.ts` の `safeAdd` に対応する。加算ごとに小数10桁で丸める。
+pub fn safe_add(a: f64, b: f64) -> f64 {
+    to_fixed(a + b, 10)
+}
+
 /// 1銘柄の評価損益。`valuation.ts` の `calculateValuation` に対応する。
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValuationResult {
-    pub amount: Option<Decimal>,
-    pub rate: Option<Decimal>,
+    pub amount: Option<f64>,
+    pub rate: Option<f64>,
 }
 
 pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
@@ -64,7 +109,7 @@ pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> Val
     match (market, purchase) {
         (Some(market), Some(purchase)) => {
             let amount = market - purchase;
-            if purchase.is_zero() {
+            if purchase == 0.0 {
                 ValuationResult {
                     amount: Some(amount),
                     rate: None,
@@ -72,7 +117,7 @@ pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> Val
             } else {
                 ValuationResult {
                     amount: Some(amount),
-                    rate: Some(amount / purchase * Decimal::ONE_HUNDRED),
+                    rate: Some(amount / purchase * 100.0),
                 }
             }
         }
@@ -94,15 +139,15 @@ pub struct ValuationItem {
 /// 率は合計金額から計算し、単純平均しない。
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValuationSummary {
-    pub market_value: Option<Decimal>,
-    pub amount: Option<Decimal>,
-    pub rate: Option<Decimal>,
+    pub market_value: Option<f64>,
+    pub amount: Option<f64>,
+    pub rate: Option<f64>,
     pub incomplete: bool,
 }
 
 pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
-    let mut total_market = Decimal::ZERO;
-    let mut total_purchase = Decimal::ZERO;
+    let mut total_market = 0.0;
+    let mut total_purchase = 0.0;
     for item in items {
         let market = to_finite_amount(&item.market_value);
         let purchase = to_finite_amount(&item.total_purchase_amount);
@@ -122,7 +167,7 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
         }
     }
     let amount = total_market - total_purchase;
-    if total_purchase.is_zero() {
+    if total_purchase == 0.0 {
         ValuationSummary {
             market_value: Some(total_market),
             amount: Some(amount),
@@ -133,27 +178,68 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
         ValuationSummary {
             market_value: Some(total_market),
             amount: Some(amount),
-            rate: Some(amount / total_purchase * Decimal::ONE_HUNDRED),
+            rate: Some(amount / total_purchase * 100.0),
             incomplete: false,
         }
     }
 }
 
+/// API summary による上書き入力。`AssetPortfolioSummary.tsx` の `summary` に対応する。
+#[derive(Clone, Debug)]
+pub struct SummaryOverride {
+    pub total_purchase_amount: Value,
+    pub total_market_value: Value,
+}
+
+/// 評価損益の集計。`AssetPortfolioSummary.tsx` の `valuation` に対応する。
+/// summary がある場合は検索条件全体の集計を優先し、なければ表示中データから集計する。
+/// summary の欠損、または明細側の欠損がある場合は不完全として金額・率を表示しない。
+pub fn summarize_valuation_with_summary(
+    items: &[ValuationItem],
+    summary: Option<&SummaryOverride>,
+) -> ValuationSummary {
+    let detail = summarize_valuation(items);
+    let Some(summary) = summary else {
+        return detail;
+    };
+    let purchase = to_finite_amount(&summary.total_purchase_amount);
+    let market = to_finite_amount(&summary.total_market_value);
+    match (purchase, market) {
+        (Some(purchase), Some(market)) if !detail.incomplete => {
+            let amount = market - purchase;
+            ValuationSummary {
+                market_value: Some(market),
+                amount: Some(amount),
+                rate: if purchase == 0.0 {
+                    None
+                } else {
+                    Some(amount / purchase * 100.0)
+                },
+                incomplete: false,
+            }
+        }
+        _ => ValuationSummary {
+            market_value: None,
+            amount: None,
+            rate: None,
+            incomplete: true,
+        },
+    }
+}
+
 /// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
-/// JS の `toFixed(2)`（半分は切り上げ）に対応するため
-/// `MidpointAwayFromZero` で丸める。
-pub fn calculate_composition_percentage(value: Decimal, total: Decimal) -> Decimal {
-    if total.is_zero() {
-        Decimal::ZERO
+pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
+    if total == 0.0 {
+        0.0
     } else {
-        (value / total * Decimal::ONE_HUNDRED)
-            .round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero)
+        to_fixed(value / total * 100.0, 2)
     }
 }
 
 /// 構成比の一覧。合計を分母に各要素の割合を求める。
-pub fn composition_percentages(values: &[Decimal]) -> Vec<Decimal> {
-    let total: Decimal = values.iter().copied().sum();
+/// 分母の合計は React のテストと同じ素朴な加算で求める。
+pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
+    let total: f64 = values.iter().sum();
     values
         .iter()
         .map(|value| calculate_composition_percentage(*value, total))
@@ -163,28 +249,25 @@ pub fn composition_percentages(values: &[Decimal]) -> Vec<Decimal> {
 /// チャート表示の除外条件。`AssetPortfolioSummary.tsx` の `chartData` の
 /// `filter` に対応する。取得総額が正の銘柄は残し、そうでなければ
 /// 評価額を持つ銘柄（欠損・0円以外）だけ残す。
-pub fn should_include_chart_item(purchase: Option<Decimal>, market: Option<Decimal>) -> bool {
+pub fn should_include_chart_item(purchase: Option<f64>, market: Option<f64>) -> bool {
     if let Some(purchase) = purchase {
-        if purchase > Decimal::ZERO {
+        if purchase > 0.0 {
             return true;
         }
     }
-    matches!(market, Some(market) if !market.is_zero())
+    matches!(market, Some(market) if market != 0.0)
 }
 
 /// チャート用の未丸めパーセンテージ。`PortfolioPieChart.tsx` の
 /// `percentage: (item.value / total) * 100` に対応する。
 /// 分母が 0 の場合は算出不可として `None`（React の `NaN` に相当）を返す。
 /// 評価額を持つ銘柄が1つもない空表示条件では空ベクターを返す。
-pub fn chart_percentages(
-    values: &[Decimal],
-    market_values: &[Option<Decimal>],
-) -> Vec<Option<Decimal>> {
-    let total: Decimal = values.iter().copied().sum();
-    if total.is_zero() {
+pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<Option<f64>> {
+    let total: f64 = values.iter().sum();
+    if total == 0.0 {
         let has_valuation = market_values
             .iter()
-            .any(|market| matches!(market, Some(value) if !value.is_zero()));
+            .any(|market| matches!(market, Some(value) if *value != 0.0));
         if !has_valuation {
             return Vec::new();
         }
@@ -192,26 +275,37 @@ pub fn chart_percentages(
     }
     values
         .iter()
-        .map(|value| Some(*value / total * Decimal::ONE_HUNDRED))
+        .map(|value| Some(*value / total * 100.0))
         .collect()
 }
 
-/// KPI 計算への入力1件。欠損は呼び出し側で `Decimal::ZERO` に寄せる
+/// KPI 計算への入力1件。欠損は呼び出し側で `0.0` に寄せる
 ///（React の `item.shares || 0`、`item.total_purchase_amount || 0` に対応）。
 #[derive(Clone, Debug)]
 pub struct KpiHolding {
     pub security_code: String,
-    pub shares: Decimal,
-    pub total_purchase_amount: Decimal,
+    pub shares: f64,
+    pub total_purchase_amount: f64,
 }
 
 /// ポートフォリオ KPI。`AssetPortfolioSummary.tsx` の集計に対応する。
 #[derive(Clone, Debug, PartialEq)]
 pub struct PortfolioKpi {
-    pub total_purchase_amount: Decimal,
-    pub total_annual_dividends: Option<Decimal>,
-    pub dividend_yield: Option<Decimal>,
+    pub total_purchase_amount: f64,
+    pub total_annual_dividends: Option<f64>,
+    pub dividend_yield: Option<f64>,
     pub holdings_count: usize,
+}
+
+/// 合計取得総額。summary がある場合は検索条件全体の集計を優先し、
+/// なければ表示中データから `safeAdd` で積み上げる。
+pub fn total_purchase_amount(holdings: &[KpiHolding], summary_total: Option<f64>) -> f64 {
+    match summary_total {
+        Some(total) => total,
+        None => holdings
+            .iter()
+            .fold(0.0, |sum, item| safe_add(sum, item.total_purchase_amount)),
+    }
 }
 
 /// 合計取得総額・年間配当・配当利回り・銘柄数を求める。
@@ -219,10 +313,10 @@ pub struct PortfolioKpi {
 /// 配当マップが空、または合計が 0 の場合は配当・利回りとも算出不可（`None`）。
 pub fn calculate_portfolio_kpi(
     holdings: &[KpiHolding],
-    dividends_per_share: &HashMap<String, Decimal>,
+    dividends_per_share: &HashMap<String, f64>,
+    summary_total: Option<f64>,
 ) -> PortfolioKpi {
-    let total_purchase_amount: Decimal =
-        holdings.iter().map(|item| item.total_purchase_amount).sum();
+    let total_purchase_amount = total_purchase_amount(holdings, summary_total);
     if dividends_per_share.is_empty() {
         return PortfolioKpi {
             total_purchase_amount,
@@ -231,13 +325,13 @@ pub fn calculate_portfolio_kpi(
             holdings_count: holdings.len(),
         };
     }
-    let mut total = Decimal::ZERO;
+    let mut total = 0.0;
     for item in holdings {
         if let Some(per_share) = dividends_per_share.get(&item.security_code) {
-            total += *per_share * item.shares;
+            total += per_share * item.shares;
         }
     }
-    if total.is_zero() {
+    if total == 0.0 {
         return PortfolioKpi {
             total_purchase_amount,
             total_annual_dividends: None,
@@ -245,8 +339,8 @@ pub fn calculate_portfolio_kpi(
             holdings_count: holdings.len(),
         };
     }
-    let dividend_yield = if total_purchase_amount > Decimal::ZERO {
-        Some(total / total_purchase_amount * Decimal::ONE_HUNDRED)
+    let dividend_yield = if total_purchase_amount > 0.0 {
+        Some(total / total_purchase_amount * 100.0)
     } else {
         None
     };
@@ -261,10 +355,10 @@ pub fn calculate_portfolio_kpi(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_decimal_macros::dec;
     use serde::Deserialize;
+    use serde_json::json;
 
-    const RATE_TOLERANCE: Decimal = Decimal::from_parts(1, 0, 0, false, 9);
+    const RATE_TOLERANCE: f64 = 1e-9;
 
     #[derive(Deserialize)]
     struct FixtureDocument {
@@ -313,7 +407,7 @@ mod tests {
     #[derive(Deserialize)]
     struct CompositionCase {
         name: String,
-        values: Vec<Decimal>,
+        values: Vec<f64>,
         expected_percentages: Vec<Value>,
     }
 
@@ -347,19 +441,20 @@ mod tests {
         .expect("shared asset balance fixture parses")
     }
 
-    fn expected_decimal(value: &Value) -> Option<Decimal> {
+    fn expected_number(value: &Value) -> Option<f64> {
         match value {
             Value::Null => None,
-            number => Some(Decimal::from_str(&number.to_string()).expect("fixture number")),
+            Value::Number(number) => number.as_f64(),
+            unexpected => panic!("fixture expected must be a number or null: {unexpected}"),
         }
     }
 
-    fn assert_optional_decimal(actual: Option<Decimal>, expected: &Value, case: &str, field: &str) {
-        assert_eq!(actual, expected_decimal(expected), "{case} {field} (exact)");
+    fn assert_optional_amount(actual: Option<f64>, expected: &Value, case: &str, field: &str) {
+        assert_eq!(actual, expected_number(expected), "{case} {field}");
     }
 
-    fn assert_optional_rate(actual: Option<Decimal>, expected: &Value, case: &str, field: &str) {
-        match (actual, expected_decimal(expected)) {
+    fn assert_optional_rate(actual: Option<f64>, expected: &Value, case: &str, field: &str) {
+        match (actual, expected_number(expected)) {
             (None, None) => {}
             (Some(actual), Some(expected)) => {
                 let diff = (actual - expected).abs();
@@ -372,8 +467,8 @@ mod tests {
         }
     }
 
-    fn json_decimal_or_zero(value: &Value) -> Decimal {
-        to_finite_amount(value).unwrap_or(Decimal::ZERO)
+    fn json_number_or_zero(value: &Value) -> f64 {
+        to_finite_amount(value).unwrap_or(0.0)
     }
 
     #[test]
@@ -382,7 +477,7 @@ mod tests {
         assert_eq!(fixture.valuation_cases.len(), 9);
         for case in &fixture.valuation_cases {
             let result = calculate_valuation(&case.market_value, &case.purchase_amount);
-            assert_optional_decimal(result.amount, &case.expected.amount, &case.name, "amount");
+            assert_optional_amount(result.amount, &case.expected.amount, &case.name, "amount");
             assert_optional_rate(result.rate, &case.expected.rate, &case.name, "rate");
         }
     }
@@ -406,13 +501,13 @@ mod tests {
                 "{} incomplete",
                 case.name
             );
-            assert_optional_decimal(
+            assert_optional_amount(
                 summary.market_value,
                 &case.expected.market_value,
                 &case.name,
                 "marketValue",
             );
-            assert_optional_decimal(summary.amount, &case.expected.amount, &case.name, "amount");
+            assert_optional_amount(summary.amount, &case.expected.amount, &case.name, "amount");
             assert_optional_rate(summary.rate, &case.expected.rate, &case.name, "rate");
         }
     }
@@ -420,7 +515,7 @@ mod tests {
     #[test]
     fn shared_composition_cases_match() {
         let fixture = fixture();
-        assert_eq!(fixture.composition_cases.len(), 5);
+        assert_eq!(fixture.composition_cases.len(), 7);
         for case in &fixture.composition_cases {
             let actual = composition_percentages(&case.values);
             assert_eq!(
@@ -452,28 +547,23 @@ mod tests {
                 .iter()
                 .map(|item| KpiHolding {
                     security_code: item.security_code.clone(),
-                    shares: json_decimal_or_zero(&item.shares),
-                    total_purchase_amount: json_decimal_or_zero(&item.total_purchase_amount),
+                    shares: json_number_or_zero(&item.shares),
+                    total_purchase_amount: json_number_or_zero(&item.total_purchase_amount),
                 })
                 .collect();
-            let dividends: HashMap<String, Decimal> = case
+            let dividends: HashMap<String, f64> = case
                 .dividends_per_share
                 .iter()
-                .map(|(code, value)| {
-                    (
-                        code.clone(),
-                        Decimal::from_str(&value.to_string()).expect("dividend per share"),
-                    )
-                })
+                .map(|(code, value)| (code.clone(), value.as_f64().expect("dividend per share")))
                 .collect();
-            let kpi = calculate_portfolio_kpi(&holdings, &dividends);
-            assert_optional_decimal(
+            let kpi = calculate_portfolio_kpi(&holdings, &dividends, None);
+            assert_optional_amount(
                 Some(kpi.total_purchase_amount),
                 &case.expected.total_purchase_amount,
                 &case.name,
                 "total_purchase_amount",
             );
-            assert_optional_decimal(
+            assert_optional_amount(
                 kpi.total_annual_dividends,
                 &case.expected.total_annual_dividends,
                 &case.name,
@@ -494,39 +584,172 @@ mod tests {
         }
     }
 
+    fn summary_items() -> Vec<ValuationItem> {
+        vec![
+            ValuationItem {
+                market_value: json!(260000),
+                total_purchase_amount: json!(250000),
+            },
+            ValuationItem {
+                market_value: json!(650000),
+                total_purchase_amount: json!(600000),
+            },
+        ]
+    }
+
+    fn kpi_holdings() -> Vec<KpiHolding> {
+        vec![
+            KpiHolding {
+                security_code: "7203".to_string(),
+                shares: 100.0,
+                total_purchase_amount: 250000.0,
+            },
+            KpiHolding {
+                security_code: "6758".to_string(),
+                shares: 50.0,
+                total_purchase_amount: 600000.0,
+            },
+        ]
+    }
+
+    fn full_dividends() -> HashMap<String, f64> {
+        HashMap::from([("7203".to_string(), 50.0), ("6758".to_string(), 240.0)])
+    }
+
+    #[test]
+    fn summary_override_matches_component_cases() {
+        let no_summary = summarize_valuation_with_summary(&summary_items(), None);
+        assert_eq!(no_summary.market_value, Some(910000.0));
+        assert_eq!(no_summary.amount, Some(60000.0));
+        assert!(!no_summary.incomplete);
+
+        let small = SummaryOverride {
+            total_purchase_amount: json!(1000),
+            total_market_value: json!(1100),
+        };
+        let prioritized = summarize_valuation_with_summary(&summary_items(), Some(&small));
+        assert_eq!(prioritized.market_value, Some(1100.0));
+        assert_eq!(prioritized.amount, Some(100.0));
+        assert_optional_rate(prioritized.rate, &json!(10.0), "summary", "rate");
+        assert!(!prioritized.incomplete);
+
+        let large = SummaryOverride {
+            total_purchase_amount: json!(1234567),
+            total_market_value: json!(1300000),
+        };
+        let reviewed = summarize_valuation_with_summary(&summary_items(), Some(&large));
+        assert_eq!(reviewed.market_value, Some(1300000.0));
+        assert_eq!(reviewed.amount, Some(65433.0));
+        assert_optional_rate(reviewed.rate, &json!(5.300076869056115), "summary", "rate");
+        assert!(!reviewed.incomplete);
+    }
+
+    #[test]
+    fn summary_override_missing_or_incomplete_detail_is_incomplete() {
+        let null_market = SummaryOverride {
+            total_purchase_amount: json!(1234567),
+            total_market_value: Value::Null,
+        };
+        let missing = summarize_valuation_with_summary(&summary_items(), Some(&null_market));
+        assert!(missing.incomplete);
+        assert_eq!(missing.market_value, None);
+        assert_eq!(missing.amount, None);
+        assert_eq!(missing.rate, None);
+
+        let incomplete_items = vec![ValuationItem {
+            market_value: Value::Null,
+            total_purchase_amount: json!(20),
+        }];
+        let large = SummaryOverride {
+            total_purchase_amount: json!(1234567),
+            total_market_value: json!(1300000),
+        };
+        let propagated = summarize_valuation_with_summary(&incomplete_items, Some(&large));
+        assert!(propagated.incomplete);
+        assert_eq!(propagated.market_value, None);
+    }
+
+    #[test]
+    fn kpi_summary_override_matches_component_cases() {
+        let without_summary = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), None);
+        assert_eq!(without_summary.total_purchase_amount, 850000.0);
+        assert_eq!(without_summary.total_annual_dividends, Some(17000.0));
+        assert_optional_rate(without_summary.dividend_yield, &json!(2.0), "kpi", "yield");
+
+        let with_summary =
+            calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), Some(1234567.0));
+        assert_eq!(with_summary.total_purchase_amount, 1234567.0);
+        assert_eq!(with_summary.total_annual_dividends, Some(17000.0));
+        assert_optional_rate(
+            with_summary.dividend_yield,
+            &json!(1.3770010052107338),
+            "kpi",
+            "yield",
+        );
+        assert_eq!(with_summary.holdings_count, 2);
+    }
+
+    #[test]
+    fn to_fixed_matches_js_boundary_cases() {
+        assert_eq!(to_fixed(0.125, 2), 0.13);
+        assert_eq!(to_fixed(2.675, 2), 2.67);
+        assert_eq!(to_fixed(1.005, 2), 1.0);
+        assert_eq!(to_fixed(201.0 / 20000.0 * 100.0, 2), 1.0);
+        assert_eq!(to_fixed(-0.125, 2), -0.13);
+        assert_eq!(to_fixed(-1.005, 2), -1.0);
+        assert_eq!(to_fixed(12.5, 0), 13.0);
+        assert_eq!(to_fixed(-12.5, 0), -13.0);
+        assert_eq!(to_fixed(0.1 + 0.2, 10), 0.3);
+        let negative_zero = to_fixed(-0.001, 2);
+        assert_eq!(negative_zero, 0.0);
+        assert!(negative_zero.is_sign_negative());
+        assert!(!to_fixed(-0.0, 2).is_sign_negative());
+    }
+
+    #[test]
+    fn safe_add_matches_react_rounding() {
+        assert_eq!(safe_add(0.1, 0.2), 0.3);
+        assert_eq!(safe_add(10.0, 20.0), 30.0);
+        assert_eq!(safe_add(safe_add(0.0, 0.00000000004), 0.00000000004), 0.0);
+        assert_eq!(safe_add(250000.0, 600000.0), 850000.0);
+    }
+
+    #[test]
+    fn huge_values_do_not_panic() {
+        assert_eq!(to_finite_amount(&json!(1e30)), Some(1e30));
+        let precision =
+            calculate_valuation(&json!(9007199254740993u64), &json!(9007199254740992u64));
+        assert_eq!(precision.amount, Some(0.0));
+        let overflow = safe_add(1e308, 1e308);
+        assert!(overflow.is_infinite());
+        assert_eq!(to_fixed(f64::INFINITY, 2), f64::INFINITY);
+        assert!(calculate_composition_percentage(1e308, 1e308).is_finite());
+    }
+
     #[test]
     fn chart_filter_matches_component_conditions() {
-        assert!(should_include_chart_item(Some(dec!(1)), None));
-        assert!(should_include_chart_item(
-            Some(dec!(250000)),
-            Some(dec!(260000))
-        ));
-        assert!(!should_include_chart_item(Some(dec!(0)), Some(dec!(0))));
-        assert!(!should_include_chart_item(Some(dec!(0)), None));
+        assert!(should_include_chart_item(Some(1.0), None));
+        assert!(should_include_chart_item(Some(250000.0), Some(260000.0)));
+        assert!(!should_include_chart_item(Some(0.0), Some(0.0)));
+        assert!(!should_include_chart_item(Some(0.0), None));
         assert!(!should_include_chart_item(None, None));
-        assert!(should_include_chart_item(Some(dec!(0)), Some(dec!(100000))));
-        assert!(should_include_chart_item(None, Some(dec!(50000))));
+        assert!(should_include_chart_item(Some(0.0), Some(100000.0)));
+        assert!(should_include_chart_item(None, Some(50000.0)));
     }
 
     #[test]
     fn chart_percentages_match_component_conditions() {
         assert!(chart_percentages(&[], &[]).is_empty());
-        assert!(chart_percentages(&[dec!(0), dec!(0)], &[Some(dec!(0)), Some(dec!(0))]).is_empty());
-        assert_eq!(
-            chart_percentages(&[dec!(0)], &[Some(dec!(50000))]),
-            vec![None]
-        );
-        let percentages = chart_percentages(
-            &[dec!(250000), dec!(600000)],
-            &[Some(dec!(1)), Some(dec!(1))],
-        );
+        assert!(chart_percentages(&[0.0, 0.0], &[Some(0.0), Some(0.0)]).is_empty());
+        assert_eq!(chart_percentages(&[0.0], &[Some(50000.0)]), vec![None]);
+        let percentages = chart_percentages(&[250000.0, 600000.0], &[Some(1.0), Some(1.0)]);
         assert_eq!(percentages.len(), 2);
-        let total = dec!(850000);
+        let total = 850000.0;
         assert_eq!(
             percentages,
             vec![
-                Some(dec!(250000) / total * Decimal::ONE_HUNDRED),
-                Some(dec!(600000) / total * Decimal::ONE_HUNDRED),
+                Some(250000.0 / total * 100.0),
+                Some(600000.0 / total * 100.0),
             ]
         );
     }
@@ -553,7 +776,7 @@ mod tests {
         }
         assert_eq!(
             to_finite_amount(&Value::String("1,180,000".to_string())),
-            Some(dec!(1180000))
+            Some(1180000.0)
         );
         assert_eq!(to_finite_amount(&Value::Null), None);
     }
