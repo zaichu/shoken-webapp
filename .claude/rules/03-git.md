@@ -23,8 +23,8 @@ README や skills の記載と衝突した場合は、本ドキュメントを�
 
 ### worktree 運用
 
-- Claude 実装を委譲するタスクは、原則として専用 `git worktree` を作ってその中で行う
-- Codex は repo ルートの `main` をレビュー/統合用に clean に保つ
+- 実装エージェントに実装を委譲するタスクは、原則として専用 `git worktree` を作ってその中で行う
+- 統合エージェントは repo ルートの `main` をレビュー/統合用に clean に保つ
 - worktree の配置先はリポジトリの親ディレクトリの `.worktrees/<repo>-<topic>` とする（例: `/home/zaichu/project/.worktrees/shoken-webapp-<topic>`）。**`/tmp` には作らない**（再起動・シャットダウンで消え、未 push の作業が失われる）
 - 委譲の依頼文は `.worktrees/.requests/` に置く。シャットダウン・中断の前に、各 worktree に未コミット・未 push が無いこと、途中の作業は WIP コミットして push し再開手順を Issue に書いたことを確認する
 - 1 作業ブランチ = 1 worktree を守る
@@ -59,7 +59,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ## PR とマージ
 
 - PR は作業ブランチから `main` へ作成する
-- PR マージ前に共通の `pr-review` skill で Codex レビューを実施する
+- PR マージ前に共通の `pr-review` skill で統合エージェントによるレビューを実施する
 - タイトルと説明は日本語で、変更内容とテスト結果を明記する
 - マージ方式は `Squash and merge` を標準とする
 - マージ後は `main` を更新して作業ブランチを削除する
