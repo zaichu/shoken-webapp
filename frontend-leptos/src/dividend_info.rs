@@ -537,6 +537,32 @@ mod tests {
     }
 
     #[test]
+    fn refresh_balance_supersedes_balance_fetch_and_keeps_poll_alive() {
+        init_test_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = authenticated_session();
+            let generation = session.generation.get_untracked();
+            let store = DividendInfoStore::new(session);
+            store.set_code(generation, true, "7203");
+            let poll = store.code_revision.get_untracked();
+            let balance = store.balance_revision.get_untracked();
+
+            store.refresh_balance();
+            assert_eq!(store.balance_revision.get_untracked(), balance + 1);
+            assert!(!store.is_balance_active(generation, balance, "7203"));
+            assert!(store.is_balance_active(generation, balance + 1, "7203"));
+            assert_eq!(store.code_revision.get_untracked(), poll);
+            assert!(store.is_poll_active(generation, poll, "7203"));
+
+            store.set_code(generation, false, "7203");
+            let bumped = store.balance_revision.get_untracked();
+            store.refresh_balance();
+            assert_eq!(store.balance_revision.get_untracked(), bumped);
+        });
+    }
+
+    #[test]
     fn percentage_value_matches_react_to_fixed() {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(0.9564), "0.96%");

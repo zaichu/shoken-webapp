@@ -21,6 +21,7 @@ use crate::receipts_search_support::group_and_summarize;
 use crate::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use crate::session::use_session;
 use crate::ui::{Loading, PageHeader, Spinner};
+use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -439,6 +440,25 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 .collect();
             let code = search_security_code(&dividends, &query);
             info.set_code(generation, authenticated, &code);
+        });
+
+        // 別タブで更新された保有数を取り込むため、タブ復帰時に再取得する
+        let refresh = move || {
+            if web_sys::window()
+                .and_then(|window| window.document())
+                .is_some_and(|document| !document.hidden())
+            {
+                info.refresh_balance();
+            }
+        };
+        let on_visible = window_event_listener(
+            ev::Custom::<web_sys::Event>::new("visibilitychange"),
+            move |_| refresh(),
+        );
+        let on_focus = window_event_listener(ev::focus, move |_| refresh());
+        on_cleanup(move || {
+            on_visible.remove();
+            on_focus.remove();
         });
     }
     let clear_search = search;
