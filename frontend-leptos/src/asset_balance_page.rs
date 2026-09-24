@@ -1,44 +1,36 @@
 use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, calculate_valuation, intl_fixed, normalize_security_code,
-    normalize_security_name, summarize_valuation_with_summary, to_fixed, total_purchase_amount,
-    KpiHolding, SummaryOverride, ValuationItem,
+    calculate_portfolio_kpi, calculate_valuation, intl_fixed, normalize_security_name,
+    summarize_valuation_with_summary, to_fixed, total_purchase_amount, KpiHolding, SummaryOverride,
+    ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::asset_balance_portfolio::{chart_display, chart_plan};
 use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
+use crate::dividend_per_share::{
+    dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
+    unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
+};
 use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
 use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
+use crate::security_link::SecurityCodeLink;
 use crate::session::use_session;
 use crate::ui::{Loading, PageHeader};
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
 const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
-const DIVIDEND_RETRY_DELAY_MS: u32 = 15_000;
-const DIVIDEND_NETWORK_MAX_RETRIES: u32 = 3;
-const DIVIDEND_PENDING_MAX_RETRIES: u32 = 100;
-const DIVIDEND_BASE_RETRIES: u32 = 3;
-const DIVIDEND_MILLIS_PER_CODE: u64 = 12_000;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
     "#84cc16", "#6366f1",
 ];
-
-#[derive(Clone, Debug, Default)]
-struct DividendMaps {
-    per_share: HashMap<String, f64>,
-    status: HashMap<String, String>,
-}
 
 #[derive(Clone, Debug)]
 struct LoadedAssetBalances {
@@ -46,27 +38,6 @@ struct LoadedAssetBalances {
     summary: Option<AssetBalanceSummary>,
     facets: Option<SearchFacets>,
     truncated: bool,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct DividendEstimateItem {
-    #[serde(default)]
-    security_code: String,
-    #[serde(default)]
-    dividend_per_share: Option<f64>,
-    #[serde(default)]
-    status: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize)]
-struct DividendBatchResponse {
-    #[serde(default)]
-    items: Vec<DividendEstimateItem>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct DividendBatchRequest {
-    security_codes: Vec<String>,
 }
 
 async fn fetch_asset_balance_page(page_no: usize) -> Result<AssetBalanceListResponse, ApiError> {
@@ -147,54 +118,6 @@ fn truncated_list_warning() -> String {
         "一覧は最大{}件まで表示しています。未表示の銘柄がある可能性があります。",
         format_number_value((ASSET_BALANCE_LIST_PER_PAGE * ASSET_BALANCE_LIST_MAX_PAGES) as f64)
     )
-}
-
-fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
-    let mut unique: Vec<String> = codes.to_vec();
-    unique.sort();
-    unique.dedup();
-    unique
-}
-
-fn dividend_pending_max_retries(unique_count: usize) -> u32 {
-    let windows = (unique_count as u64)
-        .saturating_mul(DIVIDEND_MILLIS_PER_CODE)
-        .div_ceil(u64::from(DIVIDEND_RETRY_DELAY_MS));
-    let dynamic = windows.saturating_add(u64::from(DIVIDEND_BASE_RETRIES));
-    DIVIDEND_BASE_RETRIES.max(dynamic.min(u64::from(DIVIDEND_PENDING_MAX_RETRIES)) as u32)
-}
-
-fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (DividendMaps, bool) {
-    let mut maps = DividendMaps::default();
-    let mut has_pending = false;
-    for item in &batch.items {
-        if let Some(status) = &item.status {
-            maps.status
-                .insert(item.security_code.clone(), status.clone());
-            if status == "pending" {
-                has_pending = true;
-            }
-        }
-        if item.status.as_deref() == Some("ok") {
-            if let Some(per_share) = item.dividend_per_share {
-                if per_share > 0.0 {
-                    maps.per_share.insert(item.security_code.clone(), per_share);
-                }
-            }
-        }
-    }
-    (maps, has_pending)
-}
-
-async fn fetch_dividend_batch(codes: &[String]) -> Result<DividendBatchResponse, ApiError> {
-    ApiClient::default_client()
-        .post_json::<DividendBatchRequest, DividendBatchResponse>(
-            "/api/v1/dividend-per-share-estimates",
-            &DividendBatchRequest {
-                security_codes: codes.to_vec(),
-            },
-        )
-        .await
 }
 
 type BalanceSlot = Option<(u64, Result<LoadedAssetBalances, String>)>;
@@ -389,13 +312,6 @@ fn format_valuation_rate(rate: Option<f64>, decimals: u32) -> String {
         }
         None => "—".to_string(),
     }
-}
-
-fn is_searchable_code(code: &str) -> bool {
-    !code.is_empty()
-        && code
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '.')
 }
 
 #[derive(Clone, Debug)]
@@ -1037,23 +953,6 @@ fn ChartList(
 }
 
 #[component]
-fn SecurityCodeAnchor(code: String, #[prop(optional)] class: Option<String>) -> impl IntoView {
-    let code = normalize_security_code(&code);
-    if code.is_empty() {
-        return view! { <span>"-"</span> }.into_any();
-    }
-    if !is_searchable_code(&code) {
-        return view! { <span>{code}</span> }.into_any();
-    }
-    let href = format!("/search?code={}", urlencoding::encode(&code));
-    let classes = format!(
-        "security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500 font-bold{}",
-        class.map(|extra| format!(" {extra}")).unwrap_or_default(),
-    );
-    view! { <a href=href class=classes data-search=code>{code.clone()}</a> }.into_any()
-}
-
-#[component]
 fn HoldingCard(item: ChartItem, index: usize, dividends: RwSignal<DividendMaps>) -> impl IntoView {
     let color = CHART_COLORS[index % CHART_COLORS.len()];
     let code = item.view.code.clone();
@@ -1087,8 +986,8 @@ fn HoldingCard(item: ChartItem, index: usize, dividends: RwSignal<DividendMaps>)
                                 class="inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5"
                                 data-testid="portfolio-card-code"
                             >
-                                <SecurityCodeAnchor
-                                    code=item.view.code.clone()
+                                <SecurityCodeLink
+                                    value=item.view.code.clone()
                                     class="text-[11px] font-semibold tracking-[0.16em] no-underline hover:underline"
                                         .to_string()
                                 />
@@ -1310,8 +1209,8 @@ fn HoldingValuationCard(item: ChartItem, dividends: RwSignal<DividendMaps>) -> i
                                     </div>
                                 </dl>
                                 <p class="mt-2.5 border-t border-slate-100 pt-2.5 text-xs">
-                                    <SecurityCodeAnchor
-                                        code=item.view.code.clone()
+                                    <SecurityCodeLink
+                                        value=item.view.code.clone()
                                         class="text-xs".to_string()
                                     />
                                     <span class="ml-1 text-slate-500">"の銘柄情報を見る"</span>
@@ -1330,8 +1229,11 @@ mod pages_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset_balance_domain::normalize_security_code;
     use crate::dto::SessionUser;
+    use crate::security_link::is_searchable_code;
     use crate::session::SessionStore;
+    use std::collections::HashMap;
 
     fn user(id: &str) -> SessionUser {
         SessionUser {
@@ -1618,63 +1520,6 @@ mod tests {
                 Some("残り1銘柄を表示（全21）")
             );
         });
-    }
-
-    #[test]
-    fn unique_sorted_codes_dedupes() {
-        assert_eq!(
-            unique_sorted_codes(&["6758".to_string(), "7203".to_string(), "6758".to_string()]),
-            vec!["6758".to_string(), "7203".to_string()]
-        );
-        assert!(unique_sorted_codes(&[]).is_empty());
-    }
-
-    #[test]
-    fn dividend_pending_max_retries_matches_hook() {
-        assert_eq!(dividend_pending_max_retries(0), 3);
-        assert_eq!(dividend_pending_max_retries(1), 4);
-        assert_eq!(dividend_pending_max_retries(2), 5);
-        assert_eq!(dividend_pending_max_retries(100), 83);
-        assert_eq!(dividend_pending_max_retries(usize::MAX), 100);
-    }
-
-    fn estimate(code: &str, per_share: Option<f64>, status: &str) -> DividendEstimateItem {
-        DividendEstimateItem {
-            security_code: code.to_string(),
-            dividend_per_share: per_share,
-            status: Some(status.to_string()),
-        }
-    }
-
-    #[test]
-    fn dividend_batch_maps_match_hook() {
-        let batch = DividendBatchResponse {
-            items: vec![
-                estimate("7203", Some(50.0), "ok"),
-                estimate("6758", Some(0.0), "ok"),
-                estimate("0001", None, "pending"),
-                estimate("0002", None, "error"),
-                estimate("0003", Some(10.0), "zero"),
-                estimate("0004", None, "ok"),
-            ],
-        };
-        let (maps, has_pending) = dividend_maps_from_batch(&batch);
-        assert!(has_pending);
-        assert_eq!(maps.per_share.get("7203"), Some(&50.0));
-        assert!(!maps.per_share.contains_key("6758"));
-        assert!(!maps.per_share.contains_key("0003"));
-        assert!(!maps.per_share.contains_key("0004"));
-        assert_eq!(maps.status.get("0001").map(String::as_str), Some("pending"));
-        assert_eq!(maps.status.get("0002").map(String::as_str), Some("error"));
-        assert_eq!(maps.status.get("0003").map(String::as_str), Some("zero"));
-
-        let settled = DividendBatchResponse {
-            items: vec![estimate("7203", Some(50.0), "ok")],
-        };
-        let (_, settled_pending) = dividend_maps_from_batch(&settled);
-        assert!(!settled_pending);
-        let (_, empty_pending) = dividend_maps_from_batch(&DividendBatchResponse { items: vec![] });
-        assert!(!empty_pending);
     }
 
     #[test]

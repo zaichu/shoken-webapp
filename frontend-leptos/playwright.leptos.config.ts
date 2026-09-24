@@ -19,6 +19,7 @@ export default defineConfig({
     '**/auth-flow.spec.ts',
     '**/error-scenarios.spec.ts',
     '**/assetbalance-flow.spec.ts',
+    '**/a11y.spec.ts',
   ],
   grepInvert: /CSV プレビュー|保存ボタンが活性化|再取得されて銘柄データ|サマリーと検索オプション|全件削除で EmptyState/,
   outputDir: '/tmp/leptos-e2e-out',

@@ -192,8 +192,22 @@ pub struct CsvPreviewResponse {
     pub rows: Vec<serde_json::Value>,
 }
 
+// API契約上は文字列だが、共有E2E（a11y spec）のモックが数値idを返すため両方を受け付ける
+fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    match serde_json::Value::deserialize(deserializer)? {
+        serde_json::Value::String(id) => Ok(id),
+        serde_json::Value::Number(id) => Ok(id.to_string()),
+        value => Err(serde::de::Error::custom(format!(
+            "expected string or number id, got {value}"
+        ))),
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SessionUser {
+    #[serde(deserialize_with = "deserialize_string_id")]
     pub id: String,
     pub email: String,
     #[serde(default)]
@@ -631,5 +645,15 @@ mod tests {
         .expect("session");
         assert_eq!(user.name.as_deref(), Some("テストユーザー"));
         assert!(user.picture_url.is_none());
+    }
+
+    #[test]
+    fn session_user_accepts_numeric_id() {
+        // 共有E2E（a11y spec）のモックは id を数値で返す
+        let user: SessionUser = serde_json::from_str(
+            r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#,
+        )
+        .expect("numeric id");
+        assert_eq!(user.id, "1");
     }
 }

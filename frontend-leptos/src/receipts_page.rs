@@ -1,9 +1,10 @@
 use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_rail::CsvActionRail;
+use crate::dividend_info::{search_security_code, DividendInfoStore, DividendSummarySection};
 use crate::dto::{Dividend, Mutualfund};
 use crate::receipts::{
-    select_header_summary, truncated_list_warning, use_receipts_data, ReceiptItem, ReceiptSummary,
-    ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
+    select_header_summary, truncated_list_warning, use_receipts_data, ReceiptCell, ReceiptItem,
+    ReceiptSummary, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
 use crate::receipts_csv::{row_error_text, CsvPreviewRow};
 use crate::receipts_domain::{
@@ -17,6 +18,7 @@ use crate::receipts_filter::{
 use crate::receipts_search::SearchOption;
 use crate::receipts_search_group_key::{create_group_key_fn, GroupKeyRule};
 use crate::receipts_search_support::group_and_summarize;
+use crate::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use crate::session::use_session;
 use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::prelude::*;
@@ -414,6 +416,31 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     }
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
+    // 配当タブの銘柄コード検索時に DividendInfo を出すための取得状態。
+    // フィルタ結果・クエリ・セッション変化に追随して対象コードを更新する。
+    let session = use_session();
+    let dividend_info = (tab == ReceiptsTab::Dividend).then(|| DividendInfoStore::new(session));
+    let summary_expanded = RwSignal::new(true);
+    let summary_mobile_expanded = RwSignal::new(false);
+    if let Some(info) = dividend_info {
+        let filtered_rows = filtered;
+        let search_query = search;
+        Effect::new(move |_| {
+            let authenticated = session.user.get().is_some();
+            let generation = session.generation.get();
+            let query = search_query.with(|state| state.query.clone());
+            let rows = filtered_rows.get();
+            let dividends: Vec<Dividend> = rows
+                .iter()
+                .filter_map(|item| match item {
+                    ReceiptItem::Dividend(row) => Some(row.clone()),
+                    _ => None,
+                })
+                .collect();
+            let code = search_security_code(&dividends, &query);
+            info.set_code(generation, authenticated, &code);
+        });
+    }
     let clear_search = search;
     let clear_picker = year_picker_open;
     view! {
@@ -483,6 +510,30 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 }
                 let query = search.with(|s| s.query.clone());
                 let rows = filtered.get();
+                // 銘柄コード検索時は上段の集計カードの代わりに
+                // React の DividendInfo（embedded）を折り畳み式で出す
+                if let Some(info) = dividend_info {
+                    let dividends: Vec<Dividend> = rows
+                        .iter()
+                        .filter_map(|item| match item {
+                            ReceiptItem::Dividend(row) => Some(row.clone()),
+                            _ => None,
+                        })
+                        .collect();
+                    if !search_security_code(&dividends, &query).is_empty() {
+                        let totals = calculate_dividends(&dividends);
+                        return view! {
+                            <DividendSummarySection
+                                store=info
+                                totals=totals
+                                expanded=summary_expanded
+                                mobile_expanded=summary_mobile_expanded
+                            />
+                            <ReceiptTable tab=tab rows=rows all_rows=display query=query />
+                        }
+                        .into_any();
+                    }
+                }
                 let header = header_summary(
                     tab,
                     &ReceiptTabData {
@@ -1062,7 +1113,7 @@ fn header_summary(
 struct TableGroup {
     label: String,
     summary: Vec<String>,
-    rows: Vec<Vec<String>>,
+    rows: Vec<Vec<ReceiptCell>>,
 }
 
 fn group_label(key: &str) -> String {
@@ -1334,7 +1385,24 @@ fn ReceiptTable(
                                             <tr class="border-t border-slate-200">
                                                 {cells
                                                     .into_iter()
-                                                    .map(|cell| view! { <td class="whitespace-nowrap px-3 py-2">{cell}</td> })
+                                                    .map(|cell| match cell {
+                                                        ReceiptCell::SecurityCode(code) => view! {
+                                                            <td class="whitespace-nowrap px-3 py-2 text-center">
+                                                                <SecurityCodeLink value=code />
+                                                            </td>
+                                                        }
+                                                        .into_any(),
+                                                        ReceiptCell::InstrumentName { name, code } => view! {
+                                                            <td class="whitespace-nowrap px-3 py-2">
+                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                            </td>
+                                                        }
+                                                        .into_any(),
+                                                        ReceiptCell::Text(value) => view! {
+                                                            <td class="whitespace-nowrap px-3 py-2">{value}</td>
+                                                        }
+                                                        .into_any(),
+                                                    })
                                                     .collect_view()}
                                             </tr>
                                         }

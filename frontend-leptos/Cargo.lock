@@ -395,6 +395,7 @@ dependencies = [
  "gloo-net",
  "gloo-timers",
  "http",
+ "js-sys",
  "leptos",
  "rust_decimal",
  "rust_decimal_macros",
@@ -402,6 +403,7 @@ dependencies = [
  "serde_json",
  "urlencoding",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
