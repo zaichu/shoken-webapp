@@ -30,7 +30,6 @@ const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[b
 const NAV_LINK_ACTIVE: &str = "bg-white text-slate-950 shadow-[inset_0_-2px_0_#f59e0b]";
 const NAV_LINK_INACTIVE: &str = "text-slate-300 hover:bg-white/10 hover:text-white";
 
-// React Button variant=outline-light size=sm と同等のクラス
 const HEADER_BUTTON: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-white/70 text-white hover:bg-white hover:text-slate-950 px-3 py-1.5 text-sm max-sm:min-h-[44px]";
 
 pub(crate) fn current_path() -> String {
@@ -43,7 +42,6 @@ fn is_nav_active(path: &str, to: &str) -> bool {
     path == to || path.starts_with(&format!("{to}/"))
 }
 
-// React Header の getInitials と同じ規則（2語は先頭+末尾、1語は先頭2文字、メールは先頭2文字、未設定は "U"）
 pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     if let Some(name) = name.filter(|name| !name.is_empty()) {
         let parts: Vec<&str> = name.split_whitespace().collect();
@@ -144,7 +142,6 @@ fn UserMenu(user: SessionUser, session: SessionStore) -> impl IntoView {
     let image_error = RwSignal::new(false);
     let menu_container = NodeRef::<html::Div>::new();
 
-    // 開いている間だけ意味を持つ。メニュー外の mousedown と Escape で閉じる（React Header と同じ）
     let on_mouse_down = window_event_listener(ev::mousedown, move |ev| {
         if !menu_open.get_untracked() {
             return;

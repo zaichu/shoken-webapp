@@ -148,7 +148,6 @@ function userSession(user: unknown): SessionResponder {
   return () => ({ status: 200, body: user });
 }
 
-// ログアウトはヘッダーのユーザーメニュー内にあるため、開いてから項目を押す
 async function logoutViaUserMenu(page: Page) {
   await page.getByRole('button', { name: 'メニュー' }).click();
   await page.getByTestId('logout').click();
