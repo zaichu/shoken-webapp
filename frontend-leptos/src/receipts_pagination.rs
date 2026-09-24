@@ -42,8 +42,6 @@ impl<T> PageCollector<T> {
             && self.fetched < self.max_pages
     }
 
-    /// `push` の打ち切りが `max_pages` 上限によるもの(末尾ページに達する前に
-    /// 止まった=未取得の行が残り得る)なら true。上限と末尾到達が同時なら false。
     pub fn truncated(&self) -> bool {
         self.fetched >= self.max_pages
             && self.last_len >= self.per_page

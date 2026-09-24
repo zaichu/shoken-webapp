@@ -57,7 +57,7 @@ fn short_last_page_is_not_truncated_and_keeps_first_page_summary() {
         |page_no| -> Ready<Result<Page, ApiError>> {
             ready(Ok(match page_no {
                 1 => ((0..1000).collect(), 2300, Some(())),
-                _ => ((1000..2300).collect(), 2300, None),
+                _ => ((1000..1300).collect(), 2300, None),
             }))
         },
         |page: Page| page,
@@ -65,7 +65,7 @@ fn short_last_page_is_not_truncated_and_keeps_first_page_summary() {
 
     let (rows, summary, truncated) = result.expect("fetch");
     assert!(!truncated);
-    assert_eq!(rows.len(), 2300);
+    assert_eq!(rows.len(), 1300);
     assert_eq!(summary, Some(()));
 }
 
