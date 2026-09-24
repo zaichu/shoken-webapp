@@ -1,4 +1,5 @@
 use crate::session::use_session;
+use crate::ui::Loading;
 use leptos::prelude::*;
 
 #[component]
@@ -7,14 +8,13 @@ pub fn LoginPage() -> impl IntoView {
     view! {
         <div class="mx-auto flex max-w-md flex-col items-center py-12">
             {move || {
-                let login_session = session.clone();
                 let login = move |_| {
-                    login_session.login();
+                    session.login();
                 };
                 if !session.loaded.get() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <p role="status">"読み込み中..."</p>
+                            <Loading />
                         </div>
                     }
                         .into_any();
@@ -22,7 +22,7 @@ pub fn LoginPage() -> impl IntoView {
                 if session.user.get().is_some() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <p role="status">"読み込み中..."</p>
+                            <Loading />
                         </div>
                     }
                         .into_any();

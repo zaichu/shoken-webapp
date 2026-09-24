@@ -18,6 +18,7 @@ use crate::receipts_search::SearchOption;
 use crate::receipts_search_group_key::{create_group_key_fn, GroupKeyRule};
 use crate::receipts_search_support::group_and_summarize;
 use crate::session::use_session;
+use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -34,21 +35,11 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     view! {
         <div class="page-surface">
-            <div class="mb-5 max-sm:mb-2">
-                <div class="flex flex-col gap-3 border-l-4 border-amber-500 pl-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p class="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 max-sm:hidden">
-                            "Transactions"
-                        </p>
-                        <h1 class="text-2xl font-black leading-tight tracking-normal text-slate-950 max-sm:text-lg">
-                            "取引明細"
-                        </h1>
-                        <p class="mt-1 text-sm font-medium text-slate-600 max-sm:hidden">
-                            "配当金・国内株式・投資信託の取引明細を管理します。"
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <PageHeader
+                title="取引明細"
+                eyebrow="Transactions"
+                description="配当金・国内株式・投資信託の取引明細を管理します。"
+            />
             {{
                 let failed = store.clone();
                 move || {
@@ -94,28 +85,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                             view! {
                                 <section class="px-5 py-4" role="status">
                                     <div class="flex items-center gap-2 text-slate-600">
-                                        <svg
-                                            class="animate-spin h-4 w-4"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            role="status"
-                                            aria-label="読み込み中..."
-                                        >
-                                            <circle
-                                                class="opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                stroke-width="4"
-                                            />
-                                            <path
-                                                class="opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            />
-                                        </svg>
+                                        <Spinner size="sm" class="" />
                                         <p class="text-sm">"データを読み込んでいます..."</p>
                                     </div>
                                 </section>
@@ -215,10 +185,10 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     return ().into_any();
                 }
                 if !store.is_authenticated() {
-                    return view! { <p role="status">"読み込み中..."</p> }.into_any();
+                    return view! { <Loading /> }.into_any();
                 }
                 match store.tab_state(tab) {
-                    TabState::Loading => view! { <p role="status">"読み込み中..."</p> }.into_any(),
+                    TabState::Loading => view! { <Loading /> }.into_any(),
                     TabState::Failed(message) => {
                         let alert = view! {
                             <div role="alert">
@@ -387,28 +357,7 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     view! {
                         <section class="px-5 py-4" role="status">
                             <div class="flex items-center gap-2 text-slate-600">
-                                <svg
-                                    class="animate-spin h-4 w-4"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    role="status"
-                                    aria-label="読み込み中..."
-                                >
-                                    <circle
-                                        class="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        stroke-width="4"
-                                    />
-                                    <path
-                                        class="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    />
-                                </svg>
+                                <Spinner size="sm" class="" />
                                 <p class="text-sm">
                                     {auth_loading.then_some("認証状態を確認しています...")}
                                     {fetching.then_some("データを読み込んでいます...")}

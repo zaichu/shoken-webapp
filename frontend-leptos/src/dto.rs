@@ -202,16 +202,6 @@ pub struct SessionUser {
     pub picture_url: Option<String>,
 }
 
-impl SessionUser {
-    pub fn display_name(&self) -> String {
-        match &self.name {
-            Some(name) if !name.is_empty() => name.clone(),
-            _ if !self.email.is_empty() => self.email.clone(),
-            _ => self.id.clone(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FacetOption {
     pub value: String,
@@ -639,7 +629,7 @@ mod tests {
             r#"{"id": "00000000-0000-0000-0000-000000000002", "email": "test@example.com", "name": "テストユーザー"}"#,
         )
         .expect("session");
-        assert_eq!(user.display_name(), "テストユーザー");
+        assert_eq!(user.name.as_deref(), Some("テストユーザー"));
         assert!(user.picture_url.is_none());
     }
 }

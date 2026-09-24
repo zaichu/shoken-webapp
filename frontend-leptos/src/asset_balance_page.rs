@@ -13,6 +13,7 @@ use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, Se
 use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
 use crate::session::use_session;
+use crate::ui::{Loading, PageHeader};
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -508,7 +509,7 @@ fn format_dividend_yield(dividend: &HoldingDividend) -> String {
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
-    let render_session = session.clone();
+    let render_session = session;
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -533,7 +534,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         {
             return;
         }
-        let session = session.clone();
         leptos::task::spawn_local(async move {
             match fetch_asset_balances().await {
                 Err(error) => {
@@ -569,7 +569,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .cloned()
                         .collect();
                     if !missing.is_empty() {
-                        let session = session.clone();
+                        let session = session;
                         leptos::task::spawn_local(async move {
                             for code in missing {
                                 if !session.is_current(generation) {
@@ -600,21 +600,11 @@ pub fn AssetBalancePage() -> impl IntoView {
     });
     view! {
         <div class="page-surface">
-            <div class="mb-5 max-sm:mb-2">
-                <div class="flex flex-col gap-3 border-l-4 border-amber-500 pl-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p class="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 max-sm:hidden">
-                            "Portfolio"
-                        </p>
-                        <h1 class="text-2xl font-black leading-tight tracking-normal text-slate-950 max-sm:text-lg">
-                            "資産管理"
-                        </h1>
-                        <p class="mt-1 text-sm font-medium text-slate-600 max-sm:hidden">
-                            "保有している銘柄の一覧と評価額を確認できます。"
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <PageHeader
+                title="資産管理"
+                eyebrow="Portfolio"
+                description="保有している銘柄の一覧と評価額を確認できます。"
+            />
             <div data-testid="assetbalance-workspace">
                 {move || {
                     let current = render_session.generation.get();
@@ -625,7 +615,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {
                         None => {
                             show_all.set(false);
-                            view! { <p role="status">"読み込み中..."</p> }.into_any()
+                            view! { <Loading /> }.into_any()
                         }
                         Some(Err(message)) => {
                             show_all.set(false);
