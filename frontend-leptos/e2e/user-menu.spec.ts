@@ -83,12 +83,10 @@ test('アカウント削除は確認ダイアログ経由で実行され、成�
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
   await expect(dialog).toBeVisible();
 
-  // キャンセルはAPIを呼ばずに閉じる
   await dialog.getByRole('button', { name: 'キャンセル' }).click();
   await expect(dialog).toHaveCount(0);
   expect(calls).toHaveLength(0);
 
-  // 確定すると確認API→削除APIの順に呼ばれ、ヘッダーが未認証表示に戻る
   await page.getByRole('button', { name: 'メニュー' }).click();
   await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
   await dialog.getByRole('button', { name: '削除する' }).click();
@@ -128,9 +126,90 @@ test('アカウント削除の確認APIが失敗したとき削除APIは呼ば�
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: '削除する' }).click();
 
-  // 確認APIはリトライなしの1回のみで、削除APIには到達しない
   await expect.poll(() => calls.length).toBe(1);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   expect(calls).toEqual(['confirm']);
   await expect(dialog).toBeVisible();
+});
+
+test('削除処理中はキャンセル・Escape・背景クリックでダイアログを閉じられない', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  await expect(dialog.getByRole('button', { name: 'キャンセル' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: '閉じる' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.mouse.click(10, 10);
+  await expect(dialog).toBeVisible();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
+
+test('削除APIの応答が失われてもセッション無効化を確認してダイアログを閉じる', async ({
+  page,
+}) => {
+  let sessionDeleted = false;
+  await page.route(/\/api\/v1\/session$/, async (route) => {
+    await route.fulfill({
+      status: sessionDeleted ? 401 : 200,
+      contentType: 'application/json',
+      body: sessionDeleted ? '' : JSON.stringify(MOCK_USER),
+    });
+  });
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  let deleteAttempts = 0;
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    deleteAttempts += 1;
+    sessionDeleted = true;
+    if (deleteAttempts === 1) {
+      await route.abort();
+    } else {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: '',
+      });
+    }
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  expect(deleteAttempts).toBe(2);
 });
