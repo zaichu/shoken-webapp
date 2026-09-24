@@ -192,7 +192,7 @@ pub struct CsvPreviewResponse {
     pub rows: Vec<serde_json::Value>,
 }
 
-// API契約上は文字列だが、React版は数値idのモックでも動作するため両方を受け付ける
+// 共有E2E specのモックが数値idを返すため両方を受け付ける
 fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {

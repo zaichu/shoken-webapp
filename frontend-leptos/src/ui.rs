@@ -161,7 +161,6 @@ pub fn SiteHeader() -> impl IntoView {
                         leptos::task::spawn_local(async move {
                             let result = session.delete_account().await;
                             deleting.set(false);
-                            // 失敗時はReact版と同じくモーダルを開いたままにする
                             if result.is_ok() {
                                 delete_confirm_open.set(false);
                             }

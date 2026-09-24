@@ -5,7 +5,6 @@ use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-// React版 AuthContext.tsx の IDLE_TIMEOUT = 30 * 60 * 1000 に相当
 const IDLE_TIMEOUT_MS: u32 = 30 * 60 * 1000;
 
 type IdleTimer = Rc<RefCell<Option<Timeout>>>;
@@ -26,7 +25,6 @@ fn reset_timer(timer: &IdleTimer, session: SessionStore) {
         }));
 }
 
-// React版 useIdleTimer と同じ操作イベントでタイマーを張り直す。
 // イベントリスナー自体は常駐させ、未ログイン時は reset 側で無効化する
 pub fn watch_idle_logout(session: SessionStore) {
     let timer: IdleTimer = Rc::new(RefCell::new(None));
