@@ -5,6 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * - 対象は frontend/e2e の各 spec を無改修で実行する
  * - error-scenarios は CSV ケース（CSV画面は #884/#885 の範囲）を除く
+ * - assetbalance-flow は EmptyState のみ（検索・CSV・削除は #917〜#919 の範囲）
  * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
  */
 export default defineConfig({
@@ -14,8 +15,9 @@ export default defineConfig({
     '**/receipt-flow.spec.ts',
     '**/auth-flow.spec.ts',
     '**/error-scenarios.spec.ts',
+    '**/assetbalance-flow.spec.ts',
   ],
-  grepInvert: /CSV プレビュー/,
+  grepInvert: /CSV プレビュー|保存ボタンが活性化|再取得されて銘柄データ|サマリーと検索オプション|絞り込み解除|全件削除で EmptyState/,
   outputDir: '/tmp/leptos-e2e-out',
   fullyParallel: false,
   forbidOnly: true,

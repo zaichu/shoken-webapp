@@ -228,6 +228,8 @@ pub fn summarize_valuation_with_summary(
 }
 
 /// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
+/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
+#[allow(dead_code)]
 pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
     if total == 0.0 {
         0.0
@@ -238,6 +240,8 @@ pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
 
 /// 構成比の一覧。合計を分母に各要素の割合を求める。
 /// 分母の合計は React のテストと同じ素朴な加算で求める。
+/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
+#[allow(dead_code)]
 pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
     let total: f64 = values.iter().sum();
     values

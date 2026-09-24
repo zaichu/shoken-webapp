@@ -1,5 +1,5 @@
 use gloo_timers::future::TimeoutFuture;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use std::cell::Cell;
 use std::fmt;
 use std::rc::Rc;
@@ -76,8 +76,6 @@ impl std::error::Error for ApiError {}
 
 enum RequestBody {
     None,
-    // JSON送信はCSV画面(#884/#885)以降で使う。今はmultipartのみが送信用途
-    #[allow(dead_code)]
     Json(String),
     Form(web_sys::FormData),
 }
@@ -244,6 +242,18 @@ impl ApiClient {
         self.execute("DELETE", path, &[], RequestBody::None)
             .await
             .map(|_| ())
+    }
+
+    pub async fn post_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, ApiError> {
+        let json = serde_json::to_string(body).map_err(|_| ApiError::Parse)?;
+        let text = self
+            .execute("POST", path, &[], RequestBody::Json(json))
+            .await?;
+        serde_json::from_str(&text).map_err(|_| ApiError::Parse)
     }
 
     // CSV取り込み(#884/#885)で使う送信用。呼び出しは次ステップ以降

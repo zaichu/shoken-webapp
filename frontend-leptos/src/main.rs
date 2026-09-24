@@ -1,6 +1,4 @@
 mod api;
-// 3段階目で画面から使うまでの暫定措置
-#[allow(dead_code)]
 mod asset_balance_domain;
 mod asset_balance_page;
 mod dto;
