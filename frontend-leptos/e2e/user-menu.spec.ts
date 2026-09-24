@@ -53,3 +53,84 @@ test('ユーザーメニューが外側クリックと Escape で閉じる', asy
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
 });
+
+test('アカウント削除は確認ダイアログ経由で実行され、成功すると未認証表示になる', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  const calls: string[] = [];
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    calls.push('confirm');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    calls.push('delete');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await expect(dialog).toBeVisible();
+
+  // キャンセルはAPIを呼ばずに閉じる
+  await dialog.getByRole('button', { name: 'キャンセル' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(calls).toHaveLength(0);
+
+  // 確定すると確認API→削除APIの順に呼ばれ、ヘッダーが未認証表示に戻る
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  await expect.poll(() => calls.join(',')).toBe('confirm,delete');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
+
+test('アカウント削除の確認APIが失敗したとき削除APIは呼ばれずダイアログは開いたままになる', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  const calls: string[] = [];
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    calls.push('confirm');
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: '{"error":"server error"}',
+    });
+  });
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    calls.push('delete');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  // 確認APIはリトライなしの1回のみで、削除APIには到達しない
+  await expect.poll(() => calls.length).toBe(1);
+  await page.waitForTimeout(500);
+  expect(calls).toEqual(['confirm']);
+  await expect(dialog).toBeVisible();
+});

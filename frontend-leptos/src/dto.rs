@@ -192,7 +192,7 @@ pub struct CsvPreviewResponse {
     pub rows: Vec<serde_json::Value>,
 }
 
-// API契約上は文字列だが、共有E2E（a11y spec）のモックが数値idを返すため両方を受け付ける
+// API契約上は文字列だが、React版は数値idのモックでも動作するため両方を受け付ける
 fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
@@ -214,6 +214,11 @@ pub struct SessionUser {
     pub name: Option<String>,
     #[serde(default)]
     pub picture_url: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct MessageResponse {
+    pub message: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -406,6 +411,7 @@ mod tests {
             roundtrip::<AssetBalanceListResponse>,
         ),
         ("UserResponse", roundtrip::<SessionUser>),
+        ("MessageResponse", roundtrip::<MessageResponse>),
         ("FacetOption", roundtrip::<FacetOption>),
         ("SearchFacets", roundtrip::<SearchFacets>),
         ("CsvRowError", roundtrip::<CsvRowError>),

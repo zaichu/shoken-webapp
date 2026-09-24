@@ -1,5 +1,5 @@
-use crate::api::ApiClient;
-use crate::dto::SessionUser;
+use crate::api::{ApiClient, ApiError};
+use crate::dto::{MessageResponse, SessionUser};
 use leptos::prelude::*;
 
 fn oauth_authorize_url() -> String {
@@ -66,6 +66,26 @@ impl SessionStore {
         let _ = client.delete_empty("/api/v1/session").await;
     }
 
+    pub async fn delete_account(&self) -> Result<(), ApiError> {
+        let client = ApiClient::default_client();
+        // React版と同じく確認API（リトライなし）→削除APIの順で呼ぶ。
+        // 結果の成否に関わらずローカルの認証状態は破棄する
+        let result = async {
+            client
+                .with_max_retries(0)
+                .post_json::<serde_json::Value, MessageResponse>(
+                    "/api/v1/account-deletion-confirmations",
+                    &serde_json::json!({}),
+                )
+                .await?;
+            client.delete_empty("/api/v1/account").await
+        }
+        .await;
+        self.mark_unauthenticated();
+        self.loaded.set(true);
+        result
+    }
+
     pub fn login(&self) {
         Self::redirect_to(&oauth_authorize_url());
     }
@@ -86,6 +106,7 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
+    crate::idle::watch_idle_logout(session);
     let startup = session;
     leptos::task::spawn_local(async move {
         startup.check().await;
