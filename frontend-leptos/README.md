@@ -44,7 +44,7 @@ Tailwind browser CDN は使わない。`style/input.css` (`@theme` は `frontend
 | 検索 (`/search`) | 単一銘柄の取得・表示、`code` クエリ対応。E2E 2件が通過 |
 | 取引明細 (`/receipts`) | 3タブの一覧表示とタブ別キャッシュ。E2E 3+4件が通過 |
 | ホーム (`/`) | 静的表示のみ |
-| 資産管理 (`/assetbalance`) | 一覧表示のみ。CSV 取込なし、`include_summary` 取得済みだが未表示 |
+| 資産管理 (`/assetbalance`) | 一覧・評価・構成比・KPI を表示。検索・CSV 取込なし。配当はバッチ取得後、pending が残る間は15秒間隔で再ポーリング（通信エラー時も上限付きでリトライ） |
 | ログイン (`/login`) | Google 認証への入口遷移のみ |
 | 404 | 静的表示のみ |
 
