@@ -5,8 +5,10 @@ use crate::dto::{
 };
 use crate::receipts_domain::{format_currency, format_date, format_number};
 use crate::receipts_filter::{filter_receipts, ReceiptSearch};
+use crate::receipts_pagination::PageCollector;
 use crate::session::SessionStore;
 use leptos::prelude::*;
+use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -117,39 +119,76 @@ pub fn select_header_summary<T: Clone>(
     }
 }
 
+const RECEIPT_LIST_PER_PAGE: usize = 1000;
+// API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
+const RECEIPT_LIST_MAX_PAGES: usize = 100;
+
+async fn fetch_pages<R, T, S>(
+    client: &ApiClient,
+    path: &str,
+    into_parts: impl Fn(R) -> (Vec<T>, i64, Option<S>),
+) -> Result<(Vec<T>, Option<S>), ApiError>
+where
+    R: DeserializeOwned,
+{
+    let mut pages = PageCollector::new(RECEIPT_LIST_PER_PAGE, RECEIPT_LIST_MAX_PAGES);
+    let per_page = RECEIPT_LIST_PER_PAGE.to_string();
+    let mut summary = None;
+    loop {
+        let page_no = pages.next_page();
+        let page = page_no.to_string();
+        let query = [
+            ("per_page", per_page.as_str()),
+            ("page", page.as_str()),
+            (
+                "include_summary",
+                if page_no == 1 { "true" } else { "false" },
+            ),
+        ];
+        let (data, total, page_summary) = into_parts(client.get_json::<R>(path, &query).await?);
+        if page_no == 1 {
+            summary = page_summary;
+        }
+        if !pages.push(data, total) {
+            break;
+        }
+    }
+    Ok((pages.into_rows(), summary))
+}
+
 async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     let client = ApiClient::read_client();
-    let query = &[
-        ("per_page", "1000"),
-        ("page", "1"),
-        ("include_summary", "true"),
-    ];
     match tab {
-        ReceiptsTab::Dividend => client
-            .get_json::<DividendListResponse>(tab.list_path(), query)
+        ReceiptsTab::Dividend => {
+            fetch_pages(&client, tab.list_path(), |r: DividendListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list.data.into_iter().map(ReceiptItem::Dividend).collect(),
-                summary: list.summary.map(ReceiptSummary::Dividend),
-            }),
-        ReceiptsTab::DomesticStock => client
-            .get_json::<DomesticStockListResponse>(tab.list_path(), query)
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::Dividend).collect(),
+                summary: summary.map(ReceiptSummary::Dividend),
+            })
+        }
+        ReceiptsTab::DomesticStock => {
+            fetch_pages(&client, tab.list_path(), |r: DomesticStockListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list
-                    .data
-                    .into_iter()
-                    .map(ReceiptItem::DomesticStock)
-                    .collect(),
-                summary: list.summary.map(ReceiptSummary::DomesticStock),
-            }),
-        ReceiptsTab::MutualFund => client
-            .get_json::<MutualfundListResponse>(tab.list_path(), query)
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::DomesticStock).collect(),
+                summary: summary.map(ReceiptSummary::DomesticStock),
+            })
+        }
+        ReceiptsTab::MutualFund => {
+            fetch_pages(&client, tab.list_path(), |r: MutualfundListResponse| {
+                (r.data, r.total, r.summary)
+            })
             .await
-            .map(|list| ReceiptTabData {
-                rows: list.data.into_iter().map(ReceiptItem::MutualFund).collect(),
-                summary: list.summary.map(ReceiptSummary::MutualFund),
-            }),
+            .map(|(rows, summary)| ReceiptTabData {
+                rows: rows.into_iter().map(ReceiptItem::MutualFund).collect(),
+                summary: summary.map(ReceiptSummary::MutualFund),
+            })
+        }
     }
 }
 
