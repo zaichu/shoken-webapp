@@ -139,6 +139,18 @@ jobs:
               core.info(`unresolved comment: ${node.url}`);
             }
 
+            // ステータス説明は 140 字制限があるため、収まる分だけ URL を連結する
+            const statusParts = [...problems];
+            for (const node of unresolved) {
+              if ([...statusParts, node.url].join(' / ').length <= 140) {
+                statusParts.push(node.url);
+              }
+            }
+            const description =
+              problems.length > 0
+                ? statusParts.join(' / ')
+                : 'Issue 紐づけ済み・未解決コメントなし';
+
             const headSha =
               context.payload.pull_request?.head?.sha ?? pr.headRefOid;
             try {
@@ -148,11 +160,7 @@ jobs:
                 sha: headSha,
                 state: problems.length > 0 ? 'failure' : 'success',
                 context: 'PR gate',
-                description: (
-                  problems.length > 0
-                    ? problems.join(' / ')
-                    : 'Issue 紐づけ済み・未解決コメントなし'
-                ).slice(0, 140),
+                description: description.slice(0, 140),
                 target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
               });
             } catch (error) {
