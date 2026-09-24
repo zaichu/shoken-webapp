@@ -312,6 +312,12 @@ function asDbRow(row: unknown): unknown {
 }
 
 async function setupMocks(page: Page, db: Record<TabKey, unknown[]>) {
+  // 全件削除はデータ消失経路のため、DELETE が確認前・キャンセル後に出ないことを回数で固定する
+  const deleteCounts: Record<TabKey, number> = {
+    dividend: 0,
+    domesticstock: 0,
+    mutualfund: 0,
+  };
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill({
       status: 200,
@@ -322,6 +328,7 @@ async function setupMocks(page: Page, db: Record<TabKey, unknown[]>) {
   for (const [key, fixture] of Object.entries(TAB_FIXTURES) as [TabKey, TabFixture][]) {
     await page.route(fixture.listPath, (route) => {
       if (route.request().method() === 'DELETE') {
+        deleteCounts[key] += 1;
         db[key] = [];
         return route.fulfill({
           status: 200,
@@ -371,6 +378,7 @@ async function setupMocks(page: Page, db: Record<TabKey, unknown[]>) {
       });
     });
   }
+  return deleteCounts;
 }
 
 interface Scenario {
@@ -417,7 +425,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
         domesticstock: [],
         mutualfund: [],
       };
-      await setupMocks(page, db);
+      const deleteCounts = await setupMocks(page, db);
       await page.goto('/receipts');
 
       if (scenario.tab !== 'dividend') {
@@ -476,17 +484,22 @@ test.describe('取引明細 CSV 取込・削除', () => {
       const dialog = page.getByRole('dialog');
       await expect(dialog).toContainText('この操作は取り消せません');
       await expect(dialog).toContainText(`${totalCount}件`);
+      // 確認モーダルを開いただけでは DELETE を送らない
+      expect(deleteCounts[scenario.tab]).toBe(0);
       // Escape で閉じる（削除は実行されない）
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       await expect(
         page.getByRole('button', { name: `全件削除 (${totalCount}件)` }),
       ).toBeVisible();
+      expect(deleteCounts[scenario.tab]).toBe(0);
 
       await page.getByRole('button', { name: /全件削除/ }).click();
       await page.getByRole('button', { name: '削除する' }).click();
       await expect(page.getByText('データがありません')).toBeVisible();
       await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+      // 確定時に DELETE が1回だけ送られる
+      expect(deleteCounts[scenario.tab]).toBe(1);
       // 取込結果通知もクリアされる
       await expect(notice).toHaveCount(0);
     });
