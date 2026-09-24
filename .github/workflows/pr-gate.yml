@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   pr-gate:
-    name: PR gate
+    name: Evaluate PR gate
     runs-on: ubuntu-latest
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     permissions:
