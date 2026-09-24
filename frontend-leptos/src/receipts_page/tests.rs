@@ -210,6 +210,19 @@ fn card_fields_point_at_expected_columns() {
             expected
         );
     }
+    assert_eq!(
+        card_fields(ReceiptsTab::Dividend)
+            .code
+            .map(|i| table_headers(ReceiptsTab::Dividend)[i]),
+        Some("銘柄コード")
+    );
+    assert_eq!(
+        card_fields(ReceiptsTab::DomesticStock)
+            .code
+            .map(|i| table_headers(ReceiptsTab::DomesticStock)[i]),
+        Some("銘柄コード")
+    );
+    assert_eq!(card_fields(ReceiptsTab::MutualFund).code, None);
 }
 
 #[test]
@@ -229,11 +242,60 @@ fn card_row_data_matches_react_card_fields() {
     assert_eq!(card.date, "06/21");
     assert_eq!(card.account, "特定");
     assert_eq!(card.details.len(), 10);
-    assert_eq!(card.details[0].0, "入金日");
-    assert!(card
+    assert_eq!(card.details[0].label, "入金日");
+    assert!(card.details.iter().all(|detail| match &detail.value {
+        CardDetailValue::Text { text, negative } => *negative == is_negative_text(text),
+        CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
+    }));
+}
+
+#[test]
+fn card_details_link_security_code_and_copy_name() {
+    let rows = dividends();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::SecurityCode(raw) if raw == &cells[3]
+    )));
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::CopyName { display, copy }
+            if display == "日本電信電話" && copy == "日本電信電話(9432)"
+    )));
+
+    let rows = funds();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::MutualFund, &rows, "");
+    let card = card_row_data(
+        &cells,
+        table_headers(ReceiptsTab::MutualFund),
+        &order,
+        card_fields(ReceiptsTab::MutualFund),
+    );
+    assert!(!card
         .details
         .iter()
-        .all(|(_, value, negative)| *negative == is_negative_text(value)));
+        .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_))));
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::CopyName { display, copy } if display == copy
+    )));
+}
+
+#[test]
+fn security_code_acceptance_matches_react_regex() {
+    assert!(is_security_code("9432"));
+    assert!(is_security_code("BRK.B"));
+    assert!(!is_security_code(""));
+    assert!(!is_security_code("任天堂"));
+    assert!(!is_security_code("9432:メモ"));
 }
 
 #[test]
@@ -249,8 +311,7 @@ fn card_row_data_details_follow_column_reorder() {
         &order,
         card_fields(ReceiptsTab::Dividend),
     );
-    assert_eq!(card.details[1].0, "口座");
-    // 先頭行の項目は並び替えに影響されない
+    assert_eq!(card.details[1].label, "口座");
     assert_eq!(card.name, "日本電信電話");
     assert_eq!(card.account, "特定");
 }

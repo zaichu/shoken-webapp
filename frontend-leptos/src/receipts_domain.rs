@@ -296,7 +296,6 @@ pub fn parse_number(value: &str) -> Decimal {
     value.replace(',', "").parse().unwrap_or(Decimal::ZERO)
 }
 
-#[cfg(test)]
 pub fn normalize_security_code(value: &str) -> String {
     value
         .split([':', '：'])

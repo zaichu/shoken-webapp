@@ -25,7 +25,7 @@ use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use wasm_bindgen::JsCast;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -623,7 +623,13 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                                 expanded=summary_expanded
                                 mobile_expanded=summary_mobile_expanded
                             />
-                            <ReceiptTable tab=tab rows=rows all_rows=display query=query />
+                            <ReceiptTable
+                                tab=tab
+                                rows=rows
+                                all_rows=display
+                                query=query
+                                expanded_ids=store.expanded
+                            />
                         }
                         .into_any();
                     }
@@ -639,8 +645,14 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                     preview_active.get(),
                 );
                 view! {
-                    <SummaryStrip items=header />
-                    <ReceiptTable tab=tab rows=rows all_rows=display query=query />
+                    <SummaryStrip items=header expanded=store.mobile_summary_expanded />
+                    <ReceiptTable
+                        tab=tab
+                        rows=rows
+                        all_rows=display
+                        query=query
+                        expanded_ids=store.expanded
+                    />
                 }.into_any()
             }}
         </section>
@@ -1247,8 +1259,11 @@ fn KpiGrid(
 }
 
 #[component]
-fn SummaryStrip(items: Vec<(&'static str, Decimal, &'static str)>) -> impl IntoView {
-    let mobile_expanded = RwSignal::new(false);
+fn SummaryStrip(
+    items: Vec<(&'static str, Decimal, &'static str)>,
+    expanded: RwSignal<bool>,
+) -> impl IntoView {
+    let mobile_expanded = expanded;
     let mobile_body_id = "receipt-summary-mobile-body";
     let primary = items.last().copied();
     let mobile_items = items.clone();
@@ -1327,24 +1342,26 @@ fn SummaryStrip(items: Vec<(&'static str, Decimal, &'static str)>) -> impl IntoV
                         </svg>
                     </span>
                 </button>
-                {move || {
-                    mobile_expanded
-                        .get()
-                        .then(|| {
-                            view! {
-                                <div
-                                    id=mobile_body_id
-                                    role="region"
-                                    class="border-t border-slate-950/10 py-3"
-                                >
+                <div
+                    id=mobile_body_id
+                    role="region"
+                    aria-label="集計情報"
+                    hidden=move || !mobile_expanded.get()
+                    class="border-t border-slate-950/10 py-3"
+                >
+                    {move || {
+                        mobile_expanded
+                            .get()
+                            .then(|| {
+                                view! {
                                     <KpiGrid
                                         items=mobile_items.clone()
                                         grid_class="grid grid-cols-1 gap-2.5"
                                     />
-                                </div>
-                            }
-                        })
-                }}
+                                }
+                            })
+                    }}
+                </div>
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
                 <div
@@ -1555,7 +1572,6 @@ fn table_groups(
     }
 }
 
-// カードの先頭行に出す項目の cells() 上の位置（React の nameKey/primaryKey/dateKey/accountKey 相当）
 #[derive(Clone, Copy)]
 struct CardFields {
     name: usize,
@@ -1587,7 +1603,6 @@ fn card_fields(tab: ReceiptsTab) -> CardFields {
     }
 }
 
-// グループ集計のラベル。React の resolveSummaryLabel（total_ プレフィックス吸収）に相当
 fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
     match tab {
         ReceiptsTab::Dividend => ["配当金", "税額", "受取額"],
@@ -1621,13 +1636,62 @@ fn short_date(formatted: &str) -> &str {
     }
 }
 
+enum CardDetailValue {
+    Text { text: String, negative: bool },
+    SecurityCode(String),
+    CopyName { display: String, copy: String },
+}
+
+struct CardDetail {
+    label: String,
+    value: CardDetailValue,
+}
+
 struct CardRowData {
     name: String,
     amount: String,
     amount_negative: bool,
     date: String,
     account: String,
-    details: Vec<(String, String, bool)>,
+    details: Vec<CardDetail>,
+}
+
+fn is_security_code(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
+}
+
+fn card_detail_value(index: usize, cells: &[ReceiptCell]) -> CardDetailValue {
+    match cells.get(index) {
+        Some(ReceiptCell::SecurityCode(raw)) => CardDetailValue::SecurityCode(raw.clone()),
+        Some(ReceiptCell::InstrumentName { name, code }) => {
+            let trimmed = name.trim();
+            let display = if trimmed.is_empty() {
+                "-".to_string()
+            } else {
+                trimmed.to_string()
+            };
+            let copy = code
+                .as_deref()
+                .map(crate::receipts_domain::normalize_security_code)
+                .filter(|code| !code.is_empty())
+                .map(|code| format!("{display}({code})"))
+                .unwrap_or_else(|| display.clone());
+            CardDetailValue::CopyName { display, copy }
+        }
+        _ => {
+            let text = cells
+                .get(index)
+                .map(|cell| cell_text(cell).to_string())
+                .unwrap_or_default();
+            CardDetailValue::Text {
+                negative: is_negative_text(&text),
+                text,
+            }
+        }
+    }
 }
 
 fn cell_text(cell: &ReceiptCell) -> &str {
@@ -1658,20 +1722,91 @@ fn card_row_data(
         account: text(fields.account),
         details: order
             .iter()
-            .map(|&i| {
-                (
-                    headers[i].to_string(),
-                    cell_text(&cells[i]).to_string(),
-                    is_negative_text(cell_text(&cells[i])),
-                )
+            .map(|&i| CardDetail {
+                label: headers[i].to_string(),
+                value: card_detail_value(i, cells),
             })
             .collect(),
     }
 }
 
+fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<String>) {
+    match value {
+        CardDetailValue::Text { text, .. } => {
+            (view! { {text.clone()} }.into_any(), Some(text.clone()))
+        }
+        CardDetailValue::SecurityCode(raw) => {
+            let code = crate::receipts_domain::normalize_security_code(raw);
+            if code.is_empty() {
+                (view! { <span>"-"</span> }.into_any(), None)
+            } else if !is_security_code(&code) {
+                (view! { <span>{code}</span> }.into_any(), None)
+            } else {
+                let href = format!("/search?code={code}");
+                (
+                    view! {
+                        <a
+                            href=href
+                            class="security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500 font-bold"
+                            data-search=code.clone()
+                        >
+                            {code.clone()}
+                        </a>
+                    }
+                        .into_any(),
+                    None,
+                )
+            }
+        }
+        CardDetailValue::CopyName { display, copy } => {
+            let copy_text = copy.clone();
+            (
+                view! {
+                    <button
+                        type="button"
+                        aria-label=format!("{copy} をコピー")
+                        on:click=move |_| {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.navigator().clipboard().write_text(&copy_text);
+                            }
+                        }
+                        class="group inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500"
+                    >
+                        <span>{display.clone()}</span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                            class="rounded p-0.5 text-gray-400 opacity-100 group-hover:text-gray-600 group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                    </button>
+                }
+                    .into_any(),
+                None,
+            )
+        }
+    }
+}
+
 #[component]
-fn ReceiptItemCard(card: CardRowData, id_prefix: String) -> impl IntoView {
-    let expanded = RwSignal::new(false);
+fn ReceiptItemCard(
+    card: CardRowData,
+    id_prefix: String,
+    expanded_ids: RwSignal<HashSet<String>>,
+) -> impl IntoView {
+    let expanded_id = id_prefix.clone();
+    let toggle_id = expanded_id.clone();
+    let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&expanded_id)));
     let button_id = format!("{id_prefix}-button");
     let details_id = format!("{id_prefix}-details");
     let CardRowData {
@@ -1696,7 +1831,13 @@ fn ReceiptItemCard(card: CardRowData, id_prefix: String) -> impl IntoView {
                 aria-label=aria_label
                 aria-expanded=move || if expanded.get() { "true" } else { "false" }
                 aria-controls=details_id.clone()
-                on:click=move |_| expanded.update(|value| *value = !*value)
+                on:click=move |_| {
+                    expanded_ids.update(|set| {
+                        if !set.remove(&toggle_id) {
+                            set.insert(toggle_id.clone());
+                        }
+                    })
+                }
                 class="flex min-h-[90px] w-full flex-col justify-center gap-2 rounded-lg px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             >
                 <span class="flex w-full items-baseline gap-2">
@@ -1748,19 +1889,24 @@ fn ReceiptItemCard(card: CardRowData, id_prefix: String) -> impl IntoView {
                                 <dl>
                                     {details
                                         .iter()
-                                        .map(|(label, value, negative)| {
-                                            let value_class = if *negative {
+                                        .map(|detail| {
+                                            let negative = matches!(
+                                                &detail.value,
+                                                CardDetailValue::Text { negative: true, .. }
+                                            );
+                                            let value_class = if negative {
                                                 "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
                                             } else {
                                                 "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
                                             };
+                                            let (content, title) = card_detail_view(&detail.value);
                                             view! {
                                                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
                                                     <dt class="shrink-0 pt-0.5 text-xs text-slate-600">
-                                                        {label.clone()}
+                                                        {detail.label.clone()}
                                                     </dt>
-                                                    <dd class=value_class title=value.clone()>
-                                                        {value.clone()}
+                                                    <dd class=value_class title=title>
+                                                        {content}
                                                     </dd>
                                                 </div>
                                             }
@@ -1782,8 +1928,11 @@ fn MobileCardGroup(
     summary: Vec<(&'static str, String)>,
     cards: Vec<CardRowData>,
     id_prefix: String,
+    expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let expanded = RwSignal::new(false);
+    let expanded_id = id_prefix.clone();
+    let toggle_id = expanded_id.clone();
+    let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&expanded_id)));
     let button_id = format!("{id_prefix}-group-button");
     let details_id = format!("{id_prefix}-group-details");
     let card_list = view! {
@@ -1796,6 +1945,7 @@ fn MobileCardGroup(
                         <ReceiptItemCard
                             card=card
                             id_prefix=format!("{id_prefix}-card-{index}")
+                            expanded_ids=expanded_ids
                         />
                     }
                 })
@@ -1827,7 +1977,13 @@ fn MobileCardGroup(
                     aria-label=aria_label
                     aria-expanded=move || if expanded.get() { "true" } else { "false" }
                     aria-controls=details_id.clone()
-                    on:click=move |_| expanded.update(|value| *value = !*value)
+                    on:click=move |_| {
+                        expanded_ids.update(|set| {
+                            if !set.remove(&toggle_id) {
+                                set.insert(toggle_id.clone());
+                            }
+                        })
+                    }
                     class="flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-white">
@@ -1963,6 +2119,7 @@ fn ReceiptTable(
     rows: Vec<ReceiptItem>,
     all_rows: Vec<ReceiptItem>,
     query: String,
+    expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
     let headers: &[&'static str] = table_headers(tab);
     let groups = table_groups(tab, &rows, &all_rows, &query);
@@ -2074,12 +2231,13 @@ fn ReceiptTable(
                             summary=summary
                             cards=cards
                             id_prefix=format!("receipt-{slug}-group-{group_index}")
+                            expanded_ids=expanded_ids
                         />
                     }
                 })
                 .collect_view()}
         </div>
-        </div>
+    </div>
     }
 }
 
