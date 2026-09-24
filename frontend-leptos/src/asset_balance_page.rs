@@ -6,8 +6,12 @@ use crate::asset_balance_domain::{
     ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
-use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
+use crate::asset_balance_search::{
+    asset_balance_search_options, clear_search_query, filter_asset_balances,
+};
+use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
 use crate::receipts_pagination::PageCollector;
+use crate::receipts_search::SearchOption;
 use crate::session::use_session;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
@@ -40,6 +44,7 @@ struct DividendMaps {
 struct LoadedAssetBalances {
     rows: Vec<AssetBalance>,
     summary: Option<AssetBalanceSummary>,
+    facets: Option<SearchFacets>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -86,6 +91,7 @@ async fn fetch_asset_balance_page(page_no: usize) -> Result<AssetBalanceListResp
 struct AssetBalancePages {
     collector: PageCollector<AssetBalance>,
     summary: Option<AssetBalanceSummary>,
+    facets: Option<SearchFacets>,
 }
 
 impl AssetBalancePages {
@@ -96,6 +102,7 @@ impl AssetBalancePages {
                 ASSET_BALANCE_LIST_MAX_PAGES,
             ),
             summary: None,
+            facets: None,
         }
     }
 
@@ -106,17 +113,30 @@ impl AssetBalancePages {
     fn push(&mut self, page: AssetBalanceListResponse) -> bool {
         if self.collector.next_page() == 1 {
             self.summary = page.summary;
+            self.facets = page.facets;
         }
         self.collector.push(page.data, page.total)
     }
 
-    fn finish(self) -> (Vec<AssetBalance>, Option<AssetBalanceSummary>) {
-        (self.collector.into_rows(), self.summary)
+    fn finish(
+        self,
+    ) -> (
+        Vec<AssetBalance>,
+        Option<AssetBalanceSummary>,
+        Option<SearchFacets>,
+    ) {
+        (self.collector.into_rows(), self.summary, self.facets)
     }
 }
 
-async fn fetch_asset_balances() -> Result<(Vec<AssetBalance>, Option<AssetBalanceSummary>), ApiError>
-{
+async fn fetch_asset_balances() -> Result<
+    (
+        Vec<AssetBalance>,
+        Option<AssetBalanceSummary>,
+        Option<SearchFacets>,
+    ),
+    ApiError,
+> {
     let mut pages = AssetBalancePages::new();
     loop {
         let response = fetch_asset_balance_page(pages.next_page()).await?;
@@ -227,6 +247,46 @@ async fn poll_dividend_maps(
             }
         }
         gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+    }
+}
+
+fn effective_summary(
+    summary: Option<AssetBalanceSummary>,
+    query: &str,
+) -> Option<AssetBalanceSummary> {
+    if query.is_empty() {
+        summary
+    } else {
+        None
+    }
+}
+
+#[derive(Clone, Debug)]
+struct FilteredPortfolio {
+    views: Vec<HoldingView>,
+    summary: Option<AssetBalanceSummary>,
+}
+
+// 検索中は API の全体 summary を捨てる。渡すと絞り込み前の
+// 全体金額が画面に出るため、PortfolioSummary が表示中の行から再集計する。
+fn filtered_portfolio(
+    loaded: &LoadedAssetBalances,
+    query: &str,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: u64,
+) -> FilteredPortfolio {
+    let views = filter_asset_balances(&loaded.rows, query)
+        .into_iter()
+        .map(|row| {
+            let resolved = lookup
+                .with(|store| store.get(generation, &row.security_code).cloned())
+                .unwrap_or_else(|| row.clone());
+            holding_view(&resolved)
+        })
+        .collect();
+    FilteredPortfolio {
+        views,
+        summary: effective_summary(loaded.summary.clone(), query),
     }
 }
 
@@ -454,12 +514,15 @@ pub fn AssetBalancePage() -> impl IntoView {
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+    let search_query = RwSignal::new(String::new());
+    let reset_query = search_query;
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
             lookup.update(|store| store.clear());
             balances.set(None);
             dividends.set(DividendMaps::default());
+            reset_query.set(clear_search_query());
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -477,7 +540,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
                     }
                 }
-                Ok((rows, summary)) => {
+                Ok((rows, summary, facets)) => {
                     if !should_apply_asset_balance_result(&session, generation) {
                         return;
                     }
@@ -491,7 +554,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                     dividends.set(DividendMaps::default());
                     balances.set(Some((
                         generation,
-                        Ok(LoadedAssetBalances { rows, summary }),
+                        Ok(LoadedAssetBalances {
+                            rows,
+                            summary,
+                            facets,
+                        }),
                     )));
                     let missing: Vec<String> = codes
                         .iter()
@@ -576,22 +643,25 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 }
                                     .into_any()
                             } else {
-                                let views: Vec<HoldingView> = loaded
-                                    .rows
-                                    .iter()
-                                    .map(|row| {
-                                        let resolved = lookup
-                                            .with(|store| {
-                                                store.get(current, &row.security_code).cloned()
-                                            })
-                                            .unwrap_or_else(|| row.clone());
-                                        holding_view(&resolved)
-                                    })
-                                    .collect();
+                                let query = search_query.get();
+                                let options = asset_balance_search_options(
+                                    &loaded.rows,
+                                    loaded.facets.as_ref(),
+                                    false,
+                                );
+                                let total_count = loaded.rows.len();
+                                let FilteredPortfolio { views, summary } =
+                                    filtered_portfolio(&loaded, &query, lookup, current);
                                 view! {
+                                    <AssetBalanceSearchCard query=search_query options=options />
                                     <PortfolioSummary
                                         views=views
-                                        summary=loaded.summary
+                                        total_count=total_count
+                                        is_filtered=!query.is_empty()
+                                        on_clear_filter=move || {
+                                            search_query.set(clear_search_query())
+                                        }
+                                        summary=summary
                                         dividends=dividends
                                     />
                                 }
@@ -612,11 +682,85 @@ struct ChartItem {
 }
 
 #[component]
+fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -> impl IntoView {
+    view! {
+        <div
+            class="mb-3 rounded-lg border border-slate-200 bg-white p-4"
+            role="search"
+            aria-label="資産管理の検索"
+            data-testid="search-card"
+        >
+            <div
+                class="mb-3 flex items-center justify-between gap-3"
+                data-testid="search-card-header"
+            >
+                <h2 class="text-sm font-bold text-slate-950">"検索オプション"</h2>
+                <button
+                    type="button"
+                    class="rounded border border-slate-300 px-3 py-1 text-sm"
+                    aria-label="検索条件をクリア"
+                    data-testid="search-clear-button"
+                    disabled=move || query.get().is_empty()
+                    on:click=move |_| query.set(clear_search_query())
+                >
+                    "絞り込み解除"
+                </button>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <label
+                        class="mb-1 block text-sm font-bold text-slate-800"
+                        for="securities-search"
+                    >
+                        "銘柄"
+                    </label>
+                    <select
+                        id="securities-search"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        prop:value=move || query.get()
+                        on:change=move |event| query.set(event_target_value(&event))
+                    >
+                        <option value="">"全て表示"</option>
+                        {options
+                            .into_iter()
+                            .map(|option| view! {
+                                <option value=option.value>{option.label}</option>
+                            })
+                            .collect_view()}
+                    </select>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[component]
 fn PortfolioSummary(
     views: Vec<HoldingView>,
+    total_count: usize,
+    is_filtered: bool,
+    on_clear_filter: impl Fn() + 'static,
     summary: Option<AssetBalanceSummary>,
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
+    if views.is_empty() {
+        return view! {
+            <div>
+                <h3>"該当する銘柄がありません"</h3>
+                <p>"検索条件を変更するか、絞り込みを解除してください。"</p>
+                <div class="mt-3">
+                    <button
+                        type="button"
+                        class="text-sm text-primary hover:underline"
+                        on:click=move |_| on_clear_filter()
+                    >
+                        "絞り込みを解除"
+                    </button>
+                </div>
+            </div>
+        }
+        .into_any();
+    }
     let valuation_items: Vec<ValuationItem> = views
         .iter()
         .map(|view| ValuationItem {
@@ -677,6 +821,22 @@ fn PortfolioSummary(
                     <div>
                         <h2 class="text-sm font-black text-slate-950">"資産サマリー"</h2>
                     </div>
+                    {is_filtered.then(move || {
+                        view! {
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                                    {format!("絞り込み中: {display_count}/{total_count}件")}
+                                </span>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                                    on:click=move |_| on_clear_filter()
+                                >
+                                    "解除"
+                                </button>
+                            </div>
+                        }
+                    })}
                 </div>
                 <div class="mt-4" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
@@ -765,7 +925,11 @@ fn PortfolioSummary(
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"保有銘柄数"</p>
                         <p class="text-base font-bold sm:text-3xl text-slate-700 tabular-nums">
-                            {display_count.to_string()}
+                            {if is_filtered {
+                                format!("{display_count} / {total_count}")
+                            } else {
+                                display_count.to_string()
+                            }}
                             <span class="ml-1 text-sm font-normal text-slate-500">"銘柄"</span>
                         </p>
                     </div>
@@ -1321,6 +1485,114 @@ mod tests {
     }
 
     #[test]
+    fn api_summary_is_ignored_while_searching() {
+        let summary = || {
+            Some(AssetBalanceSummary {
+                total_market_value: Decimal::from(260_000),
+                total_purchase_amount: Decimal::from(250_000),
+                total_daily_change: Decimal::ZERO,
+            })
+        };
+        assert_eq!(effective_summary(summary(), ""), summary());
+        assert_eq!(effective_summary(summary(), "7203"), None);
+        assert_eq!(effective_summary(None, ""), None);
+    }
+
+    #[test]
+    fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
+        let owner = Owner::new();
+        owner.with(|| {
+            // 行合計とも絞り込み後の合計とも異なる API summary を使い、
+            // 画面の金額が summary 由来でなく表示中の行から来ることを確認する
+            let mut toyota = balance_row(7203);
+            toyota.security_name = "トヨタ自動車".to_string();
+            toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
+            toyota.market_value = rust_decimal_macros::dec!(110000);
+            let mut sony = balance_row(6758);
+            sony.security_name = "ソニーグループ".to_string();
+            sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
+            sony.market_value = rust_decimal_macros::dec!(180000);
+            let loaded = LoadedAssetBalances {
+                rows: vec![toyota, sony],
+                summary: Some(AssetBalanceSummary {
+                    total_market_value: rust_decimal_macros::dec!(999999),
+                    total_purchase_amount: rust_decimal_macros::dec!(888888),
+                    total_daily_change: rust_decimal_macros::dec!(0),
+                }),
+                facets: None,
+            };
+            let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+            lookup.update(|store| store.seed(1, &loaded.rows));
+
+            let filtered = filtered_portfolio(&loaded, "7203", lookup, 1);
+            assert_eq!(filtered.views.len(), 1);
+            assert_eq!(filtered.views[0].code, "7203");
+            assert!(filtered.summary.is_none());
+
+            // PortfolioSummary と同じ手順で画面に出る金額を計算する
+            let valuation_items: Vec<ValuationItem> = filtered
+                .views
+                .iter()
+                .map(|view| ValuationItem {
+                    market_value: serde_json::json!(view.market),
+                    total_purchase_amount: serde_json::json!(view.purchase),
+                })
+                .collect();
+            let summary_override = filtered.summary.as_ref().map(|summary| SummaryOverride {
+                total_purchase_amount: serde_json::json!(dec_to_f64(
+                    &summary.total_purchase_amount,
+                )),
+                total_market_value: serde_json::json!(dec_to_f64(&summary.total_market_value)),
+            });
+            let valuation =
+                summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());
+            let kpi_holdings: Vec<KpiHolding> = filtered
+                .views
+                .iter()
+                .map(|view| KpiHolding {
+                    security_code: view.code.clone(),
+                    shares: view.shares,
+                    total_purchase_amount: view.purchase,
+                })
+                .collect();
+            let summary_total = filtered
+                .summary
+                .as_ref()
+                .map(|summary| dec_to_f64(&summary.total_purchase_amount));
+            let total_purchase = total_purchase_amount(&kpi_holdings, summary_total);
+            let dividends = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let kpi = Memo::new(move |_| {
+                calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
+            });
+
+            // 絞り込んだ行(7203のみ)の合計が出る。API summary の 999,999/888,888 は使われない
+            assert_eq!(valuation.market_value, Some(110000.0));
+            assert_eq!(valuation.amount, Some(10000.0));
+            assert_eq!(valuation.rate, Some(10.0));
+            assert_eq!(format_currency(total_purchase), "¥ 100,000");
+            kpi.with(|kpi| {
+                assert_eq!(kpi.total_purchase_amount, 100000.0);
+                assert_eq!(kpi.total_annual_dividends, Some(5000.0));
+                assert_eq!(kpi.dividend_yield, Some(5.0));
+                assert_eq!(kpi.holdings_count, 1);
+            });
+
+            // 検索していないときは API summary がそのまま画面の金額に使われる
+            let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
+            assert_eq!(unfiltered.views.len(), 2);
+            assert_eq!(
+                unfiltered
+                    .summary
+                    .map(|summary| summary.total_purchase_amount),
+                Some(rust_decimal_macros::dec!(888888))
+            );
+        });
+    }
+
+    #[test]
     fn unique_sorted_codes_dedupes() {
         assert_eq!(
             unique_sorted_codes(&["6758".to_string(), "7203".to_string(), "6758".to_string()]),
@@ -1395,6 +1667,7 @@ mod tests {
                 Ok(LoadedAssetBalances {
                     rows: vec![],
                     summary: None,
+                    facets: None,
                 }),
             )));
             apply_dividend_maps(&balances, &dividends, 8, fresh.clone());
@@ -1415,6 +1688,7 @@ mod tests {
                 Ok(LoadedAssetBalances {
                     rows: vec![],
                     summary: None,
+                    facets: None,
                 }),
             )));
             let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
@@ -1482,28 +1756,37 @@ mod tests {
     fn asset_balance_pages_join_all_pages_in_order() {
         let mut pages = AssetBalancePages::new();
         assert_eq!(pages.next_page(), 1);
-        assert!(pages.push(balance_page(
-            0..1000,
-            2300,
-            Some(rust_decimal_macros::dec!(10))
-        )));
+        let mut first = balance_page(0..1000, 2300, Some(rust_decimal_macros::dec!(10)));
+        first.facets = Some(SearchFacets {
+            securities: Some(vec![crate::dto::FacetOption {
+                value: "7203".to_string(),
+                label: "トヨタ自動車".to_string(),
+                count: None,
+            }]),
+            ..SearchFacets::default()
+        });
+        assert!(pages.push(first));
         assert_eq!(pages.next_page(), 2);
-        assert!(pages.push(balance_page(
-            1000..2000,
-            2300,
-            Some(rust_decimal_macros::dec!(20))
-        )));
+        let mut second = balance_page(1000..2000, 2300, Some(rust_decimal_macros::dec!(20)));
+        second.facets = Some(SearchFacets::default());
+        assert!(pages.push(second));
         assert_eq!(pages.next_page(), 3);
         assert!(!pages.push(balance_page(2000..2300, 2300, None)));
 
-        let (rows, summary) = pages.finish();
+        let (rows, summary, facets) = pages.finish();
         assert_eq!(rows.len(), 2300);
         assert_eq!(rows[0].id, "id-0");
         assert_eq!(rows[2299].id, "id-2299");
-        // summary は1ページ目のものだけを採用し、以降のページの summary は捨てる
+        // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
         assert_eq!(
             summary.map(|summary| summary.total_purchase_amount),
             Some(rust_decimal_macros::dec!(10))
+        );
+        assert_eq!(
+            facets
+                .and_then(|facets| facets.securities)
+                .map(|securities| securities.len()),
+            Some(1)
         );
     }
 
@@ -1511,7 +1794,7 @@ mod tests {
     fn asset_balance_pages_stop_when_first_page_is_short() {
         let mut pages = AssetBalancePages::new();
         assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
-        let (rows, summary) = pages.finish();
+        let (rows, summary, _facets) = pages.finish();
         assert_eq!(rows.len(), 3);
         assert!(summary.is_some());
     }

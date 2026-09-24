@@ -2,8 +2,6 @@ use crate::dto::{AssetBalance, SearchFacets};
 use crate::receipts_search::{filter_by_config, FilterConfig, SearchOption};
 use crate::receipts_search_support::create_search_options;
 
-// ページへの接続は層2で行うため、それまでは単体テストだけが使う。
-#[allow(dead_code)]
 pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
     FilterConfig {
         string_fields: None,
@@ -17,12 +15,10 @@ pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
     }
 }
 
-#[allow(dead_code)]
 pub fn filter_asset_balances<'a>(data: &'a [AssetBalance], query: &str) -> Vec<&'a AssetBalance> {
     filter_by_config(data, query, &asset_balance_filter_config())
 }
 
-#[allow(dead_code)]
 pub fn asset_balance_search_options(
     data: &[AssetBalance],
     facets: Option<&SearchFacets>,
@@ -48,7 +44,6 @@ pub fn asset_balance_search_options(
     )
 }
 
-#[allow(dead_code)]
 pub fn clear_search_query() -> String {
     String::new()
 }
