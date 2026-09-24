@@ -159,28 +159,65 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     let search = store.search;
     let categories = search_categories(tab, &data.rows);
     let has_years = !categories.years.is_empty();
-    if !has_years
+    let dates = categories.dates;
+    let years = categories.years.clone();
+    let year_picker_open = RwSignal::new(false);
+    if dates
+        && !has_years
         && search
             .with_untracked(|state| state.is_default() && state.date_segment == DateSegment::Year)
     {
         search.set(ReceiptSearch::new(false));
     }
+    let date_period = if dates {
+        view! {
+            <div class="mb-3.5">
+                <DatePeriod
+                    search=search
+                    years=years.clone()
+                    year_picker_open=year_picker_open
+                />
+            </div>
+        }
+        .into_any()
+    } else {
+        ().into_any()
+    };
+    let year_dropdown = if !dates && !years.is_empty() {
+        view! { <YearDropdown search=search options=years.clone() /> }.into_any()
+    } else {
+        ().into_any()
+    };
     let filtered = Memo::new(move |_| store.filtered_rows(tab));
     let all_rows = data.rows.clone();
+    let clear_search = search;
+    let clear_picker = year_picker_open;
     view! {
         <section>
-            <div class="mb-3 rounded-lg border border-slate-200 bg-white p-4" role="search" aria-label="取引明細の検索">
+            <div
+                class="mb-3 rounded-lg border border-slate-200 bg-white p-4"
+                role="search"
+                aria-label="取引明細の検索"
+                data-testid="search-card"
+            >
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <h2 class="text-sm font-bold text-slate-950">"検索オプション"</h2>
-                    <button type="button" class="rounded border border-slate-300 px-3 py-1 text-sm" aria-label="検索条件をクリア"
+                    <button
+                        type="button"
+                        class="rounded border border-slate-300 px-3 py-1 text-sm"
+                        aria-label="検索条件をクリア"
+                        data-testid="search-clear-button"
                         disabled=move || search.with(|state| state.is_default())
-                        on:click=move |_| search.update(|state| state.clear(has_years))>"絞り込み解除"</button>
+                        on:click=move |_| {
+                            clear_picker.set(false);
+                            clear_search.update(|state| state.clear(has_years));
+                        }
+                    >"絞り込み解除"</button>
                 </div>
-                <div class="mb-3.5">
-                    <DatePeriod search=search years=categories.years />
-                </div>
+                {date_period}
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <SecurityDropdown search=search options=categories.securities />
+                    {year_dropdown}
                     <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=categories.products />
                     <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=categories.accounts />
                 </div>
@@ -224,6 +261,30 @@ fn SecurityDropdown(search: RwSignal<ReceiptSearch>, options: Vec<SearchOption>)
             </select>
         </div>
     }.into_any()
+}
+
+#[component]
+fn YearDropdown(search: RwSignal<ReceiptSearch>, options: Vec<SearchOption>) -> impl IntoView {
+    if options.is_empty() {
+        return ().into_any();
+    }
+    view! {
+        <div>
+            <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
+            <select
+                id="years-search"
+                class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                prop:value=move || search.with(|state| state.selected_queries.years.clone())
+                on:change=move |event| search.update(|state| {
+                    state.select_quick(SearchKey::Years, event_target_value(&event))
+                })
+            >
+                <option value="">"全て表示"</option>
+                {options.into_iter().map(|option| view! { <option value=option.value>{option.label}</option> }).collect_view()}
+            </select>
+        </div>
+    }
+    .into_any()
 }
 
 #[component]
@@ -271,8 +332,200 @@ fn ToggleCategory(
     }.into_any()
 }
 
+#[derive(Clone, Copy)]
+enum DateInputField {
+    Month,
+    Date,
+    RangeStart,
+    RangeEnd,
+}
+
+fn date_input_value(state: &ReceiptSearch, field: DateInputField) -> String {
+    match field {
+        DateInputField::Month => state.date_inputs.month_value.clone(),
+        DateInputField::Date => state.date_inputs.date_value.clone(),
+        DateInputField::RangeStart => state.date_inputs.range_start.clone(),
+        DateInputField::RangeEnd => state.date_inputs.range_end.clone(),
+    }
+}
+
+fn date_input_type(field: DateInputField) -> &'static str {
+    match field {
+        DateInputField::Month => "month",
+        DateInputField::Date | DateInputField::RangeStart | DateInputField::RangeEnd => "date",
+    }
+}
+
+fn format_date_input_label(value: &str, fallback: &str) -> String {
+    if value.is_empty() {
+        fallback.to_string()
+    } else {
+        value.replace('-', "/")
+    }
+}
+
+fn visible_date_segment(state: &ReceiptSearch, has_years: bool) -> DateSegment {
+    if !has_years && state.date_segment == DateSegment::Year {
+        DateSegment::Month
+    } else {
+        state.date_segment
+    }
+}
+
 #[component]
-fn DatePeriod(search: RwSignal<ReceiptSearch>, years: Vec<SearchOption>) -> impl IntoView {
+fn CalendarDateButton(
+    search: RwSignal<ReceiptSearch>,
+    field: DateInputField,
+    label: &'static str,
+) -> impl IntoView {
+    let input_ref = NodeRef::<leptos::html::Input>::new();
+    let picker_ref = input_ref;
+    let input_type = date_input_type(field);
+    let value_prop = move || search.with(|state| date_input_value(state, field));
+    let button_class = move || {
+        if search
+            .with(|state| date_input_value(state, field))
+            .is_empty()
+        {
+            "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:border-slate-400"
+        } else {
+            "w-full rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-amber-900 transition-colors"
+        }
+    };
+    let display_value = move || {
+        let value = search.with(|state| date_input_value(state, field));
+        format_date_input_label(&value, label)
+    };
+    let on_change = move |event| {
+        let value = event_target_value(&event);
+        search.update(|state| match field {
+            DateInputField::Month => state.set_month(value),
+            DateInputField::Date => state.set_date(value),
+            DateInputField::RangeStart => state.set_range_start(value),
+            DateInputField::RangeEnd => state.set_range_end(value),
+        });
+    };
+    view! {
+        <div class="relative">
+            <button
+                type="button"
+                class=button_class
+                on:click=move |_| {
+                    if let Some(input) = picker_ref.get() {
+                        if input.show_picker().is_err() {
+                            input.click();
+                        }
+                    }
+                }
+            >
+                {display_value}
+            </button>
+            <input
+                node_ref=input_ref
+                type=input_type
+                prop:value=value_prop
+                aria-hidden="true"
+                tabindex="-1"
+                class="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+                on:change=on_change
+            />
+        </div>
+    }
+}
+
+#[component]
+fn YearPicker(
+    search: RwSignal<ReceiptSearch>,
+    years: Vec<SearchOption>,
+    is_open: RwSignal<bool>,
+) -> impl IntoView {
+    let label_search = search;
+    let label_years = years.clone();
+    let selected_label = move || {
+        let value = label_search.with(|state| state.date_inputs.year_value.clone());
+        if value.is_empty() {
+            "年を選択".to_string()
+        } else {
+            label_years
+                .iter()
+                .find(|year| year.value == value)
+                .map(|year| year.label.clone())
+                .unwrap_or(value)
+        }
+    };
+    let toggle_search = search;
+    let toggle_open = is_open;
+    let options = years.clone();
+    view! {
+        <div class="relative">
+            <button
+                type="button"
+                aria-label="年を選択"
+                aria-haspopup="listbox"
+                aria-expanded=move || is_open.get()
+                class=move || if search.with(|state| state.date_inputs.year_value.is_empty()) {
+                    "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:border-slate-400"
+                } else {
+                    "w-full rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-amber-900 transition-colors"
+                }
+                on:click=move |_| toggle_open.update(|open| *open = !*open)
+            >
+                {selected_label}
+            </button>
+            {move || {
+                if is_open.get() {
+                    view! {
+                        <div
+                            role="listbox"
+                            aria-label="年候補"
+                            class="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5"
+                        >
+                            {options
+                                .clone()
+                                .into_iter()
+                                .map(|year| {
+                                    let value = year.value.clone();
+                                    let selected_value = year.value.clone();
+                                    let class_value = value.clone();
+                                    let click_search = toggle_search;
+                                    let click_open = toggle_open;
+                                    view! {
+                                        <button
+                                            type="button"
+                                            role="option"
+                                            aria-selected=move || click_search.with(|state| state.date_inputs.year_value == selected_value)
+                                            class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
+                                                "rounded bg-amber-50 px-1 py-1.5 text-center text-sm font-semibold text-amber-900 ring-1 ring-inset ring-amber-400"
+                                            } else {
+                                                "rounded px-1 py-1.5 text-center text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                            }
+                                            on:click=move |_| {
+                                                click_open.set(false);
+                                                click_search.update(|state| state.select_year(value.clone()));
+                                            }
+                                        >
+                                            {year.label}
+                                        </button>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                    .into_any()
+                } else {
+                    ().into_any()
+                }
+            }}
+        </div>
+    }
+}
+
+#[component]
+fn DatePeriod(
+    search: RwSignal<ReceiptSearch>,
+    years: Vec<SearchOption>,
+    year_picker_open: RwSignal<bool>,
+) -> impl IntoView {
     let has_years = !years.is_empty();
     let segments = [
         DateSegment::Year,
@@ -284,77 +537,56 @@ fn DatePeriod(search: RwSignal<ReceiptSearch>, years: Vec<SearchOption>) -> impl
         <div class="space-y-2">
             <div class="text-sm font-bold text-slate-800">"期間"</div>
             <div class="flex gap-1">
-                {segments.into_iter().filter(|segment| has_years || *segment != DateSegment::Year).map(|segment| view! {
-                    <button
-                        type="button"
-                        class=move || if search.with(|state| state.date_segment == segment) {
-                            "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
-                        } else {
-                            "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                {segments
+                    .into_iter()
+                    .filter(|segment| has_years || *segment != DateSegment::Year)
+                    .map(|segment| {
+                        let click_search = search;
+                        let click_picker = year_picker_open;
+                        view! {
+                            <button
+                                type="button"
+                                class=move || if search.with(|state| visible_date_segment(state, has_years) == segment) {
+                                    "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
+                                } else {
+                                    "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                                }
+                                aria-pressed=move || search.with(|state| visible_date_segment(state, has_years) == segment)
+                                on:click=move |_| {
+                                    click_picker.set(false);
+                                    click_search.update(|state| state.change_date_segment(segment));
+                                }
+                            >
+                                {segment.label()}
+                            </button>
                         }
-                        aria-pressed=move || search.with(|state| state.date_segment == segment)
-                        on:click=move |_| search.update(|state| state.change_date_segment(segment))
-                    >
-                        {segment.label()}
-                    </button>
-                }).collect_view()}
+                    })
+                    .collect_view()}
             </div>
-            {move || match search.with(|state| state.date_segment) {
+            {move || match search.with(|state| visible_date_segment(state, has_years)) {
                 DateSegment::Year => view! {
-                    <label class="sr-only" for="receipt-search-year">"年を選択"</label>
-                    <select
-                        id="receipt-search-year"
-                        aria-label="年を選択"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        prop:value=move || search.with(|state| state.date_inputs.year_value.clone())
-                        on:change=move |event| search.update(|state| state.select_year(event_target_value(&event)))
-                    >
-                        <option value="">"年を選択"</option>
-                        {years.clone().into_iter().map(|year| view! { <option value=year.value>{year.label}</option> }).collect_view()}
-                    </select>
-                }.into_any(),
+                    <YearPicker
+                        search=search
+                        years=years.clone()
+                        is_open=year_picker_open
+                    />
+                }
+                .into_any(),
                 DateSegment::Month => view! {
-                    <label class="sr-only" for="receipt-search-month">"月を選択"</label>
-                    <input
-                        id="receipt-search-month"
-                        aria-label="月を選択"
-                        type="month"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        prop:value=move || search.with(|state| state.date_inputs.month_value.clone())
-                        on:input=move |event| search.update(|state| state.set_month(event_target_value(&event)))
-                    />
-                }.into_any(),
+                    <CalendarDateButton search=search field=DateInputField::Month label="月を選択" />
+                }
+                .into_any(),
                 DateSegment::Date => view! {
-                    <label class="sr-only" for="receipt-search-date">"日を選択"</label>
-                    <input
-                        id="receipt-search-date"
-                        aria-label="日を選択"
-                        type="date"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        prop:value=move || search.with(|state| state.date_inputs.date_value.clone())
-                        on:input=move |event| search.update(|state| state.set_date(event_target_value(&event)))
-                    />
-                }.into_any(),
+                    <CalendarDateButton search=search field=DateInputField::Date label="日を選択" />
+                }
+                .into_any(),
                 DateSegment::Range => view! {
                     <div class="flex flex-col gap-2">
-                        <label class="text-xs font-semibold text-slate-700" for="receipt-search-range-start">"開始日"</label>
-                        <input
-                            id="receipt-search-range-start"
-                            type="date"
-                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            prop:value=move || search.with(|state| state.date_inputs.range_start.clone())
-                            on:input=move |event| search.update(|state| state.set_range_start(event_target_value(&event)))
-                        />
-                        <label class="text-xs font-semibold text-slate-700" for="receipt-search-range-end">"終了日"</label>
-                        <input
-                            id="receipt-search-range-end"
-                            type="date"
-                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            prop:value=move || search.with(|state| state.date_inputs.range_end.clone())
-                            on:input=move |event| search.update(|state| state.set_range_end(event_target_value(&event)))
-                        />
+                        <CalendarDateButton search=search field=DateInputField::RangeStart label="開始日" />
+                        <CalendarDateButton search=search field=DateInputField::RangeEnd label="終了日" />
                     </div>
-                }.into_any(),
+                }
+                .into_any(),
             }}
         </div>
     }

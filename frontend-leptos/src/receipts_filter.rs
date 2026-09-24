@@ -46,6 +46,14 @@ impl SelectedQueries {
             SearchKey::Date => self.date = value,
         }
     }
+
+    fn is_empty(&self) -> bool {
+        self.securities.is_empty()
+            && self.years.is_empty()
+            && self.products.is_empty()
+            && self.accounts.is_empty()
+            && self.date.is_empty()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,7 +150,7 @@ impl ReceiptSearch {
     }
 
     pub fn is_default(&self) -> bool {
-        self.query.is_empty()
+        self.query.is_empty() && self.selected_queries.is_empty()
     }
 
     pub fn select_quick(&mut self, key: SearchKey, value: String) {
@@ -219,6 +227,7 @@ pub struct SearchCategories {
     pub products: Vec<SearchOption>,
     pub accounts: Vec<SearchOption>,
     pub years: Vec<SearchOption>,
+    pub dates: bool,
 }
 
 impl ReceiptItem {
@@ -368,6 +377,7 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptItem]) -> SearchCatego
             vec![]
         },
         years: create_year_options(&sorted, ReceiptItem::date),
+        dates: true,
     }
 }
 

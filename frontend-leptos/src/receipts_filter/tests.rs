@@ -108,6 +108,7 @@ fn whitespace_returns_all_three_tabs() {
 #[test]
 fn categories_use_latest_name_sorted_dates_and_react_tab_fields() {
     let result = search_categories(ReceiptsTab::Dividend, &dividends());
+    assert!(result.dates);
     assert_eq!(
         result
             .securities
@@ -172,6 +173,21 @@ fn combined_query_uses_react_order_and_quotes_whitespace() {
         format_query_token("  Alpha \"Fund\"  "),
         "\"Alpha \\\"Fund\\\"\""
     );
+
+    let mut state = ReceiptSearch::new(true);
+    state.select_quick(SearchKey::Products, " ".into());
+    assert!(!state.is_default());
+}
+
+#[test]
+fn date_and_year_queries_keep_react_search_keys_separate() {
+    let mut state = ReceiptSearch::new(true);
+    state.select_year("2026".into());
+    assert_eq!(state.query, "2026");
+    assert!(state.selected_queries.years.is_empty());
+
+    state.select_quick(SearchKey::Years, "2025".into());
+    assert_eq!(state.query, "2026 2025");
 }
 
 #[test]
