@@ -6,6 +6,15 @@ fn oauth_authorize_url() -> String {
     format!("{}/api/v1/oauth/google/authorize", ApiClient::base_url())
 }
 
+async fn session_invalidated() -> bool {
+    matches!(
+        ApiClient::auth_client()
+            .get_json::<SessionUser>("/api/v1/session", &[])
+            .await,
+        Err(error) if error.is_unauthorized()
+    )
+}
+
 #[derive(Clone, Copy)]
 pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
@@ -68,8 +77,6 @@ impl SessionStore {
 
     pub async fn delete_account(&self) -> Result<(), ApiError> {
         let client = ApiClient::default_client();
-        // React版と同じく確認API（リトライなし）→削除APIの順で呼ぶ。
-        // 結果の成否に関わらずローカルの認証状態は破棄する
         let result = async {
             client
                 .with_max_retries(0)
@@ -81,6 +88,17 @@ impl SessionStore {
             client.delete_empty("/api/v1/account").await
         }
         .await;
+        // 削除要求がサーバーへ届いたか曖昧な失敗では、セッション無効化をもって削除完了とみなす
+        let result = match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                if session_invalidated().await {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            }
+        };
         self.mark_unauthenticated();
         self.loaded.set(true);
         result
