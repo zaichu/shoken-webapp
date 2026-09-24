@@ -2,6 +2,7 @@ mod api;
 mod asset_balance_domain;
 mod asset_balance_lookup;
 mod asset_balance_page;
+mod asset_balance_portfolio;
 mod asset_balance_search;
 mod dto;
 mod home_page;

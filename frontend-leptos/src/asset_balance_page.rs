@@ -1,11 +1,11 @@
 use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, calculate_valuation, chart_percentages, intl_fixed,
-    normalize_security_code, normalize_security_name, should_include_chart_item,
-    summarize_valuation_with_summary, to_fixed, total_purchase_amount, KpiHolding, SummaryOverride,
-    ValuationItem,
+    calculate_portfolio_kpi, calculate_valuation, intl_fixed, normalize_security_code,
+    normalize_security_name, summarize_valuation_with_summary, to_fixed, total_purchase_amount,
+    KpiHolding, SummaryOverride, ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
+use crate::asset_balance_portfolio::{chart_display, chart_plan};
 use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
@@ -22,7 +22,6 @@ use std::collections::HashMap;
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
 const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
-const TOP_ITEMS: usize = 20;
 const DIVIDEND_RETRY_DELAY_MS: u32 = 15_000;
 const DIVIDEND_NETWORK_MAX_RETRIES: u32 = 3;
 const DIVIDEND_PENDING_MAX_RETRIES: u32 = 100;
@@ -254,6 +253,7 @@ fn effective_summary(
     summary: Option<AssetBalanceSummary>,
     query: &str,
 ) -> Option<AssetBalanceSummary> {
+    // 検索中は API の summary が絞り込み前の全体集計のままなので使わない
     if query.is_empty() {
         summary
     } else {
@@ -267,8 +267,6 @@ struct FilteredPortfolio {
     summary: Option<AssetBalanceSummary>,
 }
 
-// 検索中は API の全体 summary を捨てる。渡すと絞り込み前の
-// 全体金額が画面に出るため、PortfolioSummary が表示中の行から再集計する。
 fn filtered_portfolio(
     loaded: &LoadedAssetBalances,
     query: &str,
@@ -516,6 +514,8 @@ pub fn AssetBalancePage() -> impl IntoView {
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
+    // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
+    let show_all = RwSignal::new(false);
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
@@ -523,6 +523,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             balances.set(None);
             dividends.set(DividendMaps::default());
             reset_query.set(clear_search_query());
+            show_all.set(false);
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -622,8 +623,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .filter(|(cached, _)| *cached == current)
                         .map(|(_, result)| result)
                     {
-                        None => view! { <p role="status">"読み込み中..."</p> }.into_any(),
+                        None => {
+                            show_all.set(false);
+                            view! { <p role="status">"読み込み中..."</p> }.into_any()
+                        }
                         Some(Err(message)) => {
+                            show_all.set(false);
                             view! {
                                 <div role="alert">
                                     <strong>"エラー:"</strong>
@@ -635,6 +640,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         }
                         Some(Ok(loaded)) => {
                             if loaded.rows.is_empty() {
+                                show_all.set(false);
                                 view! {
                                     <div>
                                         <h3>"資産管理データがありません"</h3>
@@ -663,6 +669,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         }
                                         summary=summary
                                         dividends=dividends
+                                        show_all=show_all
                                     />
                                 }
                                     .into_any()
@@ -742,12 +749,14 @@ fn PortfolioSummary(
     on_clear_filter: impl Fn() + 'static,
     summary: Option<AssetBalanceSummary>,
     dividends: RwSignal<DividendMaps>,
+    show_all: RwSignal<bool>,
 ) -> impl IntoView {
     if views.is_empty() {
+        show_all.set(false);
         return view! {
             <div>
                 <h3>"該当する銘柄がありません"</h3>
-                <p>"検索条件を変更するか、絞り込みを解除してください。"</p>
+                <p>"銘柄の選択を変更するか、絞り込みを解除してください。"</p>
                 <div class="mt-3">
                     <button
                         type="button"
@@ -790,27 +799,25 @@ fn PortfolioSummary(
     });
 
     let display_count = views.len();
-    let mut chart_views: Vec<HoldingView> = views
-        .into_iter()
-        .filter(|view| should_include_chart_item(Some(view.purchase), Some(view.market)))
-        .collect();
-    chart_views.sort_by(|a, b| b.purchase.total_cmp(&a.purchase));
-    let chart_values: Vec<f64> = chart_views.iter().map(|view| view.purchase).collect();
-    let chart_markets: Vec<Option<f64>> =
-        chart_views.iter().map(|view| Some(view.market)).collect();
-    let chart_percentages = chart_percentages(&chart_values, &chart_markets);
-    let chart_items: Vec<ChartItem> = chart_views
-        .into_iter()
-        .zip(chart_percentages)
-        .map(|(view, percentage)| ChartItem { view, percentage })
+    let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
+    let chart_markets: Vec<Option<f64>> = views.iter().map(|view| Some(view.market)).collect();
+    let plan = chart_plan(&chart_values, &chart_markets);
+    let chart_items: Vec<ChartItem> = plan
+        .order
+        .iter()
+        .zip(&plan.percentages)
+        .map(|(&index, &percentage)| ChartItem {
+            view: views[index].clone(),
+            percentage,
+        })
         .collect();
 
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
+        show_all.set(false);
         return ().into_any();
     }
 
-    let show_all = RwSignal::new(false);
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
             <section
@@ -963,37 +970,19 @@ fn ChartList(
     show_all: RwSignal<bool>,
 ) -> impl IntoView {
     let total = items.len();
-    let others_value: Option<f64> = if total <= TOP_ITEMS {
-        None
-    } else {
-        let sum: f64 = items
-            .iter()
-            .skip(TOP_ITEMS)
-            .filter_map(|item| item.percentage)
-            .sum();
-        if sum > 0.0 {
-            Some(sum)
-        } else {
-            None
-        }
-    };
-    let grid_class = if total <= 1 {
-        "grid grid-cols-1 gap-3"
-    } else if total == 2 {
-        "grid grid-cols-1 gap-3 xl:grid-cols-2"
-    } else {
-        "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-    };
+    let percentages: Vec<Option<f64>> = items.iter().map(|item| item.percentage).collect();
+    let display = Memo::new(move |_| chart_display(total, &percentages, show_all.get()));
     view! {
-        <div class=grid_class data-testid="portfolio-items-grid">
+        <div
+            class=move || display.with(|display| display.grid_class)
+            data-testid="portfolio-items-grid"
+        >
             {move || {
                 items
                     .clone()
                     .into_iter()
                     .enumerate()
-                    .filter(|(index, _)| {
-                        show_all.get() || total <= TOP_ITEMS || *index < TOP_ITEMS
-                    })
+                    .filter(|(index, _)| *index < display.with(|d| d.visible_count))
                     .map(|(index, item)| {
                         view! {
                             <div>
@@ -1009,23 +998,23 @@ fn ChartList(
                     .collect_view()
             }}
             {move || {
-                others_value
-                    .filter(|_| !show_all.get())
+                display
+                    .with(|d| d.others.clone())
                     .map(|others| {
                         view! {
                             <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
                                 <div class="flex items-center justify-between gap-2 mb-2">
                                     <span class="text-sm text-slate-500">
-                                        {format!("その他 {}銘柄", total - TOP_ITEMS)}
+                                        {format!("その他 {}銘柄", others.count)}
                                     </span>
                                     <span class="text-lg font-bold text-slate-500">
-                                        {format_fixed_percent(others, 1)}
+                                        {format_fixed_percent(others.percentage, 1)}
                                     </span>
                                 </div>
                                 <div class="h-2.5 w-full rounded-full bg-slate-200">
                                     <div
                                         class="h-full rounded-full bg-slate-400 transition-all duration-300"
-                                        style=format!("width: {}%", others.min(100.0))
+                                        style=format!("width: {}%", others.percentage.min(100.0))
                                     />
                                 </div>
                             </div>
@@ -1034,23 +1023,19 @@ fn ChartList(
             }}
         </div>
         {move || {
-            if total <= TOP_ITEMS {
-                return None;
-            }
-            let label = if show_all.get() {
-                format!("上位{TOP_ITEMS}件のみ表示")
-            } else {
-                format!("残り{}銘柄を表示（全{total}）", total - TOP_ITEMS)
-            };
-            Some(view! {
-                <button
-                    type="button"
-                    class="mt-3 w-full rounded-md border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                    on:click=move |_| show_all.update(|open| *open = !*open)
-                >
-                    {label}
-                </button>
-            })
+            display
+                .with(|d| d.toggle_label.clone())
+                .map(|label| {
+                    view! {
+                        <button
+                            type="button"
+                            class="mt-3 w-full rounded-md border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                            on:click=move |_| show_all.update(|open| *open = !*open)
+                        >
+                            {label}
+                        </button>
+                    }
+                })
         }}
     }
 }
@@ -1502,8 +1487,7 @@ mod tests {
     fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let owner = Owner::new();
         owner.with(|| {
-            // 行合計とも絞り込み後の合計とも異なる API summary を使い、
-            // 画面の金額が summary 由来でなく表示中の行から来ることを確認する
+            // 行合計と一致しない API summary を使い、画面の金額が表示中の行から来ることを確認する
             let mut toyota = balance_row(7203);
             toyota.security_name = "トヨタ自動車".to_string();
             toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
@@ -1568,7 +1552,6 @@ mod tests {
                 calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
             });
 
-            // 絞り込んだ行(7203のみ)の合計が出る。API summary の 999,999/888,888 は使われない
             assert_eq!(valuation.market_value, Some(110000.0));
             assert_eq!(valuation.amount, Some(10000.0));
             assert_eq!(valuation.rate, Some(10.0));
@@ -1580,7 +1563,6 @@ mod tests {
                 assert_eq!(kpi.holdings_count, 1);
             });
 
-            // 検索していないときは API summary がそのまま画面の金額に使われる
             let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
             assert_eq!(unfiltered.views.len(), 2);
             assert_eq!(
@@ -1588,6 +1570,52 @@ mod tests {
                     .summary
                     .map(|summary| summary.total_purchase_amount),
                 Some(rust_decimal_macros::dec!(888888))
+            );
+        });
+    }
+
+    #[test]
+    fn show_all_resets_when_summary_stops_drawing_the_chart() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let dividends = RwSignal::new(DividendMaps::default());
+            let show_all = RwSignal::new(true);
+            let views: Vec<HoldingView> =
+                (0..21).map(|id| holding_view(&balance_row(id))).collect();
+            let summary_view = |views: Vec<HoldingView>| {
+                PortfolioSummary(
+                    PortfolioSummaryProps::builder()
+                        .views(views)
+                        .total_count(21)
+                        .is_filtered(true)
+                        .on_clear_filter(|| {})
+                        .summary(None)
+                        .dividends(dividends)
+                        .show_all(show_all)
+                        .build(),
+                )
+            };
+
+            let _ = summary_view(views.clone());
+            assert!(show_all.get_untracked());
+
+            let _ = summary_view(Vec::new());
+            assert!(!show_all.get_untracked());
+
+            show_all.set(true);
+            let mut zero = balance_row(9999);
+            zero.total_purchase_amount = rust_decimal_macros::dec!(0);
+            zero.market_value = rust_decimal_macros::dec!(0);
+            let _ = summary_view(vec![holding_view(&zero)]);
+            assert!(!show_all.get_untracked());
+
+            let _ = summary_view(views);
+            assert!(!show_all.get_untracked());
+            let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
+            assert_eq!(display.visible_count, 20);
+            assert_eq!(
+                display.toggle_label.as_deref(),
+                Some("残り1銘柄を表示（全21）")
             );
         });
     }

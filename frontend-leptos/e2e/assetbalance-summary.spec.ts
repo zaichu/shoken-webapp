@@ -38,8 +38,7 @@ const SONY = {
   profit_loss_rate: 6.67,
 };
 
-// 行の合計(取得総額 400,000 / 評価額 420,000)と一致しない全体集計。
-// 絞り込み中に誤って API の summary を使うと、この値が画面に出てしまう。
+// 行の合計と一致しない値にし、絞り込み中に API の summary が誤用されると検出できるようにする
 const API_SUMMARY = {
   total_purchase_amount: 123456789,
   total_market_value: 987654321,

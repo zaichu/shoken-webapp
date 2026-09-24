@@ -1,0 +1,319 @@
+{
+  "order_cases": [
+    {
+      "name": "desc_by_purchase",
+      "items": [
+        { "id": "low", "purchase": 100000, "market": 0 },
+        { "id": "high", "purchase": 600000, "market": 0 },
+        { "id": "mid", "purchase": 300000, "market": 0 }
+      ],
+      "expected_ids": ["high", "mid", "low"],
+      "expected_percentages": [60, 30, 10]
+    },
+    {
+      "name": "ties_keep_input_order",
+      "items": [
+        { "id": "tie_a", "purchase": 100000, "market": 0 },
+        { "id": "top", "purchase": 400000, "market": 0 },
+        { "id": "tie_b", "purchase": 100000, "market": 0 },
+        { "id": "tie_c", "purchase": 100000, "market": 0 },
+        { "id": "tie_d", "purchase": 100000, "market": 0 }
+      ],
+      "expected_ids": ["top", "tie_a", "tie_b", "tie_c", "tie_d"],
+      "expected_percentages": [50, 12.5, 12.5, 12.5, 12.5]
+    },
+    {
+      "name": "excludes_zero_purchase_without_market",
+      "items": [
+        { "id": "zero_no_market", "purchase": 0, "market": 0 },
+        { "id": "kept", "purchase": 100000, "market": 0 },
+        { "id": "zero_with_market", "purchase": 0, "market": 50000 },
+        { "id": "null_market", "purchase": 0, "market": null }
+      ],
+      "expected_ids": ["kept", "zero_with_market"],
+      "expected_percentages": [100, 0]
+    },
+    {
+      "name": "zero_total_keeps_input_order",
+      "items": [
+        { "id": "b", "purchase": 0, "market": 50000 },
+        { "id": "a", "purchase": 0, "market": 80000 }
+      ],
+      "expected_ids": ["b", "a"],
+      "expected_percentages": [null, null]
+    },
+    {
+      "name": "empty_when_nothing_valued",
+      "items": [
+        { "id": "x", "purchase": 0, "market": 0 },
+        { "id": "y", "purchase": 0, "market": null }
+      ],
+      "expected_ids": [],
+      "expected_percentages": []
+    },
+    {
+      "name": "negative_total_orders_by_percentage",
+      "items": [
+        { "id": "small_negative", "purchase": -100000, "market": 50000 },
+        { "id": "big_negative", "purchase": -300000, "market": 60000 }
+      ],
+      "expected_ids": ["big_negative", "small_negative"],
+      "expected_percentages": [75, 25]
+    }
+  ],
+  "display_cases": [
+    {
+      "name": "exactly_20_items",
+      "items": [
+        { "id": "m11", "purchase": 100000, "market": 0 },
+        { "id": "m12", "purchase": 90000, "market": 0 },
+        { "id": "m13", "purchase": 80000, "market": 0 },
+        { "id": "m14", "purchase": 70000, "market": 0 },
+        { "id": "m15", "purchase": 60000, "market": 0 },
+        { "id": "m16", "purchase": 50000, "market": 0 },
+        { "id": "m17", "purchase": 40000, "market": 0 },
+        { "id": "m18", "purchase": 30000, "market": 0 },
+        { "id": "m19", "purchase": 20000, "market": 0 },
+        { "id": "m20", "purchase": 10000, "market": 0 },
+        { "id": "m01", "purchase": 200000, "market": 0 },
+        { "id": "m02", "purchase": 190000, "market": 0 },
+        { "id": "m03", "purchase": 180000, "market": 0 },
+        { "id": "m04", "purchase": 170000, "market": 0 },
+        { "id": "m05", "purchase": 160000, "market": 0 },
+        { "id": "m06", "purchase": 150000, "market": 0 },
+        { "id": "m07", "purchase": 140000, "market": 0 },
+        { "id": "m08", "purchase": 130000, "market": 0 },
+        { "id": "m09", "purchase": 120000, "market": 0 },
+        { "id": "m10", "purchase": 110000, "market": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [
+            "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10",
+            "m11", "m12", "m13", "m14", "m15", "m16", "m17", "m18", "m19", "m20"
+          ],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": [
+            "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10",
+            "m11", "m12", "m13", "m14", "m15", "m16", "m17", "m18", "m19", "m20"
+          ],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "boundary_tie_21_items",
+      "items": [
+        { "id": "m21", "purchase": 100000, "market": 0 },
+        { "id": "m10", "purchase": 200000, "market": 0 },
+        { "id": "m20", "purchase": 100000, "market": 0 },
+        { "id": "m01", "purchase": 290000, "market": 0 },
+        { "id": "m19", "purchase": 110000, "market": 0 },
+        { "id": "m02", "purchase": 280000, "market": 0 },
+        { "id": "m18", "purchase": 120000, "market": 0 },
+        { "id": "m03", "purchase": 270000, "market": 0 },
+        { "id": "m17", "purchase": 130000, "market": 0 },
+        { "id": "m04", "purchase": 260000, "market": 0 },
+        { "id": "m16", "purchase": 140000, "market": 0 },
+        { "id": "m05", "purchase": 250000, "market": 0 },
+        { "id": "m15", "purchase": 150000, "market": 0 },
+        { "id": "m06", "purchase": 240000, "market": 0 },
+        { "id": "m14", "purchase": 160000, "market": 0 },
+        { "id": "m07", "purchase": 230000, "market": 0 },
+        { "id": "m13", "purchase": 170000, "market": 0 },
+        { "id": "m08", "purchase": 220000, "market": 0 },
+        { "id": "m12", "purchase": 180000, "market": 0 },
+        { "id": "m09", "purchase": 210000, "market": 0 },
+        { "id": "m11", "purchase": 190000, "market": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [
+            "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10",
+            "m11", "m12", "m13", "m14", "m15", "m16", "m17", "m18", "m19", "m21"
+          ],
+          "others": { "count": 1, "percentage": 2.5 },
+          "toggle_label": "残り1銘柄を表示（全21）",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": [
+            "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10",
+            "m11", "m12", "m13", "m14", "m15", "m16", "m17", "m18", "m19", "m21",
+            "m20"
+          ],
+          "others": null,
+          "toggle_label": "上位20件のみ表示",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "others_sum_22_items",
+      "items": [
+        { "id": "t2", "purchase": 5000, "market": 0 },
+        { "id": "a01", "purchase": 190000, "market": 0 },
+        { "id": "t1", "purchase": 5000, "market": 0 },
+        { "id": "a19", "purchase": 10000, "market": 0 },
+        { "id": "a18", "purchase": 20000, "market": 0 },
+        { "id": "a17", "purchase": 30000, "market": 0 },
+        { "id": "a16", "purchase": 40000, "market": 0 },
+        { "id": "a15", "purchase": 50000, "market": 0 },
+        { "id": "a14", "purchase": 60000, "market": 0 },
+        { "id": "a13", "purchase": 70000, "market": 0 },
+        { "id": "a12", "purchase": 80000, "market": 0 },
+        { "id": "a11", "purchase": 90000, "market": 0 },
+        { "id": "a10", "purchase": 100000, "market": 0 },
+        { "id": "a09", "purchase": 110000, "market": 0 },
+        { "id": "a08", "purchase": 120000, "market": 0 },
+        { "id": "a07", "purchase": 130000, "market": 0 },
+        { "id": "a06", "purchase": 140000, "market": 0 },
+        { "id": "a05", "purchase": 150000, "market": 0 },
+        { "id": "a04", "purchase": 160000, "market": 0 },
+        { "id": "a03", "purchase": 170000, "market": 0 },
+        { "id": "a02", "purchase": 180000, "market": 0 },
+        { "id": "big", "purchase": 590000, "market": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [
+            "big", "a01", "a02", "a03", "a04", "a05", "a06", "a07", "a08", "a09",
+            "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"
+          ],
+          "others": { "count": 2, "percentage": 0.4 },
+          "toggle_label": "残り2銘柄を表示（全22）",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": [
+            "big", "a01", "a02", "a03", "a04", "a05", "a06", "a07", "a08", "a09",
+            "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19",
+            "t2", "t1"
+          ],
+          "others": null,
+          "toggle_label": "上位20件のみ表示",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "zero_total_21_items",
+      "items": [
+        { "id": "z01", "purchase": 0, "market": 50000 },
+        { "id": "z02", "purchase": 0, "market": 50000 },
+        { "id": "z03", "purchase": 0, "market": 50000 },
+        { "id": "z04", "purchase": 0, "market": 50000 },
+        { "id": "z05", "purchase": 0, "market": 50000 },
+        { "id": "z06", "purchase": 0, "market": 50000 },
+        { "id": "z07", "purchase": 0, "market": 50000 },
+        { "id": "z08", "purchase": 0, "market": 50000 },
+        { "id": "z09", "purchase": 0, "market": 50000 },
+        { "id": "z10", "purchase": 0, "market": 50000 },
+        { "id": "z11", "purchase": 0, "market": 50000 },
+        { "id": "z12", "purchase": 0, "market": 50000 },
+        { "id": "z13", "purchase": 0, "market": 50000 },
+        { "id": "z14", "purchase": 0, "market": 50000 },
+        { "id": "z15", "purchase": 0, "market": 50000 },
+        { "id": "z16", "purchase": 0, "market": 50000 },
+        { "id": "z17", "purchase": 0, "market": 50000 },
+        { "id": "z18", "purchase": 0, "market": 50000 },
+        { "id": "z19", "purchase": 0, "market": 50000 },
+        { "id": "z20", "purchase": 0, "market": 50000 },
+        { "id": "z21", "purchase": 0, "market": 50000 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [
+            "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
+            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20"
+          ],
+          "others": null,
+          "toggle_label": "残り1銘柄を表示（全21）",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": [
+            "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
+            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20",
+            "z21"
+          ],
+          "others": null,
+          "toggle_label": "上位20件のみ表示",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "two_items",
+      "items": [
+        { "id": "t_a", "purchase": 100000, "market": 0 },
+        { "id": "t_b", "purchase": 300000, "market": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": ["t_b", "t_a"],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3 xl:grid-cols-2"
+        },
+        {
+          "show_all": true,
+          "visible_ids": ["t_b", "t_a"],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "one_item",
+      "items": [
+        { "id": "single", "purchase": 500000, "market": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": ["single"],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": ["single"],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3"
+        }
+      ]
+    },
+    {
+      "name": "empty",
+      "items": [],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3"
+        }
+      ]
+    }
+  ]
+}
