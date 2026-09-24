@@ -121,3 +121,26 @@ fn hyphenated_instrument_names_are_not_formatted_as_dates() {
     assert_eq!(group_label("eMAXIS-Slim"), "eMAXIS-Slim");
     assert_eq!(group_label("Alpha-Fund-A"), "Alpha-Fund-A");
 }
+#[test]
+fn next_year_option_index_cycles_between_first_and_last() {
+    assert_eq!(next_year_option_index(Some(0), 3, "ArrowDown"), Some(1));
+    assert_eq!(next_year_option_index(Some(2), 3, "ArrowDown"), Some(0));
+    assert_eq!(next_year_option_index(Some(2), 3, "ArrowRight"), Some(0));
+    assert_eq!(next_year_option_index(Some(0), 3, "ArrowUp"), Some(2));
+    assert_eq!(next_year_option_index(Some(1), 3, "ArrowUp"), Some(0));
+    assert_eq!(next_year_option_index(Some(0), 3, "ArrowLeft"), Some(2));
+}
+#[test]
+fn next_year_option_index_home_end_and_no_focused_option() {
+    assert_eq!(next_year_option_index(Some(2), 3, "Home"), Some(0));
+    assert_eq!(next_year_option_index(Some(0), 3, "End"), Some(2));
+    assert_eq!(next_year_option_index(None, 3, "ArrowDown"), Some(0));
+    assert_eq!(next_year_option_index(None, 3, "ArrowUp"), Some(2));
+}
+#[test]
+fn next_year_option_index_returns_none_without_options_or_for_other_keys() {
+    assert_eq!(next_year_option_index(Some(0), 0, "ArrowDown"), None);
+    assert_eq!(next_year_option_index(None, 0, "End"), None);
+    assert_eq!(next_year_option_index(Some(0), 3, "Enter"), None);
+    assert_eq!(next_year_option_index(Some(0), 3, "Escape"), None);
+}

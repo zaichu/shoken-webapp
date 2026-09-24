@@ -18,6 +18,7 @@ use crate::session::use_session;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
+use wasm_bindgen::JsCast;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
@@ -433,12 +434,41 @@ fn CalendarDateButton(
     }
 }
 
+fn next_year_option_index(current: Option<usize>, option_count: usize, key: &str) -> Option<usize> {
+    if option_count == 0 {
+        return None;
+    }
+    match key {
+        "ArrowDown" | "ArrowRight" => Some(current.map_or(0, |i| (i + 1) % option_count)),
+        "ArrowUp" | "ArrowLeft" => {
+            Some(current.map_or(option_count - 1, |i| (i + option_count - 1) % option_count))
+        }
+        "Home" => Some(0),
+        "End" => Some(option_count - 1),
+        _ => None,
+    }
+}
+
+fn focus_year_option(index: usize) {
+    let Some(element) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id(&format!("receipts-year-option-{index}")))
+    else {
+        return;
+    };
+    if let Some(option) = element.dyn_ref::<web_sys::HtmlElement>() {
+        let _ = option.focus();
+    }
+}
+
 #[component]
 fn YearPicker(
     search: RwSignal<ReceiptSearch>,
     years: Vec<SearchOption>,
     is_open: RwSignal<bool>,
 ) -> impl IntoView {
+    let option_count = years.len();
+    let trigger_ref = NodeRef::<leptos::html::Button>::new();
     let label_search = search;
     let label_years = years.clone();
     let selected_label = move || {
@@ -459,6 +489,7 @@ fn YearPicker(
     view! {
         <div class="relative">
             <button
+                node_ref=trigger_ref
                 type="button"
                 aria-label="年を選択"
                 aria-haspopup="listbox"
@@ -469,6 +500,25 @@ fn YearPicker(
                     "w-full rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-amber-900 transition-colors"
                 }
                 on:click=move |_| toggle_open.update(|open| *open = !*open)
+                on:keydown=move |event| {
+                    if !is_open.get() {
+                        return;
+                    }
+                    let index = match event.key().as_str() {
+                        "ArrowDown" | "ArrowRight" => Some(0),
+                        "ArrowUp" | "ArrowLeft" => option_count.checked_sub(1),
+                        "Escape" => {
+                            event.prevent_default();
+                            is_open.set(false);
+                            None
+                        }
+                        _ => None,
+                    };
+                    if let Some(index) = index {
+                        event.prevent_default();
+                        focus_year_option(index);
+                    }
+                }
             >
                 {selected_label}
             </button>
@@ -483,14 +533,17 @@ fn YearPicker(
                             {options
                                 .clone()
                                 .into_iter()
-                                .map(|year| {
+                                .enumerate()
+                                .map(|(index, year)| {
                                     let value = year.value.clone();
                                     let selected_value = year.value.clone();
                                     let class_value = value.clone();
                                     let click_search = toggle_search;
                                     let click_open = toggle_open;
+                                    let keydown_open = toggle_open;
                                     view! {
                                         <button
+                                            id={format!("receipts-year-option-{index}")}
                                             type="button"
                                             role="option"
                                             aria-selected=move || click_search.with(|state| state.date_inputs.year_value == selected_value)
@@ -502,6 +555,21 @@ fn YearPicker(
                                             on:click=move |_| {
                                                 click_open.set(false);
                                                 click_search.update(|state| state.select_year(value.clone()));
+                                            }
+                                            on:keydown=move |event| {
+                                                let key = event.key();
+                                                if key == "Escape" {
+                                                    event.prevent_default();
+                                                    keydown_open.set(false);
+                                                    if let Some(trigger) = trigger_ref.get() {
+                                                        let _ = trigger.focus();
+                                                    }
+                                                } else if let Some(next) =
+                                                    next_year_option_index(Some(index), option_count, &key)
+                                                {
+                                                    event.prevent_default();
+                                                    focus_year_option(next);
+                                                }
                                             }
                                         >
                                             {year.label}
