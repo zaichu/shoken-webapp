@@ -8,6 +8,9 @@ import { defineConfig, devices } from '@playwright/test';
  * - assetbalance-flow は EmptyState のみ（検索・CSV・削除は #917〜#919 の範囲）
  * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
  */
+const port = process.env.LEPTOS_E2E_PORT ?? '8081';
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: '../frontend/e2e',
   testMatch: [
@@ -25,7 +28,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:8081',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -36,9 +39,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'trunk serve --port 8081 --no-autoreload',
-    url: 'http://127.0.0.1:8081',
-    reuseExistingServer: true,
+    command: `trunk serve --port ${port} --no-autoreload`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },
 });

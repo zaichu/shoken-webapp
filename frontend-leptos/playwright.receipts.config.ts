@@ -6,6 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
  * - testDir は frontend-leptos/e2e を指す
  * - リクエスト回数・順序でキャッシュ挙動を検証するため API モックは各spec内で行う
  */
+const port = process.env.LEPTOS_E2E_PORT ?? '8081';
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: './e2e',
   testMatch: ['**/*.spec.ts'],
@@ -16,7 +19,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:8081',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -27,9 +30,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'trunk serve --port 8081 --no-autoreload',
-    url: 'http://127.0.0.1:8081',
-    reuseExistingServer: true,
+    command: `trunk serve --port ${port} --no-autoreload`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },
 });
