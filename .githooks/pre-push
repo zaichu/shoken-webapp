@@ -1,20 +1,22 @@
 #!/bin/bash
-# pre-push hook: openapi.json / api.ts の同期チェック、frontend-leptos の clippy/test
-# backend/src の変更があれば openapi.json と api.ts の更新漏れを、
-# frontend-leptos の変更があれば clippy と test の失敗を検出する
 
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
+HEAD_SHA=$(git rev-parse HEAD)
 
-# push 対象のコミットに含まれる変更ファイルを確認
 # stdin から "local_ref local_sha remote_ref remote_sha" を読み取る
 while read local_ref local_sha remote_ref remote_sha; do
-  # 新規ブランチの場合は origin/main との差分
+  # ブランチ削除時は local_sha がゼロになる
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+
+  # 差分が取れない場合は全ファイルを対象にする(検査をスキップしない)
   if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
-    changed=$(git diff --name-only "origin/main...$local_sha" 2>/dev/null || true)
+    changed=$(git diff --name-only "origin/main...$local_sha" 2>/dev/null || git ls-files)
   else
-    changed=$(git log --name-only --format="" "$remote_sha..$local_sha" 2>/dev/null || true)
+    changed=$(git log --name-only --format="" "$remote_sha..$local_sha" 2>/dev/null || git ls-files)
   fi
 
   if echo "$changed" | grep -q "^backend/src/"; then
@@ -22,8 +24,12 @@ while read local_ref local_sha remote_ref remote_sha; do
   fi
 
   if echo "$changed" | grep -q "^frontend-leptos/"; then
-    (cd "$REPO_ROOT/frontend-leptos" && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
-    (cd "$REPO_ROOT/frontend-leptos" && cargo test)
+    if [ "$local_sha" = "$HEAD_SHA" ]; then
+      (cd "$REPO_ROOT/frontend-leptos" && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
+      (cd "$REPO_ROOT/frontend-leptos" && cargo test)
+    else
+      echo "⚠️  push 対象コミットが HEAD と異なるため frontend-leptos の clippy/test をスキップします"
+    fi
   fi
 done
 

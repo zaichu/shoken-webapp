@@ -1,13 +1,12 @@
 #!/bin/bash
-# pre-commit hook: frontend-leptos の fmt チェック
-# ステージされた変更に frontend-leptos の .rs ファイルがあれば cargo fmt --check を実行する
 
 set -euo pipefail
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
-
 if git diff --cached --name-only | grep -q "^frontend-leptos/.*\.rs$"; then
-  if ! (cd "$REPO_ROOT/frontend-leptos" && cargo fmt --check); then
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' EXIT
+  git checkout-index -a --prefix="$TMP/"
+  if ! (cd "$TMP/frontend-leptos" && cargo fmt --check); then
     echo ""
     echo "❌ frontend-leptos に fmt 漏れがあります。以下を実行してから再度コミットしてください:"
     echo "   (cd frontend-leptos && cargo fmt)"
