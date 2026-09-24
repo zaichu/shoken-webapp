@@ -25,7 +25,7 @@ use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
 use crate::security_link::SecurityCodeLink;
 use crate::session::{use_session, SessionStore};
-use crate::ui::{Loading, PageHeader};
+use crate::ui::PageHeader;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -33,7 +33,6 @@ use rust_decimal::Decimal;
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
 const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
-const ASSET_BALANCE_LIST_LIMIT: usize = ASSET_BALANCE_LIST_PER_PAGE * ASSET_BALANCE_LIST_MAX_PAGES;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
@@ -692,19 +691,17 @@ impl AssetBalanceCsvStore {
                 self.update_csv(generation, |state| state.finish_delete(Ok(())));
                 // 削除確定後に届く一覧取得・配当ポーリングの遅れ結果を捨てる
                 self.data_ops.update(DataOps::invalidate);
-                // 未取得の一覧に空データを作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
-                self.balances.update(|slot| {
-                    if let Some((cached, Ok(loaded))) = slot.as_mut() {
-                        if *cached == generation {
-                            *loaded = LoadedAssetBalances {
-                                rows: Vec::new(),
-                                total: 0,
-                                summary: None,
-                                facets: None,
-                            };
-                        }
-                    }
-                });
+                // DELETE 成功後は DB が空なので、未取得でも空を確定して読み込み表示を残さない
+                self.balances.set(Some((
+                    generation,
+                    Ok(LoadedAssetBalances {
+                        rows: Vec::new(),
+                        total: 0,
+                        summary: None,
+                        facets: None,
+                        truncated: false,
+                    }),
+                )));
                 self.dividends.set(DividendMaps::default());
                 self.lookup.update(|store| store.clear());
             }
@@ -1148,13 +1145,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 } else {
                                     loaded.rows.clone()
                                 };
-                                let warning = (!has_csv_file
-                                    && loaded.total > ASSET_BALANCE_LIST_LIMIT)
-                                    .then(|| {
-                                        format!(
-                                            "一覧は最大{ASSET_BALANCE_LIST_LIMIT}件まで表示しています。未表示の銘柄がある可能性があります。"
-                                        )
-                                    });
+                                let warning = (!has_csv_file && loaded.truncated)
+                                    .then(truncated_list_warning);
                                 view! {
                                     <AssetBalanceContent
                                         state=state
@@ -2718,6 +2710,7 @@ mod tests {
                     total: 1,
                     summary: None,
                     facets: None,
+                    truncated: false,
                 }),
             )));
             let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
@@ -2749,6 +2742,31 @@ mod tests {
     }
 
     #[test]
+    fn delete_success_without_cached_list_sets_empty() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+            store.update_csv(generation, |state| state.deleting = true);
+
+            store.apply_delete_result(generation, Ok(()));
+
+            let loaded = balances
+                .get_untracked()
+                .and_then(|(cached, result)| (cached == generation).then_some(result))
+                .and_then(|result| result.ok());
+            assert_eq!(
+                loaded.map(|loaded| (loaded.rows.len(), loaded.total)),
+                Some((0, 0)),
+                "一覧未取得でも削除成功は空一覧を確定させ、読み込み表示を残さない"
+            );
+        });
+    }
+
+    #[test]
     fn apply_loaded_asset_balances_replaces_same_generation_list() {
         let owner = Owner::new();
         owner.with(|| {
@@ -2762,6 +2780,7 @@ mod tests {
                     total: 1,
                     summary: None,
                     facets: None,
+                    truncated: false,
                 }),
             )));
             let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
@@ -2779,6 +2798,7 @@ mod tests {
                     total: 1,
                     summary: None,
                     facets: None,
+                    truncated: false,
                 },
                 balances,
                 dividends,
