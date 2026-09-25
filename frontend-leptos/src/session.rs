@@ -1,5 +1,6 @@
 use crate::api::{ApiClient, ApiError};
 use crate::dto::{MessageResponse, SessionUser};
+use crate::pending_logout;
 use leptos::prelude::*;
 
 fn oauth_authorize_url() -> String {
@@ -94,10 +95,16 @@ impl SessionStore {
     }
 
     pub async fn logout(&self) {
+        // 送信途中で閉じられても起動時に再送できるよう、結果を待たず先に記録する
+        pending_logout::mark();
         self.mark_unauthenticated();
         self.loaded.set(true);
         let client = ApiClient::default_client();
-        let _ = client.delete_empty("/api/v1/session").await;
+        if pending_logout::is_finished(&client.delete_empty("/api/v1/session").await) {
+            pending_logout::clear();
+        } else {
+            pending_logout::start_retry_loop();
+        }
     }
 
     pub async fn delete_account(&self) -> Result<(), ApiError> {
@@ -140,6 +147,11 @@ pub fn provide_session() -> SessionStore {
     crate::idle::watch_idle_logout(session);
     let startup = session;
     leptos::task::spawn_local(async move {
+        // 保留中はセッション確認を行わず、先にログアウトを完了させる
+        if pending_logout::is_pending() {
+            startup.logout().await;
+            return;
+        }
         startup.check().await;
     });
     session
