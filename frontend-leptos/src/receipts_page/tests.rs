@@ -306,14 +306,16 @@ fn table_groups_carry_group_key_and_row_ids() {
 }
 
 #[test]
-fn card_key_identifies_idless_rows_by_content() {
+fn card_key_separates_idless_rows_by_position() {
     let cells = dividends()[0].cells();
-    let key = card_key("dividend", "", &cells);
+    let key = card_key("dividend", "", &cells, 0);
     assert!(key.starts_with("dividend:p:"));
     assert!(key.contains("日本電信電話"));
-    assert_eq!(key, card_key("dividend", "", &cells));
-    assert_ne!(key, card_key("mutualfund", "", &cells));
-    assert_eq!(card_key("dividend", "old", &cells), "dividend:r:old");
+    assert_eq!(key, card_key("dividend", "", &cells, 0));
+    assert_ne!(key, card_key("dividend", "", &cells, 1));
+    assert_ne!(key, card_key("mutualfund", "", &cells, 0));
+    assert_eq!(card_key("dividend", "old", &cells, 0), "dividend:r:old");
+    assert_eq!(card_key("dividend", "old", &cells, 1), "dividend:r:old");
 }
 
 #[test]

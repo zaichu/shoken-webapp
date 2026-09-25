@@ -1797,11 +1797,11 @@ fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
-// CSVプレビュー等で id を持たない行は、グループや表示位置ではなく内容で識別する
-fn card_key(slug: &str, id: &str, cells: &[ReceiptCell]) -> String {
+// id を持たない行(CSVプレビュー等)は、同一内容の行と区別するため一覧内の位置も含めて識別する
+fn card_key(slug: &str, id: &str, cells: &[ReceiptCell], ordinal: usize) -> String {
     if id.is_empty() {
         let content: Vec<_> = cells.iter().map(cell_text).collect();
-        format!("{slug}:p:{}", content.join("\u{1f}"))
+        format!("{slug}:p:{ordinal}:{}", content.join("\u{1f}"))
     } else {
         format!("{slug}:r:{id}")
     }
@@ -2245,6 +2245,7 @@ fn ReceiptTable(
     let fields = card_fields(tab);
     let labels = summary_labels(tab);
     let slug = TAB_IDS[tab as usize];
+    let mut card_ordinal = 0usize;
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -2258,7 +2259,15 @@ fn ReceiptTable(
                 .rows
                 .iter()
                 .map(|(id, cells)| {
-                    card_row_data(card_key(slug, id, cells), cells, headers, &order, fields)
+                    let row = card_row_data(
+                        card_key(slug, id, cells, card_ordinal),
+                        cells,
+                        headers,
+                        &order,
+                        fields,
+                    );
+                    card_ordinal += 1;
+                    row
                 })
                 .collect();
             (
