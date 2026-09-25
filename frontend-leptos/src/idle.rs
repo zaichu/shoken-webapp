@@ -58,7 +58,10 @@ fn on_idle_timer(timer: &IdleTimer, session: SessionStore) {
 }
 
 fn on_user_activity(timer: &IdleTimer, session: SessionStore) {
-    cross_tab::record_activity();
+    // 未認証タブの操作で認証済みタブのログアウトを延ばさない
+    if session.user.get_untracked().is_some() {
+        cross_tab::record_activity();
+    }
     arm_timer(timer, session, IDLE_TIMEOUT_MS);
 }
 

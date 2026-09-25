@@ -114,3 +114,38 @@ test('片方のタブで操作を続けるともう片方もログアウトせ�
   await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
   await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
+
+test('未認証のタブの操作は最終操作時刻に記録されず、認証済みタブのログアウトを延ばさない', async ({
+  context,
+}) => {
+  const pageA = await context.newPage();
+  const pageB = await context.newPage();
+  await pageA.clock.install();
+  await pageA.route(/\/api\/v1\/session$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_USER),
+    }),
+  );
+  await pageB.route(/\/api\/v1\/session$/, (route) => route.fulfill({ status: 401, body: '{}' }));
+
+  await pageA.goto('/');
+  await pageB.goto('/');
+  await expect(pageA.getByRole('button', { name: 'メニュー' })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+
+  await pageA.clock.fastForward(29 * MINUTE);
+  const activityBefore = await pageA.evaluate(
+    (key) => window.localStorage.getItem(key),
+    ACTIVITY_KEY,
+  );
+  await pageB.mouse.move(200, 200);
+  await pageA.waitForTimeout(500);
+  expect(
+    await pageA.evaluate((key) => window.localStorage.getItem(key), ACTIVITY_KEY),
+  ).toBe(activityBefore);
+
+  await pageA.clock.fastForward(2 * MINUTE);
+  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
