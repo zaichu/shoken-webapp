@@ -224,6 +224,28 @@ fn card_fields_point_at_expected_columns() {
         .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_))));
 }
 
+// 列幅はヘッダーと同じ順で持ち、column_order の並べ替えに追随する
+#[test]
+fn table_column_widths_match_headers_and_follow_column_order() {
+    for tab in ReceiptsTab::ALL {
+        assert_eq!(
+            table_headers(tab).len(),
+            table_column_widths(tab).len(),
+            "{tab:?}: 列幅の数がヘッダー数と一致しない"
+        );
+    }
+    // 口座検索で「口座」列が前に出ても、幅は列に追随して動く
+    let rows = domestic();
+    let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
+    let headers = table_headers(ReceiptsTab::DomesticStock);
+    let widths = table_column_widths(ReceiptsTab::DomesticStock);
+    let account_pos = order
+        .iter()
+        .position(|i| headers[*i] == "口座")
+        .expect("口座列がある");
+    assert_eq!(widths[order[account_pos]], "60px");
+}
+
 #[test]
 fn card_row_data_matches_react_card_fields() {
     let rows = dividends();

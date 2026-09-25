@@ -54,96 +54,94 @@ pub fn ReceiptsPage() -> impl IntoView {
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
     view! {
-        <div class="page-surface max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-none max-sm:before:hidden">
-            <PageHeader
-                title="取引明細"
-                eyebrow="Transactions"
-                description="配当金・国内株式・投資信託の取引明細を管理します。"
-            />
-            {{
-                let failed = store.clone();
-                move || {
-                    failed.error().map(|message| {
-                        view! { <div role="alert">{message}</div> }
-                    })
-                }
-            }}
-            <nav class="mb-2 no-print" aria-label="取引明細タブ">
-                <div
-                    class="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto"
-                    role="tablist"
-                >
-                    {ReceiptsTab::ALL
-                        .iter()
-                        .copied()
-                        .map(|tab| {
-                            view! { <TabButton store=store.clone() tab=tab /> }
-                        })
-                        .collect_view()}
-                </div>
-            </nav>
+        <PageHeader
+            title="取引明細"
+            eyebrow="Transactions"
+            description="配当金・国内株式・投資信託の取引明細を管理します。"
+        />
+        {{
+            let failed = store.clone();
+            move || {
+                failed
+                    .error()
+                    .map(|message| view! { <div role="alert">{message}</div> })
+            }
+        }}
+        <nav class="mb-2 no-print" aria-label="取引明細タブ">
             <div
-                class="mt-0"
-                aria-busy=move || {
-                    busy.auth_loading()
-                        || busy.any_tab_fetching()
-                        || ReceiptsTab::ALL.iter().any(|tab| {
-                            let state = busy.csv_state(*tab);
-                            state.saving || state.deleting
-                        })
-                }
+                class="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto"
+                role="tablist"
             >
-                <div data-testid="receipts-workspace">
-                    {move || {
-                        let workspace = panels_store.clone();
-                        if panels_loading.get() {
-                            view! {
-                                <section class="px-5 py-4" role="status">
-                                    <div class="flex items-center gap-2 text-slate-600">
-                                        <Spinner size="sm" class="" />
-                                        <p class="text-sm">"データを読み込んでいます..."</p>
-                                    </div>
-                                </section>
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                {ReceiptsTab::ALL
-                                    .iter()
-                                    .copied()
-                                    .map(|tab| {
-                                        view! { <TabPanel store=workspace.clone() tab=tab /> }
-                                    })
-                                    .collect_view()}
-                            }
-                                .into_any()
-                        }
-                    }}
-                </div>
+                {ReceiptsTab::ALL
+                    .iter()
+                    .copied()
+                    .map(|tab| {
+                        view! { <TabButton store=store.clone() tab=tab /> }
+                    })
+                    .collect_view()}
+            </div>
+        </nav>
+        <div
+            class="mt-0"
+            aria-busy=move || {
+                busy.auth_loading()
+                    || busy.any_tab_fetching()
+                    || ReceiptsTab::ALL.iter().any(|tab| {
+                        let state = busy.csv_state(*tab);
+                        state.saving || state.deleting
+                    })
+            }
+        >
+            <div data-testid="receipts-workspace">
                 {move || {
-                    let tab = modal_store.active_tab.get();
-                    if !modal_store.csv_state(tab).show_delete_confirm {
-                        return ().into_any();
+                    let workspace = panels_store.clone();
+                    if panels_loading.get() {
+                        view! {
+                            <section class="px-5 py-4" role="status">
+                                <div class="flex items-center gap-2 text-slate-600">
+                                    <Spinner size="sm" class="" />
+                                    <p class="text-sm">"データを読み込んでいます..."</p>
+                                </div>
+                            </section>
+                        }
+                            .into_any()
+                    } else {
+                        view! {
+                            {ReceiptsTab::ALL
+                                .iter()
+                                .copied()
+                                .map(|tab| {
+                                    view! { <TabPanel store=workspace.clone() tab=tab /> }
+                                })
+                                .collect_view()}
+                        }
+                            .into_any()
                     }
-                    let count = modal_store.count(tab);
-                    let deleting_store = modal_store.clone();
-                    let deleting = Memo::new(move |_| deleting_store.csv_state(tab).deleting);
-                    let confirm = modal_store.clone();
-                    let cancel = modal_store.clone();
-                    view! {
-                        <ConfirmDeleteModal
-                            title=format!("{}データの全件削除", tab.label())
-                            description=format!("【{}】のデータをすべて削除します。", tab.label())
-                            item_count=count
-                            confirm_label="削除する"
-                            loading=deleting
-                            on_confirm=move || confirm.confirm_delete_all(tab)
-                            on_cancel=move || cancel.close_delete_confirm(tab)
-                        />
-                    }
-                        .into_any()
                 }}
             </div>
+            {move || {
+                let tab = modal_store.active_tab.get();
+                if !modal_store.csv_state(tab).show_delete_confirm {
+                    return ().into_any();
+                }
+                let count = modal_store.count(tab);
+                let deleting_store = modal_store.clone();
+                let deleting = Memo::new(move |_| deleting_store.csv_state(tab).deleting);
+                let confirm = modal_store.clone();
+                let cancel = modal_store.clone();
+                view! {
+                    <ConfirmDeleteModal
+                        title=format!("{}データの全件削除", tab.label())
+                        description=format!("【{}】のデータをすべて削除します。", tab.label())
+                        item_count=count
+                        confirm_label="削除する"
+                        loading=deleting
+                        on_confirm=move || confirm.confirm_delete_all(tab)
+                        on_cancel=move || cancel.close_delete_confirm(tab)
+                    />
+                }
+                    .into_any()
+            }}
         </div>
     }
 }
@@ -2252,6 +2250,23 @@ fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
+// React 版の列幅。列の並べ替え(商品・口座検索)でも幅は列に追随するため基本順で持ち、
+// 表示時に column_order と同じ並びにする
+// 移植元: frontend/src/pages/Receipt/{Dividend,DomesticStock,Mutualfund}.tsx の width
+fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
+        ReceiptsTab::Dividend => &[
+            "84px", "64px", "64px", "72px", "160px", "72px", "56px", "84px", "64px", "84px",
+        ],
+        ReceiptsTab::DomesticStock => &[
+            "84px", "72px", "156px", "60px", "56px", "76px", "82px", "82px", "82px", "64px", "84px",
+        ],
+        ReceiptsTab::MutualFund => &[
+            "112px", "300px", "60px", "112px", "98px", "128px", "116px", "112px", "106px", "118px",
+        ],
+    }
+}
+
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
 // マウント中だけ生存させたいので thread_local で管理する
 type TableHeightObserver = (
@@ -2321,6 +2336,7 @@ fn ReceiptTable(
         })
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
+    let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
     let table_scroll = NodeRef::<leptos::html::Div>::new();
     let table_max_height = RwSignal::new(Option::<f64>::None);
     let measure_table = move || {
@@ -2399,14 +2415,19 @@ fn ReceiptTable(
                         .unwrap_or_default()
                 }
             >
-                <table class="min-w-full border-collapse text-sm">
+                <table class="w-full table-fixed border-collapse text-sm">
                     <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
                         <tr class="bg-slate-50">
                             {headers
                                 .iter()
-                                .map(|header| {
+                                .zip(widths.iter())
+                                .map(|(header, width)| {
                                     view! {
-                                        <th class="whitespace-nowrap px-3 py-2 text-center font-black">
+                                        <th
+                                            class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-center font-black"
+                                            style:width=*width
+                                            style:max-width=*width
+                                        >
                                             {*header}
                                         </th>
                                     }
@@ -2421,14 +2442,14 @@ fn ReceiptTable(
                                 let count = group.rows.len();
                                 view! {
                                     <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold">
-                                        <td colspan={headers.len() - 3} class="whitespace-nowrap px-3 py-2">
+                                        <td colspan={headers.len() - 3} class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">
                                             {group.label.clone()}
                                             <span class="ml-2 text-xs text-slate-600">{format!("{count}件")}</span>
                                         </td>
                                         {group
                                             .summary
                                             .iter()
-                                            .map(|value| view! { <td class="whitespace-nowrap px-3 py-2 text-right font-mono">{value.clone()}</td> })
+                                            .map(|value| view! { <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-right font-mono">{value.clone()}</td> })
                                             .collect_view()}
                                     </tr>
                                     {group
@@ -2442,19 +2463,19 @@ fn ReceiptTable(
                                                         .into_iter()
                                                         .map(|cell| match cell {
                                                             ReceiptCell::SecurityCode(code) => view! {
-                                                                <td class="whitespace-nowrap px-3 py-2 text-center">
+                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-center">
                                                                     <SecurityCodeLink value=code />
                                                                 </td>
                                                             }
                                                             .into_any(),
                                                             ReceiptCell::InstrumentName { name, code } => view! {
-                                                                <td class="whitespace-nowrap px-3 py-2">
+                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">
                                                                     <CopyableInstrumentName name=name code=code.unwrap_or_default() />
                                                                 </td>
                                                             }
                                                             .into_any(),
                                                             ReceiptCell::Text(value) => view! {
-                                                                <td class="whitespace-nowrap px-3 py-2">{value}</td>
+                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">{value}</td>
                                                             }
                                                             .into_any(),
                                                         })
