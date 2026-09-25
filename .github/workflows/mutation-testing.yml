@@ -198,15 +198,15 @@ jobs:
       - name: Install cargo-mutants
         run: cargo install --locked cargo-mutants@27.1.0
 
-      # cargo-mutants は missed mutant があると終了コード 2 を返すが、baseline 測定では
-      # missed の存在は正常なため 2 だけ許容する。ビルド失敗等の他コードは失敗のまま。
+      # cargo-mutants は missed mutant で終了コード 2、時間切れで 3 を返すが、baseline
+      # 測定ではどちらも正常なため許容する。ビルド失敗等の他コードは失敗のまま。
       - name: Run cargo-mutants shard
         run: |
           set +e
           cargo mutants -j 4 --shard ${{ matrix.shard }}/4
           code=$?
           set -e
-          if [ "$code" -eq 2 ]; then exit 0; fi
+          if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
           exit "$code"
         env:
           SQLX_OFFLINE: "true"
