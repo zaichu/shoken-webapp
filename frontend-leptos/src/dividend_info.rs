@@ -38,6 +38,18 @@ fn format_percentage_value(value: f64) -> String {
     format!("{:.2}%", to_fixed(value, 2))
 }
 
+fn investment_amount(asset: &AssetBalance) -> f64 {
+    asset.average_purchase_price.to_f64().unwrap_or(0.0) * asset.shares.to_f64().unwrap_or(0.0)
+}
+
+fn dividend_rate(amount: f64, investment: f64) -> f64 {
+    if investment > 0.0 && amount > 0.0 {
+        amount / investment * 100.0
+    } else {
+        0.0
+    }
+}
+
 fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     if loading {
         "取得中...".to_string()
@@ -189,31 +201,11 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     let per_share = move || store.per_share.get();
     let loading = move || store.per_share_loading.get();
 
-    let investment = move || {
-        asset()
-            .map(|a| {
-                a.average_purchase_price.to_f64().unwrap_or(0.0) * a.shares.to_f64().unwrap_or(0.0)
-            })
-            .unwrap_or(0.0)
-    };
+    let investment = move || asset().map(|a| investment_amount(&a)).unwrap_or(0.0);
     let gross = totals.total_dividends_before_tax.to_f64().unwrap_or(0.0);
     let net = totals.total_net_amount_received.to_f64().unwrap_or(0.0);
-    let gross_rate = move || {
-        let investment = investment();
-        if investment > 0.0 && gross > 0.0 {
-            gross / investment * 100.0
-        } else {
-            0.0
-        }
-    };
-    let net_rate = move || {
-        let investment = investment();
-        if investment > 0.0 && net > 0.0 {
-            net / investment * 100.0
-        } else {
-            0.0
-        }
-    };
+    let gross_rate = move || dividend_rate(gross, investment());
+    let net_rate = move || dividend_rate(net, investment());
 
     let average_price_text = move || {
         asset()
@@ -592,5 +584,52 @@ mod tests {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(0.9564), "0.96%");
         assert_eq!(format_percentage_value(f64::NAN), "-");
+    }
+
+    #[test]
+    fn is_current_code_requires_matching_session_generation_and_code() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = authenticated_session();
+            let generation = session.generation.get_untracked();
+            let store = DividendInfoStore::new(session);
+
+            assert!(!store.is_current_code(generation, "7203"));
+            store.current.set(Some((generation, "7203".to_string())));
+            assert!(store.is_current_code(generation, "7203"));
+            assert!(!store.is_current_code(generation, "6758"));
+            assert!(!store.is_current_code(generation + 1, "7203"));
+            session.mark_unauthenticated();
+            assert!(!store.is_current_code(generation, "7203"));
+        });
+    }
+
+    #[test]
+    fn investment_amount_is_price_times_shares() {
+        let row = AssetBalance {
+            id: "id".to_string(),
+            security_code: "7203".to_string(),
+            security_name: "銘柄".to_string(),
+            shares: dec!(100),
+            executing_shares: dec!(0),
+            average_purchase_price: dec!(2500),
+            total_purchase_amount: dec!(250_000),
+            current_price: dec!(2600),
+            daily_change: dec!(50),
+            market_value: dec!(260_000),
+            profit_loss_rate: dec!(4),
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        assert_eq!(investment_amount(&row), 250_000.0);
+    }
+
+    #[test]
+    fn dividend_rate_requires_positive_investment_and_amount() {
+        assert_eq!(dividend_rate(400.0, 10_000.0), 4.0);
+        assert_eq!(dividend_rate(0.0, 10_000.0), 0.0);
+        assert_eq!(dividend_rate(400.0, 0.0), 0.0);
+        assert_eq!(dividend_rate(0.0, 0.0), 0.0);
+        assert!((dividend_rate(400.0, 10_000.0) - 4.0).abs() < 1e-9);
     }
 }

@@ -154,3 +154,16 @@ fn shared_display_cases_match() {
         }
     }
 }
+
+#[test]
+fn collapsed_others_appear_only_when_their_sum_is_positive() {
+    let mut percentages: Vec<Option<f64>> = vec![Some(50.0); 20];
+    percentages.push(Some(0.0));
+    assert!(chart_display(21, &percentages, false).others.is_none());
+    percentages[20] = None;
+    assert!(chart_display(21, &percentages, false).others.is_none());
+    percentages[20] = Some(1.5);
+    let others = chart_display(21, &percentages, false).others.unwrap();
+    assert_eq!(others.count, 1);
+    assert_eq!(others.percentage, 1.5);
+}

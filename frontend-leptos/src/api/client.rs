@@ -361,6 +361,46 @@ mod tests {
             ApiError::Network.user_message(),
             "ネットワーク接続を確認してください"
         );
+        assert_eq!(
+            ApiError::http(400).user_message(),
+            "入力内容を確認してください"
+        );
+        assert_eq!(
+            ApiError::http(403).user_message(),
+            "このリソースへのアクセス権限がありません"
+        );
+        assert_eq!(
+            ApiError::http(418).user_message(),
+            "エラーが発生しました (ステータス: 418)"
+        );
+    }
+
+    #[test]
+    fn display_uses_user_message() {
+        for error in [
+            ApiError::Network,
+            ApiError::Timeout,
+            ApiError::Parse,
+            ApiError::http(404),
+        ] {
+            assert_eq!(format!("{error}"), error.user_message());
+        }
+    }
+
+    #[test]
+    fn base_url_comes_from_build_env_or_empty() {
+        assert_eq!(
+            ApiClient::base_url(),
+            option_env!("SHOKEN_WEBAPI_URL").unwrap_or("")
+        );
+    }
+
+    #[test]
+    fn with_max_retries_overrides_only_retry_count() {
+        let client = ApiClient::auth_client().with_max_retries(7);
+        assert_eq!(client.max_retries, 7);
+        assert_eq!(client.timeout_ms, AUTH_TIMEOUT_MS);
+        assert_eq!(client.retry_delay_ms, AUTH_RETRY_DELAY_MS);
     }
 
     #[test]

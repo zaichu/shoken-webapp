@@ -800,6 +800,12 @@ mod tests {
         assert_eq!(to_fixed(12.5, 0), 13.0);
         assert_eq!(to_fixed(-12.5, 0), -13.0);
         assert_eq!(to_fixed(0.1 + 0.2, 10), 0.3);
+        // 非正規化数は仮数部と指数を別分岐で取り出す
+        assert_eq!(to_fixed(f64::from_bits(1), 2), 0.0);
+        assert!(to_fixed(-f64::from_bits(1), 2).is_sign_negative());
+        // 仮数の最上位ビットが立つ値は暗黙の 1 ビット合成で値が変わる
+        assert_eq!(to_fixed(0.75, 0), 1.0);
+        assert_eq!(to_fixed(-0.75, 0), -1.0);
         let negative_zero = to_fixed(-0.001, 2);
         assert_eq!(negative_zero, 0.0);
         assert!(negative_zero.is_sign_negative());

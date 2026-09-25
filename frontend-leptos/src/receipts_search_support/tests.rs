@@ -130,6 +130,17 @@ fn no_date_keeps_first_name() {
     );
 }
 #[test]
+fn same_date_keeps_first_label() {
+    let rows = [
+        item("9432", "旧名", "2024-06-21"),
+        item("9432", "新名", "2024-06-21"),
+    ];
+    assert_eq!(
+        options(&rows, true, true),
+        vec![option("9432", "9432: 旧名")]
+    );
+}
+#[test]
 fn invalid_initial_date_is_replaced() {
     let mut rows = renamed();
     rows[0].date = "not-a-date";

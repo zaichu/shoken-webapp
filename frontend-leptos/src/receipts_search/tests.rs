@@ -435,6 +435,39 @@ proptest::proptest! {
     }
 }
 
+#[test]
+fn iso_date_rejects_misplaced_separators() {
+    for malformed in ["2024-03001", "2024X03-01", "2024-03X01", "202403-01-"] {
+        assert!(!is_valid_iso_date(malformed), "{malformed}");
+    }
+}
+
+#[test]
+fn iso_date_leap_year_rules() {
+    assert!(is_valid_iso_date("2024-02-29"));
+    assert!(is_valid_iso_date("2000-02-29"));
+    assert!(!is_valid_iso_date("1900-02-29"));
+    assert!(!is_valid_iso_date("2023-02-29"));
+    assert!(!is_valid_iso_date("2024-02-30"));
+}
+
+#[test]
+fn label_token_with_empty_code_is_kept_verbatim() {
+    assert_eq!(parse_search_tokens(":"), vec![":".to_string()]);
+    assert_eq!(parse_search_tokens("9432:"), vec!["9432".to_string()]);
+    assert_eq!(parse_search_tokens("9432："), vec!["9432".to_string()]);
+    // ラベル部に数字・小文字以外を含む場合はラベルとみなさずコロン付きのまま残す
+    assert_eq!(parse_search_tokens("7-:"), vec!["7-:".to_string()]);
+}
+
+#[test]
+fn parse_search_tokens_splits_unquoted_tokens() {
+    assert_eq!(
+        parse_search_tokens("  9432  ＮＴＴ "),
+        vec!["9432".to_string(), "ｎｔｔ".to_string()]
+    );
+}
+
 /// JS の行終端子は改行2種と U+2028/U+2029 だけを含む
 #[test]
 fn js_line_terminator_matches_spec() {

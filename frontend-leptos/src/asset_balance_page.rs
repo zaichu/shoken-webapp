@@ -2085,6 +2085,29 @@ mod tests {
 
         let zero_price = holding_dividend("7203", 10.0, 0.0, &maps);
         assert_eq!(zero_price.yield_value, None);
+
+        // ステータスが pending/error なら per_share 値があっても表示値は出さない
+        let mut maps = maps;
+        maps.per_share.insert("0004".to_string(), 30.0);
+        maps.status
+            .insert("0004".to_string(), "pending".to_string());
+        let pending_with_value = holding_dividend("0004", 10.0, 100.0, &maps);
+        assert_eq!(pending_with_value.per_share, None);
+        assert_eq!(pending_with_value.annual, None);
+        assert_eq!(pending_with_value.yield_value, None);
+
+        for pending in [
+            holding_dividend("0001", 10.0, 100.0, &maps),
+            pending_with_value,
+        ] {
+            assert_eq!(format_dividend_per_share(&pending), "取得中...");
+            assert_eq!(format_dividend_annual(&pending), "取得中...");
+            assert_eq!(format_dividend_yield(&pending), "取得中...");
+        }
+        let error = holding_dividend("0002", 10.0, 100.0, &maps);
+        assert_eq!(format_dividend_per_share(&error), "取得失敗");
+        assert_eq!(format_dividend_annual(&error), "取得失敗");
+        assert_eq!(format_dividend_yield(&error), "取得失敗");
     }
 
     #[test]
@@ -3162,6 +3185,130 @@ mod tests {
                 .data_ops
                 .with_untracked(|ops| ops.is_current_poll(old_poll_rev)));
             assert!(dividends.get_untracked().per_share.is_empty());
+        });
+    }
+
+    #[test]
+    fn valuation_formatters_treat_nan_as_missing() {
+        assert_eq!(format_valuation_amount(Some(f64::NAN)), "—");
+        assert_eq!(format_valuation_rate(Some(f64::NAN), 1), "—");
+    }
+
+    #[test]
+    fn csv_status_text_follows_busy_flags() {
+        for (field, expected) in [
+            ("saving", "データを保存しています..."),
+            ("deleting", "データを削除しています..."),
+            ("previewing", "CSVファイルを解析しています..."),
+        ] {
+            let mut state = CsvTabState::<AssetBalanceCsvRow>::default();
+            match field {
+                "saving" => state.saving = true,
+                "deleting" => state.deleting = true,
+                _ => state.previewing = true,
+            }
+            assert_eq!(csv_status_text(&state), Some(expected));
+        }
+        let state = CsvTabState::<AssetBalanceCsvRow>::default();
+        assert_eq!(csv_status_text(&state), None);
+    }
+
+    #[test]
+    fn csv_store_accessors_reflect_session_and_slots() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let generation = session.generation.get_untracked();
+            let loaded = LoadedAssetBalances {
+                total: 3,
+                rows: vec![balance_row(7203)],
+                summary: None,
+                facets: None,
+                truncated: false,
+            };
+            let balances = RwSignal::new(Some((generation, Ok(loaded))));
+            let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+
+            assert!(!store.is_authenticated());
+            session.user.set(Some(user("alice")));
+            assert!(store.is_authenticated());
+            assert_eq!(store.db_count(), 3);
+            assert!(!store.csv_busy());
+
+            store.update_csv(generation, |state| {
+                state.begin_preview("a.csv".to_string());
+            });
+            assert!(store.csv_busy());
+        });
+    }
+
+    #[test]
+    fn db_count_ignores_stale_generation_balances() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let stale = session.generation.get_untracked() + 1;
+            let loaded = LoadedAssetBalances {
+                total: 5,
+                rows: vec![],
+                summary: None,
+                facets: None,
+                truncated: false,
+            };
+            let balances = RwSignal::new(Some((stale, Ok(loaded))));
+            let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+            session.user.set(Some(user("alice")));
+            assert_eq!(store.db_count(), 0);
+        });
+    }
+
+    #[test]
+    fn asset_balance_result_applies_within_the_same_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            assert!(should_apply_asset_balance_result(&session, generation));
+        });
+    }
+
+    #[test]
+    fn data_ops_reset_clears_inflight_and_error() {
+        let mut ops = DataOps {
+            list_rev: 2,
+            poll_rev: 3,
+            inflight: HashSet::from([2]),
+            refresh_error: Some("x".to_string()),
+        };
+        ops.reset();
+        assert_eq!(ops.list_rev, 3);
+        assert_eq!(ops.poll_rev, 4);
+        assert!(ops.inflight.is_empty());
+        assert!(ops.refresh_error.is_none());
+    }
+
+    #[test]
+    fn delete_confirm_flow_updates_csv_state() {
+        let _ = any_spawner::Executor::init_futures_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+
+            store.open_delete_confirm();
+            assert!(store.csv_state().show_delete_confirm);
+            store.close_delete_confirm();
+            assert!(!store.csv_state().show_delete_confirm);
+
+            store.open_delete_confirm();
+            store.confirm_delete_all();
+            assert!(store.csv_state().deleting);
         });
     }
 }

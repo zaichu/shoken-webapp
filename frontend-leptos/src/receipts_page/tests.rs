@@ -429,6 +429,107 @@ fn security_code_acceptance_matches_react_regex() {
 }
 
 #[test]
+fn kpi_styles_match_tone() {
+    assert_eq!(kpi_card_bg("emerald"), "border-teal-200 bg-teal-50");
+    assert_eq!(kpi_card_bg("red"), "border-rose-100 bg-rose-50");
+    assert_eq!(kpi_card_bg("other"), "border-slate-200 bg-white");
+    assert_eq!(kpi_value_color("emerald"), "text-teal-700");
+    assert_eq!(kpi_value_color("red"), "text-red-500");
+    assert_eq!(kpi_value_color("other"), "text-slate-800");
+}
+
+#[test]
+fn summary_and_empty_hint_labels_match_tabs() {
+    assert_eq!(
+        summary_labels(ReceiptsTab::Dividend),
+        ["配当金", "税額", "受取額"]
+    );
+    assert_eq!(
+        summary_labels(ReceiptsTab::DomesticStock),
+        ["損益", "税額", "税引後"]
+    );
+    assert_eq!(
+        summary_labels(ReceiptsTab::MutualFund),
+        ["実現損益", "税額", "税引損益"]
+    );
+    assert_eq!(
+        empty_hint(ReceiptsTab::Dividend),
+        "配当金明細をCSVで追加してください"
+    );
+    assert_eq!(
+        empty_hint(ReceiptsTab::DomesticStock),
+        "国内株式明細をCSVで追加してください"
+    );
+    assert_eq!(
+        empty_hint(ReceiptsTab::MutualFund),
+        "投資信託明細をCSVで追加してください"
+    );
+}
+
+#[test]
+fn date_input_helpers_follow_field_and_value() {
+    let mut state = ReceiptSearch::new(true);
+    state.date_inputs.month_value = "2026-06".into();
+    state.date_inputs.range_start = "2026-06-01".into();
+    assert_eq!(date_input_value(&state, DateInputField::Month), "2026-06");
+    assert_eq!(
+        date_input_value(&state, DateInputField::RangeStart),
+        "2026-06-01"
+    );
+    assert_eq!(date_input_type(DateInputField::Month), "month");
+    assert_eq!(date_input_type(DateInputField::Date), "date");
+    assert_eq!(date_input_type(DateInputField::RangeEnd), "date");
+    assert_eq!(format_date_input_label("", "年月"), "年月");
+    assert_eq!(format_date_input_label("2026-06-01", "x"), "2026/06/01");
+}
+
+#[test]
+fn visible_date_segment_falls_back_to_month_without_years() {
+    let mut state = ReceiptSearch::new(false);
+    state.date_segment = DateSegment::Year;
+    assert_eq!(visible_date_segment(&state, false), DateSegment::Month);
+    assert_eq!(visible_date_segment(&state, true), DateSegment::Year);
+    state.date_segment = DateSegment::Date;
+    assert_eq!(visible_date_segment(&state, false), DateSegment::Date);
+}
+
+#[test]
+fn group_label_formats_iso_keys_only() {
+    assert_eq!(group_label("2026-06"), "2026年6月");
+    assert_eq!(group_label("2024-03-05"), "2024年3月5日");
+    assert_eq!(group_label("特定"), "特定");
+    assert_eq!(group_label("2026-6"), "2026-6");
+}
+
+#[test]
+fn latest_name_uses_newest_settlement_per_code() {
+    let mut rows = dividends();
+    let mut same_date = match &rows[1] {
+        ReceiptItem::Dividend(row) => row.clone(),
+        _ => panic!("dividend row"),
+    };
+    same_date.security_name = "別名".into();
+    rows.push(ReceiptItem::Dividend(same_date));
+    let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "9432");
+    assert_eq!(groups[0].label, "ＮＴＴ");
+}
+
+#[test]
+fn group_rows_contain_only_matching_rows() {
+    let domestic_rows = domestic();
+    let groups = table_groups(
+        ReceiptsTab::DomesticStock,
+        &domestic_rows,
+        &domestic_rows,
+        "",
+    );
+    assert_eq!(groups[0].rows.len(), 1);
+    let fund_rows = funds();
+    let groups = table_groups(ReceiptsTab::MutualFund, &fund_rows, &fund_rows, "");
+    assert_eq!(groups[0].rows.len(), 1);
+}
+
+#[test]
 fn card_row_data_details_follow_column_reorder() {
     let rows = dividends();
     let query = "特定";

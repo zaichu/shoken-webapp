@@ -814,6 +814,17 @@ mod tests {
         assert_eq!(create_year_month_key("invalid"), "");
         assert_eq!(create_iso_date_key("2023-01-05"), "2023-01-05");
         assert_eq!(create_iso_date_key("invalid"), "");
+        // ハイフン位置だけが違う10桁文字列も日付としては受理しない
+        for malformed in [
+            "2024-03001",
+            "2024X03-01",
+            "2024-03X01",
+            "202403-01-",
+            "X024-03-01",
+        ] {
+            assert!(!valid_iso_date(malformed), "{malformed}");
+            assert_eq!(format_date(malformed), "-", "{malformed}");
+        }
     }
 
     #[test]
