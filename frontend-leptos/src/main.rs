@@ -16,6 +16,7 @@ mod idle;
 mod login_page;
 mod not_found_page;
 mod page;
+mod pending_logout;
 mod receipts;
 mod receipts_csv;
 mod receipts_domain;
