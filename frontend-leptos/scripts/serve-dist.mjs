@@ -38,15 +38,17 @@ const headerRules = (config.headers ?? []).map((rule) => ({
   headers: rule.headers,
 }));
 
-const spaDestination =
-  (config.rewrites ?? []).find((rule) => rule.source === '/(.*)')?.destination ?? '/index.html';
+// SPA fallback は vercel.json の rewrite が決める。無ければデフォルトを補わない
+const spaDestination = (config.rewrites ?? []).find(
+  (rule) => rule.source === '/(.*)',
+)?.destination;
 
+// .wasm はあえて含めない。application/wasm は vercel.json の headers 規則から来る
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.wasm': 'application/wasm',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -61,9 +63,10 @@ createServer((req, res) => {
   let filePath = join(root, safePath);
 
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-    filePath = join(root, spaDestination);
+    // '/' への index.html 割当は静的ホストの既定動作、それ以外は rewrite 設定に従う
+    filePath = pathname === '/' ? join(root, 'index.html') : spaDestination ? join(root, spaDestination) : '';
   }
-  if (!existsSync(filePath)) {
+  if (!filePath || !existsSync(filePath)) {
     res.writeHead(404).end('not found');
     return;
   }
