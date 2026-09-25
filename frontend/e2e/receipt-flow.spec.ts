@@ -100,9 +100,13 @@ async function gotoReceipts(page: Page) {
   }
 }
 
-// 認証確認と一覧取得が終わるまで workspace 内にローディング(role=status)が残る
-function receiptWorkspace(page: Page) {
-  return page.getByTestId('receipts-workspace');
+// 認証確認と一覧取得が終わるまで workspace 内にローディングの section(role=status)が残る。
+// Spinner の svg も role=status を持つため、文言で絞って strict 違反を避ける
+function receiptLoadingSection(page: Page) {
+  return page
+    .getByTestId('receipts-workspace')
+    .getByRole('status')
+    .filter({ hasText: /読み込んでいます|確認しています/ });
 }
 
 test('取引明細ページの初期表示でタブが3つある', async ({ page }) => {
@@ -117,20 +121,22 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   await setupAuthMocks(page, { dividends: [] });
 
   await gotoReceipts(page);
-  const workspace = receiptWorkspace(page);
-  await expect(workspace.getByRole('status')).toBeHidden();
+  await expect(receiptLoadingSection(page)).toBeHidden();
 
-  await expect(workspace.getByText('データがありません')).toBeVisible();
+  await expect(
+    page.getByTestId('receipts-workspace').getByText('データがありません'),
+  ).toBeVisible();
 });
 
 test('配当金データが1件あるとき行が表示される', async ({ page }) => {
   await setupAuthMocks(page, { dividends: DIVIDEND_RECORD });
 
   await gotoReceipts(page);
-  const workspace = receiptWorkspace(page);
-  await expect(workspace.getByRole('status')).toBeHidden();
+  await expect(receiptLoadingSection(page)).toBeHidden();
 
   await expect(
-    workspace.getByRole('cell', { name: 'トヨタ自動車' }),
+    page
+      .getByTestId('receipts-workspace')
+      .getByRole('cell', { name: 'トヨタ自動車' }),
   ).toBeVisible();
 });
