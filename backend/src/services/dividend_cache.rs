@@ -1,6 +1,6 @@
 mod background;
 mod logic;
-mod persistence;
+pub mod persistence;
 
 use crate::errors::ApiError;
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
