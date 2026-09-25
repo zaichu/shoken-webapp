@@ -131,7 +131,7 @@ jobs:
                   }`,
                   { owner, repo, n }
                 );
-                if (result.repository.issue?.state === 'OPEN') linked = true;
+                if (result.repository.issue) linked = true;
               } catch (error) {
                 // 実在しない番号や PR 番号は NOT_FOUND エラーになる → 紐づけなしとして扱う
                 if (!(error.errors ?? []).every((e) => e.type === 'NOT_FOUND')) {
