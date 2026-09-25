@@ -44,7 +44,6 @@ exclude_re = [
     "load_asset_balances",
     "use_receipts_data",
     "use_stock_search",
-    "StockSearch::",
     # セッションストアの非同期/ウィンドウ遷移
     "SessionStore::(check|logout|delete_account|login)",
     "session_invalidated",
@@ -59,9 +58,14 @@ exclude_re = [
     "now_ms",
     # エントリポイント
     "src/main\\.rs",
-    # ループ内インデックス算術の mutant は無限ループ化し時間切れになる
-    "in parse_quoted_token",
-    "PageCollector<T>::push",
+    # 無限ループ化して時間切れになる mutant(baseline で時間切れを確認済み)
+    "replace parse_quoted_token",
+    "replace \\+ with - in parse_quoted_token",
+    "replace \\+= with [*/]= in parse_quoted_token",
+    "PageCollector<T>::push -> bool with true",
+    "replace \\+= with [*/]= in PageCollector<T>::push",
+    "replace && with \\|\\| in PageCollector<T>::push",
+    "delete ! in parse_search_tokens",
     "replace < with > in format_number_with_options",
     "replace \\+= with [*-]= in parse_search_tokens",
     "replace < with == in parse_search_tokens",
@@ -69,24 +73,28 @@ exclude_re = [
     # 等価 mutant
     # Null は末尾の `_ => None` に落ちて同じ結果
     "delete match arm Value::Null in to_finite_amount",
-    # start > end のとき後段の範囲判定でも必ず false になる
-    "delete ! in matches_date_range",
-    # f64 としてパースできる文字列は必ず数字チェックも通るため valid の真偽は結果に影響しない
-    "replace && with \\|\\| in is_negative_text",
-    # index==len では内側の空白スキップが即 break するため同じ結果
-    "replace < with <= in parse_search_tokens",
+    # start 側の `!` 削除は `start.is_empty() && start > end` を作るが、
+    # 空文字列はどの日付よりも小さいため条件は常に false で同じ結果
+    "src/receipts_search\\.rs:201:8: delete ! in matches_date_range",
+    # 外側ループ(92行目)は index==len で内側の空白スキップが即 break するため同じ結果
+    "src/receipts_search\\.rs:92:17: replace < with <= in parse_search_tokens",
+    # index==len では query[index..] が空で chars().next() が None → `?` で None 返却し
+    # ループ脱出の None と同じ結果
+    "src/receipts_search\\.rs:43:17: replace < with <= in parse_quoted_token",
     # code_end==0 のとき label_match=Some(\"\") でも空コードはどの item にも一致せず
     # 名前一致探索へ進み、空コード item があっても返り値は同じ \"\"
     "replace > with >= in derive_security_code_from_query",
-    # SHOKEN_WEBAPI_URL 未設定のビルドでは base_url() は常に \"\" で等価
+    # テスト/CI ビルドは SHOKEN_WEBAPI_URL 未設定で base_url() は常に \"\" になるため、
+    # このビルド条件下では String::new() と等価。本番 bundle の接続先は
+    # ビルド時の環境変数で決まり、ユニット mutation では検証できない領域
     "replace ApiClient::base_url -> String with String::new()",
-    # raw_exponent==0 のサブノーマル入力は仮数の取り方に関わらず丸め結果が ±0.0 で同じ
-    "replace & with \\| in to_fixed",
-    "replace & with \\^ in to_fixed",
+    # 70行目はサブノーマル入力専用で仮数の取り方に関わらず丸め結果が ±0.0 で同じ
+    "src/asset_balance_domain\\.rs:70:15: replace & with \\| in to_fixed",
+    "src/asset_balance_domain\\.rs:70:15: replace & with \\^ in to_fixed",
     # bits & mask は bit52 を含まないため暗黙ビットの合成は | と ^ で同じ結果
-    "replace \\| with \\^ in to_fixed",
-    # total==TOP_ITEMS では skip(visible) が空になり visible_count/others/toggle/grid が同じ
-    "replace > with >= in chart_display",
+    "src/asset_balance_domain\\.rs:73:36: replace \\| with \\^ in to_fixed",
+    # 66行目は total==TOP_ITEMS で skip(visible) が空になり visible_count/others/toggle/grid が同じ
+    "src/asset_balance_portfolio\\.rs:66:40: replace > with >= in chart_display",
     # amount==0 のとき amount/investment*100 は 0.0 で else 分岐と同じ結果
     "replace > with >= in dividend_rate",
 ]

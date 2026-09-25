@@ -171,6 +171,9 @@ fn negative_text_detection_matches_formatted_values() {
     assert!(!is_negative_text("-"));
     assert!(!is_negative_text("12."));
     assert!(!is_negative_text("1.2.3"));
+    // f64 としてパースできても桁チェックを通らない表記は負数扱いしない
+    assert!(!is_negative_text("-1e5"));
+    assert!(!is_negative_text("-inf"));
 }
 
 #[test]
