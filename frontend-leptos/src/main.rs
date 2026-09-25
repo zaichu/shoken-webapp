@@ -10,6 +10,7 @@ mod dividend_info;
 mod dividend_per_share;
 mod dto;
 mod home_page;
+mod idle;
 mod login_page;
 mod not_found_page;
 mod page;

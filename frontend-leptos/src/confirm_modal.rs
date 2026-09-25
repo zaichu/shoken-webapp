@@ -69,10 +69,16 @@ pub fn ConfirmDeleteModal(
             let _ = dialog.focus();
         }
     });
-    let overlay_cancel = on_cancel.clone();
-    let key_cancel = on_cancel.clone();
-    let close_cancel = on_cancel.clone();
-    let cancel = on_cancel.clone();
+    // 削除要求が飛んでいる間に閉じると結果を追えなくなるため、閉じ操作は完了まで無効化する
+    let try_cancel = move || {
+        if !loading.get() {
+            on_cancel();
+        }
+    };
+    let overlay_cancel = try_cancel.clone();
+    let key_cancel = try_cancel.clone();
+    let close_cancel = try_cancel.clone();
+    let cancel = try_cancel.clone();
     view! {
         <div
             node_ref=dialog_ref
@@ -105,8 +111,9 @@ pub fn ConfirmDeleteModal(
                         </h5>
                         <button
                             type="button"
-                            class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded"
+                            class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded disabled:cursor-not-allowed disabled:opacity-60"
                             aria-label="閉じる"
+                            disabled=move || loading.get()
                             on:click=move |_| close_cancel()
                         >
                             <span aria-hidden="true">"✕"</span>
@@ -128,6 +135,7 @@ pub fn ConfirmDeleteModal(
                         <button
                             type="button"
                             class=SECONDARY_BUTTON_CLASS
+                            disabled=move || loading.get()
                             on:click=move |_| cancel()
                         >
                             "キャンセル"

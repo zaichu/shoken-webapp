@@ -1,3 +1,4 @@
+use crate::confirm_modal::ConfirmDeleteModal;
 use crate::dto::SessionUser;
 use crate::session::{use_session, SessionStore};
 use leptos::ev;
@@ -62,6 +63,9 @@ pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
 pub fn SiteHeader() -> impl IntoView {
     let session = use_session();
     let path = current_path();
+    let delete_confirm_open = RwSignal::new(false);
+    let deleting = RwSignal::new(false);
+    let deleting_memo = Memo::new(move |_| deleting.get());
     view! {
         <header class="sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur no-print">
             <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 py-3">
@@ -115,7 +119,14 @@ pub fn SiteHeader() -> impl IntoView {
                                 }
                                     .into_any()
                             } else if let Some(user) = session.user.get() {
-                                view! { <UserMenu user=user session=session /> }.into_any()
+                                view! {
+                                    <UserMenu
+                                        user=user
+                                        session=session
+                                        delete_confirm_open=delete_confirm_open
+                                    />
+                                }
+                                    .into_any()
                             } else {
                                 view! {
                                     <button
@@ -133,11 +144,42 @@ pub fn SiteHeader() -> impl IntoView {
                 </div>
             </div>
         </header>
+        {move || {
+            if !delete_confirm_open.get() {
+                return ().into_any();
+            }
+            view! {
+                <ConfirmDeleteModal
+                    title="アカウント削除の確認".to_string()
+                    description="アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。"
+                        .to_string()
+                    item_count=1
+                    confirm_label="削除する"
+                    loading=deleting_memo
+                    on_confirm=move || {
+                        deleting.set(true);
+                        leptos::task::spawn_local(async move {
+                            let result = session.delete_account().await;
+                            deleting.set(false);
+                            if result.is_ok() {
+                                delete_confirm_open.set(false);
+                            }
+                        });
+                    }
+                    on_cancel=move || delete_confirm_open.set(false)
+                />
+            }
+                .into_any()
+        }}
     }
 }
 
 #[component]
-fn UserMenu(user: SessionUser, session: SessionStore) -> impl IntoView {
+fn UserMenu(
+    user: SessionUser,
+    session: SessionStore,
+    delete_confirm_open: RwSignal<bool>,
+) -> impl IntoView {
     let menu_open = RwSignal::new(false);
     let image_error = RwSignal::new(false);
     let menu_container = NodeRef::<html::Div>::new();
@@ -244,6 +286,29 @@ fn UserMenu(user: SessionUser, session: SessionStore) -> impl IntoView {
                                 }
                             >
                                 "ログアウト"
+                            </button>
+                        </li>
+                        <li role="none">
+                            <hr class="border-border" />
+                        </li>
+                        <li
+                            role="none"
+                            class="px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-secondary"
+                        >
+                            "危険な操作"
+                        </li>
+                        <li role="none">
+                            <button
+                                type="button"
+                                class="w-full px-3 py-2 text-left text-sm font-bold text-danger hover:bg-danger/10"
+                                role="menuitem"
+                                aria-describedby="delete-warning"
+                                on:click=move |_| delete_confirm_open.set(true)
+                            >
+                                <span id="delete-warning" class="sr-only">
+                                    "警告: この操作は取り消せません"
+                                </span>
+                                "アカウント削除"
                             </button>
                         </li>
                     </ul>

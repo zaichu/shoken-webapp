@@ -140,6 +140,13 @@ impl ApiClient {
         )
     }
 
+    pub fn with_max_retries(&self, max_retries: u32) -> Self {
+        ApiClient {
+            max_retries,
+            ..self.clone()
+        }
+    }
+
     fn url(&self, path: &str, query: &[(&str, &str)]) -> String {
         let mut url = format!("{}{}", self.base_url, path);
         if !query.is_empty() {

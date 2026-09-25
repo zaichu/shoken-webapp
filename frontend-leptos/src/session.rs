@@ -1,9 +1,43 @@
-use crate::api::ApiClient;
-use crate::dto::SessionUser;
+use crate::api::{ApiClient, ApiError};
+use crate::dto::{MessageResponse, SessionUser};
 use leptos::prelude::*;
 
 fn oauth_authorize_url() -> String {
     format!("{}/api/v1/oauth/google/authorize", ApiClient::base_url())
+}
+
+async fn session_invalidated() -> bool {
+    matches!(
+        ApiClient::auth_client()
+            .get_json::<SessionUser>("/api/v1/session", &[])
+            .await,
+        Err(error) if error.is_unauthorized()
+    )
+}
+
+const DELETE_ACCOUNT_MAX_RETRIES: u32 = 3;
+const DELETE_ACCOUNT_RETRY_DELAY_MS: u32 = 1_000;
+
+// 応答喪失はセッション確認で削除済みか未到達かを分け、未到達なら再送する(HTTP拒否は確定失敗)
+async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
+    let mut retries = 0;
+    loop {
+        let error = match client.delete_empty("/api/v1/account").await {
+            Ok(()) => return Ok(()),
+            Err(error) => error,
+        };
+        if !matches!(error, ApiError::Network | ApiError::Timeout) {
+            return Err(error);
+        }
+        if session_invalidated().await {
+            return Ok(());
+        }
+        if retries >= DELETE_ACCOUNT_MAX_RETRIES {
+            return Err(error);
+        }
+        gloo_timers::future::TimeoutFuture::new(DELETE_ACCOUNT_RETRY_DELAY_MS << retries).await;
+        retries += 1;
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -66,6 +100,23 @@ impl SessionStore {
         let _ = client.delete_empty("/api/v1/session").await;
     }
 
+    pub async fn delete_account(&self) -> Result<(), ApiError> {
+        let client = ApiClient::default_client().with_max_retries(0);
+        let result = match client
+            .post_json::<serde_json::Value, MessageResponse>(
+                "/api/v1/account-deletion-confirmations",
+                &serde_json::json!({}),
+            )
+            .await
+        {
+            Err(error) => Err(error),
+            Ok(_) => delete_with_verification(&client).await,
+        };
+        self.mark_unauthenticated();
+        self.loaded.set(true);
+        result
+    }
+
     pub fn login(&self) {
         Self::redirect_to(&oauth_authorize_url());
     }
@@ -86,6 +137,7 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
+    crate::idle::watch_idle_logout(session);
     let startup = session;
     leptos::task::spawn_local(async move {
         startup.check().await;
