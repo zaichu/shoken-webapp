@@ -37,7 +37,7 @@
       ]
     },
     {
-      "source": "/:path*.wasm",
+      "source": "/:name.wasm",
       "headers": [
         {
           "key": "Content-Type",
@@ -50,7 +50,7 @@
       ]
     },
     {
-      "source": "/:path*.js",
+      "source": "/:name.js",
       "headers": [
         {
           "key": "Cache-Control",
@@ -59,7 +59,7 @@
       ]
     },
     {
-      "source": "/:path*.css",
+      "source": "/:name.css",
       "headers": [
         {
           "key": "Cache-Control",

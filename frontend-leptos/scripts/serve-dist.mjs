@@ -14,14 +14,20 @@ const config = JSON.parse(readFileSync(join(scriptDir, '..', 'vercel.json'), 'ut
 
 // この vercel.json で使う構文だけを正規表現に変換する
 //   /(.*)        -> 全パス
-//   /:name*.ext  -> 拡張子マッチ
+//   /:name*.ext  -> 末尾が拡張子に一致(ネストしたパスも含む)
+//   /:name.ext   -> ルート直下の 1 セグメントのみ
 //   それ以外      -> 完全一致
 function sourceToRegex(source) {
   if (source === '/(.*)') return /^\/.*/;
-  const named = source.match(/^\/:[A-Za-z]+\*(.+)$/);
-  if (named) {
-    const suffix = named[1].replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const nested = source.match(/^\/:[A-Za-z]+\*(\..+)$/);
+  if (nested) {
+    const suffix = nested[1].replace(/[.+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`^/.*${suffix}$`);
+  }
+  const single = source.match(/^\/:[A-Za-z]+(\..+)$/);
+  if (single) {
+    const suffix = single[1].replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`^/[^/]+${suffix}$`);
   }
   const literal = source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`^${literal}$`);

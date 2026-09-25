@@ -29,17 +29,25 @@ test('ハッシュ付き資産は immutable、wasm は application/wasm で返�
   const root = await request.get('/');
   const html = await root.text();
 
-  const assetNames = [...html.matchAll(/\/(frontend-leptos-[a-f0-9]+(?:_bg)?\.(?:js|wasm)|output-[a-f0-9]+\.css|init-[a-f0-9]+\.js)/g)].map(
-    (m) => m[1],
-  );
-  expect(assetNames.length).toBeGreaterThanOrEqual(4);
+  const assetPaths = [
+    ...new Set(
+      [...html.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|wasm|css))"/g)].map((m) => m[1]),
+    ),
+  ];
+  expect(assetPaths.length).toBeGreaterThanOrEqual(4);
 
-  for (const name of assetNames) {
-    const res = await request.get(`/${name}`);
-    expect(res.status(), name).toBe(200);
-    expect(res.headers()['cache-control'], name).toContain('immutable');
-    if (name.endsWith('.wasm')) {
-      expect(res.headers()['content-type'], name).toBe('application/wasm');
+  for (const path of assetPaths) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+    const cacheControl = res.headers()['cache-control'] ?? '';
+    if (path.startsWith('/snippets/')) {
+      // スニペットのディレクトリ名は crate 由来で内容ハッシュではないため immutable を付けない
+      expect(cacheControl, path).not.toContain('immutable');
+    } else {
+      expect(cacheControl, path).toContain('immutable');
+    }
+    if (path.endsWith('.wasm')) {
+      expect(res.headers()['content-type'], path).toBe('application/wasm');
     }
   }
 });
