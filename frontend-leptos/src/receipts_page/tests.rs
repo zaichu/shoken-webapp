@@ -225,6 +225,26 @@ fn card_fields_point_at_expected_columns() {
 }
 
 #[test]
+fn table_column_widths_match_headers_and_follow_column_order() {
+    for tab in ReceiptsTab::ALL {
+        assert_eq!(
+            table_headers(tab).len(),
+            table_column_widths(tab).len(),
+            "{tab:?}: 列幅の数がヘッダー数と一致しない"
+        );
+    }
+    let rows = domestic();
+    let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
+    let headers = table_headers(ReceiptsTab::DomesticStock);
+    let widths = table_column_widths(ReceiptsTab::DomesticStock);
+    let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
+    assert_eq!(displayed[0], ("約定日", "84px"));
+    assert_eq!(displayed[1], ("銘柄コード", "72px"));
+    assert_eq!(displayed[2], ("口座", "60px"));
+    assert_eq!(displayed[3], ("銘柄名", "156px"));
+}
+
+#[test]
 fn card_row_data_matches_react_card_fields() {
     let rows = dividends();
     let cells = rows[0].cells();
