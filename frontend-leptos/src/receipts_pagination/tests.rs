@@ -98,3 +98,15 @@ fn short_last_page_at_max_pages_is_not_truncated() {
     assert!(!pages.truncated());
     assert_eq!(pages.into_rows(), rows(0..5));
 }
+
+#[test]
+fn total_comes_from_pushed_pages() {
+    let mut pages = PageCollector::<usize>::new(3, 2);
+    assert_eq!(pages.total(), None);
+    pages.push(rows(0..3), 7);
+    assert_eq!(pages.total(), Some(7));
+    pages.push(rows(3..5), 5);
+    assert_eq!(pages.total(), Some(5));
+    pages.push(rows(5..5), -1);
+    assert_eq!(pages.total(), Some(5));
+}

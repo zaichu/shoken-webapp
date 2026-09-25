@@ -212,4 +212,14 @@ mod tests {
         assert!(store.get(1, "7203").is_none());
         assert!(store.get(2, "7203").is_none());
     }
+
+    #[test]
+    fn store_single_on_new_generation_drops_all_old_entries() {
+        let mut store = AssetBalanceLookupStore::new();
+        store.seed(1, &[row("7203"), row("6758")]);
+        store.store_single(2, "8306", vec![row("8306")]);
+        assert!(store.get(1, "6758").is_none());
+        assert_eq!(store.get(2, "8306").unwrap().security_code, "8306");
+        assert!(store.get(2, "7203").is_none());
+    }
 }

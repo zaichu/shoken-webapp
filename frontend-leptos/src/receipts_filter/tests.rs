@@ -246,6 +246,50 @@ fn range_inputs_and_clear_match_react_state() {
     assert_eq!(state.date_segment, DateSegment::Month);
 }
 #[test]
+fn selected_queries_is_empty_only_when_all_fields_blank() {
+    assert!(SelectedQueries::default().is_empty());
+    for key in [
+        SearchKey::Securities,
+        SearchKey::Years,
+        SearchKey::Products,
+        SearchKey::Accounts,
+        SearchKey::Date,
+    ] {
+        let mut queries = SelectedQueries::default();
+        queries.set(key, "x".into());
+        assert!(!queries.is_empty(), "{key:?}");
+    }
+}
+
+#[test]
+fn default_search_state_is_default() {
+    assert!(ReceiptSearch::new(true).is_default());
+    let mut state = ReceiptSearch::new(true);
+    state
+        .selected_queries
+        .set(SearchKey::Accounts, "特定".into());
+    state.rebuild_query();
+    assert!(!state.is_default());
+}
+
+#[test]
+fn set_date_updates_input_query_and_selected() {
+    let mut state = ReceiptSearch::new(true);
+    state.set_date("2026-06-15".into());
+    assert_eq!(state.date_inputs.date_value, "2026-06-15");
+    assert_eq!(state.selected_queries.date, "2026-06-15");
+    assert_eq!(state.query, "2026-06-15");
+}
+
+#[test]
+fn date_segment_labels_match_react() {
+    assert_eq!(DateSegment::Year.label(), "年");
+    assert_eq!(DateSegment::Month.label(), "月");
+    assert_eq!(DateSegment::Date.label(), "日");
+    assert_eq!(DateSegment::Range.label(), "範囲");
+}
+
+#[test]
 fn tab_column_rules_use_whole_query_not_tokens() {
     assert_eq!(
         column_order(ReceiptsTab::Dividend, &dividends(), "特定"),

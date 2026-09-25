@@ -193,6 +193,8 @@ mod tests {
         assert!(has_font_weight_class("hover:font-bold"));
         assert!(!has_font_weight_class("text-xs"));
         assert!(!has_font_weight_class("font-boldx"));
+        assert!(!has_font_weight_class("font-bold_x"));
+        assert!(!has_font_weight_class("font-bold1"));
         assert!(!has_font_weight_class(""));
     }
 }

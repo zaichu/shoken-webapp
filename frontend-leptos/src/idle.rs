@@ -127,6 +127,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn idle_timeout_is_thirty_minutes() {
+        assert_eq!(IDLE_TIMEOUT_MS, 1_800_000);
+    }
+
+    #[test]
     fn idle_remaining_hits_zero_at_deadline() {
         let timeout = IDLE_TIMEOUT_MS as u64;
         assert_eq!(idle_remaining_ms(0, 0), timeout as i64);

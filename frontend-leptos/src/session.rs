@@ -203,6 +203,20 @@ pub fn use_session() -> SessionStore {
 mod tests {
     use super::*;
 
+    #[test]
+    fn oauth_url_appends_authorize_path() {
+        assert_eq!(
+            oauth_authorize_url(),
+            format!("{}/api/v1/oauth/google/authorize", ApiClient::base_url())
+        );
+    }
+
+    #[test]
+    fn delete_account_retry_budget_is_three() {
+        assert_eq!(DELETE_ACCOUNT_MAX_RETRIES, 3);
+        assert_eq!(DELETE_ACCOUNT_RETRY_DELAY_MS, 1_000);
+    }
+
     fn alice() -> Option<SessionUser> {
         Some(SessionUser {
             id: "a".to_string(),

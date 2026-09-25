@@ -1,1 +1,100 @@
 # tests/ には fixture のみでユニットテストが正本。bin crate には --lib 相当のターゲットがないため追加引数は不要
+
+# mutant 名(file:line:col: description)にマッチする正規表現で除外する。
+# 除外理由:
+# - ブラウザ/DOM/HTTP/非同期境界: ユニットテストから状態を観測できない
+# - 無限ループ化: ループ内インデックス算術の mutant は時間切れになる
+# - 等価 mutant: 振る舞いが変わらないもの
+exclude_re = [
+    # ブラウザ API(localStorage / BroadcastChannel / navigator.locks)前提で
+    # ユニットテストから状態を観測できない
+    "src/cross_tab\\.rs",
+    "src/pending_logout\\.rs",
+    # DOM フォーカス/キーボード操作のみ
+    "src/confirm_modal\\.rs",
+    "src/collapsible_search_card\\.rs",
+    "current_path",
+    "replace_location",
+    "redirect_to",
+    "read_query_value",
+    "read_code_param",
+    "copy_to_clipboard",
+    "try_copy_to_clipboard",
+    "focus_year_option",
+    "focus_tab",
+    "scroll_tab_into_view",
+    "card_detail_view",
+    # コンポーネント(view 描画)内部の条件・算術。E2E 領域(末尾が関数名の記述に限定)
+    "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|PageHeader|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
+    # HTTP 通信・web_sys::AbortController/FormData 前提
+    "fetch_",
+    "send_once",
+    "ApiClient::execute",
+    "delete_empty",
+    "preview_csv",
+    "upload_csv",
+    "csv_form_data",
+    "replace delete_all",
+    "select_file",
+    "save_csv",
+    "try_begin_save",
+    "poll_dividend_maps",
+    # ポーリング実体は spawn_local/Timeout 境界
+    "DividendInfoStore::poll_dividend",
+    "load_asset_balances",
+    "use_receipts_data",
+    "use_stock_search",
+    # セッションストアの非同期/ウィンドウ遷移
+    "SessionStore::(check|logout|delete_account|login)",
+    "session_invalidated",
+    "delete_with_verification",
+    "provide_session",
+    "use_session",
+    # アイドルタイマー/イベントリスナー(定数値と残量計算はテストで評価済み)
+    "arm_timer",
+    "on_idle_timer",
+    "on_user_activity",
+    "watch_idle_logout",
+    "now_ms",
+    # エントリポイント
+    "src/main\\.rs",
+    # 無限ループ化して時間切れになる mutant(baseline で時間切れを確認済み)
+    "replace parse_quoted_token",
+    "replace \\+ with - in parse_quoted_token",
+    "replace \\+= with [*/]= in parse_quoted_token",
+    "PageCollector<T>::push -> bool with true",
+    "replace \\+= with [*/]= in PageCollector<T>::push",
+    "replace && with \\|\\| in PageCollector<T>::push",
+    "delete ! in parse_search_tokens",
+    "replace < with > in format_number_with_options",
+    "replace \\+= with [*-]= in parse_search_tokens",
+    "replace < with == in parse_search_tokens",
+    "replace < with > in parse_search_tokens",
+    # 等価 mutant
+    # Null は末尾の `_ => None` に落ちて同じ結果
+    "delete match arm Value::Null in to_finite_amount",
+    # start 側の `!` 削除は `start.is_empty() && start > end` を作るが、
+    # 空文字列はどの日付よりも小さいため条件は常に false で同じ結果
+    "src/receipts_search\\.rs:201:8: delete ! in matches_date_range",
+    # 外側ループ(92行目)は index==len で内側の空白スキップが即 break するため同じ結果
+    "src/receipts_search\\.rs:92:17: replace < with <= in parse_search_tokens",
+    # index==len では query[index..] が空で chars().next() が None → `?` で None 返却し
+    # ループ脱出の None と同じ結果
+    "src/receipts_search\\.rs:43:17: replace < with <= in parse_quoted_token",
+    # code_end==0 のとき label_match=Some(\"\") でも空コードはどの item にも一致せず
+    # 名前一致探索へ進み、空コード item があっても返り値は同じ \"\"
+    "replace > with >= in derive_security_code_from_query",
+    # テスト/CI ビルドは SHOKEN_WEBAPI_URL 未設定で base_url() は常に \"\" になるため、
+    # このビルド条件下では String::new() と等価。本番 bundle の接続先は
+    # ビルド時の環境変数で決まり、ユニット mutation では検証できない領域
+    "replace ApiClient::base_url -> String with String::new()",
+    # 70行目はサブノーマル入力専用で仮数の取り方に関わらず丸め結果が ±0.0 で同じ
+    "src/asset_balance_domain\\.rs:70:15: replace & with \\| in to_fixed",
+    "src/asset_balance_domain\\.rs:70:15: replace & with \\^ in to_fixed",
+    # bits & mask は bit52 を含まないため暗黙ビットの合成は | と ^ で同じ結果
+    "src/asset_balance_domain\\.rs:73:36: replace \\| with \\^ in to_fixed",
+    # 66行目は total==TOP_ITEMS で skip(visible) が空になり visible_count/others/toggle/grid が同じ
+    "src/asset_balance_portfolio\\.rs:66:40: replace > with >= in chart_display",
+    # amount==0 のとき amount/investment*100 は 0.0 で else 分岐と同じ結果
+    "replace > with >= in dividend_rate",
+]

@@ -239,6 +239,22 @@ mod tests {
     }
 
     #[test]
+    fn begin_save_and_begin_delete_are_busy_gated() {
+        let mut state = CsvTabState::<String>::default();
+        assert!(state.begin_save());
+        assert!(!state.begin_save());
+        state.finish_save(Err("x".to_string()));
+
+        assert!(!state.begin_delete());
+        state.open_delete_confirm();
+        assert!(state.begin_delete());
+        assert!(!state.begin_save());
+        assert!(!state.begin_delete());
+        state.finish_delete(Ok(()));
+        assert!(state.begin_save());
+    }
+
+    #[test]
     fn fail_preview_clears_busy_and_keeps_file() {
         let mut state = CsvTabState::<String> {
             file_name: Some("asset.csv".to_string()),
