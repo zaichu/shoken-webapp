@@ -2250,9 +2250,7 @@ fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
-// React 版の列幅。列の並べ替え(商品・口座検索)でも幅は列に追随するため基本順で持ち、
-// 表示時に column_order と同じ並びにする
-// 移植元: frontend/src/pages/Receipt/{Dividend,DomesticStock,Mutualfund}.tsx の width
+// 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする
 fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
     match tab {
         ReceiptsTab::Dividend => &[

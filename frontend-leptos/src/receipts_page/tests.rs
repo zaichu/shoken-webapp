@@ -234,16 +234,17 @@ fn table_column_widths_match_headers_and_follow_column_order() {
             "{tab:?}: 列幅の数がヘッダー数と一致しない"
         );
     }
-    // 口座検索で「口座」列が前に出ても、幅は列に追随して動く
+    // 口座検索で「口座」列が前に出ても、幅は列に追随して動く。
+    // 表示順の (ヘッダー, 幅) の対をそのまま検証する
     let rows = domestic();
     let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
     let headers = table_headers(ReceiptsTab::DomesticStock);
     let widths = table_column_widths(ReceiptsTab::DomesticStock);
-    let account_pos = order
-        .iter()
-        .position(|i| headers[*i] == "口座")
-        .expect("口座列がある");
-    assert_eq!(widths[order[account_pos]], "60px");
+    let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
+    assert_eq!(displayed[0], ("約定日", "84px"));
+    assert_eq!(displayed[1], ("銘柄コード", "72px"));
+    assert_eq!(displayed[2], ("口座", "60px"));
+    assert_eq!(displayed[3], ("銘柄名", "156px"));
 }
 
 #[test]

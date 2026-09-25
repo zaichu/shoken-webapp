@@ -1,21 +1,17 @@
-import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-/**
- * Issue #980 / #981: 取引明細・資産管理を React 版の見た目に揃える。
- *
- * - #980: /receipts と /assetbalance は .page-surface で包まない
- *   (home/search は両実装とも page-surface を使うため残す)
- * - #981: 取引明細の表は table-fixed + 固定列幅 + text-ellipsis とし、
- *   「収まる幅では全列を表示 / 収まらない幅では内部横スクロール」という
- *   React 版と同じ振る舞いにする
- *
- * スクリーンショットは 1440/1024/390 の3幅で .playwright-mcp/ に
- * `*-{leptos,react}.png` の対になる名前で保存する。
- * `REACT_BASE_URL=http://127.0.0.1:5187` を付けると React 版も同じモック上で撮影し、
- * 表の実幅・横スクロール量の一致まで数値で検証する。
- */
+// スクリーンショットは .playwright-mcp/ に `*-{leptos,react}.png` の対で保存する。
+// `REACT_BASE_URL=http://127.0.0.1:5187` を付けると React 版にも同じ不変条件を適用し、
+// 表の実幅・横スクロール量の一致まで数値で検証する。
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -124,10 +120,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
-// React 版の列幅(px)。移植元:
-// frontend/src/pages/Receipt/Dividend.tsx:153-164
-// frontend/src/pages/Receipt/DomesticStock.tsx:103-115
-// frontend/src/pages/Receipt/Mutualfund.tsx:104-115
+// React 版と同一の列幅(px)
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
@@ -194,8 +187,19 @@ async function mockApi(context: BrowserContext) {
 async function shoot(page: Page, testInfo: TestInfo, name: string) {
   const dir = path.resolve(testInfo.project.testDir, '../../.playwright-mcp');
   await fs.promises.mkdir(dir, { recursive: true });
-  await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
+}
+
+// 保有データの描画完了を、ロード中を撮り得る固定時間待機ではなくデータ可視で待つ。
+// 同名テキストは別ブレークポイント用の hidden カードにも存在するため visible で絞る
+async function expectAssetDataLoaded(page: Page) {
+  await expect(
+    page
+      .getByTestId('assetbalance-main-stage')
+      .getByText('トヨタ自動車')
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
 }
 
 async function selectReceiptTab(page: Page, slug: ReceiptTabSlug) {
@@ -236,7 +240,6 @@ async function tableMetrics(page: Page): Promise<TableMetrics> {
 
 // table-fixed の表の実幅は max(列幅合計, コンテナ幅)。
 // 収まる幅では横スクロールなし、収まらない幅では列幅を保ったまま内部スクロールする
-// (React の frontend/src/components/molecules/Table.tsx:77-83,110 と同じ振る舞い)
 function expectReactTableFit(metrics: TableMetrics, widths: readonly number[]) {
   const sum = widths.reduce((a, b) => a + b, 0);
   expect(metrics.layout).toBe('fixed');
@@ -276,28 +279,38 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
     expect(style.whiteSpace).toBe('nowrap');
   });
 
-  // 末尾行は必ず明細行なので、本文セル側の省略指定をそこで確認する
-  const cellStyles = await page
-    .getByRole('table')
-    .locator('tbody tr')
-    .last()
-    .locator('td')
-    .evaluateAll((cells) =>
+  const cellStylesOf = (row: Locator) =>
+    row.locator('td').evaluateAll((cells) =>
       cells.map((cell) => {
-        const style = getComputedStyle(cell as HTMLElement);
+        const el = cell as HTMLTableCellElement;
+        const style = getComputedStyle(el);
         return {
+          colSpan: el.colSpan,
           overflow: style.overflow,
           textOverflow: style.textOverflow,
           whiteSpace: style.whiteSpace,
         };
       }),
     );
+  const expectEllipsis = (styles: { overflow: string; textOverflow: string; whiteSpace: string }[]) =>
+    styles.forEach((style) => {
+      expect(style.overflow).toBe('hidden');
+      expect(style.textOverflow).toBe('ellipsis');
+      expect(style.whiteSpace).toBe('nowrap');
+    });
+
+  // 先頭行はグループ集計行。結合セルと小計セルにも省略指定があることを確認する
+  const summaryStyles = await cellStylesOf(
+    page.getByRole('table').locator('tbody tr').first(),
+  );
+  expect(summaryStyles.length).toBeGreaterThan(1);
+  expect(summaryStyles[0].colSpan, '集計行の先頭は結合セル').toBeGreaterThan(1);
+  expectEllipsis(summaryStyles);
+
+  // 末尾行は必ず明細行なので、本文セル側の省略指定をそこで確認する
+  const cellStyles = await cellStylesOf(page.getByRole('table').locator('tbody tr').last());
   expect(cellStyles.length).toBe(widths.length);
-  cellStyles.forEach((style) => {
-    expect(style.overflow).toBe('hidden');
-    expect(style.textOverflow).toBe('ellipsis');
-    expect(style.whiteSpace).toBe('nowrap');
-  });
+  expectEllipsis(cellStyles);
 }
 
 async function expectNoPageOverflow(page: Page, width: number) {
@@ -309,6 +322,14 @@ async function expectNoPageSurface(page: Page) {
   await expect(page.locator('.page-surface')).toHaveCount(0);
   // ページ見出しが main の直接の子(=カードに包まれていない)ことを確認する
   await expect(page.locator('#main-content > *').first().locator('h1')).toBeVisible();
+}
+
+// スクロールラッパーの max-height は計測後に入るので、それを描画完了の合図にする
+async function expectTableSettled(page: Page) {
+  await expect(page.getByRole('table').locator('xpath=..')).toHaveAttribute(
+    'style',
+    /max-height/,
+  );
 }
 
 test.beforeEach(async ({ context }) => {
@@ -333,13 +354,35 @@ for (const width of [1440, 1024]) {
       const spec = TABLE_SPEC[slug];
       await expectColumnWidthsAndEllipsis(page, spec.widths);
       expectReactTableFit(await tableMetrics(page), spec.widths);
+      await expectTableSettled(page);
 
       await shoot(page, testInfo, `receipts-${slug}-data-${width}-leptos`);
     });
   }
 }
 
-test('取引明細・資産管理は page-surface で包まれない(#980)', async ({ page }, testInfo) => {
+test('口座検索で列が前に出ても列幅は列に追随する(国内株式 1440px)', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/receipts');
+  await selectReceiptTab(page, 'domesticstock');
+  await page
+    .getByTestId('search-card')
+    .getByRole('button', { name: '特定口座', exact: true })
+    .click();
+  // 「口座」が3列目へ移動し、幅 60px も追随する
+  const reordered = [84, 72, 60, 156, 56, 76, 82, 82, 82, 64, 84];
+  const ths = page.getByRole('table').locator('thead th');
+  await expect(ths.nth(2)).toHaveText('口座');
+  await expect(ths.nth(3)).toHaveText('銘柄名');
+  await expectColumnWidthsAndEllipsis(page, reordered);
+  expectReactTableFit(await tableMetrics(page), reordered);
+  await expectTableSettled(page);
+  await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
+});
+
+test('取引明細・資産管理は page-surface で包まれない', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const [path, title] of [
     ['/receipts', '取引明細'],
@@ -362,6 +405,7 @@ for (const width of [1440, 1024, 390]) {
     await page.goto('/assetbalance');
     await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
     await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
+    await expectAssetDataLoaded(page);
     await expectNoPageSurface(page);
     await expectNoPageOverflow(page, width);
     await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
@@ -388,8 +432,6 @@ test('取引明細 390px はカード表示で page-surface もページはみ�
 
 // React 版との見比べ用。Vite dev server(例: 5187)を別途起動し、
 // REACT_BASE_URL を指定したときだけ実行する
-// 例: env REACT_BASE_URL=http://127.0.0.1:5187 LEPTOS_E2E_PORT=8087 \
-//   npx playwright test --config playwright.receipts.config.ts -g "react比較"
 test.describe('react比較', () => {
   const reactBase = process.env.REACT_BASE_URL;
   const leptosBase = `http://127.0.0.1:${process.env.LEPTOS_E2E_PORT ?? '8081'}`;
@@ -414,6 +456,7 @@ test.describe('react比較', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/assetbalance');
       await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
+      await expectAssetDataLoaded(page);
       await shoot(page, testInfo, `assetbalance-data-${width}-react`);
     });
   }
@@ -428,6 +471,7 @@ test.describe('react比較', () => {
     }
     await page.goto('/assetbalance');
     await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
+    await expectAssetDataLoaded(page);
     await shoot(page, testInfo, 'assetbalance-data-390-react');
   });
 
