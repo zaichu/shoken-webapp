@@ -153,3 +153,11 @@ jobs:
 
       - name: Run receipts cache E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.receipts.config.ts
+
+      - name: Build Vercel verification bundle
+        run: env -u NO_COLOR trunk build --release --dist dist-vercel
+        env:
+          SHOKEN_WEBAPI_URL: https://shoken-backend.fly.dev
+
+      - name: Run Vercel delivery E2E tests
+        run: env -u NO_COLOR npx playwright test --config playwright.vercel.config.ts
