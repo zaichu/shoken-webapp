@@ -17,6 +17,7 @@ DB_LOG="${DB_LOG:-/tmp/shoken-db-up.log}"
 
 BACK_PID=""
 FRONT_PID=""
+TRUNK_TMP_CONFIG=""
 
 cleanup() {
   if [[ -n "${FRONT_PID}" ]] && kill -0 "${FRONT_PID}" >/dev/null 2>&1; then
@@ -24,6 +25,9 @@ cleanup() {
   fi
   if [[ -n "${BACK_PID}" ]] && kill -0 "${BACK_PID}" >/dev/null 2>&1; then
     kill "${BACK_PID}" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${TRUNK_TMP_CONFIG}" ]]; then
+    rm -f "${TRUNK_TMP_CONFIG}"
   fi
 }
 
@@ -77,9 +81,18 @@ if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then
 fi
 
 echo "3/3 Starting frontend..."
+TRUNK_CONFIG="${FRONTEND_DIR}/Trunk.toml"
+# trunk の proxy backend は Trunk.toml に 3001 固定なので、BACKEND_URL 上書き時は
+# proxy だけ差し替えた一時設定で serve する(--proxy-backend 追加は上書きでなく二重登録になる)
+if [[ "${BACKEND_URL}" != "http://127.0.0.1:3001" ]]; then
+  TRUNK_TMP_CONFIG="$(mktemp "${FRONTEND_DIR}/Trunk.local.XXXXXX.toml")"
+  sed 's|backend = "http://127\.0\.0\.1:3001/api/"|backend = "'"${BACKEND_URL%/}"'/api/"|' \
+    "${FRONTEND_DIR}/Trunk.toml" > "${TRUNK_TMP_CONFIG}"
+  TRUNK_CONFIG="${TRUNK_TMP_CONFIG}"
+fi
 (
   cd "${FRONTEND_DIR}"
-  trunk serve --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
+  trunk serve --config "${TRUNK_CONFIG}" --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
 ) &
 FRONT_PID=$!
 
