@@ -498,6 +498,25 @@ mod tests {
     }
 
     #[test]
+    fn test_is_account_summary_row() {
+        let make_row = |code: &str, name: &str| {
+            CsvRow::from([
+                ("銘柄コード".to_string(), code.to_string()),
+                ("銘柄名".to_string(), name.to_string()),
+            ])
+        };
+
+        assert!(is_account_summary_row(&make_row("", "特定口座合計")));
+        // 「口座合計」を含む値があっても銘柄コードが入っていれば集計行ではない
+        assert!(!is_account_summary_row(&make_row(
+            "9999",
+            "口座合計を含む名称"
+        )));
+        assert!(!is_account_summary_row(&make_row("", "普通株式")));
+        assert!(!is_account_summary_row(&make_row("7203", "トヨタ自動車")));
+    }
+
+    #[test]
     fn test_asset_balance_search_query_params_delegate_include_flags() {
         let mut params = AssetBalanceSearchQueryParams::default();
         assert!(!params.should_include_summary());

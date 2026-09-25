@@ -398,6 +398,46 @@ mod tests {
         .await;
     }
     #[tokio::test]
+    async fn test_request_body_limit_boundary() {
+        // 10MB 未満のリクエストはボディ制限を通過してハンドラーの認証(401)まで到達する。
+        // 413 が返ると REQUEST_BODY_LIMIT の値そのものが小さくなっている。
+        let resp = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/dividends")
+                .header("content-length", 2 * 1024 * 1024)
+                .body(Body::from(vec![b'x'; 2 * 1024 * 1024]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+
+        // 上限超過は 413
+        let resp = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/dividends")
+                .header("content-length", 11 * 1024 * 1024)
+                .body(Body::from(vec![b'x'; 11 * 1024 * 1024]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
     async fn test_ready_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
         let router = app_router(

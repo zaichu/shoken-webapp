@@ -120,8 +120,21 @@ pub async fn delete_all_for_user(
 
 #[cfg(test)]
 mod tests {
-    use super::{user_ids_for_bulk_insert, BulkTimer};
+    use super::{user_ids_for_bulk_insert, BulkTimer, DeleteTarget};
     use uuid::Uuid;
+
+    #[test]
+    fn test_delete_target_domain_names() {
+        assert_eq!(
+            [
+                DeleteTarget::AssetBalances.domain(),
+                DeleteTarget::Dividends.domain(),
+                DeleteTarget::DomesticStocks.domain(),
+                DeleteTarget::MutualFunds.domain(),
+            ],
+            ["asset_balance", "dividend", "domestic_stock", "mutualfund"]
+        );
+    }
 
     #[test]
     fn test_bulk_timer_finish() {

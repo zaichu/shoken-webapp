@@ -277,4 +277,80 @@ mod tests {
             )
         );
     }
+
+    // ErrorKind は Clone/Copy を持たないため、kind() で都度インスタンスを返す
+    #[derive(Clone, Copy)]
+    enum MockKind {
+        Unique,
+        ForeignKey,
+        Other,
+    }
+
+    struct MockDbError {
+        message: &'static str,
+        kind: MockKind,
+    }
+
+    impl std::fmt::Display for MockDbError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.message)
+        }
+    }
+
+    impl std::fmt::Debug for MockDbError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.message)
+        }
+    }
+
+    impl std::error::Error for MockDbError {}
+
+    impl sqlx::error::DatabaseError for MockDbError {
+        fn message(&self) -> &str {
+            self.message
+        }
+
+        fn kind(&self) -> sqlx::error::ErrorKind {
+            match self.kind {
+                MockKind::Unique => sqlx::error::ErrorKind::UniqueViolation,
+                MockKind::ForeignKey => sqlx::error::ErrorKind::ForeignKeyViolation,
+                MockKind::Other => sqlx::error::ErrorKind::Other,
+            }
+        }
+
+        fn as_error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+            self
+        }
+
+        fn as_error_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) {
+            self
+        }
+
+        fn into_error(self: Box<Self>) -> Box<dyn std::error::Error + Send + Sync + 'static> {
+            self
+        }
+    }
+
+    #[test]
+    fn test_database_error_kind_maps_to_status_and_code() {
+        for (kind, expected) in [
+            (MockKind::Unique, (StatusCode::CONFLICT, "DUPLICATE_ENTRY")),
+            (
+                MockKind::ForeignKey,
+                (StatusCode::BAD_REQUEST, "FOREIGN_KEY_VIOLATION"),
+            ),
+            (
+                MockKind::Other,
+                (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
+            ),
+        ] {
+            let (status, details) = into_http(ApiError::DatabaseError(SqlxError::Database(
+                Box::new(MockDbError {
+                    message: "db error",
+                    kind,
+                }),
+            )));
+            assert_eq!((status, details.code.as_str()), expected);
+        }
+    }
 }
