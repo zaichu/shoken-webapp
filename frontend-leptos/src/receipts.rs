@@ -88,6 +88,14 @@ impl ReceiptCell {
 }
 
 impl ReceiptItem {
+    pub fn id(&self) -> &str {
+        match self {
+            ReceiptItem::Dividend(row) => &row.id,
+            ReceiptItem::DomesticStock(row) => &row.id,
+            ReceiptItem::MutualFund(row) => &row.id,
+        }
+    }
+
     pub fn cells(&self) -> Vec<ReceiptCell> {
         match self {
             ReceiptItem::Dividend(row) => vec![
@@ -277,6 +285,9 @@ pub struct ReceiptsStore {
     session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
     pub search: RwSignal<ReceiptSearch>,
+    // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
+    pub expanded: RwSignal<HashSet<String>>,
+    pub mobile_summary_expanded: RwSignal<bool>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
     fetch: Action<(u64, ReceiptsTab), ()>,
@@ -331,6 +342,8 @@ impl ReceiptsStore {
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
+            self.expanded.update(|set| set.clear());
+            self.mobile_summary_expanded.set(false);
         }
         self.visited.update(|visited| {
             visited.insert(tab);
@@ -669,6 +682,8 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         session,
         active_tab,
         search: RwSignal::new(ReceiptSearch::default()),
+        expanded: RwSignal::new(HashSet::new()),
+        mobile_summary_expanded: RwSignal::new(false),
         visited,
         cache,
         fetch,
@@ -791,6 +806,8 @@ mod tests {
                     session,
                     active_tab: RwSignal::new(tab),
                     search: RwSignal::new(ReceiptSearch::default()),
+                    expanded: RwSignal::new(HashSet::new()),
+                    mobile_summary_expanded: RwSignal::new(false),
                     visited: RwSignal::new(HashSet::from([tab])),
                     cache,
                     fetch,
@@ -877,6 +894,8 @@ mod csv_tests {
             session: *session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
             visited: RwSignal::new(HashSet::new()),
             cache: RwSignal::new(cache),
             fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
@@ -1397,6 +1416,8 @@ mod search_tests {
                     query: "9432".into(),
                     ..Default::default()
                 }),
+                expanded: RwSignal::new(HashSet::new()),
+                mobile_summary_expanded: RwSignal::new(false),
                 visited: RwSignal::new(HashSet::new()),
                 cache: RwSignal::new(HashMap::from([(
                     (0, ReceiptsTab::Dividend),
@@ -1425,10 +1446,18 @@ mod search_tests {
                 leptos::prelude::untrack(|| store.count(ReceiptsTab::Dividend)),
                 3
             );
+            store.expanded.update(|set| {
+                set.insert("g0".to_string());
+            });
+            store.mobile_summary_expanded.set(true);
             store.select_tab(ReceiptsTab::Dividend);
             assert_eq!(store.search.get_untracked().query, "9432");
+            assert!(store.expanded.with_untracked(|set| set.contains("g0")));
+            assert!(store.mobile_summary_expanded.get_untracked());
             store.select_tab(ReceiptsTab::DomesticStock);
             assert_eq!(store.search.get_untracked(), ReceiptSearch::default());
+            assert!(!store.expanded.with_untracked(|set| set.contains("g0")));
+            assert!(!store.mobile_summary_expanded.get_untracked());
             store.select_tab(ReceiptsTab::Dividend);
             assert_eq!(
                 leptos::prelude::untrack(|| {

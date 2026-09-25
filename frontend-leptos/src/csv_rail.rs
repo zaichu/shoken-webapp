@@ -25,7 +25,62 @@ pub fn CsvActionRail(
     save_result: Memo<Option<CsvUploadResponse>>,
     mode_label: &'static str,
 ) -> impl IntoView {
+    // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
+    let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
+    let csv_body_id = format!("{input_id}-body");
+    let body_class = move || {
+        if csv_expanded.get() {
+            "max-sm:border-t max-sm:border-slate-950/10"
+        } else {
+            "max-sm:hidden"
+        }
+    };
+
     view! {
+        <div>
+            <div class="bg-slate-50/60 px-5 sm:hidden">
+                <button
+                    type="button"
+                    class="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    on:click=move |_| csv_expanded.update(|v| *v = !*v)
+                    aria-expanded=move || csv_expanded.get().to_string()
+                    aria-controls=csv_body_id.clone()
+                    data-testid="receipt-csv-toggle"
+                >
+                    <span class="text-sm font-bold text-slate-800">"CSV取り込み・削除"</span>
+                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                        <span class="text-xs font-semibold">
+                            {move || if csv_expanded.get() { "閉じる" } else { "開く" }}
+                        </span>
+                        <svg
+                            aria-hidden="true"
+                            class=move || {
+                                if csv_expanded.get() {
+                                    "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                } else {
+                                    "h-4 w-4 text-slate-500 transition-transform duration-200"
+                                }
+                            }
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 9l-7 7-7-7"
+                            />
+                        </svg>
+                    </span>
+                </button>
+            </div>
+            <div
+                id=csv_body_id
+                role="region"
+                aria-label="CSV取り込み・削除"
+                class=body_class
+            >
         <section
             class="space-y-3 bg-slate-50/60 px-5 py-5"
             role="group"
@@ -83,6 +138,8 @@ pub fn CsvActionRail(
                 }}
             </div>
         </section>
+            </div>
+        </div>
     }
 }
 

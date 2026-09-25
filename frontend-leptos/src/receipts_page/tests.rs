@@ -145,3 +145,201 @@ fn next_year_option_index_returns_none_without_options_or_for_other_keys() {
     assert_eq!(next_year_option_index(Some(0), 3, "Enter"), None);
     assert_eq!(next_year_option_index(Some(0), 3, "Escape"), None);
 }
+
+#[test]
+fn next_tab_index_cycles_like_react_tablist() {
+    assert_eq!(next_tab_index(0, "ArrowRight"), Some(1));
+    assert_eq!(next_tab_index(2, "ArrowRight"), Some(0));
+    assert_eq!(next_tab_index(0, "ArrowLeft"), Some(2));
+    assert_eq!(next_tab_index(1, "ArrowLeft"), Some(0));
+    assert_eq!(next_tab_index(1, "Home"), Some(0));
+    assert_eq!(next_tab_index(0, "End"), Some(2));
+    assert_eq!(next_tab_index(1, "Enter"), None);
+    assert_eq!(next_tab_index(1, "Escape"), None);
+}
+
+#[test]
+fn negative_text_detection_matches_formatted_values() {
+    assert!(is_negative_text("¥ -1,234"));
+    assert!(is_negative_text("-500"));
+    assert!(is_negative_text("-1.5"));
+    assert!(!is_negative_text("¥ 1,234"));
+    assert!(!is_negative_text("¥ -0"));
+    assert!(!is_negative_text("+3"));
+    assert!(!is_negative_text(""));
+    assert!(!is_negative_text("ＮＴＴ"));
+    assert!(!is_negative_text("-"));
+    assert!(!is_negative_text("12."));
+    assert!(!is_negative_text("1.2.3"));
+}
+
+#[test]
+fn short_date_strips_year_only_for_iso_formatted() {
+    assert_eq!(short_date("2024/03/01"), "03/01");
+    assert_eq!(short_date("-"), "-");
+    assert_eq!(short_date("ＮＴＴ"), "ＮＴＴ");
+    assert_eq!(short_date("03/01"), "03/01");
+}
+
+#[test]
+fn card_fields_point_at_expected_columns() {
+    let cases = [
+        (
+            ReceiptsTab::Dividend,
+            ("銘柄名", "受取額", "入金日", "口座"),
+        ),
+        (
+            ReceiptsTab::DomesticStock,
+            ("銘柄名", "税引後", "約定日", "口座"),
+        ),
+        (
+            ReceiptsTab::MutualFund,
+            ("ファンド名", "税引損益", "約定日", "口座"),
+        ),
+    ];
+    for (tab, expected) in cases {
+        let fields = card_fields(tab);
+        let headers = table_headers(tab);
+        assert_eq!(
+            (
+                headers[fields.name],
+                headers[fields.primary],
+                headers[fields.date],
+                headers[fields.account]
+            ),
+            expected
+        );
+    }
+    assert!(matches!(
+        dividends()[0].cells()[3],
+        ReceiptCell::SecurityCode(_)
+    ));
+    assert!(matches!(
+        domestic()[0].cells()[1],
+        ReceiptCell::SecurityCode(_)
+    ));
+    assert!(!funds()[0]
+        .cells()
+        .iter()
+        .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_))));
+}
+
+#[test]
+fn card_row_data_matches_react_card_fields() {
+    let rows = dividends();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        "dividend:r:old".to_string(),
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert_eq!(card.key, "dividend:r:old");
+    assert_eq!(card.name, "日本電信電話");
+    assert_eq!(card.amount, "¥ 400");
+    assert!(!card.amount_negative);
+    assert_eq!(card.date, "06/21");
+    assert_eq!(card.account, "特定");
+    assert_eq!(card.details.len(), 10);
+    assert_eq!(card.details[0].label, "入金日");
+    assert!(card.details.iter().all(|detail| match &detail.value {
+        CardDetailValue::Text { text, negative } => *negative == is_negative_text(text),
+        CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
+    }));
+}
+
+#[test]
+fn card_details_link_security_code_and_copy_name() {
+    let rows = dividends();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        String::new(),
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::SecurityCode(raw) if raw == "9432"
+    )));
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::CopyName { display, copy }
+            if display == "日本電信電話" && copy == "日本電信電話(9432)"
+    )));
+
+    let rows = funds();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::MutualFund, &rows, "");
+    let card = card_row_data(
+        String::new(),
+        &cells,
+        table_headers(ReceiptsTab::MutualFund),
+        &order,
+        card_fields(ReceiptsTab::MutualFund),
+    );
+    assert!(!card
+        .details
+        .iter()
+        .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_))));
+    assert!(card.details.iter().any(|detail| matches!(
+        &detail.value,
+        CardDetailValue::CopyName { display, copy } if display == copy
+    )));
+}
+
+#[test]
+fn table_groups_carry_group_key_and_row_ids() {
+    let rows = dividends();
+    let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "");
+    assert_eq!(groups[0].key, "2026-06");
+    assert_eq!(groups[0].label, "2026年6月");
+    let ids: Vec<&str> = groups
+        .iter()
+        .flat_map(|group| group.rows.iter().map(|(id, _)| id.as_str()))
+        .collect();
+    assert_eq!(ids, ["new", "other", "old"]);
+}
+
+#[test]
+fn card_key_identifies_idless_rows_by_content() {
+    let cells = dividends()[0].cells();
+    let key = card_key("dividend", "", &cells);
+    assert!(key.starts_with("dividend:p:"));
+    assert!(key.contains("日本電信電話"));
+    assert_eq!(key, card_key("dividend", "", &cells));
+    assert_ne!(key, card_key("mutualfund", "", &cells));
+    assert_eq!(card_key("dividend", "old", &cells), "dividend:r:old");
+}
+
+#[test]
+fn security_code_acceptance_matches_react_regex() {
+    assert!(is_security_code("9432"));
+    assert!(is_security_code("BRK.B"));
+    assert!(!is_security_code(""));
+    assert!(!is_security_code("任天堂"));
+    assert!(!is_security_code("9432:メモ"));
+}
+
+#[test]
+fn card_row_data_details_follow_column_reorder() {
+    let rows = dividends();
+    let query = "特定";
+    let order = column_order(ReceiptsTab::Dividend, &rows, query);
+    assert_eq!(order[1], 2);
+    let cells = rows[0].cells();
+    let card = card_row_data(
+        String::new(),
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        card_fields(ReceiptsTab::Dividend),
+    );
+    assert_eq!(card.details[1].label, "口座");
+    assert_eq!(card.name, "日本電信電話");
+    assert_eq!(card.account, "特定");
+}

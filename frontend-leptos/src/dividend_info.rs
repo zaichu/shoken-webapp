@@ -337,7 +337,13 @@ pub(crate) fn DividendSummarySection(
                 <button
                     type="button"
                     class="flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
-                    aria-expanded=move || mobile_expanded.get()
+                    aria-expanded=move || {
+                        if mobile_expanded.get() {
+                            "true"
+                        } else {
+                            "false"
+                        }
+                    }
                     aria-controls="receipt-summary-mobile-body"
                     aria-label="集計情報"
                     data-testid="receipt-summary-compact-toggle"
@@ -388,7 +394,13 @@ pub(crate) fn DividendSummarySection(
                 <button
                     type="button"
                     class="flex w-full items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5 text-left"
-                    aria-expanded=move || expanded.get()
+                    aria-expanded=move || {
+                        if expanded.get() {
+                            "true"
+                        } else {
+                            "false"
+                        }
+                    }
                     aria-controls="receipt-summary-body"
                     data-testid="receipt-header"
                     on:click=move |_| expanded.update(|open| *open = !*open)
