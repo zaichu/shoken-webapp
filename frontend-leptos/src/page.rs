@@ -88,9 +88,11 @@ fn replace_location(path: &str) {
 #[component]
 pub fn App() -> impl IntoView {
     let route = current_route();
-    if route == Route::NotFound && current_path() != "/404" {
-        replace_location("/404");
-    }
+    Effect::new(move |_| {
+        if route == Route::NotFound && current_path() != "/404" {
+            replace_location("/404");
+        }
+    });
     let session = provide_session();
     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
         document.set_title(&format!("{} - {BASE_TITLE}", route.title()));
