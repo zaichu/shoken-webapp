@@ -19,7 +19,7 @@ use crate::receipts_filter::{
 use crate::receipts_search::SearchOption;
 use crate::receipts_search_group_key::{create_group_key_fn, GroupKeyRule};
 use crate::receipts_search_support::group_and_summarize;
-use crate::security_link::{CopyableInstrumentName, SecurityCodeLink};
+use crate::security_link::{copy_to_clipboard, CopyableInstrumentName, SecurityCodeLink};
 use crate::session::use_session;
 use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::ev;
@@ -1771,11 +1771,7 @@ fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<String>) {
                     <button
                         type="button"
                         aria-label=format!("{copy} をコピー")
-                        on:click=move |_| {
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.navigator().clipboard().write_text(&copy_text);
-                            }
-                        }
+                        on:click=move |_| copy_to_clipboard(copy_text.clone())
                         class="group inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500"
                     >
                         <span>{display.clone()}</span>

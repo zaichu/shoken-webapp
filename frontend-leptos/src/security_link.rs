@@ -79,7 +79,7 @@ fn instrument_copy_text(name: &str, code: Option<&str>) -> String {
 }
 
 /// clipboard API が無い環境では何もしない
-fn copy_to_clipboard(text: String) {
+pub(crate) fn copy_to_clipboard(text: String) {
     let Some(window) = web_sys::window() else {
         return;
     };
