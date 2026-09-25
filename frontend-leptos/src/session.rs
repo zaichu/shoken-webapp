@@ -47,6 +47,7 @@ pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
     pub loaded: RwSignal<bool>,
     pub generation: RwSignal<u64>,
+    logout_epoch: RwSignal<u64>,
 }
 
 impl SessionStore {
@@ -55,6 +56,7 @@ impl SessionStore {
             user: RwSignal::new(None),
             loaded: RwSignal::new(false),
             generation: RwSignal::new(0),
+            logout_epoch: RwSignal::new(0),
         }
     }
 
@@ -79,6 +81,8 @@ impl SessionStore {
     }
 
     pub async fn check(&self) {
+        // 送信前に採った時点からログアウトが起きていれば、遅れて届いた応答で復活させない
+        let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
         let user = client
             .get_json::<SessionUser>("/api/v1/session", &[])
@@ -86,17 +90,21 @@ impl SessionStore {
             .ok()
             .filter(|user| !user.id.is_empty());
         batch(|| {
-            // 他タブがログアウト中なら、確認の結果にかかわらず未認証を維持する
-            if pending_logout::is_pending() {
-                self.set_user(None);
-            } else {
+            if self.check_result_applies(epoch, pending_logout::is_pending()) {
                 self.set_user(user);
+            } else {
+                self.set_user(None);
             }
             self.loaded.set(true);
         });
     }
 
+    fn check_result_applies(&self, epoch: u64, pending_logout: bool) -> bool {
+        !pending_logout && self.logout_epoch.get_untracked() == epoch
+    }
+
     pub fn mark_unauthenticated(&self) {
+        self.logout_epoch.update(|epoch| *epoch += 1);
         self.set_user(None);
     }
 
@@ -198,6 +206,20 @@ mod tests {
         assert!(SessionStore::same_identity(&alice(), &alice()));
         assert!(!SessionStore::same_identity(&None, &alice()));
         assert!(!SessionStore::same_identity(&alice(), &None));
+    }
+
+    #[test]
+    fn logout_epoch_discards_result_started_before_logout() {
+        let owner = leptos::prelude::Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let epoch = session.logout_epoch.get_untracked();
+            assert!(session.check_result_applies(epoch, false));
+            assert!(!session.check_result_applies(epoch, true));
+            session.mark_unauthenticated();
+            assert!(!session.check_result_applies(epoch, false));
+            assert!(session.check_result_applies(session.logout_epoch.get_untracked(), false));
+        });
     }
 
     #[test]
