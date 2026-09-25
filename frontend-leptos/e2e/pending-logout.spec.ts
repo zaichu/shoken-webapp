@@ -102,6 +102,47 @@ test('ログアウトが401を返したらセッション消失とみなして�
   expect(deleteCount).toBe(1);
 });
 
+test('保留中にログインすると一度だけ再送して記録を消し、戻ってきたセッションは消えない', async ({ page }) => {
+  await page.clock.install();
+  let getCount = 0;
+  let deleteCount = 0;
+  await page.route(/\/api\/v1\/session$/, async (route) => {
+    if (route.request().method() === 'DELETE') {
+      deleteCount += 1;
+      return route.fulfill({ status: 400, body: '{}' });
+    }
+    getCount += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_USER),
+    });
+  });
+  await page.route(/\/api\/v1\/oauth\/google\/authorize/, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' }),
+  );
+
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+
+  await logoutViaUserMenu(page);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect.poll(() => pendingFlag(page)).toBe('1');
+  await expect.poll(() => deleteCount).toBe(1);
+
+  await Promise.all([
+    page.waitForURL(/\/api\/v1\/oauth\/google\/authorize/),
+    page.getByRole('button', { name: 'ログイン' }).click(),
+  ]);
+  await expect.poll(() => deleteCount).toBe(2);
+  await expect.poll(() => pendingFlag(page)).toBeNull();
+
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+  expect(deleteCount).toBe(2);
+  expect(getCount).toBe(2);
+});
+
 test('localStorageが使えなくてもログインとログアウトが動く', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', {
