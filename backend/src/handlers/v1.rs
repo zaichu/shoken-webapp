@@ -222,7 +222,6 @@ mod tests {
             .merge(crate::handlers::csv_import::csv_import_routes())
             .with_state(make_test_state());
 
-        // 未認証でもセッション cookie 付きでも拒否される
         let status = check_status(router.clone(), Method::POST, "/api/v1/stocks").await;
         assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
 
