@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { readFileSync } from 'node:fs';
 import { get } from 'node:http';
-import { resolve } from 'node:path';
+import { loadBackendOrigin } from '../scripts/backend-origin.cjs';
 
-const BACKEND_ORIGIN = (
-  JSON.parse(readFileSync(resolve(__dirname, '../backend-origin.json'), 'utf8')) as {
-    backendOrigin: string;
-  }
-).backendOrigin;
+const BACKEND_ORIGIN: string = loadBackendOrigin();
 const SERVE_PORT = Number(process.env.VERCEL_E2E_PORT ?? '8190');
 
 // URL パーサがデコード前にドットセグメントを潰すため、生のパスで送る必要がある

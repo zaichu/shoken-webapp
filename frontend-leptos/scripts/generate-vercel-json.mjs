@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadBackendOrigin } from './backend-origin.mjs';
+import { loadBackendOrigin } from './backend-origin.cjs';
 
 const appDir = fileURLToPath(new URL('..', import.meta.url));
 const templatePath = join(appDir, 'vercel.template.json');
