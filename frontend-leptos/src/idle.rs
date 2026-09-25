@@ -61,7 +61,6 @@ fn on_user_activity(timer: &IdleTimer, session: SessionStore) {
 pub fn watch_idle_logout(session: SessionStore) {
     let timer: IdleTimer = Rc::new(RefCell::new(None));
 
-    // ログイン/ログアウトでタイマーを開始・停止する
     let timer_effect = Rc::clone(&timer);
     Effect::new(move |_| {
         if session.user.get().is_some() {
