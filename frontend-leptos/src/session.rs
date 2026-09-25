@@ -136,6 +136,7 @@ impl SessionStore {
         };
         self.mark_unauthenticated();
         self.loaded.set(true);
+        cross_tab::notify_logout();
         result
     }
 

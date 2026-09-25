@@ -60,6 +60,27 @@ test('片方のタブでログアウトするともう片方も未認証にな�
   expect(deleteCount).toBe(1);
 });
 
+test('片方のタブでアカウント削除するともう片方も未認証になる', async ({ context }) => {
+  await stubSession(context, () => {});
+  await context.route(/\/api\/v1\/account-deletion-confirmations$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"message":"ok"}' }),
+  );
+  await context.route(/\/api\/v1\/account$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"message":"ok"}' }),
+  );
+  const { pageA, pageB } = await openLoggedInPages(context);
+
+  await pageA.getByRole('button', { name: 'メニュー' }).click();
+  await pageA.getByRole('menuitem', { name: 'アカウント削除' }).click();
+  await pageA
+    .getByRole('dialog', { name: 'アカウント削除の確認' })
+    .getByRole('button', { name: '削除する' })
+    .click();
+
+  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
+
 test('BroadcastChannelが無い環境ではstorageイベントでログアウトを共有する', async ({ context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(window, 'BroadcastChannel', { value: undefined });
