@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../atoms/Button';
 import { ConfirmDeleteModal } from '../molecules/ConfirmDeleteModal/ConfirmDeleteModal';
 import { useAuth } from '../../features/auth/hooks/useAuth';
+import { ApiError } from '@/lib/types/api';
 import { cn } from '../../lib/utils/classNames';
 import { APP_SHELL_CONTAINER } from '@/lib/layout';
 
@@ -30,6 +31,8 @@ export function Header() {
   const { user, login, logout, deleteAccount, isAuthenticated, isLoading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -70,12 +73,20 @@ export function Header() {
   };
 
   const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
     try {
       await deleteAccount();
       setShowDeleteConfirm(false);
       setShowDropdown(false);
-    } catch {
-      // 削除失敗時はモーダルを閉じない
+    } catch (error) {
+      setDeleteError(
+        error instanceof ApiError
+          ? error.getUserMessage()
+          : '削除に失敗しました。時間をおいて再度お試しください。'
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -173,7 +184,10 @@ export function Header() {
                         <li role="none">
                           <button
                             className="w-full px-3 py-2 text-left text-sm font-bold text-danger hover:bg-danger/10"
-                            onClick={() => setShowDeleteConfirm(true)}
+                            onClick={() => {
+                              setDeleteError(null);
+                              setShowDeleteConfirm(true);
+                            }}
                             role="menuitem"
                             aria-describedby="delete-warning"
                           >
@@ -205,6 +219,8 @@ export function Header() {
         description="アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。"
         itemCount={1}
         confirmLabel="削除する"
+        loading={deleting}
+        error={deleteError}
       />
     </>
   );

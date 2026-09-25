@@ -20,7 +20,7 @@ async fn session_invalidated() -> bool {
 const DELETE_ACCOUNT_MAX_RETRIES: u32 = 3;
 const DELETE_ACCOUNT_RETRY_DELAY_MS: u32 = 1_000;
 
-// 応答喪失はセッション確認で削除済みか未到達かを分け、未到達なら再送する(HTTP拒否は確定失敗)
+// 応答喪失はセッションの生死で再送可否を分ける(HTTP拒否は確定失敗)
 async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
     let mut retries = 0;
     loop {
@@ -32,7 +32,11 @@ async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
             return Err(error);
         }
         if session_invalidated().await {
-            return Ok(());
+            // セッション失効は削除済みか通常の失効か区別できないため、成功とはみなさない
+            return Err(ApiError::Http {
+                status: 401,
+                server_message: None,
+            });
         }
         if retries >= DELETE_ACCOUNT_MAX_RETRIES {
             return Err(error);
@@ -134,9 +138,16 @@ impl SessionStore {
             Err(error) => Err(error),
             Ok(_) => delete_with_verification(&client).await,
         };
-        self.mark_unauthenticated();
-        self.loaded.set(true);
-        cross_tab::notify_logout();
+        // 削除失敗時はセッションを残し、呼び出し側がエラーを出して再試行できるようにする
+        let session_lost = match &result {
+            Ok(()) => true,
+            Err(error) => error.is_unauthorized(),
+        };
+        if session_lost {
+            self.mark_unauthenticated();
+            self.loaded.set(true);
+            cross_tab::notify_logout();
+        }
         result
     }
 

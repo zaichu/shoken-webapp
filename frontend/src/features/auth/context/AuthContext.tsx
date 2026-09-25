@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { UserInfo } from '../types';
 import { AuthContext } from './context';
 import { apiClient, createApiClient } from '@/lib/api/client';
+import { ApiError, ApiErrorType } from '@/lib/types/api';
 import { useIdleTimer } from '../hooks/useIdleTimer';
 import { locationAssigner } from './locationAssigner';
 
@@ -27,6 +28,9 @@ const ABORT_REASON_CLEANUP = 'cleanup';
 
 // アイドルタイムアウト: 30分
 const IDLE_TIMEOUT = 30 * 60 * 1000;
+
+const DELETE_ACCOUNT_MAX_RETRIES = 3;
+const DELETE_ACCOUNT_RETRY_DELAY_MS = 1_000;
 
 type SessionState = { user: UserInfo | null; isLoading: boolean };
 
@@ -109,25 +113,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  // DELETE の応答喪失は削除済みか未到達か分からないため、セッションの生死を確認する
+  const sessionInvalidated = async (): Promise<boolean> => {
+    try {
+      await authApiClient.get('/api/v1/session', { withCredentials: true });
+      return false;
+    } catch (error) {
+      return (
+        error instanceof ApiError &&
+        error.type === ApiErrorType.AUTHENTICATION_ERROR
+      );
+    }
+  };
+
+  const deleteWithVerification = async (): Promise<void> => {
+    let retries = 0;
+    for (;;) {
+      try {
+        await apiClient.delete('/api/v1/account', {
+          withCredentials: true,
+          retry: { maxRetries: 0 },
+        });
+        return;
+      } catch (error) {
+        const lost =
+          error instanceof ApiError &&
+          (error.type === ApiErrorType.NETWORK_ERROR ||
+            error.type === ApiErrorType.TIMEOUT_ERROR);
+        if (!lost) {
+          throw error;
+        }
+        if (await sessionInvalidated()) {
+          // 401 は削除済みか通常の失効か区別できないため、成功とはみなさない
+          throw new ApiError(
+            ApiErrorType.AUTHENTICATION_ERROR,
+            '認証が必要です',
+            401
+          );
+        }
+        if (retries >= DELETE_ACCOUNT_MAX_RETRIES) {
+          throw error;
+        }
+        await new Promise(resolve =>
+          setTimeout(resolve, DELETE_ACCOUNT_RETRY_DELAY_MS << retries),
+        );
+        retries += 1;
+      }
+    }
+  };
+
   const deleteAccount = async () => {
-    // 登録されたコールバックを先に実行（状態クリア用）
-    logoutCallbacksRef.current.forEach(callback => callback());
-    let hasError = false;
     let caughtError: unknown;
     try {
       await apiClient.post('/api/v1/account-deletion-confirmations', {}, {
         withCredentials: true,
         retry: { maxRetries: 0 },
       });
-      await apiClient.delete('/api/v1/account', {
-        withCredentials: true,
-      });
+      await deleteWithVerification();
     } catch (error: unknown) {
-      hasError = true;
       caughtError = error;
     }
-    setSession(s => ({ ...s, user: null }));
-    if (hasError) {
+    // 失敗時はセッションを残して再試行できるようにする。削除完了か認証切れのときだけ未認証にする
+    const sessionLost =
+      !caughtError ||
+      (caughtError instanceof ApiError &&
+        caughtError.type === ApiErrorType.AUTHENTICATION_ERROR);
+    if (sessionLost) {
+      logoutCallbacksRef.current.forEach(callback => callback());
+      setSession(s => ({ ...s, user: null }));
+    }
+    if (caughtError) {
       throw caughtError;
     }
   };

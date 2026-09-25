@@ -96,18 +96,27 @@ test('アカウント削除は確認ダイアログ経由で実行され、成�
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
 
-test('アカウント削除の確認APIが失敗したとき削除APIは呼ばれずダイアログは開いたままになる', async ({
+test('アカウント削除の確認APIが失敗したときダイアログにエラーが出て再試行で削除を完了できる', async ({
   page,
 }) => {
   await mockAuthorizedAuth(page);
   const calls: string[] = [];
+  let confirmFails = true;
   await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
     calls.push('confirm');
-    await route.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: '{"error":"server error"}',
-    });
+    await route.fulfill(
+      confirmFails
+        ? {
+            status: 500,
+            contentType: 'application/json',
+            body: '{"error":"server error"}',
+          }
+        : {
+            status: 200,
+            contentType: 'application/json',
+            body: '{"message":"ok"}',
+          },
+    );
   });
   await page.route(/\/api\/v1\/account$/, async (route) => {
     calls.push('delete');
@@ -130,6 +139,72 @@ test('アカウント削除の確認APIが失敗したとき削除APIは呼ば�
   await page.waitForTimeout(1500);
   expect(calls).toEqual(['confirm']);
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText(
+    'サーバーエラーが発生しました。しばらくしてから再度お試しください',
+  );
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン' })).toHaveCount(0);
+
+  confirmFails = false;
+  await dialog.getByRole('button', { name: '削除する' }).click();
+  await expect.poll(() => calls.join(',')).toBe('confirm,confirm,delete');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
+
+test('削除APIが500を返したときはダイアログにエラーが出て再試行で削除を完了できる', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  const calls: string[] = [];
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    calls.push('confirm');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  let deleteFails = true;
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    calls.push('delete');
+    await route.fulfill(
+      deleteFails
+        ? {
+            status: 500,
+            contentType: 'application/json',
+            body: '{"error":{"code":"INTERNAL","message":"db error"}}',
+          }
+        : {
+            status: 200,
+            contentType: 'application/json',
+            body: '{"message":"ok"}',
+          },
+    );
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  await expect.poll(() => calls.join(',')).toBe('confirm,delete');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText(
+    'サーバーエラーが発生しました。しばらくしてから再度お試しください',
+  );
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン' })).toHaveCount(0);
+
+  deleteFails = false;
+  await dialog.getByRole('button', { name: '削除する' }).click();
+  await expect.poll(() => calls.join(',')).toBe(
+    'confirm,delete,confirm,delete',
+  );
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
 
 test('削除処理中はキャンセル・Escape・背景クリックでダイアログを閉じられない', async ({
@@ -169,7 +244,7 @@ test('削除処理中はキャンセル・Escape・背景クリックでダイ�
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
 
-test('削除APIの応答が失われてもセッション無効化を確認してダイアログを閉じる', async ({
+test('削除APIの応答が失われてセッションも失効したときは結果を確定せず認証切れを表示する', async ({
   page,
 }) => {
   let sessionDeleted = false;
@@ -201,8 +276,9 @@ test('削除APIの応答が失われてもセッション無効化を確認し�
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
   await dialog.getByRole('button', { name: '削除する' }).click();
 
-  await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText('ログインが必要です');
   expect(deleteAttempts).toBe(1);
 });
 
@@ -281,6 +357,7 @@ test('セッション失効で確認APIが401を返したとき削除APIは呼�
 
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText('ログインが必要です');
   expect(deleteAttempts).toBe(0);
 });
 
@@ -318,4 +395,5 @@ test('削除APIが401を返したときはダイアログが開いたままに�
 
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText('ログインが必要です');
 });

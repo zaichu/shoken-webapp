@@ -60,6 +60,7 @@ pub fn ConfirmDeleteModal(
     item_count: usize,
     confirm_label: &'static str,
     loading: Memo<bool>,
+    #[prop(optional)] error: Option<RwSignal<Option<String>>>,
     on_confirm: impl Fn() + Clone + 'static,
     on_cancel: impl Fn() + Clone + 'static,
 ) -> impl IntoView {
@@ -130,6 +131,20 @@ pub fn ConfirmDeleteModal(
                             <strong>"⚠ この操作は取り消せません。"</strong>
                             "削除されたデータは復元できません。"
                         </p>
+                        {move || {
+                            error
+                                .and_then(|error| error.get())
+                                .map(|message| {
+                                    view! {
+                                        <p
+                                            class="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                                            role="alert"
+                                        >
+                                            {message}
+                                        </p>
+                                    }
+                                })
+                        }}
                     </div>
                     <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
                         <button
