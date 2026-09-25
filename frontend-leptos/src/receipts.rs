@@ -288,7 +288,7 @@ pub struct ReceiptsStore {
     // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
-    // 開閉状態が属するセッション世代。ensure で世代の変化を検知して開閉状態を初期化する
+    // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
     expanded_epoch: RwSignal<Option<u64>>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,

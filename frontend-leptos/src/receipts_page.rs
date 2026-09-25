@@ -1825,7 +1825,6 @@ fn card_key(slug: &str, id: &str, cells: &[ReceiptCell], ordinal: usize) -> Stri
 
 // 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
 // id を持たない行の通し番号は絞り込み前の全行内での位置から引く。
-// 同一内容の行は全行内の並び順でキューから取り出す。
 fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usize>> {
     let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
     for (index, item) in all_rows.iter().enumerate() {
