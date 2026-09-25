@@ -24,7 +24,7 @@ use crate::dto::{
 };
 use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
-use crate::security_link::{copy_to_clipboard, SecurityCodeLink};
+use crate::security_link::{try_copy_to_clipboard, SecurityCodeLink};
 use crate::session::{use_session, SessionStore};
 use crate::ui::PageHeader;
 use leptos::prelude::*;
@@ -972,23 +972,33 @@ fn AssetBalanceRailExtras(
     }
 }
 
+#[derive(Clone, Copy)]
+enum ReviewCopyStatus {
+    Idle,
+    Success,
+    Error,
+}
+
 #[component]
 fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
-    let copied = RwSignal::new(false);
+    let status = RwSignal::new(ReviewCopyStatus::Idle);
     let disabled = rows.is_empty();
-    let label = move || {
-        if copied.get() {
-            "コピーしました！"
-        } else {
-            "AI総評プロンプトをコピー"
-        }
+    let label = move || match status.get() {
+        ReviewCopyStatus::Success => "コピーしました！",
+        ReviewCopyStatus::Error => "コピーに失敗しました",
+        ReviewCopyStatus::Idle => "AI総評プロンプトをコピー",
     };
     let on_click = move |_| {
-        copy_to_clipboard(generate_asset_review_prompt(&rows));
-        copied.set(true);
+        let rows = rows.clone();
         leptos::task::spawn_local(async move {
+            let ok = try_copy_to_clipboard(generate_asset_review_prompt(&rows)).await;
+            status.set(if ok {
+                ReviewCopyStatus::Success
+            } else {
+                ReviewCopyStatus::Error
+            });
             gloo_timers::future::TimeoutFuture::new(3_000).await;
-            copied.set(false);
+            status.set(ReviewCopyStatus::Idle);
         });
     };
     view! {
