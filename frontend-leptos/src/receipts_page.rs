@@ -39,6 +39,16 @@ pub fn ReceiptsPage() -> impl IntoView {
     let busy = store.clone();
     let panels_store = store.clone();
     let modal_store = store.clone();
+    // 他タブの取得進捗で workspace 全体を再生成するとレール開閉などのローカル状態が
+    // 巻き戻るため、分岐条件だけを memo 化して再生成を実際の切替時に限定する
+    let workspace_store = store.clone();
+    let panels_loading = Memo::new(move |_| {
+        workspace_store.auth_loading()
+            || matches!(
+                workspace_store.tab_state(workspace_store.active_tab.get()),
+                TabState::Loading
+            )
+    });
 
     view! {
         <div class="page-surface">
@@ -83,12 +93,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                 <div data-testid="receipts-workspace">
                     {move || {
                         let workspace = panels_store.clone();
-                        if workspace.auth_loading()
-                            || matches!(
-                                workspace.tab_state(workspace.active_tab.get()),
-                                TabState::Loading
-                            )
-                        {
+                        if panels_loading.get() {
                             view! {
                                 <section class="px-5 py-4" role="status">
                                     <div class="flex items-center gap-2 text-slate-600">
@@ -276,12 +281,13 @@ fn empty_tab_data() -> ReceiptTabData {
 #[component]
 fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store.clone();
-    let error_store = store.clone();
-    let warning_store = store.clone();
     let preview_store = store.clone();
     let loading_store = store.clone();
     let rail_store = store.clone();
     let main_store = store.clone();
+    // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
+    // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
+    let panel_state = Memo::new(move |_| store.tab_state(tab));
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
@@ -296,7 +302,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
                         // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
-                        match error_store.tab_state(tab) {
+                        match panel_state.get() {
                             TabState::Failed(message) => {
                                 view! {
                                     <section class="px-5 py-4">
@@ -336,7 +342,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                             .into_any()
                     }}
                     {move || {
-                        match warning_store.tab_state(tab) {
+                        match panel_state.get() {
                             TabState::Ready(data) if data.truncated => {
                                 view! {
                                     <section class="px-5 py-4" role="status" aria-live="polite">
@@ -414,7 +420,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         }
                             .into_any()
                     }}
-                    {move || match rail_store.tab_state(tab) {
+                    {move || match panel_state.get() {
                         TabState::Ready(data) => {
                             view! { <ReceiptsSearchCard store=rail_store.clone() tab=tab data=data /> }
                                 .into_any()
@@ -434,7 +440,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 </div>
             </aside>
             <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
-                {move || match main_store.tab_state(tab) {
+                {move || match panel_state.get() {
                     TabState::Loading => view! { <Loading /> }.into_any(),
                     TabState::Ready(data) => {
                         view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }

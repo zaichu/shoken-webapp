@@ -274,7 +274,7 @@ fn fetch_error_message(error: &ApiError) -> String {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TabState {
     Loading,
     Ready(ReceiptTabData),
