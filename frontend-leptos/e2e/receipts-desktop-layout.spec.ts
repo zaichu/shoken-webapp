@@ -228,6 +228,18 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
     .toBe(true);
   await page.setViewportSize({ width: 1920, height: 1080 });
 
+  // 印刷時は高さ制限とスクロールを外して全行を出力する
+  await page.emulateMedia({ media: 'print' });
+  const printWrap = await page.getByRole('table').evaluate((table) => {
+    const wrapper = table.parentElement;
+    if (!wrapper) return { overflowY: '', maxHeight: '' };
+    const style = getComputedStyle(wrapper);
+    return { overflowY: style.overflowY, maxHeight: style.maxHeight };
+  });
+  expect(printWrap.overflowY).toBe('visible');
+  expect(printWrap.maxHeight).toBe('none');
+  await page.emulateMedia({ media: 'screen' });
+
   // 全件削除はレール内のボタン(全幅の赤枠ではない)
   const deleteButton = rail.getByRole('button', { name: /全件削除/ });
   await expect(deleteButton).toBeVisible();
@@ -255,23 +267,16 @@ test('640px 以上で年ピッカーの選択肢がレール下端を超えて�
     await trigger.click();
     const listbox = page.getByRole('listbox', { name: '年候補' });
     await expect(listbox).toBeVisible();
+
+    // 長い候補はリスト内でスクロールして全件に到達できる
+    await expect(listbox).toHaveCSS('overflow-y', 'auto');
+    await expect(listbox).toHaveCSS('max-height', '288px');
+
+    // 末尾の年も実際にクリックできる(768px の1カラム幅ではドロップダウンが下の表と重なり得る)
     const lastOption = listbox.getByRole('option').last();
     const yearLabel = (await lastOption.textContent())!.trim();
-
-    // 十分な年数でドロップダウンがレールの下端をはみ出す配置を固定する
-    const railBox = await railInner.boundingBox();
-    const optionBox = await lastOption.boundingBox();
-    expect(railBox).not.toBeNull();
-    expect(optionBox).not.toBeNull();
-    expect(optionBox!.y + optionBox!.height).toBeGreaterThan(
-      railBox!.y + railBox!.height,
-    );
-
-    // レールの外に出た選択肢も実際にクリックできる(1カラム時は下の表と重なるため 2カラム幅でのみ)
-    if (width >= 1024) {
-      await lastOption.click({ timeout: 5000 });
-      await expect(trigger).toContainText(yearLabel);
-    }
+    await lastOption.click({ timeout: 5000 });
+    await expect(trigger).toContainText(yearLabel);
   }
 });
 
