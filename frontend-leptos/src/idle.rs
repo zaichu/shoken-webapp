@@ -46,7 +46,12 @@ fn on_idle_timer(timer: &IdleTimer, session: SessionStore) {
         }
         _ => {
             leptos::task::spawn_local(async move {
-                session.logout().await;
+                if cross_tab::claim_logout_once().await {
+                    session.logout().await;
+                } else {
+                    session.mark_unauthenticated();
+                    session.loaded.set(true);
+                }
             });
         }
     }

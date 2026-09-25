@@ -1,7 +1,9 @@
+use crate::pending_logout;
 use crate::session::SessionStore;
 use leptos::ev;
 use leptos::prelude::*;
 use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -94,6 +96,56 @@ pub fn last_activity_ms() -> Option<u64> {
         .ok()
         .flatten()
         .and_then(|value| value.parse::<u64>().ok())
+}
+
+const LOGOUT_CLAIM_LOCK: &str = "logout_claim";
+
+fn claim_logout_once_local() -> bool {
+    if pending_logout::is_pending() {
+        return false;
+    }
+    pending_logout::mark();
+    true
+}
+
+// 別タブと同時に期限が切れても DELETE を送るのは1つだけにする。
+// navigator.locks が無い環境では読み書きの競合が残るが、DELETE は冪等なのでベストエフォートに落とす
+pub async fn claim_logout_once() -> bool {
+    let Some(request) = web_sys::window()
+        .and_then(|window| js_sys::Reflect::get(&window.navigator(), &"locks".into()).ok())
+        .and_then(|locks| {
+            js_sys::Reflect::get(&locks, &"request".into())
+                .ok()
+                .and_then(|request| request.dyn_into::<js_sys::Function>().ok())
+                .map(|request| (locks, request))
+        })
+    else {
+        return claim_logout_once_local();
+    };
+    let (locks, request) = request;
+    let claimed = Rc::new(Cell::new(false));
+    let callback = Closure::wrap(Box::new({
+        let claimed = Rc::clone(&claimed);
+        move |_lock: JsValue| {
+            if !pending_logout::is_pending() {
+                pending_logout::mark();
+                claimed.set(true);
+            }
+        }
+    }) as Box<dyn FnMut(JsValue)>);
+    let promise = request
+        .call2(
+            &locks,
+            &JsValue::from_str(LOGOUT_CLAIM_LOCK),
+            callback.as_ref().unchecked_ref(),
+        )
+        .ok()
+        .and_then(|value| value.dyn_into::<js_sys::Promise>().ok());
+    let Some(promise) = promise else {
+        return claim_logout_once_local();
+    };
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    claimed.get()
 }
 
 #[cfg(test)]

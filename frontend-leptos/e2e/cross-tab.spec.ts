@@ -110,7 +110,7 @@ test('片方のタブで操作を続けるともう片方もログアウトせ�
 
   // どのタブでも操作が止まって 30 分経つとログアウトし、両方が未認証になる
   await pageA.clock.fastForward(29 * MINUTE);
-  await expect.poll(() => deleteCount).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => deleteCount).toBe(1);
   await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
   await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
