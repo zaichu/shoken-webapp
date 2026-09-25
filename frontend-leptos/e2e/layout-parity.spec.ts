@@ -502,6 +502,10 @@ test('資産管理レールは390pxでも1枚カードで検索は初期展開',
     (el) => getComputedStyle(el).borderTopLeftRadius,
   );
   expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+  const sections = card.locator('> *');
+  expect(await sections.count()).toBeGreaterThanOrEqual(3);
+  await expect(sections.first()).toHaveCSS('border-bottom-width', '1px');
+  await expect(sections.last()).toHaveCSS('border-bottom-width', '0px');
   await expect(card.getByTestId('assetbalance-csv-toggle')).toBeVisible();
   await expect(card.getByTestId('search-card-compact')).toBeVisible();
   await expect(

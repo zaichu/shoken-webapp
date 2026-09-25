@@ -133,10 +133,13 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
 
-  // レールは1枚のカードで、検索カードは内側の区切りに従う
   const searchCard = page.getByTestId('search-card');
   const railInner = rail.locator('> div').first();
   await expect(railInner).toHaveCSS('border-top-width', '1px');
+  const railSections = railInner.locator('> *');
+  expect(await railSections.count()).toBeGreaterThanOrEqual(3);
+  await expect(railSections.first()).toHaveCSS('border-bottom-width', '1px');
+  await expect(railSections.last()).toHaveCSS('border-bottom-width', '0px');
   const railRadius = await railInner.evaluate(
     (el) => getComputedStyle(el).borderTopLeftRadius,
   );
@@ -188,7 +191,6 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
 
   await page.setViewportSize({ width: 640, height: 844 });
 
-  // sm 以上ではレールが1枚のカードに戻り、検索カードの枠は内側の区切りに任せる
   const railInner = page.getByTestId('assetbalance-utility-rail').locator('> div').first();
   await expect(railInner).toHaveCSS('border-top-width', '1px');
   await expect(page.getByTestId('search-card')).toHaveCSS('border-top-width', '0px');
