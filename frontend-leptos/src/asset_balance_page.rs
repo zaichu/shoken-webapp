@@ -29,6 +29,7 @@ use crate::ui::PageHeader;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::collections::HashSet;
 
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
@@ -256,19 +257,20 @@ fn should_apply_asset_balance_result(session: &SessionStore, generation: u64) ->
 struct DataOps {
     list_rev: u64,
     poll_rev: u64,
-    fetching: usize,
+    // 完了時に世代をまたいで減算されないよう、取得中の rev をそのまま持つ
+    inflight: HashSet<u64>,
     refresh_error: Option<String>,
 }
 
 impl DataOps {
     fn begin_list_fetch(&mut self) {
         self.list_rev += 1;
-        self.fetching += 1;
+        self.inflight.insert(self.list_rev);
         self.refresh_error = None;
     }
 
-    fn end_list_fetch(&mut self) {
-        self.fetching = self.fetching.saturating_sub(1);
+    fn end_list_fetch(&mut self, rev: u64) {
+        self.inflight.remove(&rev);
     }
 
     fn is_current_list(&self, rev: u64) -> bool {
@@ -290,13 +292,12 @@ impl DataOps {
 
     fn reset(&mut self) {
         self.invalidate();
-        self.fetching = 0;
+        self.inflight.clear();
         self.refresh_error = None;
     }
 }
 
-// 初回ロードとCSV保存後の再取得で共有する。取得成功時は
-// lookup の seed・配当の取得開始までここでまとめて行う
+// 取得成功時は lookup の seed と配当取得の開始までここでまとめて行う
 fn load_asset_balances(
     session: SessionStore,
     generation: u64,
@@ -311,7 +312,7 @@ fn load_asset_balances(
     leptos::task::spawn_local(async move {
         match fetch_asset_balances().await {
             Err(error) => {
-                data_ops.update(DataOps::end_list_fetch);
+                data_ops.update(|ops| ops.end_list_fetch(rev));
                 if should_apply_asset_balance_result(&session, generation) {
                     apply_list_error(
                         generation,
@@ -323,7 +324,7 @@ fn load_asset_balances(
                 }
             }
             Ok(loaded) => {
-                data_ops.update(DataOps::end_list_fetch);
+                data_ops.update(|ops| ops.end_list_fetch(rev));
                 if !should_apply_asset_balance_result(&session, generation)
                     || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
                 {
@@ -497,7 +498,7 @@ impl AssetBalanceCsvStore {
     fn list_loading(&self) -> bool {
         let generation = self.session.generation.get();
         self.session.user.get().is_some()
-            && (self.data_ops.with(|ops| ops.fetching > 0)
+            && (self.data_ops.with(|ops| !ops.inflight.is_empty())
                 || self
                     .balances
                     .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation)))
@@ -523,11 +524,7 @@ impl AssetBalanceCsvStore {
             return;
         }
         let generation = self.session.generation.get_untracked();
-        let mut started = false;
-        self.update_csv(generation, |state| {
-            started = state.begin_preview(file.name());
-        });
-        if !started {
+        if !self.begin_file_preview(generation, file.name()) {
             return;
         }
         self.csv_file.set(Some((generation, file.clone())));
@@ -550,6 +547,19 @@ impl AssetBalanceCsvStore {
                 }
             }
         });
+    }
+
+    // 別CSVを選び直した場合、旧銘柄向けのポーリング結果と配当マップが残らないよう無効化する
+    fn begin_file_preview(&self, generation: u64, file_name: String) -> bool {
+        let mut started = false;
+        self.update_csv(generation, |state| {
+            started = state.begin_preview(file_name);
+        });
+        if started {
+            self.data_ops.update(DataOps::next_poll_rev);
+            self.dividends.set(DividendMaps::default());
+        }
+        started
     }
 
     fn save_csv(&self) {
@@ -1066,7 +1076,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 aria-busy=move || {
                     !busy_session.loaded.get()
                         || busy_csv.csv_busy()
-                        || busy_ops.with(|ops| ops.fetching > 0)
+                        || busy_ops.with(|ops| !ops.inflight.is_empty())
                         || (busy_session.user.get().is_some()
                             && balances
                                 .get()
@@ -2921,7 +2931,7 @@ mod tests {
             let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
             data_ops.update(DataOps::begin_list_fetch);
             let rev = data_ops.with_untracked(|ops| ops.list_rev);
-            data_ops.update(DataOps::end_list_fetch);
+            data_ops.update(|ops| ops.end_list_fetch(rev));
 
             apply_list_error(
                 generation,
@@ -2956,7 +2966,7 @@ mod tests {
             let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
             data_ops.update(DataOps::begin_list_fetch);
             let rev = data_ops.with_untracked(|ops| ops.list_rev);
-            data_ops.update(DataOps::end_list_fetch);
+            data_ops.update(|ops| ops.end_list_fetch(rev));
 
             apply_list_error(
                 generation,
@@ -3022,13 +3032,14 @@ mod tests {
                 "キャッシュ済みで取得中でなければ false"
             );
 
-            store.data_ops.update(|ops| ops.fetching += 1);
+            store.data_ops.update(DataOps::begin_list_fetch);
+            let rev = store.data_ops.with_untracked(|ops| ops.list_rev);
             assert!(
                 store.list_loading(),
                 "キャッシュがあっても再取得中は true(React の isFetching と同じ)"
             );
 
-            store.data_ops.update(DataOps::end_list_fetch);
+            store.data_ops.update(|ops| ops.end_list_fetch(rev));
             assert!(!store.list_loading());
         });
     }
@@ -3098,6 +3109,50 @@ mod tests {
             let second = data_ops.with_untracked(|ops| ops.poll_rev);
             assert!(!data_ops.with_untracked(|ops| ops.is_current_poll(first)));
             assert!(data_ops.with_untracked(|ops| ops.is_current_poll(second)));
+        });
+    }
+
+    #[test]
+    fn stale_list_completion_does_not_clear_inflight_of_current_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::begin_list_fetch);
+            let stale_rev = data_ops.with_untracked(|ops| ops.list_rev);
+            // ユーザー切替相当のリセット後、旧世代の完了が新世代の取得中を消さない
+            data_ops.update(DataOps::reset);
+            data_ops.update(DataOps::begin_list_fetch);
+            let current_rev = data_ops.with_untracked(|ops| ops.list_rev);
+
+            data_ops.update(|ops| ops.end_list_fetch(stale_rev));
+            assert!(data_ops.with_untracked(|ops| !ops.inflight.is_empty()));
+
+            data_ops.update(|ops| ops.end_list_fetch(current_rev));
+            assert!(data_ops.with_untracked(|ops| ops.inflight.is_empty()));
+        });
+    }
+
+    #[test]
+    fn begin_file_preview_stops_old_poll_and_clears_dividends() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let dividends = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let store = csv_store(&session, RwSignal::new(None), dividends);
+            store.data_ops.update(DataOps::next_poll_rev);
+            let old_poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+
+            assert!(store.begin_file_preview(generation, "next.csv".to_string()));
+
+            assert!(!store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_poll(old_poll_rev)));
+            assert!(dividends.get_untracked().per_share.is_empty());
         });
     }
 }
