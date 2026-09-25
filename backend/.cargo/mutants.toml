@@ -1,2 +1,59 @@
 # DB を使う統合テストは #[ignore] 済みのため、ユニットテストだけを mutant 評価の対象にする
 additional_cargo_test_args = ["--lib"]
+
+# mutant 名(file:line:col: description)にマッチする正規表現で除外する。
+# 除外理由:
+# - エントリポイント・一時スクリプト: プロセス起動を伴いユニットテストでは検証不可
+# - DB 境界: sqlx::query! が実 DB を必要とし --lib 実行ではテストできない
+# - 外部ネットワーク: Google OAuth/JWKS のトークン交換・鍵取得
+# - 等価 mutant: 境界条件が取り得ない等、振る舞いが変わらないもの
+exclude_re = [
+    # エントリポイント・CLI スクリプト
+    "src/main\\.rs",
+    "src/bin/",
+    # ロギング初期化(プロセス全体の副作用)
+    "init_tracing",
+    # レート制限クリーンアップのバックグラウンド spawn(タイミング依存)
+    "spawn_keyed_limiter_cleanup",
+    # DB 接続リトライ・マイグレーション(実 DB 前提)
+    "wait_for_pool_with_retry",
+    "run_migrations",
+    # Google OAuth 外部境界(JWKS 取得・トークン交換・セッション永続化はいずれも
+    # 外部ネットワークまたは実 DB を前提とし、ユニットテストでは置換 mutant を倒せない)
+    "build_oauth_http_client",
+    "shared_google_jwks",
+    "authenticate_with_google_code",
+    "replace google_callback",
+    # DB 前提のセッション/アカウント操作(services/auth.rs に限定。
+    # 同名のハンドラは 401/認証テストで評価できるため除外しない)
+    "src/services/auth\\.rs.*upsert_user_and_rotate_session",
+    "src/services/auth\\.rs.*select_user_by_session",
+    "src/services/auth\\.rs.*select_user_id_by_session",
+    "src/services/auth\\.rs.*rotate_session_in_tx",
+    "src/services/auth\\.rs.*delete_session",
+    "src/services/auth\\.rs.*delete_account",
+    # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
+    # handlers 側の delete_all は認証テストで評価できるため services/ に限定)
+    "facets",
+    "src/services/.*delete_all ->",
+    "delete ! in bulk_create",
+    "delete_all_for_user",
+    # dividend キャッシュ: DB + 外部 API( J-Quants )前提
+    "get_batch",
+    "acquire_rate_slot",
+    "push_rate_control_cooldown",
+    "spawn_background_refresh",
+    "fetch_and_cache",
+    "update_cache_error",
+    # 等価 mutant
+    # JWKS TTL ちょうどの境界(Instant::elapsed が正確に TTL に一致する時刻は作れない)
+    "GoogleJwksCache::get",
+    # pnl=0 のとき税額はどちらでも 0、pnl>0 と同じ結果になる
+    "compute_taxes",
+    # 分割後のトークン数は常に >=1 で、> と >= は同値
+    "normalize_security_name",
+    # elapsed_ms はログ出力のみでレスポンスに影響しない
+    "BulkTimer::finish",
+    # 本体は既に空の Router::new() であり Default::default() と等価
+    "csv_import_routes",
+]
