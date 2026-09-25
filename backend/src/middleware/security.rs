@@ -60,7 +60,7 @@ fn extract_origin(url: &str) -> Option<&str> {
     let after_scheme = url.find("://")?;
     let authority_start = after_scheme + 3;
     let end = url[authority_start..]
-        .find('/')
+        .find(['/', '?', '#'])
         .map(|i| authority_start + i)
         .unwrap_or(url.len());
     Some(&url[..end])
@@ -206,6 +206,14 @@ mod tests {
                 "https://shoken-webapp.vercel.app.evil.com/steal",
                 Some("https://shoken-webapp.vercel.app.evil.com"),
             ),
+            (
+                "http://localhost:8080?view=1",
+                Some("http://localhost:8080"),
+            ),
+            (
+                "http://localhost:8080#section",
+                Some("http://localhost:8080"),
+            ),
         ] {
             assert_eq!(extract_origin(input), expected);
         }
@@ -225,6 +233,18 @@ mod tests {
             (
                 &[("referer", "http://localhost:8080/some/page")][..],
                 StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080?view=1")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080#section")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080.evil.com?view=1")][..],
+                StatusCode::FORBIDDEN,
             ),
             (
                 &[("referer", "https://evil.example.com/attack")][..],
@@ -423,11 +443,8 @@ mod tests {
             let Some(origin) = extract_origin(&url) else {
                 panic!("url={url} で origin が取れない");
             };
-            let expected = format!(
-                "{scheme}://{authority}{}",
-                rest.split('/').next().unwrap_or("")
-            );
-            proptest::prop_assert_eq!(origin, expected);
+            let expected = format!("{scheme}://{authority}");
+            proptest::prop_assert_eq!(origin, expected.as_str());
         }
     }
 }
