@@ -7,7 +7,7 @@ test.use({ viewport: { width: 390, height: 844 } });
 async function shoot(page: Page, name: string) {
   const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
   await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({ path: path.join(dir, `leptos-955-${name}.png`) });
+  await page.screenshot({ path: path.join(dir, `receipts-mobile-${name}.png`) });
 }
 
 const MOCK_USER = {
