@@ -98,10 +98,14 @@ test('片方のタブで操作を続けるともう片方もログアウトせ�
   await pageA.clock.fastForward(29 * MINUTE);
 
   // B の操作が最終操作時刻として共有される
+  const activityBefore = await pageA.evaluate(
+    (key) => window.localStorage.getItem(key),
+    ACTIVITY_KEY,
+  );
   await pageB.mouse.move(200, 200);
   await expect
     .poll(() => pageA.evaluate((key) => window.localStorage.getItem(key), ACTIVITY_KEY))
-    .not.toBeNull();
+    .not.toBe(activityBefore);
 
   // A のタイマーは共有で延びているので、30 分を過ぎても未認証にならない
   await pageA.clock.fastForward(2 * MINUTE);
