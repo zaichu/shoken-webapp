@@ -288,6 +288,8 @@ pub struct ReceiptsStore {
     // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
+    // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
+    expanded_epoch: RwSignal<Option<u64>>,
     visited: RwSignal<HashSet<ReceiptsTab>>,
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
     fetch: Action<(u64, ReceiptsTab), ()>,
@@ -357,6 +359,11 @@ impl ReceiptsStore {
             return;
         }
         let generation = self.session.generation.get_untracked();
+        if self.expanded_epoch.get_untracked() != Some(generation) {
+            self.expanded_epoch.set(Some(generation));
+            self.expanded.update(|set| set.clear());
+            self.mobile_summary_expanded.set(false);
+        }
         let needs_prune = self
             .cache
             .with_untracked(|map| map.keys().any(|(cached, _)| *cached != generation))
@@ -684,6 +691,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         search: RwSignal::new(ReceiptSearch::default()),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
+        expanded_epoch: RwSignal::new(None),
         visited,
         cache,
         fetch,
@@ -808,6 +816,7 @@ mod tests {
                     search: RwSignal::new(ReceiptSearch::default()),
                     expanded: RwSignal::new(HashSet::new()),
                     mobile_summary_expanded: RwSignal::new(false),
+                    expanded_epoch: RwSignal::new(None),
                     visited: RwSignal::new(HashSet::from([tab])),
                     cache,
                     fetch,
@@ -824,6 +833,77 @@ mod tests {
                     Some(TabState::Failed(_))
                 ));
             }
+        });
+    }
+
+    #[test]
+    fn expanded_state_is_cleared_on_generation_change() {
+        let _ = any_spawner::Executor::init_futures_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let tab = ReceiptsTab::Dividend;
+            let store = ReceiptsStore {
+                session,
+                active_tab: RwSignal::new(tab),
+                search: RwSignal::new(ReceiptSearch::default()),
+                expanded: RwSignal::new(HashSet::new()),
+                mobile_summary_expanded: RwSignal::new(false),
+                expanded_epoch: RwSignal::new(None),
+                visited: RwSignal::new(HashSet::from([tab])),
+                cache: RwSignal::new(HashMap::new()),
+                fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+                csv: RwSignal::new(HashMap::new()),
+                csv_files: RwSignal::new(HashMap::new()),
+            };
+
+            store.ensure(tab);
+            store.expanded.update(|set| {
+                set.insert("g0".to_string());
+            });
+            store.mobile_summary_expanded.set(true);
+
+            session.mark_unauthenticated();
+            session.user.set(Some(user("bob")));
+            store.ensure(tab);
+
+            assert!(store.expanded.with_untracked(|set| set.is_empty()));
+            assert!(!store.mobile_summary_expanded.get_untracked());
+        });
+    }
+
+    #[test]
+    fn expanded_state_survives_ensure_in_same_generation() {
+        let _ = any_spawner::Executor::init_futures_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let tab = ReceiptsTab::Dividend;
+            let store = ReceiptsStore {
+                session,
+                active_tab: RwSignal::new(tab),
+                search: RwSignal::new(ReceiptSearch::default()),
+                expanded: RwSignal::new(HashSet::new()),
+                mobile_summary_expanded: RwSignal::new(false),
+                expanded_epoch: RwSignal::new(None),
+                visited: RwSignal::new(HashSet::from([tab])),
+                cache: RwSignal::new(HashMap::new()),
+                fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+                csv: RwSignal::new(HashMap::new()),
+                csv_files: RwSignal::new(HashMap::new()),
+            };
+
+            store.ensure(tab);
+            store.expanded.update(|set| {
+                set.insert("g0".to_string());
+            });
+            store.mobile_summary_expanded.set(true);
+            store.ensure(tab);
+
+            assert!(store.expanded.with_untracked(|set| set.contains("g0")));
+            assert!(store.mobile_summary_expanded.get_untracked());
         });
     }
 
@@ -896,6 +976,7 @@ mod csv_tests {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             cache: RwSignal::new(cache),
             fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
@@ -1418,6 +1499,7 @@ mod search_tests {
                 }),
                 expanded: RwSignal::new(HashSet::new()),
                 mobile_summary_expanded: RwSignal::new(false),
+                expanded_epoch: RwSignal::new(None),
                 visited: RwSignal::new(HashSet::new()),
                 cache: RwSignal::new(HashMap::from([(
                     (0, ReceiptsTab::Dividend),

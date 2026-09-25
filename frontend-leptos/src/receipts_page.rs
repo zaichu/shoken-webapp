@@ -27,7 +27,7 @@ use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
@@ -49,9 +49,12 @@ pub fn ReceiptsPage() -> impl IntoView {
                 TabState::Loading
             )
     });
+    let tabs = store.clone();
+    // クリックとキー操作の両経路をカバーするため select_tab ではなく active_tab の変化に追従する
+    Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
     view! {
-        <div class="page-surface">
+        <div class="page-surface max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-none max-sm:before:hidden">
             <PageHeader
                 title="取引明細"
                 eyebrow="Transactions"
@@ -176,6 +179,19 @@ fn focus_tab(index: usize) {
     if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
         let _ = element.focus();
     }
+}
+
+fn scroll_tab_into_view(tab: ReceiptsTab) {
+    let Some(element) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[tab as usize])))
+    else {
+        return;
+    };
+    let options = web_sys::ScrollIntoViewOptions::new();
+    options.set_block(web_sys::ScrollLogicalPosition::Nearest);
+    options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
+    element.scroll_into_view_with_scroll_into_view_options(&options);
 }
 
 #[component]
@@ -1797,14 +1813,31 @@ fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
-// CSVプレビュー等で id を持たない行は、グループや表示位置ではなく内容で識別する
-fn card_key(slug: &str, id: &str, cells: &[ReceiptCell]) -> String {
+// id を持たない行(CSVプレビュー等)は、同一内容の行と区別するため一覧内の位置も含めて識別する
+fn card_key(slug: &str, id: &str, cells: &[ReceiptCell], ordinal: usize) -> String {
     if id.is_empty() {
         let content: Vec<_> = cells.iter().map(cell_text).collect();
-        format!("{slug}:p:{}", content.join("\u{1f}"))
+        format!("{slug}:p:{ordinal}:{}", content.join("\u{1f}"))
     } else {
         format!("{slug}:r:{id}")
     }
+}
+
+// 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
+// id を持たない行の通し番号は絞り込み前の全行内での位置から引く。
+fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usize>> {
+    let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
+    for (index, item) in all_rows.iter().enumerate() {
+        if item.id().is_empty() {
+            let cells = item.cells();
+            let content: Vec<_> = cells.iter().map(cell_text).collect();
+            ordinals
+                .entry(content.join("\u{1f}"))
+                .or_default()
+                .push_back(index);
+        }
+    }
+    ordinals
 }
 
 fn card_row_data(
@@ -2245,6 +2278,7 @@ fn ReceiptTable(
     let fields = card_fields(tab);
     let labels = summary_labels(tab);
     let slug = TAB_IDS[tab as usize];
+    let mut card_ordinals = idless_row_ordinals(&all_rows);
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -2258,7 +2292,22 @@ fn ReceiptTable(
                 .rows
                 .iter()
                 .map(|(id, cells)| {
-                    card_row_data(card_key(slug, id, cells), cells, headers, &order, fields)
+                    let ordinal = if id.is_empty() {
+                        let content: Vec<_> = cells.iter().map(cell_text).collect();
+                        card_ordinals
+                            .get_mut(&content.join("\u{1f}"))
+                            .and_then(|queue| queue.pop_front())
+                            .unwrap_or_default()
+                    } else {
+                        0
+                    };
+                    card_row_data(
+                        card_key(slug, id, cells, ordinal),
+                        cells,
+                        headers,
+                        &order,
+                        fields,
+                    )
                 })
                 .collect();
             (
