@@ -20,8 +20,6 @@ async function pendingFlag(page: Page) {
 test('ログアウト失敗を保留し、間隔を伸ばして再送し、再読み込みではセッション確認より先にログアウトを再送する', async ({
   page,
 }) => {
-  await page.clock.install();
-
   let getCount = 0;
   let deleteCount = 0;
   let deleteFails = true;
@@ -45,9 +43,13 @@ test('ログアウト失敗を保留し、間隔を伸ばして再送し、再�
     });
   });
 
+  // 偽時計はナビゲーションを跨いで持続し、アプリの再送タイマー(setTimeout系)ごと止める。
+  // 起動時のセッション確認が一時的に失敗しても再送で回復できるよう、起動確認が済むまでは実時計のままにする
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
   expect(getCount).toBe(1);
+
+  await page.clock.install();
 
   await logoutViaUserMenu(page);
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
@@ -71,12 +73,16 @@ test('ログアウト失敗を保留し、間隔を伸ばして再送し、再�
 
   // セッションAPIが有効を返し続けても、起動時は先にログアウトを再送して未認証のままにする
   deleteFails = false;
+  const deletesBeforeReload = deleteCount;
+  const getsBeforeReload = getCount;
+  // 偽時計のまま再読み込みすると再送の再試行が発火せず失敗から回復できないため、実時計に戻す
+  await page.clock.resume();
   await page.reload();
-  await expect.poll(() => deleteCount).toBeGreaterThan(resent);
+  await expect.poll(() => deleteCount).toBeGreaterThan(deletesBeforeReload);
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeHidden();
   await expect.poll(() => pendingFlag(page)).toBeNull();
-  expect(getCount).toBe(1);
+  expect(getCount).toBe(getsBeforeReload);
 });
 
 test('ログアウトが401を返したらセッション消失とみなして保留にしない', async ({ page }) => {
@@ -103,7 +109,6 @@ test('ログアウトが401を返したらセッション消失とみなして�
 });
 
 test('保留中にログインすると一度だけ再送して記録を消し、戻ってきたセッションは消えない', async ({ page }) => {
-  await page.clock.install();
   let getCount = 0;
   let deleteCount = 0;
   await page.route(/\/api\/v1\/session$/, async (route) => {
@@ -122,8 +127,12 @@ test('保留中にログインすると一度だけ再送して記録を消し�
     route.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' }),
   );
 
+  // 偽時計はナビゲーションを跨いで持続し、アプリの再送タイマー(setTimeout系)ごと止める。
+  // 起動時のセッション確認が一時的に失敗しても再送で回復できるよう、起動確認が済むまでは実時計のままにする
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+
+  await page.clock.install();
 
   await logoutViaUserMenu(page);
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
@@ -137,10 +146,13 @@ test('保留中にログインすると一度だけ再送して記録を消し�
   await expect.poll(() => deleteCount).toBe(2);
   await expect.poll(() => pendingFlag(page)).toBeNull();
 
+  const getsBeforeReload = getCount;
+  // 偽時計のまま遷移するとセッション確認の再試行が発火せず失敗から回復できないため、実時計に戻す
+  await page.clock.resume();
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
   expect(deleteCount).toBe(2);
-  expect(getCount).toBe(2);
+  expect(getCount).toBe(getsBeforeReload + 1);
 });
 
 test('localStorageが使えなくてもログインとログアウトが動く', async ({ page }) => {

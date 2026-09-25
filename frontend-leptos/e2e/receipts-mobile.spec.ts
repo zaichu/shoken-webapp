@@ -496,9 +496,11 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
 
   const toggle = page.getByTestId('receipt-csv-toggle');
   await toggle.click();
-  await page
-    .getByTestId('csv-file-input')
-    .setInputFiles(
+  const fileInput = page.getByTestId('csv-file-input');
+  // バックグラウンドの他タブ取得中は input が disabled で、change イベントが捨てられる。
+  // setInputFiles は enabled を待たないので、先に有効化を待つ
+  await expect(fileInput).toBeEnabled();
+  await fileInput.setInputFiles(
       path.resolve(
         test.info().project.testDir,
         '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',

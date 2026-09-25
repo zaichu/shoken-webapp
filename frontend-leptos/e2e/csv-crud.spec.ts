@@ -443,6 +443,8 @@ test.describe('取引明細 CSV 取込・削除', () => {
       const additionalCount = additional.insertedRows.length;
       const totalCount = baseCount + additionalCount;
 
+      // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
+      await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
       await expect(
         page.getByText(`${base.previewRows.length}件 追加で保存されます`),
@@ -458,6 +460,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       ).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
 
+      await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(
         path.join(fixtureDir(), scenario.additionalFile),
       );
@@ -662,6 +665,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
     await expect(page.getByText('資産管理データがありません')).toBeVisible();
 
+    await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(
       page.getByRole('button', { name: '2件 全件置換で保存' }),
@@ -678,6 +682,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: '全件削除 (2件)' }),
     ).toBeVisible();
 
+    await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(
       page.getByRole('button', { name: '3件 全件置換で保存' }),
@@ -734,6 +739,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
 
     await page.goto('/assetbalance');
     const fileInput = page.getByTestId('csv-file-input');
+    await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(
       page.getByRole('button', { name: '1件 全件置換で保存' }),
@@ -777,4 +783,55 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(toggle).toBeHidden();
     await expect(body).toBeVisible();
   });
+});
+
+test('一覧取得が失敗したタブでも CSV プレビューの行が表示される', async ({ page }) => {
+  await page.route(/\/api\/v1\/session$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(USER),
+    }),
+  );
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }),
+  );
+  for (const path of [
+    /\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/,
+    /\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/,
+  ]) {
+    await page.route(path, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [], total: 0, page: 1, per_page: 0 }),
+      }),
+    );
+  }
+  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 1,
+        valid_rows: 1,
+        errors: [],
+        rows: [TOYOTA],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts');
+  await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
+
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeEnabled();
+  await fileInput.setInputFiles(
+    path.join(fixtureDir(), 'dividend-base.csv'),
+  );
+
+  await expect(page.getByText('1件 追加で保存されます')).toBeVisible();
+  await expect(
+    page.getByRole('cell', { name: 'トヨタ自動車' }),
+  ).toBeVisible();
 });

@@ -306,14 +306,45 @@ fn table_groups_carry_group_key_and_row_ids() {
 }
 
 #[test]
-fn card_key_identifies_idless_rows_by_content() {
+fn card_key_separates_idless_rows_by_position() {
     let cells = dividends()[0].cells();
-    let key = card_key("dividend", "", &cells);
+    let key = card_key("dividend", "", &cells, 0);
     assert!(key.starts_with("dividend:p:"));
     assert!(key.contains("日本電信電話"));
-    assert_eq!(key, card_key("dividend", "", &cells));
-    assert_ne!(key, card_key("mutualfund", "", &cells));
-    assert_eq!(card_key("dividend", "old", &cells), "dividend:r:old");
+    assert_eq!(key, card_key("dividend", "", &cells, 0));
+    assert_ne!(key, card_key("dividend", "", &cells, 1));
+    assert_ne!(key, card_key("mutualfund", "", &cells, 0));
+    assert_eq!(card_key("dividend", "old", &cells, 0), "dividend:r:old");
+    assert_eq!(card_key("dividend", "old", &cells, 1), "dividend:r:old");
+}
+
+#[test]
+fn idless_rows_keep_unfiltered_positions_as_card_ordinals() {
+    let mut first = dividends()[0].clone();
+    let mut second = dividends()[0].clone();
+    let mut removed = dividends()[2].clone();
+    let with_id = dividends()[1].clone();
+    for item in [&mut first, &mut second, &mut removed] {
+        if let ReceiptItem::Dividend(row) = item {
+            row.id.clear();
+        }
+    }
+    let ordinals = idless_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
+    assert_eq!(ordinals.len(), 2);
+    let content = first
+        .cells()
+        .iter()
+        .map(cell_text)
+        .collect::<Vec<_>>()
+        .join("\u{1f}");
+    // 先頭行を絞り込みで除いても残る行のカードキーは変わらない
+    let positions: Vec<usize> = ordinals[&content].iter().copied().collect();
+    assert_eq!(positions, [2, 3]);
+    let cells = first.cells();
+    assert_ne!(
+        card_key("dividend", "", &cells, positions[0]),
+        card_key("dividend", "", &cells, positions[1]),
+    );
 }
 
 #[test]

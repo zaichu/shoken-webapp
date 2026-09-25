@@ -147,7 +147,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
 
-      # E2E は既定の dist/ を使い、dist-release/ のリリース成果物と混在させない。
+      # E2E の serve は test-results/dist-* を使い、dist-release/ のリリース成果物と混在させない。
       - name: Run existing E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts
 
