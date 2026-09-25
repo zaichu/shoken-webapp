@@ -1,6 +1,5 @@
 use crate::{
     errors::{ApiError, ErrorResponse},
-    extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     models::{common::validate_length_field, stock::Stock},
     services::stock as stock_service,
     state::AppState,
@@ -59,28 +58,6 @@ pub async fn search(
     })?;
     let stock = stock_service::search(&state.pool, &params.query).await?;
     Ok((StatusCode::OK, Json(stock)))
-}
-
-/// 銘柄情報を追加（v1）
-#[utoipa::path(
-    post,
-    path = "/api/v1/stocks",
-    operation_id = "v1_stock_create",
-    request_body = Stock,
-    responses(
-        (status = 201, body = Stock),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-    ),
-    security(("cookieAuth" = []))
-)]
-pub async fn create(
-    State(state): State<AppState>,
-    _auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<Stock>,
-) -> Result<impl IntoResponse, ApiError> {
-    let stock = stock_service::create(&state.pool, &data).await?;
-    Ok((StatusCode::CREATED, Json(stock)))
 }
 
 #[cfg(test)]

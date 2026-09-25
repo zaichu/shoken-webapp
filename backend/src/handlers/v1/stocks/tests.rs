@@ -10,7 +10,7 @@ use {
     },
     chrono::NaiveDate,
     reqwest::Client,
-    serde_json::{json, Value},
+    serde_json::Value,
     sqlx::{Pool, Postgres},
     std::sync::Arc,
     testcontainers::runners::AsyncRunner,
@@ -77,7 +77,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
 
 fn setup_test_app(pool: Pool<Postgres>) -> Router {
     Router::new()
-        .route("/api/v1/stocks", get(search).post(create))
+        .route("/api/v1/stocks", get(search))
         .with_state(crate::AppState {
             pool: pool.clone(),
             secrets: Arc::new(Secrets {
@@ -118,21 +118,6 @@ async fn read_json(response: axum::response::Response) -> Value {
     .unwrap()
 }
 
-fn stock_payload(code: &str, name: &str) -> Value {
-    json!({
-        "date": "2025-03-25",
-        "code": code,
-        "name": name,
-        "market_category": "スタンダード",
-        "industry_code_33": "456",
-        "industry_category_33": "製造業",
-        "industry_code_17": "45",
-        "industry_category_17": "製造",
-        "size_code": "20",
-        "size_category": "中型株"
-    })
-}
-
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_search_stock() {
@@ -157,56 +142,6 @@ async fn test_search_stock() {
             expected_status
         );
     }
-}
-
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn test_create_stock() {
-    let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool);
-
-    let response = call(
-        app.clone(),
-        "POST",
-        "/api/v1/stocks",
-        Some(stock_payload("5678", "新規テスト株式会社")),
-    )
-    .await;
-    assert_eq!(response.status(), StatusCode::CREATED);
-
-    let stock = read_json(response).await;
-    assert_eq!(
-        (stock["code"].as_str(), stock["name"].as_str()),
-        (Some("5678"), Some("新規テスト株式会社"))
-    );
-
-    let mut invalid_data = stock_payload("5678", "新規テスト株式会社");
-    invalid_data["code"] = json!("");
-    assert_eq!(
-        call(app, "POST", "/api/v1/stocks", Some(invalid_data))
-            .await
-            .status(),
-        StatusCode::BAD_REQUEST
-    );
-}
-
-#[tokio::test]
-async fn test_create_stock_unauthorized() {
-    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
-        .unwrap();
-    let app = setup_test_app(pool);
-
-    assert_eq!(
-        call(
-            app,
-            "POST",
-            "/api/v1/stocks",
-            Some(stock_payload("9999", "未認証テスト"))
-        )
-        .await
-        .status(),
-        StatusCode::UNAUTHORIZED
-    );
 }
 
 #[tokio::test]

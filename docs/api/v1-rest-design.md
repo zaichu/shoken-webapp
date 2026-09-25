@@ -85,7 +85,6 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/stocks?query=7203` | Search stocks by code or name |
-| POST | `/api/v1/stocks` | Create stock |
 
 ### Dividends
 
@@ -143,7 +142,7 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 | `GET /auth/google` | `GET /api/v1/oauth/google/authorize` |
 | `GET /auth/google/callback` | `GET /api/v1/oauth/google/callback` |
 | `GET /stocks/{query}` | `GET /api/v1/stocks?query={query}` |
-| `POST /stocks` | `POST /api/v1/stocks` |
+| `POST /stocks` | 削除(#1010。銘柄マスタへの API 書き込み経路なし) |
 | `GET /dividends` | `GET /api/v1/dividends` |
 | `DELETE /dividends` | `DELETE /api/v1/dividends` |
 | `POST /dividends/csv/preview` | `POST /api/v1/dividend-import-validations` |

@@ -29,7 +29,6 @@ use crate::{
         handlers::v1::auth::google_authorize,
         handlers::v1::auth::google_callback,
         handlers::v1::stocks::search,
-        handlers::v1::stocks::create,
         handlers::v1::dividends::list,
         handlers::v1::dividends::delete_all,
         handlers::v1::dividends::validate_import,
