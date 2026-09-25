@@ -1,15 +1,16 @@
 use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_csv::{self, AssetBalanceCsvRow};
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, calculate_valuation, intl_fixed, normalize_security_name,
-    summarize_valuation_with_summary, to_fixed, total_purchase_amount, KpiHolding, SummaryOverride,
-    ValuationItem,
+    calculate_portfolio_kpi, calculate_valuation, format_abs_number, format_number_value,
+    normalize_security_name, summarize_valuation_with_summary, to_fixed, total_purchase_amount,
+    KpiHolding, SummaryOverride, ValuationItem,
 };
 use crate::asset_balance_lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::asset_balance_portfolio::{chart_display, chart_plan};
 use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
+use crate::asset_review_prompt::generate_asset_review_prompt;
 use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_flow::{csv_error_message, CsvTabState};
 use crate::csv_rail::CsvActionRail;
@@ -23,7 +24,7 @@ use crate::dto::{
 };
 use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
-use crate::security_link::SecurityCodeLink;
+use crate::security_link::{copy_to_clipboard, SecurityCodeLink};
 use crate::session::{use_session, SessionStore};
 use crate::ui::PageHeader;
 use leptos::prelude::*;
@@ -727,49 +728,11 @@ fn dec_to_f64(value: &Decimal) -> f64 {
     value.to_f64().unwrap_or(0.0)
 }
 
-fn group_thousands(digits: &str) -> String {
-    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
-    for (index, byte) in digits.bytes().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            grouped.push(',');
-        }
-        grouped.push(byte as char);
-    }
-    grouped
-}
-
-// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（React の
-// `formatSignedAbsNumber` と同じく `-0.0` は負としない）。
-// この関数は絶対値の桁区切りだけを返す。
-fn format_abs_number(value: f64) -> Option<String> {
-    if !value.is_finite() {
-        return None;
-    }
-    let text = value.abs().to_string();
-    let (integer, fraction) = match text.split_once('.') {
-        Some((integer, fraction)) => (integer, Some(fraction)),
-        None => (text.as_str(), None),
-    };
-    let grouped = group_thousands(integer);
-    Some(match fraction {
-        Some(fraction) => format!("{grouped}.{fraction}"),
-        None => grouped,
-    })
-}
-
 fn format_currency(value: f64) -> String {
     match format_abs_number(to_fixed(value, 15)) {
         None => "-".to_string(),
         Some(body) if value < 0.0 => format!("¥ -{body}"),
         Some(body) => format!("¥ {body}"),
-    }
-}
-
-fn format_number_value(value: f64) -> String {
-    match format_abs_number(intl_fixed(value, 2)) {
-        None => "-".to_string(),
-        Some(body) if value < 0.0 => format!("-{body}"),
-        Some(body) => body,
     }
 }
 
@@ -1005,6 +968,45 @@ fn AssetBalanceRailExtras(
             }
         })}
         {has_rows.then(|| view! { <AssetBalanceSearchCard query=search_query options=options /> })}
+        <AssetReviewPromptCard rows=rows />
+    }
+}
+
+#[component]
+fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
+    let copied = RwSignal::new(false);
+    let disabled = rows.is_empty();
+    let label = move || {
+        if copied.get() {
+            "コピーしました！"
+        } else {
+            "AI総評プロンプトをコピー"
+        }
+    };
+    let on_click = move |_| {
+        copy_to_clipboard(generate_asset_review_prompt(&rows));
+        copied.set(true);
+        leptos::task::spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(3_000).await;
+            copied.set(false);
+        });
+    };
+    view! {
+        <div
+            class="px-5 py-4 max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
+            data-testid="asset-review-prompt-card"
+        >
+            <p class="mb-2 text-xs font-medium text-secondary">"AI総評プロンプト"</p>
+            <button
+                type="button"
+                class="inline-flex w-full items-center justify-center truncate rounded-md border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-700 transition-[background-color,border-color,color,box-shadow,transform] hover:border-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print max-sm:min-h-[44px]"
+                aria-label=label
+                disabled=disabled
+                on:click=on_click
+            >
+                {label}
+            </button>
+        </div>
     }
 }
 
