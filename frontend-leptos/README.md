@@ -37,6 +37,10 @@ E2E のポートは `LEPTOS_E2E_PORT` で変えられる (既定 8081)。複数�
 
 Tailwind browser CDN は使わない。`style/input.css` (`@theme` は `frontend/src/styles/tailwind.css` から流用) を Trunk の pre_build フックで `@tailwindcss/cli` (lock 済み) により `style/output.css` へ生成し、`index.html` の `<link data-trunk rel="css">` で成果物に含める。生成物は git 管理外。
 
+## デプロイ
+
+GitHub Actions (`deploy-frontend-leptos.yml`) が `vercel pull` → `vercel build` → `vercel deploy --prebuilt` で配信する。secret (`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`) が未登録ならジョブはスキップされる。`vercel.json` の `installCommand` / `buildCommand` / `outputDirectory` は `vercel build` が参照する。Vercel 側の Git 連携ビルドは `ignoreCommand` で常にスキップし、CLI の prebuilt デプロイと二重にならないようにする。本番 (`--prod`) は main への `workflow_dispatch` かつ repository variable `LEPTOS_PRODUCTION_ENABLED=true` のときだけ。
+
 ## 実装範囲
 
 6ページの表示系のみ。操作系 (CSV 取込・削除など) はない。
