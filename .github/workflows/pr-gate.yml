@@ -15,10 +15,6 @@ on:
         required: true
         type: number
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr || github.ref }}
-  cancel-in-progress: false
-
 jobs:
   pr-gate:
     name: Evaluate PR gate
@@ -78,17 +74,6 @@ jobs:
               }
             `;
 
-            const prResult = await github.graphql(prQuery, {
-              owner,
-              repo,
-              pr: prNumber,
-            });
-            const pr = prResult.repository.pullRequest;
-            if (!pr) {
-              core.setFailed(`pull request #${prNumber} not found`);
-              return;
-            }
-
             const fetchAll = async (field) => {
               const nodes = [];
               let cursor = null;
@@ -107,89 +92,113 @@ jobs:
               } while (cursor);
               return nodes;
             };
-            const comments = await fetchAll('comments');
-            const reviews = await fetchAll('reviews');
 
-            const refNumbers = [
-              ...new Set(
-                [...(pr.body ?? '').matchAll(/(?:Refs|Part of)\s+#(\d+)/gi)].map(
-                  (m) => Number(m[1])
-                )
-              ),
-            ];
-            let linked = pr.closingIssuesReferences.totalCount > 0;
-            for (const n of refNumbers) {
-              if (linked) break;
-              try {
-                const result = await github.graphql(
-                  `query($owner: String!, $repo: String!, $n: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      issue(number: $n) {
-                        state
+            // イベントごとに実行が並列に立つため、判定は status を書く直前の最新状態で行う
+            const evaluate = async () => {
+              const prResult = await github.graphql(prQuery, {
+                owner,
+                repo,
+                pr: prNumber,
+              });
+              const pr = prResult.repository.pullRequest;
+              if (!pr) return null;
+
+              const comments = await fetchAll('comments');
+              const reviews = await fetchAll('reviews');
+
+              const refNumbers = [
+                ...new Set(
+                  [...(pr.body ?? '').matchAll(/(?:Refs|Part of)\s+#(\d+)/gi)].map(
+                    (m) => Number(m[1])
+                  )
+                ),
+              ];
+              let linked = pr.closingIssuesReferences.totalCount > 0;
+              for (const n of refNumbers) {
+                if (linked) break;
+                try {
+                  const result = await github.graphql(
+                    `query($owner: String!, $repo: String!, $n: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        issue(number: $n) {
+                          state
+                        }
                       }
-                    }
-                  }`,
-                  { owner, repo, n }
-                );
-                if (result.repository.issue) linked = true;
-              } catch (error) {
-                // 実在しない番号や PR 番号は NOT_FOUND エラーになる → 紐づけなしとして扱う
-                if (!(error.errors ?? []).every((e) => e.type === 'NOT_FOUND')) {
-                  throw error;
+                    }`,
+                    { owner, repo, n }
+                  );
+                  if (result.repository.issue) linked = true;
+                } catch (error) {
+                  // 実在しない番号や PR 番号は NOT_FOUND エラーになる → 紐づけなしとして扱う
+                  if (!(error.errors ?? []).every((e) => e.type === 'NOT_FOUND')) {
+                    throw error;
+                  }
                 }
               }
-            }
 
-            // author=null(退会済みアカウント)は bot と判定できないため人のコメントとして扱う
-            const isBot = (author) =>
-              author?.__typename === 'Bot' ||
-              (author?.login ?? '').endsWith('[bot]');
-            const unresolved = [...comments, ...reviews].filter((node) => {
-              const body = node.body ?? '';
-              return (
-                !isBot(node.author) &&
-                !node.isMinimized &&
-                body.trim() !== '' &&
-                !body.includes('<!-- no-action -->')
-              );
-            });
+              // author=null(退会済みアカウント)は bot と判定できないため人のコメントとして扱う
+              const isBot = (author) =>
+                author?.__typename === 'Bot' ||
+                (author?.login ?? '').endsWith('[bot]');
+              const unresolved = [...comments, ...reviews].filter((node) => {
+                const body = node.body ?? '';
+                return (
+                  !isBot(node.author) &&
+                  !node.isMinimized &&
+                  body.trim() !== '' &&
+                  !body.includes('<!-- no-action -->')
+                );
+              });
 
-            const problems = [];
-            if (!linked) problems.push('Issue が紐づいていません');
-            if (unresolved.length > 0) {
-              problems.push(`未解決のコメントが ${unresolved.length} 件あります`);
-            }
-
-            core.info(`linked issue: ${linked}`);
-            for (const node of unresolved) {
-              core.info(`unresolved comment: ${node.url}`);
-            }
-
-            // ステータス説明は 140 字制限があるため、収まる分だけ URL を連結する
-            const statusParts = [...problems];
-            for (const node of unresolved) {
-              if ([...statusParts, node.url].join(' / ').length <= 140) {
-                statusParts.push(node.url);
+              const problems = [];
+              if (!linked) problems.push('Issue が紐づいていません');
+              if (unresolved.length > 0) {
+                problems.push(`未解決のコメントが ${unresolved.length} 件あります`);
               }
-            }
-            const description =
-              problems.length > 0
-                ? statusParts.join(' / ')
-                : 'Issue 紐づけ済み・未解決コメントなし';
 
-            const headSha = pr.headRefOid;
+              core.info(`linked issue: ${linked}`);
+              for (const node of unresolved) {
+                core.info(`unresolved comment: ${node.url}`);
+              }
+
+              // ステータス説明は 140 字制限があるため、収まる分だけ URL を連結する
+              const statusParts = [...problems];
+              for (const node of unresolved) {
+                if ([...statusParts, node.url].join(' / ').length <= 140) {
+                  statusParts.push(node.url);
+                }
+              }
+              const description =
+                problems.length > 0
+                  ? statusParts.join(' / ')
+                  : 'Issue 紐づけ済み・未解決コメントなし';
+
+              return {
+                sha: pr.headRefOid,
+                state: problems.length > 0 ? 'failure' : 'success',
+                description: description.slice(0, 140),
+                isCrossRepository: pr.isCrossRepository,
+              };
+            };
+
+            const result = await evaluate();
+            if (!result) {
+              core.warning(`pull request #${prNumber} not found`);
+              return;
+            }
+
             try {
               await github.rest.repos.createCommitStatus({
                 owner,
                 repo,
-                sha: headSha,
-                state: problems.length > 0 ? 'failure' : 'success',
+                sha: result.sha,
+                state: result.state,
                 context: 'PR gate',
-                description: description.slice(0, 140),
+                description: result.description,
                 target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
               });
             } catch (error) {
               // fork PR へのコメント/レビューイベントでは write が read に降格される。ステータスは pull_request_target か手動再実行で付け直す
-              if (!pr.isCrossRepository) throw error;
+              if (!result.isCrossRepository) throw error;
               core.warning(`commit status not written for fork PR: ${error.message}`);
             }
