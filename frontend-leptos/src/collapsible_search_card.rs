@@ -1,10 +1,16 @@
-#![allow(dead_code)]
 use leptos::prelude::*;
 
 const BUTTON_BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print";
 
 const FUNNEL_ICON_PATH: &str = "M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z";
 const CHEVRON_ICON_PATH: &str = "M19 9l-7 7-7-7";
+
+// matchMedia 未対応環境では React 版と同じく展開側に倒す
+pub fn is_narrow_viewport() -> bool {
+    web_sys::window()
+        .and_then(|window| window.match_media("(max-width: 639px)").ok().flatten())
+        .is_some_and(|query| query.matches())
+}
 
 #[component]
 pub fn CollapsibleSearchCard(
@@ -13,7 +19,7 @@ pub fn CollapsibleSearchCard(
     #[prop(into)] has_active_search: Signal<bool>,
     #[prop(into)] is_default_state: Signal<bool>,
     on_clear: impl Fn() + Clone + 'static,
-    #[prop(optional)] on_expand_toggle: Option<impl Fn(bool) + Clone + 'static>,
+    #[prop(optional)] on_expand_toggle: Option<Callback<(bool,)>>,
     children: ChildrenFn,
 ) -> impl IntoView {
     // 展開状態は UI 表示のみの内部 state。initial_expanded は初期値としてのみ使い、
@@ -22,8 +28,8 @@ pub fn CollapsibleSearchCard(
     let toggle = move || {
         expanded.update(|open| {
             *open = !*open;
-            if let Some(on_expand_toggle) = &on_expand_toggle {
-                on_expand_toggle(*open);
+            if let Some(on_expand_toggle) = on_expand_toggle {
+                on_expand_toggle.run((*open,));
             }
         });
     };
@@ -35,10 +41,7 @@ pub fn CollapsibleSearchCard(
                     <button
                         type="button"
                         class="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-[44px]"
-                        on:click={
-                            let toggle = toggle.clone();
-                            move |_| toggle()
-                        }
+                        on:click=move |_| toggle()
                         aria-expanded=move || if expanded.get() { "true" } else { "false" }
                         aria-controls="search-options-body"
                         aria-label=move || {
@@ -110,10 +113,7 @@ pub fn CollapsibleSearchCard(
                         <button
                             type="button"
                             class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700"
-                            on:click={
-                                let toggle = toggle.clone();
-                                move |_| toggle()
-                            }
+                            on:click=move |_| toggle()
                             aria-expanded=move || if expanded.get() { "true" } else { "false" }
                             aria-controls="search-options-body"
                             aria-label=move || {
@@ -174,10 +174,7 @@ pub fn CollapsibleSearchCard(
                     <button
                         type="button"
                         class="flex items-center gap-2 text-left select-none cursor-pointer max-sm:min-h-[44px]"
-                        on:click={
-                            let toggle = toggle.clone();
-                            move |_| toggle()
-                        }
+                        on:click=move |_| toggle()
                         aria-expanded=move || if expanded.get() { "true" } else { "false" }
                         aria-controls="search-options-body"
                         aria-label=move || {
