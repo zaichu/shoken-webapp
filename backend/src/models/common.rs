@@ -278,34 +278,40 @@ mod tests {
 
     #[test]
     fn search_params_accessor_delegates_to_search_query_params() {
-        let stub = StubParams {
-            search: SearchQueryParams {
-                pagination: PaginationParams {
-                    page: Some(4),
-                    per_page: Some(25),
+        for (include_summary, include_facets) in [
+            (Some(true), Some(true)),
+            (None, None),
+            (Some(false), Some(false)),
+        ] {
+            let stub = StubParams {
+                search: SearchQueryParams {
+                    pagination: PaginationParams {
+                        page: Some(4),
+                        per_page: Some(25),
+                    },
+                    include_summary,
+                    include_facets,
+                    ..SearchQueryParams::default()
                 },
-                include_summary: Some(true),
-                include_facets: Some(true),
-                ..SearchQueryParams::default()
-            },
-        };
+            };
 
-        assert_eq!(
-            (
-                stub.page(),
-                stub.per_page(),
-                stub.offset(),
-                stub.should_include_summary(),
-                stub.should_include_facets(),
-            ),
-            (
-                stub.search.page(),
-                stub.search.per_page(),
-                stub.search.offset(),
-                stub.search.should_include_summary(),
-                stub.search.should_include_facets(),
-            )
-        );
+            assert_eq!(
+                (
+                    stub.page(),
+                    stub.per_page(),
+                    stub.offset(),
+                    stub.should_include_summary(),
+                    stub.should_include_facets(),
+                ),
+                (
+                    stub.search.page(),
+                    stub.search.per_page(),
+                    stub.search.offset(),
+                    stub.search.should_include_summary(),
+                    stub.search.should_include_facets(),
+                )
+            );
+        }
     }
 
     #[test]

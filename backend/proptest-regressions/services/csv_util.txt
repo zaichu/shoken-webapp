@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc a17b8fef7d46db5f234b86642281a78fc0e0caddc3f62d481ca0b3a0670f0faf # shrinks to account = "特定", mantissa = 1, scale = 0
+cc b1720324e0608a603dfa7e2471515a0bcbfe3e4ec3a0e547e08d62554e793541 # shrinks to account = "", mantissa = 493, scale = 0
+cc ad9a2821a300bd1048b1f6839682cad812048661b7a22c4b9286248323b2e983 # shrinks to input = "0 ぁa"
