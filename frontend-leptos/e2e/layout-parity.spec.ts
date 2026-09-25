@@ -290,7 +290,7 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
     .locator('thead th')
     .evaluateAll((cells) =>
       cells.map((cell) => {
-        const el = cell as HTMLElement;
+        const el = cell as HTMLTableCellElement;
         const style = getComputedStyle(el);
         return {
           width: el.style.width,
@@ -298,11 +298,13 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
           overflow: style.overflow,
           textOverflow: style.textOverflow,
           whiteSpace: style.whiteSpace,
+          scope: el.scope,
         };
       }),
     );
   expect(headerStyles).toHaveLength(widths.length);
   headerStyles.forEach((style, i) => {
+    expect(style.scope).toBe('col');
     expect(style.width, `th[${i}] の固定幅`).toBe(`${widths[i]}px`);
     expect(style.maxWidth, `th[${i}] の最大幅`).toBe(`${widths[i]}px`);
     expect(style.overflow).toBe('hidden');

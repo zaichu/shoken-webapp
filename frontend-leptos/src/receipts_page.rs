@@ -2248,7 +2248,6 @@ fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
-// 幅と同じく基本順で持ち、td には対応する text-* と tabular-nums を付ける
 fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
     match tab {
         ReceiptsTab::Dividend => &[
@@ -2424,7 +2423,7 @@ fn ReceiptTable(
                                 .unwrap_or_default()
                         }
                     >
-                        <table class="w-full table-fixed border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100">
+                        <table class="w-full table-fixed border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100">
                             <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
                                 <tr class="bg-slate-50">
                                     {headers
@@ -2434,6 +2433,7 @@ fn ReceiptTable(
                                             view! {
                                                 <th
                                                     class="text-center font-black text-slate-800"
+                                                    scope="col"
                                                     style:width=*width
                                                     style:max-width=*width
                                                 >
