@@ -83,23 +83,6 @@ async function setupAuthMocks(
   );
 }
 
-// dev サーバの再ビルドや wasm ロードと遷移が衝突するとアプリが一度も描画されないことがある。
-// タブが出る = マウントと認証確認が終わった印なので、出なければ1回だけ遷移し直す
-async function gotoReceipts(page: Page) {
-  const tabs = page.getByRole('tab');
-  for (let attempt = 0; ; attempt++) {
-    await page.goto('/receipts');
-    try {
-      await expect(tabs).toHaveCount(3);
-      return;
-    } catch (error) {
-      if (attempt === 1) {
-        throw error;
-      }
-    }
-  }
-}
-
 // 認証確認と一覧取得が終わるまで workspace 内にローディングの section(role=status)が残る。
 // Spinner の svg も role=status を持つため、文言で絞って strict 違反を避ける
 function receiptLoadingSection(page: Page) {
@@ -112,7 +95,7 @@ function receiptLoadingSection(page: Page) {
 test('取引明細ページの初期表示でタブが3つある', async ({ page }) => {
   await setupAuthMocks(page);
 
-  await gotoReceipts(page);
+  await page.goto('/receipts');
 
   await expect(page.getByRole('tab')).toHaveCount(3);
 });
@@ -120,7 +103,7 @@ test('取引明細ページの初期表示でタブが3つある', async ({ page
 test('配当金タブにデータがないとき EmptyState が表示される', async ({ page }) => {
   await setupAuthMocks(page, { dividends: [] });
 
-  await gotoReceipts(page);
+  await page.goto('/receipts');
   await expect(receiptLoadingSection(page)).toBeHidden();
 
   await expect(
@@ -131,7 +114,7 @@ test('配当金タブにデータがないとき EmptyState が表示される',
 test('配当金データが1件あるとき行が表示される', async ({ page }) => {
   await setupAuthMocks(page, { dividends: DIVIDEND_RECORD });
 
-  await gotoReceipts(page);
+  await page.goto('/receipts');
   await expect(receiptLoadingSection(page)).toBeHidden();
 
   await expect(
