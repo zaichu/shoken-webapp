@@ -24,10 +24,22 @@ pub fn CsvActionRail(
     delete_disabled: Memo<bool>,
     save_result: Memo<Option<CsvUploadResponse>>,
     mode_label: &'static str,
+    #[prop(optional)] toggle_testid: Option<&'static str>,
+    #[prop(optional)] body_id: Option<&'static str>,
+    #[prop(optional)] section_class: Option<&'static str>,
 ) -> impl IntoView {
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
     let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
-    let csv_body_id = format!("{input_id}-body");
+    let toggle_testid = toggle_testid.unwrap_or("receipt-csv-toggle");
+    let csv_body_id = body_id
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("{input_id}-body"));
+    let section_class = format!(
+        "space-y-3 bg-slate-50/60 px-5 py-5{}",
+        section_class
+            .map(|class| format!(" {class}"))
+            .unwrap_or_default()
+    );
     let body_class = move || {
         if csv_expanded.get() {
             "max-sm:border-t max-sm:border-slate-950/10"
@@ -45,7 +57,7 @@ pub fn CsvActionRail(
                     on:click=move |_| csv_expanded.update(|v| *v = !*v)
                     aria-expanded=move || csv_expanded.get().to_string()
                     aria-controls=csv_body_id.clone()
-                    data-testid="receipt-csv-toggle"
+                    data-testid=toggle_testid
                 >
                     <span class="text-sm font-bold text-slate-800">"CSV取り込み・削除"</span>
                     <span class="flex shrink-0 items-center gap-1 text-slate-700">
@@ -82,7 +94,7 @@ pub fn CsvActionRail(
                 class=body_class
             >
         <section
-            class="space-y-3 bg-slate-50/60 px-5 py-5"
+            class=section_class
             role="group"
             aria-label="データ操作"
         >
