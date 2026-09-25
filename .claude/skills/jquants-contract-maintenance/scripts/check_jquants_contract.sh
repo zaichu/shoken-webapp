@@ -10,9 +10,6 @@ echo "[1/3] backend jquants tests"
 echo "[2/3] openapi sync"
 bash scripts/check-openapi.sh
 
-echo "[3/3] frontend jquants tests"
-(cd frontend && npm test -- --run \
-  src/features/marketData/api/__tests__/client.test.ts \
-  src/features/marketData/hooks/__tests__/useJQuantsDividend.test.ts \
-  src/features/marketData/hooks/__tests__/useJQuantsDividendBatch.test.ts \
-  src/features/dividendPerShare/hooks/__tests__/useDividendBatch.test.ts)
+echo "[3/3] frontend contract and dividend tests"
+(cd frontend-leptos && cargo test contract_matches_openapi)
+(cd frontend-leptos && cargo test dividend)

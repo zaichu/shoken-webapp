@@ -107,7 +107,7 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
     .setInputFiles(
       path.resolve(
         test.info().project.testDir,
-        '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',
+        '__fixtures__/csv/dividend-base.csv',
       ),
     );
 
@@ -168,7 +168,7 @@ test('CSVプレビューで前方の行を絞り込みで除外しても開閉�
     .setInputFiles(
       path.resolve(
         test.info().project.testDir,
-        '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',
+        '__fixtures__/csv/dividend-base.csv',
       ),
     );
 

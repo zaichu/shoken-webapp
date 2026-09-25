@@ -1,5 +1,4 @@
 /target
-frontend/src/env.rs
 .shuttle*
 Secrets*.toml
 *.log
@@ -7,7 +6,6 @@ Secrets*.toml
 .playwright-mcp
 CLAUDE.local.md
 backend/CLAUDE.local.md
-frontend/CLAUDE.local.md
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 docs/tasks/*.md

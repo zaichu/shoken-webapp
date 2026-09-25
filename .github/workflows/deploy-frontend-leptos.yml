@@ -78,7 +78,14 @@ jobs:
           install -m 755 trunk ~/.cargo/bin/
 
       - name: Setup frontend dependencies
-        uses: ./.github/actions/setup-frontend
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 https://github.com/actions/setup-node/releases/tag/v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-leptos/package-lock.json
+
+      - name: Install frontend-leptos dependencies
+        run: npm ci
 
       - name: Install Vercel CLI
         run: npm install -g vercel@59.22.0 # https://github.com/vercel/vercel/releases/tag/vercel@59.22.0

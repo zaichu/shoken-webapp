@@ -17,6 +17,7 @@ const distDir = `${outputBase}/dist-receipts`;
 export default defineConfig({
   testDir: './e2e',
   testMatch: ['**/*.spec.ts'],
+  testIgnore: ['**/migrated/**'],
   outputDir,
   fullyParallel: false,
   forbidOnly: true,

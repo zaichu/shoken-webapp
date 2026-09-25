@@ -279,26 +279,3 @@ test('640px 以上で年ピッカーの選択肢がレール下端を超えて�
     await expect(trigger).toContainText(yearLabel);
   }
 });
-
-// React との見た目比較用。Vite dev server (port 8080) を別途起動し、
-// REACT_BASE_URL を指定したときだけ実行する
-// 例: REACT_BASE_URL=http://127.0.0.1:8080 npx playwright test --config ../frontend-leptos/playwright.leptos.config.ts -g "react比較"
-test.describe('react比較スクリーンショット', () => {
-  const reactBase = process.env.REACT_BASE_URL;
-  test.skip(!reactBase, 'REACT_BASE_URL 未指定時はスキップ');
-  test.use({ baseURL: reactBase ?? 'http://127.0.0.1:8080' });
-
-  for (const width of [1920, 390]) {
-    test(`react receipts ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: width === 1920 ? 1080 : 844 });
-      await page.goto('/receipts');
-      await expect(page.getByRole('tab').first()).toBeVisible();
-      if (width >= 640) {
-        await expect(page.getByRole('table')).toBeVisible();
-      } else {
-        await expect(page.getByTestId('receipt-card').first()).toBeVisible();
-      }
-      await shoot(page, `react-962-${width}`);
-    });
-  }
-});

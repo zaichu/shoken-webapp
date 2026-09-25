@@ -1,9 +1,0 @@
-{
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}

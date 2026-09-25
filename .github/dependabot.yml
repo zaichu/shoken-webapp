@@ -2,28 +2,23 @@ version: 2
 updates:
   # npm（フロントエンド）
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/frontend-leptos"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     groups:
-      frontend-production:
+      frontend-leptos-production:
         dependency-type: "production"
         patterns:
           - "*"
-      frontend-development:
+      frontend-leptos-development:
         dependency-type: "development"
         patterns:
           - "*"
     labels:
       - "dependencies"
       - "frontend"
-    # typescript-eslintのpeer依存がTypeScript 7未対応のため除外。対応したら外す
-    ignore:
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-
   # Cargo（バックエンド）
   - package-ecosystem: "cargo"
     directory: "/backend"

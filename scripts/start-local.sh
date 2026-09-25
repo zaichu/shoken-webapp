@@ -3,11 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
-FRONTEND_DIR="$ROOT_DIR/frontend"
+FRONTEND_DIR="$ROOT_DIR/frontend-leptos"
 
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8080}"
-FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+FRONTEND_PORT="${FRONTEND_PORT:-8081}"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
 DATABASE_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/shoken_db}"
 CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT},${FRONTEND_URL}}"
 
@@ -79,12 +79,11 @@ fi
 echo "3/3 Starting frontend..."
 (
   cd "${FRONTEND_DIR}"
-  VITE_SHOKEN_WEBAPI_API_URL="${BACKEND_URL}" \
-    npm run dev -- --host 127.0.0.1 --port "${FRONTEND_PORT}" --strictPort >"${FRONTEND_LOG}" 2>&1
+  trunk serve --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
 ) &
 FRONT_PID=$!
 
-if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 120 0.5; then
+if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 240 0.5; then
   tail -n 80 "${FRONTEND_LOG}" >&2 || true
   cleanup
   exit 1

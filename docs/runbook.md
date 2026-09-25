@@ -9,14 +9,14 @@ cd shoken-webapp
 
 # 2. 環境変数を設定
 (cd backend && cp .env.example .env)  # DATABASE_URL 等を設定
-echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.development.local
+(cd frontend-leptos && npm ci)
 
 # 3. 一括起動（推奨）
 ./scripts/start-local.sh
 ```
 
 起動後のアクセス先:
-- フロントエンド: http://127.0.0.1:8080
+- フロントエンド: http://127.0.0.1:8081
 - バックエンド: http://127.0.0.1:3001
 - DB: `postgresql://user:password@localhost:5432/shoken_db`
 
@@ -28,7 +28,7 @@ echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.developm
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | main push（Vercel GitHub 連携） |
+| フロントエンド | Vercel | `deploy-frontend-leptos.yml` の手動実行 |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 ### 手動デプロイ（緊急時）
@@ -37,8 +37,8 @@ echo "VITE_SHOKEN_WEBAPI_API_URL=http://127.0.0.1:3001" > frontend/.env.developm
 # バックエンド
 (cd backend && make deploy)
 
-# フロントエンド（Vercel CLI）
-(cd frontend && vercel --prod)
+# フロントエンド（Vercel CLI。事前に vercel pull / build を実行）
+(cd frontend-leptos && vercel deploy --prebuilt --prod)
 ```
 
 ## ヘルスチェック
@@ -97,7 +97,7 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 ```bash
 # 依存関係の脆弱性チェック
 (cd backend && cargo audit)
-(cd frontend && node ../scripts/npm-audit-allowlist.mjs)
+(cd frontend-leptos && npm audit --audit-level=high)
 ```
 
 ## PR マージ後のクリーンアップ
@@ -154,14 +154,14 @@ git fetch origin --prune
 (cd backend && cargo fmt)    # フォーマット修正
 ```
 
-### フロントエンドの型エラー
+### フロントエンドのビルドエラー
 
 ```bash
-(cd frontend && npm run typecheck)  # 型エラー確認
-(cd frontend && npm run lint)      # Lint エラー確認
+(cd frontend-leptos && cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings)
+(cd frontend-leptos && trunk build --release)
 ```
 
-### OpenAPI スキーマと api.ts の不一致
+### OpenAPI スキーマの不一致
 
 ```bash
 bash scripts/check-openapi.sh  # 再生成して差分確認

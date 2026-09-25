@@ -11,9 +11,8 @@ on:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
       - "backend/audit.toml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "scripts/npm-audit-allowlist.mjs"
+      - "frontend-leptos/package.json"
+      - "frontend-leptos/package-lock.json"
       - ".github/workflows/security-audit.yml"
   push:
     branches: [main]
@@ -21,9 +20,8 @@ on:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
       - "backend/audit.toml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "scripts/npm-audit-allowlist.mjs"
+      - "frontend-leptos/package.json"
+      - "frontend-leptos/package-lock.json"
       - ".github/workflows/security-audit.yml"
 
 concurrency:
@@ -49,9 +47,8 @@ jobs:
               - "backend/audit.toml"
               - ".github/workflows/security-audit.yml"
             npm:
-              - "frontend/package.json"
-              - "frontend/package-lock.json"
-              - "scripts/npm-audit-allowlist.mjs"
+              - "frontend-leptos/package.json"
+              - "frontend-leptos/package-lock.json"
               - ".github/workflows/security-audit.yml"
 
   cargo-audit:
@@ -86,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend-leptos
     steps:
       # SHA pin: actions/checkout@v7
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -95,6 +92,6 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: frontend-leptos/package-lock.json
       - name: Run npm audit
-        run: node ../scripts/npm-audit-allowlist.mjs
+        run: npm audit --audit-level=high

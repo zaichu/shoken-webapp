@@ -1,11 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Leptos PoC 用の実験設定（本番の playwright.ci.config.ts は変更しない）
- *
- * - 対象は frontend/e2e の各 spec を無改修で実行する
- * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
- */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';
 const baseURL = `http://127.0.0.1:${port}`;
 // 固定パスや receipts との入れ子だと、実行開始時の掃除で互いの成果物を消し合う
@@ -15,7 +9,7 @@ const outputDir = `${outputBase}/leptos`;
 const distDir = `${outputBase}/dist-leptos`;
 
 export default defineConfig({
-  testDir: '../frontend/e2e',
+  testDir: './e2e/migrated',
   testMatch: [
     '**/search-flow.spec.ts',
     '**/receipt-flow.spec.ts',
@@ -47,6 +41,7 @@ export default defineConfig({
       name: 'leptos-e2e',
       testDir: './e2e',
       testMatch: ['**/*.spec.ts'],
+      testIgnore: ['**/migrated/**'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

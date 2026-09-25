@@ -26,7 +26,7 @@
 - task file はローカルの一時ファイルとして扱い、ユーザー明示指示がない限りコミット・PR に含めない
 - task file の更新は原則として対象 worktree 側で行い、main 作業ツリーへ残さない
 - task 完了時または作業中止時には、対応する task file を削除する
-- backend の API 契約変更時は `bash scripts/check-openapi.sh` を実行して `docs/openapi.json` と `frontend/src/generated/api.ts` を同期する
+- backend の API 契約変更時は `bash scripts/check-openapi.sh` を実行して `docs/openapi.json` を同期する
 - 設計エージェントは実装委譲前に task file の実装依頼内容を最新化する
 - 実装エージェントは実装前に task file のスコープ、非対象、受け入れ条件、タスク固有コマンドを確認する
 

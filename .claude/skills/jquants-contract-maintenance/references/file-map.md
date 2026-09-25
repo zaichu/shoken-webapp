@@ -2,45 +2,15 @@
 
 ## Backend
 
-- `backend/src/services/market_data/providers/jquants.rs`
-  - J-Quants 外部 API 呼び出し
-- `backend/src/models/jquants.rs`
-  - Rust 側の応答モデル
-- `backend/src/handlers/v1/market_data.rs`
-  - 自アプリ API の handler
-- `backend/src/openapi.rs`
-  - OpenAPI へ露出する schema / path
-- `backend/src/bin/generate_openapi.rs`
-  - `docs/openapi.json` の再生成
+- `backend/src/models/market_data/providers/jquants.rs`: 外部 API の応答モデル
+- `backend/src/services/market_data/providers/jquants.rs`: J-Quants の呼び出しと変換
+- `backend/src/handlers/dividend_per_share.rs`: 配当推定 API
+- `backend/src/openapi.rs`: 公開 API の schema と path
+- `backend/src/bin/generate_openapi.rs`: `docs/openapi.json` の生成
 
 ## Frontend
 
-- `frontend/src/generated/api.ts`
-  - OpenAPI から生成される正規の API 型
-- `frontend/src/features/marketData/api/types.ts`
-  - hand-written 型。generated 型とズレやすい
-- `frontend/src/features/marketData/api/client.ts`
-  - backend の J-Quants route を呼ぶ client
-- `frontend/src/features/marketData/hooks/useJQuantsDividend.ts`
-  - 単一銘柄の配当 hook
-- `frontend/src/features/marketData/hooks/useJQuantsDividendBatch.ts`
-  - 複数銘柄の配当 hook
-- `frontend/src/features/dividendPerShare/api/dividendPerShareApi.ts`
-  - 1株配当 batch API client
-- `frontend/src/features/dividendPerShare/hooks/useDividendBatch.ts`
-  - UI からの利用側 batch hook
-- `frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`
-  - 配当 KPI 表示
-- `frontend/src/pages/Receipt/Dividend.tsx`
-  - 配当ページの consumer
-- `frontend/src/pages/AssetBalance.tsx`
-  - 保有銘柄ページの consumer
-
-## Sync Path
-
-1. `backend/src/models/jquants.rs`
-2. `backend/src/handlers/v1/market_data.rs`
-3. `backend/src/openapi.rs`
-4. `docs/openapi.json`
-5. `frontend/src/generated/api.ts`
-6. `frontend/src/features/marketData/* と frontend/src/features/dividendPerShare/*`
+- `frontend-leptos/src/dto.rs`: DTO と OpenAPI 契約テスト
+- `frontend-leptos/src/dividend_per_share.rs`: 1株配当 API の利用
+- `frontend-leptos/src/dividend_info.rs`: 配当の表示
+- `frontend-leptos/src/asset_balance_page.rs`: 保有銘柄画面での利用

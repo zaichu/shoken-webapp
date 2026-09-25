@@ -6,10 +6,9 @@
     "build:vercel": "env -u NO_COLOR VERCEL_DIST_DIR=dist-vercel SHOKEN_WEBAPI_URL=$(node scripts/backend-origin.cjs) bash scripts/vercel-build.sh",
     "e2e:vercel": "env -u NO_COLOR playwright test --config playwright.vercel.config.ts"
   },
-  "dependencies": {
-    "@playwright/test": "file:../frontend/node_modules/@playwright/test"
-  },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3"
   }
