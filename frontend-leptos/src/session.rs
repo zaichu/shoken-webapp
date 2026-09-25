@@ -125,7 +125,17 @@ impl SessionStore {
     }
 
     pub fn login(&self) {
-        Self::redirect_to(&oauth_authorize_url());
+        if pending_logout::is_pending() {
+            leptos::task::spawn_local(async move {
+                let client = ApiClient::auth_client().with_max_retries(0);
+                // 失敗しても消す。記録を残すと戻ってきたとき新しいセッションまで消える
+                let _ = client.delete_empty("/api/v1/session").await;
+                pending_logout::clear();
+                Self::redirect_to(&oauth_authorize_url());
+            });
+        } else {
+            Self::redirect_to(&oauth_authorize_url());
+        }
     }
 
     pub fn redirect_to(path: &str) {
