@@ -1,15 +1,7 @@
 use super::*;
+use crate::test_support::block_on;
 use std::cell::Cell;
 use std::future::{ready, Ready};
-use std::task::{Context, Poll, Waker};
-
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
-    let mut context = Context::from_waker(Waker::noop());
-    match std::pin::pin!(future).poll(&mut context) {
-        Poll::Ready(output) => output,
-        Poll::Pending => panic!("スタブの Future は即座に完了するはず"),
-    }
-}
 
 type Page = (Vec<usize>, i64, Option<()>);
 

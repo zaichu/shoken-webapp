@@ -27,7 +27,14 @@ exclude_re = [
     # コンポーネント(view 描画)内部の条件・算術。E2E 領域(末尾が関数名の記述に限定)
     "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|PageHeader|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
     # HTTP 通信・web_sys::AbortController/FormData 前提
-    "fetch_",
+    # fetch_pages / fetch_dividend_batch は executor 注入でテスト可能なため除外しない
+    "fetch_stock",
+    "fetch_single_asset_balance",
+    "fetch_receipt_page",
+    "fetch_list",
+    "fetch_asset_balance_page",
+    "fetch_asset_balances",
+    "post_dividend_batch",
     "send_once",
     "ApiClient::execute",
     "delete_empty",

@@ -32,6 +32,8 @@ mod receipts_search_support;
 mod search;
 mod security_link;
 mod session;
+#[cfg(test)]
+mod test_support;
 mod ui;
 
 use page::App;

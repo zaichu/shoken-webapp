@@ -15,7 +15,9 @@ exclude_re = [
     "init_tracing",
     # レート制限クリーンアップのバックグラウンド spawn(タイミング依存)
     "spawn_keyed_limiter_cleanup",
-    # DB 接続リトライ・マイグレーション(実 DB 前提)
+    # DB 接続リトライ・マイグレーション(実 DB 前提。
+    # wait_for_pool_with_retry は tests/db_integration.rs::wait_for_pool_with_retry_succeeds_and_fails
+    # で成功/失敗両経路を検証済み。run_migrations は全統合テストが経由するため実質検証済み)
     "wait_for_pool_with_retry",
     "run_migrations",
     # Google OAuth 外部境界(JWKS 取得・トークン交換・セッション永続化はいずれも
@@ -25,7 +27,8 @@ exclude_re = [
     "authenticate_with_google_code",
     "replace google_callback",
     # DB 前提のセッション/アカウント操作(services/auth.rs に限定。
-    # 同名のハンドラは 401/認証テストで評価できるため除外しない)
+    # 同名のハンドラは 401/認証テストで評価できるため除外しない。
+    # 振る舞いは tests/db_integration.rs::auth_session_upsert_rotate_and_delete で検証済み)
     "src/services/auth\\.rs.*upsert_user_and_rotate_session",
     "src/services/auth\\.rs.*select_user_by_session",
     "src/services/auth\\.rs.*select_user_id_by_session",
@@ -33,13 +36,19 @@ exclude_re = [
     "src/services/auth\\.rs.*delete_session",
     "src/services/auth\\.rs.*delete_account",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
+    # 振る舞いは tests/db_integration.rs の service_coverage_all_domains /
+    # search_facets_group_by_domain_fields で検証済み。
     # models の should_include_facets や handlers の delete_all は評価可能なため
     # services/ の関数に限定する)
     "src/services/.*facets",
     "src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",
-    # dividend キャッシュ: DB + 外部 API( J-Quants )前提
+    # dividend キャッシュ: DB + 外部 API( J-Quants )前提。
+    # get_batch/acquire_rate_slot/update_cache_error* の DB 経路は
+    # tests/db_integration.rs::dividend_cache_persistence_and_rate_slot で検証済み。
+    # fetch_and_cache は J-Quants 外部境界、push_rate_control_cooldown は
+    # 429 時専用の内部関数で到達に外部失敗が必要なため除外維持
     "get_batch",
     "acquire_rate_slot",
     "push_rate_control_cooldown",

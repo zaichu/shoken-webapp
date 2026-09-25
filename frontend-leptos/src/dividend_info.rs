@@ -3,7 +3,7 @@ use crate::asset_balance_domain::{normalize_security_code, to_fixed};
 use crate::asset_balance_lookup::{fetch_single_asset_balance, find_by_code};
 use crate::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
-    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
+    post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
 };
 use crate::dto::{AssetBalance, Dividend};
 use crate::receipts_domain::{format_currency, format_number, DividendTotals};
@@ -157,7 +157,7 @@ impl DividendInfoStore {
                 return;
             }
             self.per_share_loading.set(true);
-            match fetch_dividend_batch(&codes).await {
+            match fetch_dividend_batch(&codes, post_dividend_batch).await {
                 Ok(batch) => {
                     let (maps, has_pending) = dividend_maps_from_batch(&batch);
                     if !self.is_poll_active(generation, revision, &code) {

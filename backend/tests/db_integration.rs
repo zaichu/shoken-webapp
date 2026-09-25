@@ -4,15 +4,18 @@ use axum::{
 };
 use backend::{
     config::Config,
-    db::run_migrations,
+    db::{connect_pool_lazy, run_migrations, wait_for_pool_with_retry},
     models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
     models::mutualfund::{CreateMutualfundRequest, MutualfundSearchQueryParams},
+    models::user::GoogleUserInfo,
     routes::app_router,
     services::asset_balance as asset_balance_svc,
+    services::auth as auth_svc,
     services::dividend as dividend_svc,
+    services::dividend_cache,
     services::domestic_stock as domestic_stock_svc,
     services::mutualfund as mutualfund_svc,
     state::{AppState, Secrets},
@@ -45,11 +48,11 @@ fn dividend_search_params_with_pagination(
         ..Default::default()
     }
 }
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Utc};
 use reqwest::Client;
 use rust_decimal_macros::dec;
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{env, sync::Arc, time::Duration};
+use std::{env, sync::atomic::AtomicBool, sync::Arc, time::Duration};
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
@@ -820,4 +823,375 @@ async fn mutualfund_bulk_create_skips_duplicates() {
         .expect("second mutualfund bulk_create failed");
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn auth_session_upsert_rotate_and_delete() {
+    let (pool, _node) = start_test_pool().await;
+
+    let info = GoogleUserInfo {
+        sub: "google-sub-0001".to_string(),
+        email: "first@example.com".to_string(),
+        name: Some("ユーザー".to_string()),
+        picture: Some("https://example.com/p.png".to_string()),
+    };
+
+    let token1 = auth_svc::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("初回ログインでセッション発行");
+    let session1 = Uuid::parse_str(&token1).expect("セッションIDはUUID");
+
+    let user = auth_svc::select_user_by_session(&pool, session1)
+        .await
+        .expect("select_user_by_session が成功")
+        .expect("有効セッションからユーザーが解決できる");
+    assert_eq!(user.google_id, "google-sub-0001");
+    assert_eq!(user.email, "first@example.com");
+    assert_eq!(
+        auth_svc::select_user_id_by_session(&pool, session1)
+            .await
+            .expect("select_user_id_by_session が成功"),
+        Some(user.id)
+    );
+
+    // 同一 Google アカウントの再ログインはユーザー情報を更新し、旧セッションを失効させる
+    let info2 = GoogleUserInfo {
+        email: "updated@example.com".to_string(),
+        ..info.clone()
+    };
+    let token2 = auth_svc::upsert_user_and_rotate_session(&pool, &info2)
+        .await
+        .expect("再ログインでセッション再発行");
+    let session2 = Uuid::parse_str(&token2).unwrap();
+    assert_ne!(session1, session2);
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, session1)
+            .await
+            .unwrap()
+            .is_none(),
+        "ローテーションで旧セッションは失効する"
+    );
+    let updated = auth_svc::select_user_by_session(&pool, session2)
+        .await
+        .unwrap()
+        .expect("新セッションからユーザー解決");
+    assert_eq!(updated.id, user.id);
+    assert_eq!(updated.email, "updated@example.com");
+
+    // 期限切れセッションはユーザー解決しない
+    sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
+        .bind(session2)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(auth_svc::select_user_id_by_session(&pool, session2)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(auth_svc::select_user_by_session(&pool, session2)
+        .await
+        .unwrap()
+        .is_none());
+
+    // delete_session で明示失効
+    sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE id = $1")
+        .bind(session2)
+        .execute(&pool)
+        .await
+        .unwrap();
+    auth_svc::delete_session(&pool, session2)
+        .await
+        .expect("セッション削除");
+    assert!(auth_svc::select_user_id_by_session(&pool, session2)
+        .await
+        .unwrap()
+        .is_none());
+
+    // delete_account はセッションごとユーザーを削除する
+    let token3 = auth_svc::upsert_user_and_rotate_session(&pool, &info2)
+        .await
+        .expect("3回目のセッション発行");
+    let session3 = Uuid::parse_str(&token3).unwrap();
+    auth_svc::delete_account(&pool, user.id)
+        .await
+        .expect("アカウント削除");
+    assert!(auth_svc::select_user_by_session(&pool, session3)
+        .await
+        .unwrap()
+        .is_none());
+    let remaining: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
+        .bind(user.id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    assert!(remaining.is_none());
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn search_facets_group_by_domain_fields() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let mut older = make_dividend_item("4001");
+    older.security_name = "旧社名".to_string();
+    older.settlement_date = NaiveDate::from_ymd_opt(2024, 3, 25).unwrap();
+    let mut newer = make_dividend_item("4001");
+    newer.security_name = "新社名".to_string();
+    newer.settlement_date = NaiveDate::from_ymd_opt(2024, 6, 10).unwrap();
+    let mut other = make_dividend_item("4002");
+    other.product = "投資信託".to_string();
+    other.account = "NISA".to_string();
+    other.settlement_date = NaiveDate::from_ymd_opt(2023, 1, 10).unwrap();
+    dividend_svc::bulk_create(&pool, user_id, &[older, newer, other])
+        .await
+        .expect("dividend bulk_create");
+
+    let mut dividend_params = default_dividend_search_params();
+    dividend_params.search.include_facets = Some(true);
+    let facets = dividend_svc::search(&pool, user_id, &dividend_params)
+        .await
+        .expect("dividend search")
+        .facets
+        .expect("facets 必須");
+    assert_eq!(
+        facets
+            .products
+            .expect("products")
+            .iter()
+            .map(|f| (f.value.as_str(), f.count))
+            .collect::<Vec<_>>(),
+        vec![("国内株式", Some(2)), ("投資信託", Some(1))]
+    );
+    assert_eq!(
+        facets
+            .accounts
+            .expect("accounts")
+            .iter()
+            .map(|f| (f.value.as_str(), f.count))
+            .collect::<Vec<_>>(),
+        vec![("NISA", Some(1)), ("特定", Some(2))]
+    );
+    let securities = facets.securities.expect("securities");
+    assert_eq!(securities.len(), 2);
+    assert_eq!(securities[0].value, "4001");
+    assert_eq!(securities[0].label, "新社名");
+    assert_eq!(securities[0].count, Some(2));
+    assert_eq!(securities[1].value, "4002");
+    assert_eq!(securities[1].count, Some(1));
+    assert_eq!(
+        facets
+            .years
+            .expect("years")
+            .iter()
+            .map(|f| (f.value.as_str(), f.count))
+            .collect::<Vec<_>>(),
+        vec![("2024", Some(2)), ("2023", Some(1))]
+    );
+    assert_eq!(
+        facets
+            .year_months
+            .expect("year_months")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["2024-06", "2024-03", "2023-01"]
+    );
+
+    let mut ds_older = make_domestic_stock_item("3001");
+    ds_older.account = "NISA".to_string();
+    ds_older.trade_date = NaiveDate::from_ymd_opt(2023, 5, 15).unwrap();
+    let ds_newer = make_domestic_stock_item("3002");
+    domestic_stock_svc::bulk_create(&pool, user_id, &[ds_older, ds_newer])
+        .await
+        .expect("domestic_stock bulk_create");
+
+    let mut ds_params = default_domestic_stock_search_params();
+    ds_params.search.include_facets = Some(true);
+    let facets = domestic_stock_svc::search(&pool, user_id, &ds_params)
+        .await
+        .expect("domestic_stock search")
+        .facets
+        .expect("facets 必須");
+    assert_eq!(
+        facets
+            .accounts
+            .expect("accounts")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["NISA", "特定"]
+    );
+    let securities = facets.securities.expect("securities");
+    assert_eq!(
+        securities
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["3001", "3002"]
+    );
+    assert_eq!(
+        facets
+            .years
+            .expect("years")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["2024", "2023"]
+    );
+    assert_eq!(
+        facets
+            .year_months
+            .expect("year_months")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["2024-03", "2023-05"]
+    );
+
+    let mf_older = make_mutualfund_item("テスト投信A");
+    let mut mf_newer = make_mutualfund_item("テスト投信B");
+    mf_newer.trade_date = NaiveDate::from_ymd_opt(2023, 8, 1).unwrap();
+    mutualfund_svc::bulk_create(&pool, user_id, &[mf_older, mf_newer])
+        .await
+        .expect("mutualfund bulk_create");
+
+    let mut mf_params = default_mutualfund_search_params();
+    mf_params.search.include_facets = Some(true);
+    let facets = mutualfund_svc::search(&pool, user_id, &mf_params)
+        .await
+        .expect("mutualfund search")
+        .facets
+        .expect("facets 必須");
+    assert!(facets.products.is_none());
+    assert!(facets.securities.is_none());
+    assert_eq!(
+        facets
+            .funds
+            .expect("funds")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["テスト投信A", "テスト投信B"]
+    );
+    assert_eq!(
+        facets
+            .years
+            .expect("years")
+            .iter()
+            .map(|f| f.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["2024", "2023"]
+    );
+
+    let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
+    asset_balance_svc::bulk_create(&pool, user_id, &asset_items)
+        .await
+        .expect("asset_balance bulk_create");
+
+    let mut ab_params = default_asset_balance_search_params();
+    ab_params.search.include_facets = Some(true);
+    let facets = asset_balance_svc::search(&pool, user_id, &ab_params)
+        .await
+        .expect("asset_balance search")
+        .facets
+        .expect("facets 必須");
+    let securities = facets.securities.expect("securities");
+    assert_eq!(
+        securities
+            .iter()
+            .map(|f| (f.value.as_str(), f.count))
+            .collect::<Vec<_>>(),
+        vec![("1301", Some(1)), ("1605", Some(1))]
+    );
+    assert!(facets.products.is_none());
+    assert!(facets.accounts.is_none());
+    assert!(facets.funds.is_none());
+    assert!(facets.years.is_none());
+    assert!(facets.year_months.is_none());
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_cache_persistence_and_rate_slot() {
+    let (pool, _node) = start_test_pool().await;
+    let client = Client::new();
+    let running = Arc::new(AtomicBool::new(false));
+
+    assert!(
+        dividend_cache::get_batch(&pool, &client, None, &[], &running)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    dividend_cache::persistence::update_cache_error(&pool, "1234", "fetch failed")
+        .await
+        .expect("エラー記録");
+    let items = dividend_cache::get_batch(&pool, &client, None, &["1234".to_string()], &running)
+        .await
+        .unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].security_code, "1234");
+    assert_eq!(items[0].status, "error");
+    assert_eq!(items[0].dividend_per_share, None);
+    assert!(items[0].is_stale, "error 記録は即時再取得対象");
+
+    dividend_cache::persistence::update_cache_error_with_cooldown(&pool, "5678", "429", 3600)
+        .await
+        .expect("cooldown 付きエラー記録");
+    let items = dividend_cache::get_batch(&pool, &client, None, &["5678".to_string()], &running)
+        .await
+        .unwrap();
+    assert_eq!(items[0].status, "error");
+    assert!(!items[0].is_stale, "cooldown 中は再取得対象外");
+
+    // 既存行への upsert: stale_at が cooldown で未来に更新される
+    dividend_cache::persistence::update_cache_error_with_cooldown(&pool, "1234", "429", 3600)
+        .await
+        .expect("既存行の上書き");
+    let items = dividend_cache::get_batch(&pool, &client, None, &["1234".to_string()], &running)
+        .await
+        .unwrap();
+    assert!(!items[0].is_stale);
+    let row: (String,) = sqlx::query_as(
+        "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '1234'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.0, "429");
+
+    dividend_cache::acquire_rate_slot(&pool)
+        .await
+        .expect("スロット予約");
+    let row: (chrono::DateTime<Utc>,) = sqlx::query_as(
+        "SELECT next_available_at FROM market_data_provider_rate_control \
+         WHERE provider = 'jquants'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(
+        row.0 > Utc::now(),
+        "予約後の next_available_at は未来: {:?}",
+        row.0
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn wait_for_pool_with_retry_succeeds_and_fails() {
+    let (pool, _node) = start_test_pool().await;
+    wait_for_pool_with_retry(&pool)
+        .await
+        .expect("稼働中の pool では成功");
+
+    let dead = connect_pool_lazy("postgres://postgres:postgres@127.0.0.1:1/postgres", 1)
+        .expect("lazy pool 構築");
+    let err = wait_for_pool_with_retry(&dead)
+        .await
+        .expect_err("接続不能な DB はリトライ上限で Err");
+    assert!(err.contains("接続に失敗"), "期待しないエラー: {err}");
 }

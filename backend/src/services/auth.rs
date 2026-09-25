@@ -233,7 +233,9 @@ pub async fn authenticate_with_google_code(
 /// - 旧セッション失効: 同一トランザクション内で user 行の upsert が行ロックを保持するため、
 ///   同一ユーザーの同時ログインは直列化され、旧セッションが残らない。
 /// - 原子性: session発行失敗時は user の upsert もロールバックされる。
-async fn upsert_user_and_rotate_session(
+// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+#[doc(hidden)]
+pub async fn upsert_user_and_rotate_session(
     pool: &PgPool,
     user_info: &GoogleUserInfo,
 ) -> Result<String, sqlx::Error> {
