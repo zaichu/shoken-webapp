@@ -1,4 +1,5 @@
 use crate::api::{ApiClient, ApiError};
+use crate::cross_tab;
 use crate::dto::{MessageResponse, SessionUser};
 use crate::pending_logout;
 use leptos::prelude::*;
@@ -46,6 +47,7 @@ pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
     pub loaded: RwSignal<bool>,
     pub generation: RwSignal<u64>,
+    logout_epoch: RwSignal<u64>,
 }
 
 impl SessionStore {
@@ -54,6 +56,7 @@ impl SessionStore {
             user: RwSignal::new(None),
             loaded: RwSignal::new(false),
             generation: RwSignal::new(0),
+            logout_epoch: RwSignal::new(0),
         }
     }
 
@@ -78,6 +81,8 @@ impl SessionStore {
     }
 
     pub async fn check(&self) {
+        // 送信前に採った時点からログアウトが起きていれば、遅れて届いた応答で復活させない
+        let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
         let user = client
             .get_json::<SessionUser>("/api/v1/session", &[])
@@ -85,12 +90,21 @@ impl SessionStore {
             .ok()
             .filter(|user| !user.id.is_empty());
         batch(|| {
-            self.set_user(user);
+            if self.check_result_applies(epoch, pending_logout::is_pending()) {
+                self.set_user(user);
+            } else {
+                self.set_user(None);
+            }
             self.loaded.set(true);
         });
     }
 
+    fn check_result_applies(&self, epoch: u64, pending_logout: bool) -> bool {
+        !pending_logout && self.logout_epoch.get_untracked() == epoch
+    }
+
     pub fn mark_unauthenticated(&self) {
+        self.logout_epoch.update(|epoch| *epoch += 1);
         self.set_user(None);
     }
 
@@ -99,6 +113,7 @@ impl SessionStore {
         pending_logout::mark();
         self.mark_unauthenticated();
         self.loaded.set(true);
+        cross_tab::notify_logout();
         let client = ApiClient::default_client();
         if pending_logout::is_finished(&client.delete_empty("/api/v1/session").await) {
             pending_logout::clear();
@@ -121,6 +136,7 @@ impl SessionStore {
         };
         self.mark_unauthenticated();
         self.loaded.set(true);
+        cross_tab::notify_logout();
         result
     }
 
@@ -155,6 +171,7 @@ pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
     crate::idle::watch_idle_logout(session);
+    cross_tab::watch_logout_notifications(session);
     let startup = session;
     leptos::task::spawn_local(async move {
         // 保留中はセッション確認を行わず、先にログアウトを完了させる
@@ -190,6 +207,20 @@ mod tests {
         assert!(SessionStore::same_identity(&alice(), &alice()));
         assert!(!SessionStore::same_identity(&None, &alice()));
         assert!(!SessionStore::same_identity(&alice(), &None));
+    }
+
+    #[test]
+    fn logout_epoch_discards_result_started_before_logout() {
+        let owner = leptos::prelude::Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let epoch = session.logout_epoch.get_untracked();
+            assert!(session.check_result_applies(epoch, false));
+            assert!(!session.check_result_applies(epoch, true));
+            session.mark_unauthenticated();
+            assert!(!session.check_result_applies(epoch, false));
+            assert!(session.check_result_applies(session.logout_epoch.get_untracked(), false));
+        });
     }
 
     #[test]

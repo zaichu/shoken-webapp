@@ -7,6 +7,7 @@ mod asset_balance_portfolio;
 mod asset_balance_search;
 mod asset_review_prompt;
 mod confirm_modal;
+mod cross_tab;
 mod csv_flow;
 mod csv_rail;
 mod dividend_info;
