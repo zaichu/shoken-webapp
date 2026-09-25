@@ -2214,16 +2214,13 @@ fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
 
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
 // マウント中だけ生存させたいので thread_local で管理する
+type TableHeightObserver = (
+    web_sys::ResizeObserver,
+    Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
+);
 thread_local! {
-    static TABLE_HEIGHT_OBSERVERS: RefCell<
-        HashMap<
-            usize,
-            (
-                web_sys::ResizeObserver,
-                Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
-            ),
-        >,
-    > = RefCell::new(HashMap::new());
+    static TABLE_HEIGHT_OBSERVERS: RefCell<HashMap<usize, TableHeightObserver>> =
+        RefCell::new(HashMap::new());
     static TABLE_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
 }
 
