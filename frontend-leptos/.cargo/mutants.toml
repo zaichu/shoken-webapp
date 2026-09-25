@@ -87,4 +87,6 @@ exclude_re = [
     "replace \\| with \\^ in to_fixed",
     # total==TOP_ITEMS では skip(visible) が空になり visible_count/others/toggle/grid が同じ
     "replace > with >= in chart_display",
+    # amount==0 のとき amount/investment*100 は 0.0 で else 分岐と同じ結果
+    "replace > with >= in dividend_rate",
 ]
