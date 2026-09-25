@@ -1384,7 +1384,6 @@ fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -
             data-testid="search-card"
         >
             <CollapsibleSearchCard
-                compact=true
                 initial_expanded=!is_narrow_viewport()
                 has_active_search=Signal::derive(move || !query.get().is_empty())
                 is_default_state=Signal::derive(move || query.get().is_empty())

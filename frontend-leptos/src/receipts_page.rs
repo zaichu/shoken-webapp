@@ -555,7 +555,6 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 data-testid="search-card"
             >
                 <CollapsibleSearchCard
-                    compact=true
                     initial_expanded=!is_narrow_viewport()
                     has_active_search=Signal::derive(move || {
                         !search.with(|state| state.is_default())
