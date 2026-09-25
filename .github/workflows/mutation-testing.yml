@@ -27,15 +27,21 @@ jobs:
           fetch-depth: 0
 
       - id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
         with:
+          # Rust の変更を条件にするため、README や fixture だけの変更では起動しない
           filters: |
             backend:
-              - "backend/**"
+              - "backend/**/*.rs"
+              - "backend/Cargo.toml"
+              - "backend/Cargo.lock"
+              - "backend/.cargo/**"
               - ".github/workflows/mutation-testing.yml"
             frontend_leptos:
-              - "frontend-leptos/**"
-              - "docs/openapi.json"
+              - "frontend-leptos/**/*.rs"
+              - "frontend-leptos/Cargo.toml"
+              - "frontend-leptos/Cargo.lock"
+              - "frontend-leptos/.cargo/**"
               - ".github/workflows/mutation-testing.yml"
 
   diff-backend:
@@ -63,15 +69,28 @@ jobs:
         with:
           workspaces: backend -> target
 
+      # rust-cache は既定で ~/.cargo/bin をキャッシュするため、同一バージョンでは
+      # コンパイルを再実行せず即終了する
       - name: Install cargo-mutants
-        run: cargo install --locked cargo-mutants
+        run: cargo install --locked cargo-mutants@27.1.0
 
       # --relative はカレントディレクトリ基準でパスを書き換えるため、
       # backend/src/... が a/src/... となりクレート内の --in-diff にそのまま渡せる
       - name: Make PR diff
         run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
 
+      # 差分に mutant 対象がない場合でも件数が step summary と outputs に残る。
+      # 空 diff では --json が何も出力しないためフォールバックする
+      - name: List mutants in PR diff
+        id: list
+        run: |
+          count=$(cargo mutants --list --json --in-diff mutants.diff | jq 'length' || true)
+          count=${count:-0}
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "- backend: PR 差分の対象 mutant は **${count}** 件" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run cargo-mutants on PR diff
+        if: steps.list.outputs.count != '0'
         run: cargo mutants -j 4 --in-diff mutants.diff
         env:
           SQLX_OFFLINE: "true"
@@ -117,12 +136,21 @@ jobs:
           workspaces: frontend-leptos -> target
 
       - name: Install cargo-mutants
-        run: cargo install --locked cargo-mutants
+        run: cargo install --locked cargo-mutants@27.1.0
 
       - name: Make PR diff
         run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
 
+      - name: List mutants in PR diff
+        id: list
+        run: |
+          count=$(cargo mutants --list --json --in-diff mutants.diff | jq 'length' || true)
+          count=${count:-0}
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "- frontend-leptos: PR 差分の対象 mutant は **${count}** 件" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run cargo-mutants on PR diff
+        if: steps.list.outputs.count != '0'
         run: cargo mutants -j 4 --in-diff mutants.diff
 
       - name: Upload mutants.out
@@ -168,7 +196,7 @@ jobs:
           shared-key: mutants-${{ matrix.crate }}
 
       - name: Install cargo-mutants
-        run: cargo install --locked cargo-mutants
+        run: cargo install --locked cargo-mutants@27.1.0
 
       - name: Run cargo-mutants shard
         run: cargo mutants -j 4 --shard ${{ matrix.shard }}/4
