@@ -7,7 +7,7 @@
     "e2e:vercel": "env -u NO_COLOR playwright test --config playwright.vercel.config.ts"
   },
   "dependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "file:../frontend/node_modules/@playwright/test"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
