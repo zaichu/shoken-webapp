@@ -62,7 +62,6 @@ test('配当金一覧取得が 401 のときエラー Alert が表示される',
   );
 
   await page.goto('/receipts');
-  await page.waitForLoadState('networkidle');
 
   await expect(
     page.getByRole('alert').filter({ hasText: /エラー/ }),
@@ -80,7 +79,6 @@ test('資産管理一覧取得が 401 のときエラー Alert が表示され�
   );
 
   await page.goto('/assetbalance');
-  await page.waitForLoadState('networkidle');
 
   await expect(
     page.getByRole('alert').filter({ hasText: /エラー/ }),
@@ -111,10 +109,12 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
   );
 
   await page.goto('/receipts');
-  await page.waitForLoadState('networkidle');
 
+  // 初回取得中は input が disabled で change を捨てるため、有効化を待ってから投入する
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
   // ファイル選択でプレビュー API が自動的に呼ばれる
-  await page.locator('[data-testid="csv-file-input"]').setInputFiles(
+  await fileInput.setInputFiles(
     path.join(FIXTURE_DIR, 'dividend-base.csv'),
   );
 

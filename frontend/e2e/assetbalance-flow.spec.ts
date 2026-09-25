@@ -172,11 +172,13 @@ async function setupAssetBalanceMocks(
 
 async function gotoAssetBalancePage(page: Page) {
   await page.goto('/assetbalance');
-  await page.waitForLoadState('networkidle');
 }
 
 async function selectCsvFile(page: Page) {
-  await page.getByLabel('CSVファイルを選択').setInputFiles(CSV_FIXTURE_PATH);
+  const input = page.getByLabel('CSVファイルを選択');
+  // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
+  await expect(input).toBeEnabled();
+  await input.setInputFiles(CSV_FIXTURE_PATH);
 }
 
 test('資産管理データがないとき EmptyState が表示される', async ({ page }) => {

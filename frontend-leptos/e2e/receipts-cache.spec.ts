@@ -241,7 +241,10 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
 
     await page.goto('/receipts');
     await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
-    await page.waitForTimeout(500);
+    // 401/200 どちらでも再送はないので、3タブ分のリクエスト発行を確認すれば以降の回数は確定する
+    await expect
+      .poll(() => requestCounts.dividends > 0 && requestCounts.domestic > 0 && requestCounts.funds > 0)
+      .toBe(true);
 
     expect(requestCounts.dividends).toBeGreaterThan(0);
     expect(requestCounts.domestic).toBeGreaterThan(0);
