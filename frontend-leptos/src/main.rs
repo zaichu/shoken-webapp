@@ -6,6 +6,7 @@ mod asset_balance_page;
 mod asset_balance_portfolio;
 mod asset_balance_search;
 mod asset_review_prompt;
+mod collapsible_search_card;
 mod confirm_modal;
 mod cross_tab;
 mod csv_flow;

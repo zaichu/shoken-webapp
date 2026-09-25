@@ -79,9 +79,18 @@ fn current_route() -> Route {
     }
 }
 
+fn replace_location(path: &str) {
+    if let Some(history) = web_sys::window().and_then(|window| window.history().ok()) {
+        let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(path));
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     let route = current_route();
+    if route == Route::NotFound && current_path() != "/404" {
+        replace_location("/404");
+    }
     let session = provide_session();
     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
         document.set_title(&format!("{} - {BASE_TITLE}", route.title()));
