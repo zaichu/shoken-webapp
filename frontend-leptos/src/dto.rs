@@ -261,15 +261,21 @@ mod tests {
     // cargo-mutants はパッケージ単体をコピーしてテストを実行するため、コピー内では
     // パッケージ外の docs/openapi.json が存在しない。その場合だけスキップし、
     // 通常実行での欠落・移動は失敗として検出する。
-    // コピー先は cargo-mutants 27.x では /tmp/cargo-mutants-<crate>-*.tmp で、
-    // CARGO_MUTANTS 環境変数も設定されないため、パス名で判定する。
+    // コピー先は cargo-mutants 27.x では <tempdir>/cargo-mutants-<crate>-*.tmp で、
+    // CARGO_MUTANTS 環境変数も設定されないため、その形状に限定してパスで判定する
+    // (cargo-mutants-* を名前に含む通常の checkout と誤判定しないため)。
     fn schemas() -> Option<serde_json::Map<String, serde_json::Value>> {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/openapi.json");
         let Ok(text) = std::fs::read_to_string(path) else {
-            let manifest_dir = env!("CARGO_MANIFEST_DIR");
+            let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            let is_mutants_tmpdir = manifest_dir.parent() == Some(std::env::temp_dir().as_path())
+                && manifest_dir.file_name().is_some_and(|name| {
+                    let name = name.to_string_lossy();
+                    name.starts_with("cargo-mutants-") && name.ends_with(".tmp")
+                });
             let in_mutants_sandbox = std::env::var_os("CARGO_MUTANTS").is_some()
-                || manifest_dir.contains("mutants.out")
-                || manifest_dir.contains("cargo-mutants-");
+                || env!("CARGO_MANIFEST_DIR").contains("mutants.out")
+                || is_mutants_tmpdir;
             assert!(in_mutants_sandbox, "docs/openapi.json を読めない: {path}");
             return None;
         };
