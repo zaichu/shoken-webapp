@@ -1,5 +1,7 @@
 /target
 /dist
+/dist-release
+/dist-vercel
 /node_modules
 /style/output.css
 /test-results
