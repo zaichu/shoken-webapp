@@ -133,6 +133,24 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
 
+  // 検索カードは CSV カードと別の枠を持ち、レール自体はスマホでは枠を持たない
+  const searchCard = page.getByTestId('search-card');
+  const searchStyle = await searchCard.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { borderTopWidth: s.borderTopWidth, borderRadius: s.borderTopLeftRadius };
+  });
+  expect(searchStyle.borderTopWidth).toBe('1px');
+  expect(Number.parseFloat(searchStyle.borderRadius)).toBeGreaterThan(0);
+  const railInner = rail.locator('> div').first();
+  await expect(railInner).toHaveCSS('border-top-width', '0px');
+  const csvCard = railInner.locator('> div').first();
+  await expect(csvCard).toHaveCSS('border-top-width', '1px');
+  const searchBox = await searchCard.boundingBox();
+  const csvBox = await csvCard.boundingBox();
+  expect(searchBox).not.toBeNull();
+  expect(csvBox).not.toBeNull();
+  expect(searchBox!.y - (csvBox!.y + csvBox!.height)).toBeGreaterThanOrEqual(8);
+
   const toggle = page.getByTestId('assetbalance-csv-toggle');
   const region = page.getByRole('region', { name: 'CSV取り込み・削除' });
   await expect(toggle).toBeVisible();
@@ -170,6 +188,11 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await shoot(page, '639');
 
   await page.setViewportSize({ width: 640, height: 844 });
+
+  // sm 以上ではレールが1枚のカードに戻り、検索カードの枠は内側の区切りに任せる
+  const railInner = page.getByTestId('assetbalance-utility-rail').locator('> div').first();
+  await expect(railInner).toHaveCSS('border-top-width', '1px');
+  await expect(page.getByTestId('search-card')).toHaveCSS('border-top-width', '0px');
 
   await expect(page.getByTestId('assetbalance-csv-toggle')).toBeHidden();
   await expect(

@@ -1142,7 +1142,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                 >
                     // DOM 順は rail 先(キーボード・読み上げ順のため)、sm 以上は order で見た目を main 先に戻す
                     <aside class="order-1 sm:order-2" data-testid="assetbalance-utility-rail">
-                        <div class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10">
+                        // スマホでは各ブロックを別カードに分けるため枠は sm 以上だけにする
+                        <div class="space-y-4 sm:space-y-0 sm:divide-y sm:divide-slate-950/10 sm:overflow-hidden sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
                             <AssetBalanceCsvSection store=view_csv.clone() />
                             {move || {
                                 // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
@@ -1290,7 +1291,7 @@ fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
     let delete_request = store.clone();
     view! {
         // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
-        <div class="sm:border-b-0">
+        <div class="max-sm:overflow-hidden max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:border-b-0">
             <CsvActionRail
                 input_id="csv-file-input-assetbalance"
                 toggle_testid="assetbalance-csv-toggle"
@@ -1356,7 +1357,7 @@ struct ChartItem {
 fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -> impl IntoView {
     view! {
         <section
-            class="px-4 py-4"
+            class="px-4 py-4 max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
             role="search"
             aria-label="資産管理の検索"
             data-testid="search-card"
