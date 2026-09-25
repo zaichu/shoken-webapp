@@ -290,7 +290,8 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
         >
             <aside class="order-1 lg:order-2" data-testid="receipt-utility-rail">
                 // スマホでは帯と別カードの積み上げを維持するため枠は sm 以上だけにする
-                <div class="sm:divide-y sm:divide-slate-950/10 sm:overflow-hidden sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
+                // 年ピッカーのドロップダウンを切らないよう overflow は掛けない
+                <div class="sm:divide-y sm:divide-slate-950/10 sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
                         // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
@@ -511,6 +512,7 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
             delete_disabled=delete_disabled
             save_result=save_result
             mode_label="追加保存"
+            section_class="sm:rounded-t-xl"
         />
     }
 }

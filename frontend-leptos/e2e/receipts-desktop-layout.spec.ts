@@ -17,14 +17,15 @@ const STOCKS: Array<[string, string]> = [
   ['4502', '武田薬品工業'],
 ];
 
-const DIVIDENDS = Array.from({ length: 18 }, (_, i) => {
+// 年ピッカーがレール下端をはみ出す高さになるよう、異なる年の明細を多めに用意する
+const DIVIDENDS = Array.from({ length: 39 }, (_, i) => {
   const [code, name] = STOCKS[i % STOCKS.length];
   const month = String((i % 12) + 1).padStart(2, '0');
   const day = String((i % 27) + 1).padStart(2, '0');
   return {
     id: `dividend-${i}`,
     user_id: MOCK_USER.id,
-    settlement_date: `2024-${month}-${day}`,
+    settlement_date: `${1995 + i}-${month}-${day}`,
     product: i % 2 === 0 ? '特定口座' : 'NISA口座',
     account: i % 3 === 0 ? 'SBI証券' : '楽天証券',
     security_code: code,
@@ -236,6 +237,42 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(1);
 
   await shoot(page, 'leptos-962-1920');
+});
+
+test('640px 以上で年ピッカーの選択肢がレール下端を超えても末尾の年を選べる', async ({ page }) => {
+  for (const width of [768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoReceipts(page);
+
+    const railInner = page
+      .getByTestId('receipt-utility-rail')
+      .locator('> div')
+      .first();
+    // レールの枠がドロップダウンをクリップしない
+    await expect(railInner).toHaveCSS('overflow', 'visible');
+
+    const trigger = page.getByRole('button', { name: '年を選択' });
+    await trigger.click();
+    const listbox = page.getByRole('listbox', { name: '年候補' });
+    await expect(listbox).toBeVisible();
+    const lastOption = listbox.getByRole('option').last();
+    const yearLabel = (await lastOption.textContent())!.trim();
+
+    // 十分な年数でドロップダウンがレールの下端をはみ出す配置を固定する
+    const railBox = await railInner.boundingBox();
+    const optionBox = await lastOption.boundingBox();
+    expect(railBox).not.toBeNull();
+    expect(optionBox).not.toBeNull();
+    expect(optionBox!.y + optionBox!.height).toBeGreaterThan(
+      railBox!.y + railBox!.height,
+    );
+
+    // レールの外に出た選択肢も実際にクリックできる(1カラム時は下の表と重なるため 2カラム幅でのみ)
+    if (width >= 1024) {
+      await lastOption.click({ timeout: 5000 });
+      await expect(trigger).toContainText(yearLabel);
+    }
+  }
 });
 
 // React との見た目比較用。Vite dev server (port 8080) を別途起動し、
