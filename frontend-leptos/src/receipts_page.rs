@@ -308,10 +308,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 <div class="sm:relative sm:z-20 sm:divide-y sm:divide-slate-950/10 sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
-                        // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
-                        let Some(message) = alert_store
-                            .error()
-                            .or_else(|| alert_store.csv_state(tab).error)
+                        let Some(message) = alert_store.rail_error(tab)
                         else {
                             return ().into_any();
                         };
