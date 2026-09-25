@@ -16,25 +16,3 @@ pub async fn search(pool: &PgPool, query: &str) -> Result<Stock, ApiError> {
 
     Ok(stock)
 }
-
-pub async fn create(pool: &PgPool, data: &Stock) -> Result<Stock, ApiError> {
-    let stock = sqlx::query_as::<_, Stock>(
-        "INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         RETURNING *"
-    )
-    .bind(data.date)
-    .bind(&data.code)
-    .bind(&data.name)
-    .bind(&data.market_category)
-    .bind(&data.industry_code_33)
-    .bind(&data.industry_category_33)
-    .bind(&data.industry_code_17)
-    .bind(&data.industry_category_17)
-    .bind(&data.size_code)
-    .bind(&data.size_category)
-    .fetch_one(pool)
-    .await?;
-
-    Ok(stock)
-}

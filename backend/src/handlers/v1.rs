@@ -33,7 +33,6 @@ pub fn auth_routes() -> Router<AppState> {
 /// データ系 v1 ルート（レート制限なし）
 pub fn data_routes() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/stocks", post(stocks::create))
         .route(
             "/api/v1/dividends",
             get(dividends::list).delete(dividends::delete_all),

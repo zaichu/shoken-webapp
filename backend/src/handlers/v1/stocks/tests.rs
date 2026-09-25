@@ -77,7 +77,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
 
 fn setup_test_app(pool: Pool<Postgres>) -> Router {
     Router::new()
-        .route("/api/v1/stocks", get(search).post(create))
+        .route("/api/v1/stocks", get(search))
         .with_state(crate::AppState {
             pool: pool.clone(),
             secrets: Arc::new(Secrets {
@@ -159,54 +159,40 @@ async fn test_search_stock() {
     }
 }
 
+/// 銘柄マスタは共有データのため API からの書き込み経路を持たない。
+/// 認証の有無に関わらず POST は 405 で拒否される。
 #[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn test_create_stock() {
-    let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool);
-
-    let response = call(
-        app.clone(),
-        "POST",
-        "/api/v1/stocks",
-        Some(stock_payload("5678", "新規テスト株式会社")),
-    )
-    .await;
-    assert_eq!(response.status(), StatusCode::CREATED);
-
-    let stock = read_json(response).await;
-    assert_eq!(
-        (stock["code"].as_str(), stock["name"].as_str()),
-        (Some("5678"), Some("新規テスト株式会社"))
-    );
-
-    let mut invalid_data = stock_payload("5678", "新規テスト株式会社");
-    invalid_data["code"] = json!("");
-    assert_eq!(
-        call(app, "POST", "/api/v1/stocks", Some(invalid_data))
-            .await
-            .status(),
-        StatusCode::BAD_REQUEST
-    );
-}
-
-#[tokio::test]
-async fn test_create_stock_unauthorized() {
+async fn test_create_stock_rejected() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
     let app = setup_test_app(pool);
 
     assert_eq!(
         call(
-            app,
+            app.clone(),
             "POST",
             "/api/v1/stocks",
-            Some(stock_payload("9999", "未認証テスト"))
+            Some(stock_payload("9999", "偽テスト"))
         )
         .await
         .status(),
-        StatusCode::UNAUTHORIZED
+        StatusCode::METHOD_NOT_ALLOWED
     );
+
+    // セッション cookie を付けてもルート自体が存在しないため同じく拒否される
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/stocks")
+                .header("content-type", "application/json")
+                .header("cookie", format!("session_token={}", uuid::Uuid::new_v4()))
+                .body(Body::from(stock_payload("9999", "偽テスト").to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]
