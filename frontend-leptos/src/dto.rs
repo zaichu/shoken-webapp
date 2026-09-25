@@ -258,17 +258,24 @@ mod tests {
         serde_json::to_value(&parsed)
     }
 
-    // cargo-mutants はパッケージ単体をコピーしてテストを実行するため、
-    // コピー内ではパッケージ外の docs/openapi.json をコンパイル時 include で解決できない。
-    // 実行時に読み込み、見つからなければ契約テスト側でスキップする。
+    // cargo-mutants はパッケージ単体をコピーしてテストを実行するため、コピー内では
+    // パッケージ外の docs/openapi.json が存在しない。その場合だけスキップし、
+    // 通常実行での欠落・移動は失敗として検出する。
     fn schemas() -> Option<serde_json::Map<String, serde_json::Value>> {
-        let text =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/openapi.json"))
-                .ok()?;
-        serde_json::from_str::<serde_json::Value>(&text).expect("openapi.json parses")["components"]
-            ["schemas"]
-            .as_object()
-            .cloned()
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/openapi.json");
+        let Ok(text) = std::fs::read_to_string(path) else {
+            let in_mutants_sandbox = std::env::var_os("CARGO_MUTANTS").is_some()
+                || env!("CARGO_MANIFEST_DIR").contains("mutants.out");
+            assert!(in_mutants_sandbox, "docs/openapi.json を読めない: {path}");
+            return None;
+        };
+        Some(
+            serde_json::from_str::<serde_json::Value>(&text).expect("openapi.json parses")
+                ["components"]["schemas"]
+                .as_object()
+                .expect("openapi.json に components.schemas がない")
+                .clone(),
+        )
     }
 
     fn resolve<'a>(
