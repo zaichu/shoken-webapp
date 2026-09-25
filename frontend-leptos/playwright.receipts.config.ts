@@ -8,11 +8,13 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';
 const baseURL = `http://127.0.0.1:${port}`;
+// 固定パスや leptos との入れ子だと、実行開始時の掃除で互いの成果物を消し合う
+const outputDir = `${process.env.LEPTOS_E2E_OUTPUT_DIR || 'test-results'}/receipts`;
 
 export default defineConfig({
   testDir: './e2e',
   testMatch: ['**/*.spec.ts'],
-  outputDir: '/tmp/leptos-receipts-e2e-out',
+  outputDir,
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
