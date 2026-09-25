@@ -33,8 +33,9 @@ exclude_re = [
     "src/services/auth\\.rs.*delete_session",
     "src/services/auth\\.rs.*delete_account",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
-    # handlers 側の delete_all は認証テストで評価できるため services/ に限定)
-    "facets",
+    # models の should_include_facets や handlers の delete_all は評価可能なため
+    # services/ の関数に限定する)
+    "src/services/.*facets",
     "src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",
@@ -45,15 +46,16 @@ exclude_re = [
     "spawn_background_refresh",
     "fetch_and_cache",
     "update_cache_error",
-    # 等価 mutant
+    # 等価 mutant(演算子置換のみに限定し、関数全体の置換は対象に残す)
     # JWKS TTL ちょうどの境界(Instant::elapsed が正確に TTL に一致する時刻は作れない)
-    "GoogleJwksCache::get",
+    "replace < with <= in GoogleJwksCache::get",
     # pnl=0 のとき税額はどちらでも 0、pnl>0 と同じ結果になる
-    "compute_taxes",
+    "replace > with >= in compute_taxes",
     # 分割後のトークン数は常に >=1 で、> と >= は同値
-    "normalize_security_name",
-    # elapsed_ms はログ出力のみでレスポンスに影響しない
-    "BulkTimer::finish",
+    "replace > with >= in normalize_security_name",
+    # elapsed_ms はログ出力のみでレスポンスに影響しない(* → + / / のみ。
+    # skipped の算術や finish_from_result の置換はテスト可能なため残す)
+    "replace \\* with [+/] in BulkTimer::finish$",
     # 本体は既に空の Router::new() であり Default::default() と等価
-    "csv_import_routes",
+    "replace csv_import_routes",
 ]
