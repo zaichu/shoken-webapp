@@ -31,7 +31,7 @@ cargo clippy --target wasm32-unknown-unknown -- -D warnings
 
 `playwright.leptos.config.ts` は `frontend/e2e` の既存 spec (search-flow / receipt-flow) を無改修で実行する。`playwright.receipts.config.ts` は `e2e/receipts-cache.spec.ts` (4件) を実行する。
 
-E2E のポートは `LEPTOS_E2E_PORT` で変えられる (既定 8081)。複数の worktree で並行して Playwright を回すときは、worktree ごとに別ポートを指定する (`LEPTOS_E2E_PORT=8091 npx playwright test ...`)。同じポートだと `reuseExistingServer` が別 worktree の trunk serve を拾い、自分のコード以外に対してテストが走る。
+E2E のポートは `LEPTOS_E2E_PORT` で変えられる (既定 8081)。複数の worktree で並行して Playwright を回すときは、worktree ごとに別ポートを指定する (`LEPTOS_E2E_PORT=8091 npx playwright test ...`)。同じポートだと `reuseExistingServer` が別 worktree の trunk serve を拾い、自分のコード以外に対してテストが走る。出力先は `test-results/` (worktree ごとに分かれる) で、`LEPTOS_E2E_OUTPUT_DIR` で上書きできる。
 
 ## CSS
 

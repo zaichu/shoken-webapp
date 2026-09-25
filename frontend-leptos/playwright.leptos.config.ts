@@ -8,6 +8,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';
 const baseURL = `http://127.0.0.1:${port}`;
+// /tmp 固定だと worktree 間で共有され、並行実行時に互いの trace を消し合って落ちる
+const outputDir = process.env.LEPTOS_E2E_OUTPUT_DIR ?? 'test-results';
 
 export default defineConfig({
   testDir: '../frontend/e2e',
@@ -19,7 +21,7 @@ export default defineConfig({
     '**/assetbalance-flow.spec.ts',
     '**/a11y.spec.ts',
   ],
-  outputDir: '/tmp/leptos-e2e-out',
+  outputDir,
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
