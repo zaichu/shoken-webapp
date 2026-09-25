@@ -180,7 +180,9 @@ test('CSVプレビューで前方の行を絞り込みで除外しても開閉�
   await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
   await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');
 
-  // 口座「SBI証券」に絞り込んで先頭のコマツ行を除く
+  // 390px では検索カードは初期折り畳みのため開いてから口座「SBI証券」に絞り込み、
+  // 先頭のコマツ行を除く
+  await page.getByTestId('search-card-header').click();
   await page
     .getByRole('button', { name: 'SBI証券', exact: true })
     .click();
