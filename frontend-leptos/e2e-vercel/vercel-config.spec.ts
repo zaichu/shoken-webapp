@@ -1,9 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-// scripts/serve-dist.mjs が vercel.json の rewrites/headers を再現して配信する
-// release ビルドに対し、配信設定の確認項目を検証する。
-// 検証ビルドは SHOKEN_WEBAPI_URL=https://shoken-backend.fly.dev を埋め込んで作る。
-
 const BACKEND_ORIGIN = 'https://shoken-backend.fly.dev';
 
 test('index と SPA フォールバックが CSP 付きの HTML を返す', async ({ request }) => {
@@ -23,7 +19,6 @@ test('index と SPA フォールバックが CSP 付きの HTML を返す', asyn
   // index.html / SPA fallback は常に再検証させる(ハッシュ無しのため)
   expect(root.headers()['cache-control']).toContain('max-age=0');
 
-  // 直接開いた深いパスも index.html(SPA fallback)を返す
   const deep = await request.get('/receipts');
   expect(deep.status()).toBe(200);
   expect(deep.headers()['content-type']).toContain('text/html');

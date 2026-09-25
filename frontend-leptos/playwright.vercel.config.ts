@@ -1,12 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Vercel 配信設定(vercel.json)のローカル検証用。
- *
- * - webServer は scripts/serve-dist.mjs(vercel.json の rewrites/headers を再現)
- * - 対象は trunk build --release の出力。webServer 起動時に
- *   scripts/prepare-vercel-dist.mjs で init script の外部化も行う
- */
 const port = process.env.VERCEL_E2E_PORT ?? '8190';
 const dist = process.env.VERCEL_DIST_DIR ?? 'dist-vercel';
 const baseURL = `http://127.0.0.1:${port}`;
