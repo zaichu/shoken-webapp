@@ -233,3 +233,215 @@ fn option(value: &str, label: &str) -> SearchOption {
         label: label.into(),
     }
 }
+
+fn naive_valid_iso_date(value: &str) -> bool {
+    let parts: Vec<&str> = value.split('-').collect();
+    if parts.len() != 3
+        || parts[0].len() != 4
+        || parts[1].len() != 2
+        || parts[2].len() != 2
+        || !parts
+            .iter()
+            .all(|part| part.bytes().all(|b| b.is_ascii_digit()))
+    {
+        return false;
+    }
+    let (Ok(year), Ok(month), Ok(day)) = (
+        parts[0].parse::<i32>(),
+        parts[1].parse::<u8>(),
+        parts[2].parse::<u8>(),
+    ) else {
+        return false;
+    };
+    let Ok(month) = time::Month::try_from(month) else {
+        return false;
+    };
+    time::Date::from_calendar_date(year, month, day).is_ok()
+}
+
+fn string_item_config() -> FilterConfig<String> {
+    FilterConfig {
+        string_fields: None,
+        partial_string_fields: Some(vec![|item: &String| item.as_str()]),
+        date_field: None,
+        year_search: false,
+        year_month_search: false,
+        date_search: false,
+        date_range_search: false,
+        amount_fields: None,
+    }
+}
+
+proptest::proptest! {
+    #[test]
+    fn prop_parse_tokens_simple(query in "[a-zA-Z0-9 \t]+") {
+        let tokens = parse_search_tokens(&query);
+        let expected: Vec<String> = query
+            .split(is_js_whitespace)
+            .filter(|token| !token.is_empty())
+            .map(|token| token.to_lowercase())
+            .collect();
+        proptest::prop_assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn prop_parse_tokens_never_empty(query in ".*") {
+        for token in parse_search_tokens(&query) {
+            proptest::prop_assert!(!token.is_empty());
+            proptest::prop_assert_eq!(token.clone(), token.to_lowercase());
+        }
+    }
+
+    #[test]
+    fn prop_year_prefix_match(
+        date in "[ -~]{0,20}",
+        year in "[0-9]{4}",
+        year_month in "[0-9]{4}-[0-9]{2}",
+    ) {
+        proptest::prop_assert_eq!(
+            matches_year(&date, &year),
+            date.len() >= 4 && date.starts_with(&year)
+        );
+        proptest::prop_assert_eq!(
+            matches_year_month(&date, &year_month),
+            date.len() >= 7 && date.starts_with(&year_month)
+        );
+        proptest::prop_assert!(matches_year(&year, &year));
+        proptest::prop_assert!(matches_year_month(&year_month, &year_month));
+    }
+
+    #[test]
+    fn prop_matches_date_range_naive(
+        date in "[0-9]{4}-[0-9]{2}-[0-9]{2}",
+        start_year in 1990i32..2031i32,
+        start_month in 0u32..=13u32,
+        start_day in 0u32..=32u32,
+        end_year in 1990i32..2031i32,
+        end_month in 0u32..=13u32,
+        end_day in 0u32..=32u32,
+        omit_start in proptest::bool::ANY,
+        omit_end in proptest::bool::ANY,
+    ) {
+        let start = format!("{start_year:04}-{start_month:02}-{start_day:02}");
+        let end = format!("{end_year:04}-{end_month:02}-{end_day:02}");
+        let query = format!(
+            "{}..{}",
+            if omit_start { "" } else { &start },
+            if omit_end { "" } else { &end },
+        );
+        let effective_start = if omit_start { "" } else { start.as_str() };
+        let effective_end = if omit_end { "" } else { end.as_str() };
+
+        let valid_start = effective_start.is_empty() || naive_valid_iso_date(effective_start);
+        let valid_end = effective_end.is_empty() || naive_valid_iso_date(effective_end);
+        let expected = if (effective_start.is_empty() && effective_end.is_empty())
+            || !valid_start
+            || !valid_end
+            || (!effective_start.is_empty()
+                && !effective_end.is_empty()
+                && effective_start > effective_end)
+        {
+            false
+        } else if effective_start.is_empty() {
+            date.as_str() <= effective_end
+        } else if effective_end.is_empty() {
+            date.as_str() >= effective_start
+        } else {
+            date.as_str() >= effective_start && date.as_str() <= effective_end
+        };
+        proptest::prop_assert_eq!(
+            matches_date_range(&date, &query),
+            expected,
+            "date={} query={}",
+            date,
+            query
+        );
+    }
+
+    #[test]
+    fn prop_year_options_naive(dates in proptest::collection::vec("[ -~]{0,12}", 0..16usize)) {
+        let options = create_year_options(&dates, |date| date.as_str());
+        let mut seen = HashSet::new();
+        let mut years = Vec::new();
+        for date in &dates {
+            if date.len() >= 4 {
+                let year = &date[..4];
+                if seen.insert(year) {
+                    years.push(year.to_string());
+                }
+            }
+        }
+        years.sort();
+        let expected: Vec<SearchOption> = years
+            .into_iter()
+            .map(|year| SearchOption {
+                value: year.clone(),
+                label: format!("{year}年"),
+            })
+            .collect();
+        proptest::prop_assert_eq!(options, expected);
+    }
+
+    #[test]
+    fn prop_get_unique_values_naive(
+        values in proptest::collection::vec(".*", 0..16usize),
+    ) {
+        let actual = get_unique_values(&values, |v| v.as_str());
+        let mut seen = HashSet::new();
+        let mut expected = Vec::new();
+        for value in &values {
+            if !value.trim_matches(is_js_whitespace).is_empty() && seen.insert(value.clone()) {
+                expected.push(value.clone());
+            }
+        }
+        proptest::prop_assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn prop_filter_partial_match_subsequence(
+        items in proptest::collection::vec("[a-zA-Z0-9]{0,12}", 0..16usize),
+        query in "[a-z0-9]{1,4}",
+    ) {
+        let result = filter_by_config(&items, &query, &string_item_config());
+        let expected: Vec<&String> = items
+            .iter()
+            .filter(|item| item.to_lowercase().contains(&query))
+            .collect();
+        proptest::prop_assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn prop_filter_blank_query_returns_all(
+        items in proptest::collection::vec("[a-z0-9]{0,8}", 0..8usize),
+        query in "[ \t　]{1,6}",
+    ) {
+        let result = filter_by_config(&items, &query, &string_item_config());
+        proptest::prop_assert_eq!(result.len(), items.len());
+    }
+
+    #[test]
+    fn prop_is_valid_iso_date_matches_naive_model(
+        (y, m, d) in (0i32..10_000, 0i32..15, 0i32..35),
+        raw in "[0-9-]{0,12}",
+    ) {
+        for input in [format!("{y:04}-{m:02}-{d:02}"), raw] {
+            proptest::prop_assert_eq!(
+                is_valid_iso_date(&input),
+                naive_valid_iso_date(&input),
+                "input={}",
+                input
+            );
+        }
+    }
+}
+
+/// JS の行終端子は改行2種と U+2028/U+2029 だけを含む
+#[test]
+fn js_line_terminator_matches_spec() {
+    for c in ['\n', '\r', '\u{2028}', '\u{2029}'] {
+        assert!(is_js_line_terminator(c));
+    }
+    for c in [' ', '\t', '\u{000B}', '\u{2027}', '\u{2030}'] {
+        assert!(!is_js_line_terminator(c));
+    }
+}

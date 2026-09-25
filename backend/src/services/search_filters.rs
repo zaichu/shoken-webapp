@@ -365,6 +365,10 @@ mod tests {
         assert_eq!(sql.matches("product ILIKE").count(), 2);
         assert_eq!(sql.matches("account ILIKE").count(), 2);
         assert_eq!(sql.matches(" OR ").count(), 2);
+        assert_eq!(
+            sql,
+            "SELECT 1 FROM dummy AND (product ILIKE $1 ESCAPE '\\' OR account ILIKE $2 ESCAPE '\\') AND (product ILIKE $3 ESCAPE '\\' OR account ILIKE $4 ESCAPE '\\')"
+        );
     }
 
     #[test]
@@ -398,5 +402,107 @@ mod tests {
         })
         .await;
         assert_eq!(result.expect("include=false は Ok(None) を返す"), None);
+    }
+
+    fn unescape_like_pattern(escaped: &str) -> Option<String> {
+        let inner = escaped.strip_prefix('%')?.strip_suffix('%')?;
+        let mut chars = inner.chars();
+        let mut recovered = String::new();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next()? {
+                    esc @ ('\\' | '%' | '_') => recovered.push(esc),
+                    _ => return None,
+                }
+            } else {
+                // 素朴モデルでは %, _ はワイルドカード扱いになるため、
+                // エスケープなしで現れてはならない
+                if c == '%' || c == '_' {
+                    return None;
+                }
+                recovered.push(c);
+            }
+        }
+        Some(recovered)
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_escape_like_pattern_roundtrip(token in ".*") {
+            let escaped = escape_like_pattern(&token);
+            let recovered = unescape_like_pattern(&escaped);
+            proptest::prop_assert_eq!(
+                recovered.as_deref(),
+                Some(token.as_str()),
+                "escaped={}",
+                escaped
+            );
+        }
+
+        // i32::MAX では実装・参照モデル双方の year+1 が debug でオーバーフローするため除く
+        #[test]
+        fn prop_year_to_range_matches_reference(year in i32::MIN..i32::MAX) {
+            match year_to_range(year) {
+                Ok((start, end)) => {
+                    proptest::prop_assert_eq!(
+                        start,
+                        NaiveDate::from_ymd_opt(year, 1, 1).unwrap()
+                    );
+                    proptest::prop_assert_eq!(
+                        end,
+                        NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
+                    );
+                    proptest::prop_assert!(start < end);
+                }
+                Err(e) => {
+                    proptest::prop_assert!(
+                        matches!(e, ApiError::ValidationError(_)),
+                        "year={year} の Err が ValidationError ではない"
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn prop_parse_year_month_range_matches_reference(
+            year in 0i32..10_000i32,
+            month in 0u32..=13u32,
+        ) {
+            let input = format!("{year}-{month:02}");
+            match parse_year_month_range(&input) {
+                Ok((start, end)) => {
+                    proptest::prop_assert_eq!(
+                        start,
+                        NaiveDate::from_ymd_opt(year, month, 1).unwrap()
+                    );
+                    let expected_end = if month == 12 {
+                        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+                    } else {
+                        NaiveDate::from_ymd_opt(year, month + 1, 1)
+                    };
+                    proptest::prop_assert_eq!(end, expected_end.unwrap());
+                }
+                Err(e) => {
+                    proptest::prop_assert!(
+                        matches!(e, ApiError::ValidationError(_)),
+                        "input={input} の Err が ValidationError ではない"
+                    );
+                    proptest::prop_assert!(
+                        !(1..=12).contains(&month),
+                        "有効な月 {input} が Err になった"
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn prop_tokens_from_query_splits_and_never_empty(
+            tokens in proptest::collection::vec("[^\\s]+", 0..8),
+        ) {
+            let query = tokens.join(" ");
+            let parsed = tokens_from_query(Some(&query));
+            proptest::prop_assert!(parsed.iter().all(|t| !t.is_empty()));
+            proptest::prop_assert_eq!(parsed, tokens);
+        }
     }
 }

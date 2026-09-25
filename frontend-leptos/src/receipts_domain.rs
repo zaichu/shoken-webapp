@@ -869,6 +869,288 @@ mod tests {
         assert_eq!(TAX_RATE, dec!(0.20315));
     }
 
+    #[test]
+    fn valid_iso_date_leap_day_boundary() {
+        assert!(valid_iso_date("2024-02-29"));
+        assert!(!valid_iso_date("2023-02-29"));
+        assert!(valid_iso_date("2000-02-29"));
+        assert!(!valid_iso_date("1900-02-29"));
+        assert!(!valid_iso_date("2024-02-30"));
+        assert!(!valid_iso_date("2024-04-31"));
+    }
+
+    use proptest::strategy::Strategy;
+
+    fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
+        (-9_999_999_999_999i64..9_999_999_999_999i64).prop_map(|mantissa| Decimal::new(mantissa, 3))
+    }
+
+    fn arb_date() -> impl proptest::strategy::Strategy<Value = String> {
+        (2000i32..2030i32, 1u32..=12u32, 1u32..=28u32)
+            .prop_map(|(y, m, d)| format!("{y:04}-{m:02}-{d:02}"))
+    }
+
+    fn naive_domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
+        let mut by_date: std::collections::BTreeMap<&str, (Decimal, Decimal)> =
+            std::collections::BTreeMap::new();
+        for row in rows {
+            let entry = by_date.entry(&row.trade_date).or_default();
+            if row.account.contains("特定") {
+                entry.0 += row.realized_profit_and_loss;
+            } else {
+                entry.1 += row.realized_profit_and_loss;
+            }
+        }
+        let mut result: Vec<DomesticDailySummary> = by_date
+            .into_iter()
+            .map(|(date, (specific, exempt))| {
+                let profit = specific + exempt;
+                let taxes = if specific > Decimal::ZERO {
+                    (specific * TAX_RATE).floor()
+                } else {
+                    Decimal::ZERO
+                };
+                DomesticDailySummary {
+                    filter: date.to_string(),
+                    total_realized_profit_and_loss: profit,
+                    total_taxes: taxes,
+                    total_realized_profit_and_loss_after_tax: profit - taxes,
+                }
+            })
+            .collect();
+        result.sort_by(|a, b| b.filter.cmp(&a.filter));
+        result
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_dividends_match_naive_sums(
+            rows in proptest::collection::vec(
+                (arb_decimal(), arb_decimal(), arb_decimal()),
+                0..12usize
+            ),
+        ) {
+            let rows: Vec<Dividend> = rows
+                .into_iter()
+                .map(|(before, taxes, net)| dividend(before, taxes, net))
+                .collect();
+            let total = calculate_dividends(&rows);
+            proptest::prop_assert_eq!(
+                total.total_dividends_before_tax,
+                rows.iter().map(|r| r.dividends_before_tax).sum()
+            );
+            proptest::prop_assert_eq!(total.total_taxes, rows.iter().map(|r| r.taxes).sum());
+            proptest::prop_assert_eq!(
+                total.total_net_amount_received,
+                rows.iter().map(|r| r.net_amount_received).sum()
+            );
+        }
+
+        #[test]
+        fn prop_domestic_daily_matches_naive_model(
+            rows in proptest::collection::vec(
+                (
+                    arb_date(),
+                    proptest::sample::select(vec!["特定口座", "NISA口座", "一般"]),
+                    arb_decimal(),
+                ),
+                0..16usize
+            ),
+        ) {
+            let rows: Vec<DomesticStock> = rows
+                .into_iter()
+                .map(|(date, account, pnl)| domestic(&date, account, pnl, dec!(0)))
+                .collect();
+            proptest::prop_assert_eq!(
+                calculate_domestic_daily(&rows),
+                naive_domestic_daily(&rows)
+            );
+        }
+
+        #[test]
+        fn prop_group_dividends_by_month_matches_naive_grouping(
+            rows in proptest::collection::vec(
+                (arb_date(), arb_decimal(), arb_decimal(), arb_decimal()),
+                0..16usize
+            ),
+        ) {
+            let rows: Vec<Dividend> = rows
+                .into_iter()
+                .map(|(date, before, taxes, net)| dividend_full(&date, before, taxes, net))
+                .collect();
+            let mut naive: std::collections::BTreeMap<String, (Decimal, Decimal, Decimal)> =
+                std::collections::BTreeMap::new();
+            for row in &rows {
+                let key = row.settlement_date[..7].to_string();
+                let entry = naive.entry(key).or_default();
+                entry.0 += row.dividends_before_tax;
+                entry.1 += row.taxes;
+                entry.2 += row.net_amount_received;
+            }
+            let expected: Vec<(String, Decimal, Decimal, Decimal)> =
+                naive.into_iter().rev().map(|(k, v)| (k, v.0, v.1, v.2)).collect();
+            let actual: Vec<(String, Decimal, Decimal, Decimal)> =
+                group_dividends_by_month(&rows)
+                    .into_iter()
+                    .map(|g| {
+                        (
+                            g.filter,
+                            g.total_dividends_before_tax,
+                            g.total_taxes,
+                            g.total_net_amount_received,
+                        )
+                    })
+                    .collect();
+            proptest::prop_assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn prop_sort_dividends_is_descending_permutation(
+            dates in proptest::collection::vec(arb_date(), 0..16usize),
+        ) {
+            let rows: Vec<Dividend> =
+                dates.iter().map(|d| dividend_on(d)).collect();
+            let sorted = sort_dividends(&rows);
+            let mut expected = dates.clone();
+            expected.sort_by(|a, b| b.cmp(a));
+            proptest::prop_assert_eq!(
+                sorted.iter().map(|r| r.settlement_date.clone()).collect::<Vec<_>>(),
+                expected
+            );
+        }
+
+        #[test]
+        fn prop_format_number_with_options_invariants(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            scale in 0u32..=4u32,
+            min_max in (0u32..=6u32, 0u32..=6u32),
+            use_grouping in proptest::bool::ANY,
+        ) {
+            let value = Decimal::new(mantissa, scale);
+            let min = min_max.0.min(min_max.1);
+            let max = min_max.0.max(min_max.1);
+            let output = format_number_with_options(value, min, max, use_grouping);
+
+            let unsigned = output.strip_prefix('-').unwrap_or(&output);
+            let (integer, fraction) = unsigned
+                .split_once('.')
+                .map_or((unsigned, ""), |(i, f)| (i, f));
+            proptest::prop_assert!(fraction.len() <= max as usize);
+            proptest::prop_assert!(fraction.len() >= min as usize);
+
+            let digits: String = integer.chars().filter(|c| *c != ',').collect();
+            let comma_positions: Vec<usize> = integer
+                .chars()
+                .enumerate()
+                .filter(|(_, c)| *c == ',')
+                .map(|(i, _)| i)
+                .collect();
+            for pos in comma_positions {
+                proptest::prop_assert_eq!((integer.len() - pos) % 4, 0, "output={}", output);
+            }
+
+            let reparsed: Decimal = format!(
+                "{}{}{}{}",
+                if output.starts_with('-') { "-" } else { "" },
+                digits,
+                if fraction.is_empty() { "" } else { "." },
+                fraction
+            )
+            .parse()
+            .unwrap();
+            proptest::prop_assert_eq!(
+                reparsed,
+                value.round_dp_with_strategy(max, RoundingStrategy::MidpointAwayFromZero),
+                "output={}",
+                output
+            );
+        }
+
+        #[test]
+        fn prop_format_currency_sign_convention(value in arb_decimal()) {
+            let output = format_currency(value);
+            if value.is_sign_negative() {
+                proptest::prop_assert!(output.starts_with("¥ -"), "output={output}");
+                proptest::prop_assert!(!output.contains("--"));
+            } else {
+                proptest::prop_assert!(output.starts_with("¥ "), "output={output}");
+                proptest::prop_assert!(!output.contains('-'));
+            }
+        }
+
+        #[test]
+        fn prop_safe_divide_zero_and_precision(a in arb_decimal(), b in arb_decimal()) {
+            let result = safe_divide(a, b);
+            if b.is_zero() {
+                proptest::prop_assert_eq!(result, Decimal::ZERO);
+            } else {
+                let error = (result * b - a).abs();
+                proptest::prop_assert!(
+                    error <= b.abs() * dec!(0.000000001),
+                    "a={a} b={b} result={result}"
+                );
+            }
+        }
+
+        #[test]
+        fn prop_valid_iso_date_matches_naive_model(
+            year in 0i32..10000i32,
+            month in 0u32..=13u32,
+            day in 0u32..=32u32,
+        ) {
+            let input = format!("{year:04}-{month:02}-{day:02}");
+            let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+            let max_day = match month {
+                1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                4 | 6 | 9 | 11 => 30,
+                2 if leap => 29,
+                2 => 28,
+                _ => 0,
+            };
+            let expected = (1..=max_day).contains(&day) && (1..=12).contains(&month);
+            proptest::prop_assert_eq!(valid_iso_date(&input), expected, "input={}", input);
+            if expected {
+                proptest::prop_assert_eq!(format_date(&input), input.replace('-', "/"));
+                proptest::prop_assert_eq!(create_year_month_key(&input), input[..7].to_string());
+                proptest::prop_assert_eq!(create_iso_date_key(&input), input);
+            } else {
+                proptest::prop_assert_eq!(format_date(&input), "-");
+                proptest::prop_assert_eq!(create_year_month_key(&input), "");
+            }
+        }
+
+        #[test]
+        fn prop_valid_iso_date_rejects_malformed(input in ".*") {
+            let bytes = input.as_bytes();
+            let structural_ok = bytes.len() == 10
+                && bytes[4] == b'-'
+                && bytes[7] == b'-'
+                && bytes
+                    .iter()
+                    .enumerate()
+                    .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit());
+            if !structural_ok {
+                proptest::prop_assert!(!valid_iso_date(&input), "input={}", input);
+            }
+        }
+
+        #[test]
+        fn prop_normalize_security_code_matches_naive_model(input in ".*") {
+            let output = normalize_security_code(&input);
+            let head = input
+                .split([':', '：'])
+                .next()
+                .unwrap_or_default();
+            let expected: String = head
+                .split_whitespace()
+                .collect::<String>()
+                .to_uppercase();
+            proptest::prop_assert_eq!(output.clone(), expected);
+            proptest::prop_assert!(!output.chars().any(|c| c.is_whitespace()));
+            proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
+        }
+    }
+
     fn daily(
         date: &str,
         profit: Decimal,

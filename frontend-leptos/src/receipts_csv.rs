@@ -386,4 +386,101 @@ mod tests {
         assert_eq!(item.fund_name, "eMAXIS Slim 全世界株式");
         assert_eq!(item.dividends.as_deref(), Some(""));
     }
+
+    fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
+        use proptest::strategy::Strategy;
+        (-9_999_999_999_999i64..9_999_999_999_999i64).prop_map(|mantissa| Decimal::new(mantissa, 2))
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_dividend_to_receipt_item_copies_fields(
+            date in "[ -~]{0,12}",
+            product in ".*",
+            account in ".*",
+            code in ".*",
+            name in ".*",
+            unit_price in arb_decimal(),
+            shares in arb_decimal(),
+            before_tax in arb_decimal(),
+            taxes in arb_decimal(),
+            net in arb_decimal(),
+        ) {
+            let row = DividendCsvRow {
+                settlement_date: date,
+                product,
+                account,
+                security_code: code,
+                security_name: name,
+                unit_price,
+                shares,
+                dividends_before_tax: before_tax,
+                taxes,
+                net_amount_received: net,
+            };
+            let expected = row.clone();
+            let ReceiptItem::Dividend(item) = CsvPreviewRow::Dividend(row).to_receipt_item()
+            else {
+                panic!("dividend item expected")
+            };
+            proptest::prop_assert_eq!(item.settlement_date, expected.settlement_date);
+            proptest::prop_assert_eq!(item.product, expected.product);
+            proptest::prop_assert_eq!(item.account, expected.account);
+            proptest::prop_assert_eq!(item.security_code, expected.security_code);
+            proptest::prop_assert_eq!(item.security_name, expected.security_name);
+            proptest::prop_assert_eq!(item.unit_price, expected.unit_price);
+            proptest::prop_assert_eq!(item.shares, expected.shares);
+            proptest::prop_assert_eq!(item.dividends_before_tax, expected.dividends_before_tax);
+            proptest::prop_assert_eq!(item.taxes, expected.taxes);
+            proptest::prop_assert_eq!(item.net_amount_received, expected.net_amount_received);
+        }
+
+        #[test]
+        fn prop_to_preview_preserves_row_count(
+            rows in proptest::collection::vec(proptest::bool::ANY, 0..8usize),
+        ) {
+            // bool はどの行型にもデシリアライズできずデフォルト行になる
+            let row_count = rows.len();
+            let response = CsvPreviewResponse {
+                total_rows: row_count,
+                valid_rows: 0,
+                errors: vec![],
+                rows: rows.into_iter().map(serde_json::Value::Bool).collect(),
+            };
+            for tab in [
+                ReceiptsTab::Dividend,
+                ReceiptsTab::DomesticStock,
+                ReceiptsTab::MutualFund,
+            ] {
+                let preview = to_preview(tab, response.clone());
+                proptest::prop_assert_eq!(preview.rows.len(), row_count);
+                match tab {
+                    ReceiptsTab::Dividend => {
+                        for row in &preview.rows {
+                            proptest::prop_assert_eq!(
+                                row,
+                                &CsvPreviewRow::Dividend(DividendCsvRow::default())
+                            );
+                        }
+                    }
+                    ReceiptsTab::DomesticStock => {
+                        for row in &preview.rows {
+                            proptest::prop_assert_eq!(
+                                row,
+                                &CsvPreviewRow::DomesticStock(DomesticStockCsvRow::default())
+                            );
+                        }
+                    }
+                    ReceiptsTab::MutualFund => {
+                        for row in &preview.rows {
+                            proptest::prop_assert_eq!(
+                                row,
+                                &CsvPreviewRow::MutualFund(MutualfundCsvRow::default())
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

@@ -15,3 +15,5 @@ docs/tasks/*.md
 output/
 scripts/__pycache__/
 backend/tarpaulin-report.json
+mutants.out/
+mutants.out.old/

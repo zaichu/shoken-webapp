@@ -109,10 +109,9 @@ mod tests {
         row.get("name").is_some_and(|name| name.contains("合計"))
     }
 
-    // `parse_csv_with_config` always hands csv::Reader valid UTF-8 bytes from an in-memory
-    // buffer. Combined with `flexible(true)`, we could not reproduce header/record read errors
-    // in a unit test, including inputs containing `\0`, so only the empty-input edge case is
-    // covered here.
+    // csv::Reader へ渡す入力は常にメモリ上の UTF-8 バイト列で、flexible(true) も相まって
+    // ヘッダー/レコード読み取りエラーはユニットテストで再現できなかったため、
+    // 空入力の境界のみここで固定する。
     #[test]
     fn test_parse_csv_empty_bytes() {
         let result = parse_csv_with_config(b"", &BASIC_CONFIG);
@@ -173,5 +172,59 @@ mod tests {
 
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].get("name"), Some(&"foo".to_string()));
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_parse_csv_with_config_matches_reference(
+            skip_header_rows in 0usize..3usize,
+            headers in proptest::collection::hash_set("[a-z]{1,8}", 1..5usize),
+            cells in proptest::collection::vec(
+                proptest::collection::vec("[a-zA-Z0-9 ]{0,12}", 0..7usize),
+                0..8usize
+            ),
+        ) {
+            let headers: Vec<String> = headers.into_iter().collect();
+            let mut lines: Vec<String> = (0..skip_header_rows)
+                .map(|i| format!("meta{i}"))
+                .collect();
+            lines.push(headers.join(","));
+            for row in &cells {
+                lines.push(row.join(","));
+            }
+            let csv = lines.join("\n");
+
+            let config = CsvParserConfig {
+                skip_header_rows,
+                exclude_row_fn: None,
+                required_columns: &["required_missing"],
+            };
+            let rows = parse_csv_with_config(csv.as_bytes(), &config).unwrap();
+
+            let expected: Vec<&Vec<String>> = cells
+                .iter()
+                .filter(|record| !record.iter().all(|c| c.trim().is_empty()))
+                .collect();
+            proptest::prop_assert_eq!(rows.len(), expected.len());
+
+            for (actual, record) in rows.iter().zip(expected.iter()) {
+                proptest::prop_assert_eq!(
+                    actual.get("required_missing"),
+                    Some(&String::new())
+                );
+                for (index, header) in headers.iter().enumerate() {
+                    let expected_cell = record
+                        .get(index)
+                        .map(|c| c.trim().to_string())
+                        .unwrap_or_default();
+                    proptest::prop_assert_eq!(
+                        actual.get(header),
+                        Some(&expected_cell),
+                        "header={}",
+                        header
+                    );
+                }
+            }
+        }
     }
 }

@@ -911,4 +911,186 @@ mod tests {
         assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
         assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
     }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_group_thousands_positions(digits in "[0-9]{1,15}") {
+            let grouped = group_thousands(&digits);
+            proptest::prop_assert_eq!(grouped.replace(',', ""), digits);
+            for (position, character) in grouped.chars().enumerate() {
+                if character == ',' {
+                    proptest::prop_assert_eq!((grouped.len() - position) % 4, 0);
+                }
+            }
+        }
+
+        #[test]
+        fn prop_to_fixed_symmetric_and_quantized(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            divisor in 1u32..=6u32,
+            decimals in 0u32..=5u32,
+        ) {
+            let value = mantissa as f64 / 10f64.powi(divisor as i32);
+            let result = to_fixed(value, decimals);
+            proptest::prop_assert_eq!(to_fixed(-value, decimals), -result);
+            let unit = 10f64.powi(-(decimals as i32));
+            proptest::prop_assert!((result - value).abs() <= 0.51 * unit);
+            let scaled = result / unit;
+            proptest::prop_assert!(
+                (scaled - scaled.round()).abs() <= 1e-9 * scaled.abs() + 1e-9
+            );
+        }
+
+        #[test]
+        fn prop_intl_fixed_symmetric_and_quantized(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            divisor in 1u32..=6u32,
+            decimals in 0u32..=5u32,
+        ) {
+            let value = mantissa as f64 / 10f64.powi(divisor as i32);
+            let result = intl_fixed(value, decimals);
+            proptest::prop_assert_eq!(intl_fixed(-value, decimals), -result);
+            let unit = 10f64.powi(-(decimals as i32));
+            proptest::prop_assert!((result - value).abs() <= 0.6 * unit);
+        }
+
+        #[test]
+        fn prop_composition_percentages_sum_to_100(
+            values in proptest::collection::vec(0.0001f64..1_000_000.0f64, 1..8usize),
+        ) {
+            let percentages = composition_percentages(&values);
+            proptest::prop_assert_eq!(percentages.len(), values.len());
+            let sum: f64 = percentages.iter().sum();
+            proptest::prop_assert!(
+                (sum - 100.0).abs() <= 0.006 * percentages.len() as f64 + 1e-9,
+                "sum={sum}"
+            );
+        }
+
+        #[test]
+        fn prop_to_finite_amount(
+            value in -1e15f64..1e15f64,
+            marker in proptest::sample::select(vec![
+                "", "-", "—", "ー", "--", "n/a", "N/A", "null", "undefined",
+            ]),
+        ) {
+            proptest::prop_assert_eq!(to_finite_amount(&json!(value)), Some(value));
+            let text = value.to_string();
+            proptest::prop_assert_eq!(
+                to_finite_amount(&json!(text)),
+                Some(text.parse::<f64>().unwrap())
+            );
+            proptest::prop_assert_eq!(to_finite_amount(&json!(marker)), None);
+            proptest::prop_assert_eq!(to_finite_amount(&json!(true)), None);
+            proptest::prop_assert_eq!(to_finite_amount(&json!([1, 2])), None);
+            proptest::prop_assert_eq!(to_finite_amount(&Value::Null), None);
+            // "1e999" / "inf" / "NaN" は f64 にはパースされるが非有限なので欠損扱い
+            for text in ["1e999", "-1e999", "inf", "-inf", "NaN"] {
+                proptest::prop_assert_eq!(to_finite_amount(&json!(text)), None, "text={}", text);
+            }
+        }
+
+        #[test]
+        fn prop_calculate_valuation(
+            market in proptest::option::of(-1e15f64..1e15f64),
+            purchase in proptest::option::of(-1e15f64..1e15f64),
+        ) {
+            let market_json = market.map_or_else(|| json!("-"), |v| json!(v));
+            let purchase_json = purchase.map_or_else(|| json!("-"), |v| json!(v));
+            let result = calculate_valuation(&market_json, &purchase_json);
+            match (market, purchase) {
+                (Some(m), Some(p)) => {
+                    proptest::prop_assert_eq!(result.amount, Some(m - p));
+                    if p == 0.0 {
+                        proptest::prop_assert_eq!(result.rate, None);
+                    } else {
+                        proptest::prop_assert_eq!(result.rate, Some((m - p) / p * 100.0));
+                    }
+                }
+                _ => {
+                    proptest::prop_assert_eq!(result.amount, None);
+                    proptest::prop_assert_eq!(result.rate, None);
+                }
+            }
+        }
+
+        #[test]
+        fn prop_should_include_chart_item(
+            purchase in proptest::option::of(-1e6f64..1e6f64),
+            market in proptest::option::of(-1e6f64..1e6f64),
+        ) {
+            let expected = matches!(purchase, Some(p) if p > 0.0)
+                || matches!(market, Some(m) if m != 0.0);
+            proptest::prop_assert_eq!(should_include_chart_item(purchase, market), expected);
+        }
+
+        #[test]
+        fn prop_chart_percentages(
+            items in proptest::collection::vec(
+                (0.0f64..1e6f64, proptest::option::of(0.0f64..1e6f64)),
+                0..8usize
+            ),
+        ) {
+            let values: Vec<f64> = items.iter().map(|item| item.0).collect();
+            let markets: Vec<Option<f64>> = items.iter().map(|item| item.1).collect();
+            let result = chart_percentages(&values, &markets);
+            let total: f64 = values.iter().sum();
+            if total == 0.0 {
+                let has_valuation = markets
+                    .iter()
+                    .any(|market| matches!(market, Some(v) if *v != 0.0));
+                if has_valuation {
+                    proptest::prop_assert_eq!(result, vec![None; values.len()]);
+                } else {
+                    proptest::prop_assert!(result.is_empty());
+                }
+            } else {
+                let expected: Vec<Option<f64>> =
+                    values.iter().map(|v| Some(*v / total * 100.0)).collect();
+                proptest::prop_assert_eq!(result, expected);
+            }
+        }
+
+        #[test]
+        fn prop_normalize_security_code(input in ".*") {
+            let output = normalize_security_code(&input);
+            let expected: String = input
+                .trim()
+                .split([':', '：'])
+                .next()
+                .unwrap_or_default()
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+                .to_uppercase();
+            proptest::prop_assert_eq!(output.clone(), expected);
+            proptest::prop_assert!(!output.chars().any(|c| c.is_whitespace()));
+            proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
+        }
+
+        #[test]
+        fn prop_kpi_empty_dividend_map(
+            holdings in proptest::collection::vec(
+                ("[0-9]{4}", 0.0f64..1e5f64, 0.0f64..1e8f64),
+                0..8usize
+            ),
+        ) {
+            let holdings: Vec<KpiHolding> = holdings
+                .into_iter()
+                .map(|(security_code, shares, total_purchase_amount)| KpiHolding {
+                    security_code,
+                    shares,
+                    total_purchase_amount,
+                })
+                .collect();
+            let kpi = calculate_portfolio_kpi(&holdings, &HashMap::new(), None);
+            proptest::prop_assert_eq!(kpi.holdings_count, holdings.len());
+            proptest::prop_assert_eq!(kpi.total_annual_dividends, None);
+            proptest::prop_assert_eq!(kpi.dividend_yield, None);
+            let expected_purchase = holdings
+                .iter()
+                .fold(0.0, |sum, item| safe_add(sum, item.total_purchase_amount));
+            proptest::prop_assert_eq!(kpi.total_purchase_amount, expected_purchase);
+        }
+    }
 }

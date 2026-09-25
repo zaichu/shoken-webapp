@@ -60,7 +60,7 @@ fn extract_origin(url: &str) -> Option<&str> {
     let after_scheme = url.find("://")?;
     let authority_start = after_scheme + 3;
     let end = url[authority_start..]
-        .find('/')
+        .find(['/', '?', '#'])
         .map(|i| authority_start + i)
         .unwrap_or(url.len());
     Some(&url[..end])
@@ -206,6 +206,14 @@ mod tests {
                 "https://shoken-webapp.vercel.app.evil.com/steal",
                 Some("https://shoken-webapp.vercel.app.evil.com"),
             ),
+            (
+                "http://localhost:8080?view=1",
+                Some("http://localhost:8080"),
+            ),
+            (
+                "http://localhost:8080#section",
+                Some("http://localhost:8080"),
+            ),
         ] {
             assert_eq!(extract_origin(input), expected);
         }
@@ -225,6 +233,18 @@ mod tests {
             (
                 &[("referer", "http://localhost:8080/some/page")][..],
                 StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080?view=1")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080#section")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("referer", "http://localhost:8080.evil.com?view=1")][..],
+                StatusCode::FORBIDDEN,
             ),
             (
                 &[("referer", "https://evil.example.com/attack")][..],
@@ -290,15 +310,17 @@ mod tests {
             );
         }
 
-        // APP_ENV=production でも GET は通過
+        // APP_ENV=production でも GET/HEAD/OPTIONS は Origin 検証をスキップして通過
         {
             let _app_env = EnvGuard::set("APP_ENV", Some("production"));
             let _rust_env = EnvGuard::set("RUST_ENV", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_ne!(
-                oneshot_status(test_app(), Method::GET, &[]).await,
-                StatusCode::FORBIDDEN
-            );
+            for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+                assert_ne!(
+                    oneshot_status(test_app(), method, &[]).await,
+                    StatusCode::FORBIDDEN
+                );
+            }
         }
 
         // APP_ENV=staging のとき Origin/Referer なしは 403（非本番でも明示設定済みなら拒否）
@@ -393,6 +415,36 @@ mod tests {
                 resp.headers().get("Strict-Transport-Security").unwrap(),
                 "max-age=31536000; includeSubDomains"
             );
+        }
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn prop_extract_origin_is_idempotent_prefix(url in ".*") {
+            match extract_origin(&url) {
+                None => {
+                    proptest::prop_assert!(!url.contains("://"), "url={url}");
+                }
+                Some(origin) => {
+                    proptest::prop_assert!(url.starts_with(origin), "url={url}");
+                    proptest::prop_assert!(origin.contains("://"), "origin={origin}");
+                    proptest::prop_assert_eq!(extract_origin(origin), Some(origin));
+                }
+            }
+        }
+
+        #[test]
+        fn prop_extract_origin_stops_at_authority_end(
+            scheme in "https?|ftp|chrome-extension",
+            authority in "[a-zA-Z0-9.:-]{1,40}",
+            rest in "[/?#].*",
+        ) {
+            let url = format!("{scheme}://{authority}{rest}");
+            let Some(origin) = extract_origin(&url) else {
+                panic!("url={url} で origin が取れない");
+            };
+            let expected = format!("{scheme}://{authority}");
+            proptest::prop_assert_eq!(origin, expected.as_str());
         }
     }
 }

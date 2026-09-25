@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 31529eeb3e474142d00d457eec493af9318c41efc6ae7c35a62b562757d69db8 # shrinks to skip_header_rows = 0, headers = {"a"}, cells = [[" ", "0"]]
