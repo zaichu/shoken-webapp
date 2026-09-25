@@ -26,3 +26,4 @@ any_spawner = { version = "0.3", features = ["futures-executor"] }
 [profile.release]
 opt-level = "z"
 lto = true
+codegen-units = 1
