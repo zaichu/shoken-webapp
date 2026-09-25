@@ -266,14 +266,6 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     }
 }
 
-fn fetch_error_message(error: &ApiError) -> String {
-    if error.is_unauthorized() {
-        error.user_message()
-    } else {
-        "データ取得に失敗しました".to_string()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabState {
     Loading,
@@ -322,6 +314,14 @@ impl ReceiptsStore {
                     _ => None,
                 })
         })
+    }
+
+    // 選択中タブの失敗を他タブの取得エラーより先に返し、バックグラウンドの失敗で CSV の結果が隠れないようにする
+    pub fn rail_error(&self, tab: ReceiptsTab) -> Option<String> {
+        if let TabState::Failed(message) = self.tab_state(tab) {
+            return Some(message);
+        }
+        self.csv_state(tab).error.or_else(|| self.error())
     }
 
     pub fn tab_state(&self, tab: ReceiptsTab) -> TabState {
@@ -678,7 +678,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
                     (generation, tab),
                     match rows {
                         Ok(rows) => TabState::Ready(rows),
-                        Err(error) => TabState::Failed(fetch_error_message(&error)),
+                        Err(error) => TabState::Failed(error.message()),
                     },
                 );
             });
@@ -765,10 +765,7 @@ mod tests {
 
     #[test]
     fn unauthorized_receipts_error_uses_react_message() {
-        assert_eq!(
-            fetch_error_message(&ApiError::Http { status: 401 }),
-            "認証が必要です"
-        );
+        assert_eq!(ApiError::http(401).message(), "認証が必要です");
     }
 
     #[test]
@@ -1117,7 +1114,7 @@ mod csv_tests {
                 )]),
             );
 
-            store.apply_upload_result(generation, tab, Err(ApiError::Http { status: 401 }));
+            store.apply_upload_result(generation, tab, Err(ApiError::http(401)));
 
             let state = store.csv_state(tab);
             assert!(!state.saving);
@@ -1168,7 +1165,7 @@ mod csv_tests {
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
-            store.apply_preview_result(generation, tab, Err(ApiError::Http { status: 400 }));
+            store.apply_preview_result(generation, tab, Err(ApiError::http(400)));
             let state = store.csv_state(tab);
             assert!(!state.previewing);
             assert!(state.error.is_none());
@@ -1402,6 +1399,65 @@ mod csv_tests {
                 )]),
             );
             assert!(store.error().is_none());
+        });
+    }
+
+    #[test]
+    fn rail_error_prioritizes_selected_tab() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let selected = ReceiptsTab::MutualFund;
+            let csv_error = || {
+                HashMap::from([(
+                    (generation, selected),
+                    CsvTabState {
+                        error: Some("CSVの保存に失敗しました".to_string()),
+                        ..Default::default()
+                    },
+                )])
+            };
+
+            let store = test_store(
+                &session,
+                HashMap::from([(
+                    (generation, ReceiptsTab::Dividend),
+                    TabState::Failed("配当の取得に失敗しました".to_string()),
+                )]),
+                csv_error(),
+            );
+            assert_eq!(
+                store.rail_error(selected).as_deref(),
+                Some("CSVの保存に失敗しました")
+            );
+
+            let store = test_store(
+                &session,
+                HashMap::from([(
+                    (generation, selected),
+                    TabState::Failed("投信の取得に失敗しました".to_string()),
+                )]),
+                csv_error(),
+            );
+            assert_eq!(
+                store.rail_error(selected).as_deref(),
+                Some("投信の取得に失敗しました")
+            );
+
+            let store = test_store(
+                &session,
+                HashMap::from([(
+                    (generation, ReceiptsTab::Dividend),
+                    TabState::Failed("配当の取得に失敗しました".to_string()),
+                )]),
+                HashMap::new(),
+            );
+            assert_eq!(
+                store.rail_error(selected).as_deref(),
+                Some("配当の取得に失敗しました")
+            );
         });
     }
 

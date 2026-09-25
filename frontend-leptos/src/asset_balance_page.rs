@@ -11,7 +11,7 @@ use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
 use crate::asset_review_prompt::generate_asset_review_prompt;
-use crate::collapsible_search_card::{is_narrow_viewport, CollapsibleSearchCard};
+use crate::collapsible_search_card::CollapsibleSearchCard;
 use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_flow::{csv_error_message, CsvTabState};
 use crate::csv_rail::CsvActionRail;
@@ -243,14 +243,6 @@ fn filtered_portfolio(
     }
 }
 
-fn asset_balance_error_message(error: &ApiError) -> String {
-    if error.is_unauthorized() {
-        error.user_message()
-    } else {
-        "データ取得に失敗しました".to_string()
-    }
-}
-
 fn should_apply_asset_balance_result(session: &SessionStore, generation: u64) -> bool {
     session.is_current(generation)
 }
@@ -316,13 +308,7 @@ fn load_asset_balances(
             Err(error) => {
                 data_ops.update(|ops| ops.end_list_fetch(rev));
                 if should_apply_asset_balance_result(&session, generation) {
-                    apply_list_error(
-                        generation,
-                        rev,
-                        asset_balance_error_message(&error),
-                        balances,
-                        data_ops,
-                    );
+                    apply_list_error(generation, rev, error.message(), balances, data_ops);
                 }
             }
             Ok(loaded) => {
@@ -1011,10 +997,7 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
         });
     };
     view! {
-        <div
-            class="px-5 py-4 max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
-            data-testid="asset-review-prompt-card"
-        >
+        <div class="px-5 py-4" data-testid="asset-review-prompt-card">
             <p class="mb-2 text-xs font-medium text-secondary">"AI総評プロンプト"</p>
             <button
                 type="button"
@@ -1054,9 +1037,17 @@ fn AssetBalanceMainContent(
             if rows.is_empty() && query.is_empty() {
                 show_all.set(false);
                 return view! {
-                    <div>
-                        <h3>"資産管理データがありません"</h3>
-                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
+                    <div class="mb-3 overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)]">
+                        <div>
+                            <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center">
+                                <h3 class="text-base font-black text-slate-950">
+                                    "資産管理データがありません"
+                                </h3>
+                                <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                                    "CSVファイルをインポートするか、データを登録してください。"
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 }
                     .into_any();
@@ -1161,8 +1152,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             >
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、sm 以上は order で見た目を main 先に戻す
                 <aside class="order-1 sm:order-2" data-testid="assetbalance-utility-rail">
-                    // スマホでは各ブロックを別カードに分けるため枠は sm 以上だけにする
-                    <div class="space-y-4 sm:space-y-0 sm:divide-y sm:divide-slate-950/10 sm:overflow-hidden sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
+                    <div class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10">
                         <AssetBalanceCsvSection store=view_csv.clone() />
                         {move || {
                             // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
@@ -1178,7 +1168,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 .or_else(|| alert_csv.csv_state().error)
                                 .map(|message| {
                                     view! {
-                                        <section class="px-5 py-4">
+                                        <div class="px-5 py-4">
                                             <div
                                                 class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
                                                 role="alert"
@@ -1188,7 +1178,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                 " "
                                                 {message}
                                             </div>
-                                        </section>
+                                        </div>
                                     }
                                 })
                         }}
@@ -1307,7 +1297,7 @@ fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
     let delete_request = store.clone();
     view! {
         // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
-        <div class="max-sm:overflow-hidden max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:border-b-0">
+        <div class="sm:border-b-0">
             <CsvActionRail
                 input_id="csv-file-input-assetbalance"
                 toggle_testid="assetbalance-csv-toggle"
@@ -1373,14 +1363,8 @@ struct ChartItem {
 fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -> impl IntoView {
     let options = std::sync::Arc::new(options);
     view! {
-        <section
-            class="max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
-            role="search"
-            aria-label="資産管理の検索"
-            data-testid="search-card"
-        >
+        <section role="search" aria-label="資産管理の検索" data-testid="search-card">
             <CollapsibleSearchCard
-                initial_expanded=!is_narrow_viewport()
                 has_active_search=Signal::derive(move || !query.get().is_empty())
                 is_default_state=Signal::derive(move || query.get().is_empty())
                 on_clear=move || query.set(clear_search_query())
@@ -2028,10 +2012,7 @@ mod tests {
 
     #[test]
     fn unauthorized_asset_balance_error_uses_react_message() {
-        assert_eq!(
-            asset_balance_error_message(&ApiError::Http { status: 401 }),
-            "認証が必要です"
-        );
+        assert_eq!(ApiError::http(401).message(), "認証が必要です");
     }
 
     #[test]
@@ -2607,7 +2588,7 @@ mod tests {
                 state.previewing = true;
             });
             assert!(store
-                .apply_preview_result(generation, Err(ApiError::Http { status: 500 }))
+                .apply_preview_result(generation, Err(ApiError::http(500)))
                 .is_none());
             let state = store.csv_state();
             assert!(!state.previewing);
@@ -2673,7 +2654,7 @@ mod tests {
                 state.saving = true;
             });
 
-            assert!(!store.apply_upload_result(generation, Err(ApiError::Http { status: 401 }),));
+            assert!(!store.apply_upload_result(generation, Err(ApiError::http(401)),));
             let state = store.csv_state();
             assert!(!state.saving);
             assert_eq!(state.file_name.as_deref(), Some("asset.csv"));

@@ -21,26 +21,31 @@ const AUTH_RETRY_DELAY_MULTIPLIER: u64 = 1;
 pub enum ApiError {
     Network,
     Timeout,
-    Http { status: u16 },
+    Http {
+        status: u16,
+        // 400 ではバリデーション理由が入る。取れない場合は既定文に倒す
+        server_message: Option<String>,
+    },
     Parse,
 }
 
 impl ApiError {
-    pub fn status(&self) -> Option<u16> {
-        match self {
-            ApiError::Http { status } => Some(*status),
-            _ => None,
+    #[cfg(test)]
+    pub fn http(status: u16) -> Self {
+        ApiError::Http {
+            status,
+            server_message: None,
         }
     }
 
     pub fn is_unauthorized(&self) -> bool {
-        matches!(self, ApiError::Http { status: 401 })
+        matches!(self, ApiError::Http { status: 401, .. })
     }
 
     pub fn is_retryable(&self) -> bool {
         match self {
             ApiError::Network | ApiError::Timeout => true,
-            ApiError::Http { status } => *status >= 500,
+            ApiError::Http { status, .. } => *status >= 500,
             ApiError::Parse => false,
         }
     }
@@ -51,15 +56,39 @@ impl ApiError {
             ApiError::Timeout => {
                 "リクエストがタイムアウトしました。もう一度お試しください".to_string()
             }
-            ApiError::Parse => "応答の解析に失敗しました".to_string(),
-            ApiError::Http { status } => match status {
+            ApiError::Parse => {
+                "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。".to_string()
+            }
+            ApiError::Http { status, .. } => match status {
                 400 => "入力内容を確認してください".to_string(),
-                401 => "認証が必要です".to_string(),
+                401 => "ログインが必要です".to_string(),
                 403 => "このリソースへのアクセス権限がありません".to_string(),
                 404 => "指定されたリソースが見つかりません".to_string(),
-                500..=599 => {
+                500 | 502..=504 => {
                     "サーバーエラーが発生しました。しばらくしてから再度お試しください".to_string()
                 }
+                _ => format!("エラーが発生しました (ステータス: {status})"),
+            },
+        }
+    }
+
+    // エラーバッジ用の生文言。user_message() の案内文とは別系統で、HTTP 既定文に直す
+    pub fn message(&self) -> String {
+        match self {
+            ApiError::Network => "ネットワークエラーが発生しました".to_string(),
+            ApiError::Timeout => "リクエストがタイムアウトしました".to_string(),
+            ApiError::Parse => "応答の解析に失敗しました".to_string(),
+            ApiError::Http {
+                status,
+                server_message,
+            } => match status {
+                400 => server_message
+                    .clone()
+                    .unwrap_or_else(|| "リクエストが不正です".to_string()),
+                401 => "認証が必要です".to_string(),
+                403 => "アクセスが拒否されました".to_string(),
+                404 => "リソースが見つかりません".to_string(),
+                500 | 502..=504 => "サーバーエラーが発生しました".to_string(),
                 _ => format!("エラーが発生しました (ステータス: {status})"),
             },
         }
@@ -73,6 +102,16 @@ impl fmt::Display for ApiError {
 }
 
 impl std::error::Error for ApiError {}
+
+#[derive(serde::Deserialize)]
+struct ServerErrorBody {
+    error: ServerErrorDetails,
+}
+
+#[derive(serde::Deserialize)]
+struct ServerErrorDetails {
+    message: Option<String>,
+}
 
 enum RequestBody {
     None,
@@ -206,8 +245,16 @@ impl ApiClient {
             }
         })?;
         if !response.ok() {
+            let status = response.status();
+            let server_message = response
+                .text()
+                .await
+                .ok()
+                .and_then(|text| serde_json::from_str::<ServerErrorBody>(&text).ok())
+                .and_then(|body| body.error.message);
             return Err(ApiError::Http {
-                status: response.status(),
+                status,
+                server_message,
             });
         }
         response.text().await.map_err(|_| ApiError::Network)
@@ -283,28 +330,69 @@ mod tests {
     fn retryable_errors() {
         assert!(ApiError::Network.is_retryable());
         assert!(ApiError::Timeout.is_retryable());
-        assert!(ApiError::Http { status: 500 }.is_retryable());
-        assert!(ApiError::Http { status: 503 }.is_retryable());
-        assert!(!ApiError::Http { status: 400 }.is_retryable());
-        assert!(!ApiError::Http { status: 401 }.is_retryable());
-        assert!(!ApiError::Http { status: 403 }.is_retryable());
-        assert!(!ApiError::Http { status: 404 }.is_retryable());
+        assert!(ApiError::http(500).is_retryable());
+        assert!(ApiError::http(503).is_retryable());
+        assert!(!ApiError::http(400).is_retryable());
+        assert!(!ApiError::http(401).is_retryable());
+        assert!(!ApiError::http(403).is_retryable());
+        assert!(!ApiError::http(404).is_retryable());
         assert!(!ApiError::Parse.is_retryable());
     }
 
     #[test]
     fn unauthorized_detection() {
-        assert!(ApiError::Http { status: 401 }.is_unauthorized());
-        assert!(!ApiError::Http { status: 403 }.is_unauthorized());
+        assert!(ApiError::http(401).is_unauthorized());
+        assert!(!ApiError::http(403).is_unauthorized());
         assert!(!ApiError::Network.is_unauthorized());
     }
 
     #[test]
-    fn unauthorized_message_matches_react() {
+    fn user_message_matches_react() {
+        assert_eq!(ApiError::http(401).user_message(), "ログインが必要です");
         assert_eq!(
-            ApiError::Http { status: 401 }.user_message(),
-            "認証が必要です"
+            ApiError::http(404).user_message(),
+            "指定されたリソースが見つかりません"
         );
+        assert_eq!(
+            ApiError::http(500).user_message(),
+            "サーバーエラーが発生しました。しばらくしてから再度お試しください"
+        );
+        assert_eq!(
+            ApiError::Network.user_message(),
+            "ネットワーク接続を確認してください"
+        );
+    }
+
+    #[test]
+    fn message_matches_react() {
+        for (error, expected) in [
+            (ApiError::Network, "ネットワークエラーが発生しました"),
+            (ApiError::Timeout, "リクエストがタイムアウトしました"),
+            (ApiError::Parse, "応答の解析に失敗しました"),
+            (ApiError::http(400), "リクエストが不正です"),
+            (
+                ApiError::Http {
+                    status: 400,
+                    server_message: Some("CSVファイル（.csv）のみアップロードできます".to_string()),
+                },
+                "CSVファイル（.csv）のみアップロードできます",
+            ),
+            (ApiError::http(401), "認証が必要です"),
+            (ApiError::http(403), "アクセスが拒否されました"),
+            (ApiError::http(404), "リソースが見つかりません"),
+            (ApiError::http(500), "サーバーエラーが発生しました"),
+            (ApiError::http(503), "サーバーエラーが発生しました"),
+            (
+                ApiError::http(501),
+                "エラーが発生しました (ステータス: 501)",
+            ),
+            (
+                ApiError::http(418),
+                "エラーが発生しました (ステータス: 418)",
+            ),
+        ] {
+            assert_eq!(error.message(), expected);
+        }
     }
 
     #[test]

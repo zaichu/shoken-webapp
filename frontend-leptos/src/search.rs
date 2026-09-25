@@ -1,4 +1,4 @@
-use crate::api::{fetch_stock, ApiError, Stock};
+use crate::api::{fetch_stock, Stock};
 use crate::session::use_session;
 use leptos::prelude::*;
 
@@ -37,21 +37,6 @@ impl StockSearch {
     }
 }
 
-fn stock_error_message(error: &ApiError) -> String {
-    match error.status() {
-        Some(404) => "指定された銘柄が見つかりませんでした。".to_string(),
-        Some(401) => error.user_message(),
-        Some(_) => "銘柄情報の取得に失敗しました。".to_string(),
-        None => match error {
-            ApiError::Parse => {
-                "銘柄データの読み込みに失敗しました。データ形式が変更された可能性があります。"
-                    .to_string()
-            }
-            _ => "銘柄情報の取得に失敗しました。".to_string(),
-        },
-    }
-}
-
 pub fn use_stock_search() -> StockSearch {
     let (initial, has_invalid_code_param) = read_code_param();
     let session = use_session();
@@ -62,7 +47,7 @@ pub fn use_stock_search() -> StockSearch {
         async move {
             match fetch_stock(&query).await {
                 Ok(stock) => Ok(stock),
-                Err(error) => Err(stock_error_message(&error)),
+                Err(error) => Err(error.user_message()),
             }
         }
     });
@@ -143,13 +128,5 @@ mod tests {
                 assert!(!should_apply_search_result(&session, fetch_generation));
             }
         });
-    }
-
-    #[test]
-    fn unauthorized_search_error_uses_react_message() {
-        assert_eq!(
-            stock_error_message(&ApiError::Http { status: 401 }),
-            "認証が必要です"
-        );
     }
 }
