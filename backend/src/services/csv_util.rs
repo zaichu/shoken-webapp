@@ -239,6 +239,10 @@ mod tests {
         ] {
             assert_eq!(parse_number(input).unwrap(), expected);
         }
+        // 片側だけの括弧は負数表記とみなさずエラーにする
+        for input in ["(123", "123)", "(", ")"] {
+            assert!(parse_number(input).is_err());
+        }
         let (record, header_map) = (
             csv::StringRecord::from(vec!["", "value"]),
             make_header_map(&["empty", "filled"]),

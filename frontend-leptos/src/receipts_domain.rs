@@ -869,6 +869,16 @@ mod tests {
         assert_eq!(TAX_RATE, dec!(0.20315));
     }
 
+    #[test]
+    fn valid_iso_date_leap_day_boundary() {
+        assert!(valid_iso_date("2024-02-29"));
+        assert!(!valid_iso_date("2023-02-29"));
+        assert!(valid_iso_date("2000-02-29"));
+        assert!(!valid_iso_date("1900-02-29"));
+        assert!(!valid_iso_date("2024-02-30"));
+        assert!(!valid_iso_date("2024-04-31"));
+    }
+
     use proptest::strategy::Strategy;
 
     fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
@@ -1116,6 +1126,22 @@ mod tests {
             } else {
                 proptest::prop_assert_eq!(format_date(&input), "-");
                 proptest::prop_assert_eq!(create_year_month_key(&input), "");
+            }
+        }
+
+        /// 構造が不正な入力(桁数・区切り・数字以外)は常に false を返す
+        #[test]
+        fn prop_valid_iso_date_rejects_malformed(input in ".*") {
+            let bytes = input.as_bytes();
+            let structural_ok = bytes.len() == 10
+                && bytes[4] == b'-'
+                && bytes[7] == b'-'
+                && bytes
+                    .iter()
+                    .enumerate()
+                    .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit());
+            if !structural_ok {
+                proptest::prop_assert!(!valid_iso_date(&input), "input={}", input);
             }
         }
 

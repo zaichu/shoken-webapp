@@ -311,6 +311,9 @@ proptest::proptest! {
             matches_year_month(&date, &year_month),
             date.len() >= 7 && date.starts_with(&year_month)
         );
+        // 長さちょうど4/7の境界値も必ず一致する
+        proptest::prop_assert!(matches_year(&year, &year));
+        proptest::prop_assert!(matches_year_month(&year_month, &year_month));
     }
 
     /// 日付範囲マッチは仕様どおりの素朴モデル(無効・逆転は false、境界含む)と一致する
@@ -425,5 +428,27 @@ proptest::proptest! {
     ) {
         let result = filter_by_config(&items, &query, &string_item_config());
         proptest::prop_assert_eq!(result.len(), items.len());
+    }
+
+    /// ISO 日付バリデータは構造検証を含めて素朴モデルと一致する
+    #[test]
+    fn prop_is_valid_iso_date_matches_naive_model(input in ".*") {
+        proptest::prop_assert_eq!(
+            is_valid_iso_date(&input),
+            naive_valid_iso_date(&input),
+            "input={}",
+            input
+        );
+    }
+}
+
+/// JS の行終端子は改行2種と U+2028/U+2029 だけを含む
+#[test]
+fn js_line_terminator_matches_spec() {
+    for c in ['\n', '\r', '\u{2028}', '\u{2029}'] {
+        assert!(is_js_line_terminator(c));
+    }
+    for c in [' ', '\t', '\u{000B}', '\u{2027}', '\u{2030}'] {
+        assert!(!is_js_line_terminator(c));
     }
 }

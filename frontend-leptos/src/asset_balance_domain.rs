@@ -988,6 +988,11 @@ mod tests {
             proptest::prop_assert_eq!(to_finite_amount(&json!(marker)), None);
             proptest::prop_assert_eq!(to_finite_amount(&json!(true)), None);
             proptest::prop_assert_eq!(to_finite_amount(&json!([1, 2])), None);
+            proptest::prop_assert_eq!(to_finite_amount(&Value::Null), None);
+            // "1e999" / "inf" / "NaN" は f64 にはパースされるが非有限なので欠損扱い
+            for text in ["1e999", "-1e999", "inf", "-inf", "NaN"] {
+                proptest::prop_assert_eq!(to_finite_amount(&json!(text)), None, "text={}", text);
+            }
         }
 
         /// 評価損益は (市場, 取得) 両方が有限のときだけ計算され、取得0では率なし

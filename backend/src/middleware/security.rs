@@ -290,15 +290,17 @@ mod tests {
             );
         }
 
-        // APP_ENV=production でも GET は通過
+        // APP_ENV=production でも GET/HEAD/OPTIONS は Origin 検証をスキップして通過
         {
             let _app_env = EnvGuard::set("APP_ENV", Some("production"));
             let _rust_env = EnvGuard::set("RUST_ENV", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_ne!(
-                oneshot_status(test_app(), Method::GET, &[]).await,
-                StatusCode::FORBIDDEN
-            );
+            for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+                assert_ne!(
+                    oneshot_status(test_app(), method, &[]).await,
+                    StatusCode::FORBIDDEN
+                );
+            }
         }
 
         // APP_ENV=staging のとき Origin/Referer なしは 403（非本番でも明示設定済みなら拒否）
