@@ -42,6 +42,10 @@ impl<T> PageCollector<T> {
             && self.fetched < self.max_pages
     }
 
+    pub fn total(&self) -> Option<usize> {
+        self.total
+    }
+
     pub fn truncated(&self) -> bool {
         self.fetched >= self.max_pages
             && self.last_len >= self.per_page

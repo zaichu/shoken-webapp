@@ -1,9 +1,10 @@
 use crate::api::{ApiClient, ApiError};
+use crate::csv_flow::{csv_error_message, CsvTabState};
 use crate::dto::{
     CsvPreviewResponse, CsvUploadResponse, DividendListResponse, DividendSummary,
     DomesticStockListResponse, DomesticStockSummary, MutualfundListResponse, MutualfundSummary,
 };
-use crate::receipts_csv::{csv_error_message, to_preview, CsvTabState};
+use crate::receipts_csv::{to_preview, CsvPreviewRow};
 use crate::receipts_domain::{format_currency, format_date, format_number};
 use crate::receipts_filter::ReceiptSearch;
 use crate::receipts_pagination::PageCollector;
@@ -280,7 +281,7 @@ pub struct ReceiptsStore {
     cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
     fetch: Action<(u64, ReceiptsTab), ()>,
     // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
-    csv: RwSignal<HashMap<(u64, ReceiptsTab), CsvTabState>>,
+    csv: RwSignal<HashMap<(u64, ReceiptsTab), CsvTabState<CsvPreviewRow>>>,
     csv_files: RwSignal<HashMap<(u64, ReceiptsTab), web_sys::File>>,
 }
 
@@ -383,7 +384,7 @@ impl ReceiptsStore {
 }
 
 impl ReceiptsStore {
-    pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState {
+    pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState<CsvPreviewRow> {
         let generation = self.session.generation.get();
         self.csv
             .with(|map| map.get(&(generation, tab)).cloned().unwrap_or_default())
@@ -429,7 +430,7 @@ impl ReceiptsStore {
         });
         let store = self.clone();
         leptos::task::spawn_local(async move {
-            let result = crate::receipts_csv::preview_csv(tab, &file).await;
+            let result = crate::csv_flow::preview_csv(tab.preview_path(), &file).await;
             store.apply_preview_result(generation, tab, result);
         });
     }
@@ -440,7 +441,7 @@ impl ReceiptsStore {
         };
         let store = self.clone();
         leptos::task::spawn_local(async move {
-            let result = crate::receipts_csv::upload_csv(tab, &file).await;
+            let result = crate::csv_flow::upload_csv(tab.import_path(), &file).await;
             if store.apply_upload_result(generation, tab, result) {
                 store.fetch.dispatch((generation, tab));
             }
@@ -490,7 +491,7 @@ impl ReceiptsStore {
         };
         let store = self.clone();
         leptos::task::spawn_local(async move {
-            let result = crate::receipts_csv::delete_all(tab).await;
+            let result = crate::csv_flow::delete_all(tab.list_path()).await;
             store.apply_delete_result(generation, tab, result);
         });
     }
@@ -870,7 +871,7 @@ mod csv_tests {
     fn test_store(
         session: &SessionStore,
         cache: HashMap<(u64, ReceiptsTab), TabState>,
-        csv: HashMap<(u64, ReceiptsTab), CsvTabState>,
+        csv: HashMap<(u64, ReceiptsTab), CsvTabState<CsvPreviewRow>>,
     ) -> ReceiptsStore {
         ReceiptsStore {
             session: *session,

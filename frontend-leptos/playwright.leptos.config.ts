@@ -4,8 +4,6 @@ import { defineConfig, devices } from '@playwright/test';
  * Leptos PoC 用の実験設定（本番の playwright.ci.config.ts は変更しない）
  *
  * - 対象は frontend/e2e の各 spec を無改修で実行する
- * - error-scenarios は CSV ケース（CSV画面は #884/#885 の範囲）を除く
- * - assetbalance-flow は EmptyState と検索・クリアのみ
  * - baseURL は Trunk dev サーバ（frontend-leptos）を指す
  */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';
@@ -21,7 +19,6 @@ export default defineConfig({
     '**/assetbalance-flow.spec.ts',
     '**/a11y.spec.ts',
   ],
-  grepInvert: /CSV プレビュー|保存ボタンが活性化|再取得されて銘柄データ|サマリーと検索オプション|全件削除で EmptyState/,
   outputDir: '/tmp/leptos-e2e-out',
   fullyParallel: false,
   forbidOnly: true,

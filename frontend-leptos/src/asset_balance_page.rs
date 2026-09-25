@@ -1,4 +1,5 @@
 use crate::api::{ApiClient, ApiError};
+use crate::asset_balance_csv::{self, AssetBalanceCsvRow};
 use crate::asset_balance_domain::{
     calculate_portfolio_kpi, calculate_valuation, intl_fixed, normalize_security_name,
     summarize_valuation_with_summary, to_fixed, total_purchase_amount, KpiHolding, SummaryOverride,
@@ -9,19 +10,26 @@ use crate::asset_balance_portfolio::{chart_display, chart_plan};
 use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
+use crate::confirm_modal::ConfirmDeleteModal;
+use crate::csv_flow::{csv_error_message, CsvTabState};
+use crate::csv_rail::CsvActionRail;
 use crate::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
     unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
 };
-use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
+use crate::dto::{
+    AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, CsvPreviewResponse,
+    CsvUploadResponse, SearchFacets,
+};
 use crate::receipts_pagination::PageCollector;
 use crate::receipts_search::SearchOption;
 use crate::security_link::SecurityCodeLink;
-use crate::session::use_session;
-use crate::ui::{Loading, PageHeader};
+use crate::session::{use_session, SessionStore};
+use crate::ui::PageHeader;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::collections::HashSet;
 
 const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
@@ -35,6 +43,8 @@ const CHART_COLORS: [&str; 10] = [
 #[derive(Clone, Debug)]
 struct LoadedAssetBalances {
     rows: Vec<AssetBalance>,
+    // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
+    total: usize,
     summary: Option<AssetBalanceSummary>,
     facets: Option<SearchFacets>,
     truncated: bool,
@@ -92,9 +102,12 @@ impl AssetBalancePages {
     }
 
     fn finish(self) -> LoadedAssetBalances {
+        let total = self.collector.total();
         let truncated = self.collector.truncated();
+        let rows = self.collector.into_rows();
         LoadedAssetBalances {
-            rows: self.collector.into_rows(),
+            total: total.unwrap_or(rows.len()),
+            rows,
             summary: self.summary,
             facets: self.facets,
             truncated,
@@ -140,23 +153,29 @@ fn apply_dividend_maps(
 }
 
 async fn poll_dividend_maps(
-    session: crate::session::SessionStore,
+    session: SessionStore,
     generation: u64,
     codes: Vec<String>,
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
+    data_ops: RwSignal<DataOps>,
+    poll_rev: u64,
 ) {
+    let is_current = move || {
+        session.is_current(generation)
+            && data_ops.with_untracked(|ops| ops.is_current_poll(poll_rev))
+    };
     let max_pending = dividend_pending_max_retries(codes.len());
     let mut pending_used = 0u32;
     let mut network_used = 0u32;
     loop {
-        if !session.is_current(generation) {
+        if !is_current() {
             break;
         }
         match fetch_dividend_batch(&codes).await {
             Ok(batch) => {
                 let (maps, has_pending) = dividend_maps_from_batch(&batch);
-                if session.is_current(generation) {
+                if is_current() {
                     apply_dividend_maps(&balances, &dividends, generation, maps);
                 }
                 if !has_pending || pending_used >= max_pending {
@@ -178,9 +197,10 @@ async fn poll_dividend_maps(
 fn effective_summary(
     summary: Option<AssetBalanceSummary>,
     query: &str,
+    has_csv_file: bool,
 ) -> Option<AssetBalanceSummary> {
-    // 検索中は API の summary が絞り込み前の全体集計のままなので使わない
-    if query.is_empty() {
+    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない
+    if query.is_empty() && !has_csv_file {
         summary
     } else {
         None
@@ -194,23 +214,30 @@ struct FilteredPortfolio {
 }
 
 fn filtered_portfolio(
-    loaded: &LoadedAssetBalances,
+    rows: &[AssetBalance],
+    summary: Option<AssetBalanceSummary>,
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: u64,
+    has_csv_file: bool,
 ) -> FilteredPortfolio {
-    let views = filter_asset_balances(&loaded.rows, query)
+    let views = filter_asset_balances(rows, query)
         .into_iter()
         .map(|row| {
-            let resolved = lookup
-                .with(|store| store.get(generation, &row.security_code).cloned())
-                .unwrap_or_else(|| row.clone());
+            // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
+            let resolved = if has_csv_file {
+                row.clone()
+            } else {
+                lookup
+                    .with(|store| store.get(generation, &row.security_code).cloned())
+                    .unwrap_or_else(|| row.clone())
+            };
             holding_view(&resolved)
         })
         .collect();
     FilteredPortfolio {
         views,
-        summary: effective_summary(loaded.summary.clone(), query),
+        summary: effective_summary(summary, query, has_csv_file),
     }
 }
 
@@ -222,11 +249,478 @@ fn asset_balance_error_message(error: &ApiError) -> String {
     }
 }
 
-fn should_apply_asset_balance_result(
-    session: &crate::session::SessionStore,
-    generation: u64,
-) -> bool {
+fn should_apply_asset_balance_result(session: &SessionStore, generation: u64) -> bool {
     session.is_current(generation)
+}
+
+#[derive(Clone, Debug, Default)]
+struct DataOps {
+    list_rev: u64,
+    poll_rev: u64,
+    // 完了時に世代をまたいで減算されないよう、取得中の rev をそのまま持つ
+    inflight: HashSet<u64>,
+    refresh_error: Option<String>,
+}
+
+impl DataOps {
+    fn begin_list_fetch(&mut self) {
+        self.list_rev += 1;
+        self.inflight.insert(self.list_rev);
+        self.refresh_error = None;
+    }
+
+    fn end_list_fetch(&mut self, rev: u64) {
+        self.inflight.remove(&rev);
+    }
+
+    fn is_current_list(&self, rev: u64) -> bool {
+        self.list_rev == rev
+    }
+
+    fn next_poll_rev(&mut self) {
+        self.poll_rev += 1;
+    }
+
+    fn is_current_poll(&self, rev: u64) -> bool {
+        self.poll_rev == rev
+    }
+
+    fn invalidate(&mut self) {
+        self.list_rev += 1;
+        self.poll_rev += 1;
+    }
+
+    fn reset(&mut self) {
+        self.invalidate();
+        self.inflight.clear();
+        self.refresh_error = None;
+    }
+}
+
+// 取得成功時は lookup の seed と配当取得の開始までここでまとめて行う
+fn load_asset_balances(
+    session: SessionStore,
+    generation: u64,
+    balances: RwSignal<BalanceSlot>,
+    dividends: RwSignal<DividendMaps>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    csv: RwSignal<AssetCsvSlot>,
+    data_ops: RwSignal<DataOps>,
+) {
+    data_ops.update(DataOps::begin_list_fetch);
+    let rev = data_ops.with_untracked(|ops| ops.list_rev);
+    leptos::task::spawn_local(async move {
+        match fetch_asset_balances().await {
+            Err(error) => {
+                data_ops.update(|ops| ops.end_list_fetch(rev));
+                if should_apply_asset_balance_result(&session, generation) {
+                    apply_list_error(
+                        generation,
+                        rev,
+                        asset_balance_error_message(&error),
+                        balances,
+                        data_ops,
+                    );
+                }
+            }
+            Ok(loaded) => {
+                data_ops.update(|ops| ops.end_list_fetch(rev));
+                if !should_apply_asset_balance_result(&session, generation)
+                    || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
+                {
+                    return;
+                }
+                let preview_active = csv.with_untracked(|slot| {
+                    matches!(slot, Some((cached, state))
+                        if *cached == generation && state.file_name.is_some())
+                });
+                let (codes, missing) = apply_loaded_asset_balances(
+                    generation,
+                    loaded,
+                    balances,
+                    dividends,
+                    lookup,
+                    preview_active,
+                );
+                if !missing.is_empty() {
+                    leptos::task::spawn_local(async move {
+                        for code in missing {
+                            if !session.is_current(generation)
+                                || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
+                            {
+                                break;
+                            }
+                            if let Ok(rows) =
+                                fetch_single_asset_balance(&ApiClient::read_client(), &code).await
+                            {
+                                if !session.is_current(generation)
+                                    || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
+                                {
+                                    break;
+                                }
+                                lookup.update(|store| {
+                                    store.store_single(generation, &code, rows);
+                                });
+                            }
+                        }
+                    });
+                }
+                if !codes.is_empty() && !preview_active {
+                    data_ops.update(DataOps::next_poll_rev);
+                    let poll_rev = data_ops.with_untracked(|ops| ops.poll_rev);
+                    leptos::task::spawn_local(poll_dividend_maps(
+                        session, generation, codes, balances, dividends, data_ops, poll_rev,
+                    ));
+                }
+            }
+        }
+    });
+}
+
+fn apply_list_error(
+    generation: u64,
+    rev: u64,
+    message: String,
+    balances: RwSignal<BalanceSlot>,
+    data_ops: RwSignal<DataOps>,
+) {
+    if !data_ops.with_untracked(|ops| ops.is_current_list(rev)) {
+        return;
+    }
+    // キャッシュ済みの行は残し、エラーだけを出す(React は dbQuery.data と error を別々に扱う)
+    let has_cached = balances
+        .with_untracked(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation));
+    if has_cached {
+        data_ops.update(|ops| ops.refresh_error = Some(message));
+    } else {
+        balances.set(Some((generation, Err(message))));
+    }
+}
+
+fn apply_loaded_asset_balances(
+    generation: u64,
+    loaded: LoadedAssetBalances,
+    balances: RwSignal<BalanceSlot>,
+    dividends: RwSignal<DividendMaps>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    preview_active: bool,
+) -> (Vec<String>, Vec<String>) {
+    // 同一世代の置換では or_insert では古い値が残るため seed 前に必ず消す
+    lookup.update(|store| {
+        store.clear();
+        store.seed(generation, &loaded.rows);
+    });
+    let codes = unique_sorted_codes(
+        &loaded
+            .rows
+            .iter()
+            .map(|row| row.security_code.clone())
+            .collect::<Vec<_>>(),
+    );
+    if !preview_active {
+        dividends.set(DividendMaps::default());
+    }
+    balances.set(Some((generation, Ok(loaded))));
+    let missing: Vec<String> = codes
+        .iter()
+        .filter(|code| lookup.with_untracked(|store| store.needs_fetch(generation, code, true)))
+        .cloned()
+        .collect();
+    (codes, missing)
+}
+
+type AssetCsvSlot = Option<(u64, CsvTabState<AssetBalanceCsvRow>)>;
+type AssetCsvFileSlot = Option<(u64, web_sys::File)>;
+
+fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
+    state
+        .preview
+        .as_ref()
+        .is_some_and(|preview| !preview.rows.is_empty())
+}
+
+// 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
+#[derive(Clone)]
+struct AssetBalanceCsvStore {
+    session: SessionStore,
+    balances: RwSignal<BalanceSlot>,
+    dividends: RwSignal<DividendMaps>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    csv: RwSignal<AssetCsvSlot>,
+    csv_file: RwSignal<AssetCsvFileSlot>,
+    data_ops: RwSignal<DataOps>,
+}
+
+impl AssetBalanceCsvStore {
+    fn new(
+        session: SessionStore,
+        balances: RwSignal<BalanceSlot>,
+        dividends: RwSignal<DividendMaps>,
+        lookup: RwSignal<AssetBalanceLookupStore>,
+        data_ops: RwSignal<DataOps>,
+    ) -> Self {
+        Self {
+            session,
+            balances,
+            dividends,
+            lookup,
+            csv: RwSignal::new(None),
+            csv_file: RwSignal::new(None),
+            data_ops,
+        }
+    }
+
+    fn csv_state(&self) -> CsvTabState<AssetBalanceCsvRow> {
+        let generation = self.session.generation.get();
+        self.csv.with(|slot| match slot {
+            Some((cached, state)) if *cached == generation => state.clone(),
+            _ => CsvTabState::default(),
+        })
+    }
+
+    fn csv_busy(&self) -> bool {
+        self.csv_state().busy()
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.session.user.get().is_some()
+    }
+
+    // 削除件数はプレビューではなく DB 側の total を使う
+    fn db_count(&self) -> usize {
+        let generation = self.session.generation.get();
+        self.balances.with(|slot| match slot {
+            Some((cached, Ok(loaded))) if *cached == generation => loaded.total,
+            _ => 0,
+        })
+    }
+
+    fn list_loading(&self) -> bool {
+        let generation = self.session.generation.get();
+        self.session.user.get().is_some()
+            && (self.data_ops.with(|ops| !ops.inflight.is_empty())
+                || self
+                    .balances
+                    .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation)))
+    }
+
+    fn update_csv(
+        &self,
+        generation: u64,
+        update: impl FnOnce(&mut CsvTabState<AssetBalanceCsvRow>),
+    ) {
+        self.csv.update(|slot| {
+            if !matches!(slot, Some((cached, _)) if *cached == generation) {
+                *slot = Some((generation, CsvTabState::default()));
+            }
+            if let Some((_, state)) = slot {
+                update(state);
+            }
+        });
+    }
+
+    fn select_file(&self, file: web_sys::File) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        if !self.begin_file_preview(generation, file.name()) {
+            return;
+        }
+        self.csv_file.set(Some((generation, file.clone())));
+        let store = self.clone();
+        leptos::task::spawn_local(async move {
+            let result = crate::csv_flow::preview_csv(asset_balance_csv::PREVIEW_PATH, &file).await;
+            if let Some(codes) = store.apply_preview_result(generation, result) {
+                if !codes.is_empty() {
+                    store.data_ops.update(DataOps::next_poll_rev);
+                    let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+                    leptos::task::spawn_local(poll_dividend_maps(
+                        store.session,
+                        generation,
+                        codes,
+                        store.balances,
+                        store.dividends,
+                        store.data_ops,
+                        poll_rev,
+                    ));
+                }
+            }
+        });
+    }
+
+    // 別CSVを選び直した場合、旧銘柄向けのポーリング結果と配当マップが残らないよう無効化する
+    fn begin_file_preview(&self, generation: u64, file_name: String) -> bool {
+        let mut started = false;
+        self.update_csv(generation, |state| {
+            started = state.begin_preview(file_name);
+        });
+        if started {
+            self.data_ops.update(DataOps::next_poll_rev);
+            self.dividends.set(DividendMaps::default());
+        }
+        started
+    }
+
+    fn save_csv(&self) {
+        let Some((generation, file)) = self.try_begin_save() else {
+            return;
+        };
+        let store = self.clone();
+        leptos::task::spawn_local(async move {
+            let result = crate::csv_flow::upload_csv(asset_balance_csv::IMPORT_PATH, &file).await;
+            if store.apply_upload_result(generation, result) {
+                load_asset_balances(
+                    store.session,
+                    generation,
+                    store.balances,
+                    store.dividends,
+                    store.lookup,
+                    store.csv,
+                    store.data_ops,
+                );
+            }
+        });
+    }
+
+    fn try_begin_save(&self) -> Option<(u64, web_sys::File)> {
+        self.session.user.get_untracked()?;
+        let generation = self.session.generation.get_untracked();
+        let file = self.csv_file.with_untracked(|slot| match slot {
+            Some((cached, file)) if *cached == generation => Some(file.clone()),
+            _ => None,
+        })?;
+        let mut started = false;
+        self.update_csv(generation, |state| {
+            started = can_save_csv(state) && state.begin_save();
+        });
+        started.then_some((generation, file))
+    }
+
+    fn open_delete_confirm(&self) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        self.update_csv(generation, |state| state.open_delete_confirm());
+    }
+
+    fn close_delete_confirm(&self) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        self.update_csv(generation, |state| state.close_delete_confirm());
+    }
+
+    fn confirm_delete_all(&self) {
+        let Some(generation) = self.try_begin_delete() else {
+            return;
+        };
+        let store = self.clone();
+        leptos::task::spawn_local(async move {
+            let result = crate::csv_flow::delete_all(asset_balance_csv::LIST_PATH).await;
+            store.apply_delete_result(generation, result);
+        });
+    }
+
+    fn try_begin_delete(&self) -> Option<u64> {
+        self.session.user.get_untracked()?;
+        let generation = self.session.generation.get_untracked();
+        let mut started = false;
+        self.update_csv(generation, |state| {
+            started = state.begin_delete();
+        });
+        if started {
+            // 先に走った一覧取得の遅れ結果が削除後の一覧を復活させないよう無効化する
+            self.data_ops.update(|ops| ops.list_rev += 1);
+        }
+        started.then_some(generation)
+    }
+
+    // 失敗は取引明細と違って画面に出す
+    fn apply_preview_result(
+        &self,
+        generation: u64,
+        result: Result<CsvPreviewResponse, ApiError>,
+    ) -> Option<Vec<String>> {
+        if !self.session.is_current(generation) {
+            return None;
+        }
+        match result {
+            Ok(response) => {
+                let preview = asset_balance_csv::to_preview(response);
+                let codes = unique_sorted_codes(
+                    &preview
+                        .rows
+                        .iter()
+                        .map(|row| row.security_code.clone())
+                        .collect::<Vec<_>>(),
+                );
+                self.update_csv(generation, |state| {
+                    state.finish_preview(Some(preview));
+                });
+                Some(codes)
+            }
+            Err(error) => {
+                let message = csv_error_message(&error);
+                self.update_csv(generation, |state| state.fail_preview(message));
+                None
+            }
+        }
+    }
+
+    fn apply_upload_result(
+        &self,
+        generation: u64,
+        result: Result<CsvUploadResponse, ApiError>,
+    ) -> bool {
+        if !self.session.is_current(generation) {
+            return false;
+        }
+        match result {
+            Ok(response) => {
+                self.update_csv(generation, |state| state.finish_save(Ok(response)));
+                self.csv_file.set(None);
+                true
+            }
+            Err(error) => {
+                let message = csv_error_message(&error);
+                self.update_csv(generation, |state| state.finish_save(Err(message)));
+                false
+            }
+        }
+    }
+
+    fn apply_delete_result(&self, generation: u64, result: Result<(), ApiError>) {
+        if !self.session.is_current(generation) {
+            return;
+        }
+        match result {
+            Ok(()) => {
+                self.update_csv(generation, |state| state.finish_delete(Ok(())));
+                // 削除確定後に届く一覧取得・配当ポーリングの遅れ結果を捨てる
+                self.data_ops.update(DataOps::invalidate);
+                // DELETE 成功後は DB が空なので、未取得でも空を確定して読み込み表示を残さない
+                self.balances.set(Some((
+                    generation,
+                    Ok(LoadedAssetBalances {
+                        rows: Vec::new(),
+                        total: 0,
+                        summary: None,
+                        facets: None,
+                        truncated: false,
+                    }),
+                )));
+                self.dividends.set(DividendMaps::default());
+                self.lookup.update(|store| store.clear());
+            }
+            Err(error) => {
+                let message = csv_error_message(&error);
+                self.update_csv(generation, |state| state.finish_delete(Err(message)));
+            }
+        }
+    }
 }
 
 fn dec_to_f64(value: &Decimal) -> f64 {
@@ -424,10 +918,113 @@ fn format_dividend_yield(dividend: &HoldingDividend) -> String {
     }
 }
 
+fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalance> {
+    state
+        .preview
+        .as_ref()
+        .map(|preview| {
+            preview
+                .rows
+                .iter()
+                .map(AssetBalanceCsvRow::to_asset_balance)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option<&'static str> {
+    if state.saving {
+        Some("データを保存しています...")
+    } else if state.deleting {
+        Some("データを削除しています...")
+    } else if state.previewing {
+        Some("CSVファイルを解析しています...")
+    } else {
+        None
+    }
+}
+
+#[component]
+fn AssetBalanceContent(
+    state: CsvTabState<AssetBalanceCsvRow>,
+    rows: Vec<AssetBalance>,
+    summary: Option<AssetBalanceSummary>,
+    facets: Option<SearchFacets>,
+    warning: Option<String>,
+    search_query: RwSignal<String>,
+    dividends: RwSignal<DividendMaps>,
+    show_all: RwSignal<bool>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: u64,
+) -> impl IntoView {
+    if state.previewing {
+        show_all.set(false);
+        return view! { <CsvStatusMessage text="CSVファイルを解析しています..." /> }.into_any();
+    }
+    let has_csv_file = state.file_name.is_some();
+    let has_rows = !rows.is_empty();
+    let options = asset_balance_search_options(&rows, facets.as_ref(), has_csv_file);
+    let total_count = rows.len();
+    let status = csv_status_text(&state);
+    view! {
+        {warning.map(|text| {
+            view! {
+                <div class="px-5 py-4" role="status" aria-live="polite">
+                    <div
+                        class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm"
+                        role="alert"
+                    >
+                        {text}
+                    </div>
+                </div>
+            }
+        })}
+        {has_rows.then(|| view! { <AssetBalanceSearchCard query=search_query options=options /> })}
+        {status.map(|text| view! { <CsvStatusMessage text=text /> })}
+        {move || {
+            let query = search_query.get();
+            if rows.is_empty() && query.is_empty() {
+                show_all.set(false);
+                return view! {
+                    <div>
+                        <h3>"資産管理データがありません"</h3>
+                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
+                    </div>
+                }
+                    .into_any();
+            }
+            let FilteredPortfolio { views, summary } = filtered_portfolio(
+                &rows,
+                summary.clone(),
+                &query,
+                lookup,
+                generation,
+                has_csv_file,
+            );
+            view! {
+                <PortfolioSummary
+                    views=views
+                    total_count=total_count
+                    is_filtered=!query.is_empty()
+                    on_clear_filter=move || {
+                        search_query.set(clear_search_query())
+                    }
+                    summary=summary
+                    dividends=dividends
+                    show_all=show_all
+                />
+            }
+                .into_any()
+        }}
+    }
+    .into_any()
+}
+
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
     let render_session = session;
+    let busy_session = session;
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -435,12 +1032,23 @@ pub fn AssetBalancePage() -> impl IntoView {
     let reset_query = search_query;
     // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
     let show_all = RwSignal::new(false);
+    let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+    let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+    let busy_csv = csv_store.clone();
+    let view_csv = csv_store.clone();
+    let modal_csv = csv_store.clone();
+    let alert_csv = csv_store.clone();
+    let alert_ops = data_ops;
+    let busy_ops = data_ops;
+    let alert_session = session;
+    let csv_slot = csv_store.csv;
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
             lookup.update(|store| store.clear());
             balances.set(None);
             dividends.set(DividendMaps::default());
+            data_ops.update(DataOps::reset);
             reset_query.set(clear_search_query());
             show_all.set(false);
             return;
@@ -452,63 +1060,9 @@ pub fn AssetBalancePage() -> impl IntoView {
         {
             return;
         }
-        leptos::task::spawn_local(async move {
-            match fetch_asset_balances().await {
-                Err(error) => {
-                    if should_apply_asset_balance_result(&session, generation) {
-                        balances.set(Some((generation, Err(asset_balance_error_message(&error)))));
-                    }
-                }
-                Ok(loaded) => {
-                    if !should_apply_asset_balance_result(&session, generation) {
-                        return;
-                    }
-                    lookup.update(|store| store.seed(generation, &loaded.rows));
-                    let codes = unique_sorted_codes(
-                        &loaded
-                            .rows
-                            .iter()
-                            .map(|row| row.security_code.clone())
-                            .collect::<Vec<_>>(),
-                    );
-                    dividends.set(DividendMaps::default());
-                    balances.set(Some((generation, Ok(loaded))));
-                    let missing: Vec<String> = codes
-                        .iter()
-                        .filter(|code| {
-                            lookup.with_untracked(|store| store.needs_fetch(generation, code, true))
-                        })
-                        .cloned()
-                        .collect();
-                    if !missing.is_empty() {
-                        let session = session;
-                        leptos::task::spawn_local(async move {
-                            for code in missing {
-                                if !session.is_current(generation) {
-                                    break;
-                                }
-                                if let Ok(rows) =
-                                    fetch_single_asset_balance(&ApiClient::read_client(), &code)
-                                        .await
-                                {
-                                    if !session.is_current(generation) {
-                                        break;
-                                    }
-                                    lookup.update(|store| {
-                                        store.store_single(generation, &code, rows);
-                                    });
-                                }
-                            }
-                        });
-                    }
-                    if !codes.is_empty() {
-                        leptos::task::spawn_local(poll_dividend_maps(
-                            session, generation, codes, balances, dividends,
-                        ));
-                    }
-                }
-            }
-        });
+        load_asset_balances(
+            session, generation, balances, dividends, lookup, csv_slot, data_ops,
+        );
     });
     view! {
         <div class="page-surface">
@@ -517,80 +1071,268 @@ pub fn AssetBalancePage() -> impl IntoView {
                 eyebrow="Portfolio"
                 description="保有している銘柄の一覧と評価額を確認できます。"
             />
-            <div data-testid="assetbalance-workspace">
-                {move || {
-                    let current = render_session.generation.get();
-                    match balances
-                        .get()
-                        .filter(|(cached, _)| *cached == current)
-                        .map(|(_, result)| result)
-                    {
-                        None => {
-                            show_all.set(false);
-                            view! { <Loading /> }.into_any()
-                        }
-                        Some(Err(message)) => {
-                            show_all.set(false);
-                            view! {
-                                <div role="alert">
-                                    <strong>"エラー:"</strong>
-                                    " "
-                                    {message}
-                                </div>
-                            }
-                                .into_any()
-                        }
-                        Some(Ok(loaded)) => {
-                            if loaded.rows.is_empty() {
+            <div
+                class="mt-2"
+                aria-busy=move || {
+                    !busy_session.loaded.get()
+                        || busy_csv.csv_busy()
+                        || busy_ops.with(|ops| !ops.inflight.is_empty())
+                        || (busy_session.user.get().is_some()
+                            && balances
+                                .get()
+                                .filter(|(cached, _)| {
+                                    *cached == busy_session.generation.get()
+                                })
+                                .is_none())
+                }
+            >
+                <div data-testid="assetbalance-workspace">
+                    <AssetBalanceCsvSection store=view_csv.clone() />
+                    {move || {
+                        // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
+                        let generation = alert_session.generation.get();
+                        balances
+                            .with(|slot| match slot {
+                                Some((cached, Err(message))) if *cached == generation => {
+                                    Some(message.clone())
+                                }
+                                _ => None,
+                            })
+                            .or_else(|| alert_ops.with(|ops| ops.refresh_error.clone()))
+                            .or_else(|| alert_csv.csv_state().error)
+                            .map(|message| {
+                                view! {
+                                    <section class="px-5 py-4">
+                                        <div
+                                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                            role="alert"
+                                        >
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                        </div>
+                                    </section>
+                                }
+                            })
+                    }}
+                    {move || {
+                        let current = render_session.generation.get();
+                        let state = view_csv.csv_state();
+                        let has_csv_file = state.file_name.is_some();
+                        match balances
+                            .get()
+                            .filter(|(cached, _)| *cached == current)
+                            .map(|(_, result)| result)
+                        {
+                            None => {
                                 show_all.set(false);
                                 view! {
-                                    <div>
-                                        <h3>"資産管理データがありません"</h3>
-                                        <p>"CSVファイルをインポートするか、データを登録してください。"</p>
-                                    </div>
+                                    <CsvStatusMessage text="データを読み込んでいます..." />
                                 }
                                     .into_any()
-                            } else {
-                                let query = search_query.get();
-                                let options = asset_balance_search_options(
-                                    &loaded.rows,
-                                    loaded.facets.as_ref(),
-                                    false,
-                                );
-                                let total_count = loaded.rows.len();
-                                let truncated = loaded.truncated;
-                                let FilteredPortfolio { views, summary } =
-                                    filtered_portfolio(&loaded, &query, lookup, current);
+                            }
+                            Some(Err(_)) => {
+                                let rows = csv_preview_rows(&state);
                                 view! {
-                                    {truncated.then(|| {
-                                        view! {
-                                            <section class="px-5 py-4" role="status" aria-live="polite">
-                                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-                                                    {truncated_list_warning()}
-                                                </div>
-                                            </section>
-                                        }
-                                    })}
-                                    <AssetBalanceSearchCard query=search_query options=options />
-                                    <PortfolioSummary
-                                        views=views
-                                        total_count=total_count
-                                        is_filtered=!query.is_empty()
-                                        on_clear_filter=move || {
-                                            search_query.set(clear_search_query())
-                                        }
-                                        summary=summary
+                                    <AssetBalanceContent
+                                        state=state
+                                        rows=rows
+                                        summary=None
+                                        facets=None
+                                        warning=None
+                                        search_query=search_query
                                         dividends=dividends
                                         show_all=show_all
+                                        lookup=lookup
+                                        generation=current
+                                    />
+                                }
+                                    .into_any()
+                            }
+                            Some(Ok(loaded)) => {
+                                let rows = if has_csv_file {
+                                    csv_preview_rows(&state)
+                                } else {
+                                    loaded.rows.clone()
+                                };
+                                let warning = (!has_csv_file && loaded.truncated)
+                                    .then(truncated_list_warning);
+                                view! {
+                                    <AssetBalanceContent
+                                        state=state
+                                        rows=rows
+                                        summary=loaded.summary.clone()
+                                        facets=loaded.facets.clone()
+                                        warning=warning
+                                        search_query=search_query
+                                        dividends=dividends
+                                        show_all=show_all
+                                        lookup=lookup
+                                        generation=current
                                     />
                                 }
                                     .into_any()
                             }
                         }
+                    }}
+                </div>
+                {move || {
+                    if !modal_csv.csv_state().show_delete_confirm {
+                        return ().into_any();
                     }
+                    let count = modal_csv.db_count();
+                    let deleting_csv = modal_csv.clone();
+                    let deleting = Memo::new(move |_| deleting_csv.csv_state().deleting);
+                    let confirm = modal_csv.clone();
+                    let cancel = modal_csv.clone();
+                    view! {
+                        <ConfirmDeleteModal
+                            title="資産管理データの全件削除".to_string()
+                            description="保存された資産管理データをすべて削除します。".to_string()
+                            item_count=count
+                            confirm_label="削除する"
+                            loading=deleting
+                            on_confirm=move || confirm.confirm_delete_all()
+                            on_cancel=move || cancel.close_delete_confirm()
+                        />
+                    }
+                        .into_any()
                 }}
             </div>
         </div>
+    }
+}
+
+#[component]
+fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
+    let selected = store.clone();
+    let selected_file_name = Memo::new(move |_| selected.csv_state().file_name.unwrap_or_default());
+    let disabled_store = store.clone();
+    let file_input_disabled = Memo::new(move |_| {
+        !disabled_store.is_authenticated()
+            || disabled_store.csv_busy()
+            || disabled_store.list_loading()
+    });
+    let has_file = store.clone();
+    let has_csv_file =
+        Memo::new(move |_| has_file.is_authenticated() && has_file.csv_state().file_name.is_some());
+    let label_store = store.clone();
+    let save_label = Memo::new(move |_| label_store.csv_state().save_label("全件置換で保存"));
+    let save_dis = store.clone();
+    let save_disabled =
+        Memo::new(move |_| save_dis.csv_state().busy() || !can_save_csv(&save_dis.csv_state()));
+    let has_db = store.clone();
+    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.db_count() > 0);
+    let del_label = store.clone();
+    let delete_label = Memo::new(move |_| del_label.csv_state().delete_label(del_label.db_count()));
+    let del_dis = store.clone();
+    let delete_disabled = Memo::new(move |_| {
+        let state = del_dis.csv_state();
+        state.saving || state.deleting || del_dis.list_loading()
+    });
+    let result_store = store.clone();
+    let save_result = Memo::new(move |_| result_store.csv_state().import_result);
+    let file_select = store.clone();
+    let save = store.clone();
+    let delete_request = store.clone();
+    let expanded = RwSignal::new(false);
+    view! {
+        <div class="sm:border-b-0">
+            <div class="bg-slate-50/60 px-5 sm:hidden">
+                <button
+                    type="button"
+                    class="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    on:click=move |_| expanded.update(|value| *value = !*value)
+                    aria-expanded=move || if expanded.get() { "true" } else { "false" }
+                    aria-controls="assetbalance-csv-body"
+                    data-testid="assetbalance-csv-toggle"
+                >
+                    <span class="text-sm font-bold text-slate-800">"CSV取り込み・削除"</span>
+                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                        <span class="text-xs font-semibold">
+                            {move || if expanded.get() { "閉じる" } else { "開く" }}
+                        </span>
+                        <svg
+                            aria-hidden="true"
+                            class=move || if expanded.get() {
+                                "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                            } else {
+                                "h-4 w-4 text-slate-500 transition-transform duration-200"
+                            }
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 9l-7 7-7-7"
+                            />
+                        </svg>
+                    </span>
+                </button>
+            </div>
+            <div
+                id="assetbalance-csv-body"
+                role="region"
+                aria-label="CSV取り込み・削除"
+                class=move || if expanded.get() {
+                    "max-sm:border-t max-sm:border-slate-950/10"
+                } else {
+                    "max-sm:hidden"
+                }
+            >
+                <CsvActionRail
+                    input_id="csv-file-input-assetbalance"
+                    on_file_select=move |file| file_select.select_file(file)
+                    selected_file_name=selected_file_name
+                    file_input_disabled=file_input_disabled
+                    has_csv_file=has_csv_file
+                    save_label=save_label
+                    on_save=move || save.save_csv()
+                    save_disabled=save_disabled
+                    has_db_data=has_db_data
+                    delete_label=delete_label
+                    on_delete_request=move || delete_request.open_delete_confirm()
+                    delete_disabled=delete_disabled
+                    save_result=save_result
+                    mode_label="全件置換"
+                />
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn CsvStatusMessage(text: &'static str) -> impl IntoView {
+    view! {
+        <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
+            <div class="flex items-center gap-2 text-slate-600">
+                <svg
+                    class="animate-spin h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    />
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                </svg>
+                <p class="text-sm">{text}</p>
+            </div>
+        </section>
     }
 }
 
@@ -1379,9 +2121,10 @@ mod tests {
                 total_daily_change: Decimal::ZERO,
             })
         };
-        assert_eq!(effective_summary(summary(), ""), summary());
-        assert_eq!(effective_summary(summary(), "7203"), None);
-        assert_eq!(effective_summary(None, ""), None);
+        assert_eq!(effective_summary(summary(), "", false), summary());
+        assert_eq!(effective_summary(summary(), "7203", false), None);
+        assert_eq!(effective_summary(summary(), "", true), None);
+        assert_eq!(effective_summary(None, "", false), None);
     }
 
     #[test]
@@ -1398,6 +2141,7 @@ mod tests {
             sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
             sony.market_value = rust_decimal_macros::dec!(180000);
             let loaded = LoadedAssetBalances {
+                total: 2,
                 rows: vec![toyota, sony],
                 summary: Some(AssetBalanceSummary {
                     total_market_value: rust_decimal_macros::dec!(999999),
@@ -1410,7 +2154,14 @@ mod tests {
             let lookup = RwSignal::new(AssetBalanceLookupStore::new());
             lookup.update(|store| store.seed(1, &loaded.rows));
 
-            let filtered = filtered_portfolio(&loaded, "7203", lookup, 1);
+            let filtered = filtered_portfolio(
+                &loaded.rows,
+                loaded.summary.clone(),
+                "7203",
+                lookup,
+                1,
+                false,
+            );
             assert_eq!(filtered.views.len(), 1);
             assert_eq!(filtered.views[0].code, "7203");
             assert!(filtered.summary.is_none());
@@ -1465,7 +2216,8 @@ mod tests {
                 assert_eq!(kpi.holdings_count, 1);
             });
 
-            let unfiltered = filtered_portfolio(&loaded, "", lookup, 1);
+            let unfiltered =
+                filtered_portfolio(&loaded.rows, loaded.summary.clone(), "", lookup, 1, false);
             assert_eq!(unfiltered.views.len(), 2);
             assert_eq!(
                 unfiltered
@@ -1539,6 +2291,7 @@ mod tests {
                 7,
                 Ok(LoadedAssetBalances {
                     rows: vec![],
+                    total: 0,
                     summary: None,
                     facets: None,
                     truncated: false,
@@ -1561,6 +2314,7 @@ mod tests {
                 7,
                 Ok(LoadedAssetBalances {
                     rows: vec![],
+                    total: 0,
                     summary: None,
                     facets: None,
                     truncated: false,
@@ -1650,6 +2404,7 @@ mod tests {
 
         let loaded = pages.finish();
         assert_eq!(loaded.rows.len(), 2300);
+        assert_eq!(loaded.total, 2300);
         assert_eq!(loaded.rows[0].id, "id-0");
         assert_eq!(loaded.rows[2299].id, "id-2299");
         // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
@@ -1672,6 +2427,732 @@ mod tests {
         assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
         let loaded = pages.finish();
         assert_eq!(loaded.rows.len(), 3);
+        assert_eq!(loaded.total, 3);
         assert!(loaded.summary.is_some());
+    }
+
+    fn csv_store(
+        session: &SessionStore,
+        balances: RwSignal<BalanceSlot>,
+        dividends: RwSignal<DividendMaps>,
+    ) -> AssetBalanceCsvStore {
+        AssetBalanceCsvStore::new(
+            *session,
+            balances,
+            dividends,
+            RwSignal::new(AssetBalanceLookupStore::new()),
+            RwSignal::new(DataOps::default()),
+        )
+    }
+
+    fn csv_upload_response(inserted: usize) -> CsvUploadResponse {
+        CsvUploadResponse {
+            inserted,
+            skipped: 0,
+            errors: vec![],
+        }
+    }
+
+    fn csv_preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
+        CsvPreviewResponse {
+            total_rows: 1,
+            valid_rows: 1,
+            errors: vec![],
+            rows,
+        }
+    }
+
+    fn csv_preview_row(code: &str) -> serde_json::Value {
+        serde_json::json!({
+            "security_code": code,
+            "security_name": "銘柄",
+            "shares": 100,
+            "average_purchase_price": 2500,
+            "market_value": 260000
+        })
+    }
+
+    #[test]
+    fn csv_state_is_scoped_to_session_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+            });
+            assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+
+            session.mark_unauthenticated();
+            assert_eq!(
+                store.csv_state(),
+                CsvTabState::default(),
+                "ログアウトでCSV状態は見えなくなる"
+            );
+
+            session.user.set(Some(user("bob")));
+            assert_eq!(
+                store.csv_state(),
+                CsvTabState::default(),
+                "別ユーザーでも見えない"
+            );
+        });
+    }
+
+    #[test]
+    fn stale_generation_csv_results_are_discarded() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+                state.previewing = true;
+            });
+
+            session.mark_unauthenticated();
+            session.user.set(Some(user("bob")));
+
+            assert!(store
+                .apply_preview_result(
+                    generation,
+                    Ok(csv_preview_response(vec![csv_preview_row("7203")])),
+                )
+                .is_none());
+            assert!(!store.apply_upload_result(generation, Ok(csv_upload_response(2))));
+            store.apply_delete_result(generation, Ok(()));
+
+            // 古い世代のスロットは進行中のまま残るだけで、現在世代からは見えない
+            let slot = store.csv.get_untracked();
+            assert!(matches!(
+                slot,
+                Some((cached, ref state))
+                    if cached == generation && state.previewing && state.preview.is_none()
+            ));
+            assert_eq!(store.csv_state(), CsvTabState::default());
+        });
+    }
+
+    #[test]
+    fn preview_success_collects_security_codes_and_failure_shows_error() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+                state.previewing = true;
+            });
+
+            let codes = store.apply_preview_result(
+                generation,
+                Ok(csv_preview_response(vec![
+                    csv_preview_row("7203"),
+                    csv_preview_row("6758"),
+                    csv_preview_row("7203"),
+                ])),
+            );
+            assert_eq!(
+                codes,
+                Some(vec!["6758".to_string(), "7203".to_string()]),
+                "プレビュー行の銘柄コードが配当取得の対象になる"
+            );
+            let state = store.csv_state();
+            assert!(!state.previewing);
+            assert_eq!(
+                state.preview.as_ref().map(|preview| preview.rows.len()),
+                Some(3)
+            );
+
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+                state.previewing = true;
+            });
+            assert!(store
+                .apply_preview_result(generation, Err(ApiError::Http { status: 500 }))
+                .is_none());
+            let state = store.csv_state();
+            assert!(!state.previewing);
+            assert_eq!(
+                state.error.as_deref(),
+                Some("サーバーエラーが発生しました"),
+                "資産管理はプレビュー失敗を画面に出す"
+            );
+            assert_eq!(state.file_name.as_deref(), Some("asset.csv"));
+        });
+    }
+
+    #[test]
+    fn save_success_clears_file_and_preview_and_requests_reload() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+                state.preview = Some(crate::csv_flow::CsvPreview {
+                    valid_rows: 1,
+                    rows: vec![AssetBalanceCsvRow::default()],
+                    ..Default::default()
+                });
+                state.saving = true;
+            });
+
+            assert!(
+                store.apply_upload_result(generation, Ok(csv_upload_response(2))),
+                "成功時は一覧の再取得を要求する"
+            );
+            let state = store.csv_state();
+            assert!(!state.saving);
+            assert!(state.file_name.is_none());
+            assert!(state.preview.is_none());
+            assert_eq!(state.import_result.map(|result| result.inserted), Some(2));
+            assert!(store.csv_file.get_untracked().is_none());
+        });
+    }
+
+    #[test]
+    fn save_error_keeps_preview_and_sets_message() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.update_csv(generation, |state| {
+                state.file_name = Some("asset.csv".to_string());
+                state.preview = Some(crate::csv_flow::CsvPreview::default());
+                state.saving = true;
+            });
+
+            assert!(!store.apply_upload_result(generation, Err(ApiError::Http { status: 401 }),));
+            let state = store.csv_state();
+            assert!(!state.saving);
+            assert_eq!(state.file_name.as_deref(), Some("asset.csv"));
+            assert!(state.preview.is_some());
+            assert_eq!(state.error.as_deref(), Some("認証が必要です"));
+        });
+    }
+
+    #[test]
+    fn save_requires_preview_rows() {
+        let state = CsvTabState::<AssetBalanceCsvRow>::default();
+        assert!(!can_save_csv(&state));
+        let empty = CsvTabState::<AssetBalanceCsvRow> {
+            preview: Some(crate::csv_flow::CsvPreview::default()),
+            ..Default::default()
+        };
+        assert!(!can_save_csv(&empty), "有効行0件のプレビューでは保存しない");
+        let ready = CsvTabState::<AssetBalanceCsvRow> {
+            preview: Some(crate::csv_flow::CsvPreview {
+                rows: vec![AssetBalanceCsvRow::default()],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(can_save_csv(&ready));
+    }
+
+    #[test]
+    fn delete_requires_open_confirm_and_rejects_double_start() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            assert!(
+                store.try_begin_delete().is_none(),
+                "確認を表示していないと削除を開始しない"
+            );
+
+            store.open_delete_confirm();
+            assert!(store.try_begin_delete().is_some());
+            assert!(store.try_begin_delete().is_none(), "削除中は再開始しない");
+            let state = store.csv_state();
+            assert!(state.deleting);
+            assert!(!state.show_delete_confirm);
+        });
+    }
+
+    #[test]
+    fn delete_success_clears_result_and_empties_cached_list() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
+                generation,
+                Ok(LoadedAssetBalances {
+                    rows: vec![balance_row(7203)],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                }),
+            )));
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let store = csv_store(&session, balances, dividends);
+            store.update_csv(generation, |state| {
+                state.import_result = Some(csv_upload_response(3));
+                state.deleting = true;
+            });
+
+            store.apply_delete_result(generation, Ok(()));
+
+            let state = store.csv_state();
+            assert!(!state.deleting);
+            assert!(state.import_result.is_none(), "削除成功で保存結果を消す");
+            let loaded = balances
+                .get_untracked()
+                .and_then(|(cached, result)| (cached == generation).then_some(result))
+                .and_then(|result| result.ok());
+            assert_eq!(
+                loaded.map(|loaded| loaded.rows.len()),
+                Some(0),
+                "キャッシュ済みの一覧は空で上書きされる"
+            );
+            assert!(dividends.get_untracked().per_share.is_empty());
+        });
+    }
+
+    #[test]
+    fn delete_success_without_cached_list_sets_empty() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+            store.update_csv(generation, |state| state.deleting = true);
+
+            store.apply_delete_result(generation, Ok(()));
+
+            let loaded = balances
+                .get_untracked()
+                .and_then(|(cached, result)| (cached == generation).then_some(result))
+                .and_then(|result| result.ok());
+            assert_eq!(
+                loaded.map(|loaded| (loaded.rows.len(), loaded.total)),
+                Some((0, 0)),
+                "一覧未取得でも削除成功は空一覧を確定させ、読み込み表示を残さない"
+            );
+        });
+    }
+
+    #[test]
+    fn apply_loaded_asset_balances_replaces_same_generation_list() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
+                generation,
+                Ok(LoadedAssetBalances {
+                    rows: vec![balance_row(6758)],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                }),
+            )));
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("6758".to_string(), 40.0)]),
+                status: HashMap::new(),
+            });
+            let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+            lookup.update(|store| store.seed(generation, &[balance_row(6758)]));
+
+            let new_row = balance_row(7203);
+            let (codes, missing) = apply_loaded_asset_balances(
+                generation,
+                LoadedAssetBalances {
+                    rows: vec![new_row],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                },
+                balances,
+                dividends,
+                lookup,
+                false,
+            );
+
+            let loaded = balances
+                .get_untracked()
+                .and_then(|(cached, result)| (cached == generation).then_some(result))
+                .and_then(|result| result.ok())
+                .expect("loaded");
+            assert_eq!(loaded.rows.len(), 1);
+            assert_eq!(loaded.rows[0].id, "id-7203");
+            assert!(dividends.get_untracked().per_share.is_empty());
+            assert_eq!(codes, vec!["7203".to_string()]);
+            assert!(
+                missing.is_empty(),
+                "一覧行を seed 済みなので個別再取得の対象はない"
+            );
+        });
+    }
+
+    #[test]
+    fn apply_loaded_replaces_same_generation_lookup_values() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let generation = 1;
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
+            let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+            lookup.update(|store| store.seed(generation, &[balance_row(7203), balance_row(6758)]));
+
+            let mut replaced = balance_row(7203);
+            replaced.shares = rust_decimal_macros::dec!(200);
+            replaced.market_value = rust_decimal_macros::dec!(520000);
+            apply_loaded_asset_balances(
+                generation,
+                LoadedAssetBalances {
+                    rows: vec![replaced],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                },
+                balances,
+                dividends,
+                lookup,
+                false,
+            );
+
+            let shares =
+                lookup.with_untracked(|store| store.get(generation, "7203").map(|row| row.shares));
+            assert_eq!(
+                shares,
+                Some(rust_decimal_macros::dec!(200)),
+                "同一世代の置換でも lookup の古い値を残さない"
+            );
+            assert!(
+                lookup.with_untracked(|store| store.get(generation, "6758").is_none()),
+                "置換後に消えた銘柄の lookup も消す"
+            );
+        });
+    }
+
+    #[test]
+    fn apply_loaded_keeps_dividends_while_preview_active() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let generation = 1;
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+
+            apply_loaded_asset_balances(
+                generation,
+                LoadedAssetBalances {
+                    rows: vec![balance_row(7203)],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                },
+                balances,
+                dividends,
+                lookup,
+                true,
+            );
+
+            assert_eq!(
+                dividends.get_untracked().per_share.get("7203"),
+                Some(&50.0),
+                "プレビュー表示中の一覧適用ではプレビュー行の配当を消さない"
+            );
+            assert!(matches!(
+                balances.get_untracked(),
+                Some((cached, Ok(_))) if cached == generation
+            ));
+        });
+    }
+
+    #[test]
+    fn list_error_keeps_cached_rows_and_reports_refresh_error() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let generation = 1;
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
+                generation,
+                Ok(LoadedAssetBalances {
+                    rows: vec![balance_row(7203)],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                }),
+            )));
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::begin_list_fetch);
+            let rev = data_ops.with_untracked(|ops| ops.list_rev);
+            data_ops.update(|ops| ops.end_list_fetch(rev));
+
+            apply_list_error(
+                generation,
+                rev,
+                "サーバーエラーが発生しました".to_string(),
+                balances,
+                data_ops,
+            );
+
+            let loaded = balances
+                .get_untracked()
+                .and_then(|(cached, result)| (cached == generation).then_some(result))
+                .and_then(|result| result.ok());
+            assert_eq!(
+                loaded.map(|loaded| loaded.rows.len()),
+                Some(1),
+                "再取得失敗でも表示中の一覧を消さない"
+            );
+            assert_eq!(
+                data_ops.with_untracked(|ops| ops.refresh_error.clone()),
+                Some("サーバーエラーが発生しました".to_string())
+            );
+        });
+    }
+
+    #[test]
+    fn list_error_without_cache_sets_error_slot() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let generation = 1;
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::begin_list_fetch);
+            let rev = data_ops.with_untracked(|ops| ops.list_rev);
+            data_ops.update(|ops| ops.end_list_fetch(rev));
+
+            apply_list_error(
+                generation,
+                rev,
+                "認証が必要です".to_string(),
+                balances,
+                data_ops,
+            );
+
+            assert!(matches!(
+                balances.get_untracked(),
+                Some((cached, Err(_))) if cached == generation
+            ));
+            assert!(data_ops.with_untracked(|ops| ops.refresh_error.is_none()));
+        });
+    }
+
+    #[test]
+    fn list_error_from_stale_fetch_is_dropped() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let generation = 1;
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::begin_list_fetch);
+            let stale_rev = data_ops.with_untracked(|ops| ops.list_rev);
+            data_ops.update(DataOps::begin_list_fetch);
+
+            apply_list_error(
+                generation,
+                stale_rev,
+                "サーバーエラーが発生しました".to_string(),
+                balances,
+                data_ops,
+            );
+
+            assert!(balances.get_untracked().is_none());
+            assert!(data_ops.with_untracked(|ops| ops.refresh_error.is_none()));
+        });
+    }
+
+    #[test]
+    fn list_loading_counts_inflight_fetch() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
+                generation,
+                Ok(LoadedAssetBalances {
+                    rows: vec![balance_row(7203)],
+                    total: 1,
+                    summary: None,
+                    facets: None,
+                    truncated: false,
+                }),
+            )));
+            let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+
+            assert!(
+                !store.list_loading(),
+                "キャッシュ済みで取得中でなければ false"
+            );
+
+            store.data_ops.update(DataOps::begin_list_fetch);
+            let rev = store.data_ops.with_untracked(|ops| ops.list_rev);
+            assert!(
+                store.list_loading(),
+                "キャッシュがあっても再取得中は true(React の isFetching と同じ)"
+            );
+
+            store.data_ops.update(|ops| ops.end_list_fetch(rev));
+            assert!(!store.list_loading());
+        });
+    }
+
+    #[test]
+    fn begin_delete_invalidates_inflight_list_result() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.data_ops.update(DataOps::begin_list_fetch);
+            let inflight_rev = store.data_ops.with_untracked(|ops| ops.list_rev);
+
+            store.open_delete_confirm();
+            assert!(store.try_begin_delete().is_some());
+            assert!(
+                !store
+                    .data_ops
+                    .with_untracked(|ops| ops.is_current_list(inflight_rev)),
+                "削除開始で進行中の一覧取得結果は適用されなくなる"
+            );
+        });
+    }
+
+    #[test]
+    fn delete_success_invalidates_late_list_and_poll_results() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let store = csv_store(
+                &session,
+                RwSignal::new(None),
+                RwSignal::new(DividendMaps::default()),
+            );
+            store.data_ops.update(DataOps::begin_list_fetch);
+            let list_rev = store.data_ops.with_untracked(|ops| ops.list_rev);
+            store.data_ops.update(DataOps::next_poll_rev);
+            let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+            store.update_csv(generation, |state| state.deleting = true);
+
+            store.apply_delete_result(generation, Ok(()));
+
+            assert!(!store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_list(list_rev)));
+            assert!(!store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_poll(poll_rev)));
+        });
+    }
+
+    #[test]
+    fn poll_rev_supersedes_earlier_poll() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::next_poll_rev);
+            let first = data_ops.with_untracked(|ops| ops.poll_rev);
+            data_ops.update(DataOps::next_poll_rev);
+            let second = data_ops.with_untracked(|ops| ops.poll_rev);
+            assert!(!data_ops.with_untracked(|ops| ops.is_current_poll(first)));
+            assert!(data_ops.with_untracked(|ops| ops.is_current_poll(second)));
+        });
+    }
+
+    #[test]
+    fn stale_list_completion_does_not_clear_inflight_of_current_generation() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+            data_ops.update(DataOps::begin_list_fetch);
+            let stale_rev = data_ops.with_untracked(|ops| ops.list_rev);
+            // ユーザー切替相当のリセット後、旧世代の完了が新世代の取得中を消さない
+            data_ops.update(DataOps::reset);
+            data_ops.update(DataOps::begin_list_fetch);
+            let current_rev = data_ops.with_untracked(|ops| ops.list_rev);
+
+            data_ops.update(|ops| ops.end_list_fetch(stale_rev));
+            assert!(data_ops.with_untracked(|ops| !ops.inflight.is_empty()));
+
+            data_ops.update(|ops| ops.end_list_fetch(current_rev));
+            assert!(data_ops.with_untracked(|ops| ops.inflight.is_empty()));
+        });
+    }
+
+    #[test]
+    fn begin_file_preview_stops_old_poll_and_clears_dividends() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            session.user.set(Some(user("alice")));
+            let generation = session.generation.get_untracked();
+            let dividends = RwSignal::new(DividendMaps {
+                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                status: HashMap::new(),
+            });
+            let store = csv_store(&session, RwSignal::new(None), dividends);
+            store.data_ops.update(DataOps::next_poll_rev);
+            let old_poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+
+            assert!(store.begin_file_preview(generation, "next.csv".to_string()));
+
+            assert!(!store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_poll(old_poll_rev)));
+            assert!(dividends.get_untracked().per_share.is_empty());
+        });
     }
 }

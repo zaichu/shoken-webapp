@@ -499,3 +499,282 @@ test.describe('取引明細 CSV 取込・削除', () => {
     });
   }
 });
+
+// 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
+// モック応答は fixture CSV の行と一致させる
+const ASSET_INPEX = {
+  security_code: '1605',
+  security_name: 'ＩＮＰＥＸ',
+  shares: 200,
+  executing_shares: 0,
+  average_purchase_price: 2355,
+  total_purchase_amount: 471000,
+  current_price: 3685,
+  daily_change: 65,
+  market_value: 737000,
+  profit_loss_rate: 56.47,
+};
+const ASSET_NINTENDO = {
+  security_code: '7974',
+  security_name: '任天堂',
+  shares: 1000,
+  executing_shares: 0,
+  average_purchase_price: 5997.6,
+  total_purchase_amount: 5997600,
+  current_price: 8737,
+  daily_change: 223,
+  market_value: 8737000,
+  profit_loss_rate: 45.67,
+};
+const ASSET_INPEX_UPDATED = {
+  ...ASSET_INPEX,
+  shares: 300,
+  total_purchase_amount: 706500,
+  market_value: 1105500,
+};
+const ASSET_MUFJ = {
+  security_code: '8306',
+  security_name: '三菱ＵＦＪフィナンシャルＧ',
+  shares: 300,
+  executing_shares: 0,
+  average_purchase_price: 3015,
+  total_purchase_amount: 904500,
+  current_price: 2925,
+  daily_change: 94,
+  market_value: 877500,
+  profit_loss_rate: -2.98,
+};
+const ASSET_KDDI = {
+  security_code: '9433',
+  security_name: 'ＫＤＤＩ',
+  shares: 600,
+  executing_shares: 0,
+  average_purchase_price: 2154,
+  total_purchase_amount: 1292400,
+  current_price: 2675.5,
+  daily_change: 20,
+  market_value: 1605300,
+  profit_loss_rate: 24.21,
+};
+const ASSET_BASE = [ASSET_INPEX, ASSET_NINTENDO];
+// 置換の証明のため、base の任天堂を含まない別3件にする
+const ASSET_UPDATED = [ASSET_INPEX_UPDATED, ASSET_MUFJ, ASSET_KDDI];
+const ASSET_FILES: Record<string, unknown[]> = {
+  'assetbalance-base.csv': ASSET_BASE,
+  'assetbalance-updated.csv': ASSET_UPDATED,
+};
+
+test.describe('資産管理 CSV 取込・削除', () => {
+  async function setupAssetApi(
+    page: Page,
+    overrides?: {
+      previewBody?: (rows: unknown[]) => object;
+      importBody?: (rows: unknown[]) => object;
+      savedRows?: (rows: unknown[]) => unknown[];
+    },
+  ) {
+    const api = { db: [] as unknown[], deleteCount: 0 };
+    await page.route(/\/api\/v1\/session$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(USER),
+      }),
+    );
+    await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      }),
+    );
+    await page.route(/\/api\/v1\/asset-balance-import-validations$/, (route) => {
+      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')] ?? [];
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          overrides?.previewBody?.(rows) ?? {
+            total_rows: rows.length,
+            valid_rows: rows.length,
+            errors: [],
+            rows,
+          },
+        ),
+      });
+    });
+    await page.route(/\/api\/v1\/asset-balance-imports$/, (route) => {
+      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')];
+      if (!rows) {
+        return route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: '不正なファイルです' }),
+        });
+      }
+      api.db = (overrides?.savedRows?.(rows) ?? rows).map(asDbRow);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          overrides?.importBody?.(rows) ?? {
+            inserted: rows.length,
+            skipped: 0,
+            errors: [],
+          },
+        ),
+      });
+    });
+    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        api.deleteCount += 1;
+        api.db = [];
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '{}',
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: api.db,
+          total: api.db.length,
+          page: 1,
+          per_page: api.db.length,
+        }),
+      });
+    });
+    return api;
+  }
+
+  const card = (page: Page, name: string) =>
+    page.locator('[data-testid="portfolio-card-identity"]', { hasText: name });
+
+  test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
+    const api = await setupAssetApi(page);
+
+    await page.goto('/assetbalance');
+    const fileInput = page.getByTestId('csv-file-input');
+    await expect(fileInput).toBeAttached();
+    // DB が空の間は全件削除ボタンを出さない
+    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
+    await expect(
+      page.getByRole('button', { name: '2件 全件置換で保存' }),
+    ).toBeEnabled();
+    // プレビュー行が一覧に出る
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toBeVisible();
+
+    await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
+    const notice = page.getByTestId('csv-save-result-notice');
+    await expect(notice).toContainText('2件反映');
+    await expect(notice).toContainText('全件置換');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (2件)' }),
+    ).toBeVisible();
+
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
+    await expect(
+      page.getByRole('button', { name: '3件 全件置換で保存' }),
+    ).toBeEnabled();
+    await expect(card(page, '三菱UFJフィナンシャルG')).toBeVisible();
+
+    await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
+    await expect(notice).toContainText('3件反映');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (3件)' }),
+    ).toBeVisible();
+    // 追加ではなく置換なので base にだけあった行は消える
+    await expect(card(page, '任天堂')).toHaveCount(0);
+    await expect(card(page, 'KDDI')).toBeVisible();
+
+    await page.getByRole('button', { name: /全件削除/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('資産管理データの全件削除');
+    await expect(dialog).toContainText('この操作は取り消せません');
+    await expect(dialog).toContainText('3件');
+    // 確認モーダルを開いただけでは DELETE を送らない
+    expect(api.deleteCount).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: '全件削除 (3件)' }),
+    ).toBeVisible();
+    expect(api.deleteCount).toBe(0);
+
+    await page.getByRole('button', { name: /全件削除/ }).click();
+    await page.getByRole('button', { name: '削除する' }).click();
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+    // 確定時に DELETE が1回だけ送られる
+    expect(api.deleteCount).toBe(1);
+    await expect(notice).toHaveCount(0);
+  });
+
+  test('不正行を含むCSVは有効件数で保存しスキップとエラー件数を表示する', async ({ page }) => {
+    const rowErrors = [
+      { row: 2, message: '銘柄コードが不正です' },
+      { row: 3, message: '株数が不正です' },
+    ];
+    await setupAssetApi(page, {
+      previewBody: () => ({
+        total_rows: 3,
+        valid_rows: 1,
+        errors: rowErrors,
+        rows: [ASSET_INPEX],
+      }),
+      importBody: () => ({ inserted: 1, skipped: 2, errors: rowErrors }),
+      savedRows: () => [ASSET_INPEX],
+    });
+
+    await page.goto('/assetbalance');
+    const fileInput = page.getByTestId('csv-file-input');
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
+    await expect(
+      page.getByRole('button', { name: '1件 全件置換で保存' }),
+    ).toBeEnabled();
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toHaveCount(0);
+
+    await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
+    const notice = page.getByTestId('csv-save-result-notice');
+    await expect(notice).toContainText('1件反映');
+    await expect(notice).toContainText('2件スキップ');
+    await expect(notice).toContainText('2件エラー');
+    await expect(notice).toContainText('2行目: 銘柄コードが不正です');
+    await expect(
+      page.getByRole('button', { name: '全件削除 (1件)' }),
+    ).toBeVisible();
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toHaveCount(0);
+  });
+
+  test('モバイル幅ではCSV操作を折りたたむ', async ({ page }) => {
+    await setupAssetApi(page);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto('/assetbalance');
+
+    const toggle = page.getByTestId('assetbalance-csv-toggle');
+    const body = page.locator('#assetbalance-csv-body');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(body).toBeHidden();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(body).toBeVisible();
+    await expect(page.getByTestId('csv-file-input')).toBeAttached();
+
+    await toggle.click();
+    await expect(body).toBeHidden();
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(toggle).toBeHidden();
+    await expect(body).toBeVisible();
+  });
+});

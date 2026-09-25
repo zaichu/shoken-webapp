@@ -1,5 +1,5 @@
+use crate::csv_flow::row_error_text;
 use crate::dto::CsvUploadResponse;
-use crate::receipts_csv::row_error_text;
 use leptos::prelude::*;
 
 const PRIMARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-slate-950 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-slate-800 active:bg-slate-950 px-3 py-1.5 text-sm max-sm:min-h-[44px] h-11 w-full rounded-md text-sm font-bold";
