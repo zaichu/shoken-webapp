@@ -210,4 +210,34 @@ mod tests {
         assert_ne!(status, StatusCode::NOT_FOUND);
         assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);
     }
+
+    /// 本番ルートに POST /api/v1/stocks が存在しないことを固定する
+    /// (銘柄マスタは共有データのため、API からの書き込み経路を持たない)
+    #[tokio::test]
+    async fn test_v1_stocks_post_rejected_in_production_routes() {
+        let router = auth_routes()
+            .merge(data_routes())
+            .merge(stock_search_routes())
+            .merge(csv_upload_routes())
+            .merge(crate::handlers::csv_import::csv_import_routes())
+            .with_state(make_test_state());
+
+        // 未認証でもセッション cookie 付きでも拒否される
+        let status = check_status(router.clone(), Method::POST, "/api/v1/stocks").await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/stocks")
+                    .header("cookie", format!("session_token={}", uuid::Uuid::new_v4()))
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
 }

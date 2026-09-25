@@ -10,7 +10,7 @@ use {
     },
     chrono::NaiveDate,
     reqwest::Client,
-    serde_json::{json, Value},
+    serde_json::Value,
     sqlx::{Pool, Postgres},
     std::sync::Arc,
     testcontainers::runners::AsyncRunner,
@@ -118,21 +118,6 @@ async fn read_json(response: axum::response::Response) -> Value {
     .unwrap()
 }
 
-fn stock_payload(code: &str, name: &str) -> Value {
-    json!({
-        "date": "2025-03-25",
-        "code": code,
-        "name": name,
-        "market_category": "スタンダード",
-        "industry_code_33": "456",
-        "industry_category_33": "製造業",
-        "industry_code_17": "45",
-        "industry_category_17": "製造",
-        "size_code": "20",
-        "size_category": "中型株"
-    })
-}
-
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_search_stock() {
@@ -157,42 +142,6 @@ async fn test_search_stock() {
             expected_status
         );
     }
-}
-
-/// 銘柄マスタは共有データのため API からの書き込み経路を持たない。
-/// 認証の有無に関わらず POST は 405 で拒否される。
-#[tokio::test]
-async fn test_create_stock_rejected() {
-    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
-        .unwrap();
-    let app = setup_test_app(pool);
-
-    assert_eq!(
-        call(
-            app.clone(),
-            "POST",
-            "/api/v1/stocks",
-            Some(stock_payload("9999", "偽テスト"))
-        )
-        .await
-        .status(),
-        StatusCode::METHOD_NOT_ALLOWED
-    );
-
-    // セッション cookie を付けてもルート自体が存在しないため同じく拒否される
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/stocks")
-                .header("content-type", "application/json")
-                .header("cookie", format!("session_token={}", uuid::Uuid::new_v4()))
-                .body(Body::from(stock_payload("9999", "偽テスト").to_string()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]
