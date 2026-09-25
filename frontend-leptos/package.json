@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:vercel": "env -u NO_COLOR SHOKEN_WEBAPI_URL=https://shoken-backend.fly.dev trunk build --release --dist dist-vercel",
+    "build:vercel": "env -u NO_COLOR SHOKEN_WEBAPI_URL=$(node scripts/backend-origin.mjs) trunk build --release --dist dist-vercel",
     "e2e:vercel": "env -u NO_COLOR playwright test --config playwright.vercel.config.ts"
   },
   "dependencies": {

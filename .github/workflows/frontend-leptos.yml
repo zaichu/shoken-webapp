@@ -74,6 +74,9 @@ jobs:
       - name: Install frontend-leptos dependencies
         run: npm ci
 
+      - name: Check vercel.json is generated from backend-origin.json
+        run: node scripts/generate-vercel-json.mjs --check
+
       - name: Check formatting
         run: cargo fmt --check
 
@@ -155,9 +158,7 @@ jobs:
         run: env -u NO_COLOR npx playwright test --config playwright.receipts.config.ts
 
       - name: Build Vercel verification bundle
-        run: env -u NO_COLOR trunk build --release --dist dist-vercel
-        env:
-          SHOKEN_WEBAPI_URL: https://shoken-backend.fly.dev
+        run: env -u NO_COLOR SHOKEN_WEBAPI_URL="$(node scripts/backend-origin.mjs)" trunk build --release --dist dist-vercel
 
       - name: Run Vercel delivery E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.vercel.config.ts
