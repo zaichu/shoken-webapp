@@ -146,6 +146,52 @@ impl ReceiptItem {
             ],
         }
     }
+
+    // カードの開閉状態を引き継ぐ照合は表示丸め前の値で行う。
+    // 数量 1.001 と 1.002 はともに「1.00」と出るが別行として区別する。
+    pub fn raw_key(&self) -> String {
+        let fields: Vec<String> = match self {
+            ReceiptItem::Dividend(row) => vec![
+                row.settlement_date.clone(),
+                row.product.clone(),
+                row.account.clone(),
+                row.security_code.clone(),
+                row.security_name.clone(),
+                row.unit_price.to_string(),
+                row.shares.to_string(),
+                row.dividends_before_tax.to_string(),
+                row.taxes.to_string(),
+                row.net_amount_received.to_string(),
+            ],
+            ReceiptItem::DomesticStock(row) => vec![
+                row.trade_date.clone(),
+                row.security_code.clone(),
+                row.security_name.clone(),
+                row.account.clone(),
+                row.shares.to_string(),
+                row.asked_price.to_string(),
+                row.proceeds.to_string(),
+                row.purchase_price.to_string(),
+                row.realized_profit_and_loss.to_string(),
+                row.taxes.to_string(),
+                row.realized_profit_and_loss_after_tax.to_string(),
+            ],
+            ReceiptItem::MutualFund(row) => vec![
+                row.trade_date.clone(),
+                row.fund_name.clone(),
+                row.account.clone(),
+                row.shares.to_string(),
+                row.exchange_rate.to_string(),
+                row.cancellation_unit_price_yen.to_string(),
+                row.cancellation_amount_yen.to_string(),
+                row.average_acquisition_price_yen.to_string(),
+                row.realized_profit_and_loss.to_string(),
+                row.taxes.to_string(),
+                row.realized_profit_and_loss_after_tax.to_string(),
+            ],
+        };
+        fields.join("\u{1f}")
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

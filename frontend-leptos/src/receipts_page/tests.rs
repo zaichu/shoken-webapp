@@ -320,22 +320,22 @@ fn table_groups_carry_group_key_and_row_ids() {
     assert_eq!(groups[0].label, "2026年6月");
     let ids: Vec<&str> = groups
         .iter()
-        .flat_map(|group| group.rows.iter().map(|(id, _)| id.as_str()))
+        .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_str()))
         .collect();
     assert_eq!(ids, ["new", "other", "old"]);
 }
 
 #[test]
 fn card_key_separates_idless_rows_by_position() {
-    let cells = dividends()[0].cells();
-    let key = card_key("dividend", "", &cells, 0);
+    let raw_key = dividends()[0].raw_key();
+    let key = card_key("dividend", "", &raw_key, 0);
     assert!(key.starts_with("dividend:p:"));
     assert!(key.contains("日本電信電話"));
-    assert_eq!(key, card_key("dividend", "", &cells, 0));
-    assert_ne!(key, card_key("dividend", "", &cells, 1));
-    assert_ne!(key, card_key("mutualfund", "", &cells, 0));
-    assert_eq!(card_key("dividend", "old", &cells, 0), "dividend:r:old");
-    assert_eq!(card_key("dividend", "old", &cells, 1), "dividend:r:old");
+    assert_eq!(key, card_key("dividend", "", &raw_key, 0));
+    assert_ne!(key, card_key("dividend", "", &raw_key, 1));
+    assert_ne!(key, card_key("mutualfund", "", &raw_key, 0));
+    assert_eq!(card_key("dividend", "old", &raw_key, 0), "dividend:r:old");
+    assert_eq!(card_key("dividend", "old", &raw_key, 1), "dividend:r:old");
 }
 
 #[test]
@@ -351,20 +351,72 @@ fn idless_rows_keep_unfiltered_positions_as_card_ordinals() {
     }
     let ordinals = idless_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
     assert_eq!(ordinals.len(), 2);
-    let content = first
-        .cells()
-        .iter()
-        .map(cell_text)
-        .collect::<Vec<_>>()
-        .join("\u{1f}");
     // 先頭行を絞り込みで除いても残る行のカードキーは変わらない
-    let positions: Vec<usize> = ordinals[&content].iter().copied().collect();
+    let positions: Vec<usize> = ordinals[&first.raw_key()].iter().copied().collect();
     assert_eq!(positions, [2, 3]);
-    let cells = first.cells();
     assert_ne!(
-        card_key("dividend", "", &cells, positions[0]),
-        card_key("dividend", "", &cells, positions[1]),
+        card_key("dividend", "", &first.raw_key(), positions[0]),
+        card_key("dividend", "", &first.raw_key(), positions[1]),
     );
+}
+
+#[test]
+fn idless_rows_with_rounding_identical_display_stay_separate() {
+    // 表示上の数量は両方「1.00」に丸められるが、絞り込みは丸め前の値で行う
+    let mut first = dividends()[0].clone();
+    let mut second = dividends()[0].clone();
+    for item in [&mut first, &mut second] {
+        if let ReceiptItem::Dividend(row) = item {
+            row.id.clear();
+        }
+    }
+    if let ReceiptItem::Dividend(row) = &mut first {
+        row.shares = dec!(1.001);
+    }
+    if let ReceiptItem::Dividend(row) = &mut second {
+        row.shares = dec!(1.002);
+    }
+    assert_eq!(first.cells(), second.cells());
+    assert_ne!(first.raw_key(), second.raw_key());
+
+    let all_rows = vec![first, second];
+    let keys_for = |groups: &[TableGroup]| {
+        let mut ordinals = idless_row_ordinals(&all_rows);
+        groups
+            .iter()
+            .flat_map(|group| group.rows.iter())
+            .map(|(id, raw_key, _)| {
+                card_key(
+                    "dividend",
+                    id,
+                    raw_key,
+                    card_ordinal(&mut ordinals, id, raw_key),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    // カード生成と同じく table_groups -> キュー照合 -> card_key で通す
+    let groups = table_groups(ReceiptsTab::Dividend, &all_rows, &all_rows, "");
+    let group_keys: Vec<&str> = groups
+        .iter()
+        .flat_map(|group| group.rows.iter().map(|(_, raw_key, _)| raw_key.as_str()))
+        .collect();
+    assert_eq!(group_keys.len(), 2);
+    assert_ne!(group_keys[0], group_keys[1]);
+    let keys_before = keys_for(&groups);
+    let [key_first, key_second] = keys_before.as_slice() else {
+        panic!("2行分のカードキーがある");
+    };
+    assert_ne!(key_first, key_second);
+    let key_second = key_second.clone();
+
+    // 先の行だけが外れる絞り込みの後でも、残った行のカードキーは変わらない
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &all_rows, "1.002");
+    assert_eq!(filtered.len(), 1);
+    let groups = table_groups(ReceiptsTab::Dividend, &filtered, &all_rows, "1.002");
+    let keys_after = keys_for(&groups);
+    assert_eq!(keys_after, [key_second]);
 }
 
 #[test]

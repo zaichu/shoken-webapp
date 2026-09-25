@@ -1480,7 +1480,7 @@ struct TableGroup {
     key: String,
     label: String,
     summary: Vec<String>,
-    rows: Vec<(String, Vec<ReceiptCell>)>,
+    rows: Vec<(String, String, Vec<ReceiptCell>)>,
 }
 
 fn group_label(key: &str) -> String {
@@ -1573,7 +1573,7 @@ fn table_groups(
                     .filter(|row| key(row) == summary.filter)
                     .cloned()
                     .map(ReceiptItem::Dividend)
-                    .map(|item| (item.id().to_string(), item.cells()))
+                    .map(|item| (item.id().to_string(), item.raw_key(), item.cells()))
                     .collect();
                 TableGroup {
                     key: summary.filter.clone(),
@@ -1605,7 +1605,7 @@ fn table_groups(
                         .filter(|row| row.trade_date == summary.filter)
                         .cloned()
                         .map(ReceiptItem::DomesticStock)
-                        .map(|item| (item.id().to_string(), item.cells()))
+                        .map(|item| (item.id().to_string(), item.raw_key(), item.cells()))
                         .collect();
                     TableGroup {
                         key: summary.filter.clone(),
@@ -1651,7 +1651,7 @@ fn table_groups(
                     .filter(|row| key(row) == summary.filter)
                     .cloned()
                     .map(ReceiptItem::MutualFund)
-                    .map(|item| (item.id().to_string(), item.cells()))
+                    .map(|item| (item.id().to_string(), item.raw_key(), item.cells()))
                     .collect();
                 TableGroup {
                     key: summary.filter.clone(),
@@ -1799,13 +1799,24 @@ fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
-// id を持たない行(CSVプレビュー等)は、同一内容の行と区別するため一覧内の位置も含めて識別する
-fn card_key(slug: &str, id: &str, cells: &[ReceiptCell], ordinal: usize) -> String {
+// id を持たない行(CSVプレビュー等)は、同一内容の行と区別するため一覧内の位置も含めて識別する。
+// 表示は数量等を丸めるため、行の同一性は丸め前の raw_key で判定する
+fn card_key(slug: &str, id: &str, raw_key: &str, ordinal: usize) -> String {
     if id.is_empty() {
-        let content: Vec<_> = cells.iter().map(cell_text).collect();
-        format!("{slug}:p:{ordinal}:{}", content.join("\u{1f}"))
+        format!("{slug}:p:{ordinal}:{raw_key}")
     } else {
         format!("{slug}:r:{id}")
+    }
+}
+
+fn card_ordinal(ordinals: &mut HashMap<String, VecDeque<usize>>, id: &str, raw_key: &str) -> usize {
+    if id.is_empty() {
+        ordinals
+            .get_mut(raw_key)
+            .and_then(|queue| queue.pop_front())
+            .unwrap_or_default()
+    } else {
+        0
     }
 }
 
@@ -1815,12 +1826,7 @@ fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usi
     let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
     for (index, item) in all_rows.iter().enumerate() {
         if item.id().is_empty() {
-            let cells = item.cells();
-            let content: Vec<_> = cells.iter().map(cell_text).collect();
-            ordinals
-                .entry(content.join("\u{1f}"))
-                .or_default()
-                .push_back(index);
+            ordinals.entry(item.raw_key()).or_default().push_back(index);
         }
     }
     ordinals
@@ -2253,6 +2259,21 @@ fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
+fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
+        ReceiptsTab::Dividend => &[
+            "left", "left", "left", "center", "left", "right", "right", "right", "right", "right",
+        ],
+        ReceiptsTab::DomesticStock => &[
+            "left", "center", "left", "left", "right", "right", "right", "right", "right", "right",
+            "right",
+        ],
+        ReceiptsTab::MutualFund => &[
+            "left", "left", "left", "right", "right", "right", "right", "right", "right", "right",
+        ],
+    }
+}
+
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
 // マウント中だけ生存させたいので thread_local で管理する
 type TableHeightObserver = (
@@ -2292,18 +2313,10 @@ fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(id, cells)| {
-                    let ordinal = if id.is_empty() {
-                        let content: Vec<_> = cells.iter().map(cell_text).collect();
-                        card_ordinals
-                            .get_mut(&content.join("\u{1f}"))
-                            .and_then(|queue| queue.pop_front())
-                            .unwrap_or_default()
-                    } else {
-                        0
-                    };
+                .map(|(id, raw_key, cells)| {
+                    let ordinal = card_ordinal(&mut card_ordinals, id, raw_key);
                     card_row_data(
-                        card_key(slug, id, cells, ordinal),
+                        card_key(slug, id, raw_key, ordinal),
                         cells,
                         headers,
                         &order,
@@ -2323,6 +2336,14 @@ fn ReceiptTable(
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
     let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
+    let cell_classes: Vec<&'static str> = order
+        .iter()
+        .map(|i| match table_column_aligns(tab)[*i] {
+            "center" => "text-center",
+            "right" => "text-right tabular-nums",
+            _ => "text-left",
+        })
+        .collect();
     let table_scroll = NodeRef::<leptos::html::Div>::new();
     let table_max_height = RwSignal::new(Option::<f64>::None);
     let measure_table = move || {
@@ -2390,113 +2411,160 @@ fn ReceiptTable(
         }
     });
     view! {
-        <div class="hidden sm:block">
-            <div
-                node_ref=table_scroll
-                class="relative w-full overflow-auto rounded-lg border border-slate-200 bg-white print:overflow-visible! print:max-h-none!"
-                style:max-height=move || {
-                    table_max_height
-                        .get()
-                        .map(|height| format!("{height}px"))
-                        .unwrap_or_default()
-                }
-            >
-                <table class="w-full table-fixed border-collapse text-sm">
-                    <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
-                        <tr class="bg-slate-50">
-                            {headers
-                                .iter()
-                                .zip(widths.iter())
-                                .map(|(header, width)| {
-                                    view! {
-                                        <th
-                                            class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-center font-black"
-                                            style:width=*width
-                                            style:max-width=*width
-                                        >
-                                            {*header}
-                                        </th>
+        <div
+            class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none"
+            data-testid="receipt-card"
+        >
+            <div class="p-0" data-testid="receipt-card-body">
+                <div class="hidden sm:block">
+                    <div
+                        node_ref=table_scroll
+                        class="relative w-full overflow-auto rounded-lg border border-slate-950/10 bg-white print:overflow-visible! print:max-h-none! [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500"
+                        style:max-height=move || {
+                            table_max_height
+                                .get()
+                                .map(|height| format!("{height}px"))
+                                .unwrap_or_default()
+                        }
+                    >
+                        <table class="w-full table-fixed border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100">
+                            <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
+                                <tr class="bg-slate-50">
+                                    {headers
+                                        .iter()
+                                        .zip(widths.iter())
+                                        .map(|(header, width)| {
+                                            view! {
+                                                <th
+                                                    class="text-center font-black text-slate-800"
+                                                    scope="col"
+                                                    style:width=*width
+                                                    style:max-width=*width
+                                                >
+                                                    {*header}
+                                                </th>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {groups
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(group_index, group)| {
+                                        let count = group.rows.len();
+                                        let top = if group_index > 0 {
+                                            " border-t-2 border-slate-300"
+                                        } else {
+                                            ""
+                                        };
+                                        view! {
+                                            <tr>
+                                                <td
+                                                    colspan={headers.len() - 3}
+                                                    class=format!(
+                                                        "whitespace-normal bg-slate-100 text-slate-800 font-semibold border-l-2 border-slate-500{top}"
+                                                    )
+                                                >
+                                                    <span class="text-sm font-medium">{group.label.clone()}</span>
+                                                    <span class="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
+                                                        {format!("{count}件")}
+                                                    </span>
+                                                </td>
+                                                {group
+                                                    .summary
+                                                    .iter()
+                                                    .map(|value| {
+                                                        let negative = is_negative_text(value);
+                                                        view! {
+                                                            <td
+                                                                class=format!(
+                                                                    "bg-slate-100 text-slate-800 text-right font-semibold{top}"
+                                                                )
+                                                                data-negative=negative.then_some("true")
+                                                            >
+                                                                {value.clone()}
+                                                            </td>
+                                                        }
+                                                    })
+                                                    .collect_view()}
+                                            </tr>
+                                            {group
+                                                .rows
+                                                .iter()
+                                                .map(|(_, _, cells)| {
+                                                    let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
+                                                    view! {
+                                                        <tr>
+                                                            {cells
+                                                                .into_iter()
+                                                                .enumerate()
+                                                                .map(|(col_index, cell)| {
+                                                                    let align = cell_classes[col_index];
+                                                                    match cell {
+                                                                        ReceiptCell::SecurityCode(code) => view! {
+                                                                            <td class=align>
+                                                                                <SecurityCodeLink value=code />
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
+                                                                        ReceiptCell::InstrumentName { name, code } => view! {
+                                                                            <td class=align>
+                                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
+                                                                        ReceiptCell::Text(value) => {
+                                                                            let negative = is_negative_text(&value);
+                                                                            let title = value.clone();
+                                                                            view! {
+                                                                                <td
+                                                                                    class=align
+                                                                                    title=title
+                                                                                    data-negative=negative.then_some("true")
+                                                                                >
+                                                                                    {value}
+                                                                                </td>
+                                                                            }
+                                                                            .into_any()
+                                                                        }
+                                                                    }
+                                                                })
+                                                                .collect_view()}
+                                                    </tr>
+                                                }
+                                            })
+                                            .collect_view()}
                                     }
                                 })
                                 .collect_view()}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {groups
-                            .iter()
-                            .map(|group| {
-                                let count = group.rows.len();
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+                <div class="sm:hidden" data-testid="receipt-card-list">
+                    <div class="space-y-4">
+                        {card_groups
+                            .into_iter()
+                            .map(|(group_index, key, label, count, summary, cards)| {
                                 view! {
-                                    <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold">
-                                        <td colspan={headers.len() - 3} class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">
-                                            {group.label.clone()}
-                                            <span class="ml-2 text-xs text-slate-600">{format!("{count}件")}</span>
-                                        </td>
-                                        {group
-                                            .summary
-                                            .iter()
-                                            .map(|value| view! { <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-right font-mono">{value.clone()}</td> })
-                                            .collect_view()}
-                                    </tr>
-                                    {group
-                                        .rows
-                                        .iter()
-                                        .map(|(_, cells)| {
-                                            let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
-                                            view! {
-                                                <tr class="border-t border-slate-200">
-                                                    {cells
-                                                        .into_iter()
-                                                        .map(|cell| match cell {
-                                                            ReceiptCell::SecurityCode(code) => view! {
-                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2 text-center">
-                                                                    <SecurityCodeLink value=code />
-                                                                </td>
-                                                            }
-                                                            .into_any(),
-                                                            ReceiptCell::InstrumentName { name, code } => view! {
-                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">
-                                                                    <CopyableInstrumentName name=name code=code.unwrap_or_default() />
-                                                                </td>
-                                                            }
-                                                            .into_any(),
-                                                            ReceiptCell::Text(value) => view! {
-                                                                <td class="whitespace-nowrap overflow-hidden text-ellipsis px-3 py-2">{value}</td>
-                                                            }
-                                                            .into_any(),
-                                                        })
-                                                        .collect_view()}
-                                            </tr>
-                                        }
-                                    })
-                                    .collect_view()}
-                            }
-                        })
-                        .collect_view()}
-                </tbody>
-            </table>
+                                    <MobileCardGroup
+                                        label=label
+                                        count=count
+                                        summary=summary
+                                        cards=cards
+                                        id_prefix=format!("receipt-{slug}-group-{group_index}")
+                                        expanded_key=format!("{slug}:g:{key}")
+                                        expanded_ids=expanded_ids
+                                    />
+                                }
+                            })
+                            .collect_view()}
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="sm:hidden" data-testid="receipt-card-list">
-        <div class="space-y-4">
-            {card_groups
-                .into_iter()
-                .map(|(group_index, key, label, count, summary, cards)| {
-                    view! {
-                        <MobileCardGroup
-                            label=label
-                            count=count
-                            summary=summary
-                            cards=cards
-                            id_prefix=format!("receipt-{slug}-group-{group_index}")
-                            expanded_key=format!("{slug}:g:{key}")
-                            expanded_ids=expanded_ids
-                        />
-                    }
-                })
-                .collect_view()}
-        </div>
-    </div>
     }
 }
 
