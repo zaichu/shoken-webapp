@@ -1,0 +1,169 @@
+name: Frontend Leptos Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Detect frontend-leptos changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_leptos: ${{ steps.filter.outputs.frontend_leptos }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        with:
+          filters: |
+            frontend_leptos:
+              - "frontend-leptos/**"
+              - ".github/workflows/deploy-frontend-leptos.yml"
+              - ".github/actions/setup-frontend/**"
+
+  vercel-secrets:
+    name: Check Vercel secrets
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check secrets presence
+        id: check
+        run: |
+          missing=""
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [[ -z "${!name}" ]]; then
+              missing="${missing} ${name}"
+            fi
+          done
+          if [[ -n "${missing}" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Vercel シークレットが未登録です(${missing# })。デプロイをスキップします"
+            echo "Vercel シークレットが未登録です(\`${missing# }\`)。デプロイはスキップされました(失敗ではありません)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Build and deploy to Vercel
+    needs: [changes, vercel-secrets]
+    if: needs.vercel-secrets.outputs.available == 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.frontend_leptos == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    defaults:
+      run:
+        working-directory: frontend-leptos
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          toolchain: 1.96.0
+          target: wasm32-unknown-unknown
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        with:
+          workspaces: frontend-leptos -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install trunk
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -sSfLO https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz
+          curl -sSfLO https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz.sha256
+          echo "$(tr -d '[:space:]' < trunk-x86_64-unknown-linux-gnu.tar.gz.sha256)  trunk-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf trunk-x86_64-unknown-linux-gnu.tar.gz
+          install -m 755 trunk ~/.cargo/bin/
+
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@59.22.0 # https://github.com/vercel/vercel/releases/tag/vercel@59.22.0
+
+      - name: Determine deploy target
+        id: target
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            if [[ "${{ vars.LEPTOS_PRODUCTION_ENABLED }}" == "true" ]]; then
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+            else
+              echo "environment=preview" >> "$GITHUB_OUTPUT"
+              echo "::notice::LEPTOS_PRODUCTION_ENABLED が 'true' ではないため preview にデプロイします(本番反映は切替決定まで無効)"
+            fi
+          else
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment="${{ steps.target.outputs.environment }}" --token "${VERCEL_TOKEN}"
+
+      - name: Build output (vercel build)
+        run: |
+          if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
+            vercel build --prod --token "${VERCEL_TOKEN}"
+          else
+            vercel build --token "${VERCEL_TOKEN}"
+          fi
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
+            url="$(vercel deploy --prebuilt --prod --token "${VERCEL_TOKEN}" | grep -oE 'https://[^ ]+' | tail -n1)"
+          else
+            url="$(vercel deploy --prebuilt --token "${VERCEL_TOKEN}" | grep -oE 'https://[^ ]+' | tail -n1)"
+          fi
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+          echo "Deployed (${{ steps.target.outputs.environment }}): ${url}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on the PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- leptos-preview-deployment -->';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const body = `${marker}\nLeptos 版プレビュー: ${process.env.PREVIEW_URL} (${sha})`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
