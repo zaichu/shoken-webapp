@@ -365,6 +365,11 @@ mod tests {
         assert_eq!(sql.matches("product ILIKE").count(), 2);
         assert_eq!(sql.matches("account ILIKE").count(), 2);
         assert_eq!(sql.matches(" OR ").count(), 2);
+        // OR は先頭ではなく列の間にだけ挿入される(個数ではなく配置を検証)
+        assert_eq!(
+            sql,
+            "SELECT 1 FROM dummy AND (product ILIKE $1 ESCAPE '\\' OR account ILIKE $2 ESCAPE '\\') AND (product ILIKE $3 ESCAPE '\\' OR account ILIKE $4 ESCAPE '\\')"
+        );
     }
 
     #[test]
