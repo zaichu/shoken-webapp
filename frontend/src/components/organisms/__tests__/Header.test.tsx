@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { ApiError, ApiErrorType } from '@/lib/types/api';
 import { Header } from '../Header';
 
 vi.mock('@/features/auth/hooks/useAuth', () => ({
@@ -131,6 +132,31 @@ describe('Header', () => {
     });
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'アカウント削除の確認' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('削除に失敗したときモーダル内にエラーが出て再試行で閉じる', async () => {
+    const deleteAccount = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorType.SERVER_ERROR, 'サーバーエラーが発生しました', 500)
+      )
+      .mockResolvedValueOnce(undefined);
+    const { user } = renderHeader({ deleteAccount });
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }));
+    await user.click(screen.getByRole('menuitem', { name: /アカウント削除/ }));
+    await user.click(await screen.findByRole('button', { name: '削除する' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'アカウント削除の確認' });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'サーバーエラーが発生しました。しばらくしてから再度お試しください'
+    );
+
+    await user.click(screen.getByRole('button', { name: '削除する' }));
+    await waitFor(() => {
+      expect(deleteAccount).toHaveBeenCalledTimes(2);
+      expect(dialog).not.toBeInTheDocument();
     });
   });
 

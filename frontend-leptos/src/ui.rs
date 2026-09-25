@@ -64,8 +64,14 @@ pub fn SiteHeader() -> impl IntoView {
     let session = use_session();
     let path = current_path();
     let delete_confirm_open = RwSignal::new(false);
+    let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
     let deleting_memo = Memo::new(move |_| deleting.get());
+    Effect::new(move |_| {
+        if delete_confirm_open.get() {
+            delete_error.set(None);
+        }
+    });
     view! {
         <header class="sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur no-print">
             <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 py-3">
@@ -156,13 +162,16 @@ pub fn SiteHeader() -> impl IntoView {
                     item_count=1
                     confirm_label="削除する"
                     loading=deleting_memo
+                    error=delete_error
                     on_confirm=move || {
                         deleting.set(true);
+                        delete_error.set(None);
                         leptos::task::spawn_local(async move {
                             let result = session.delete_account().await;
                             deleting.set(false);
-                            if result.is_ok() {
-                                delete_confirm_open.set(false);
+                            match result {
+                                Ok(()) => delete_confirm_open.set(false),
+                                Err(error) => delete_error.set(Some(error.user_message())),
                             }
                         });
                     }

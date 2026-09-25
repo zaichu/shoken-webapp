@@ -7,6 +7,7 @@ import { locationAssigner } from '../locationAssigner';
 import { useAuth } from '../../hooks/useAuth';
 import { useIdleTimer } from '../../hooks/useIdleTimer';
 import { apiClient } from '@/lib/api/client';
+import { ApiError, ApiErrorType } from '@/lib/types/api';
 
 vi.mock('../../hooks/useIdleTimer', () => ({
   useIdleTimer: vi.fn(),
@@ -247,6 +248,7 @@ describe('AuthProvider', () => {
       });
       expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/account', {
         withCredentials: true,
+        retry: { maxRetries: 0 },
       });
     });
 
@@ -259,8 +261,10 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
   });
 
-  it('deleteAccountで確認APIが失敗した場合は削除APIを呼ばずuserをnullにする', async () => {
-    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('confirmation failed'));
+  it('deleteAccountで確認APIが失敗した場合は削除APIを呼ばずuserを残す', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce(
+      new ApiError(ApiErrorType.SERVER_ERROR, 'confirmation failed', 500)
+    );
     const { user } = await renderAuthProvider();
 
     await user.click(screen.getByRole('button', { name: 'delete-account' }));
@@ -269,11 +273,28 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('error').textContent).toBe('confirmation failed');
     });
     expect(apiClient.delete).not.toHaveBeenCalled();
+    expect(screen.getByTestId('user-name').textContent).toBe('テストユーザー');
+  });
+
+  it('deleteAccountで確認APIが401を返した場合はuserをnullにする', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce(
+      new ApiError(ApiErrorType.AUTHENTICATION_ERROR, '認証が必要です', 401)
+    );
+    const { user } = await renderAuthProvider();
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('認証が必要です');
+    });
+    expect(apiClient.delete).not.toHaveBeenCalled();
     expect(screen.getByTestId('user-name').textContent).toBe('none');
   });
 
-  it('deleteAccountで削除APIが失敗した場合はthrowしてcatch可能', async () => {
-    vi.mocked(apiClient.delete).mockRejectedValueOnce(new Error('delete failed'));
+  it('deleteAccountで削除APIが失敗した場合はuserを残してthrowする', async () => {
+    vi.mocked(apiClient.delete).mockRejectedValueOnce(
+      new ApiError(ApiErrorType.SERVER_ERROR, 'delete failed', 500)
+    );
     const { user } = await renderAuthProvider();
 
     await user.click(screen.getByRole('button', { name: 'delete-account' }));
@@ -282,6 +303,31 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('error').textContent).toBe('delete failed');
     });
     expect(apiClient.post).toHaveBeenCalledWith('/api/v1/account-deletion-confirmations', {}, {
+      withCredentials: true,
+      retry: { maxRetries: 0 },
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('テストユーザー');
+  });
+
+  it('deleteAccountで削除APIの応答が失われた場合はセッションを確認して再送する', async () => {
+    vi.mocked(apiClient.delete)
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorType.NETWORK_ERROR, 'ネットワークエラーが発生しました')
+      )
+      .mockResolvedValueOnce(undefined);
+    const { user } = await renderAuthProvider();
+    // 削除応答喪失後のセッション確認はセッション生存を返す
+    mockGet.mockResolvedValueOnce(mockUser);
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(
+      () => {
+        expect(apiClient.delete).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 5000 }
+    );
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/account', {
       withCredentials: true,
       retry: { maxRetries: 0 },
     });

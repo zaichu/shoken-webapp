@@ -11,6 +11,7 @@ interface ConfirmDeleteModalProps {
   confirmLabel?: string;
   /** 削除処理中フラグ（多重実行防止） */
   loading?: boolean;
+  error?: string | null;
 }
 
 /**
@@ -26,8 +27,15 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   itemCount,
   confirmLabel = '削除する',
   loading = false,
+  error = null,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  // 削除要求が飛んでいる間に閉じると結果を追えなくなるため、閉じ操作は完了まで無効化する
+  const handleCancel = () => {
+    if (!loading) {
+      onCancel();
+    }
+  };
 
   // !isOpen 時は div が DOM にないため dialogRef.current が null → no-op
   useEffect(() => {
@@ -40,10 +48,10 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
     <div
       ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onCancel}
+      onClick={handleCancel}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
-          onCancel();
+          handleCancel();
           return;
         }
         // Tab フォーカストラップ: dialog 全体で一元管理し、フォーカス逸脱を防ぐ
@@ -84,8 +92,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             </h5>
             <button
               type="button"
-              className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded"
-              onClick={onCancel}
+              className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={handleCancel}
+              disabled={loading}
               aria-label="閉じる"
             >
               <span aria-hidden="true">✕</span>
@@ -99,11 +108,20 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             <p className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
               <strong>⚠ この操作は取り消せません。</strong>削除されたデータは復元できません。
             </p>
+            {error ? (
+              <p
+                role="alert"
+                className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                {error}
+              </p>
+            ) : null}
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
             <Button
               variant="secondary"
-              onClick={onCancel}
+              onClick={handleCancel}
+              disabled={loading}
             >
               キャンセル
             </Button>

@@ -134,9 +134,16 @@ impl SessionStore {
             Err(error) => Err(error),
             Ok(_) => delete_with_verification(&client).await,
         };
-        self.mark_unauthenticated();
-        self.loaded.set(true);
-        cross_tab::notify_logout();
+        // 削除失敗時はセッションを残し、呼び出し側がエラーを出して再試行できるようにする
+        let session_lost = match &result {
+            Ok(()) => true,
+            Err(error) => error.is_unauthorized(),
+        };
+        if session_lost {
+            self.mark_unauthenticated();
+            self.loaded.set(true);
+            cross_tab::notify_logout();
+        }
         result
     }
 
