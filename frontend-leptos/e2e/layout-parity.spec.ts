@@ -326,6 +326,59 @@ async function expectTableSettled(page: Page) {
   );
 }
 
+function serverError() {
+  return { status: 500, contentType: 'application/json', body: '{}' };
+}
+
+// 後から登録した route が優先されるため、基本モックの後に呼ぶ
+async function mockReceiptFetchErrors(page: Page) {
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill(serverError()),
+  );
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(serverError()),
+  );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(serverError()),
+  );
+}
+
+async function expectReceiptsErrorLayout(page: Page) {
+  const rail = page.getByTestId('receipt-utility-rail');
+  const main = page.getByTestId('receipt-main-stage');
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  await expect(rail.getByRole('alert')).toHaveText(
+    /^エラー:\s*サーバーエラーが発生しました$/,
+  );
+  await expect(rail.getByTestId('search-card-compact')).toBeVisible();
+  const emptyCard = main.getByTestId('receipt-card');
+  await expect(emptyCard).toBeVisible();
+  await expect(emptyCard).toContainText('データがありません');
+  await expect(emptyCard).toContainText('配当金明細をCSVで追加してください');
+}
+
+async function expectAssetBalanceErrorLayout(page: Page) {
+  const rail = page.getByTestId('assetbalance-utility-rail');
+  const main = page.getByTestId('assetbalance-main-stage');
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  const card = rail.locator('> div').first();
+  await expect(card.getByRole('alert')).toHaveText(
+    /^エラー:\s*サーバーエラーが発生しました$/,
+  );
+  await expect(card).toHaveCSS('border-top-width', '1px');
+  await expect(rail.getByText('AI総評プロンプト', { exact: true })).toBeVisible();
+  await expect(main).toContainText('資産管理データがありません');
+  await expect(main).toContainText(
+    'CSVファイルをインポートするか、データを登録してください。',
+  );
+}
+
+async function expectSearchServerError(page: Page) {
+  await expect(page.getByRole('alert')).toHaveText(
+    /^エラー:\s*サーバーエラーが発生しました。しばらくしてから再度お試しください$/,
+  );
+}
+
 test.beforeEach(async ({ context }) => {
   await mockApi(context);
 });
@@ -403,7 +456,60 @@ for (const width of [1440, 1024, 390]) {
     await expectNoPageOverflow(page, width);
     await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
   });
+
+  test(`検索のエラー文言はReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
+      route.fulfill(serverError()),
+    );
+    await page.goto('/search?code=7203');
+    await expectSearchServerError(page);
+    await shoot(page, testInfo, `search-error-${width}-leptos`);
+  });
+
+  test(`取引明細のエラー構成はReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await mockReceiptFetchErrors(page);
+    await page.goto('/receipts');
+    await expectReceiptsErrorLayout(page);
+    await expectNoPageOverflow(page, width);
+    await shoot(page, testInfo, `receipts-error-${width}-leptos`);
+  });
+
+  test(`資産管理のエラー構成はReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+      route.fulfill(serverError()),
+    );
+    await page.goto('/assetbalance');
+    await expectAssetBalanceErrorLayout(page);
+    await expectNoPageOverflow(page, width);
+    await shoot(page, testInfo, `assetbalance-error-${width}-leptos`);
+  });
 }
+
+test('資産管理レールは390pxでも1枚カードで検索は初期展開', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/assetbalance');
+  await expectAssetDataLoaded(page);
+
+  const rail = page.getByTestId('assetbalance-utility-rail');
+  const card = rail.locator('> div').first();
+  await expect(card).toHaveCSS('border-top-width', '1px');
+  const radius = await card.evaluate(
+    (el) => getComputedStyle(el).borderTopLeftRadius,
+  );
+  expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+  await expect(card.getByTestId('assetbalance-csv-toggle')).toBeVisible();
+  await expect(card.getByTestId('search-card-compact')).toBeVisible();
+  await expect(
+    card.getByText('AI総評プロンプト', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('#securities-search')).toBeVisible();
+  await shoot(page, testInfo, 'assetbalance-rail-390-leptos');
+});
 
 test('取引明細 390px はカード表示で page-surface もページはみ出しもない', async ({
   page,
@@ -464,6 +570,30 @@ test.describe('react比較', () => {
     await expectAssetDataLoaded(page);
     await shoot(page, testInfo, 'assetbalance-data-390-react');
   });
+
+  for (const width of [1440, 1024, 390]) {
+    test(`react error views ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
+        route.fulfill(serverError()),
+      );
+      await page.goto('/search?code=7203');
+      await expectSearchServerError(page);
+      await shoot(page, testInfo, `search-error-${width}-react`);
+
+      await mockReceiptFetchErrors(page);
+      await page.goto('/receipts');
+      await expectReceiptsErrorLayout(page);
+      await shoot(page, testInfo, `receipts-error-${width}-react`);
+
+      await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+        route.fulfill(serverError()),
+      );
+      await page.goto('/assetbalance');
+      await expectAssetBalanceErrorLayout(page);
+      await shoot(page, testInfo, `assetbalance-error-${width}-react`);
+    });
+  }
 
   test('表の実幅と横スクロール量は React 版と一致する', async ({ page, context }) => {
     const leptos = await context.newPage();

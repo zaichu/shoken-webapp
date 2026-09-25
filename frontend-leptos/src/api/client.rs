@@ -26,13 +26,6 @@ pub enum ApiError {
 }
 
 impl ApiError {
-    pub fn status(&self) -> Option<u16> {
-        match self {
-            ApiError::Http { status } => Some(*status),
-            _ => None,
-        }
-    }
-
     pub fn is_unauthorized(&self) -> bool {
         matches!(self, ApiError::Http { status: 401 })
     }
@@ -51,15 +44,34 @@ impl ApiError {
             ApiError::Timeout => {
                 "リクエストがタイムアウトしました。もう一度お試しください".to_string()
             }
-            ApiError::Parse => "応答の解析に失敗しました".to_string(),
+            ApiError::Parse => {
+                "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。".to_string()
+            }
             ApiError::Http { status } => match status {
                 400 => "入力内容を確認してください".to_string(),
-                401 => "認証が必要です".to_string(),
+                401 => "ログインが必要です".to_string(),
                 403 => "このリソースへのアクセス権限がありません".to_string(),
                 404 => "指定されたリソースが見つかりません".to_string(),
-                500..=599 => {
+                500 | 502..=504 => {
                     "サーバーエラーが発生しました。しばらくしてから再度お試しください".to_string()
                 }
+                _ => format!("エラーが発生しました (ステータス: {status})"),
+            },
+        }
+    }
+
+    // エラーバッジ用の生文言。user_message() の案内文とは別系統で、HTTP 既定文に直す
+    pub fn message(&self) -> String {
+        match self {
+            ApiError::Network => "ネットワークエラーが発生しました".to_string(),
+            ApiError::Timeout => "リクエストがタイムアウトしました".to_string(),
+            ApiError::Parse => "応答の解析に失敗しました".to_string(),
+            ApiError::Http { status } => match status {
+                400 => "リクエストが不正です".to_string(),
+                401 => "認証が必要です".to_string(),
+                403 => "アクセスが拒否されました".to_string(),
+                404 => "リソースが見つかりません".to_string(),
+                500 | 502..=504 => "サーバーエラーが発生しました".to_string(),
                 _ => format!("エラーが発生しました (ステータス: {status})"),
             },
         }
@@ -300,11 +312,54 @@ mod tests {
     }
 
     #[test]
-    fn unauthorized_message_matches_react() {
+    fn user_message_matches_react() {
         assert_eq!(
             ApiError::Http { status: 401 }.user_message(),
-            "認証が必要です"
+            "ログインが必要です"
         );
+        assert_eq!(
+            ApiError::Http { status: 404 }.user_message(),
+            "指定されたリソースが見つかりません"
+        );
+        assert_eq!(
+            ApiError::Http { status: 500 }.user_message(),
+            "サーバーエラーが発生しました。しばらくしてから再度お試しください"
+        );
+        assert_eq!(
+            ApiError::Network.user_message(),
+            "ネットワーク接続を確認してください"
+        );
+    }
+
+    #[test]
+    fn message_matches_react() {
+        for (error, expected) in [
+            (ApiError::Network, "ネットワークエラーが発生しました"),
+            (ApiError::Timeout, "リクエストがタイムアウトしました"),
+            (ApiError::Parse, "応答の解析に失敗しました"),
+            (ApiError::Http { status: 400 }, "リクエストが不正です"),
+            (ApiError::Http { status: 401 }, "認証が必要です"),
+            (ApiError::Http { status: 403 }, "アクセスが拒否されました"),
+            (ApiError::Http { status: 404 }, "リソースが見つかりません"),
+            (
+                ApiError::Http { status: 500 },
+                "サーバーエラーが発生しました",
+            ),
+            (
+                ApiError::Http { status: 503 },
+                "サーバーエラーが発生しました",
+            ),
+            (
+                ApiError::Http { status: 501 },
+                "エラーが発生しました (ステータス: 501)",
+            ),
+            (
+                ApiError::Http { status: 418 },
+                "エラーが発生しました (ステータス: 418)",
+            ),
+        ] {
+            assert_eq!(error.message(), expected);
+        }
     }
 
     #[test]

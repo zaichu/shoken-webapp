@@ -118,7 +118,7 @@ test('取引明細の検索カードは 640px 以上で初期展開', async ({ p
   await expect(page.locator('#search-options-body')).toBeVisible();
 });
 
-test('資産管理の検索カードは 390px では初期折り畳みでトグルで開閉できる', async ({ page }) => {
+test('資産管理の検索カードは 390px でも初期展開でトグルで開閉できる', async ({ page }) => {
   await mockAssetBalance(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
@@ -128,12 +128,12 @@ test('資産管理の検索カードは 390px では初期折り畳みでトグ�
   const header = page.getByTestId('search-card-header');
   const body = page.locator('#search-options-body');
   await expect(header).toBeVisible();
-  await expect(header).toHaveAttribute('aria-expanded', 'false');
-  await expect(body).toBeHidden();
-
-  await header.click();
   await expect(header).toHaveAttribute('aria-expanded', 'true');
   await expect(body).toBeVisible();
+
+  await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'false');
+  await expect(body).toBeHidden();
 });
 
 test('資産管理の検索カードは 640px 以上で初期展開', async ({ page }) => {

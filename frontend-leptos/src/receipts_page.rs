@@ -59,14 +59,6 @@ pub fn ReceiptsPage() -> impl IntoView {
             eyebrow="Transactions"
             description="配当金・国内株式・投資信託の取引明細を管理します。"
         />
-        {{
-            let failed = store.clone();
-            move || {
-                failed
-                    .error()
-                    .map(|message| view! { <div role="alert">{message}</div> })
-            }
-        }}
         <nav class="mb-2 no-print" aria-label="取引明細タブ">
             <div
                 class="flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto"
@@ -299,6 +291,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let loading_store = store.clone();
     let rail_store = store.clone();
     let main_store = store.clone();
+    let alert_store = store.clone();
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
@@ -316,28 +309,10 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
                         // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
-                        match panel_state.get() {
-                            TabState::Failed(message) => {
-                                view! {
-                                    <section class="px-5 py-4">
-                                        <div
-                                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
-                                            role="alert"
-                                            aria-live="assertive"
-                                        >
-                                            <strong>"エラー:"</strong>
-                                            " "
-                                            {message}
-                                        </div>
-                                    </section>
-                                }
-                                    .into_any()
-                            }
-                            _ => ().into_any(),
-                        }
-                    }}
-                    {move || {
-                        let Some(message) = csv_store.csv_state(tab).error else {
+                        let Some(message) = alert_store
+                            .error()
+                            .or_else(|| alert_store.csv_state(tab).error)
+                        else {
                             return ().into_any();
                         };
                         view! {
@@ -439,7 +414,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                             view! { <ReceiptsSearchCard store=rail_store.clone() tab=tab data=data /> }
                                 .into_any()
                         }
-                        TabState::Failed(_) if rail_store.has_csv_preview(tab) => {
+                        TabState::Failed(_) => {
                             view! {
                                 <ReceiptsSearchCard
                                     store=rail_store.clone()
@@ -460,7 +435,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }
                             .into_any()
                     }
-                    TabState::Failed(_) if main_store.has_csv_preview(tab) => {
+                    TabState::Failed(_) => {
                         view! {
                             <ReceiptsMainContent
                                 store=main_store.clone()
@@ -470,7 +445,6 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         }
                             .into_any()
                     }
-                    _ => ().into_any(),
                 }}
             </div>
         </div>
@@ -706,7 +680,24 @@ fn ReceiptsMainContent(
         {move || {
             let display = display_rows.get();
             if display.is_empty() {
-                return view! { <div><h3>"データがありません"</h3><p>{empty_hint(tab)}</p></div> }.into_any();
+                return view! {
+                    <div
+                        class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)]"
+                        data-testid="receipt-card"
+                    >
+                        <div class="p-0" data-testid="receipt-card-body">
+                            <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center">
+                                <h3 class="text-base font-black text-slate-950">
+                                    "データがありません"
+                                </h3>
+                                <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                                    {empty_hint(tab)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+                    .into_any();
             }
             let query = search.with(|s| s.query.clone());
             let rows = filtered.get();

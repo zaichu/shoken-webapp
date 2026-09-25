@@ -197,7 +197,7 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   await shoot(page, '1920');
 });
 
-test('390px では見直し促進カードが独立したカードとして表示される', async ({
+test('390px でも見直し促進カードはレール1枚カード内の末尾セクションになる', async ({
   page,
 }) => {
   await stubClipboard(page);
@@ -206,7 +206,9 @@ test('390px では見直し促進カードが独立したカードとして表�
   await gotoAssetBalance(page);
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
 
-  const card = page.getByTestId('asset-review-prompt-card');
+  const rail = page.getByTestId('assetbalance-utility-rail');
+  const outerCard = rail.locator('> div').first();
+  const card = rail.getByTestId('asset-review-prompt-card');
   await expect(card).toBeVisible();
   const cardStyle = await card.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -215,8 +217,15 @@ test('390px では見直し促進カードが独立したカードとして表�
       borderRadius: s.borderTopLeftRadius,
     };
   });
-  expect(cardStyle.borderTopWidth).toBe('1px');
-  expect(Number.parseFloat(cardStyle.borderRadius)).toBeGreaterThan(0);
+  expect(cardStyle.borderTopWidth).toBe('0px');
+  expect(Number.parseFloat(cardStyle.borderRadius)).toBe(0);
+
+  const order = await outerCard.evaluate((el) =>
+    Array.from(el.children)
+      .map((child) => (child as HTMLElement).dataset?.testid ?? '')
+      .filter((id) => id.length > 0),
+  );
+  expect(order[order.length - 1]).toBe('asset-review-prompt-card');
 
   const button = card.getByRole('button', {
     name: 'AI総評プロンプトをコピー',
