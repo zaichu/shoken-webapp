@@ -1,9 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import * as fs from 'fs';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-const SHOT_DIR = '../.playwright-mcp';
+async function shoot(page: Page, name: string) {
+  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
+  await fs.promises.mkdir(dir, { recursive: true });
+  await page.screenshot({ path: path.join(dir, `leptos-955-${name}.png`) });
+}
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -122,7 +127,7 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
   await expect(cards.nth(0).getByRole('region')).toBeVisible();
   await expect(cards.nth(1).getByRole('region')).toBeHidden();
 
-  await page.screenshot({ path: `${SHOT_DIR}/leptos-955-identical-cards.png` });
+  await shoot(page, 'identical-cards');
 
   await second.click();
   await expect(second).toHaveAttribute('aria-expanded', 'true');
@@ -214,7 +219,7 @@ test('選択したタブは390pxでも320pxでも見切れない', async ({ page
   await expectTabInsideViewport(domestic, 390);
   await expectTabInsideViewport(dividend, 390);
 
-  await page.screenshot({ path: `${SHOT_DIR}/leptos-955-tabs-390.png` });
+  await shoot(page, 'tabs-390');
 
   await page.setViewportSize({ width: 320, height: 844 });
   const tablist = page.getByRole('tablist');
@@ -292,5 +297,5 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
     `省略位置がReactより早い: 「${truncation.visible}…」`,
   ).toBe(true);
 
-  await page.screenshot({ path: `${SHOT_DIR}/leptos-955-fund-name-390.png` });
+  await shoot(page, 'fund-name-390');
 });
