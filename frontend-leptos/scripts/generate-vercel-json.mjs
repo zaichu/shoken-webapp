@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-// vercel.template.json + backend-origin.json から vercel.json を生成する。
-// connect-src が 'self' と本番 backend だけを許可するよう、置換は
-// {{BACKEND_ORIGIN}} のみを対象にする。--check は生成せず一致だけ検証する(CI 用)。
+// connect-src を 'self' と本番 backend だけに閉じるため、置換対象は {{BACKEND_ORIGIN}} のみ
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
