@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { get } from 'node:http';
+import { loadBackendOrigin } from '../scripts/backend-origin.cjs';
 
-const BACKEND_ORIGIN = 'https://shoken-backend.fly.dev';
+const BACKEND_ORIGIN: string = loadBackendOrigin();
 const SERVE_PORT = Number(process.env.VERCEL_E2E_PORT ?? '8190');
 
 // URL パーサがデコード前にドットセグメントを潰すため、生のパスで送る必要がある
@@ -24,7 +25,8 @@ test('index と SPA フォールバックが CSP 付きの HTML を返す', asyn
   const csp = root.headers()['content-security-policy'] ?? '';
   expect(csp).toContain("default-src 'self'");
   expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
-  expect(csp).toContain(`connect-src 'self' ${BACKEND_ORIGIN}`);
+  // connect-src は 'self' と backend の URL だけで閉じること(他の外部 origin を足さない)
+  expect(csp).toContain(`connect-src 'self' ${BACKEND_ORIGIN}; font-src 'self'`);
   expect(csp).toContain('img-src');
   expect(csp).toContain('lh3.googleusercontent.com');
   expect(root.headers()['x-content-type-options']).toBe('nosniff');

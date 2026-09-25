@@ -10,7 +10,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 # vercel.json の connect-src が許可する唯一の外部 origin。
 # これ以外を埋め込むと CSP が API 通信をブロックするためビルド時に弾く。
-ALLOWED_API_ORIGIN="https://shoken-backend.fly.dev"
+ALLOWED_API_ORIGIN="$(node scripts/backend-origin.cjs)"
 
 if [[ -z "${SHOKEN_WEBAPI_URL:-}" ]]; then
   echo "SHOKEN_WEBAPI_URL is not set. The bundle would call same-origin /api, which Vercel rewrites to index.html." >&2
