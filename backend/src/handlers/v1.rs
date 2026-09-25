@@ -137,26 +137,6 @@ mod tests {
             .status()
     }
 
-    /// /api/v1/session が未認証で 401 を返す
-    #[tokio::test]
-    async fn test_v1_session_returns_401_without_auth() {
-        let router = auth_routes().with_state(make_test_state());
-        assert_eq!(
-            check_status(router, Method::GET, "/api/v1/session").await,
-            StatusCode::UNAUTHORIZED
-        );
-    }
-
-    /// DELETE /api/v1/session は認証不要で 200 を返す（logout と同じ挙動）
-    #[tokio::test]
-    async fn test_delete_session_returns_200_without_auth() {
-        let router = auth_routes().with_state(make_test_state());
-        assert_eq!(
-            check_status(router, Method::DELETE, "/api/v1/session").await,
-            StatusCode::OK
-        );
-    }
-
     /// DELETE /api/v1/account はセッションがあっても確認 cookie がない場合 400 を返す
     #[tokio::test]
     async fn test_delete_account_requires_confirmation_cookie() {

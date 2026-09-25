@@ -150,12 +150,12 @@ async fn test_search_stock_allows_anonymous() {
         .unwrap();
     let app = setup_test_app(pool);
 
-    assert_ne!(
-        call(app, "GET", "/api/v1/stocks?query=7203", None)
-            .await
-            .status(),
-        StatusCode::UNAUTHORIZED
-    );
+    let status = call(app, "GET", "/api/v1/stocks?query=7203", None)
+        .await
+        .status();
+    assert_ne!(status, StatusCode::UNAUTHORIZED);
+    assert_ne!(status, StatusCode::NOT_FOUND);
+    assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[test]

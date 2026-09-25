@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn test_push_filters_combines_q_tokens_as_and_of_or_across_all_columns() {
+    fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = AssetBalanceSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
         let filter = AssetBalanceFilter::from_params(&params);
@@ -543,10 +543,7 @@ mod tests {
         assert_eq!(sql.matches(" AND (").count(), 2);
         assert_eq!(sql.matches("security_code ILIKE").count(), 2);
         assert_eq!(sql.matches("security_name ILIKE").count(), 2);
-    }
 
-    #[test]
-    fn test_push_filters_binds_asset_balance_specific_field_filters() {
         let params = AssetBalanceSearchQueryParams {
             security_code: Some("1234".to_string()),
             security_name: Some("テスト株式会社".to_string()),
