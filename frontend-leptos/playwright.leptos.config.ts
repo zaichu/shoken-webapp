@@ -19,6 +19,7 @@ export default defineConfig({
     '**/auth-flow.spec.ts',
     '**/error-scenarios.spec.ts',
     '**/assetbalance-flow.spec.ts',
+    '**/mobile-screenshots.spec.ts',
     '**/a11y.spec.ts',
   ],
   outputDir,
