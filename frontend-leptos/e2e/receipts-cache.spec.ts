@@ -241,7 +241,7 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
 
     await page.goto('/receipts');
     await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
-    // 全タブ分の発行直後に遅れて届く重複も拾えるよう、連続するポーリングで合計が変わらなくなるまで待つ
+    // 全タブ分の発行直後に遅れて届く重複も拾えるよう、合計が500ms不変になるまで待つ
     let lastTotal = 0;
     await expect
       .poll(
@@ -256,7 +256,7 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
           lastTotal = total;
           return settled;
         },
-        { intervals: [250] },
+        { intervals: [500] },
       )
       .toBe(true);
 
