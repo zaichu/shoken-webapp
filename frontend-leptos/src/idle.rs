@@ -14,10 +14,12 @@ fn now_ms() -> u64 {
     js_sys::Date::now() as u64
 }
 
+// 時計ずれで共有時刻が未来でも u32 変換で壊れないよう、タイムアウトで頭打ちにする
 fn idle_remaining_ms(last_activity_ms: u64, now_ms: u64) -> i64 {
     last_activity_ms
         .saturating_add(IDLE_TIMEOUT_MS as u64)
-        .saturating_sub(now_ms) as i64
+        .saturating_sub(now_ms)
+        .min(IDLE_TIMEOUT_MS as u64) as i64
 }
 
 fn arm_timer(timer: &IdleTimer, session: SessionStore, delay_ms: u32) {
@@ -125,5 +127,12 @@ mod tests {
         assert_eq!(idle_remaining_ms(0, timeout), 0);
         assert_eq!(idle_remaining_ms(0, timeout + 1_000), 0);
         assert_eq!(idle_remaining_ms(1_000, 1_000), timeout as i64);
+    }
+
+    #[test]
+    fn idle_remaining_is_capped_for_future_timestamps() {
+        let timeout = IDLE_TIMEOUT_MS as u64;
+        assert_eq!(idle_remaining_ms(timeout + 60_000, 0), timeout as i64);
+        assert_eq!(idle_remaining_ms(u64::MAX - 1, 0), timeout as i64);
     }
 }
