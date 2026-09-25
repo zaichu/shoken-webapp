@@ -41,13 +41,13 @@ flyctl status -a shoken-backend
 
 ### 手動デプロイ（緊急時のみ）
 ```bash
-cd frontend && vercel --prod
+(cd frontend-leptos && vercel deploy --prebuilt --prod)
 ```
 
 ## 開発フロー
 
 1. `main` から作業ブランチを作成して実装
-2. ローカルでテスト（cargo test, npm test）
+2. ローカルでテスト（cargo test, playwright）
 3. 作業ブランチ -> `main` の PR を作成してマージ
 4. **自動デプロイ実行**（手動操作不要）
 5. 本番で動作確認
