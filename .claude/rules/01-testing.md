@@ -23,7 +23,7 @@ GitHub Actions でのテスト実行:
 
 ```yaml
 - name: Run frontend tests
-  working-directory: frontend-leptos
+  working-directory: frontend
   run: cargo test
 
 - name: Run backend tests

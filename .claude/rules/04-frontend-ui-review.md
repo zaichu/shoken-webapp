@@ -6,7 +6,7 @@ Leptos の主要ページ（ホーム・銘柄検索・資産管理・取引明�
 
 ## 手順
 
-1. `frontend-leptos/` で `npm ci` を実行する。
+1. `frontend/` で `npm ci` を実行する。
 2. `env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts` と `env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.receipts.config.ts` を実行する。
 3. Playwright のスクリーンショットと `test-results/` の結果を確認する。
 4. PC 幅とスマホ幅で、読みやすさ、操作性、画面間の一貫性、CSV 操作後の表示、アクセシビリティを確認する。

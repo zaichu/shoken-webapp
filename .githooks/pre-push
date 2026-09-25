@@ -23,12 +23,12 @@ while read local_ref local_sha remote_ref remote_sha; do
     bash "$REPO_ROOT/scripts/check-openapi.sh"
   fi
 
-  if echo "$changed" | grep -q "^frontend-leptos/"; then
+  if echo "$changed" | grep -q "^frontend/"; then
     if [ "$local_sha" = "$HEAD_SHA" ]; then
-      (cd "$REPO_ROOT/frontend-leptos" && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
-      (cd "$REPO_ROOT/frontend-leptos" && cargo test)
+      (cd "$REPO_ROOT/frontend" && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
+      (cd "$REPO_ROOT/frontend" && cargo test)
     else
-      echo "⚠️  push 対象コミットが HEAD と異なるため frontend-leptos の clippy/test をスキップします"
+      echo "⚠️  push 対象コミットが HEAD と異なるため frontend の clippy/test をスキップします"
     fi
   fi
 done

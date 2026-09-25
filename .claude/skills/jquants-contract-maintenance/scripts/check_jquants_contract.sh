@@ -11,5 +11,5 @@ echo "[2/3] openapi sync"
 bash scripts/check-openapi.sh
 
 echo "[3/3] frontend contract and dividend tests"
-(cd frontend-leptos && cargo test contract_matches_openapi)
-(cd frontend-leptos && cargo test dividend)
+(cd frontend && cargo test contract_matches_openapi)
+(cd frontend && cargo test dividend)

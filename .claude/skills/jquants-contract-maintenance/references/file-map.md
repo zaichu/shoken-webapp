@@ -10,7 +10,7 @@
 
 ## Frontend
 
-- `frontend-leptos/src/dto.rs`: DTO と OpenAPI 契約テスト
-- `frontend-leptos/src/dividend_per_share.rs`: 1株配当 API の利用
-- `frontend-leptos/src/dividend_info.rs`: 配当の表示
-- `frontend-leptos/src/asset_balance_page.rs`: 保有銘柄画面での利用
+- `frontend/src/dto.rs`: DTO と OpenAPI 契約テスト
+- `frontend/src/dividend_per_share.rs`: 1株配当 API の利用
+- `frontend/src/dividend_info.rs`: 配当の表示
+- `frontend/src/asset_balance_page.rs`: 保有銘柄画面での利用

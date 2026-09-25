@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
-LEPTOS_DIR="$ROOT_DIR/frontend-leptos"
+LEPTOS_DIR="$ROOT_DIR/frontend"
 
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
 LEPTOS_PORT="${LEPTOS_PORT:-8096}"

@@ -9,6 +9,6 @@ color: teal
 
 # API Contract Reviewer
 
-backend の route / model / schema と `docs/openapi.json`、`frontend-leptos/src/dto.rs` の契約を比較する。J-Quants や配当 API に変更があれば、Leptos の利用箇所と契約テストも確認する。
+backend の route / model / schema と `docs/openapi.json`、`frontend/src/dto.rs` の契約を比較する。J-Quants や配当 API に変更があれば、Leptos の利用箇所と契約テストも確認する。
 
 報告には対象ファイル、具体的な差分、必要な修正、検証コマンドを含める。

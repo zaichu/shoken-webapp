@@ -11,7 +11,7 @@
 
 ## 構成
 
-- `frontend-leptos/`: Leptos、Trunk、Tailwind CSS、Playwright。Vercel に配信
+- `frontend/`: Leptos、Trunk、Tailwind CSS、Playwright。Vercel に配信
 - `backend/`: Axum、SQLx、PostgreSQL。Fly.io に配信
 - `docs/openapi.json`: API 契約
 - `.github/workflows/`: CI とデプロイ
@@ -21,7 +21,7 @@
 Rust 1.96.0、`wasm32-unknown-unknown`、Trunk 0.21.4、Node.js 22、npm、Docker が必要です。
 
 ```bash
-cd frontend-leptos
+cd frontend
 npm ci
 cd ../backend
 cp .env.example .env
@@ -34,7 +34,7 @@ cd ..
 ## 検証
 
 ```bash
-cd frontend-leptos
+cd frontend
 cargo fmt --check
 cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 cargo clippy --all-targets -- -D warnings
@@ -52,7 +52,7 @@ env SQLX_OFFLINE=true cargo clippy -- -D warnings
 env SQLX_OFFLINE=true cargo test
 ```
 
-詳細は [Leptos の README](frontend-leptos/README.md) と [テストガイド](docs/testing.md) を参照してください。
+詳細は [Leptos の README](frontend/README.md) と [テストガイド](docs/testing.md) を参照してください。
 
 ## ドキュメント
 

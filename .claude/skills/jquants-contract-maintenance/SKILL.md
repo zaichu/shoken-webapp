@@ -11,7 +11,7 @@ allowed-tools: Read, Grep, Glob, Bash
 1. J-Quants の実際の応答と `backend/src/models/market_data/providers/jquants.rs` を比較する。
 2. `backend/src/services/market_data/providers/jquants.rs` の変換と `backend/src/handlers/dividend_per_share.rs` の API 応答を確認する。
 3. API surface を変えた場合は `backend/src/openapi.rs` と `docs/openapi.json` を同期する。
-4. `frontend-leptos/src/dto.rs`、`dividend_per_share.rs`、`dividend_info.rs` と利用画面を確認する。
+4. `frontend/src/dto.rs`、`dividend_per_share.rs`、`dividend_info.rs` と利用画面を確認する。
 5. 関連テストと契約テストを実行する。
 
 ## 検証

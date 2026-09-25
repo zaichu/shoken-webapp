@@ -1,4 +1,4 @@
-name: Frontend Leptos CI
+name: Frontend CI
 
 on:
   pull_request:
@@ -13,10 +13,10 @@ concurrency:
 
 jobs:
   changes:
-    name: Detect frontend-leptos changes
+    name: Detect frontend changes
     runs-on: ubuntu-latest
     outputs:
-      frontend_leptos: ${{ steps.filter.outputs.frontend_leptos }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
@@ -27,19 +27,19 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
         with:
           filters: |
-            frontend_leptos:
-              - "frontend-leptos/**"
+            frontend:
+              - "frontend/**"
               - "docs/openapi.json"
-              - ".github/workflows/frontend-leptos.yml"
+              - ".github/workflows/frontend.yml"
 
   ci:
     name: Check, build, and E2E
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend_leptos == 'true'
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend-leptos
+        working-directory: frontend
 
     steps:
       - name: Checkout repository
@@ -55,7 +55,7 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
         with:
-          workspaces: frontend-leptos -> target
+          workspaces: frontend -> target
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install trunk
@@ -72,9 +72,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend-leptos/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend-leptos dependencies
+      - name: Install frontend dependencies
         run: npm ci
 
       - name: Check vercel.json is generated from backend-origin.json
@@ -99,7 +99,7 @@ jobs:
       - name: Report compressed asset sizes
         run: |
           {
-            echo "## frontend-leptos release asset sizes"
+            echo "## frontend release asset sizes"
             echo
             echo "| Asset | Gzip size (bytes) |"
             echo "| --- | ---: |"
@@ -116,7 +116,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend-leptos/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend-leptos/package-lock.json') }}
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-apt-playwright-ubuntu24.04-
 
@@ -140,7 +140,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend-leptos/package-lock.json') }}
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Playwright browser
         if: steps.playwright-browsers.outputs.cache-hit != 'true'
@@ -151,7 +151,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend-leptos/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
 
       # E2E の serve は test-results/dist-* を使い、dist-release/ のリリース成果物と混在させない。
       - name: Run existing E2E tests
