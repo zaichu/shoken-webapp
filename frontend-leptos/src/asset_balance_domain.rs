@@ -156,7 +156,6 @@ pub(crate) fn format_abs_number(value: f64) -> Option<String> {
     })
 }
 
-/// `formatters.ts` の `formatNumber`(既定: 小数0〜2桁・桁区切りあり)に対応する。
 pub fn format_number_value(value: f64) -> String {
     match format_abs_number(intl_fixed(value, 2)) {
         None => "-".to_string(),
