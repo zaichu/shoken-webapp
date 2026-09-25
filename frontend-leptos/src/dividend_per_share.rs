@@ -8,6 +8,7 @@ use crate::api::{ApiClient, ApiError};
 
 pub(crate) const DIVIDEND_RETRY_DELAY_MS: u32 = 15_000;
 pub(crate) const DIVIDEND_NETWORK_MAX_RETRIES: u32 = 3;
+const DIVIDEND_BATCH_PATH: &str = "/api/v1/dividend-per-share-estimates";
 const DIVIDEND_PENDING_MAX_RETRIES: u32 = 100;
 const DIVIDEND_BASE_RETRIES: u32 = 3;
 const DIVIDEND_MILLIS_PER_CODE: u64 = 12_000;
@@ -35,8 +36,8 @@ pub(crate) struct DividendBatchResponse {
 }
 
 #[derive(Clone, Debug, Serialize)]
-struct DividendBatchRequest {
-    security_codes: Vec<String>,
+pub(crate) struct DividendBatchRequest {
+    pub security_codes: Vec<String>,
 }
 
 pub(crate) fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
@@ -76,17 +77,27 @@ pub(crate) fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (Divide
     (maps, has_pending)
 }
 
-pub(crate) async fn fetch_dividend_batch(
-    codes: &[String],
+/// 本番の HTTP 実行。実ネットワーク境界のため mutation 評価は除外する
+pub(crate) async fn post_dividend_batch(
+    request: DividendBatchRequest,
 ) -> Result<DividendBatchResponse, ApiError> {
     ApiClient::default_client()
-        .post_json::<DividendBatchRequest, DividendBatchResponse>(
-            "/api/v1/dividend-per-share-estimates",
-            &DividendBatchRequest {
-                security_codes: codes.to_vec(),
-            },
-        )
+        .post_json::<DividendBatchRequest, DividendBatchResponse>(DIVIDEND_BATCH_PATH, &request)
         .await
+}
+
+pub(crate) async fn fetch_dividend_batch<F, Fut>(
+    codes: &[String],
+    post_json: F,
+) -> Result<DividendBatchResponse, ApiError>
+where
+    F: FnOnce(DividendBatchRequest) -> Fut,
+    Fut: std::future::Future<Output = Result<DividendBatchResponse, ApiError>>,
+{
+    post_json(DividendBatchRequest {
+        security_codes: codes.to_vec(),
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -148,6 +159,41 @@ mod tests {
         assert!(!settled_pending);
         let (_, empty_pending) = dividend_maps_from_batch(&DividendBatchResponse { items: vec![] });
         assert!(!empty_pending);
+    }
+
+    fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        use std::task::{Context, Poll, Waker};
+        let mut context = Context::from_waker(Waker::noop());
+        match std::pin::pin!(future).poll(&mut context) {
+            Poll::Ready(output) => output,
+            Poll::Pending => panic!("モックの Future は即座に完了するはず"),
+        }
+    }
+
+    #[test]
+    fn fetch_dividend_batch_forwards_codes_and_returns_response() {
+        let captured = std::cell::RefCell::new(Vec::new());
+        let codes = vec!["6758".to_string(), "7203".to_string(), "6758".to_string()];
+        let result = block_on(fetch_dividend_batch(&codes, |request| {
+            *captured.borrow_mut() = request.security_codes;
+            std::future::ready(Ok(DividendBatchResponse {
+                items: vec![estimate("7203", Some(50.0), "ok")],
+            }))
+        }));
+
+        assert_eq!(*captured.borrow(), codes);
+        let response = result.expect("モック応答をそのまま返すはず");
+        assert_eq!(response.items.len(), 1);
+        assert_eq!(response.items[0].security_code, "7203");
+        assert_eq!(response.items[0].dividend_per_share, Some(50.0));
+    }
+
+    #[test]
+    fn fetch_dividend_batch_propagates_http_error() {
+        let result = block_on(fetch_dividend_batch(&["7203".to_string()], |_request| {
+            std::future::ready(Err(ApiError::Parse))
+        }));
+        assert_eq!(result.unwrap_err(), ApiError::Parse);
     }
 
     proptest::proptest! {

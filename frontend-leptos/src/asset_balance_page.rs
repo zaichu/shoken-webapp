@@ -17,7 +17,8 @@ use crate::csv_flow::{csv_error_message, CsvTabState};
 use crate::csv_rail::CsvActionRail;
 use crate::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
-    unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
+    post_dividend_batch, unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES,
+    DIVIDEND_RETRY_DELAY_MS,
 };
 use crate::dto::{
     AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, CsvPreviewResponse,
@@ -174,7 +175,7 @@ async fn poll_dividend_maps(
         if !is_current() {
             break;
         }
-        match fetch_dividend_batch(&codes).await {
+        match fetch_dividend_batch(&codes, post_dividend_batch).await {
             Ok(batch) => {
                 let (maps, has_pending) = dividend_maps_from_batch(&batch);
                 if is_current() {
