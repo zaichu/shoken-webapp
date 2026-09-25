@@ -306,6 +306,17 @@ fn table_groups_carry_group_key_and_row_ids() {
 }
 
 #[test]
+fn card_key_identifies_idless_rows_by_content() {
+    let cells = dividends()[0].cells();
+    let key = card_key("dividend", "", &cells);
+    assert!(key.starts_with("dividend:p:"));
+    assert!(key.contains("日本電信電話"));
+    assert_eq!(key, card_key("dividend", "", &cells));
+    assert_ne!(key, card_key("mutualfund", "", &cells));
+    assert_eq!(card_key("dividend", "old", &cells), "dividend:r:old");
+}
+
+#[test]
 fn security_code_acceptance_matches_react_regex() {
     assert!(is_security_code("9432"));
     assert!(is_security_code("BRK.B"));

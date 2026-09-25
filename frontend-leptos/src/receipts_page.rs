@@ -1705,6 +1705,16 @@ fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
+// CSVプレビュー等で id を持たない行は、グループや表示位置ではなく内容で識別する
+fn card_key(slug: &str, id: &str, cells: &[ReceiptCell]) -> String {
+    if id.is_empty() {
+        let content: Vec<_> = cells.iter().map(cell_text).collect();
+        format!("{slug}:p:{}", content.join("\u{1f}"))
+    } else {
+        format!("{slug}:r:{id}")
+    }
+}
+
 fn card_row_data(
     key: String,
     cells: &[ReceiptCell],
@@ -2143,14 +2153,8 @@ fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .enumerate()
-                .map(|(index, (id, cells))| {
-                    let key = if id.is_empty() {
-                        format!("{slug}:g{}:{index}", group.key)
-                    } else {
-                        format!("{slug}:r:{id}")
-                    };
-                    card_row_data(key, cells, headers, &order, fields)
+                .map(|(id, cells)| {
+                    card_row_data(card_key(slug, id, cells), cells, headers, &order, fields)
                 })
                 .collect();
             (
