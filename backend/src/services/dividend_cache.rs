@@ -1,5 +1,7 @@
 mod background;
 mod logic;
+// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+#[doc(hidden)]
 pub mod persistence;
 
 use crate::errors::ApiError;
