@@ -271,20 +271,14 @@ mod tests {
             (ApiError::Network, "ネットワークエラーが発生しました"),
             (ApiError::Timeout, "リクエストがタイムアウトしました"),
             (ApiError::Parse, "応答の解析に失敗しました"),
-            (ApiError::Http { status: 400 }, "リクエストが不正です"),
-            (ApiError::Http { status: 401 }, "認証が必要です"),
-            (ApiError::Http { status: 403 }, "アクセスが拒否されました"),
-            (ApiError::Http { status: 404 }, "リソースが見つかりません"),
+            (ApiError::http(400), "リクエストが不正です"),
+            (ApiError::http(401), "認証が必要です"),
+            (ApiError::http(403), "アクセスが拒否されました"),
+            (ApiError::http(404), "リソースが見つかりません"),
+            (ApiError::http(500), "サーバーエラーが発生しました"),
+            (ApiError::http(503), "サーバーエラーが発生しました"),
             (
-                ApiError::Http { status: 500 },
-                "サーバーエラーが発生しました",
-            ),
-            (
-                ApiError::Http { status: 503 },
-                "サーバーエラーが発生しました",
-            ),
-            (
-                ApiError::Http { status: 418 },
+                ApiError::http(418),
                 "エラーが発生しました (ステータス: 418)",
             ),
         ] {

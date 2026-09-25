@@ -164,9 +164,9 @@ mod tests {
     #[test]
     fn finished_means_ok_or_missing_session() {
         assert!(is_finished(&Ok(())));
-        assert!(is_finished(&Err(ApiError::Http { status: 401 })));
-        assert!(!is_finished(&Err(ApiError::Http { status: 403 })));
-        assert!(!is_finished(&Err(ApiError::Http { status: 500 })));
+        assert!(is_finished(&Err(ApiError::http(401))));
+        assert!(!is_finished(&Err(ApiError::http(403))));
+        assert!(!is_finished(&Err(ApiError::http(500))));
         assert!(!is_finished(&Err(ApiError::Network)));
         assert!(!is_finished(&Err(ApiError::Timeout)));
         assert!(!is_finished(&Err(ApiError::Parse)));

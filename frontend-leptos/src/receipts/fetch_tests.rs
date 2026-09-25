@@ -29,13 +29,13 @@ fn mid_page_failure_fails_the_whole_fetch_because_partial_rows_would_silently_co
         calls.set(calls.get() + 1);
         ready(match page_no {
             1 => Ok(full_page(1, 3000)),
-            _ => Err(ApiError::Http { status: 500 }),
+            _ => Err(ApiError::http(500)),
         })
     };
 
     let result = block_on(fetch_pages(fetch, |page: Page| page));
 
-    assert!(matches!(result, Err(ApiError::Http { status: 500 })));
+    assert!(matches!(result, Err(ApiError::Http { status: 500, .. })));
     assert_eq!(calls.get(), 2, "失敗したページ以降は要求しない");
 }
 

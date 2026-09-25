@@ -2012,7 +2012,7 @@ mod tests {
 
     #[test]
     fn unauthorized_asset_balance_error_uses_react_message() {
-        assert_eq!(ApiError::Http { status: 401 }.message(), "認証が必要です");
+        assert_eq!(ApiError::http(401).message(), "認証が必要です");
     }
 
     #[test]
@@ -2588,7 +2588,7 @@ mod tests {
                 state.previewing = true;
             });
             assert!(store
-                .apply_preview_result(generation, Err(ApiError::Http { status: 500 }))
+                .apply_preview_result(generation, Err(ApiError::http(500)))
                 .is_none());
             let state = store.csv_state();
             assert!(!state.previewing);
@@ -2654,7 +2654,7 @@ mod tests {
                 state.saving = true;
             });
 
-            assert!(!store.apply_upload_result(generation, Err(ApiError::Http { status: 401 }),));
+            assert!(!store.apply_upload_result(generation, Err(ApiError::http(401)),));
             let state = store.csv_state();
             assert!(!state.saving);
             assert_eq!(state.file_name.as_deref(), Some("asset.csv"));

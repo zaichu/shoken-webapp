@@ -501,6 +501,44 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(notice).toHaveCount(0);
     });
   }
+
+  test('取込が400で失敗したときはサーバーの理由をそのまま表示する', async ({ page }) => {
+    const db: Record<TabKey, unknown[]> = {
+      dividend: [],
+      domesticstock: [],
+      mutualfund: [],
+    };
+    await setupMocks(page, db);
+    await page.route(TAB_FIXTURES.dividend.importPath, (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'CSVファイル（.csv）のみアップロードできます',
+          },
+        }),
+      }),
+    );
+    await page.goto('/receipts');
+
+    const fileInput = page.getByTestId('csv-file-input');
+    await expect(fileInput).toBeEnabled();
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
+    const saveCount =
+      TAB_FIXTURES.dividend.files['dividend-base.csv'].previewRows.length;
+    await page
+      .getByRole('button', { name: `${saveCount}件 追加で保存` })
+      .click();
+
+    const alert = page
+      .getByTestId('receipt-utility-rail')
+      .getByRole('alert');
+    await expect(alert).toHaveText(
+      /^エラー:\s*CSVファイル（\.csv）のみアップロードできます$/,
+    );
+  });
 });
 
 // 資産管理はタブではなく独立ページで、追加ではなく全件置換になる

@@ -757,7 +757,7 @@ mod tests {
 
     #[test]
     fn unauthorized_receipts_error_uses_react_message() {
-        assert_eq!(ApiError::Http { status: 401 }.message(), "認証が必要です");
+        assert_eq!(ApiError::http(401).message(), "認証が必要です");
     }
 
     #[test]
@@ -1106,7 +1106,7 @@ mod csv_tests {
                 )]),
             );
 
-            store.apply_upload_result(generation, tab, Err(ApiError::Http { status: 401 }));
+            store.apply_upload_result(generation, tab, Err(ApiError::http(401)));
 
             let state = store.csv_state(tab);
             assert!(!state.saving);
@@ -1157,7 +1157,7 @@ mod csv_tests {
             store.csv.update(|map| {
                 map.entry((generation, tab)).or_default().previewing = true;
             });
-            store.apply_preview_result(generation, tab, Err(ApiError::Http { status: 400 }));
+            store.apply_preview_result(generation, tab, Err(ApiError::http(400)));
             let state = store.csv_state(tab);
             assert!(!state.previewing);
             assert!(state.error.is_none());
