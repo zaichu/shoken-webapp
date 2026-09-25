@@ -27,7 +27,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 ### 対象範囲
 
 - バックエンド API（Rust / Axum）
-- フロントエンド（React / TypeScript）
+- フロントエンド（Leptos / Rust・WebAssembly）
 - 認証・セッション管理（Google OAuth2）
 - CSV インポート処理
 

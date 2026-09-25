@@ -1,35 +1,17 @@
 //! 資産管理の一覧・評価・構成比・KPI の純粋ロジック。
 //!
-//! 受け入れ条件「React と同じ入力で同じ結果」のため、計算は React と同じ f64 で行う。
-//! React 側の正本との対応:
-//! - [`to_finite_amount`], [`calculate_valuation`], [`summarize_valuation`]
-//!   は `frontend/src/features/assetBalance/valuation.ts` の同名関数に対応する。
-//! - [`summarize_valuation_with_summary`] は `AssetPortfolioSummary.tsx` の
-//!   評価損益集計（API summary 優先）に対応する。
-//! - [`to_fixed`], [`safe_add`], [`calculate_composition_percentage`],
-//!   [`composition_percentages`] は `frontend/src/lib/utils/formatters.ts` の
-//!   `calculatePercentage`（既定 `decimals = 2`）と `safeAdd` に対応する。
-//!   丸めは JS の `toFixed` 仕様どおり（2進の値で最も近い n、同距離なら大きい n、
-//!   負は符号を分けて処理）に実装する。
-//! - [`intl_fixed`] は `formatters.ts` の `formatNumber` が使う
-//!   `Intl.NumberFormat` の丸め（10進の値で半分以上を切り上げる）に対応する。
-//! - [`should_include_chart_item`], [`chart_percentages`] は
-//!   `AssetPortfolioSummary.tsx` のチャート除外条件と
-//!   `PortfolioPieChart.tsx` の未丸めパーセンテージに対応する（fixture 対象外）。
-//! - [`total_purchase_amount`], [`calculate_portfolio_kpi`] は
-//!   `AssetPortfolioSummary.tsx` の合計取得総額・年間配当・配当利回り・銘柄数に対応する。
+//! 金額計算は f64 とし、表示時の丸めは既存データとの互換性を保つ。
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// `valuation.ts` の `MISSING_MARKERS` と同じ集合（比較は小文字化後）。
+/// 欠損値として扱う文字列の集合（比較は小文字化後）。
 const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "undefined"];
 
 /// 任意の値を有限数に正規化する。欠損は `None` を返す。
 /// 数値文字列（カンマ区切り可）は数値として扱う。
-/// `valuation.ts` の `toFiniteAmount` に対応する。
 pub fn to_finite_amount(value: &Value) -> Option<f64> {
     match value {
         Value::Null => None,

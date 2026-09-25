@@ -4,8 +4,7 @@
 
 - **Backend**: Modular Monolith with Thin HTTP Adapter Layer
   （Rust/Axum 単一バイナリ、ドメイン別モジュール構成、ハンドラーは薄い adapter）
-- **Frontend**: Feature-first Architecture with Shared UI Components
-  （`features/` 配下を機能単位で凝集、横断 UI は `components/`、横断ロジックは `lib/`）
+- **Frontend**: Leptos (CSR) と Trunk でブラウザ向け WASM を配信
 
 判断の根拠と「採用しないもの」は `docs/adr/0001-keep-axum-and-harden-api.md`
 の Architecture Stance を正本とする。本ドキュメントは構成図と境界の早見表として
@@ -16,10 +15,10 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Browser                                                     │
-│  React 19 + TypeScript (Vite)                               │
+│  Rust + Leptos (CSR)                                        │
 │  Vercel でホスティング                                        │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ HTTPS / Axios
+                            │ HTTPS / fetch
 ┌───────────────────────────▼─────────────────────────────────┐
 │ Backend API (Fly.io)                                        │
 │  Rust + Axum 0.8                                            │
@@ -38,17 +37,11 @@
 
 ```
 shoken-webapp/
-├── frontend/
-│   ├── src/
-│   │   ├── components/    # Atomic Design (atoms/molecules/organisms/templates)
-│   │   ├── features/      # auth / stock / receipt / assetBalance / jquants
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── lib/           # api client / csv utils / interfaces / types / utils
-│   │   ├── contexts/
-│   │   ├── routes/
-│   │   └── styles/
-│   └── e2e/               # Playwright E2E テスト
+├── frontend-leptos/
+│   ├── src/               # Leptos UI / API client / domain logic
+│   ├── e2e/               # Playwright E2E テストと CSV fixture
+│   ├── style/             # Tailwind CSS
+│   └── Trunk.toml
 ├── backend/
 │   └── src/
 │       ├── handlers/      # HTTP ハンドラー（ドメイン別）
@@ -80,14 +73,11 @@ shoken-webapp/
 - **共有状態**: `AppState`（DB pool / secrets / HTTP client）で配線する。DI
   container は導入しない。
 
-### Frontend（Feature-first + Shared UI Components）
+### Frontend（Leptos）
 
-- **feature 境界**: `features/<domain>/` が hooks・API 呼び出し・feature 固有
-  コンポーネントを所有する。他 feature から直接 import しない。
-- **共有 UI**: 再利用が発生した時点でのみ `components/`（Atomic Design）へ
-  昇格する。先回りで共通化しない。
-- **共有ロジック**: API client / 型 / 汎用 util は `lib/` に集約する。型は
-  `src/generated/api.ts`（OpenAPI 由来）を一次ソースとする。
+- **API 境界**: `src/api/` が backend との通信を扱う。
+- **UI とドメイン**: `src/` の画面モジュールとドメインモジュールが表示・計算を扱う。
+- **契約**: `docs/openapi.json` を API 契約の正本とし、Leptos の契約テストで確認する。
 
 ### 引かない境界（採用しない）
 

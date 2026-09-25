@@ -30,7 +30,6 @@ jobs:
             frontend_leptos:
               - "frontend-leptos/**"
               - "docs/openapi.json"
-              - "frontend/e2e/**"
               - ".github/workflows/frontend-leptos.yml"
 
   ci:
@@ -69,7 +68,11 @@ jobs:
           install -m 755 trunk ~/.cargo/bin/
 
       - name: Setup frontend dependencies
-        uses: ./.github/actions/setup-frontend
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 https://github.com/actions/setup-node/releases/tag/v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-leptos/package-lock.json
 
       - name: Install frontend-leptos dependencies
         run: npm ci
@@ -113,7 +116,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend-leptos/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -122,7 +125,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend-leptos/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-apt-playwright-ubuntu24.04-
 
@@ -137,7 +140,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend-leptos/package-lock.json') }}
 
       - name: Install Playwright browser
         if: steps.playwright-browsers.outputs.cache-hit != 'true'
@@ -148,7 +151,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend-leptos/package-lock.json') }}
 
       # E2E の serve は test-results/dist-* を使い、dist-release/ のリリース成果物と混在させない。
       - name: Run existing E2E tests

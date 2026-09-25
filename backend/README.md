@@ -37,7 +37,7 @@ API 契約の正本は [`../docs/openapi.json`](../docs/openapi.json) です。
 ```bash
 # 必須
 DATABASE_URL=postgresql://user:pass@host/db
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:8081
 
 # Google OAuth（認証機能を使う場合）
 GOOGLE_CLIENT_ID=your-client-id
@@ -49,7 +49,7 @@ JQUANTS_API_KEY=your-api-key
 # オプション
 PORT=3001                          # デフォルト: 3001
 BACKEND_URL=https://example.com    # 本番環境のURL（https://で始まる場合Secure Cookie有効）
-CORS_ORIGINS=http://localhost:8080 # 許可するフロントエンドのオリジン
+CORS_ORIGINS=http://localhost:8081 # 許可するフロントエンドのオリジン
 
 # 本番環境判定（いずれかを設定）
 RUST_ENV=production                # または APP_ENV=production

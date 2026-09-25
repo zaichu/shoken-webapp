@@ -84,51 +84,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  validate-frontend-types:
-    name: Validate Frontend Types
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
-        with:
-          fetch-depth: 1
-
-      - name: Detect backend changes
-        id: detect
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - '.github/workflows/deploy-backend.yml'
-
-      - name: Setup frontend
-        if: steps.detect.outputs.backend == 'true'
-        uses: ./.github/actions/setup-frontend
-
-      - name: Generate frontend types
-        if: steps.detect.outputs.backend == 'true'
-        working-directory: frontend
-        run: npm run generate:types
-
-      - name: Check frontend types are up to date
-        if: steps.detect.outputs.backend == 'true'
-        working-directory: ${{ github.workspace }}
-        run: |
-          if ! git diff --exit-code frontend/src/generated/api.ts; then
-            echo "api.ts が古い状態です。npm run generate:types を実行してコミットしてください。"
-            exit 1
-          fi
-
-      - name: TypeScript type check
-        if: steps.detect.outputs.backend == 'true'
-        working-directory: frontend
-        run: npm run typecheck
-
   deploy:
     name: Deploy to Fly.io
-    needs: [test-and-build, validate-frontend-types]
+    needs: [test-and-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:

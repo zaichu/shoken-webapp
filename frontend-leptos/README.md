@@ -1,63 +1,43 @@
 # frontend-leptos
 
-React フロントエンドの Leptos (CSR) 移行版。Issue #882 の開発・検証基盤。
-本番経路は `frontend/` のまま。ここは単独 Cargo パッケージで backend の workspace には入れない。
+Leptos (CSR) のフロントエンドです。単独の Cargo パッケージで、Vercel に配信します。
 
 ## 前提
 
-- Rust 1.96.0 + `wasm32-unknown-unknown` ターゲット (`rustup target add wasm32-unknown-unknown`)
-- trunk 0.21.4
-- Node v22.14.0 / npm 10.9.2
+- Rust 1.96.0 と `wasm32-unknown-unknown` ターゲット
+- Trunk 0.21.4
+- Node.js 22 と npm
 
 ## セットアップ
 
 ```bash
-cd ../frontend && npm ci
-cd ../frontend-leptos && npm ci
+npm ci
 ```
 
-`@playwright/test` は `file:../frontend/node_modules/@playwright/test` で frontend 側の実体を参照する。別インスタンスになると Playwright が二重読み込みエラーを出すため。
+Playwright、axe、Tailwind の依存はこのディレクトリの `package.json` と `package-lock.json` で管理します。
 
-## コマンド
+## 開発と検証
 
 ```bash
 trunk serve --port 8081
 trunk build --release
+cargo fmt --check
+cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
+cargo clippy --all-targets -- -D warnings
+cargo test
 npx playwright test --config playwright.leptos.config.ts
 npx playwright test --config playwright.receipts.config.ts
-cargo fmt --check
-cargo clippy --target wasm32-unknown-unknown -- -D warnings
+npx playwright test --config playwright.vercel.config.ts
 ```
 
-`playwright.leptos.config.ts` は `frontend/e2e` の既存 spec (search-flow / receipt-flow) を無改修で実行する。`playwright.receipts.config.ts` は `e2e/receipts-cache.spec.ts` (4件) を実行する。
+`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。`playwright.receipts.config.ts` は取引明細の E2E を実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。
 
-E2E のポートは `LEPTOS_E2E_PORT` で変えられる (既定 8081)。複数の worktree で並行して Playwright を回すときは、worktree ごとに別ポートを指定する (`LEPTOS_E2E_PORT=8091 npx playwright test ...`)。同じポートだと `reuseExistingServer` が別 worktree の trunk serve を拾い、自分のコード以外に対してテストが走る。出力先は `test-results/<suite>/` (`leptos` と `receipts` は並列で互いを消さない) で、`LEPTOS_E2E_OUTPUT_DIR` で基準ディレクトリを上書きできる。
+実 backend と DB を使うスモークテストは `scripts/run-real-backend-smoke.sh` を使います。DB → backend → Leptos の順に起動します。
 
 ## CSS
 
-Tailwind browser CDN は使わない。`style/input.css` (`@theme` は `frontend/src/styles/tailwind.css` から流用) を Trunk の pre_build フックで `@tailwindcss/cli` (lock 済み) により `style/output.css` へ生成し、`index.html` の `<link data-trunk rel="css">` で成果物に含める。生成物は git 管理外。
+`style/input.css` を Trunk の pre_build フックで `style/output.css` に生成し、`index.html` から読み込みます。生成物は Git 管理外です。
 
 ## デプロイ
 
-GitHub Actions (`deploy-frontend-leptos.yml`) が `vercel pull` → `vercel build` → `vercel deploy --prebuilt` で配信する。secret (`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`) が未登録ならジョブはスキップされる。`vercel.json` の `installCommand` / `buildCommand` / `outputDirectory` は `vercel build` が参照する。Vercel 側の Git 連携ビルドは `ignoreCommand` で常にスキップし、CLI の prebuilt デプロイと二重にならないようにする。本番 (`--prod`) は main への `workflow_dispatch` かつ repository variable `LEPTOS_PRODUCTION_ENABLED=true` のときだけ。
-
-## 実装範囲
-
-6ページの表示系のみ。操作系 (CSV 取込・削除など) はない。
-
-| ページ | 状態 |
-|---|---|
-| 検索 (`/search`) | 単一銘柄の取得・表示、`code` クエリ対応。E2E 2件が通過 |
-| 取引明細 (`/receipts`) | 3タブの一覧表示とタブ別キャッシュ。E2E 3+4件が通過 |
-| ホーム (`/`) | 静的表示のみ |
-| 資産管理 (`/assetbalance`) | 一覧・評価・構成比・KPI を表示。検索・CSV 取込なし。配当はバッチ取得後、pending が残る間は15秒間隔で再ポーリング（通信エラー時も上限付きでリトライ） |
-| ログイン (`/login`) | Google 認証への入口遷移のみ |
-| 404 | 静的表示のみ |
-
-本番 React と同等ではない点:
-
-- 取引明細に PoC 用のユーザー切替バー (`AuthSimulator`) が残っている
-- 金額の型が暫定 (取引明細は `String`、資産管理は `f64`) で実 API の JSON number との互換は未検証 (#883 で扱う)
-- 明細の取得は `per_page=1000&page=1` 固定でページネーション UI なし
-- 画面遷移は通常の `<a>` によるフルリロード
-- ログイン画面の Google ロゴは外部 URL (`gstatic.com`) 参照のまま
+GitHub Actions の `deploy-frontend-leptos.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。本番デプロイは main の `workflow_dispatch` と `LEPTOS_PRODUCTION_ENABLED=true` で有効になります。

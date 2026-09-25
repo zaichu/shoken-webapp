@@ -3,13 +3,13 @@ import * as path from 'path';
 
 /**
  * 取引明細 CSV 取込・削除の E2E。
- * API はモックし、fixture CSV は frontend/e2e の既存ファイルをそのまま使う。
+ * API はモックし、fixture CSV を使う。
  */
 
 function fixtureDir(): string {
   return path.resolve(
     test.info().project.testDir,
-    '../../frontend/e2e/__fixtures__/csv',
+    '__fixtures__/csv',
   );
 }
 

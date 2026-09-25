@@ -503,7 +503,7 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
   await fileInput.setInputFiles(
       path.resolve(
         test.info().project.testDir,
-        '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',
+        '__fixtures__/csv/dividend-base.csv',
       ),
     );
   await page.getByRole('button', { name: '1件 追加で保存' }).click();

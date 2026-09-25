@@ -2193,7 +2193,7 @@
       },
       "DomesticStockSummary": {
         "type": "object",
-        "description": "国内株式取引 検索条件全体の集計\n\ntrade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、\n特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする\nfrontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。",
+        "description": "国内株式取引 検索条件全体の集計\n\ntrade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、\n特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として\n日次集計した結果を合計する。",
         "required": [
           "total_realized_profit_and_loss",
           "total_taxes",
@@ -2914,7 +2914,7 @@
           },
           "summary": {
             "type": "object",
-            "description": "国内株式取引 検索条件全体の集計\n\ntrade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、\n特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする\nfrontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。",
+            "description": "国内株式取引 検索条件全体の集計\n\ntrade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、\n特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として\n日次集計した結果を合計する。",
             "required": [
               "total_realized_profit_and_loss",
               "total_taxes",

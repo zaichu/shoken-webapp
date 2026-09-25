@@ -10,7 +10,7 @@ import * as path from 'path';
 function fixtureDir(): string {
   return path.resolve(
     test.info().project.testDir,
-    '../../frontend/e2e/__fixtures__/csv',
+    '__fixtures__/csv',
   );
 }
 

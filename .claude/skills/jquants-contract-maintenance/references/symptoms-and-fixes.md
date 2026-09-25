@@ -1,48 +1,16 @@
-# Symptoms and Fixes
+# 症状と確認先
 
-## `missing field ...`
+## Deserialize エラー
 
-見る場所:
+`backend/src/models/market_data/providers/jquants.rs` と `backend/src/services/market_data/providers/jquants.rs` で、field 名と optional / required の扱いを実応答と比較する。
 
-- `backend/src/models/jquants.rs`
-- `backend/src/services/market_data/providers/jquants.rs`
+## API は成功するが表示が崩れる
 
-原因の典型:
+`frontend-leptos/src/dto.rs`、`dividend_per_share.rs`、`dividend_info.rs` を確認する。API shape を変更した場合は OpenAPI と DTO 契約テストも更新する。
 
-- API の field 名変更
-- optional / required の取り違え
-- V1/V2 の field 命名混在
+## 確認順
 
-## `... is not iterable`
-
-見る場所:
-
-- `frontend/src/features/marketData/api/types.ts`
-- `frontend/src/generated/api.ts`
-- hook 側の `response.data` / `response.statements` 参照
-
-原因の典型:
-
-- frontend が古い response shape を読んでいる
-- generated type 再生成漏れ
-
-## backend は成功、UI 表示だけ壊れる
-
-見る場所:
-
-- `frontend/src/components/molecules/DividendInfo/DividendInfo.tsx`
-- `frontend/src/pages/Receipt/Dividend.tsx`
-- `frontend/src/pages/AssetBalance.tsx`
-
-原因の典型:
-
-- hook の返り値 shape は合っているが consumer の前提が古い
-- `Map` / 配列 / 単一値の変換漏れ
-
-## fix の順番
-
-1. 実 API か backend route のどちらを正本にするか決める
-2. backend model / handler を合わせる
-3. OpenAPI と generated type を再生成する
-4. frontend hand-written 型と consumer を合わせる
-5. テストと同期チェックを回す
+1. 実応答と backend model / service を比較する。
+2. handler と OpenAPI を揃える。
+3. Leptos DTO と表示を揃える。
+4. 関連テストと `scripts/check-openapi.sh` を実行する。

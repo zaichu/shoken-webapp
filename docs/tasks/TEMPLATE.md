@@ -39,12 +39,12 @@ task file はローカルの一時メモであり、作業完了または中止�
 ## 変更候補ファイル
 
 - backend/src/...
-- frontend/src/...
+- frontend-leptos/src/...
 
 ## タスク固有コマンド（任意）
 
 - `cargo run --bin generate_openapi`
-- `npm run generate:types`
+- `env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts`
 - 手動確認の手順があれば追記する
 
 ## 進捗

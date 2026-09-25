@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8080}"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8081}"
 
 KEEP_DB=0
 
@@ -16,7 +16,7 @@ Usage:
   ./scripts/stop-local.sh [--keep-db]
 
 Stops the local dev stack used by ./scripts/start-local.sh:
-- Frontend dev server (default: port 8080)
+- Frontend dev server (default: port 8081)
 - Backend server (default: port 3001)
 - Local PostgreSQL via docker compose (unless --keep-db)
 
@@ -185,7 +185,7 @@ BACKEND_PORT="${BACKEND_PORT:-$(extract_port_from_url "${BACKEND_URL}")}"
 BACKEND_PORT="${BACKEND_PORT:-3001}"
 
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
-FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+FRONTEND_PORT="${FRONTEND_PORT:-8081}"
 
 front_out=""
 if ! front_out="$(pids_listening_on_port "${FRONTEND_PORT}")"; then
