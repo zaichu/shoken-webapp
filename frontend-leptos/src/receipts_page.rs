@@ -27,7 +27,7 @@ use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
@@ -1823,6 +1823,24 @@ fn card_key(slug: &str, id: &str, cells: &[ReceiptCell], ordinal: usize) -> Stri
     }
 }
 
+// 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
+// id を持たない行の通し番号は絞り込み前の全行内での位置から引く。
+// 同一内容の行は全行内の並び順でキューから取り出す。
+fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usize>> {
+    let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
+    for (index, item) in all_rows.iter().enumerate() {
+        if item.id().is_empty() {
+            let cells = item.cells();
+            let content: Vec<_> = cells.iter().map(cell_text).collect();
+            ordinals
+                .entry(content.join("\u{1f}"))
+                .or_default()
+                .push_back(index);
+        }
+    }
+    ordinals
+}
+
 fn card_row_data(
     key: String,
     cells: &[ReceiptCell],
@@ -2261,7 +2279,7 @@ fn ReceiptTable(
     let fields = card_fields(tab);
     let labels = summary_labels(tab);
     let slug = TAB_IDS[tab as usize];
-    let mut card_ordinal = 0usize;
+    let mut card_ordinals = idless_row_ordinals(&all_rows);
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -2275,15 +2293,22 @@ fn ReceiptTable(
                 .rows
                 .iter()
                 .map(|(id, cells)| {
-                    let row = card_row_data(
-                        card_key(slug, id, cells, card_ordinal),
+                    let ordinal = if id.is_empty() {
+                        let content: Vec<_> = cells.iter().map(cell_text).collect();
+                        card_ordinals
+                            .get_mut(&content.join("\u{1f}"))
+                            .and_then(|queue| queue.pop_front())
+                            .unwrap_or_default()
+                    } else {
+                        0
+                    };
+                    card_row_data(
+                        card_key(slug, id, cells, ordinal),
                         cells,
                         headers,
                         &order,
                         fields,
-                    );
-                    card_ordinal += 1;
-                    row
+                    )
                 })
                 .collect();
             (

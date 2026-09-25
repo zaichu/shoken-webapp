@@ -319,6 +319,35 @@ fn card_key_separates_idless_rows_by_position() {
 }
 
 #[test]
+fn idless_rows_keep_unfiltered_positions_as_card_ordinals() {
+    let mut first = dividends()[0].clone();
+    let mut second = dividends()[0].clone();
+    let mut removed = dividends()[2].clone();
+    let with_id = dividends()[1].clone();
+    for item in [&mut first, &mut second, &mut removed] {
+        if let ReceiptItem::Dividend(row) = item {
+            row.id.clear();
+        }
+    }
+    let ordinals = idless_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
+    assert_eq!(ordinals.len(), 2);
+    let content = first
+        .cells()
+        .iter()
+        .map(cell_text)
+        .collect::<Vec<_>>()
+        .join("\u{1f}");
+    // 先頭行を絞り込みで除いても残る行のカードキーは変わらない
+    let positions: Vec<usize> = ordinals[&content].iter().copied().collect();
+    assert_eq!(positions, [2, 3]);
+    let cells = first.cells();
+    assert_ne!(
+        card_key("dividend", "", &cells, positions[0]),
+        card_key("dividend", "", &cells, positions[1]),
+    );
+}
+
+#[test]
 fn security_code_acceptance_matches_react_regex() {
     assert!(is_security_code("9432"));
     assert!(is_security_code("BRK.B"));
