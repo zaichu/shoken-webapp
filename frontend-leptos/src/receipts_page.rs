@@ -1809,6 +1809,17 @@ fn card_key(slug: &str, id: &str, raw_key: &str, ordinal: usize) -> String {
     }
 }
 
+fn card_ordinal(ordinals: &mut HashMap<String, VecDeque<usize>>, id: &str, raw_key: &str) -> usize {
+    if id.is_empty() {
+        ordinals
+            .get_mut(raw_key)
+            .and_then(|queue| queue.pop_front())
+            .unwrap_or_default()
+    } else {
+        0
+    }
+}
+
 // 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
 // id を持たない行の通し番号は絞り込み前の全行内での位置から引く。
 fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usize>> {
@@ -2303,14 +2314,7 @@ fn ReceiptTable(
                 .rows
                 .iter()
                 .map(|(id, raw_key, cells)| {
-                    let ordinal = if id.is_empty() {
-                        card_ordinals
-                            .get_mut(raw_key)
-                            .and_then(|queue| queue.pop_front())
-                            .unwrap_or_default()
-                    } else {
-                        0
-                    };
+                    let ordinal = card_ordinal(&mut card_ordinals, id, raw_key);
                     card_row_data(
                         card_key(slug, id, raw_key, ordinal),
                         cells,

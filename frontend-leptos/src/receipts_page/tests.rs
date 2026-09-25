@@ -379,23 +379,44 @@ fn idless_rows_with_rounding_identical_display_stay_separate() {
     assert_eq!(first.cells(), second.cells());
     assert_ne!(first.raw_key(), second.raw_key());
 
-    let mut ordinals = idless_row_ordinals(&[first.clone(), second.clone()]);
-    assert_eq!(ordinals.len(), 2);
-    let key_before = card_key("dividend", "", &second.raw_key(), 1);
+    let all_rows = vec![first, second];
+    let keys_for = |groups: &[TableGroup]| {
+        let mut ordinals = idless_row_ordinals(&all_rows);
+        groups
+            .iter()
+            .flat_map(|group| group.rows.iter())
+            .map(|(id, raw_key, _)| {
+                card_key(
+                    "dividend",
+                    id,
+                    raw_key,
+                    card_ordinal(&mut ordinals, id, raw_key),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    // カード生成と同じく table_groups -> キュー照合 -> card_key で通す
+    let groups = table_groups(ReceiptsTab::Dividend, &all_rows, &all_rows, "");
+    let group_keys: Vec<&str> = groups
+        .iter()
+        .flat_map(|group| group.rows.iter().map(|(_, raw_key, _)| raw_key.as_str()))
+        .collect();
+    assert_eq!(group_keys.len(), 2);
+    assert_ne!(group_keys[0], group_keys[1]);
+    let keys_before = keys_for(&groups);
+    let [key_first, key_second] = keys_before.as_slice() else {
+        panic!("2行分のカードキーがある");
+    };
+    assert_ne!(key_first, key_second);
+    let key_second = key_second.clone();
 
     // 先の行だけが外れる絞り込みの後でも、残った行のカードキーは変わらない
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &[first, second], "1.002");
-    let [survivor] = filtered.as_slice() else {
-        panic!("1.002 に合致するのは second のみ");
-    };
-    let ordinal = ordinals
-        .get_mut(&survivor.raw_key())
-        .and_then(|queue| queue.pop_front())
-        .expect("second のキューがある");
-    assert_eq!(
-        card_key("dividend", "", &survivor.raw_key(), ordinal),
-        key_before
-    );
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &all_rows, "1.002");
+    assert_eq!(filtered.len(), 1);
+    let groups = table_groups(ReceiptsTab::Dividend, &filtered, &all_rows, "1.002");
+    let keys_after = keys_for(&groups);
+    assert_eq!(keys_after, [key_second]);
 }
 
 #[test]
