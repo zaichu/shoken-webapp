@@ -1,4 +1,4 @@
-# frontend-leptos
+# frontend
 
 Leptos (CSR) のフロントエンドです。単独の Cargo パッケージで、Vercel に配信します。
 
@@ -40,4 +40,4 @@ npx playwright test --config playwright.vercel.config.ts
 
 ## デプロイ
 
-GitHub Actions の `deploy-frontend-leptos.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。本番デプロイは main の `workflow_dispatch` と `LEPTOS_PRODUCTION_ENABLED=true` で有効になります。
+GitHub Actions の `deploy-frontend.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。本番デプロイは main の `workflow_dispatch` と `LEPTOS_PRODUCTION_ENABLED=true` で有効になります。

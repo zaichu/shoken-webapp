@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # `vercel build` の buildCommand。Rust toolchain と trunk は GitHub Actions
-# (deploy-frontend-leptos.yml) またはローカル環境側で用意する。
+# (deploy-frontend.yml) またはローカル環境側で用意する。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

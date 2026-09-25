@@ -4,14 +4,14 @@
 
 | 対象 | ツール | 場所 |
 |---|---|---|
-| Leptos 単体テスト | cargo test | `frontend-leptos/src/` |
+| Leptos 単体テスト | cargo test | `frontend/src/` |
 | バックエンド単体・統合テスト | cargo test | `backend/src/`、`backend/tests/` |
-| ブラウザ E2E | Playwright | `frontend-leptos/e2e/`、`frontend-leptos/e2e/migrated/` |
-| Vercel 配信設定 | Playwright | `frontend-leptos/e2e-vercel/` |
+| ブラウザ E2E | Playwright | `frontend/e2e/`、`frontend/e2e/migrated/` |
+| Vercel 配信設定 | Playwright | `frontend/e2e-vercel/` |
 
 ## Leptos
 
-`frontend-leptos/` で実行します。
+`frontend/` で実行します。
 
 ```bash
 npm ci
@@ -30,7 +30,7 @@ env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.receipts.config
 env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.vercel.config.ts
 ```
 
-実 DB と backend を使う取引明細スモークは `frontend-leptos/scripts/run-real-backend-smoke.sh` で実行します。DB → backend → Leptos の順に起動し、認証済み session と fixture を投入します。
+実 DB と backend を使う取引明細スモークは `frontend/scripts/run-real-backend-smoke.sh` で実行します。DB → backend → Leptos の順に起動し、認証済み session と fixture を投入します。
 
 ## バックエンド
 
@@ -48,8 +48,8 @@ DB を使う ignored test は Docker が必要です。外部 API を呼ぶ igno
 
 | ワークフロー | 必須チェック | 内容 |
 |---|---|---|
-| `frontend-leptos.yml` | Check, build, and E2E | fmt、clippy、cargo test、release build、Playwright |
+| `frontend.yml` | Check, build, and E2E | fmt、clippy、cargo test、release build、Playwright |
 | `deploy-backend.yml` | Test & Build | clippy、cargo test、OpenAPI 同期、Docker build |
 | `pr-gate.yml` | PR gate | Issue の紐付け、レビューコメント |
 
-依存関係の監査は `security-audit.yml` で Cargo と `frontend-leptos/` の npm を対象に実行します。
+依存関係の監査は `security-audit.yml` で Cargo と `frontend/` の npm を対象に実行します。

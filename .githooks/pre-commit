@@ -2,14 +2,14 @@
 
 set -euo pipefail
 
-if git diff --cached --name-only | grep -q "^frontend-leptos/.*\.rs$"; then
+if git diff --cached --name-only | grep -q "^frontend/.*\.rs$"; then
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT
   git checkout-index -a --prefix="$TMP/"
-  if ! (cd "$TMP/frontend-leptos" && cargo fmt --check); then
+  if ! (cd "$TMP/frontend" && cargo fmt --check); then
     echo ""
-    echo "❌ frontend-leptos に fmt 漏れがあります。以下を実行してから再度コミットしてください:"
-    echo "   (cd frontend-leptos && cargo fmt)"
+    echo "❌ frontend に fmt 漏れがあります。以下を実行してから再度コミットしてください:"
+    echo "   (cd frontend && cargo fmt)"
     echo ""
     exit 1
   fi

@@ -385,7 +385,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "frontend-leptos"
+name = "frontend"
 version = "0.1.0"
 dependencies = [
  "any_spawner",

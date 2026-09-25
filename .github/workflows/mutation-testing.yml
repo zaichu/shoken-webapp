@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
-      frontend_leptos: ${{ steps.filter.outputs.frontend_leptos }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
@@ -37,11 +37,11 @@ jobs:
               - "backend/Cargo.lock"
               - "backend/.cargo/**"
               - ".github/workflows/mutation-testing.yml"
-            frontend_leptos:
-              - "frontend-leptos/**/*.rs"
-              - "frontend-leptos/Cargo.toml"
-              - "frontend-leptos/Cargo.lock"
-              - "frontend-leptos/.cargo/**"
+            frontend:
+              - "frontend/**/*.rs"
+              - "frontend/Cargo.toml"
+              - "frontend/Cargo.lock"
+              - "frontend/.cargo/**"
               - ".github/workflows/mutation-testing.yml"
 
   diff-backend:
@@ -110,14 +110,14 @@ jobs:
             backend/mutants.out/timeout.txt
           if-no-files-found: ignore
 
-  diff-frontend-leptos:
-    name: cargo-mutants (frontend-leptos diff)
+  diff-frontend:
+    name: cargo-mutants (frontend diff)
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_leptos == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend-leptos
+        working-directory: frontend
 
     steps:
       - name: Checkout repository
@@ -133,7 +133,7 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
         with:
-          workspaces: frontend-leptos -> target
+          workspaces: frontend -> target
 
       - name: Install cargo-mutants
         run: cargo install --locked cargo-mutants@27.1.0
@@ -147,7 +147,7 @@ jobs:
           count=$(cargo mutants --list --json --in-diff mutants.diff | jq 'length' || true)
           count=${count:-0}
           echo "count=$count" >> "$GITHUB_OUTPUT"
-          echo "- frontend-leptos: PR 差分の対象 mutant は **${count}** 件" >> "$GITHUB_STEP_SUMMARY"
+          echo "- frontend: PR 差分の対象 mutant は **${count}** 件" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run cargo-mutants on PR diff
         if: steps.list.outputs.count != '0'
@@ -157,14 +157,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
         with:
-          name: mutants-frontend-leptos-diff
+          name: mutants-frontend-diff
           path: |
-            frontend-leptos/mutants.out/mutants.json
-            frontend-leptos/mutants.out/outcomes.json
-            frontend-leptos/mutants.out/caught.txt
-            frontend-leptos/mutants.out/missed.txt
-            frontend-leptos/mutants.out/unviable.txt
-            frontend-leptos/mutants.out/timeout.txt
+            frontend/mutants.out/mutants.json
+            frontend/mutants.out/outcomes.json
+            frontend/mutants.out/caught.txt
+            frontend/mutants.out/missed.txt
+            frontend/mutants.out/unviable.txt
+            frontend/mutants.out/timeout.txt
           if-no-files-found: ignore
 
   baseline:
@@ -174,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: [backend, frontend-leptos]
+        crate: [backend, frontend]
         shard: [0, 1, 2, 3]
     defaults:
       run:

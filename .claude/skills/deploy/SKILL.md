@@ -41,7 +41,7 @@ flyctl status -a shoken-backend
 
 ### 手動デプロイ（緊急時のみ）
 ```bash
-(cd frontend-leptos && vercel deploy --prebuilt --prod)
+(cd frontend && vercel deploy --prebuilt --prod)
 ```
 
 ## 開発フロー

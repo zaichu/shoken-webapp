@@ -22,7 +22,7 @@
 ## 設計方針
 
 - API 契約の正本は `docs/openapi.json` とし、backend の API 変更時は同期を確認する
-- CSV 取り込みは原則 backend で `parse / validate / import` する。frontend-leptos はファイル送信と結果表示を優先する
+- CSV 取り込みは原則 backend で `parse / validate / import` する。frontend はファイル送信と結果表示を優先する
 - unrelated な修正は同じブランチに混在させない。`1 ブランチ = 1 タスク` を守る
 
 ## Agent Assets
@@ -52,4 +52,4 @@
 ## サブプロジェクトルール
 
 - バックエンド作業時は `backend/CLAUDE.md` を追加で適用
-- フロントエンド作業時は `frontend-leptos/README.md` を参照
+- フロントエンド作業時は `frontend/README.md` を参照

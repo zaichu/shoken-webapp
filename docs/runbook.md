@@ -9,7 +9,7 @@ cd shoken-webapp
 
 # 2. 環境変数を設定
 (cd backend && cp .env.example .env)  # DATABASE_URL 等を設定
-(cd frontend-leptos && npm ci)
+(cd frontend && npm ci)
 
 # 3. 一括起動（推奨）
 ./scripts/start-local.sh
@@ -28,7 +28,7 @@ cd shoken-webapp
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | `deploy-frontend-leptos.yml` の手動実行 |
+| フロントエンド | Vercel | `deploy-frontend.yml` の手動実行 |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 ### 手動デプロイ（緊急時）
@@ -38,7 +38,7 @@ cd shoken-webapp
 (cd backend && make deploy)
 
 # フロントエンド（Vercel CLI。事前に vercel pull / build を実行）
-(cd frontend-leptos && vercel deploy --prebuilt --prod)
+(cd frontend && vercel deploy --prebuilt --prod)
 ```
 
 ## ヘルスチェック
@@ -97,7 +97,7 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 ```bash
 # 依存関係の脆弱性チェック
 (cd backend && cargo audit)
-(cd frontend-leptos && npm audit --audit-level=high)
+(cd frontend && npm audit --audit-level=high)
 ```
 
 ## PR マージ後のクリーンアップ
@@ -157,8 +157,8 @@ git fetch origin --prune
 ### フロントエンドのビルドエラー
 
 ```bash
-(cd frontend-leptos && cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings)
-(cd frontend-leptos && trunk build --release)
+(cd frontend && cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings)
+(cd frontend && trunk build --release)
 ```
 
 ### OpenAPI スキーマの不一致

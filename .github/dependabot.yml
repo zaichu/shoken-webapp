@@ -2,17 +2,17 @@ version: 2
 updates:
   # npm（フロントエンド）
   - package-ecosystem: "npm"
-    directory: "/frontend-leptos"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     groups:
-      frontend-leptos-production:
+      frontend-production:
         dependency-type: "production"
         patterns:
           - "*"
-      frontend-leptos-development:
+      frontend-development:
         dependency-type: "development"
         patterns:
           - "*"

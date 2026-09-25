@@ -104,7 +104,7 @@ test('未認証で保護パスを直接開くと /login へリダイレクトす
 });
 
 test('エンコードされた親参照でも dist 外を返さず、不正なパスは 400 でサーバが落ちない', async () => {
-  // dist の親にある frontend-leptos/package.json が拾えないことを確認する
+  // dist の親にある frontend/package.json が拾えないことを確認する
   const traversal = await rawGet('/%2e%2e/package.json');
   expect(traversal.type).not.toContain('application/json');
 

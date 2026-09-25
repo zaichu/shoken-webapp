@@ -37,7 +37,7 @@
 
 ```
 shoken-webapp/
-├── frontend-leptos/
+├── frontend/
 │   ├── src/               # Leptos UI / API client / domain logic
 │   ├── e2e/               # Playwright E2E テストと CSV fixture
 │   ├── style/             # Tailwind CSS
