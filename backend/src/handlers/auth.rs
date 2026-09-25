@@ -328,7 +328,6 @@ mod tests {
             google_oauth_credentials(&state).unwrap(),
             ("test-client-id", "test-client-secret")
         );
-        // 未設定のときは値が取れないことを検証する
         assert!(google_oauth_credentials(&make_test_state()).is_err());
     }
 
