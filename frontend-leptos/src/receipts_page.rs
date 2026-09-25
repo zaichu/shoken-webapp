@@ -26,7 +26,9 @@ use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -242,7 +244,6 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let hidden = store.clone();
     let rendered = store.clone();
-    let rail = store.clone();
     view! {
         <div
             id={format!("tabpanel-{slug}")}
@@ -251,13 +252,6 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
             hidden=move || hidden.active_tab.get() != tab
         >
             {move || {
-                let store = rail.clone();
-                if store.active_tab.get() != tab || !store.is_authenticated() {
-                    return ().into_any();
-                }
-                view! { <ReceiptsCsvSection store=store tab=tab /> }.into_any()
-            }}
-            {move || {
                 let store = rendered.clone();
                 if store.active_tab.get() != tab {
                     return ().into_any();
@@ -265,41 +259,200 @@ fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                 if !store.is_authenticated() {
                     return view! { <Loading /> }.into_any();
                 }
-                match store.tab_state(tab) {
-                    TabState::Loading => view! { <Loading /> }.into_any(),
-                    TabState::Failed(message) => {
-                        let alert = view! {
-                            <div role="alert">
-                                <strong>"エラー:"</strong>
-                                " "
-                                {message}
-                            </div>
+                view! { <ReceiptWorkspace store=store tab=tab /> }.into_any()
+            }}
+        </div>
+    }
+}
+
+fn empty_tab_data() -> ReceiptTabData {
+    ReceiptTabData {
+        rows: Vec::new(),
+        summary: None,
+        truncated: false,
+    }
+}
+
+#[component]
+fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    let csv_store = store.clone();
+    let error_store = store.clone();
+    let warning_store = store.clone();
+    let preview_store = store.clone();
+    let loading_store = store.clone();
+    let rail_store = store.clone();
+    let main_store = store.clone();
+    view! {
+        // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
+        <div
+            class="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
+            data-testid="receipt-workspace"
+        >
+            <aside class="order-1 lg:order-2" data-testid="receipt-utility-rail">
+                // スマホでは帯と別カードの積み上げを維持するため枠は sm 以上だけにする
+                // 年ピッカーのドロップダウンを切らないよう overflow は掛けない。
+                // backdrop-blur が作る stack context に listbox が閉じ込められるため、1カラム幅でも表より前面に出す
+                <div class="sm:relative sm:z-20 sm:divide-y sm:divide-slate-950/10 sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
+                    <ReceiptsCsvSection store=csv_store.clone() tab=tab />
+                    {move || {
+                        // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
+                        match error_store.tab_state(tab) {
+                            TabState::Failed(message) => {
+                                view! {
+                                    <section class="px-5 py-4">
+                                        <div
+                                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                            role="alert"
+                                            aria-live="assertive"
+                                        >
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                        </div>
+                                    </section>
+                                }
+                                    .into_any()
+                            }
+                            _ => ().into_any(),
+                        }
+                    }}
+                    {move || {
+                        let Some(message) = csv_store.csv_state(tab).error else {
+                            return ().into_any();
                         };
-                        if store.has_csv_preview(tab) {
-                            view! {
-                                <div>
-                                    {alert}
-                                    <ReceiptContent
-                                        store=store
-                                        tab=tab
-                                        data=ReceiptTabData {
-                                            rows: Vec::new(),
-                                            summary: None,
-                                            truncated: false,
-                                        }
-                                    />
+                        view! {
+                            <section class="px-5 py-4">
+                                <div
+                                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                    role="alert"
+                                    aria-live="assertive"
+                                >
+                                    <strong>"エラー:"</strong>
+                                    " "
+                                    {message}
                                 </div>
+                            </section>
+                        }
+                            .into_any()
+                    }}
+                    {move || {
+                        match warning_store.tab_state(tab) {
+                            TabState::Ready(data) if data.truncated => {
+                                view! {
+                                    <section class="px-5 py-4" role="status" aria-live="polite">
+                                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                                            {truncated_list_warning()}
+                                        </div>
+                                    </section>
+                                }
+                                    .into_any()
+                            }
+                            _ => ().into_any(),
+                        }
+                    }}
+                    {move || {
+                        let state = preview_store.csv_state(tab);
+                        let authenticated = preview_store.is_authenticated();
+                        let has_file = state.file_name.is_some();
+                        let previewing = state.previewing;
+                        let Some(preview) = state
+                            .preview
+                            .filter(|_| authenticated && has_file && !previewing)
+                        else {
+                            return ().into_any();
+                        };
+                        let has_errors = !preview.errors.is_empty();
+                        let alert_class = if has_errors {
+                            "border-amber-200 bg-amber-50 text-amber-900"
+                        } else {
+                            "border-blue-200 bg-blue-50 text-blue-800"
+                        };
+                        view! {
+                            <section class="px-5 py-4" role="status" aria-live="polite">
+                                <div class=format!(
+                                    "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {alert_class}"
+                                )>
+                                    <p>
+                                        <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
+                                        {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
+                                        <span class="ml-2 text-xs text-secondary">"（保存モード: 追加）"</span>
+                                    </p>
+                                    {has_errors.then(|| {
+                                        view! {
+                                            <ul class="mt-2 list-disc list-inside text-sm space-y-1">
+                                                {preview
+                                                    .errors
+                                                    .iter()
+                                                    .map(|error| view! { <li>{row_error_text(error)}</li> })
+                                                    .collect_view()}
+                                            </ul>
+                                        }
+                                    })}
+                                </div>
+                            </section>
+                        }
+                            .into_any()
+                    }}
+                    {move || {
+                        let auth_loading = loading_store.auth_loading();
+                        let fetching = loading_store.any_tab_fetching();
+                        if !auth_loading && !fetching {
+                            return ().into_any();
+                        }
+                        view! {
+                            <div aria-live="polite" aria-atomic="true">
+                                <section class="px-5 py-4" role="status">
+                                    <div class="flex items-center gap-2 text-slate-600">
+                                        <Spinner size="sm" class="" />
+                                        <p class="text-sm">
+                                            {auth_loading.then_some("認証状態を確認しています...")}
+                                            {fetching.then_some("データを読み込んでいます...")}
+                                        </p>
+                                    </div>
+                                </section>
+                            </div>
+                        }
+                            .into_any()
+                    }}
+                    {move || match rail_store.tab_state(tab) {
+                        TabState::Ready(data) => {
+                            view! { <ReceiptsSearchCard store=rail_store.clone() tab=tab data=data /> }
+                                .into_any()
+                        }
+                        TabState::Failed(_) if rail_store.has_csv_preview(tab) => {
+                            view! {
+                                <ReceiptsSearchCard
+                                    store=rail_store.clone()
+                                    tab=tab
+                                    data=empty_tab_data()
+                                />
                             }
                                 .into_any()
-                        } else {
-                            alert.into_any()
                         }
-                    }
+                        _ => ().into_any(),
+                    }}
+                </div>
+            </aside>
+            <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
+                {move || match main_store.tab_state(tab) {
+                    TabState::Loading => view! { <Loading /> }.into_any(),
                     TabState::Ready(data) => {
-                        view! { <ReceiptContent store=store tab=tab data=data /> }.into_any()
+                        view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }
+                            .into_any()
                     }
-                }
-            }}
+                    TabState::Failed(_) if main_store.has_csv_preview(tab) => {
+                        view! {
+                            <ReceiptsMainContent
+                                store=main_store.clone()
+                                tab=tab
+                                data=empty_tab_data()
+                            />
+                        }
+                            .into_any()
+                    }
+                    _ => ().into_any(),
+                }}
+            </div>
         </div>
     }
 }
@@ -344,110 +497,24 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let file_select = store.clone();
     let save = store.clone();
     let delete_request = store.clone();
-    let alert_store = store.clone();
-    let preview_alert_store = store.clone();
-    let loading_store = store.clone();
     view! {
-        <div>
-            <CsvActionRail
-                input_id=input_id
-                on_file_select=move |file| file_select.select_file(tab, file)
-                selected_file_name=selected_file_name
-                file_input_disabled=file_input_disabled
-                has_csv_file=has_csv_file
-                save_label=save_label
-                on_save=move || save.save_csv(tab)
-                save_disabled=save_disabled
-                has_db_data=has_db_data
-                delete_label=delete_label
-                on_delete_request=move || delete_request.open_delete_confirm(tab)
-                delete_disabled=delete_disabled
-                save_result=save_result
-                mode_label="追加保存"
-            />
-            {move || {
-                let Some(message) = alert_store.csv_state(tab).error else {
-                    return ().into_any();
-                };
-                view! {
-                    <section class="px-5 py-4">
-                        <div
-                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
-                            role="alert"
-                        >
-                            <strong>"エラー:"</strong>
-                            " "
-                            {message}
-                        </div>
-                    </section>
-                }
-                    .into_any()
-            }}
-            {move || {
-                let state = preview_alert_store.csv_state(tab);
-                let authenticated = preview_alert_store.is_authenticated();
-                let has_file = state.file_name.is_some();
-                let previewing = state.previewing;
-                let Some(preview) = state
-                    .preview
-                    .filter(|_| authenticated && has_file && !previewing)
-                else {
-                    return ().into_any();
-                };
-                let has_errors = !preview.errors.is_empty();
-                let alert_class = if has_errors {
-                    "border-amber-200 bg-amber-50 text-amber-900"
-                } else {
-                    "border-blue-200 bg-blue-50 text-blue-800"
-                };
-                view! {
-                    <section class="px-5 py-4" role="status" aria-live="polite">
-                        <div class=format!(
-                            "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {alert_class}"
-                        )>
-                            <p>
-                                <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
-                                {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
-                                <span class="ml-2 text-xs text-secondary">"（保存モード: 追加）"</span>
-                            </p>
-                            {has_errors.then(|| {
-                                view! {
-                                    <ul class="mt-2 list-disc list-inside text-sm space-y-1">
-                                        {preview
-                                            .errors
-                                            .iter()
-                                            .map(|error| view! { <li>{row_error_text(error)}</li> })
-                                            .collect_view()}
-                                    </ul>
-                                }
-                            })}
-                        </div>
-                    </section>
-                }
-                    .into_any()
-            }}
-            <div aria-live="polite" aria-atomic="true">
-                {move || {
-                    let auth_loading = loading_store.auth_loading();
-                    let fetching = loading_store.any_tab_fetching();
-                    if !auth_loading && !fetching {
-                        return ().into_any();
-                    }
-                    view! {
-                        <section class="px-5 py-4" role="status">
-                            <div class="flex items-center gap-2 text-slate-600">
-                                <Spinner size="sm" class="" />
-                                <p class="text-sm">
-                                    {auth_loading.then_some("認証状態を確認しています...")}
-                                    {fetching.then_some("データを読み込んでいます...")}
-                                </p>
-                            </div>
-                        </section>
-                    }
-                        .into_any()
-                }}
-            </div>
-        </div>
+        <CsvActionRail
+            input_id=input_id
+            on_file_select=move |file| file_select.select_file(tab, file)
+            selected_file_name=selected_file_name
+            file_input_disabled=file_input_disabled
+            has_csv_file=has_csv_file
+            save_label=save_label
+            on_save=move || save.save_csv(tab)
+            save_disabled=save_disabled
+            has_db_data=has_db_data
+            delete_label=delete_label
+            on_delete_request=move || delete_request.open_delete_confirm(tab)
+            delete_disabled=delete_disabled
+            save_result=save_result
+            mode_label="追加保存"
+            section_class="sm:rounded-t-xl"
+        />
     }
 }
 
@@ -460,10 +527,12 @@ fn empty_hint(tab: ReceiptsTab) -> &'static str {
 }
 
 #[component]
-fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) -> impl IntoView {
+fn ReceiptsSearchCard(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    data: ReceiptTabData,
+) -> impl IntoView {
     let search = store.search;
-    let summary = data.summary.clone();
-    let truncated = data.truncated;
     let display_store = store.clone();
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => preview
@@ -473,8 +542,6 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
             .collect(),
         _ => data.rows.clone(),
     });
-    let preview_store = store.clone();
-    let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
     let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
     let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
@@ -490,6 +557,86 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     {
         search.set(ReceiptSearch::new(false));
     }
+    let clear_search = search;
+    let clear_picker = year_picker_open;
+    let collapse_picker = year_picker_open;
+    view! {
+        <section
+            class="max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
+            role="search"
+            aria-label="取引明細の検索"
+            data-testid="search-card"
+        >
+            <CollapsibleSearchCard
+                initial_expanded=!is_narrow_viewport()
+                has_active_search=Signal::derive(move || {
+                    !search.with(|state| state.is_default())
+                })
+                is_default_state=Signal::derive(move || {
+                    search.with(|state| state.is_default())
+                })
+                on_clear=move || {
+                    clear_picker.set(false);
+                    clear_search.update(|state| state.clear(has_years()));
+                }
+                on_expand_toggle=Callback::new(move |(open,): (bool,)| {
+                    if !open {
+                        collapse_picker.set(false);
+                    }
+                })
+            >
+                {move || {
+                    if has_dates() {
+                        view! {
+                            <div class="mb-3.5">
+                                <DatePeriod
+                                    search=search
+                                    years=years
+                                    year_picker_open=year_picker_open
+                                />
+                            </div>
+                        }
+                            .into_any()
+                    } else {
+                        ().into_any()
+                    }
+                }}
+                <div class="grid grid-cols-1 gap-3">
+                    <SecurityDropdown search=search options=securities />
+                    {move || {
+                        if !has_dates() && has_years() {
+                            view! { <YearDropdown search=search options=years /> }.into_any()
+                        } else {
+                            ().into_any()
+                        }
+                    }}
+                    <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=products />
+                    <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=accounts />
+                </div>
+            </CollapsibleSearchCard>
+        </section>
+    }
+}
+
+#[component]
+fn ReceiptsMainContent(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    data: ReceiptTabData,
+) -> impl IntoView {
+    let search = store.search;
+    let summary = data.summary.clone();
+    let display_store = store.clone();
+    let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
+        Some(preview) if !preview.rows.is_empty() => preview
+            .rows
+            .iter()
+            .map(CsvPreviewRow::to_receipt_item)
+            .collect(),
+        _ => data.rows.clone(),
+    });
+    let preview_store = store.clone();
+    let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
     // 配当タブの銘柄コード検索時に DividendInfo を出すための取得状態。
@@ -535,133 +682,65 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
             on_focus.remove();
         });
     }
-    let clear_search = search;
-    let clear_picker = year_picker_open;
-    let collapse_picker = year_picker_open;
     view! {
-        <section>
-            {truncated.then(|| {
-                view! {
-                    <section class="px-5 py-4" role="status" aria-live="polite">
-                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-                            {truncated_list_warning()}
-                        </div>
-                    </section>
-                }
-            })}
-            <div
-                class="mb-3 rounded-lg border border-slate-200 bg-white"
-                role="search"
-                aria-label="取引明細の検索"
-                data-testid="search-card"
-            >
-                <CollapsibleSearchCard
-                    initial_expanded=!is_narrow_viewport()
-                    has_active_search=Signal::derive(move || {
-                        !search.with(|state| state.is_default())
+        {move || {
+            let display = display_rows.get();
+            if display.is_empty() {
+                return view! { <div><h3>"データがありません"</h3><p>{empty_hint(tab)}</p></div> }.into_any();
+            }
+            let query = search.with(|s| s.query.clone());
+            let rows = filtered.get();
+            // 銘柄コード検索時は上段の集計カードの代わりに
+            // React の DividendInfo（embedded）を折り畳み式で出す
+            if let Some(info) = dividend_info {
+                let dividends: Vec<Dividend> = rows
+                    .iter()
+                    .filter_map(|item| match item {
+                        ReceiptItem::Dividend(row) => Some(row.clone()),
+                        _ => None,
                     })
-                    is_default_state=Signal::derive(move || {
-                        search.with(|state| state.is_default())
-                    })
-                    on_clear=move || {
-                        clear_picker.set(false);
-                        clear_search.update(|state| state.clear(has_years()));
+                    .collect();
+                if !search_security_code(&dividends, &query).is_empty() {
+                    let totals = calculate_dividends(&dividends);
+                    return view! {
+                        <DividendSummarySection
+                            store=info
+                            totals=totals
+                            expanded=summary_expanded
+                            mobile_expanded=store.mobile_summary_expanded
+                        />
+                        <ReceiptTable
+                            tab=tab
+                            rows=rows
+                            all_rows=display
+                            query=query
+                            expanded_ids=store.expanded
+                        />
                     }
-                    on_expand_toggle=Callback::new(move |(open,): (bool,)| {
-                        if !open {
-                            collapse_picker.set(false);
-                        }
-                    })
-                >
-                    {move || {
-                        if has_dates() {
-                            view! {
-                                <div class="mb-3.5">
-                                    <DatePeriod
-                                        search=search
-                                        years=years
-                                        year_picker_open=year_picker_open
-                                    />
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            ().into_any()
-                        }
-                    }}
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <SecurityDropdown search=search options=securities />
-                        {move || {
-                            if !has_dates() && has_years() {
-                                view! { <YearDropdown search=search options=years /> }.into_any()
-                            } else {
-                                ().into_any()
-                            }
-                        }}
-                        <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=products />
-                        <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=accounts />
-                    </div>
-                </CollapsibleSearchCard>
-            </div>
-            {move || {
-                let display = display_rows.get();
-                if display.is_empty() {
-                    return view! { <div><h3>"データがありません"</h3><p>{empty_hint(tab)}</p></div> }.into_any();
+                    .into_any();
                 }
-                let query = search.with(|s| s.query.clone());
-                let rows = filtered.get();
-                // 銘柄コード検索時は上段の集計カードの代わりに
-                // React の DividendInfo（embedded）を折り畳み式で出す
-                if let Some(info) = dividend_info {
-                    let dividends: Vec<Dividend> = rows
-                        .iter()
-                        .filter_map(|item| match item {
-                            ReceiptItem::Dividend(row) => Some(row.clone()),
-                            _ => None,
-                        })
-                        .collect();
-                    if !search_security_code(&dividends, &query).is_empty() {
-                        let totals = calculate_dividends(&dividends);
-                        return view! {
-                            <DividendSummarySection
-                                store=info
-                                totals=totals
-                                expanded=summary_expanded
-                                mobile_expanded=store.mobile_summary_expanded
-                            />
-                            <ReceiptTable
-                                tab=tab
-                                rows=rows
-                                all_rows=display
-                                query=query
-                                expanded_ids=store.expanded
-                            />
-                        }
-                        .into_any();
-                    }
-                }
-                let header = header_summary(
-                    tab,
-                    &ReceiptTabData {
-                        rows: rows.clone(),
-                        summary: summary.clone(),
-                        truncated: false,
-                    },
-                    &query,
-                    preview_active.get(),
-                );
-                view! {
-                    <SummaryStrip items=header expanded=store.mobile_summary_expanded />
-                    <ReceiptTable
-                        tab=tab
-                        rows=rows
-                        all_rows=display
-                        query=query
-                        expanded_ids=store.expanded
-                    />
-                }.into_any()
-            }}
-        </section>
+            }
+            let header = header_summary(
+                tab,
+                &ReceiptTabData {
+                    rows: rows.clone(),
+                    summary: summary.clone(),
+                    truncated: false,
+                },
+                &query,
+                preview_active.get(),
+            );
+            view! {
+                <SummaryStrip items=header expanded=store.mobile_summary_expanded />
+                <ReceiptTable
+                    tab=tab
+                    rows=rows
+                    all_rows=display
+                    query=query
+                    expanded_ids=store.expanded
+                />
+            }.into_any()
+        }}
     }
 }
 
@@ -969,7 +1048,7 @@ fn YearPicker(
                         <div
                             role="listbox"
                             aria-label="年候補"
-                            class="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5"
+                            class="absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5 max-h-72 overflow-y-auto"
                         >
                             {years
                                 .get()
@@ -2134,6 +2213,18 @@ fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
+// Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
+// マウント中だけ生存させたいので thread_local で管理する
+type TableHeightObserver = (
+    web_sys::ResizeObserver,
+    Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
+);
+thread_local! {
+    static TABLE_HEIGHT_OBSERVERS: RefCell<HashMap<usize, TableHeightObserver>> =
+        RefCell::new(HashMap::new());
+    static TABLE_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
+}
+
 #[component]
 fn ReceiptTable(
     tab: ReceiptsTab,
@@ -2175,15 +2266,96 @@ fn ReceiptTable(
         })
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
+    let table_scroll = NodeRef::<leptos::html::Div>::new();
+    let table_max_height = RwSignal::new(Option::<f64>::None);
+    let measure_table = move || {
+        let Some(element) = table_scroll.get() else {
+            return;
+        };
+        let Some(viewport) = web_sys::window()
+            .and_then(|window| window.inner_height().ok())
+            .and_then(|height| height.as_f64())
+        else {
+            return;
+        };
+        let available = viewport - element.get_bounding_client_rect().top() - 20.0;
+        table_max_height.set(Some(available.max(200.0)));
+    };
+    let on_table_resize = window_event_listener(ev::resize, move |_| measure_table());
+    let observer_key = web_sys::window().and_then(|_| {
+        let callback = Closure::<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>::new(move |_| {
+            measure_table();
+        });
+        web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref())
+            .ok()
+            .map(|observer| {
+                let key = TABLE_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
+                    let key = next.get();
+                    next.set(key + 1);
+                    key
+                });
+                TABLE_HEIGHT_OBSERVERS.with(|observers| {
+                    observers.borrow_mut().insert(key, (observer, callback));
+                });
+                key
+            })
+    });
+    Effect::new(move |_| {
+        measure_table();
+        let (Some(element), Some(key)) = (table_scroll.get(), observer_key) else {
+            return;
+        };
+        TABLE_HEIGHT_OBSERVERS.with(|observers| {
+            let observers = observers.borrow();
+            let Some((observer, _)) = observers.get(&key) else {
+                return;
+            };
+            observer.observe(&element);
+            if let Some(parent) = element.parent_element() {
+                observer.observe(&parent);
+            }
+            if let Some(body) = web_sys::window()
+                .and_then(|window| window.document())
+                .and_then(|document| document.body())
+            {
+                observer.observe(&body);
+            }
+        });
+    });
+    on_cleanup(move || {
+        on_table_resize.remove();
+        if let Some(key) = observer_key {
+            TABLE_HEIGHT_OBSERVERS.with(|observers| {
+                if let Some((observer, _callback)) = observers.borrow_mut().remove(&key) {
+                    observer.disconnect();
+                }
+            });
+        }
+    });
     view! {
         <div class="hidden sm:block">
-            <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <div
+                node_ref=table_scroll
+                class="relative w-full overflow-auto rounded-lg border border-slate-200 bg-white print:overflow-visible! print:max-h-none!"
+                style:max-height=move || {
+                    table_max_height
+                        .get()
+                        .map(|height| format!("{height}px"))
+                        .unwrap_or_default()
+                }
+            >
                 <table class="min-w-full border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-slate-800 text-left text-white">
+                    <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
+                        <tr class="bg-slate-50">
                             {headers
                                 .iter()
-                                .map(|header| view! { <th class="whitespace-nowrap px-3 py-2">{*header}</th> })
+                                .map(|header| {
+                                    view! {
+                                        <th class="whitespace-nowrap px-3 py-2 text-center font-black">
+                                            {*header}
+                                        </th>
+                                    }
+                                })
                                 .collect_view()}
                         </tr>
                     </thead>
