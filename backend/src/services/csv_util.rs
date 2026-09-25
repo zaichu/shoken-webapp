@@ -478,4 +478,167 @@ mod tests {
             (dec!(0), dec!(10000))
         );
     }
+
+    /// 整数部に3桁ごとのカンマを挿入した表記を返す素朴な参照モデル
+    fn add_thousands_separators(unsigned: &str) -> String {
+        let (integer, fraction) = unsigned
+            .split_once('.')
+            .map_or((unsigned, None), |(i, f)| (i, Some(f)));
+        let mut grouped = String::new();
+        for (index, c) in integer.chars().enumerate() {
+            if index > 0 && (integer.len() - index) % 3 == 0 {
+                grouped.push(',');
+            }
+            grouped.push(c);
+        }
+        match fraction {
+            Some(fraction) => format!("{grouped}.{fraction}"),
+            None => grouped,
+        }
+    }
+
+    proptest::proptest! {
+        /// 任意の Decimal をカンマ区切り・括弧負数表記で書いても同じ値にパースされる
+        #[test]
+        fn prop_parse_number_roundtrips_formatted_values(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            scale in 0u32..=4u32,
+            with_commas in proptest::bool::ANY,
+            with_parens in proptest::bool::ANY,
+        ) {
+            let value = Decimal::new(mantissa, scale);
+            let plain = value.to_string();
+            let negative = plain.starts_with('-');
+            let unsigned = plain.strip_prefix('-').unwrap_or(&plain);
+            let body = if with_commas {
+                add_thousands_separators(unsigned)
+            } else {
+                unsigned.to_string()
+            };
+            let input = match (negative, with_parens) {
+                (true, true) => format!("({body})"),
+                (true, false) => format!("-{body}"),
+                (false, true) => format!("({body})"),
+                (false, false) => body,
+            };
+            let expected = match (negative, with_parens) {
+                (true, _) | (false, true) => -value.abs(),
+                _ => value,
+            };
+            proptest::prop_assert_eq!(
+                parse_number(&input).unwrap(),
+                expected.normalize(),
+                "input={}",
+                input
+            );
+        }
+
+        /// 任意文字列で panic せず、Ok なら素朴モデル(括弧除去→カンマ除去→符号反映)と一致する
+        #[test]
+        fn prop_parse_number_matches_naive_model_or_errors(input in ".*") {
+            let naive = {
+                let trimmed = input.trim();
+                let inner = trimmed
+                    .strip_prefix('(')
+                    .and_then(|s| s.strip_suffix(')'));
+                let (negative, body) = inner.map_or((false, trimmed), |s| (true, s));
+                let sanitized = body.replace(',', "");
+                sanitized
+                    .parse::<Decimal>()
+                    .ok()
+                    .map(|v| if negative { -v } else { v })
+            };
+            let result = parse_number(&input);
+            match (result, naive) {
+                (Ok(actual), Some(expected)) => {
+                    proptest::prop_assert_eq!(actual, expected.normalize(), "input={}", input);
+                }
+                // "-" と空文字だけは実装が 0 を返すが素朴モデルは失敗する
+                (Ok(actual), None) => {
+                    let trimmed = input.trim();
+                    proptest::prop_assert!(
+                        trimmed.is_empty() || trimmed == "-",
+                        "input={} が Ok なのに素朴モデルは失敗した: actual={}",
+                        input,
+                        actual
+                    );
+                }
+                (Err(_), Some(_)) => {
+                    // Decimal::from_str の受理域は .parse::<Decimal>() と同一のはず
+                    panic!("input={input} が Err なのに素朴モデルは成功した");
+                }
+                (Err(_), None) => {}
+            }
+        }
+
+        /// compute_taxes の不変条件: taxes >= 0、taxes + after_tax == pnl、非特定は無税
+        #[test]
+        fn prop_compute_taxes_invariants(
+            account in "[特定一般NISA口座 ]{0,12}",
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            scale in 0u32..=3u32,
+        ) {
+            let pnl = Decimal::new(mantissa, scale);
+            let (taxes, after_tax) = compute_taxes(&account, pnl);
+            proptest::prop_assert!(taxes >= Decimal::ZERO);
+            proptest::prop_assert_eq!(taxes + after_tax, pnl);
+            if !account.contains("特定") || pnl <= Decimal::ZERO {
+                proptest::prop_assert_eq!(taxes, Decimal::ZERO);
+            } else {
+                proptest::prop_assert_eq!(taxes, (pnl * dec!(0.20315)).floor());
+            }
+        }
+
+        /// 有効な日付は両フォーマットでパースされ、不正な年月日は Err になる
+        #[test]
+        fn prop_parse_date_accepts_valid_and_rejects_invalid(
+            year in 1970i32..2100i32,
+            month in 1u32..=12u32,
+            day in 1u32..=31u32,
+            slash in proptest::bool::ANY,
+        ) {
+            let separator = if slash { "/" } else { "-" };
+            let input = format!("{year:04}{separator}{month:02}{separator}{day:02}");
+            let days_in_month = match month {
+                1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                4 | 6 | 9 | 11 => 30,
+                2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+                2 => 28,
+                _ => unreachable!(),
+            };
+            if day <= days_in_month {
+                proptest::prop_assert_eq!(
+                    parse_date(&input).unwrap(),
+                    NaiveDate::from_ymd_opt(year, month, day).unwrap(),
+                    "input={}",
+                    input
+                );
+            } else {
+                proptest::prop_assert!(parse_date(&input).is_err(), "input={}", input);
+            }
+        }
+
+        /// UTF-8 文字列のバイト列は BOM 付きでも同じ内容にデコードされる
+        #[test]
+        fn prop_decode_bytes_utf8_roundtrip(input in ".*") {
+            let expected = input.strip_prefix('\u{FEFF}').unwrap_or(&input).to_string();
+            proptest::prop_assert_eq!(decode_bytes(input.as_bytes()), expected);
+            let with_bom = format!("\u{FEFF}{input}");
+            proptest::prop_assert_eq!(decode_bytes(with_bom.as_bytes()), input);
+        }
+
+        /// 正規化は参照モデル(全トークン1文字なら結合、さもなくば trim)と一致する
+        #[test]
+        fn prop_normalize_security_name_matches_naive_model(input in "[ -~ぁ-龥]{0,40}") {
+            let expected = {
+                let tokens: Vec<&str> = input.split_whitespace().collect();
+                if tokens.len() > 1 && tokens.iter().all(|t| t.chars().count() == 1) {
+                    tokens.concat()
+                } else {
+                    input.trim().to_string()
+                }
+            };
+            proptest::prop_assert_eq!(normalize_security_name(&input), expected);
+        }
+    }
 }

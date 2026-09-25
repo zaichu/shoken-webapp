@@ -21,6 +21,7 @@ console_error_panic_hook = "0.1"
 [dev-dependencies]
 rust_decimal_macros = "1"
 any_spawner = { version = "0.3", features = ["futures-executor"] }
+proptest = "1.11.0"
 
 
 [profile.release]

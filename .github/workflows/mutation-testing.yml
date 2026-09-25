@@ -1,0 +1,190 @@
+name: Mutation testing
+
+# PR では base との差分だけを --in-diff で測定する。全件測定は workflow_dispatch で
+# 手動起動し、クレート×シャードで並列化する(結果は artifact の mutants.out/ に残る)。
+# どちらも必須チェックには含めない。
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Detect Rust changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend_leptos: ${{ steps.filter.outputs.frontend_leptos }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        with:
+          filters: |
+            backend:
+              - "backend/**"
+              - ".github/workflows/mutation-testing.yml"
+            frontend_leptos:
+              - "frontend-leptos/**"
+              - "docs/openapi.json"
+              - ".github/workflows/mutation-testing.yml"
+
+  diff-backend:
+    name: cargo-mutants (backend diff)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          toolchain: 1.96.0
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        with:
+          workspaces: backend -> target
+
+      - name: Install cargo-mutants
+        run: cargo install --locked cargo-mutants
+
+      # --relative はカレントディレクトリ基準でパスを書き換えるため、
+      # backend/src/... が a/src/... となりクレート内の --in-diff にそのまま渡せる
+      - name: Make PR diff
+        run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
+
+      - name: Run cargo-mutants on PR diff
+        run: cargo mutants -j 4 --in-diff mutants.diff
+        env:
+          SQLX_OFFLINE: "true"
+
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: mutants-backend-diff
+          # debug.log / log/ は巨大なため成果サマリのみ保存する
+          path: |
+            backend/mutants.out/mutants.json
+            backend/mutants.out/outcomes.json
+            backend/mutants.out/caught.txt
+            backend/mutants.out/missed.txt
+            backend/mutants.out/unviable.txt
+            backend/mutants.out/timeout.txt
+          if-no-files-found: ignore
+
+  diff-frontend-leptos:
+    name: cargo-mutants (frontend-leptos diff)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_leptos == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-leptos
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          toolchain: 1.96.0
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        with:
+          workspaces: frontend-leptos -> target
+
+      - name: Install cargo-mutants
+        run: cargo install --locked cargo-mutants
+
+      - name: Make PR diff
+        run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
+
+      - name: Run cargo-mutants on PR diff
+        run: cargo mutants -j 4 --in-diff mutants.diff
+
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: mutants-frontend-leptos-diff
+          path: |
+            frontend-leptos/mutants.out/mutants.json
+            frontend-leptos/mutants.out/outcomes.json
+            frontend-leptos/mutants.out/caught.txt
+            frontend-leptos/mutants.out/missed.txt
+            frontend-leptos/mutants.out/unviable.txt
+            frontend-leptos/mutants.out/timeout.txt
+          if-no-files-found: ignore
+
+  baseline:
+    name: Full cargo-mutants baseline ${{ matrix.crate }} shard ${{ matrix.shard }}/4
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [backend, frontend-leptos]
+        shard: [0, 1, 2, 3]
+    defaults:
+      run:
+        working-directory: ${{ matrix.crate }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          toolchain: 1.96.0
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        with:
+          workspaces: ${{ matrix.crate }} -> target
+          shared-key: mutants-${{ matrix.crate }}
+
+      - name: Install cargo-mutants
+        run: cargo install --locked cargo-mutants
+
+      - name: Run cargo-mutants shard
+        run: cargo mutants -j 4 --shard ${{ matrix.shard }}/4
+        env:
+          SQLX_OFFLINE: "true"
+
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: mutants-${{ matrix.crate }}-shard-${{ matrix.shard }}
+          path: |
+            ${{ matrix.crate }}/mutants.out/mutants.json
+            ${{ matrix.crate }}/mutants.out/outcomes.json
+            ${{ matrix.crate }}/mutants.out/caught.txt
+            ${{ matrix.crate }}/mutants.out/missed.txt
+            ${{ matrix.crate }}/mutants.out/unviable.txt
+            ${{ matrix.crate }}/mutants.out/timeout.txt
+          if-no-files-found: ignore

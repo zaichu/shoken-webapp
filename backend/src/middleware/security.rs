@@ -395,4 +395,38 @@ mod tests {
             );
         }
     }
+
+    proptest::proptest! {
+        /// オリジン抽出は入力の prefix を返し、結果への再適用で不変(冪等)になる
+        #[test]
+        fn prop_extract_origin_is_idempotent_prefix(url in ".*") {
+            match extract_origin(&url) {
+                None => {
+                    proptest::prop_assert!(!url.contains("://"), "url={url}");
+                }
+                Some(origin) => {
+                    proptest::prop_assert!(url.starts_with(origin), "url={url}");
+                    proptest::prop_assert!(origin.contains("://"), "origin={origin}");
+                    // オリジン以降の最初の '/' まで切り出しているので結果自身が自身のオリジン
+                    proptest::prop_assert_eq!(extract_origin(origin), Some(origin));
+                }
+            }
+        }
+
+        /// "scheme://host[:port]" 形式は path/query/fragment を含まないオリジンを返す
+        #[test]
+        fn prop_extract_origin_stops_at_authority_end(
+            scheme in "https?|ftp|chrome-extension",
+            authority in "[a-zA-Z0-9.:-]{1,40}",
+            rest in "[/?#].*",
+        ) {
+            let url = format!("{scheme}://{authority}{rest}");
+            let Some(origin) = extract_origin(&url) else {
+                panic!("url={url} で origin が取れない");
+            };
+            let scheme_prefix = format!("{scheme}://");
+            proptest::prop_assert!(origin.starts_with(&scheme_prefix));
+            proptest::prop_assert!(!origin[scheme.len() + 3..].contains('/'));
+        }
+    }
 }

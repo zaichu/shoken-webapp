@@ -911,4 +911,191 @@ mod tests {
         assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
         assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
     }
+
+    proptest::proptest! {
+        /// group_thousands は右から3桁ごとにカンマを挿入し、除去すると元の数字列に戻る
+        #[test]
+        fn prop_group_thousands_positions(digits in "[0-9]{1,15}") {
+            let grouped = group_thousands(&digits);
+            proptest::prop_assert_eq!(grouped.replace(',', ""), digits);
+            for (position, character) in grouped.chars().enumerate() {
+                if character == ',' {
+                    proptest::prop_assert_eq!((grouped.len() - position) % 4, 0);
+                }
+            }
+        }
+
+        /// to_fixed は符号対称で、結果は 10^-decimals 単位の最も近い値
+        #[test]
+        fn prop_to_fixed_symmetric_and_quantized(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            divisor in 1u32..=6u32,
+            decimals in 0u32..=5u32,
+        ) {
+            let value = mantissa as f64 / 10f64.powi(divisor as i32);
+            let result = to_fixed(value, decimals);
+            proptest::prop_assert_eq!(to_fixed(-value, decimals), -result);
+            let unit = 10f64.powi(-(decimals as i32));
+            proptest::prop_assert!((result - value).abs() <= 0.51 * unit);
+            let scaled = result / unit;
+            proptest::prop_assert!(
+                (scaled - scaled.round()).abs() <= 1e-9 * scaled.abs() + 1e-9
+            );
+        }
+
+        /// intl_fixed も符号対称で同じ量子化範囲に収まる
+        #[test]
+        fn prop_intl_fixed_symmetric_and_quantized(
+            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
+            divisor in 1u32..=6u32,
+            decimals in 0u32..=5u32,
+        ) {
+            let value = mantissa as f64 / 10f64.powi(divisor as i32);
+            let result = intl_fixed(value, decimals);
+            proptest::prop_assert_eq!(intl_fixed(-value, decimals), -result);
+            let unit = 10f64.powi(-(decimals as i32));
+            proptest::prop_assert!((result - value).abs() <= 0.6 * unit);
+        }
+
+        /// 正の値の構成比は合計が丸め誤差内で100%
+        #[test]
+        fn prop_composition_percentages_sum_to_100(
+            values in proptest::collection::vec(0.0001f64..1_000_000.0f64, 1..8usize),
+        ) {
+            let percentages = composition_percentages(&values);
+            proptest::prop_assert_eq!(percentages.len(), values.len());
+            let sum: f64 = percentages.iter().sum();
+            proptest::prop_assert!(
+                (sum - 100.0).abs() <= 0.006 * percentages.len() as f64 + 1e-9,
+                "sum={sum}"
+            );
+        }
+
+        /// JSON 数値・数値文字列は有限値を返し、マーカーや非数値型は None を返す
+        #[test]
+        fn prop_to_finite_amount(
+            value in -1e15f64..1e15f64,
+            marker in proptest::sample::select(vec![
+                "", "-", "—", "ー", "--", "n/a", "N/A", "null", "undefined",
+            ]),
+        ) {
+            proptest::prop_assert_eq!(to_finite_amount(&json!(value)), Some(value));
+            let text = value.to_string();
+            proptest::prop_assert_eq!(
+                to_finite_amount(&json!(text)),
+                Some(text.parse::<f64>().unwrap())
+            );
+            proptest::prop_assert_eq!(to_finite_amount(&json!(marker)), None);
+            proptest::prop_assert_eq!(to_finite_amount(&json!(true)), None);
+            proptest::prop_assert_eq!(to_finite_amount(&json!([1, 2])), None);
+        }
+
+        /// 評価損益は (市場, 取得) 両方が有限のときだけ計算され、取得0では率なし
+        #[test]
+        fn prop_calculate_valuation(
+            market in proptest::option::of(-1e15f64..1e15f64),
+            purchase in proptest::option::of(-1e15f64..1e15f64),
+        ) {
+            let market_json = market.map_or_else(|| json!("-"), |v| json!(v));
+            let purchase_json = purchase.map_or_else(|| json!("-"), |v| json!(v));
+            let result = calculate_valuation(&market_json, &purchase_json);
+            match (market, purchase) {
+                (Some(m), Some(p)) => {
+                    proptest::prop_assert_eq!(result.amount, Some(m - p));
+                    if p == 0.0 {
+                        proptest::prop_assert_eq!(result.rate, None);
+                    } else {
+                        proptest::prop_assert_eq!(result.rate, Some((m - p) / p * 100.0));
+                    }
+                }
+                _ => {
+                    proptest::prop_assert_eq!(result.amount, None);
+                    proptest::prop_assert_eq!(result.rate, None);
+                }
+            }
+        }
+
+        /// チャート除外条件は「取得額が正」または「取得額なし・0 で評価額が非0」
+        #[test]
+        fn prop_should_include_chart_item(
+            purchase in proptest::option::of(-1e6f64..1e6f64),
+            market in proptest::option::of(-1e6f64..1e6f64),
+        ) {
+            let expected = matches!(purchase, Some(p) if p > 0.0)
+                || matches!(market, Some(m) if m != 0.0);
+            proptest::prop_assert_eq!(should_include_chart_item(purchase, market), expected);
+        }
+
+        /// 未丸めパーセンテージは素朴モデル(合計0で評価額なし→空、それ以外→None埋め)と一致
+        #[test]
+        fn prop_chart_percentages(
+            items in proptest::collection::vec(
+                (0.0f64..1e6f64, proptest::option::of(0.0f64..1e6f64)),
+                0..8usize
+            ),
+        ) {
+            let values: Vec<f64> = items.iter().map(|item| item.0).collect();
+            let markets: Vec<Option<f64>> = items.iter().map(|item| item.1).collect();
+            let result = chart_percentages(&values, &markets);
+            let total: f64 = values.iter().sum();
+            if total == 0.0 {
+                let has_valuation = markets
+                    .iter()
+                    .any(|market| matches!(market, Some(v) if *v != 0.0));
+                if has_valuation {
+                    proptest::prop_assert_eq!(result, vec![None; values.len()]);
+                } else {
+                    proptest::prop_assert!(result.is_empty());
+                }
+            } else {
+                let expected: Vec<Option<f64>> =
+                    values.iter().map(|v| Some(*v / total * 100.0)).collect();
+                proptest::prop_assert_eq!(result, expected);
+            }
+        }
+
+        /// コード正規化は trim 後の最初の ':'/'：' までを大文字化し空白を除く
+        #[test]
+        fn prop_normalize_security_code(input in ".*") {
+            let output = normalize_security_code(&input);
+            let expected: String = input
+                .trim()
+                .split([':', '：'])
+                .next()
+                .unwrap_or_default()
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+                .to_uppercase();
+            proptest::prop_assert_eq!(output.clone(), expected);
+            proptest::prop_assert!(!output.chars().any(|c| c.is_whitespace()));
+            proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
+        }
+
+        /// 配当マップが空なら配当・利回りは算出不可、保有数は入力長と一致
+        #[test]
+        fn prop_kpi_empty_dividend_map(
+            holdings in proptest::collection::vec(
+                ("[0-9]{4}", 0.0f64..1e5f64, 0.0f64..1e8f64),
+                0..8usize
+            ),
+        ) {
+            let holdings: Vec<KpiHolding> = holdings
+                .into_iter()
+                .map(|(security_code, shares, total_purchase_amount)| KpiHolding {
+                    security_code,
+                    shares,
+                    total_purchase_amount,
+                })
+                .collect();
+            let kpi = calculate_portfolio_kpi(&holdings, &HashMap::new(), None);
+            proptest::prop_assert_eq!(kpi.holdings_count, holdings.len());
+            proptest::prop_assert_eq!(kpi.total_annual_dividends, None);
+            proptest::prop_assert_eq!(kpi.dividend_yield, None);
+            let expected_purchase = holdings
+                .iter()
+                .fold(0.0, |sum, item| safe_add(sum, item.total_purchase_amount));
+            proptest::prop_assert_eq!(kpi.total_purchase_amount, expected_purchase);
+        }
+    }
 }

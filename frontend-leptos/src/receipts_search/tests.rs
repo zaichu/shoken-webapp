@@ -233,3 +233,197 @@ fn option(value: &str, label: &str) -> SearchOption {
         label: label.into(),
     }
 }
+
+/// 素朴な ISO 日付検証(参照モデル)
+fn naive_valid_iso_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let year = value[..4].parse::<u32>().unwrap_or(0);
+    let month = value[5..7].parse::<u32>().unwrap_or(0);
+    let day = value[8..].parse::<u32>().unwrap_or(0);
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day)
+}
+
+fn string_item_config() -> FilterConfig<String> {
+    FilterConfig {
+        string_fields: None,
+        partial_string_fields: Some(vec![|item: &String| item.as_str()]),
+        date_field: None,
+        year_search: false,
+        year_month_search: false,
+        date_search: false,
+        date_range_search: false,
+        amount_fields: None,
+    }
+}
+
+proptest::proptest! {
+    /// 区切り文字のない ASCII クエリは JS 空白分割+小文字化の素朴モデルと一致する
+    #[test]
+    fn prop_parse_tokens_simple(query in "[a-zA-Z0-9 \t]+") {
+        let tokens = parse_search_tokens(&query);
+        let expected: Vec<String> = query
+            .split(is_js_whitespace)
+            .filter(|token| !token.is_empty())
+            .map(|token| token.to_lowercase())
+            .collect();
+        proptest::prop_assert_eq!(tokens, expected);
+    }
+
+    /// 任意クエリで得られるトークンは空でなく小文字済み
+    #[test]
+    fn prop_parse_tokens_never_empty(query in ".*") {
+        for token in parse_search_tokens(&query) {
+            proptest::prop_assert!(!token.is_empty());
+            proptest::prop_assert_eq!(token.clone(), token.to_lowercase());
+        }
+    }
+
+    /// 年・年月の前方一致は素朴モデルと一致する
+    #[test]
+    fn prop_year_prefix_match(
+        date in "[ -~]{0,20}",
+        year in "[0-9]{4}",
+        year_month in "[0-9]{4}-[0-9]{2}",
+    ) {
+        proptest::prop_assert_eq!(
+            matches_year(&date, &year),
+            date.len() >= 4 && date.starts_with(&year)
+        );
+        proptest::prop_assert_eq!(
+            matches_year_month(&date, &year_month),
+            date.len() >= 7 && date.starts_with(&year_month)
+        );
+    }
+
+    /// 日付範囲マッチは仕様どおりの素朴モデル(無効・逆転は false、境界含む)と一致する
+    #[test]
+    fn prop_matches_date_range_naive(
+        date in "[0-9]{4}-[0-9]{2}-[0-9]{2}",
+        start_year in 1990i32..2031i32,
+        start_month in 0u32..=13u32,
+        start_day in 0u32..=32u32,
+        end_year in 1990i32..2031i32,
+        end_month in 0u32..=13u32,
+        end_day in 0u32..=32u32,
+        omit_start in proptest::bool::ANY,
+        omit_end in proptest::bool::ANY,
+    ) {
+        let start = format!("{start_year:04}-{start_month:02}-{start_day:02}");
+        let end = format!("{end_year:04}-{end_month:02}-{end_day:02}");
+        let query = format!(
+            "{}..{}",
+            if omit_start { "" } else { &start },
+            if omit_end { "" } else { &end },
+        );
+        let effective_start = if omit_start { "" } else { start.as_str() };
+        let effective_end = if omit_end { "" } else { end.as_str() };
+
+        let valid_start = effective_start.is_empty() || naive_valid_iso_date(effective_start);
+        let valid_end = effective_end.is_empty() || naive_valid_iso_date(effective_end);
+        let expected = if (effective_start.is_empty() && effective_end.is_empty())
+            || !valid_start
+            || !valid_end
+            || (!effective_start.is_empty()
+                && !effective_end.is_empty()
+                && effective_start > effective_end)
+        {
+            false
+        } else if effective_start.is_empty() {
+            date.as_str() <= effective_end
+        } else if effective_end.is_empty() {
+            date.as_str() >= effective_start
+        } else {
+            date.as_str() >= effective_start && date.as_str() <= effective_end
+        };
+        proptest::prop_assert_eq!(
+            matches_date_range(&date, &query),
+            expected,
+            "date={} query={}",
+            date,
+            query
+        );
+    }
+
+    /// 年オプションは先頭4文字の重複除去+昇順ソートと一致する
+    #[test]
+    fn prop_year_options_naive(dates in proptest::collection::vec("[ -~]{0,12}", 0..16usize)) {
+        let options = create_year_options(&dates, |date| date.as_str());
+        let mut seen = HashSet::new();
+        let mut years = Vec::new();
+        for date in &dates {
+            if date.len() >= 4 {
+                let year = &date[..4];
+                if seen.insert(year) {
+                    years.push(year.to_string());
+                }
+            }
+        }
+        years.sort();
+        let expected: Vec<SearchOption> = years
+            .into_iter()
+            .map(|year| SearchOption {
+                value: year.clone(),
+                label: format!("{year}年"),
+            })
+            .collect();
+        proptest::prop_assert_eq!(options, expected);
+    }
+
+    /// 一意値は JS 空白のみの要素を除き、初出順を保つ
+    #[test]
+    fn prop_get_unique_values_naive(
+        values in proptest::collection::vec(".*", 0..16usize),
+    ) {
+        let actual = get_unique_values(&values, |v| v.as_str());
+        let mut seen = HashSet::new();
+        let mut expected = Vec::new();
+        for value in &values {
+            if !value.trim_matches(is_js_whitespace).is_empty() && seen.insert(value.clone()) {
+                expected.push(value.clone());
+            }
+        }
+        proptest::prop_assert_eq!(actual, expected);
+    }
+
+    /// 部分一致フィルタは入力の部分列を保ち、条件を満たす要素だけを返す
+    #[test]
+    fn prop_filter_partial_match_subsequence(
+        items in proptest::collection::vec("[a-zA-Z0-9]{0,12}", 0..16usize),
+        query in "[a-z0-9]{1,4}",
+    ) {
+        let result = filter_by_config(&items, &query, &string_item_config());
+        let expected: Vec<&String> = items
+            .iter()
+            .filter(|item| item.to_lowercase().contains(&query))
+            .collect();
+        proptest::prop_assert_eq!(result, expected);
+    }
+
+    /// 空白のみのクエリは全件を返す
+    #[test]
+    fn prop_filter_blank_query_returns_all(
+        items in proptest::collection::vec("[a-z0-9]{0,8}", 0..8usize),
+        query in "[ \t　]{1,6}",
+    ) {
+        let result = filter_by_config(&items, &query, &string_item_config());
+        proptest::prop_assert_eq!(result.len(), items.len());
+    }
+}

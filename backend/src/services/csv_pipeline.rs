@@ -174,4 +174,61 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].get("name"), Some(&"foo".to_string()));
     }
+
+    proptest::proptest! {
+        /// パイプラインは素朴な参照(空行除去・required 列の存在・trim)を満たす
+        #[test]
+        fn prop_parse_csv_with_config_matches_reference(
+            skip_header_rows in 0usize..3usize,
+            headers in proptest::collection::hash_set("[a-z]{1,8}", 1..5usize),
+            cells in proptest::collection::vec(
+                proptest::collection::vec("[a-zA-Z0-9 ]{0,12}", 0..7usize),
+                0..8usize
+            ),
+        ) {
+            let headers: Vec<String> = headers.into_iter().collect();
+            let mut lines: Vec<String> = (0..skip_header_rows)
+                .map(|i| format!("meta{i}"))
+                .collect();
+            lines.push(headers.join(","));
+            for row in &cells {
+                lines.push(row.join(","));
+            }
+            let csv = lines.join("\n");
+
+            let config = CsvParserConfig {
+                skip_header_rows,
+                exclude_row_fn: None,
+                required_columns: &["required_missing"],
+            };
+            let rows = parse_csv_with_config(csv.as_bytes(), &config).unwrap();
+
+            // 参照モデル: 全セルが trim 後に空の行だけが除外される
+            let expected: Vec<&Vec<String>> = cells
+                .iter()
+                .filter(|record| !record.iter().all(|c| c.trim().is_empty()))
+                .collect();
+            proptest::prop_assert_eq!(rows.len(), expected.len());
+
+            for (actual, record) in rows.iter().zip(expected.iter()) {
+                // 必須列を含む全ヘッダーがキーとして存在する
+                proptest::prop_assert_eq!(
+                    actual.get("required_missing"),
+                    Some(&String::new())
+                );
+                for (index, header) in headers.iter().enumerate() {
+                    let expected_cell = record
+                        .get(index)
+                        .map(|c| c.trim().to_string())
+                        .unwrap_or_default();
+                    proptest::prop_assert_eq!(
+                        actual.get(header),
+                        Some(&expected_cell),
+                        "header={}",
+                        header
+                    );
+                }
+            }
+        }
+    }
 }

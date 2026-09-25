@@ -1,0 +1,2 @@
+# DB を使う統合テストは #[ignore] 済みのため、ユニットテストだけを mutant 評価の対象にする
+additional_cargo_test_args = ["--lib"]
