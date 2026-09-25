@@ -126,6 +126,44 @@ pub fn safe_add(a: f64, b: f64) -> f64 {
     to_fixed(a + b, 10)
 }
 
+fn group_thousands(digits: &str) -> String {
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, byte) in digits.bytes().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(byte as char);
+    }
+    grouped
+}
+
+// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（React の
+// `formatSignedAbsNumber` と同じく `-0.0` は負としない）。
+// この関数は絶対値の桁区切りだけを返す。
+pub(crate) fn format_abs_number(value: f64) -> Option<String> {
+    if !value.is_finite() {
+        return None;
+    }
+    let text = value.abs().to_string();
+    let (integer, fraction) = match text.split_once('.') {
+        Some((integer, fraction)) => (integer, Some(fraction)),
+        None => (text.as_str(), None),
+    };
+    let grouped = group_thousands(integer);
+    Some(match fraction {
+        Some(fraction) => format!("{grouped}.{fraction}"),
+        None => grouped,
+    })
+}
+
+pub fn format_number_value(value: f64) -> String {
+    match format_abs_number(intl_fixed(value, 2)) {
+        None => "-".to_string(),
+        Some(body) if value < 0.0 => format!("-{body}"),
+        Some(body) => body,
+    }
+}
+
 /// 1銘柄の評価損益。`valuation.ts` の `calculateValuation` に対応する。
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValuationResult {

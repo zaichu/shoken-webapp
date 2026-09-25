@@ -80,36 +80,45 @@ fn instrument_copy_text(name: &str, code: Option<&str>) -> String {
 
 /// clipboard API が無い環境では何もしない
 pub(crate) fn copy_to_clipboard(text: String) {
+    leptos::task::spawn_local(async move {
+        let _ = try_copy_to_clipboard(text).await;
+    });
+}
+
+/// clipboard API が無い・拒否された場合は false を返す
+pub(crate) async fn try_copy_to_clipboard(text: String) -> bool {
     let Some(window) = web_sys::window() else {
-        return;
+        return false;
     };
     let navigator = window.navigator();
     let Ok(clipboard) = js_sys::Reflect::get(&navigator, &JsValue::from_str("clipboard")) else {
-        return;
+        return false;
     };
     if clipboard.is_null() || clipboard.is_undefined() {
-        return;
+        return false;
     }
     let Ok(write_text) = js_sys::Reflect::get(&clipboard, &JsValue::from_str("writeText")) else {
-        return;
+        return false;
     };
     let Ok(write_text) = write_text.dyn_into::<js_sys::Function>() else {
-        return;
+        return false;
     };
     let Ok(promise) = write_text
         .call1(&clipboard, &JsValue::from_str(&text))
         .and_then(|result| result.dyn_into::<js_sys::Promise>())
     else {
-        return;
+        return false;
     };
-    leptos::task::spawn_local(async move {
-        if let Err(error) = JsFuture::from(promise).await {
+    match JsFuture::from(promise).await {
+        Ok(_) => true,
+        Err(error) => {
             web_sys::console::warn_2(
                 &JsValue::from_str("クリップボードへのコピーに失敗しました"),
                 &error,
             );
+            false
         }
-    });
+    }
 }
 
 #[component]

@@ -5,6 +5,7 @@ mod asset_balance_lookup;
 mod asset_balance_page;
 mod asset_balance_portfolio;
 mod asset_balance_search;
+mod asset_review_prompt;
 mod confirm_modal;
 mod csv_flow;
 mod csv_rail;
