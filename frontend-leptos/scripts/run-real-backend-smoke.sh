@@ -21,7 +21,18 @@ SMOKE_SESSION_TOKEN="${SMOKE_SESSION_TOKEN:-00000000-0000-0000-0000-000000000102
 SMOKE_SECURITY_NAME="${SMOKE_SECURITY_NAME:-ＫＤＤＩ}"
 
 START_LOCAL_LOG="${START_LOCAL_LOG:-/tmp/shoken-leptos-smoke-start-local.log}"
+TRUNK_LOG="${TRUNK_LOG:-/tmp/shoken-leptos-smoke-trunk.log}"
 START_LOCAL_PID=""
+TRUNK_PID=""
+
+stop_stack() {
+  # FRONTEND_URL を揃えないと stop-local が 8080 を検査し、
+  # 8080 稼働時に誤判定して backend/DB を止めずに終了する
+  FRONTEND_URL="http://127.0.0.1:${SPARE_VITE_PORT}" \
+    FRONTEND_PORT="$SPARE_VITE_PORT" \
+    BACKEND_URL="$BACKEND_URL" \
+    "$ROOT_DIR/scripts/stop-local.sh" >/dev/null 2>&1 || true
+}
 
 cleanup() {
   local status=$?
@@ -29,21 +40,20 @@ cleanup() {
     kill "$START_LOCAL_PID" >/dev/null 2>&1 || true
     wait "$START_LOCAL_PID" >/dev/null 2>&1 || true
   fi
-  FRONTEND_PORT="$SPARE_VITE_PORT" "$ROOT_DIR/scripts/stop-local.sh" >/dev/null 2>&1 || true
+  stop_stack
+  if [[ -n "$TRUNK_PID" ]] && kill -0 "$TRUNK_PID" >/dev/null 2>&1; then
+    kill "$TRUNK_PID" >/dev/null 2>&1 || true
+  fi
   if [[ "$status" -ne 0 ]]; then
     tail -n 100 "$START_LOCAL_LOG" >&2 || true
+    tail -n 100 "$TRUNK_LOG" >&2 || true
   fi
   exit "$status"
 }
 trap cleanup EXIT INT TERM
 
-if ! curl -sSf --connect-timeout 1 --max-time 2 "$FRONTEND_URL/" >/dev/null 2>&1; then
-  echo "trunk dev server is not running at ${FRONTEND_URL}" >&2
-  exit 1
-fi
-
-# 既存スタックの残骸を止める(8097/3001/DB のみ。trunk は FRONTEND_PORT と別なので残る)
-FRONTEND_PORT="$SPARE_VITE_PORT" "$ROOT_DIR/scripts/stop-local.sh" >/dev/null 2>&1 || true
+# 既存スタックの残骸を止める(SPARE_VITE_PORT/3001/DB のみ。trunk は別ポートなので残る)
+stop_stack
 
 echo "Starting DB + backend via start-local.sh (vite goes to :${SPARE_VITE_PORT}, unused)..."
 BACKEND_URL="$BACKEND_URL" \
@@ -63,6 +73,26 @@ for _ in $(seq 1 240); do
   sleep 0.5
 done
 curl -sSf "$BACKEND_URL/ready" >/dev/null
+
+# frontend は DB/backend の後に起動する順序ルールのため、trunk は backend ready 後に扱う
+if curl -sSf --connect-timeout 1 --max-time 2 "$FRONTEND_URL/" >/dev/null 2>&1; then
+  echo "Reusing trunk dev server at ${FRONTEND_URL}"
+else
+  echo "Starting trunk dev server at ${FRONTEND_URL}..."
+  (cd "$LEPTOS_DIR" && trunk serve --port "$LEPTOS_PORT" --no-autoreload >"$TRUNK_LOG" 2>&1) &
+  TRUNK_PID=$!
+  for _ in $(seq 1 240); do
+    if curl -sSf --connect-timeout 1 --max-time 2 "$FRONTEND_URL/" >/dev/null 2>&1; then
+      break
+    fi
+    if ! kill -0 "$TRUNK_PID" >/dev/null 2>&1; then
+      echo "trunk serve exited before becoming ready." >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+  curl -sSf "$FRONTEND_URL/" >/dev/null
+fi
 
 echo "Seeding smoke fixture..."
 (
