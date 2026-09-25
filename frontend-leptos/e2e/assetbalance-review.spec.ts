@@ -229,6 +229,30 @@ test('390px では見直し促進カードが独立したカードとして表�
   await shoot(page, '390');
 });
 
+test('連続してコピーしても後のクリックの表示が先のタイマーで消えない', async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  await setupAssetBalanceMocks(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await gotoAssetBalance(page);
+  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+
+  const card = page.getByTestId('asset-review-prompt-card');
+  const button = card.getByRole('button');
+  await button.click();
+  await page.waitForTimeout(2_200);
+  await button.click();
+  // 1回目のクリックから3秒経っても、2回目のクリックの表示は残る
+  await page.waitForTimeout(1_200);
+  await expect(
+    card.getByRole('button', { name: 'コピーしました！' }),
+  ).toBeVisible();
+  await expect(
+    card.getByRole('button', { name: 'AI総評プロンプトをコピー' }),
+  ).toBeVisible({ timeout: 6_000 });
+});
+
 test('クリップボードへの書き込みが拒否されたとき失敗表示になる', async ({
   page,
 }) => {

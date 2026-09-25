@@ -982,6 +982,7 @@ enum ReviewCopyStatus {
 #[component]
 fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
     let status = RwSignal::new(ReviewCopyStatus::Idle);
+    let click_generation = RwSignal::new(0u64);
     let disabled = rows.is_empty();
     let label = move || match status.get() {
         ReviewCopyStatus::Success => "コピーしました！",
@@ -990,6 +991,8 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
     };
     let on_click = move |_| {
         let rows = rows.clone();
+        let generation = click_generation.get() + 1;
+        click_generation.set(generation);
         leptos::task::spawn_local(async move {
             let ok = try_copy_to_clipboard(generate_asset_review_prompt(&rows)).await;
             status.set(if ok {
@@ -998,7 +1001,9 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
                 ReviewCopyStatus::Error
             });
             gloo_timers::future::TimeoutFuture::new(3_000).await;
-            status.set(ReviewCopyStatus::Idle);
+            if click_generation.get() == generation {
+                status.set(ReviewCopyStatus::Idle);
+            }
         });
     };
     view! {
