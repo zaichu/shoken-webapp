@@ -18,6 +18,7 @@ pub fn CollapsibleSearchCard(
     #[prop(into)] has_active_search: Signal<bool>,
     #[prop(into)] is_default_state: Signal<bool>,
     on_clear: impl Fn() + Clone + 'static,
+    #[prop(optional)] on_expand_toggle: Option<Callback<(bool,)>>,
     children: ChildrenFn,
 ) -> impl IntoView {
     // 展開状態は UI 表示のみの内部 state。initial_expanded は初期値としてのみ使い、
@@ -26,6 +27,9 @@ pub fn CollapsibleSearchCard(
     let toggle = move || {
         expanded.update(|open| {
             *open = !*open;
+            if let Some(on_expand_toggle) = on_expand_toggle {
+                on_expand_toggle.run((*open,));
+            }
         });
     };
 
@@ -39,7 +43,13 @@ pub fn CollapsibleSearchCard(
                     aria-expanded=move || if expanded.get() { "true" } else { "false" }
                     aria-controls="search-options-body"
                     aria-label=move || {
-                        if expanded.get() { "検索オプション 閉じる" } else { "検索オプション 開く" }
+                        if expanded.get() {
+                            "検索オプション 閉じる".to_string()
+                        } else if has_active_search.get() {
+                            "検索オプション 開く（絞り込み適用中）".to_string()
+                        } else {
+                            "検索オプション 開く".to_string()
+                        }
                     }
                     data-testid="search-card-header"
                 >
@@ -108,11 +118,8 @@ pub fn CollapsibleSearchCard(
                         type="button"
                         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700"
                         on:click=move |_| toggle()
-                        aria-expanded=move || if expanded.get() { "true" } else { "false" }
-                        aria-controls="search-options-body"
-                        aria-label=move || {
-                            if expanded.get() { "検索オプション 閉じる" } else { "検索オプション 開く" }
-                        }
+                        aria-hidden="true"
+                        tabindex="-1"
                         data-testid="search-card-chevron-toggle"
                     >
                         <svg

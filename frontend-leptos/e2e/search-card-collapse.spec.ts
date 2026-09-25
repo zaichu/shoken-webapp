@@ -96,7 +96,10 @@ test('取引明細の検索カードは 390px では初期折り畳みでトグ�
   await expect(header).toHaveAttribute('aria-expanded', 'true');
   await expect(body).toBeVisible();
 
-  await page.getByTestId('search-card-chevron-toggle').click();
+  const chevron = page.getByTestId('search-card-chevron-toggle');
+  await expect(chevron).toHaveAttribute('aria-hidden', 'true');
+  await expect(chevron).toHaveAttribute('tabindex', '-1');
+  await chevron.click();
   await expect(header).toHaveAttribute('aria-expanded', 'false');
   await expect(body).toBeHidden();
 });
@@ -160,10 +163,35 @@ test('絞り込み中は折り畳み状態で適用中バッジが出てクリ�
   await header.click();
 
   await expect(header).toContainText('適用中');
+  await expect(header).toHaveAttribute(
+    'aria-label',
+    '検索オプション 開く（絞り込み適用中）',
+  );
   const clearButton = page.getByTestId('search-clear-button');
   await expect(clearButton).toHaveAttribute('aria-hidden', 'false');
   await clearButton.click();
   await expect(header).not.toContainText('適用中');
+  await expect(header).toHaveAttribute('aria-label', '検索オプション 開く');
+});
+
+test('検索カードを閉じると年ピッカーも閉じる', async ({ page }) => {
+  await mockReceipts(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/receipts');
+  await page.waitForLoadState('networkidle');
+
+  const header = page.getByTestId('search-card-header');
+  await header.click();
+
+  const picker = page.getByLabel('年を選択');
+  await picker.click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+
+  await header.click();
+  await header.click();
+
+  await expect(page.getByRole('listbox')).toBeHidden();
 });
 
 test('不明パスは /404 に置き換わる', async ({ page }) => {

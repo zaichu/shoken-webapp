@@ -537,6 +537,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     }
     let clear_search = search;
     let clear_picker = year_picker_open;
+    let collapse_picker = year_picker_open;
     view! {
         <section>
             {truncated.then(|| {
@@ -566,6 +567,11 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                         clear_picker.set(false);
                         clear_search.update(|state| state.clear(has_years()));
                     }
+                    on_expand_toggle=Callback::new(move |(open,): (bool,)| {
+                        if !open {
+                            collapse_picker.set(false);
+                        }
+                    })
                 >
                     {move || {
                         if has_dates() {
