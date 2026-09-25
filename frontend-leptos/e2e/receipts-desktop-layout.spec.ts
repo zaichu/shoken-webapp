@@ -111,8 +111,8 @@ test('390px ではモバイル表示を維持する(カード表示・CSV折り�
   await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
 });
 
-test('1279px は1カラム、1280px で右レール2カラムに切り替わる', async ({ page }) => {
-  await page.setViewportSize({ width: 1279, height: 900 });
+test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px で20remに広がる', async ({ page }) => {
+  await page.setViewportSize({ width: 1023, height: 900 });
   await gotoReceipts(page);
 
   const rail = page.getByTestId('receipt-utility-rail');
@@ -122,17 +122,35 @@ test('1279px は1カラム、1280px で右レール2カラムに切り替わる'
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
   expect(railBox!.y).toBeLessThan(mainBox!.y);
-  await shoot(page, 'leptos-962-1279');
+  await shoot(page, 'leptos-962-1023');
 
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 1024, height: 900 });
   railBox = await rail.boundingBox();
   mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
   expect(railBox!.x).toBeGreaterThan(mainBox!.x);
+  expect(railBox!.width).toBeGreaterThanOrEqual(295);
+  expect(railBox!.width).toBeLessThanOrEqual(315);
+
+  // 狭い主列では表が内部で横スクロールする
+  const tableScroll = await page.getByRole('table').evaluate((table) => {
+    const wrapper = table.parentElement;
+    if (!wrapper) return { overflowX: '', scrollable: false };
+    return {
+      overflowX: getComputedStyle(wrapper).overflowX,
+      scrollable: wrapper.scrollWidth > wrapper.clientWidth,
+    };
+  });
+  expect(tableScroll.overflowX).toBe('auto');
+  expect(tableScroll.scrollable).toBe(true);
+  await shoot(page, 'leptos-962-1024');
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  railBox = await rail.boundingBox();
+  expect(railBox).not.toBeNull();
   expect(railBox!.width).toBeGreaterThanOrEqual(310);
   expect(railBox!.width).toBeLessThanOrEqual(330);
-  await shoot(page, 'leptos-962-1280');
 });
 
 test('1920px では集計+表の左列と CSV+検索の右レールになる', async ({ page }) => {

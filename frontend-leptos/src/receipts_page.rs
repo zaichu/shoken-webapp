@@ -281,12 +281,12 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let rail_store = store.clone();
     let main_store = store.clone();
     view! {
-        // DOM 順は rail 先(キーボード・読み上げ順のため)、xl 以上は order で見た目を main 先に戻す
+        // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
-            class="grid gap-3 sm:gap-4 xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start"
+            class="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
             data-testid="receipt-workspace"
         >
-            <aside class="order-1 xl:order-2" data-testid="receipt-utility-rail">
+            <aside class="order-1 lg:order-2" data-testid="receipt-utility-rail">
                 // スマホでは帯と別カードの積み上げを維持するため枠は sm 以上だけにする
                 <div class="sm:divide-y sm:divide-slate-950/10 sm:overflow-hidden sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm">
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
@@ -429,7 +429,7 @@ fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     }}
                 </div>
             </aside>
-            <div class="min-w-0 order-2 xl:order-1" data-testid="receipt-main-stage">
+            <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
                 {move || match main_store.tab_state(tab) {
                     TabState::Loading => view! { <Loading /> }.into_any(),
                     TabState::Ready(data) => {
