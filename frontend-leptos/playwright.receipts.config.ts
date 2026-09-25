@@ -8,8 +8,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const port = process.env.LEPTOS_E2E_PORT ?? '8081';
 const baseURL = `http://127.0.0.1:${port}`;
-// /tmp 固定だと worktree 間で共有され、並行実行時に互いの trace を消し合って落ちる
-const outputDir = `${process.env.LEPTOS_E2E_OUTPUT_DIR ?? 'test-results'}/receipts`;
+// 固定パスや leptos との入れ子だと、実行開始時の掃除で互いの成果物を消し合う
+const outputDir = `${process.env.LEPTOS_E2E_OUTPUT_DIR || 'test-results'}/receipts`;
 
 export default defineConfig({
   testDir: './e2e',
