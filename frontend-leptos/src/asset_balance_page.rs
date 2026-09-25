@@ -952,7 +952,6 @@ struct ResolvedAssetBalance {
     has_csv_file: bool,
 }
 
-// rail と main で同じ解決を2回書かないよう、一覧スロットとCSV状態から表示用の行・集計・警告をまとめて決める
 fn resolve_asset_balance(
     generation: u64,
     slot: &BalanceSlot,
