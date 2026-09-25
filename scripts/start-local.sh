@@ -31,7 +31,8 @@ cleanup() {
   fi
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT TERM
 
 wait_for_http_ok() {
   local url="$1"
