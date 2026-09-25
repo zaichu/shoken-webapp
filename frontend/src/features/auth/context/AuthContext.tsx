@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   };
 
-  // DELETE の応答喪失は削除済みか未到達か分からないため、セッション失効で削除完了を確認する
+  // DELETE の応答喪失は削除済みか未到達か分からないため、セッションの生死を確認する
   const sessionInvalidated = async (): Promise<boolean> => {
     try {
       await authApiClient.get('/api/v1/session', { withCredentials: true });
@@ -144,7 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
         if (await sessionInvalidated()) {
-          return;
+          // 401 は削除済みか通常の失効か区別できないため、成功とはみなさない
+          throw new ApiError(
+            ApiErrorType.AUTHENTICATION_ERROR,
+            '認証が必要です',
+            401
+          );
         }
         if (retries >= DELETE_ACCOUNT_MAX_RETRIES) {
           throw error;

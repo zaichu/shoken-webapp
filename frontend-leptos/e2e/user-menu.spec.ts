@@ -244,7 +244,7 @@ test('削除処理中はキャンセル・Escape・背景クリックでダイ�
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
 });
 
-test('削除APIの応答が失われてもセッション無効化を確認してダイアログを閉じる', async ({
+test('削除APIの応答が失われてセッションも失効したときは結果を確定せず認証切れを表示する', async ({
   page,
 }) => {
   let sessionDeleted = false;
@@ -276,8 +276,9 @@ test('削除APIの応答が失われてもセッション無効化を確認し�
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
   await dialog.getByRole('button', { name: '削除する' }).click();
 
-  await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toContainText('ログインが必要です');
   expect(deleteAttempts).toBe(1);
 });
 

@@ -334,6 +334,25 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('user-name').textContent).toBe('none');
   });
 
+  it('deleteAccountでDELETE応答喪失後にセッション失効が確認された場合は結果を確定せず認証エラーでthrowする', async () => {
+    vi.mocked(apiClient.delete).mockRejectedValueOnce(
+      new ApiError(ApiErrorType.NETWORK_ERROR, 'ネットワークエラーが発生しました')
+    );
+    const { user } = await renderAuthProvider();
+    // セッション失効は削除済みと区別できないため、成功扱いにしないことを固定する
+    mockGet.mockRejectedValueOnce(
+      new ApiError(ApiErrorType.AUTHENTICATION_ERROR, '認証が必要です', 401)
+    );
+
+    await user.click(screen.getByRole('button', { name: 'delete-account' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('認証が必要です');
+    });
+    expect(apiClient.delete).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('user-name').textContent).toBe('none');
+  });
+
   it('userがいる場合はアイドル時にlogoutが呼ばれる', async () => {
     await renderAuthProvider();
 
