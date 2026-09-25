@@ -121,10 +121,13 @@ jobs:
             echo "environment=preview" >> "$GITHUB_OUTPUT"
           fi
 
+      # Vercel の Root Directory(frontend-leptos)はリポジトリのルートから解決されるため、CLI はルートで実行する
       - name: Pull Vercel project settings
+        working-directory: .
         run: vercel pull --yes --environment="${{ steps.target.outputs.environment }}" --token "${VERCEL_TOKEN}"
 
       - name: Build output (vercel build)
+        working-directory: .
         run: |
           if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
             vercel build --prod --token "${VERCEL_TOKEN}"
@@ -134,6 +137,7 @@ jobs:
 
       - name: Deploy to Vercel
         id: deploy
+        working-directory: .
         run: |
           if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
             url="$(vercel deploy --prebuilt --prod --token "${VERCEL_TOKEN}" | grep -oE 'https://[^ ]+' | tail -n1)"
