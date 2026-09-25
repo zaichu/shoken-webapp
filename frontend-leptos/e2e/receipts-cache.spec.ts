@@ -241,9 +241,23 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
 
     await page.goto('/receipts');
     await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
-    // 401/200 どちらでも再送はないので、3タブ分のリクエスト発行を確認すれば以降の回数は確定する
+    // 全タブ分の発行直後に遅れて届く重複も拾えるよう、連続するポーリングで合計が変わらなくなるまで待つ
+    let lastTotal = 0;
     await expect
-      .poll(() => requestCounts.dividends > 0 && requestCounts.domestic > 0 && requestCounts.funds > 0)
+      .poll(
+        () => {
+          const total =
+            requestCounts.dividends + requestCounts.domestic + requestCounts.funds;
+          const settled =
+            total === lastTotal &&
+            requestCounts.dividends > 0 &&
+            requestCounts.domestic > 0 &&
+            requestCounts.funds > 0;
+          lastTotal = total;
+          return settled;
+        },
+        { intervals: [250] },
+      )
       .toBe(true);
 
     expect(requestCounts.dividends).toBeGreaterThan(0);

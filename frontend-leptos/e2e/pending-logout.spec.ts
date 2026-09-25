@@ -47,7 +47,7 @@ test('ログアウト失敗を保留し、間隔を伸ばして再送し、再�
   // 起動時のセッション確認が一時的に失敗しても再送で回復できるよう、起動確認が済むまでは実時計のままにする
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
-  expect(getCount).toBeGreaterThanOrEqual(1);
+  expect(getCount).toBe(1);
 
   await page.clock.install();
 
@@ -152,7 +152,7 @@ test('保留中にログインすると一度だけ再送して記録を消し�
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
   expect(deleteCount).toBe(2);
-  expect(getCount).toBeGreaterThan(getsBeforeReload);
+  expect(getCount).toBe(getsBeforeReload + 1);
 });
 
 test('localStorageが使えなくてもログインとログアウトが動く', async ({ page }) => {
