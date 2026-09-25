@@ -214,6 +214,8 @@ jobs:
       - name: Summarize mutants.out
         if: always()
         run: |
+          echo "| outcome | count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           for name in caught missed timeout unviable; do
             file="mutants.out/$name.txt"
             if [ -f "$file" ]; then count=$(wc -l < "$file"); else count=0; fi
