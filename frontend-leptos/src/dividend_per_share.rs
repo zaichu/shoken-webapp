@@ -103,6 +103,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::block_on;
 
     #[test]
     fn unique_sorted_codes_dedupes() {
@@ -159,15 +160,6 @@ mod tests {
         assert!(!settled_pending);
         let (_, empty_pending) = dividend_maps_from_batch(&DividendBatchResponse { items: vec![] });
         assert!(!empty_pending);
-    }
-
-    fn block_on<F: std::future::Future>(future: F) -> F::Output {
-        use std::task::{Context, Poll, Waker};
-        let mut context = Context::from_waker(Waker::noop());
-        match std::pin::pin!(future).poll(&mut context) {
-            Poll::Ready(output) => output,
-            Poll::Pending => panic!("モックの Future は即座に完了するはず"),
-        }
     }
 
     #[test]
