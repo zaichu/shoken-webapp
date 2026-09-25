@@ -37,8 +37,10 @@ cd shoken-webapp
 # バックエンド
 (cd backend && make deploy)
 
-# フロントエンド（Vercel CLI。事前に vercel pull / build を実行）
-(cd frontend && vercel deploy --prebuilt --prod)
+# フロントエンド（Vercel CLI。リポジトリルートで実行）
+vercel pull --yes --environment=production
+vercel build --prod
+vercel deploy --prebuilt --prod
 ```
 
 ## ヘルスチェック
