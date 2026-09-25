@@ -8,6 +8,11 @@ import * as path from 'path';
  * ファイルコピーは副作用専用で、REACT_SHOT_SUFFIX 未指定時はスキップする
  * (ゲートの全 spec 実行を壊さないため)。
  *
+ * 注意: 入力ファイル名の `mobile-` は元 spec の固定命名で、中身の幅は
+ * 撮影に使った config 側で決まる(PC は playwright.config.ts の FHD、
+ * スマホは playwright.mobile.config.ts の 390x844)。suffix はどちらの
+ * config で撮った成果物かを記録するためのもの。
+ *
  * 使い方:
  *   PC 撮影後:    REACT_SHOT_SUFFIX=pc     npx playwright test --config ../frontend-leptos/playwright.receipts.config.ts rename-receipts-screenshots.spec.ts
  *   スマホ撮影後: REACT_SHOT_SUFFIX=mobile 同コマンド
@@ -27,10 +32,14 @@ test('receipts スクショを react- 命名へ複製', async ({}, testInfo) => 
   );
 
   const dir = shotDir(testInfo);
+  const missing = TABS.filter(
+    (tab) => !fs.existsSync(path.join(dir, `mobile-receipts-${tab}.png`)),
+  );
+  test.skip(missing.length > 0, `未取得: ${missing.join(', ')}`);
   for (const tab of TABS) {
-    const src = path.join(dir, `mobile-receipts-${tab}.png`);
-    const dst = path.join(dir, `react-receipts-${tab}-${suffix}.png`);
-    test.skip(!fs.existsSync(src), `${src} が未取得`);
-    fs.copyFileSync(src, dst);
+    fs.copyFileSync(
+      path.join(dir, `mobile-receipts-${tab}.png`),
+      path.join(dir, `react-receipts-${tab}-${suffix}.png`),
+    );
   }
 });
