@@ -4,7 +4,7 @@
 
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = fileURLToPath(new URL('.', import.meta.url));
@@ -57,10 +57,23 @@ const MIME_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+const rootResolved = resolve(root);
+
 createServer((req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    res.writeHead(400).end('bad request');
+    return;
+  }
   const safePath = normalize(pathname).replace(/^(\.\.[/\\])+/, '');
-  let filePath = join(root, safePath);
+  let filePath = resolve(rootResolved, `.${safePath}`);
+  const fromRoot = relative(rootResolved, filePath);
+  if (fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
+    res.writeHead(404).end('not found');
+    return;
+  }
 
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
     // '/' への index.html 割当は静的ホストの既定動作、それ以外は rewrite 設定に従う

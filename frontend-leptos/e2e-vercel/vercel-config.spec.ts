@@ -1,6 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { get } from 'node:http';
 
 const BACKEND_ORIGIN = 'https://shoken-backend.fly.dev';
+const SERVE_PORT = Number(process.env.VERCEL_E2E_PORT ?? '8190');
+
+// URL パーサがデコード前にドットセグメントを潰すため、生のパスで送る必要がある
+function rawGet(path: string): Promise<{ status: number; type: string }> {
+  return new Promise((resolvePromise, reject) => {
+    get({ host: '127.0.0.1', port: SERVE_PORT, path }, (res) => {
+      res.resume();
+      res.on('end', () =>
+        resolvePromise({ status: res.statusCode ?? 0, type: res.headers['content-type'] ?? '' }),
+      );
+    }).on('error', reject);
+  });
+}
 
 test('index と SPA フォールバックが CSP 付きの HTML を返す', async ({ request }) => {
   const root = await request.get('/');
@@ -85,4 +99,16 @@ test('未認証で保護パスを直接開くと /login へリダイレクトす
   await page.goto('/receipts');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
+});
+
+test('エンコードされた親参照でも dist 外を返さず、不正なパスは 400 でサーバが落ちない', async () => {
+  // dist の親にある frontend-leptos/package.json が拾えないことを確認する
+  const traversal = await rawGet('/%2e%2e/package.json');
+  expect(traversal.type).not.toContain('application/json');
+
+  const malformed = await rawGet('/%');
+  expect(malformed.status).toBe(400);
+
+  const alive = await rawGet('/');
+  expect(alive.status).toBe(200);
 });
