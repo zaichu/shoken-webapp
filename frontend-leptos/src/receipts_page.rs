@@ -496,7 +496,6 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     let session = use_session();
     let dividend_info = (tab == ReceiptsTab::Dividend).then(|| DividendInfoStore::new(session));
     let summary_expanded = RwSignal::new(true);
-    let summary_mobile_expanded = RwSignal::new(false);
     if let Some(info) = dividend_info {
         let filtered_rows = filtered;
         let search_query = search;
@@ -621,7 +620,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                                 store=info
                                 totals=totals
                                 expanded=summary_expanded
-                                mobile_expanded=summary_mobile_expanded
+                                mobile_expanded=store.mobile_summary_expanded
                             />
                             <ReceiptTable
                                 tab=tab
