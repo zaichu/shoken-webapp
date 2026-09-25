@@ -1,3 +1,4 @@
+use crate::collapsible_search_card::{is_narrow_viewport, CollapsibleSearchCard};
 use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_flow::row_error_text;
 use crate::csv_rail::CsvActionRail;
@@ -536,6 +537,7 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
     }
     let clear_search = search;
     let clear_picker = year_picker_open;
+    let collapse_picker = year_picker_open;
     view! {
         <section>
             {truncated.then(|| {
@@ -548,53 +550,58 @@ fn ReceiptContent(store: ReceiptsStore, tab: ReceiptsTab, data: ReceiptTabData) 
                 }
             })}
             <div
-                class="mb-3 rounded-lg border border-slate-200 bg-white p-4"
+                class="mb-3 rounded-lg border border-slate-200 bg-white"
                 role="search"
                 aria-label="取引明細の検索"
                 data-testid="search-card"
             >
-                <div class="mb-3 flex items-center justify-between gap-3">
-                    <h2 class="text-sm font-bold text-slate-950">"検索オプション"</h2>
-                    <button
-                        type="button"
-                        class="rounded border border-slate-300 px-3 py-1 text-sm"
-                        aria-label="検索条件をクリア"
-                        data-testid="search-clear-button"
-                        disabled=move || search.with(|state| state.is_default())
-                        on:click=move |_| {
-                            clear_picker.set(false);
-                            clear_search.update(|state| state.clear(has_years()));
-                        }
-                    >"絞り込み解除"</button>
-                </div>
-                {move || {
-                    if has_dates() {
-                        view! {
-                            <div class="mb-3.5">
-                                <DatePeriod
-                                    search=search
-                                    years=years
-                                    year_picker_open=year_picker_open
-                                />
-                            </div>
-                        }
-                            .into_any()
-                    } else {
-                        ().into_any()
+                <CollapsibleSearchCard
+                    initial_expanded=!is_narrow_viewport()
+                    has_active_search=Signal::derive(move || {
+                        !search.with(|state| state.is_default())
+                    })
+                    is_default_state=Signal::derive(move || {
+                        search.with(|state| state.is_default())
+                    })
+                    on_clear=move || {
+                        clear_picker.set(false);
+                        clear_search.update(|state| state.clear(has_years()));
                     }
-                }}
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <SecurityDropdown search=search options=securities />
+                    on_expand_toggle=Callback::new(move |(open,): (bool,)| {
+                        if !open {
+                            collapse_picker.set(false);
+                        }
+                    })
+                >
                     {move || {
-                        if !has_dates() && has_years() {
-                            view! { <YearDropdown search=search options=years /> }.into_any()
+                        if has_dates() {
+                            view! {
+                                <div class="mb-3.5">
+                                    <DatePeriod
+                                        search=search
+                                        years=years
+                                        year_picker_open=year_picker_open
+                                    />
+                                </div>
+                            }
+                                .into_any()
                         } else {
                             ().into_any()
                         }
                     }}
-                    <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=products />
-                    <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=accounts />
-                </div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <SecurityDropdown search=search options=securities />
+                        {move || {
+                            if !has_dates() && has_years() {
+                                view! { <YearDropdown search=search options=years /> }.into_any()
+                            } else {
+                                ().into_any()
+                            }
+                        }}
+                        <ToggleCategory search=search search_key=SearchKey::Products label="商品" options=products />
+                        <ToggleCategory search=search search_key=SearchKey::Accounts label="口座" options=accounts />
+                    </div>
+                </CollapsibleSearchCard>
             </div>
             {move || {
                 let display = display_rows.get();

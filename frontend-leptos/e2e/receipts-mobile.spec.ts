@@ -337,6 +337,7 @@ test('検索条件を変えても同じカードと集計は閉じない', async
   const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
   await summaryToggle.click();
 
+  await page.getByTestId('search-card-header').click();
   await page.locator('#securities-search').selectOption('9432');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
 
@@ -359,10 +360,9 @@ test('開いたカードは絞り込みで位置が変わっても開いたま�
   await sony.click();
   await expect(sony).toHaveAttribute('aria-expanded', 'true');
 
-  await page
-    .getByTestId('search-card')
-    .getByRole('button', { name: 'NISA口座' })
-    .click();
+  const searchCard = page.getByTestId('search-card');
+  await searchCard.getByTestId('search-card-header').click();
+  await searchCard.getByRole('button', { name: 'NISA口座' }).click();
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(sony).toHaveAttribute('aria-expanded', 'true');
   await expect(

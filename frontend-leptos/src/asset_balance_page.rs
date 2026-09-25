@@ -11,6 +11,7 @@ use crate::asset_balance_search::{
     asset_balance_search_options, clear_search_query, filter_asset_balances,
 };
 use crate::asset_review_prompt::generate_asset_review_prompt;
+use crate::collapsible_search_card::{is_narrow_viewport, CollapsibleSearchCard};
 use crate::confirm_modal::ConfirmDeleteModal;
 use crate::csv_flow::{csv_error_message, CsvTabState};
 use crate::csv_rail::CsvActionRail;
@@ -1374,53 +1375,46 @@ struct ChartItem {
 
 #[component]
 fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -> impl IntoView {
+    let options = std::sync::Arc::new(options);
     view! {
         <section
-            class="px-4 py-4 max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
+            class="max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)]"
             role="search"
             aria-label="資産管理の検索"
             data-testid="search-card"
         >
-            <div
-                class="mb-3 flex items-center justify-between gap-3"
-                data-testid="search-card-header"
+            <CollapsibleSearchCard
+                initial_expanded=!is_narrow_viewport()
+                has_active_search=Signal::derive(move || !query.get().is_empty())
+                is_default_state=Signal::derive(move || query.get().is_empty())
+                on_clear=move || query.set(clear_search_query())
             >
-                <h2 class="text-sm font-bold text-slate-950">"検索オプション"</h2>
-                <button
-                    type="button"
-                    class="rounded border border-slate-300 px-3 py-1 text-sm"
-                    aria-label="検索条件をクリア"
-                    data-testid="search-clear-button"
-                    disabled=move || query.get().is_empty()
-                    on:click=move |_| query.set(clear_search_query())
-                >
-                    "絞り込み解除"
-                </button>
-            </div>
-            <div class="grid grid-cols-1 gap-3">
-                <div>
-                    <label
-                        class="mb-1 block text-sm font-bold text-slate-800"
-                        for="securities-search"
-                    >
-                        "銘柄"
-                    </label>
-                    <select
-                        id="securities-search"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        prop:value=move || query.get()
-                        on:change=move |event| query.set(event_target_value(&event))
-                    >
-                        <option value="">"全て表示"</option>
-                        {options
-                            .into_iter()
-                            .map(|option| view! {
-                                <option value=option.value>{option.label}</option>
-                            })
-                            .collect_view()}
-                    </select>
+                <div class="grid grid-cols-1 gap-3">
+                    <div>
+                        <label
+                            class="mb-1 block text-sm font-bold text-slate-800"
+                            for="securities-search"
+                        >
+                            "銘柄"
+                        </label>
+                        <select
+                            id="securities-search"
+                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            prop:value=move || query.get()
+                            on:change=move |event| query.set(event_target_value(&event))
+                        >
+                            <option value="">"全て表示"</option>
+                            {options
+                                .iter()
+                                .map(|option| {
+                                    let option = option.clone();
+                                    view! { <option value=option.value>{option.label}</option> }
+                                })
+                                .collect_view()}
+                        </select>
+                    </div>
                 </div>
-            </div>
+            </CollapsibleSearchCard>
         </section>
     }
 }

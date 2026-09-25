@@ -1,5 +1,5 @@
 use crate::session::use_session;
-use crate::ui::Loading;
+use crate::ui::Spinner;
 use leptos::prelude::*;
 
 #[component]
@@ -14,7 +14,7 @@ pub fn LoginPage() -> impl IntoView {
                 if !session.loaded.get() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Loading />
+                            <Spinner size="lg" class="text-primary" />
                         </div>
                     }
                         .into_any();
@@ -22,13 +22,13 @@ pub fn LoginPage() -> impl IntoView {
                 if session.user.get().is_some() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Loading />
+                            <Spinner size="lg" class="text-primary" />
                         </div>
                     }
                         .into_any();
                 }
                 view! {
-                    <div class="w-full shadow-md rounded-xl border border-slate-950/10 bg-white">
+                    <div class="rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none w-full shadow-md">
                         <div class="space-y-6 p-6 text-center">
                             <h2 class="text-xl font-semibold">"ログイン"</h2>
                             <p class="text-sm text-secondary">
