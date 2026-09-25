@@ -122,7 +122,7 @@ pub async fn search(
 ///
 /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
 /// 特定口座合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として計算したうえで、
-/// 日次結果を合計する（frontend `calculateDailyData` / `calculateDomesticStock` と同一仕様）。
+/// 日次結果を合計する。
 async fn fetch_summary(
     pool: &PgPool,
     user_id: Uuid,

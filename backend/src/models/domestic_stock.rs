@@ -59,8 +59,8 @@ impl SearchParamsAccessor for DomesticStockSearchQueryParams {
 /// 国内株式取引 検索条件全体の集計
 ///
 /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、
-/// 特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額とする
-/// frontend `calculateDailyData` と同じ仕様で日次集計した結果を合計する。
+/// 特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として
+/// 日次集計した結果を合計する。
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct DomesticStockSummary {
     #[schema(value_type = f64)]
