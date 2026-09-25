@@ -56,9 +56,13 @@ trap cleanup EXIT INT TERM
 stop_stack || echo "WARNING: 既存スタックの停止に失敗しました" >&2
 
 echo "Starting DB + backend via start-local.sh (vite goes to :${SPARE_VITE_PORT}, unused)..."
+# start-local が待つのは自分で立てる vite なので FRONTEND_URL は SPARE_VITE_PORT
+# に合わせる。trunk の URL を渡すと trunk 未起動の間にタイムアウトして backend
+# ごと止められる。trunk 側 origin は CORS_ORIGINS で許可する
 BACKEND_URL="$BACKEND_URL" \
-  FRONTEND_URL="$FRONTEND_URL" \
+  FRONTEND_URL="http://127.0.0.1:${SPARE_VITE_PORT}" \
   FRONTEND_PORT="$SPARE_VITE_PORT" \
+  CORS_ORIGINS="http://localhost:${LEPTOS_PORT},${FRONTEND_URL},http://localhost:${SPARE_VITE_PORT},http://127.0.0.1:${SPARE_VITE_PORT}" \
   "$ROOT_DIR/scripts/start-local.sh" >"$START_LOCAL_LOG" 2>&1 &
 START_LOCAL_PID=$!
 
