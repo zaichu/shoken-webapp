@@ -501,57 +501,64 @@ test.describe('取引明細 CSV 取込・削除', () => {
 });
 
 // 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
-const ASSET_TOYOTA = {
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
-  shares: 100,
+// モック応答は fixture CSV の行と一致させる
+const ASSET_INPEX = {
+  security_code: '1605',
+  security_name: 'ＩＮＰＥＸ',
+  shares: 200,
   executing_shares: 0,
-  average_purchase_price: 2500,
-  total_purchase_amount: 250000,
-  current_price: 2600,
-  daily_change: 50,
-  market_value: 260000,
-  profit_loss_rate: 4.0,
-};
-const ASSET_SONY = {
-  security_code: '6758',
-  security_name: 'ソニーグループ',
-  shares: 50,
-  executing_shares: 0,
-  average_purchase_price: 3000,
-  total_purchase_amount: 150000,
-  current_price: 3200,
-  daily_change: -20,
-  market_value: 160000,
-  profit_loss_rate: 6.67,
+  average_purchase_price: 2355,
+  total_purchase_amount: 471000,
+  current_price: 3685,
+  daily_change: 65,
+  market_value: 737000,
+  profit_loss_rate: 56.47,
 };
 const ASSET_NINTENDO = {
   security_code: '7974',
   security_name: '任天堂',
-  shares: 30,
+  shares: 1000,
   executing_shares: 0,
-  average_purchase_price: 8000,
-  total_purchase_amount: 240000,
-  current_price: 8200,
-  daily_change: 100,
-  market_value: 246000,
-  profit_loss_rate: 2.5,
+  average_purchase_price: 5997.6,
+  total_purchase_amount: 5997600,
+  current_price: 8737,
+  daily_change: 223,
+  market_value: 8737000,
+  profit_loss_rate: 45.67,
+};
+const ASSET_INPEX_UPDATED = {
+  ...ASSET_INPEX,
+  shares: 300,
+  total_purchase_amount: 706500,
+  market_value: 1105500,
 };
 const ASSET_MUFJ = {
   security_code: '8306',
-  security_name: '三菱ＵＦＪフィナンシャル・グループ',
-  shares: 200,
+  security_name: '三菱ＵＦＪフィナンシャルＧ',
+  shares: 300,
   executing_shares: 0,
-  average_purchase_price: 600,
-  total_purchase_amount: 120000,
-  current_price: 650,
-  daily_change: 5,
-  market_value: 130000,
-  profit_loss_rate: 8.33,
+  average_purchase_price: 3015,
+  total_purchase_amount: 904500,
+  current_price: 2925,
+  daily_change: 94,
+  market_value: 877500,
+  profit_loss_rate: -2.98,
 };
-const ASSET_BASE = [ASSET_TOYOTA, ASSET_SONY];
-// 置換の証明のため、base のソニーを含まない別3件にする
-const ASSET_UPDATED = [ASSET_TOYOTA, ASSET_NINTENDO, ASSET_MUFJ];
+const ASSET_KDDI = {
+  security_code: '9433',
+  security_name: 'ＫＤＤＩ',
+  shares: 600,
+  executing_shares: 0,
+  average_purchase_price: 2154,
+  total_purchase_amount: 1292400,
+  current_price: 2675.5,
+  daily_change: 20,
+  market_value: 1605300,
+  profit_loss_rate: 24.21,
+};
+const ASSET_BASE = [ASSET_INPEX, ASSET_NINTENDO];
+// 置換の証明のため、base の任天堂を含まない別3件にする
+const ASSET_UPDATED = [ASSET_INPEX_UPDATED, ASSET_MUFJ, ASSET_KDDI];
 const ASSET_FILES: Record<string, unknown[]> = {
   'assetbalance-base.csv': ASSET_BASE,
   'assetbalance-updated.csv': ASSET_UPDATED,
@@ -660,8 +667,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: '2件 全件置換で保存' }),
     ).toBeEnabled();
     // プレビュー行が一覧に出る
-    await expect(card(page, 'トヨタ自動車')).toBeVisible();
-    await expect(card(page, 'ソニーグループ')).toBeVisible();
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -675,7 +682,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(
       page.getByRole('button', { name: '3件 全件置換で保存' }),
     ).toBeEnabled();
-    await expect(card(page, '任天堂')).toBeVisible();
+    await expect(card(page, '三菱UFJフィナンシャルG')).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
     await expect(notice).toContainText('3件反映');
@@ -683,8 +690,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: '全件削除 (3件)' }),
     ).toBeVisible();
     // 追加ではなく置換なので base にだけあった行は消える
-    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
-    await expect(card(page, '任天堂')).toBeVisible();
+    await expect(card(page, '任天堂')).toHaveCount(0);
+    await expect(card(page, 'KDDI')).toBeVisible();
 
     await page.getByRole('button', { name: /全件削除/ }).click();
     const dialog = page.getByRole('dialog');
@@ -719,10 +726,10 @@ test.describe('資産管理 CSV 取込・削除', () => {
         total_rows: 3,
         valid_rows: 1,
         errors: rowErrors,
-        rows: [ASSET_TOYOTA],
+        rows: [ASSET_INPEX],
       }),
       importBody: () => ({ inserted: 1, skipped: 2, errors: rowErrors }),
-      savedRows: () => [ASSET_TOYOTA],
+      savedRows: () => [ASSET_INPEX],
     });
 
     await page.goto('/assetbalance');
@@ -731,8 +738,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(
       page.getByRole('button', { name: '1件 全件置換で保存' }),
     ).toBeEnabled();
-    await expect(card(page, 'トヨタ自動車')).toBeVisible();
-    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toHaveCount(0);
 
     await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -743,8 +750,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(
       page.getByRole('button', { name: '全件削除 (1件)' }),
     ).toBeVisible();
-    await expect(card(page, 'トヨタ自動車')).toBeVisible();
-    await expect(card(page, 'ソニーグループ')).toHaveCount(0);
+    await expect(card(page, 'INPEX')).toBeVisible();
+    await expect(card(page, '任天堂')).toHaveCount(0);
   });
 
   test('モバイル幅ではCSV操作を折りたたむ', async ({ page }) => {
