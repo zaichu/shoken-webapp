@@ -181,18 +181,51 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(main.getByTestId('receipt-summary-strip')).toBeVisible();
   await expect(main.getByRole('table')).toBeVisible();
 
-  // 表はカード内で横スクロールし、ページ幅を広げない
+  // 表ヘッダーは薄い灰色の背景に濃い文字(React 準拠)
+  await expect(
+    page.getByRole('table').locator('thead tr'),
+  ).toHaveCSS('background-color', 'oklch(0.984 0.003 247.858)');
+  await expect(
+    page.getByRole('table').locator('thead th').first(),
+  ).toHaveCSS('color', 'oklch(0.279 0.041 260.031)');
+
+  // 表はカード内でスクロールし、ページ幅を広げない
   const tableScroll = await page
     .getByRole('table')
     .evaluate((table) => {
       const wrapper = table.parentElement;
-      if (!wrapper) return { overflowX: '', scrollable: false };
+      if (!wrapper) return { overflowX: '', overflowY: '', maxHeight: '' };
+      const style = getComputedStyle(wrapper);
       return {
-        overflowX: getComputedStyle(wrapper).overflowX,
-        scrollable: wrapper.scrollWidth > wrapper.clientWidth,
+        overflowX: style.overflowX,
+        overflowY: style.overflowY,
+        maxHeight: style.maxHeight,
       };
     });
   expect(tableScroll.overflowX).toBe('auto');
+  expect(tableScroll.overflowY).toBe('auto');
+  expect(tableScroll.maxHeight).toMatch(/^\d+(\.\d+)?px$/);
+
+  // ページ自体は横にはみ出さない
+  const documentWidth = await page.evaluate(
+    () => document.documentElement.scrollWidth,
+  );
+  expect(documentWidth).toBeLessThanOrEqual(1920);
+
+  // 表が内部スクロールするのでページが伸びず、レールはビューポート内に収まる
+  expect(railBox!.y + railBox!.height).toBeLessThanOrEqual(1080);
+
+  // 縦が短いビューポートでは表の内部縦スクロールが発生する
+  await page.setViewportSize({ width: 1920, height: 480 });
+  await expect
+    .poll(async () =>
+      page.getByRole('table').evaluate((table) => {
+        const wrapper = table.parentElement;
+        return wrapper ? wrapper.scrollHeight > wrapper.clientHeight : false;
+      }),
+    )
+    .toBe(true);
+  await page.setViewportSize({ width: 1920, height: 1080 });
 
   // 全件削除はレール内のボタン(全幅の赤枠ではない)
   const deleteButton = rail.getByRole('button', { name: /全件削除/ });

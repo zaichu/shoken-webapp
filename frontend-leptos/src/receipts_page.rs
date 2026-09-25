@@ -26,7 +26,9 @@ use crate::ui::{Loading, PageHeader, Spinner};
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
 const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -2208,6 +2210,21 @@ fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
+// Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
+// マウント中だけ生存させたいので thread_local で管理する
+thread_local! {
+    static TABLE_HEIGHT_OBSERVERS: RefCell<
+        HashMap<
+            usize,
+            (
+                web_sys::ResizeObserver,
+                Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
+            ),
+        >,
+    > = RefCell::new(HashMap::new());
+    static TABLE_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
+}
+
 #[component]
 fn ReceiptTable(
     tab: ReceiptsTab,
@@ -2249,15 +2266,97 @@ fn ReceiptTable(
         })
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
+    // 表はビューポートに収まる高さで内側をスクロールさせ、右レールが画面外へ流れないようにする
+    let table_scroll = NodeRef::<leptos::html::Div>::new();
+    let table_max_height = RwSignal::new(Option::<f64>::None);
+    let measure_table = move || {
+        let Some(element) = table_scroll.get() else {
+            return;
+        };
+        let Some(viewport) = web_sys::window()
+            .and_then(|window| window.inner_height().ok())
+            .and_then(|height| height.as_f64())
+        else {
+            return;
+        };
+        let available = viewport - element.get_bounding_client_rect().top() - 20.0;
+        table_max_height.set(Some(available.max(200.0)));
+    };
+    let on_table_resize = window_event_listener(ev::resize, move |_| measure_table());
+    let observer_key = web_sys::window().and_then(|_| {
+        let callback = Closure::<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>::new(move |_| {
+            measure_table();
+        });
+        web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref())
+            .ok()
+            .map(|observer| {
+                let key = TABLE_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
+                    let key = next.get();
+                    next.set(key + 1);
+                    key
+                });
+                TABLE_HEIGHT_OBSERVERS.with(|observers| {
+                    observers.borrow_mut().insert(key, (observer, callback));
+                });
+                key
+            })
+    });
+    Effect::new(move |_| {
+        measure_table();
+        let (Some(element), Some(key)) = (table_scroll.get(), observer_key) else {
+            return;
+        };
+        TABLE_HEIGHT_OBSERVERS.with(|observers| {
+            let observers = observers.borrow();
+            let Some((observer, _)) = observers.get(&key) else {
+                return;
+            };
+            observer.observe(&element);
+            if let Some(parent) = element.parent_element() {
+                observer.observe(&parent);
+            }
+            if let Some(body) = web_sys::window()
+                .and_then(|window| window.document())
+                .and_then(|document| document.body())
+            {
+                observer.observe(&body);
+            }
+        });
+    });
+    on_cleanup(move || {
+        on_table_resize.remove();
+        if let Some(key) = observer_key {
+            TABLE_HEIGHT_OBSERVERS.with(|observers| {
+                if let Some((observer, _callback)) = observers.borrow_mut().remove(&key) {
+                    observer.disconnect();
+                }
+            });
+        }
+    });
     view! {
         <div class="hidden sm:block">
-            <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <div
+                node_ref=table_scroll
+                class="relative w-full overflow-auto rounded-lg border border-slate-200 bg-white"
+                style:max-height=move || {
+                    table_max_height
+                        .get()
+                        .map(|height| format!("{height}px"))
+                        .unwrap_or_default()
+                }
+            >
                 <table class="min-w-full border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-slate-800 text-left text-white">
+                    <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
+                        <tr class="bg-slate-50">
                             {headers
                                 .iter()
-                                .map(|header| view! { <th class="whitespace-nowrap px-3 py-2">{*header}</th> })
+                                .map(|header| {
+                                    view! {
+                                        <th class="whitespace-nowrap px-3 py-2 text-center font-black">
+                                            {*header}
+                                        </th>
+                                    }
+                                })
                                 .collect_view()}
                         </tr>
                     </thead>
