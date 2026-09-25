@@ -196,7 +196,8 @@ pub struct MessageResponse {
 #[cfg(test)]
 mod tests {
     use super::{
-        FacetOption, PaginatedSearchResponse, PaginationParams, SearchFacets, SearchQueryParams,
+        FacetOption, PaginatedSearchResponse, PaginationParams, SearchFacets, SearchParamsAccessor,
+        SearchQueryParams,
     };
     use axum::{extract::Query, http::Uri};
     use serde::{Deserialize, Serialize};
@@ -205,6 +206,17 @@ mod tests {
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     struct Row {
         id: i32,
+    }
+
+    #[derive(Debug, Default)]
+    struct StubParams {
+        search: SearchQueryParams,
+    }
+
+    impl SearchParamsAccessor for StubParams {
+        fn search_params(&self) -> &SearchQueryParams {
+            &self.search
+        }
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -262,6 +274,44 @@ mod tests {
         assert_eq!(params.year, Some(2026));
         assert!(params.should_include_summary());
         assert!(!params.should_include_facets());
+    }
+
+    #[test]
+    fn search_params_accessor_delegates_to_search_query_params() {
+        for (include_summary, include_facets) in [
+            (Some(true), Some(true)),
+            (None, None),
+            (Some(false), Some(false)),
+        ] {
+            let stub = StubParams {
+                search: SearchQueryParams {
+                    pagination: PaginationParams {
+                        page: Some(4),
+                        per_page: Some(25),
+                    },
+                    include_summary,
+                    include_facets,
+                    ..SearchQueryParams::default()
+                },
+            };
+
+            assert_eq!(
+                (
+                    stub.page(),
+                    stub.per_page(),
+                    stub.offset(),
+                    stub.should_include_summary(),
+                    stub.should_include_facets(),
+                ),
+                (
+                    stub.search.page(),
+                    stub.search.per_page(),
+                    stub.search.offset(),
+                    stub.search.should_include_summary(),
+                    stub.search.should_include_facets(),
+                )
+            );
+        }
     }
 
     #[test]

@@ -205,6 +205,7 @@ mod tests {
     };
     use axum::{
         body::{to_bytes, Body},
+        extract::{Query, State},
         http::{Method, Request, StatusCode},
         Router,
     };
@@ -313,6 +314,44 @@ mod tests {
             (SameSite::None, SameSite::Lax)
         );
     }
+    #[tokio::test]
+    async fn test_google_oauth_credentials() {
+        let mut state = make_test_state();
+        state.secrets = Arc::new(Secrets {
+            database_url: String::new(),
+            jquants_api_key: None,
+            google_client_id: Some("test-client-id".to_string()),
+            google_client_secret: Some("test-client-secret".to_string()),
+            frontend_url: String::new(),
+        });
+        assert_eq!(
+            google_oauth_credentials(&state).unwrap(),
+            ("test-client-id", "test-client-secret")
+        );
+        assert!(google_oauth_credentials(&make_test_state()).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_google_callback_matching_state_proceeds_past_state_check() {
+        use crate::services::auth::OAUTH_STATE_COOKIE_NAME;
+        // state が一致する場合は Unauthorized にならず、後段の credentials チェックへ進む
+        let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "test-state"));
+        let result = google_callback(
+            State(make_test_state()),
+            Query(AuthCallbackQuery {
+                code: "auth-code".to_string(),
+                state: "test-state".to_string(),
+            }),
+            jar,
+        )
+        .await;
+        let err = result.expect_err("credentials 未設定のためエラーになる");
+        assert!(
+            matches!(err, ApiError::ApiError(_)),
+            "state 一致時は credentials エラーになるはず: {err:?}"
+        );
+    }
+
     #[test]
     fn test_jar_helpers() {
         use crate::services::auth::SESSION_COOKIE_NAME;

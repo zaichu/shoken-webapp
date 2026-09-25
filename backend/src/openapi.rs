@@ -92,3 +92,17 @@ impl utoipa::Modify for SecurityAddon {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn api_doc_registers_cookie_auth_scheme() {
+        let doc = serde_json::to_value(ApiDoc::openapi()).expect("OpenAPI がシリアライズできる");
+        let scheme = &doc["components"]["securitySchemes"]["cookieAuth"];
+        assert_eq!(scheme["type"], "apiKey");
+        assert_eq!(scheme["in"], "cookie");
+        assert_eq!(scheme["name"], "session_token");
+    }
+}

@@ -398,6 +398,46 @@ mod tests {
         .await;
     }
     #[tokio::test]
+    async fn test_request_body_limit_boundary() {
+        // 上限以下のリクエストはボディ制限を通過しルーティングまで到達する。
+        // POST /api/v1/dividends は未定義のため 405。413 が返ると
+        // REQUEST_BODY_LIMIT の値そのものが小さくなっている。
+        let resp = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/dividends")
+                .header("content-length", 2 * 1024 * 1024)
+                .body(Body::from(vec![b'x'; 2 * 1024 * 1024]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::METHOD_NOT_ALLOWED);
+
+        let resp = app_router(
+            make_test_state(),
+            &Config::from_env(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/dividends")
+                .header("content-length", 11 * 1024 * 1024)
+                .body(Body::from(vec![b'x'; 11 * 1024 * 1024]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
     async fn test_ready_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
         let router = app_router(

@@ -209,6 +209,8 @@ mod tests {
             ("error", future, false),
             ("ok", past, true),
             ("ok", future, false),
+            // stale_at == now はまだ stale でない（期限切れは厳密に過去のみ）
+            ("ok", Some(now), false),
             ("ok", None, true),
         ] {
             assert_eq!(compute_is_stale(status, stale_at, now), expected);
