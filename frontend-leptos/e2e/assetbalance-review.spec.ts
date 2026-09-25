@@ -79,23 +79,32 @@ function jsonResponse(body: unknown, status = 200) {
   };
 }
 
-async function stubClipboard(page: Page) {
-  await page.addInitScript(() => {
+async function stubClipboard(
+  page: Page,
+  mode: 'ok' | 'reject' | 'missing' = 'ok',
+) {
+  await page.addInitScript((stubMode) => {
     const writes: string[] = [];
     Object.defineProperty(window, '__clipboardWrites', {
       value: writes,
       configurable: true,
     });
+    const clipboard =
+      stubMode === 'missing'
+        ? undefined
+        : {
+            writeText: (text: string) => {
+              writes.push(text);
+              return stubMode === 'reject'
+                ? Promise.reject(new Error('denied'))
+                : Promise.resolve();
+            },
+          };
     Object.defineProperty(window.navigator, 'clipboard', {
-      value: {
-        writeText: (text: string) => {
-          writes.push(text);
-          return Promise.resolve();
-        },
-      },
+      value: clipboard,
       configurable: true,
     });
-  });
+  }, mode);
 }
 
 async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SONY]) {
@@ -218,6 +227,50 @@ test('390px では見直し促進カードが独立したカードとして表�
   expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
 
   await shoot(page, '390');
+});
+
+test('クリップボードへの書き込みが拒否されたとき失敗表示になる', async ({
+  page,
+}) => {
+  await stubClipboard(page, 'reject');
+  await setupAssetBalanceMocks(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await gotoAssetBalance(page);
+  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+
+  const card = page.getByTestId('asset-review-prompt-card');
+  await card
+    .getByRole('button', { name: 'AI総評プロンプトをコピー' })
+    .click();
+  await expect(
+    card.getByRole('button', { name: 'コピーに失敗しました' }),
+  ).toBeVisible();
+
+  const written = await page.evaluate(
+    () => (window as unknown as { __clipboardWrites: string[] }).__clipboardWrites,
+  );
+  expect(written).toEqual([EXPECTED_PROMPT]);
+
+  // 3秒でラベルが元に戻る
+  await expect(
+    card.getByRole('button', { name: 'AI総評プロンプトをコピー' }),
+  ).toBeVisible({ timeout: 6_000 });
+});
+
+test('Clipboard API がない環境では失敗表示になる', async ({ page }) => {
+  await stubClipboard(page, 'missing');
+  await setupAssetBalanceMocks(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await gotoAssetBalance(page);
+  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+
+  const card = page.getByTestId('asset-review-prompt-card');
+  await card
+    .getByRole('button', { name: 'AI総評プロンプトをコピー' })
+    .click();
+  await expect(
+    card.getByRole('button', { name: 'コピーに失敗しました' }),
+  ).toBeVisible();
 });
 
 test('保有データが0件のときコピーボタンは無効になる', async ({ page }) => {
