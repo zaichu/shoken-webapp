@@ -254,8 +254,8 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
   await expect(cardList).toBeVisible();
   const listBox = await cardList.boundingBox();
   expect(listBox, 'カード一覧の幅').not.toBeNull();
-  // main の px-4 を除いた全幅(390-32=358)。page-surface の p-6 が残ると 310 まで狭まる
-  expect(listBox!.width).toBeGreaterThanOrEqual(356);
+  // main の px-4 と外側カードの枠線を除いた全幅(390-32-2=356)。page-surface の p-6 が残ると 308 まで狭まる
+  expect(listBox!.width).toBeGreaterThanOrEqual(354);
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
   const name = cardList.getByRole('button', {
@@ -264,9 +264,9 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンドカードの幅').not.toBeNull();
-  expect(nameBox!.width).toBeGreaterThanOrEqual(356);
+  expect(nameBox!.width).toBeGreaterThanOrEqual(354);
 
-  // 実際に見えている接頭辞を canvas で計測し、React と同等の省略位置
+  // 実際に見えている接頭辞を canvas で計測し、
   // 「eMAXIS Slim 全世界株式(」まで読めることを確認する
   const nameText = name.locator('span.truncate').first();
   const truncation = await nameText.evaluate((el) => {
@@ -296,7 +296,7 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
   expect(truncation.truncated, 'ファンド名は省略表示される').toBe(true);
   expect(
     truncation.visible.startsWith('eMAXIS Slim 全世界株式('),
-    `省略位置がReactより早い: 「${truncation.visible}…」`,
+    `ファンド名の省略位置が早すぎる: 「${truncation.visible}…」`,
   ).toBe(true);
 
   await shoot(page, 'fund-name-390');

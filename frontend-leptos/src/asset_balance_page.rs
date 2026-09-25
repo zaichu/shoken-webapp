@@ -1412,17 +1412,25 @@ fn PortfolioSummary(
     if views.is_empty() {
         show_all.set(false);
         return view! {
-            <div>
-                <h3>"該当する銘柄がありません"</h3>
-                <p>"銘柄の選択を変更するか、絞り込みを解除してください。"</p>
-                <div class="mt-3">
-                    <button
-                        type="button"
-                        class="text-sm text-primary hover:underline"
-                        on:click=move |_| on_clear_filter()
-                    >
-                        "絞り込みを解除"
-                    </button>
+            <div class="mb-3 overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)]">
+                <div>
+                    <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center">
+                        <h3 class="text-base font-black text-slate-950">
+                            "該当する銘柄がありません"
+                        </h3>
+                        <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                            "検索条件を変更するか、絞り込みを解除してください。"
+                        </p>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <button
+                            type="button"
+                            class="text-sm text-primary hover:underline"
+                            on:click=move |_| on_clear_filter()
+                        >
+                            "絞り込みを解除"
+                        </button>
+                    </div>
                 </div>
             </div>
         }

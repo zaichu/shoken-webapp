@@ -175,6 +175,41 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   await shoot(page, '390');
 });
 
+test('一覧に無い銘柄を選ぶとフィルタ済み空状態がカード内の破線ボックスで出る', async ({
+  page,
+}) => {
+  await page.unroute(/\/api\/v1\/asset-balances(?:\?.*)?$/);
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.fallback();
+    }
+    return route.fulfill(
+      jsonResponse({
+        data: [TOYOTA, SONY, NTT],
+        total: 3,
+        page: 1,
+        per_page: 1000,
+        facets: {
+          securities: [...FACETS.securities, { value: '9999', label: '架空銘柄', count: 1 }],
+        },
+      }),
+    );
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAssetBalance(page);
+
+  await page.locator('#securities-search').selectOption('9999');
+  const heading = page.getByRole('heading', { name: '該当する銘柄がありません' });
+  await expect(heading).toBeVisible();
+  const box = heading.locator('xpath=..');
+  await expect(box).toHaveCSS('border-top-style', 'dashed');
+  const card = box.locator('xpath=..').locator('xpath=..');
+  await expect(card).toHaveCSS('border-top-width', '1px');
+  await expect(
+    page.getByRole('button', { name: '絞り込みを解除' }),
+  ).toBeVisible();
+});
+
 test('639px ではモバイル表示、640px でPC表示に切り替わる', async ({ page }) => {
   await page.setViewportSize({ width: 639, height: 844 });
   await gotoAssetBalance(page);

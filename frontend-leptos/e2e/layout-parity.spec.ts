@@ -120,14 +120,51 @@ const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
     widths: [84, 64, 64, 72, 160, 72, 56, 84, 64, 84],
+    aligns: [
+      'left',
+      'left',
+      'left',
+      'center',
+      'left',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+    ],
   },
   domesticstock: {
     tabName: '国内株式',
     widths: [84, 72, 156, 60, 56, 76, 82, 82, 82, 64, 84],
+    aligns: [
+      'left',
+      'center',
+      'left',
+      'left',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+    ],
   },
   mutualfund: {
     tabName: '投資信託',
     widths: [112, 300, 60, 112, 98, 128, 116, 112, 106, 118],
+    aligns: [
+      'left',
+      'left',
+      'left',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+      'right',
+    ],
   },
 } as const;
 
@@ -307,6 +344,95 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
   expectEllipsis(cellStyles);
 }
 
+async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) {
+  const table = page.getByRole('table');
+  const aligns = TABLE_SPEC[slug].aligns;
+
+  const card = page.getByTestId('receipt-card').first();
+  await expect(card.locator('table')).toHaveCount(1);
+  await expect(card).toHaveCSS('border-top-width', '1px');
+  await expect(table.locator('xpath=..')).toHaveCSS('border-top-width', '1px');
+
+  const cellStyles = await table
+    .locator('tbody tr')
+    .last()
+    .locator('td')
+    .evaluateAll((cells) =>
+      cells.map((cell) => {
+        const style = getComputedStyle(cell);
+        return {
+          textAlign: style.textAlign,
+          fontSize: style.fontSize,
+          fontVariantNumeric: style.fontVariantNumeric,
+          paddingTop: style.paddingTop,
+          paddingLeft: style.paddingLeft,
+          borderRightWidth: style.borderRightWidth,
+          borderRightColor: style.borderRightColor,
+          borderBottomColor: style.borderBottomColor,
+        };
+      }),
+    );
+  expect(cellStyles).toHaveLength(aligns.length);
+  cellStyles.forEach((style, i) => {
+    expect(style.textAlign, `td[${i}] の寄せ`).toBe(aligns[i]);
+    expect(style.fontSize).toBe('13px');
+    expect(style.paddingTop).toBe('8px');
+    expect(style.paddingLeft).toBe('10px');
+    // tbody 側の指定が詳細度で勝るため罫線は全辺 slate-100 になる
+    expect(style.borderRightWidth, '縦罫線').toBe('1px');
+    expect(style.borderRightColor).toBe('oklch(0.968 0.007 247.896)');
+    expect(style.borderBottomColor).toBe('oklch(0.968 0.007 247.896)');
+    if (aligns[i] === 'right') {
+      expect(style.fontVariantNumeric).toBe('tabular-nums');
+    }
+  });
+
+  const plainTitles = await table
+    .locator('tbody tr')
+    .last()
+    .locator('td:not(:has(*))')
+    .evaluateAll((cells) =>
+      cells.map((cell) => ({
+        title: cell.getAttribute('title'),
+        text: cell.textContent,
+      })),
+    );
+  expect(plainTitles.length).toBeGreaterThan(0);
+  plainTitles.forEach(({ title, text }) => expect(title).toBe(text));
+
+  const groupRows = table.locator('tbody tr:has(td[colspan])');
+  const firstGroupCells = groupRows.first().locator('td');
+  await expect(firstGroupCells.first()).toHaveCSS(
+    'background-color',
+    'oklch(0.968 0.007 247.896)',
+  );
+  await expect(firstGroupCells.last()).toHaveCSS(
+    'background-color',
+    'oklch(0.968 0.007 247.896)',
+  );
+  const badge = groupRows
+    .first()
+    .locator('td')
+    .first()
+    .locator('span')
+    .nth(1);
+  await expect(badge).toHaveText(/^\d+件$/);
+  await expect(badge).toHaveCSS('background-color', 'oklch(0.446 0.043 257.281)');
+  await expect(badge).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(badge).toHaveCSS('border-radius', '4px');
+  await expect(badge).toHaveCSS('font-size', '12px');
+  const summaryFont = await firstGroupCells
+    .last()
+    .evaluate((cell) => getComputedStyle(cell).fontFamily);
+  expect(summaryFont.toLowerCase()).not.toContain('mono');
+
+  if (slug === 'domesticstock') {
+    const negative = table.locator('tbody td[data-negative="true"]').first();
+    await expect(negative).toHaveCSS('color', 'rgb(220, 53, 69)');
+    await expect(negative).toContainText(/-/);
+  }
+}
+
 async function expectNoPageOverflow(page: Page, width: number) {
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth, 'ページ自体は横にはみ出さない').toBeLessThanOrEqual(width + 1);
@@ -343,6 +469,38 @@ async function mockReceiptFetchErrors(page: Page) {
   );
 }
 
+async function expectDashedEmptyState(page: Page, title: string) {
+  const box = page.getByRole('heading', { name: title }).locator('xpath=..');
+  await expect(box).toHaveCSS('border-top-style', 'dashed');
+  await expect(box).toHaveCSS('text-align', 'center');
+  const radius = await box.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+  expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+  const card = box.locator('xpath=..').locator('xpath=..');
+  await expect(card).toHaveCSS('border-top-width', '1px');
+}
+
+async function gotoFilteredEmptyAssetBalance(page: Page) {
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json({
+        ...paginated(ASSET_BALANCES),
+        facets: {
+          securities: [
+            ...STOCKS.map(([value, label]) => ({ value, label, count: 1 })),
+            { value: '9999', label: '架空銘柄', count: 1 },
+          ],
+        },
+      }),
+    ),
+  );
+  await page.goto('/assetbalance');
+  await expectAssetDataLoaded(page);
+  await page.locator('#securities-search').selectOption('9999');
+  await expect(
+    page.getByRole('button', { name: '絞り込みを解除' }),
+  ).toBeVisible();
+}
+
 async function expectReceiptsErrorLayout(page: Page) {
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
@@ -355,6 +513,7 @@ async function expectReceiptsErrorLayout(page: Page) {
   await expect(emptyCard).toBeVisible();
   await expect(emptyCard).toContainText('データがありません');
   await expect(emptyCard).toContainText('配当金明細をCSVで追加してください');
+  await expectDashedEmptyState(page, 'データがありません');
 }
 
 async function expectAssetBalanceErrorLayout(page: Page) {
@@ -371,6 +530,7 @@ async function expectAssetBalanceErrorLayout(page: Page) {
   await expect(main).toContainText(
     'CSVファイルをインポートするか、データを登録してください。',
   );
+  await expectDashedEmptyState(page, '資産管理データがありません');
 }
 
 async function expectSearchServerError(page: Page) {
@@ -401,6 +561,7 @@ for (const width of [1440, 1024]) {
       const spec = TABLE_SPEC[slug];
       await expectColumnWidthsAndEllipsis(page, spec.widths);
       expectReactTableFit(await tableMetrics(page), spec.widths);
+      await expectReceiptTableDetailStyles(page, slug);
       await expectTableSettled(page);
 
       await shoot(page, testInfo, `receipts-${slug}-data-${width}-leptos`);
@@ -488,6 +649,13 @@ for (const width of [1440, 1024, 390]) {
   });
 }
 
+test('資産管理の絞り込み空状態はReactと同じ破線ボックス', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoFilteredEmptyAssetBalance(page);
+  await expectDashedEmptyState(page, '該当する銘柄がありません');
+  await shoot(page, testInfo, 'assetbalance-filtered-empty-1440-leptos');
+});
+
 test('資産管理レールは390pxでも1枚カードで検索は初期展開', async ({
   page,
 }, testInfo) => {
@@ -549,6 +717,7 @@ test.describe('react比較', () => {
         await expect(table).toBeVisible();
         await expect(table.locator('tbody tr').first()).toBeVisible();
         expectReactTableFit(await tableMetrics(page), TABLE_SPEC[slug].widths);
+        await expectReceiptTableDetailStyles(page, slug);
         await shoot(page, testInfo, `receipts-${slug}-data-${width}-react`);
       });
     }
@@ -560,6 +729,13 @@ test.describe('react比較', () => {
       await shoot(page, testInfo, `assetbalance-data-${width}-react`);
     });
   }
+
+  test('react assetbalance filtered empty state', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoFilteredEmptyAssetBalance(page);
+    await expectDashedEmptyState(page, '該当する銘柄がありません');
+    await shoot(page, testInfo, 'assetbalance-filtered-empty-1440-react');
+  });
 
   test(`react receipts/assetbalance 390px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
