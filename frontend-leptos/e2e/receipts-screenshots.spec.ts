@@ -3,11 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * 取引明細(/receipts)の Leptos 版スクリーンショット取得。
- * React 版 frontend/e2e/mobile-screenshots.spec.ts と同一のモックデータで
- * PC(1920x1080) / スマホ(390x844) の両幅を撮り、リポジトリルートの
- * .playwright-mcp/ に leptos- プレフィックスで保存して視覚比較できるようにする。
- * API は page.route() でモックするためバックエンド・ログイン不要。
+ * 取引明細(/receipts)のスクリーンショットを PC(1920x1080) / スマホ(390x844)
+ * の両幅で撮り、リポジトリルートの .playwright-mcp/ に leptos- プレフィックスで
+ * 保存する。API は page.route() でモックするためバックエンド・ログイン不要。
  * 実行: LEPTOS_E2E_PORT=8096 npx playwright test --config playwright.receipts.config.ts receipts-screenshots.spec.ts
  */
 
@@ -38,8 +36,7 @@ const STOCKS = [
   ['8058', '三菱商事'],
 ];
 
-// 明細内容は React 版と同一。Leptos 側は Decimal を JSON 数値として
-// デシリアライズするため、金額系フィールドは数値で返す(値自体は同じ)。
+// Decimal フィールドは JSON 数値としてデシリアライズされるため数値で返す。
 const DIVIDENDS = Array.from({ length: 18 }, (_, i) => {
   const [code, name] = STOCKS[i % STOCKS.length];
   const month = String((i % 12) + 1).padStart(2, '0');

@@ -3,7 +3,6 @@ import * as path from 'path';
 
 /**
  * CSV取込結果・プレビューのエラー詳細表示の E2E。
- * React 側(CsvSaveResultNotice / ReceiptsAlerts)と同じふるまいを固定する:
  * - 取込結果の行エラーは <details> 折りたたみ(初期は閉、summary クリックで開く)
  * - プレビューの行エラーは操作なしで常時表示
  */

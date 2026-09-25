@@ -1,10 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-// frontend/e2e/real-backend-receipts-smoke.spec.ts の Leptos 版。
-// 元 spec の getByText(...).first() は DOM 順で表より先に来る
-// securities-search の <option>(非表示)を拾ってしまうため、
+// securities-search の <option>(非表示)が DOM 順で表より先に来るため、
 // 行データの言明は表の cell ロールに絞る。
-// REAL_BACKEND_URL が無い通常の E2E 実行(モックのみ)ではスキップする。
 
 const BACKEND_URL = process.env.REAL_BACKEND_URL;
 const FRONTEND_URL = process.env.REAL_FRONTEND_URL || process.env.BASE_URL || 'http://127.0.0.1:8096';
