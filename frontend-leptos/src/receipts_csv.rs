@@ -393,7 +393,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// to_receipt_item は配当行の全フィールドをそのままコピーする
         #[test]
         fn prop_dividend_to_receipt_item_copies_fields(
             date in "[ -~]{0,12}",
@@ -436,7 +435,6 @@ mod tests {
             proptest::prop_assert_eq!(item.net_amount_received, expected.net_amount_received);
         }
 
-        /// to_preview は行数を保存し、パース不能な行はデフォルト値になる
         #[test]
         fn prop_to_preview_preserves_row_count(
             rows in proptest::collection::vec(proptest::bool::ANY, 0..8usize),

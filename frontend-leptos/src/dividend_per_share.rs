@@ -151,7 +151,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// コード一覧は BTreeSet による素朴な重複除去+ソートと一致する
         #[test]
         fn prop_unique_sorted_codes_matches_set(
             codes in proptest::collection::vec("[0-9A-Za-z]{0,8}", 0..32usize),
@@ -165,7 +164,6 @@ mod tests {
             proptest::prop_assert_eq!(unique_sorted_codes(&codes), expected);
         }
 
-        /// リトライ上限は [BASE, PENDING_MAX] に収まり、コード数に対し単調非減少
         #[test]
         fn prop_pending_max_retries_bounds_and_monotone(count in 0usize..10_000) {
             let retries = dividend_pending_max_retries(count);
@@ -177,7 +175,6 @@ mod tests {
             );
         }
 
-        /// batch 変換は素朴モデル(ok かつ正の per_share のみ、pending 検出)と一致する
         #[test]
         fn prop_maps_from_batch_matches_naive(
             items in proptest::collection::vec(

@@ -239,7 +239,6 @@ mod tests {
         ] {
             assert_eq!(parse_number(input).unwrap(), expected);
         }
-        // 片側だけの括弧は負数表記とみなさずエラーにする
         for input in ["(123", "123)", "(", ")"] {
             assert!(parse_number(input).is_err());
         }
@@ -483,7 +482,6 @@ mod tests {
         );
     }
 
-    /// 整数部に3桁ごとのカンマを挿入した表記を返す素朴な参照モデル
     fn add_thousands_separators(unsigned: &str) -> String {
         let (integer, fraction) = unsigned
             .split_once('.')
@@ -502,7 +500,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// 任意の Decimal をカンマ区切り・括弧負数表記で書いても同じ値にパースされる
         #[test]
         fn prop_parse_number_roundtrips_formatted_values(
             mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
@@ -537,7 +534,6 @@ mod tests {
             );
         }
 
-        /// 任意文字列で panic せず、Ok なら素朴モデル(括弧除去→カンマ除去→符号反映)と一致する
         #[test]
         fn prop_parse_number_matches_naive_model_or_errors(input in ".*") {
             let naive = {
@@ -575,7 +571,6 @@ mod tests {
             }
         }
 
-        /// compute_taxes の不変条件: taxes >= 0、taxes + after_tax == pnl、非特定は無税
         #[test]
         fn prop_compute_taxes_invariants(
             account in "[特定一般NISA口座 ]{0,12}",
@@ -593,7 +588,6 @@ mod tests {
             }
         }
 
-        /// 有効な日付は両フォーマットでパースされ、不正な年月日は Err になる
         #[test]
         fn prop_parse_date_accepts_valid_and_rejects_invalid(
             year in 1970i32..2100i32,
@@ -622,7 +616,6 @@ mod tests {
             }
         }
 
-        /// UTF-8 文字列のバイト列は BOM 付きでも同じ内容にデコードされる
         #[test]
         fn prop_decode_bytes_utf8_roundtrip(input in ".*") {
             let expected = input.strip_prefix('\u{FEFF}').unwrap_or(&input).to_string();
@@ -631,7 +624,6 @@ mod tests {
             proptest::prop_assert_eq!(decode_bytes(with_bom.as_bytes()), input);
         }
 
-        /// 正規化は参照モデル(全トークン1文字なら結合、さもなくば trim)と一致する
         #[test]
         fn prop_normalize_security_name_matches_naive_model(input in "[ -~ぁ-龥]{0,40}") {
             let expected = {

@@ -913,7 +913,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// group_thousands は右から3桁ごとにカンマを挿入し、除去すると元の数字列に戻る
         #[test]
         fn prop_group_thousands_positions(digits in "[0-9]{1,15}") {
             let grouped = group_thousands(&digits);
@@ -925,7 +924,6 @@ mod tests {
             }
         }
 
-        /// to_fixed は符号対称で、結果は 10^-decimals 単位の最も近い値
         #[test]
         fn prop_to_fixed_symmetric_and_quantized(
             mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
@@ -943,7 +941,6 @@ mod tests {
             );
         }
 
-        /// intl_fixed も符号対称で同じ量子化範囲に収まる
         #[test]
         fn prop_intl_fixed_symmetric_and_quantized(
             mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
@@ -957,7 +954,6 @@ mod tests {
             proptest::prop_assert!((result - value).abs() <= 0.6 * unit);
         }
 
-        /// 正の値の構成比は合計が丸め誤差内で100%
         #[test]
         fn prop_composition_percentages_sum_to_100(
             values in proptest::collection::vec(0.0001f64..1_000_000.0f64, 1..8usize),
@@ -971,7 +967,6 @@ mod tests {
             );
         }
 
-        /// JSON 数値・数値文字列は有限値を返し、マーカーや非数値型は None を返す
         #[test]
         fn prop_to_finite_amount(
             value in -1e15f64..1e15f64,
@@ -995,7 +990,6 @@ mod tests {
             }
         }
 
-        /// 評価損益は (市場, 取得) 両方が有限のときだけ計算され、取得0では率なし
         #[test]
         fn prop_calculate_valuation(
             market in proptest::option::of(-1e15f64..1e15f64),
@@ -1020,7 +1014,6 @@ mod tests {
             }
         }
 
-        /// チャート除外条件は「取得額が正」または「取得額なし・0 で評価額が非0」
         #[test]
         fn prop_should_include_chart_item(
             purchase in proptest::option::of(-1e6f64..1e6f64),
@@ -1031,7 +1024,6 @@ mod tests {
             proptest::prop_assert_eq!(should_include_chart_item(purchase, market), expected);
         }
 
-        /// 未丸めパーセンテージは素朴モデル(合計0で評価額なし→空、それ以外→None埋め)と一致
         #[test]
         fn prop_chart_percentages(
             items in proptest::collection::vec(
@@ -1059,7 +1051,6 @@ mod tests {
             }
         }
 
-        /// コード正規化は trim 後の最初の ':'/'：' までを大文字化し空白を除く
         #[test]
         fn prop_normalize_security_code(input in ".*") {
             let output = normalize_security_code(&input);
@@ -1077,7 +1068,6 @@ mod tests {
             proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
         }
 
-        /// 配当マップが空なら配当・利回りは算出不可、保有数は入力長と一致
         #[test]
         fn prop_kpi_empty_dividend_map(
             holdings in proptest::collection::vec(

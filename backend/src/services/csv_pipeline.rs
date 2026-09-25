@@ -109,10 +109,9 @@ mod tests {
         row.get("name").is_some_and(|name| name.contains("合計"))
     }
 
-    // `parse_csv_with_config` always hands csv::Reader valid UTF-8 bytes from an in-memory
-    // buffer. Combined with `flexible(true)`, we could not reproduce header/record read errors
-    // in a unit test, including inputs containing `\0`, so only the empty-input edge case is
-    // covered here.
+    // csv::Reader へ渡す入力は常にメモリ上の UTF-8 バイト列で、flexible(true) も相まって
+    // ヘッダー/レコード読み取りエラーはユニットテストで再現できなかったため、
+    // 空入力の境界のみここで固定する。
     #[test]
     fn test_parse_csv_empty_bytes() {
         let result = parse_csv_with_config(b"", &BASIC_CONFIG);
@@ -176,7 +175,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// パイプラインは素朴な参照(空行除去・required 列の存在・trim)を満たす
         #[test]
         fn prop_parse_csv_with_config_matches_reference(
             skip_header_rows in 0usize..3usize,
@@ -203,7 +201,6 @@ mod tests {
             };
             let rows = parse_csv_with_config(csv.as_bytes(), &config).unwrap();
 
-            // 参照モデル: 全セルが trim 後に空の行だけが除外される
             let expected: Vec<&Vec<String>> = cells
                 .iter()
                 .filter(|record| !record.iter().all(|c| c.trim().is_empty()))
@@ -211,7 +208,6 @@ mod tests {
             proptest::prop_assert_eq!(rows.len(), expected.len());
 
             for (actual, record) in rows.iter().zip(expected.iter()) {
-                // 必須列を含む全ヘッダーがキーとして存在する
                 proptest::prop_assert_eq!(
                     actual.get("required_missing"),
                     Some(&String::new())

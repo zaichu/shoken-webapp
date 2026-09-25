@@ -234,7 +234,6 @@ fn option(value: &str, label: &str) -> SearchOption {
     }
 }
 
-/// 素朴な ISO 日付検証(参照モデル)
 fn naive_valid_iso_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() != 10
@@ -275,7 +274,6 @@ fn string_item_config() -> FilterConfig<String> {
 }
 
 proptest::proptest! {
-    /// 区切り文字のない ASCII クエリは JS 空白分割+小文字化の素朴モデルと一致する
     #[test]
     fn prop_parse_tokens_simple(query in "[a-zA-Z0-9 \t]+") {
         let tokens = parse_search_tokens(&query);
@@ -287,7 +285,6 @@ proptest::proptest! {
         proptest::prop_assert_eq!(tokens, expected);
     }
 
-    /// 任意クエリで得られるトークンは空でなく小文字済み
     #[test]
     fn prop_parse_tokens_never_empty(query in ".*") {
         for token in parse_search_tokens(&query) {
@@ -296,7 +293,6 @@ proptest::proptest! {
         }
     }
 
-    /// 年・年月の前方一致は素朴モデルと一致する
     #[test]
     fn prop_year_prefix_match(
         date in "[ -~]{0,20}",
@@ -311,12 +307,10 @@ proptest::proptest! {
             matches_year_month(&date, &year_month),
             date.len() >= 7 && date.starts_with(&year_month)
         );
-        // 長さちょうど4/7の境界値も必ず一致する
         proptest::prop_assert!(matches_year(&year, &year));
         proptest::prop_assert!(matches_year_month(&year_month, &year_month));
     }
 
-    /// 日付範囲マッチは仕様どおりの素朴モデル(無効・逆転は false、境界含む)と一致する
     #[test]
     fn prop_matches_date_range_naive(
         date in "[0-9]{4}-[0-9]{2}-[0-9]{2}",
@@ -365,7 +359,6 @@ proptest::proptest! {
         );
     }
 
-    /// 年オプションは先頭4文字の重複除去+昇順ソートと一致する
     #[test]
     fn prop_year_options_naive(dates in proptest::collection::vec("[ -~]{0,12}", 0..16usize)) {
         let options = create_year_options(&dates, |date| date.as_str());
@@ -390,7 +383,6 @@ proptest::proptest! {
         proptest::prop_assert_eq!(options, expected);
     }
 
-    /// 一意値は JS 空白のみの要素を除き、初出順を保つ
     #[test]
     fn prop_get_unique_values_naive(
         values in proptest::collection::vec(".*", 0..16usize),
@@ -406,7 +398,6 @@ proptest::proptest! {
         proptest::prop_assert_eq!(actual, expected);
     }
 
-    /// 部分一致フィルタは入力の部分列を保ち、条件を満たす要素だけを返す
     #[test]
     fn prop_filter_partial_match_subsequence(
         items in proptest::collection::vec("[a-zA-Z0-9]{0,12}", 0..16usize),
@@ -420,7 +411,6 @@ proptest::proptest! {
         proptest::prop_assert_eq!(result, expected);
     }
 
-    /// 空白のみのクエリは全件を返す
     #[test]
     fn prop_filter_blank_query_returns_all(
         items in proptest::collection::vec("[a-z0-9]{0,8}", 0..8usize),
@@ -430,7 +420,6 @@ proptest::proptest! {
         proptest::prop_assert_eq!(result.len(), items.len());
     }
 
-    /// ISO 日付バリデータは構造検証を含めて素朴モデルと一致する
     #[test]
     fn prop_is_valid_iso_date_matches_naive_model(input in ".*") {
         proptest::prop_assert_eq!(

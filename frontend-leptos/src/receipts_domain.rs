@@ -890,7 +890,6 @@ mod tests {
             .prop_map(|(y, m, d)| format!("{y:04}-{m:02}-{d:02}"))
     }
 
-    /// 日単位集計の素朴な参照モデル
     fn naive_domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
         let mut by_date: std::collections::BTreeMap<&str, (Decimal, Decimal)> =
             std::collections::BTreeMap::new();
@@ -924,7 +923,6 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// 配当合計は各フィールドの素朴な総和に一致する(長さ0を含む)
         #[test]
         fn prop_dividends_match_naive_sums(
             rows in proptest::collection::vec(
@@ -948,7 +946,6 @@ mod tests {
             );
         }
 
-        /// 国内株式の日次集計は素朴な参照モデル(特定口座のみ課税・日付降順)と一致する
         #[test]
         fn prop_domestic_daily_matches_naive_model(
             rows in proptest::collection::vec(
@@ -970,7 +967,6 @@ mod tests {
             );
         }
 
-        /// 月次配当グループは素朴なグルーピング(YYYY-MM・降順)と一致する
         #[test]
         fn prop_group_dividends_by_month_matches_naive_grouping(
             rows in proptest::collection::vec(
@@ -1008,7 +1004,6 @@ mod tests {
             proptest::prop_assert_eq!(actual, expected);
         }
 
-        /// ソートは日付降順かつ要素を保存する
         #[test]
         fn prop_sort_dividends_is_descending_permutation(
             dates in proptest::collection::vec(arb_date(), 0..16usize),
@@ -1024,7 +1019,6 @@ mod tests {
             );
         }
 
-        /// 丸め後の小数桁が範囲内・グルーピング位置が正しく、パースし直すと丸め値に一致する
         #[test]
         fn prop_format_number_with_options_invariants(
             mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
@@ -1044,7 +1038,6 @@ mod tests {
             proptest::prop_assert!(fraction.len() <= max as usize);
             proptest::prop_assert!(fraction.len() >= min as usize);
 
-            // グルーピングは整数部末尾から3桁ごと
             let digits: String = integer.chars().filter(|c| *c != ',').collect();
             let comma_positions: Vec<usize> = integer
                 .chars()
@@ -1073,7 +1066,6 @@ mod tests {
             );
         }
 
-        /// 通貨フォーマットは負号を "¥ -" 表記に変換する
         #[test]
         fn prop_format_currency_sign_convention(value in arb_decimal()) {
             let output = format_currency(value);
@@ -1086,7 +1078,6 @@ mod tests {
             }
         }
 
-        /// safe_divide は 0 除算で 0 を返し、それ以外は round_dp(10) で近似的に正しい
         #[test]
         fn prop_safe_divide_zero_and_precision(a in arb_decimal(), b in arb_decimal()) {
             let result = safe_divide(a, b);
@@ -1101,7 +1092,6 @@ mod tests {
             }
         }
 
-        /// ISO日付バリデータは素朴な日数モデルと一致する
         #[test]
         fn prop_valid_iso_date_matches_naive_model(
             year in 0i32..10000i32,
@@ -1129,7 +1119,6 @@ mod tests {
             }
         }
 
-        /// 構造が不正な入力(桁数・区切り・数字以外)は常に false を返す
         #[test]
         fn prop_valid_iso_date_rejects_malformed(input in ".*") {
             let bytes = input.as_bytes();
@@ -1145,7 +1134,6 @@ mod tests {
             }
         }
 
-        /// コード正規化は最初の ':'/'：' までを大文字化し空白を除く
         #[test]
         fn prop_normalize_security_code_matches_naive_model(input in ".*") {
             let output = normalize_security_code(&input);
