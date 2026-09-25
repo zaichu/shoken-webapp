@@ -324,11 +324,11 @@ async function expectNoPageSurface(page: Page) {
   await expect(page.locator('#main-content > *').first().locator('h1')).toBeVisible();
 }
 
-// スクロールラッパーの max-height は計測後に入るので、それを描画完了の合図にする
+// スクロールラッパーの max-height は計測後に入るので、数値が入るまでを描画完了の合図にする
 async function expectTableSettled(page: Page) {
   await expect(page.getByRole('table').locator('xpath=..')).toHaveAttribute(
     'style',
-    /max-height/,
+    /max-height:\s*[\d.]+px/,
   );
 }
 
