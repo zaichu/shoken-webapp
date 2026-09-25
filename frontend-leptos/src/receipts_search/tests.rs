@@ -235,29 +235,28 @@ fn option(value: &str, label: &str) -> SearchOption {
 }
 
 fn naive_valid_iso_date(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    if bytes.len() != 10
-        || bytes[4] != b'-'
-        || bytes[7] != b'-'
-        || !bytes
+    let parts: Vec<&str> = value.split('-').collect();
+    if parts.len() != 3
+        || parts[0].len() != 4
+        || parts[1].len() != 2
+        || parts[2].len() != 2
+        || !parts
             .iter()
-            .enumerate()
-            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+            .all(|part| part.bytes().all(|b| b.is_ascii_digit()))
     {
         return false;
     }
-    let year = value[..4].parse::<u32>().unwrap_or(0);
-    let month = value[5..7].parse::<u32>().unwrap_or(0);
-    let day = value[8..].parse::<u32>().unwrap_or(0);
-    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-    let max_day = match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
-        2 => 28,
-        _ => return false,
+    let (Ok(year), Ok(month), Ok(day)) = (
+        parts[0].parse::<i32>(),
+        parts[1].parse::<u8>(),
+        parts[2].parse::<u8>(),
+    ) else {
+        return false;
     };
-    (1..=max_day).contains(&day)
+    let Ok(month) = time::Month::try_from(month) else {
+        return false;
+    };
+    time::Date::from_calendar_date(year, month, day).is_ok()
 }
 
 fn string_item_config() -> FilterConfig<String> {
@@ -421,13 +420,18 @@ proptest::proptest! {
     }
 
     #[test]
-    fn prop_is_valid_iso_date_matches_naive_model(input in ".*") {
-        proptest::prop_assert_eq!(
-            is_valid_iso_date(&input),
-            naive_valid_iso_date(&input),
-            "input={}",
-            input
-        );
+    fn prop_is_valid_iso_date_matches_naive_model(
+        (y, m, d) in (0i32..10_000, 0i32..15, 0i32..35),
+        raw in "[0-9-]{0,12}",
+    ) {
+        for input in [format!("{y:04}-{m:02}-{d:02}"), raw] {
+            proptest::prop_assert_eq!(
+                is_valid_iso_date(&input),
+                naive_valid_iso_date(&input),
+                "input={}",
+                input
+            );
+        }
     }
 }
 
