@@ -107,7 +107,6 @@ fn total_comes_from_pushed_pages() {
     assert_eq!(pages.total(), Some(7));
     pages.push(rows(3..5), 5);
     assert_eq!(pages.total(), Some(5));
-    // 負の total は採用しない
     pages.push(rows(5..5), -1);
     assert_eq!(pages.total(), Some(5));
 }

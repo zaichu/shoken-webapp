@@ -2086,7 +2086,6 @@ mod tests {
         let zero_price = holding_dividend("7203", 10.0, 0.0, &maps);
         assert_eq!(zero_price.yield_value, None);
 
-        // ステータスが pending/error なら per_share 値があっても表示値は出さない
         let mut maps = maps;
         maps.per_share.insert("0004".to_string(), 30.0);
         maps.status
