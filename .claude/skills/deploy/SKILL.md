@@ -7,10 +7,10 @@ description: |
 
 # デプロイ
 
-## 重要: 自動デプロイが基本
+## 重要: 本番デプロイの経路
 
-main ブランチへのマージで自動デプロイが実行されるため、
-**通常は手動デプロイ不要**。
+- backend: `main` へのマージ(`backend/**` 変更)で `deploy-backend.yml` が自動デプロイ
+- frontend: PR や `main` への push では自動デプロイしない(Vercel の Git 連携ビルドは `vercel-ignore-build.sh` で常にスキップ)。本番反映は `main` に対する `deploy-frontend.yml` の workflow_dispatch か、Vercel CLI の手動実行のみ
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 
@@ -34,14 +34,12 @@ flyctl status -a shoken-backend
 
 ## フロントエンド (Vercel)
 
-### 自動デプロイ（推奨）
-- `main` ブランチへのマージで自動デプロイ
-- PR作成時にプレビューデプロイ
-- **手動デプロイは不要**
+### 本番デプロイ(手動のみ)
 
-### 手動デプロイ（緊急時のみ）
+PR や `main` への push では自動デプロイされない。本番反映は次のいずれか:
 
-リポジトリのルートで実行する(Vercel の Root Directory はルートからの相対で解決される):
+- `deploy-frontend.yml` を `main` ブランチで workflow_dispatch 実行(`LEPTOS_PRODUCTION_ENABLED=true` のとき production、それ以外は preview)
+- リポジトリのルートで Vercel CLI を実行する(Vercel の Root Directory はルートからの相対で解決される):
 
 ```bash
 vercel pull --yes --environment=production
@@ -54,8 +52,9 @@ vercel deploy --prebuilt --prod
 1. `main` から作業ブランチを作成して実装
 2. ローカルでテスト（cargo test, playwright）
 3. 作業ブランチ -> `main` の PR を作成してマージ
-4. **自動デプロイ実行**（手動操作不要）
-5. 本番で動作確認
+4. backend は自動デプロイ実行（手動操作不要）
+5. frontend の本番反映が必要な場合は `deploy-frontend.yml` の workflow_dispatch か Vercel CLI で手動デプロイ
+6. 本番で動作確認
 
 ## デプロイ前チェックリスト
 
