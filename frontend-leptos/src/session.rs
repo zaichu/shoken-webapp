@@ -1,4 +1,5 @@
 use crate::api::{ApiClient, ApiError};
+use crate::cross_tab;
 use crate::dto::{MessageResponse, SessionUser};
 use crate::pending_logout;
 use leptos::prelude::*;
@@ -85,7 +86,12 @@ impl SessionStore {
             .ok()
             .filter(|user| !user.id.is_empty());
         batch(|| {
-            self.set_user(user);
+            // 他タブがログアウト中なら、確認の結果にかかわらず未認証を維持する
+            if pending_logout::is_pending() {
+                self.set_user(None);
+            } else {
+                self.set_user(user);
+            }
             self.loaded.set(true);
         });
     }
@@ -99,6 +105,7 @@ impl SessionStore {
         pending_logout::mark();
         self.mark_unauthenticated();
         self.loaded.set(true);
+        cross_tab::notify_logout();
         let client = ApiClient::default_client();
         if pending_logout::is_finished(&client.delete_empty("/api/v1/session").await) {
             pending_logout::clear();
@@ -155,6 +162,7 @@ pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
     crate::idle::watch_idle_logout(session);
+    cross_tab::watch_logout_notifications(session);
     let startup = session;
     leptos::task::spawn_local(async move {
         // 保留中はセッション確認を行わず、先にログアウトを完了させる

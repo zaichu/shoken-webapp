@@ -1,3 +1,4 @@
+use crate::cross_tab;
 use crate::session::SessionStore;
 use gloo_timers::callback::Timeout;
 use leptos::ev;
@@ -9,23 +10,52 @@ const IDLE_TIMEOUT_MS: u32 = 30 * 60 * 1000;
 
 type IdleTimer = Rc<RefCell<Option<Timeout>>>;
 
-fn reset_timer(timer: &IdleTimer, session: SessionStore) {
+fn now_ms() -> u64 {
+    js_sys::Date::now() as u64
+}
+
+fn idle_remaining_ms(last_activity_ms: u64, now_ms: u64) -> i64 {
+    last_activity_ms
+        .saturating_add(IDLE_TIMEOUT_MS as u64)
+        .saturating_sub(now_ms) as i64
+}
+
+fn arm_timer(timer: &IdleTimer, session: SessionStore, delay_ms: u32) {
     if session.user.get_untracked().is_none() {
         timer.borrow_mut().take();
         return;
     }
+    let timer2 = Rc::clone(timer);
     timer
         .borrow_mut()
-        .replace(Timeout::new(IDLE_TIMEOUT_MS, move || {
-            if session.user.get_untracked().is_some() {
-                leptos::task::spawn_local(async move {
-                    session.logout().await;
-                });
-            }
+        .replace(Timeout::new(delay_ms.max(1), move || {
+            on_idle_timer(&timer2, session);
         }));
 }
 
-// イベントリスナー自体は常駐させ、未ログイン時は reset 側で無効化する
+fn on_idle_timer(timer: &IdleTimer, session: SessionStore) {
+    if session.user.get_untracked().is_none() {
+        return;
+    }
+    // 書き込みの間引きや取りこぼしで満了が前倒しになり得るので、共有された最終操作時刻で判定し直す
+    match cross_tab::last_activity_ms().map(|last| idle_remaining_ms(last, now_ms())) {
+        Some(remaining) if remaining > 0 => {
+            arm_timer(timer, session, remaining as u32);
+        }
+        _ => {
+            leptos::task::spawn_local(async move {
+                session.logout().await;
+            });
+        }
+    }
+}
+
+fn on_user_activity(timer: &IdleTimer, session: SessionStore) {
+    cross_tab::record_activity();
+    arm_timer(timer, session, IDLE_TIMEOUT_MS);
+}
+
+// イベントリスナー自体は常駐させ、未ログイン時は arm 側で無効化する
 pub fn watch_idle_logout(session: SessionStore) {
     let timer: IdleTimer = Rc::new(RefCell::new(None));
 
@@ -33,41 +63,67 @@ pub fn watch_idle_logout(session: SessionStore) {
     let timer_effect = Rc::clone(&timer);
     Effect::new(move |_| {
         if session.user.get().is_some() {
-            reset_timer(&timer_effect, session);
+            arm_timer(&timer_effect, session, IDLE_TIMEOUT_MS);
         } else {
             timer_effect.borrow_mut().take();
+        }
+    });
+
+    // 他タブの操作でもこのタブのタイマーを延ばす
+    let storage_handle = window_event_listener(ev::storage, {
+        let timer = Rc::clone(&timer);
+        move |event| {
+            if event.key().as_deref() == Some(cross_tab::ACTIVITY_KEY) {
+                arm_timer(&timer, session, IDLE_TIMEOUT_MS);
+            }
         }
     });
 
     let handles = [
         window_event_listener(ev::mousedown, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
         window_event_listener(ev::mousemove, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
         window_event_listener(ev::keydown, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
         window_event_listener(ev::scroll, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
         window_event_listener(ev::touchstart, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
         window_event_listener(ev::click, {
             let timer = Rc::clone(&timer);
-            move |_| reset_timer(&timer, session)
+            move |_| on_user_activity(&timer, session)
         }),
     ];
     on_cleanup(move || {
+        storage_handle.remove();
         for handle in handles {
             handle.remove();
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn idle_remaining_hits_zero_at_deadline() {
+        let timeout = IDLE_TIMEOUT_MS as u64;
+        assert_eq!(idle_remaining_ms(0, 0), timeout as i64);
+        assert_eq!(idle_remaining_ms(0, timeout - 1), 1);
+        assert_eq!(idle_remaining_ms(0, timeout), 0);
+        assert_eq!(idle_remaining_ms(0, timeout + 1_000), 0);
+        assert_eq!(idle_remaining_ms(1_000, 1_000), timeout as i64);
+    }
 }
