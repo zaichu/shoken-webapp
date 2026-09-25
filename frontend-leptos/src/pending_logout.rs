@@ -87,6 +87,10 @@ pub fn start_retry_loop() {
         let mut attempt = 0;
         while is_pending() {
             TimeoutFuture::new(retry_delay_ms(attempt)).await;
+            // 待機中に login 側で再送・解除済みなら、新しいセッションを消し得る余計な DELETE を撃たない
+            if !is_pending() {
+                break;
+            }
             if is_finished(&client.delete_empty("/api/v1/session").await) {
                 clear();
             } else {
