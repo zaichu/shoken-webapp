@@ -1511,7 +1511,7 @@ fn PortfolioSummary(
                         }
                     })}
                 </div>
-                <div class="mt-4 sm:hidden" data-testid="portfolio-valuation-summary">
+                <div class="mt-4" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
                     <p class="mt-1 text-3xl font-black tabular-nums text-slate-950">
                         {market_value.map(format_currency).unwrap_or("—".to_string())}

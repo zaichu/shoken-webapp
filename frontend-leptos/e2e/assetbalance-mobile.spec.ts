@@ -234,7 +234,7 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await expect(
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
   ).toBeVisible();
-  await expect(page.getByTestId('portfolio-valuation-summary')).toBeHidden();
+  await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeHidden();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeVisible();

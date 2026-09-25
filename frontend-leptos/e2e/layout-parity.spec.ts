@@ -481,6 +481,15 @@ async function expectDashedEmptyState(page: Page, title: string) {
   await expect(card).toHaveCSS('border-top-width', '1px');
 }
 
+async function expectPortfolioValuationTotals(page: Page) {
+  const summary = page.getByTestId('portfolio-valuation-summary');
+  await expect(summary).toBeVisible();
+  await expect(summary).toContainText('保有資産の評価額');
+  await expect(summary).toContainText('¥ 5,580,000');
+  await expect(summary).toContainText('評価損益 +¥ 220,000（+4.1%）');
+  await expect(summary).toContainText('取込データ時点');
+}
+
 async function gotoFilteredEmptyAssetBalance(page: Page) {
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(
@@ -617,6 +626,7 @@ for (const width of [1440, 1024, 390]) {
     await expectAssetDataLoaded(page);
     await expectNoPageSurface(page);
     await expectNoPageOverflow(page, width);
+    await expectPortfolioValuationTotals(page);
     await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
   });
 
@@ -728,6 +738,7 @@ test.describe('react比較', () => {
       await page.goto('/assetbalance');
       await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
       await expectAssetDataLoaded(page);
+      await expectPortfolioValuationTotals(page);
       await shoot(page, testInfo, `assetbalance-data-${width}-react`);
     });
   }

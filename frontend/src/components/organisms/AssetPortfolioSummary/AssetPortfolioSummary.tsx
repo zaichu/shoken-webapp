@@ -182,7 +182,7 @@ export const AssetPortfolioSummary: React.FC<AssetPortfolioSummaryProps> = ({
             </div>
           ) : null}
         </div>
-        <div className="mt-4 sm:hidden" data-testid="portfolio-valuation-summary">
+        <div className="mt-4" data-testid="portfolio-valuation-summary">
           <p className="text-sm font-medium text-slate-600">保有資産の評価額</p>
           <p className="mt-1 text-3xl font-black tabular-nums text-slate-950">
             {valuation.marketValue === null ? '—' : formatCurrency(valuation.marketValue)}
