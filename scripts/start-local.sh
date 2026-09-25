@@ -31,6 +31,8 @@ cleanup() {
   fi
 }
 
+trap cleanup EXIT INT TERM
+
 wait_for_http_ok() {
   local url="$1"
   local label="$2"
@@ -101,8 +103,6 @@ if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 240 0.5; then
   cleanup
   exit 1
 fi
-
-trap cleanup EXIT INT TERM
 
 echo "Ready:"
 echo "  DB       : postgres://user:password@localhost:5432/shoken_db"
