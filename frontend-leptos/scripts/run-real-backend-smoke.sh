@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# frontend/e2e/real-backend-receipts-smoke.spec.ts に相当する検証を
-# Leptos 版(frontend-leptos/e2e/real-backend-receipts-smoke.spec.ts)で行う。
-# 起動順は DB -> backend -> frontend を守り、フロントエンドは起動済みの
-# trunk dev server(LEPTOS_PORT)を使う。終了時に DB/backend を止める。
+# 実 backend に接続して取引明細の smoke を実行する。
+# 起動順は DB -> backend -> frontend、終了時に DB/backend を止める。
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
@@ -31,7 +29,7 @@ stop_stack() {
   FRONTEND_URL="http://127.0.0.1:${SPARE_VITE_PORT}" \
     FRONTEND_PORT="$SPARE_VITE_PORT" \
     BACKEND_URL="$BACKEND_URL" \
-    "$ROOT_DIR/scripts/stop-local.sh" >/dev/null 2>&1 || true
+    "$ROOT_DIR/scripts/stop-local.sh" >/dev/null 2>&1
 }
 
 cleanup() {
@@ -40,7 +38,9 @@ cleanup() {
     kill "$START_LOCAL_PID" >/dev/null 2>&1 || true
     wait "$START_LOCAL_PID" >/dev/null 2>&1 || true
   fi
-  stop_stack
+  if ! stop_stack; then
+    echo "WARNING: stop-local.sh failed; backend/DB may still be running" >&2
+  fi
   if [[ -n "$TRUNK_PID" ]] && kill -0 "$TRUNK_PID" >/dev/null 2>&1; then
     kill "$TRUNK_PID" >/dev/null 2>&1 || true
   fi
@@ -53,7 +53,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # 既存スタックの残骸を止める(SPARE_VITE_PORT/3001/DB のみ。trunk は別ポートなので残る)
-stop_stack
+stop_stack || echo "WARNING: 既存スタックの停止に失敗しました" >&2
 
 echo "Starting DB + backend via start-local.sh (vite goes to :${SPARE_VITE_PORT}, unused)..."
 BACKEND_URL="$BACKEND_URL" \
