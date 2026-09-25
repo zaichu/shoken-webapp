@@ -995,6 +995,9 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
         click_generation.set(generation);
         leptos::task::spawn_local(async move {
             let ok = try_copy_to_clipboard(generate_asset_review_prompt(&rows)).await;
+            if click_generation.get() != generation {
+                return;
+            }
             status.set(if ok {
                 ReviewCopyStatus::Success
             } else {
