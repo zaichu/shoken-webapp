@@ -206,6 +206,43 @@ test('削除APIの応答が失われてもセッション無効化を確認し�
   expect(deleteAttempts).toBe(1);
 });
 
+test('削除要求がサーバーに届かなかった一時的な失敗では再送して削除を完了する', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  await page.route(/\/api\/v1\/account-deletion-confirmations$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  let deleteAttempts = 0;
+  await page.route(/\/api\/v1\/account$/, async (route) => {
+    deleteAttempts += 1;
+    if (deleteAttempts === 1) {
+      await route.abort();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"message":"ok"}',
+    });
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await page.getByRole('menuitem', { name: 'アカウント削除' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
+  await dialog.getByRole('button', { name: '削除する' }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  expect(deleteAttempts).toBe(2);
+});
+
 test('セッション失効で確認APIが401を返したとき削除APIは呼ばれずダイアログは開いたままになる', async ({
   page,
 }) => {

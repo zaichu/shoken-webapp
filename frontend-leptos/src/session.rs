@@ -15,6 +15,31 @@ async fn session_invalidated() -> bool {
     )
 }
 
+const DELETE_ACCOUNT_MAX_RETRIES: u32 = 3;
+const DELETE_ACCOUNT_RETRY_DELAY_MS: u32 = 1_000;
+
+// 応答喪失はセッション確認で削除済みか未到達かを分け、未到達なら再送する(HTTP拒否は確定失敗)
+async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
+    let mut retries = 0;
+    loop {
+        let error = match client.delete_empty("/api/v1/account").await {
+            Ok(()) => return Ok(()),
+            Err(error) => error,
+        };
+        if !matches!(error, ApiError::Network | ApiError::Timeout) {
+            return Err(error);
+        }
+        if session_invalidated().await {
+            return Ok(());
+        }
+        if retries >= DELETE_ACCOUNT_MAX_RETRIES {
+            return Err(error);
+        }
+        gloo_timers::future::TimeoutFuture::new(DELETE_ACCOUNT_RETRY_DELAY_MS << retries).await;
+        retries += 1;
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
@@ -85,19 +110,7 @@ impl SessionStore {
             .await
         {
             Err(error) => Err(error),
-            Ok(_) => match client.delete_empty("/api/v1/account").await {
-                Ok(()) => Ok(()),
-                Err(error) => {
-                    // 削除要求が届いたか曖昧な失敗(応答喪失)だけ、セッション無効化をもって削除完了とみなす
-                    if matches!(error, ApiError::Network | ApiError::Timeout)
-                        && session_invalidated().await
-                    {
-                        Ok(())
-                    } else {
-                        Err(error)
-                    }
-                }
-            },
+            Ok(_) => delete_with_verification(&client).await,
         };
         self.mark_unauthenticated();
         self.loaded.set(true);
