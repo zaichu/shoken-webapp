@@ -133,6 +133,59 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
   await expect(second).toHaveAttribute('aria-expanded', 'true');
 });
 
+test('CSVプレビューで前方の行を絞り込みで除外しても開閉状態は同じ行に残る', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const other = {
+    ...DIVIDEND,
+    account: '大和証券',
+    security_code: '6301',
+    security_name: 'コマツ',
+  };
+  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 3,
+        valid_rows: 3,
+        errors: [],
+        rows: [{ ...other }, { ...DIVIDEND }, { ...DIVIDEND }],
+      }),
+    }),
+  );
+  await page.goto('/receipts');
+
+  await page.getByTestId('receipt-csv-toggle').click();
+  await page
+    .getByTestId('csv-file-input')
+    .setInputFiles(
+      path.resolve(
+        test.info().project.testDir,
+        '../../frontend/e2e/__fixtures__/csv/dividend-base.csv',
+      ),
+    );
+
+  const cards = page.getByTestId('receipt-card-list').getByTestId('receipt-card');
+  await expect(cards).toHaveCount(3);
+
+  const toyota = page.getByRole('button', { name: 'トヨタ自動車 ¥ 2,391' });
+  await toyota.nth(0).click();
+  await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
+  await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');
+
+  // 口座「SBI証券」に絞り込んで先頭のコマツ行を除く
+  await page
+    .getByRole('button', { name: 'SBI証券', exact: true })
+    .click();
+  await expect(cards).toHaveCount(2);
+
+  // 位置ベースのキーだと開閉状態が2番目のカードへ移ってしまう
+  await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
+  await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');
+});
+
 async function expectTabInsideViewport(tab: Locator, viewportWidth: number) {
   // scrollIntoView は端でサブピクセル単位の見切れを残すことがあるため 1px 許容する
   await expect
@@ -205,6 +258,39 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンドカードの幅').not.toBeNull();
   expect(nameBox!.width).toBeGreaterThanOrEqual(356);
+
+  // 実際に見えている接頭辞を canvas で計測し、React と同等の省略位置
+  // 「eMAXIS Slim 全世界株式(」まで読めることを確認する
+  const nameText = name.locator('span.truncate').first();
+  const truncation = await nameText.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) {
+      return { visible: '', truncated: false };
+    }
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const full = el.textContent ?? '';
+    const ellipsis = ctx.measureText('…').width;
+    let lo = 0;
+    let hi = full.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (ctx.measureText(full.slice(0, mid)).width + ellipsis <= el.clientWidth) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return {
+      visible: full.slice(0, lo),
+      truncated: el.scrollWidth > el.clientWidth,
+    };
+  });
+  expect(truncation.truncated, 'ファンド名は省略表示される').toBe(true);
+  expect(
+    truncation.visible.startsWith('eMAXIS Slim 全世界株式('),
+    `省略位置がReactより早い: 「${truncation.visible}…」`,
+  ).toBe(true);
 
   await page.screenshot({ path: `${SHOT_DIR}/leptos-955-fund-name-390.png` });
 });
