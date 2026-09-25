@@ -261,11 +261,15 @@ mod tests {
     // cargo-mutants はパッケージ単体をコピーしてテストを実行するため、コピー内では
     // パッケージ外の docs/openapi.json が存在しない。その場合だけスキップし、
     // 通常実行での欠落・移動は失敗として検出する。
+    // コピー先は cargo-mutants 27.x では /tmp/cargo-mutants-<crate>-*.tmp で、
+    // CARGO_MUTANTS 環境変数も設定されないため、パス名で判定する。
     fn schemas() -> Option<serde_json::Map<String, serde_json::Value>> {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/openapi.json");
         let Ok(text) = std::fs::read_to_string(path) else {
+            let manifest_dir = env!("CARGO_MANIFEST_DIR");
             let in_mutants_sandbox = std::env::var_os("CARGO_MUTANTS").is_some()
-                || env!("CARGO_MANIFEST_DIR").contains("mutants.out");
+                || manifest_dir.contains("mutants.out")
+                || manifest_dir.contains("cargo-mutants-");
             assert!(in_mutants_sandbox, "docs/openapi.json を読めない: {path}");
             return None;
         };
