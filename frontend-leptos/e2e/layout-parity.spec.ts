@@ -9,10 +9,6 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 
-// スクリーンショットは .playwright-mcp/ に `*-{leptos,react}.png` の対で保存する。
-// `REACT_BASE_URL=http://127.0.0.1:5187` を付けると React 版にも同じ不変条件を適用し、
-// 表の実幅・横スクロール量の一致まで数値で検証する。
-
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
   email: 'test@example.com',
@@ -120,7 +116,6 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
-// React 版と同一の列幅(px)
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
@@ -190,7 +185,6 @@ async function shoot(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
 }
 
-// 保有データの描画完了を、ロード中を撮り得る固定時間待機ではなくデータ可視で待つ。
 // 同名テキストは別ブレークポイント用の hidden カードにも存在するため visible で絞る
 async function expectAssetDataLoaded(page: Page) {
   await expect(
@@ -371,7 +365,6 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     .getByTestId('search-card')
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
-  // 「口座」が3列目へ移動し、幅 60px も追随する
   const reordered = [84, 72, 60, 156, 56, 76, 82, 82, 82, 64, 84];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');
@@ -430,8 +423,6 @@ test('取引明細 390px はカード表示で page-surface もページはみ�
   }
 });
 
-// React 版との見比べ用。Vite dev server(例: 5187)を別途起動し、
-// REACT_BASE_URL を指定したときだけ実行する
 test.describe('react比較', () => {
   const reactBase = process.env.REACT_BASE_URL;
   const leptosBase = `http://127.0.0.1:${process.env.LEPTOS_E2E_PORT ?? '8081'}`;
@@ -447,7 +438,6 @@ test.describe('react比較', () => {
         const table = page.getByRole('table');
         await expect(table).toBeVisible();
         await expect(table.locator('tbody tr').first()).toBeVisible();
-        // React 版が同じ不変条件を満たすこと自体を確認する
         expectReactTableFit(await tableMetrics(page), TABLE_SPEC[slug].widths);
         await shoot(page, testInfo, `receipts-${slug}-data-${width}-react`);
       });

@@ -224,7 +224,6 @@ fn card_fields_point_at_expected_columns() {
         .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_))));
 }
 
-// 列幅はヘッダーと同じ順で持ち、column_order の並べ替えに追随する
 #[test]
 fn table_column_widths_match_headers_and_follow_column_order() {
     for tab in ReceiptsTab::ALL {
@@ -234,8 +233,6 @@ fn table_column_widths_match_headers_and_follow_column_order() {
             "{tab:?}: 列幅の数がヘッダー数と一致しない"
         );
     }
-    // 口座検索で「口座」列が前に出ても、幅は列に追随して動く。
-    // 表示順の (ヘッダー, 幅) の対をそのまま検証する
     let rows = domestic();
     let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
     let headers = table_headers(ReceiptsTab::DomesticStock);
