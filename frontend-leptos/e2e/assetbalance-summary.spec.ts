@@ -93,19 +93,20 @@ test('絞り込み中のKPIはAPIのsummaryではなく表示行の合計にな�
 
   const kpi = page.getByTestId('portfolio-kpi-strip');
 
-  await expect(kpi.getByText('¥ 123,456,789')).toBeVisible();
-  await expect(kpi.getByText('¥ 987,654,321')).toBeVisible();
+  // 評価額ブロックは 640px 未満のみ可視のため、幅を問わず DOM 上の値で検証する
+  await expect(kpi).toContainText('¥ 123,456,789');
+  await expect(kpi).toContainText('¥ 987,654,321');
 
   await page.getByLabel('銘柄').selectOption('6758');
 
   await expect(page.getByText('絞り込み中: 1/2件')).toBeVisible();
-  await expect(kpi.getByText('¥ 150,000')).toBeVisible();
-  await expect(kpi.getByText('¥ 160,000')).toBeVisible();
-  await expect(kpi.getByText('¥ 123,456,789')).not.toBeVisible();
-  await expect(kpi.getByText('¥ 987,654,321')).not.toBeVisible();
+  await expect(kpi).toContainText('¥ 150,000');
+  await expect(kpi).toContainText('¥ 160,000');
+  await expect(kpi).not.toContainText('¥ 123,456,789');
+  await expect(kpi).not.toContainText('¥ 987,654,321');
 
   await page.getByRole('button', { name: '検索条件をクリア' }).click();
 
-  await expect(kpi.getByText('¥ 123,456,789')).toBeVisible();
-  await expect(kpi.getByText('¥ 987,654,321')).toBeVisible();
+  await expect(kpi).toContainText('¥ 123,456,789');
+  await expect(kpi).toContainText('¥ 987,654,321');
 });

@@ -944,28 +944,54 @@ fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option<&'static s
     }
 }
 
-#[component]
-fn AssetBalanceContent(
-    state: CsvTabState<AssetBalanceCsvRow>,
+struct ResolvedAssetBalance {
     rows: Vec<AssetBalance>,
     summary: Option<AssetBalanceSummary>,
     facets: Option<SearchFacets>,
     warning: Option<String>,
-    search_query: RwSignal<String>,
-    dividends: RwSignal<DividendMaps>,
-    show_all: RwSignal<bool>,
-    lookup: RwSignal<AssetBalanceLookupStore>,
+    has_csv_file: bool,
+}
+
+// rail と main で同じ解決を2回書かないよう、一覧スロットとCSV状態から表示用の行・集計・警告をまとめて決める
+fn resolve_asset_balance(
     generation: u64,
-) -> impl IntoView {
-    if state.previewing {
-        show_all.set(false);
-        return view! { <CsvStatusMessage text="CSVファイルを解析しています..." /> }.into_any();
-    }
+    slot: &BalanceSlot,
+    state: &CsvTabState<AssetBalanceCsvRow>,
+) -> Option<ResolvedAssetBalance> {
+    let (_, result) = slot.as_ref().filter(|(cached, _)| *cached == generation)?;
     let has_csv_file = state.file_name.is_some();
-    let has_rows = !rows.is_empty();
+    match result {
+        Err(_) => Some(ResolvedAssetBalance {
+            rows: csv_preview_rows(state),
+            summary: None,
+            facets: None,
+            warning: None,
+            has_csv_file,
+        }),
+        Ok(loaded) => Some(ResolvedAssetBalance {
+            rows: if has_csv_file {
+                csv_preview_rows(state)
+            } else {
+                loaded.rows.clone()
+            },
+            summary: loaded.summary.clone(),
+            facets: loaded.facets.clone(),
+            warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
+            has_csv_file,
+        }),
+    }
+}
+
+#[component]
+fn AssetBalanceRailExtras(
+    rows: Vec<AssetBalance>,
+    facets: Option<SearchFacets>,
+    has_csv_file: bool,
+    warning: Option<String>,
+    search_query: RwSignal<String>,
+) -> impl IntoView {
     let options = asset_balance_search_options(&rows, facets.as_ref(), has_csv_file);
-    let total_count = rows.len();
-    let status = csv_status_text(&state);
+    let has_rows = !rows.is_empty();
     view! {
         {warning.map(|text| {
             view! {
@@ -980,6 +1006,28 @@ fn AssetBalanceContent(
             }
         })}
         {has_rows.then(|| view! { <AssetBalanceSearchCard query=search_query options=options /> })}
+    }
+}
+
+#[component]
+fn AssetBalanceMainContent(
+    state: CsvTabState<AssetBalanceCsvRow>,
+    rows: Vec<AssetBalance>,
+    summary: Option<AssetBalanceSummary>,
+    has_csv_file: bool,
+    search_query: RwSignal<String>,
+    dividends: RwSignal<DividendMaps>,
+    show_all: RwSignal<bool>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: u64,
+) -> impl IntoView {
+    if state.previewing {
+        show_all.set(false);
+        return view! { <CsvStatusMessage text="CSVファイルを解析しています..." /> }.into_any();
+    }
+    let total_count = rows.len();
+    let status = csv_status_text(&state);
+    view! {
         {status.map(|text| view! { <CsvStatusMessage text=text /> })}
         {move || {
             let query = search_query.get();
@@ -1025,6 +1073,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
     let render_session = session;
     let busy_session = session;
+    let rail_session = session;
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -1038,6 +1087,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let view_csv = csv_store.clone();
     let modal_csv = csv_store.clone();
     let alert_csv = csv_store.clone();
+    let rail_csv = csv_store.clone();
     let alert_ops = data_ops;
     let busy_ops = data_ops;
     let alert_session = session;
@@ -1086,95 +1136,98 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 .is_none())
                 }
             >
-                <div data-testid="assetbalance-workspace">
-                    <AssetBalanceCsvSection store=view_csv.clone() />
-                    {move || {
-                        // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
-                        let generation = alert_session.generation.get();
-                        balances
-                            .with(|slot| match slot {
-                                Some((cached, Err(message))) if *cached == generation => {
-                                    Some(message.clone())
+                <div
+                    class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
+                    data-testid="assetbalance-workspace"
+                >
+                    // DOM 順は rail 先(キーボード・読み上げ順のため)、sm 以上は order で見た目を main 先に戻す
+                    <aside class="order-1 sm:order-2" data-testid="assetbalance-utility-rail">
+                        <div class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10">
+                            <AssetBalanceCsvSection store=view_csv.clone() />
+                            {move || {
+                                // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
+                                let generation = alert_session.generation.get();
+                                balances
+                                    .with(|slot| match slot {
+                                        Some((cached, Err(message))) if *cached == generation => {
+                                            Some(message.clone())
+                                        }
+                                        _ => None,
+                                    })
+                                    .or_else(|| alert_ops.with(|ops| ops.refresh_error.clone()))
+                                    .or_else(|| alert_csv.csv_state().error)
+                                    .map(|message| {
+                                        view! {
+                                            <section class="px-5 py-4">
+                                                <div
+                                                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                                    role="alert"
+                                                    aria-live="assertive"
+                                                >
+                                                    <strong>"エラー:"</strong>
+                                                    " "
+                                                    {message}
+                                                </div>
+                                            </section>
+                                        }
+                                    })
+                            }}
+                            {move || {
+                                let generation = rail_session.generation.get();
+                                let state = rail_csv.csv_state();
+                                match balances
+                                    .with(|slot| resolve_asset_balance(generation, slot, &state))
+                                {
+                                    None => ().into_any(),
+                                    Some(resolved) => {
+                                        view! {
+                                            <AssetBalanceRailExtras
+                                                rows=resolved.rows
+                                                facets=resolved.facets
+                                                has_csv_file=resolved.has_csv_file
+                                                warning=resolved.warning
+                                                search_query=search_query
+                                            />
+                                        }
+                                            .into_any()
+                                    }
                                 }
-                                _ => None,
-                            })
-                            .or_else(|| alert_ops.with(|ops| ops.refresh_error.clone()))
-                            .or_else(|| alert_csv.csv_state().error)
-                            .map(|message| {
-                                view! {
-                                    <section class="px-5 py-4">
-                                        <div
-                                            class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
-                                            role="alert"
-                                        >
-                                            <strong>"エラー:"</strong>
-                                            " "
-                                            {message}
-                                        </div>
-                                    </section>
+                            }}
+                        </div>
+                    </aside>
+                    <div class="min-w-0 order-2 sm:order-1" data-testid="assetbalance-main-stage">
+                        {move || {
+                            let generation = render_session.generation.get();
+                            let state = view_csv.csv_state();
+                            match balances
+                                .with(|slot| resolve_asset_balance(generation, slot, &state))
+                            {
+                                None => {
+                                    show_all.set(false);
+                                    view! {
+                                        <CsvStatusMessage text="データを読み込んでいます..." />
+                                    }
+                                        .into_any()
                                 }
-                            })
-                    }}
-                    {move || {
-                        let current = render_session.generation.get();
-                        let state = view_csv.csv_state();
-                        let has_csv_file = state.file_name.is_some();
-                        match balances
-                            .get()
-                            .filter(|(cached, _)| *cached == current)
-                            .map(|(_, result)| result)
-                        {
-                            None => {
-                                show_all.set(false);
-                                view! {
-                                    <CsvStatusMessage text="データを読み込んでいます..." />
+                                Some(resolved) => {
+                                    view! {
+                                        <AssetBalanceMainContent
+                                            state=state
+                                            rows=resolved.rows
+                                            summary=resolved.summary
+                                            has_csv_file=resolved.has_csv_file
+                                            search_query=search_query
+                                            dividends=dividends
+                                            show_all=show_all
+                                            lookup=lookup
+                                            generation=generation
+                                        />
+                                    }
+                                        .into_any()
                                 }
-                                    .into_any()
                             }
-                            Some(Err(_)) => {
-                                let rows = csv_preview_rows(&state);
-                                view! {
-                                    <AssetBalanceContent
-                                        state=state
-                                        rows=rows
-                                        summary=None
-                                        facets=None
-                                        warning=None
-                                        search_query=search_query
-                                        dividends=dividends
-                                        show_all=show_all
-                                        lookup=lookup
-                                        generation=current
-                                    />
-                                }
-                                    .into_any()
-                            }
-                            Some(Ok(loaded)) => {
-                                let rows = if has_csv_file {
-                                    csv_preview_rows(&state)
-                                } else {
-                                    loaded.rows.clone()
-                                };
-                                let warning = (!has_csv_file && loaded.truncated)
-                                    .then(truncated_list_warning);
-                                view! {
-                                    <AssetBalanceContent
-                                        state=state
-                                        rows=rows
-                                        summary=loaded.summary.clone()
-                                        facets=loaded.facets.clone()
-                                        warning=warning
-                                        search_query=search_query
-                                        dividends=dividends
-                                        show_all=show_all
-                                        lookup=lookup
-                                        generation=current
-                                    />
-                                }
-                                    .into_any()
-                            }
-                        }
-                    }}
+                        }}
+                    </div>
                 </div>
                 {move || {
                     if !modal_csv.csv_state().show_delete_confirm {
@@ -1235,71 +1288,28 @@ fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
     let file_select = store.clone();
     let save = store.clone();
     let delete_request = store.clone();
-    let expanded = RwSignal::new(false);
     view! {
+        // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
         <div class="sm:border-b-0">
-            <div class="bg-slate-50/60 px-5 sm:hidden">
-                <button
-                    type="button"
-                    class="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
-                    on:click=move |_| expanded.update(|value| *value = !*value)
-                    aria-expanded=move || if expanded.get() { "true" } else { "false" }
-                    aria-controls="assetbalance-csv-body"
-                    data-testid="assetbalance-csv-toggle"
-                >
-                    <span class="text-sm font-bold text-slate-800">"CSV取り込み・削除"</span>
-                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
-                        <span class="text-xs font-semibold">
-                            {move || if expanded.get() { "閉じる" } else { "開く" }}
-                        </span>
-                        <svg
-                            aria-hidden="true"
-                            class=move || if expanded.get() {
-                                "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
-                            } else {
-                                "h-4 w-4 text-slate-500 transition-transform duration-200"
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                            />
-                        </svg>
-                    </span>
-                </button>
-            </div>
-            <div
-                id="assetbalance-csv-body"
-                role="region"
-                aria-label="CSV取り込み・削除"
-                class=move || if expanded.get() {
-                    "max-sm:border-t max-sm:border-slate-950/10"
-                } else {
-                    "max-sm:hidden"
-                }
-            >
-                <CsvActionRail
-                    input_id="csv-file-input-assetbalance"
-                    on_file_select=move |file| file_select.select_file(file)
-                    selected_file_name=selected_file_name
-                    file_input_disabled=file_input_disabled
-                    has_csv_file=has_csv_file
-                    save_label=save_label
-                    on_save=move || save.save_csv()
-                    save_disabled=save_disabled
-                    has_db_data=has_db_data
-                    delete_label=delete_label
-                    on_delete_request=move || delete_request.open_delete_confirm()
-                    delete_disabled=delete_disabled
-                    save_result=save_result
-                    mode_label="全件置換"
-                />
-            </div>
+            <CsvActionRail
+                input_id="csv-file-input-assetbalance"
+                toggle_testid="assetbalance-csv-toggle"
+                body_id="assetbalance-csv-body"
+                section_class="sm:border-b sm:border-slate-950/10"
+                on_file_select=move |file| file_select.select_file(file)
+                selected_file_name=selected_file_name
+                file_input_disabled=file_input_disabled
+                has_csv_file=has_csv_file
+                save_label=save_label
+                on_save=move || save.save_csv()
+                save_disabled=save_disabled
+                has_db_data=has_db_data
+                delete_label=delete_label
+                on_delete_request=move || delete_request.open_delete_confirm()
+                delete_disabled=delete_disabled
+                save_result=save_result
+                mode_label="全件置換"
+            />
         </div>
     }
 }
@@ -1345,8 +1355,8 @@ struct ChartItem {
 #[component]
 fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -> impl IntoView {
     view! {
-        <div
-            class="mb-3 rounded-lg border border-slate-200 bg-white p-4"
+        <section
+            class="px-4 py-4"
             role="search"
             aria-label="資産管理の検索"
             data-testid="search-card"
@@ -1367,7 +1377,7 @@ fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -
                     "絞り込み解除"
                 </button>
             </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-3">
                 <div>
                     <label
                         class="mb-1 block text-sm font-bold text-slate-800"
@@ -1391,7 +1401,7 @@ fn AssetBalanceSearchCard(query: RwSignal<String>, options: Vec<SearchOption>) -
                     </select>
                 </div>
             </div>
-        </div>
+        </section>
     }
 }
 
@@ -1499,7 +1509,7 @@ fn PortfolioSummary(
                         }
                     })}
                 </div>
-                <div class="mt-4" data-testid="portfolio-valuation-summary">
+                <div class="mt-4 sm:hidden" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
                     <p class="mt-1 text-3xl font-black tabular-nums text-slate-950">
                         {market_value.map(format_currency).unwrap_or("—".to_string())}
@@ -1539,7 +1549,7 @@ fn PortfolioSummary(
                         })}
                 </div>
                 <div
-                    class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4"
+                    class="mt-4 grid grid-cols-2 gap-2 max-sm:hidden sm:gap-3 lg:grid-cols-4"
                     data-testid="portfolio-kpi-grid"
                 >
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
