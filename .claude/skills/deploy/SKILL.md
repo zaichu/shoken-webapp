@@ -40,8 +40,13 @@ flyctl status -a shoken-backend
 - **手動デプロイは不要**
 
 ### 手動デプロイ（緊急時のみ）
+
+リポジトリのルートで実行する(Vercel の Root Directory はルートからの相対で解決される):
+
 ```bash
-(cd frontend && vercel deploy --prebuilt --prod)
+vercel pull --yes --environment=production
+vercel build --prod
+vercel deploy --prebuilt --prod
 ```
 
 ## 開発フロー
