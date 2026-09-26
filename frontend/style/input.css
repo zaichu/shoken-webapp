@@ -131,7 +131,7 @@
   }
 
   .table-card {
-    @apply overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none;
+    @apply overflow-clip rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none;
   }
 
   .collapsible-card {
@@ -175,7 +175,7 @@
   }
 
   .group-card-trigger {
-    @apply flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white;
+    @apply flex min-h-[44px] w-full items-center gap-2 bg-slate-100 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
   }
 
   .login-button {
@@ -266,8 +266,8 @@
     @apply w-full rounded-[1.15rem] border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100;
   }
 
-  .table-scroll {
-    @apply relative w-full overflow-auto rounded-lg border border-slate-950/10 bg-white print:overflow-visible! print:max-h-none! [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500;
+  .table-frame {
+    @apply relative w-full rounded-lg border border-slate-950/10 bg-white;
   }
 
   .summary-section-header {
@@ -278,7 +278,7 @@
 /* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
    維持するため、@layer の外に置く(層なしは utilities 層より強い)。 */
 .receipt-table {
-  @apply w-full table-fixed border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100;
+  @apply w-full table-fixed print:table-auto print:[&_th]:whitespace-normal print:[&_td]:whitespace-normal border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100;
 }
 
 @media print {

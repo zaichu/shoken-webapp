@@ -128,17 +128,17 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
   expect(railBox!.width).toBeGreaterThanOrEqual(295);
   expect(railBox!.width).toBeLessThanOrEqual(315);
 
-  // 狭い主列では表が内部で横スクロールする
+  // 狭い主列では優先度の低い列を隠し、表は横スクロールせずに収まる
   const tableScroll = await page.getByRole('table').evaluate((table) => {
     const wrapper = table.parentElement;
-    if (!wrapper) return { overflowX: '', scrollable: false };
+    if (!wrapper) return { overflowX: '', scrollable: true };
     return {
       overflowX: getComputedStyle(wrapper).overflowX,
       scrollable: wrapper.scrollWidth > wrapper.clientWidth,
     };
   });
-  expect(tableScroll.overflowX).toBe('auto');
-  expect(tableScroll.scrollable).toBe(true);
+  expect(tableScroll.overflowX).toBe('visible');
+  expect(tableScroll.scrollable).toBe(false);
   await shoot(page, 'leptos-962-1024');
 
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -176,7 +176,7 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(main.getByTestId('receipt-summary-strip')).toBeVisible();
   await expect(main.getByRole('table')).toBeVisible();
 
-  // 表はカード内でスクロールし、ページ幅を広げない
+  // 表は内部スクロールせずページごとスクロールし、ページ幅を広げない
   const tableScroll = await page
     .getByRole('table')
     .evaluate((table) => {
@@ -189,9 +189,9 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
         maxHeight: style.maxHeight,
       };
     });
-  expect(tableScroll.overflowX).toBe('auto');
-  expect(tableScroll.overflowY).toBe('auto');
-  expect(tableScroll.maxHeight).toMatch(/^\d+(\.\d+)?px$/);
+  expect(tableScroll.overflowX).toBe('visible');
+  expect(tableScroll.overflowY).toBe('visible');
+  expect(tableScroll.maxHeight).toBe('none');
 
   // ページ自体は横にはみ出さない
   const documentWidth = await page.evaluate(
@@ -199,22 +199,7 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   );
   expect(documentWidth).toBeLessThanOrEqual(1920);
 
-  // 表が内部スクロールするのでページが伸びず、レールはビューポート内に収まる
-  expect(railBox!.y + railBox!.height).toBeLessThanOrEqual(1080);
-
-  // 縦が短いビューポートでは表の内部縦スクロールが発生する
-  await page.setViewportSize({ width: 1920, height: 480 });
-  await expect
-    .poll(async () =>
-      page.getByRole('table').evaluate((table) => {
-        const wrapper = table.parentElement;
-        return wrapper ? wrapper.scrollHeight > wrapper.clientHeight : false;
-      }),
-    )
-    .toBe(true);
-  await page.setViewportSize({ width: 1920, height: 1080 });
-
-  // 印刷時は高さ制限とスクロールを外して全行を出力する
+  // 印刷時も高さ制限とスクロールはなく全行を出力する
   await page.emulateMedia({ media: 'print' });
   const printWrap = await page.getByRole('table').evaluate((table) => {
     const wrapper = table.parentElement;
