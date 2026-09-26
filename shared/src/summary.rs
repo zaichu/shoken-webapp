@@ -1,6 +1,5 @@
 use crate::domain::{
     Dividend, DividendSummary, DomesticStock, DomesticStockSummary, Mutualfund, MutualfundSummary,
-    NaiveDate,
 };
 use crate::tax::{is_taxable_account, tax_amount};
 use rust_decimal::Decimal;
@@ -26,9 +25,9 @@ pub struct DomesticDailySummary {
 /// 特定口座合計がプラスの日だけ `floor(合計 * 税率)` を日次税額とする。
 /// backend の検索 summary SQL と同一の仕様。
 pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
-    let mut groups: BTreeMap<NaiveDate, (Decimal, Decimal)> = BTreeMap::new();
+    let mut groups: BTreeMap<_, (Decimal, Decimal)> = BTreeMap::new();
     for row in rows {
-        let totals = groups.entry(row.trade_date).or_default();
+        let totals = groups.entry(&row.trade_date).or_default();
         if is_taxable_account(&row.account) {
             totals.0 += row.realized_profit_and_loss;
         } else {
@@ -90,15 +89,14 @@ pub fn mutualfund_totals(rows: &[Mutualfund]) -> MutualfundSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{DateTime, Uuid};
     use rust_decimal_macros::dec;
 
     fn domestic(date: &str, account: &str, pnl: Decimal, taxes: Decimal) -> DomesticStock {
         DomesticStock {
-            id: Uuid::nil(),
-            user_id: Uuid::nil(),
-            trade_date: NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("valid date"),
-            settlement_date: NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("valid date"),
+            id: Default::default(),
+            user_id: Default::default(),
+            trade_date: date.parse().expect("valid date"),
+            settlement_date: date.parse().expect("valid date"),
             security_code: "1234".to_string(),
             security_name: "テスト".to_string(),
             account: account.to_string(),
@@ -109,8 +107,8 @@ mod tests {
             realized_profit_and_loss: pnl,
             taxes,
             realized_profit_and_loss_after_tax: pnl - taxes,
-            created_at: DateTime::default(),
-            updated_at: DateTime::default(),
+            created_at: Default::default(),
+            updated_at: Default::default(),
         }
     }
 

@@ -1,6 +1,14 @@
-// 利用側(backend/frontend)が追加依存なしで型名を使えるよう、wire 型で使う外部型を再輸出する。
+// `typed` feature 有効時は正規型、無効時は wire 上の文字列型になる。serde の wire 形は同一で、
+// utoipa/sqlx の derive が型名をそのまま見るため、フィールド宣言は共通のまま型の実体だけを切り替える。
+// user_id は backend 専用（wire に出ない）なので typed 時のみ存在させる。
+#[cfg(feature = "typed")]
 pub use chrono::{DateTime, NaiveDate, Utc};
+#[cfg(feature = "typed")]
 pub use uuid::Uuid;
+#[cfg(not(feature = "typed"))]
+pub type Uuid = String;
+#[cfg(not(feature = "typed"))]
+pub type NaiveDate = String;
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -11,8 +19,8 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct DomesticStock {
     pub id: Uuid,
+    #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
     pub user_id: Uuid,
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
@@ -33,8 +41,14 @@ pub struct DomesticStock {
     pub taxes: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub realized_profit_and_loss_after_tax: Decimal,
+    #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub created_at: String,
+    #[cfg(feature = "typed")]
     pub updated_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub updated_at: String,
 }
 
 /// 国内株式取引 検索条件全体の集計
@@ -60,8 +74,8 @@ pub struct DomesticStockSummary {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Dividend {
     pub id: Uuid,
+    #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
     pub user_id: Uuid,
     pub settlement_date: NaiveDate,
     pub product: String,
@@ -78,8 +92,14 @@ pub struct Dividend {
     pub taxes: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub net_amount_received: Decimal,
+    #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub created_at: String,
+    #[cfg(feature = "typed")]
     pub updated_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub updated_at: String,
 }
 
 /// 配当金 検索条件全体の集計
@@ -101,8 +121,8 @@ pub struct DividendSummary {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Mutualfund {
     pub id: Uuid,
+    #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
     pub user_id: Uuid,
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
@@ -125,8 +145,14 @@ pub struct Mutualfund {
     pub taxes: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub realized_profit_and_loss_after_tax: Decimal,
+    #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub created_at: String,
+    #[cfg(feature = "typed")]
     pub updated_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub updated_at: String,
 }
 
 /// 投資信託 検索条件全体の集計
@@ -148,8 +174,8 @@ pub struct MutualfundSummary {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct AssetBalance {
     pub id: Uuid,
+    #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
     pub user_id: Uuid,
     pub security_code: String,
     pub security_name: String,
@@ -169,8 +195,14 @@ pub struct AssetBalance {
     pub market_value: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub profit_loss_rate: Decimal,
+    #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub created_at: String,
+    #[cfg(feature = "typed")]
     pub updated_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub updated_at: String,
 }
 
 /// 保有銘柄 検索条件全体の集計
