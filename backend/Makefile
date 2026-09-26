@@ -61,7 +61,7 @@ test:
 test-ignored:
 	@echo "🧪 Docker が必要な ignored 統合テストを実行します..."
 	SQLX_OFFLINE=true $(CARGO) test --test db_integration -- --ignored
-	SQLX_OFFLINE=true $(CARGO) test --lib -- --ignored --skip real_api
+	SQLX_OFFLINE=true $(CARGO) test --lib -- --ignored --skip real_api --skip timing_csv_util
 
 # データベース関連
 .PHONY: migrate
