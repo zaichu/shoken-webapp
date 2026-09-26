@@ -157,8 +157,8 @@ pub(crate) fn ReceiptsMainContent(
 #[component]
 fn PreviewBanner() -> impl IntoView {
     view! {
+        // 読み上げは既存のプレビュー通知(role="status")が担うので、帯は見た目だけにする
         <div
-            role="status"
             data-testid="receipt-preview-banner"
             class="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
         >
