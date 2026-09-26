@@ -94,7 +94,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 - 秘密情報はローカルの `.env`（git 管理外）と Fly.io Secrets / GitHub Secrets で管理し、リポジトリにコミットしない
 - GitHub Actions の `uses:` は 40 桁のコミット SHA で固定する
-- `pull_request_target` は PR gate ワークフローに限定し、PR のコードを checkout しない
+- `pull_request_target` は PR gate と Dependabot 自動マージの 2 ワークフローに限定し、どちらも PR のコードを checkout しない
 
 ## 受け入れたリスク
 
