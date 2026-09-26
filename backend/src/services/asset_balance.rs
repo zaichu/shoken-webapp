@@ -14,7 +14,9 @@ use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_cs
 #[cfg(test)]
 use crate::services::csv_pipeline::parse_csv_with_config;
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{parse_number, parse_optional_string, CsvCells, RowNumber};
+use crate::services::csv_util::{
+    check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
+};
 use crate::services::facets;
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
@@ -311,6 +313,13 @@ fn transform_asset_balance_row(
         })
     };
 
+    // 必須の数値を先に検証し、銘柄コードが空でも不正な行はエラーとして報告する
+    let shares = num("保有数量［株］")?;
+    let average_purchase_price = num("平均取得価額［円］")?;
+    let total_purchase_amount = num("取得総額［円］")?;
+    let current_price = num("現在値［円］")?;
+    let market_value = num("時価評価額［円］")?;
+
     // 銘柄コードが空の行（「口座合計」以外の集計・罫線行）は取り込み対象外
     let code_raw = parse_optional_string(row, "銘柄コード").replace('"', "");
     if code_raw.trim().is_empty() {
@@ -322,18 +331,23 @@ fn transform_asset_balance_row(
     })?;
     Ok(Some(CreateAssetBalanceRequest {
         security_code,
-        security_name: normalize_security_name(&parse_optional_string(row, "銘柄名")),
-        shares: num("保有数量［株］")?,
+        security_name: check_max_chars(
+            normalize_security_name(&parse_optional_string(row, "銘柄名")),
+            "銘柄名",
+            200,
+            row_num,
+        )?,
+        shares,
         // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
         executing_shares: parse_number(&parse_optional_string(row, "執行中［株］"))
             .unwrap_or(Decimal::ZERO),
-        average_purchase_price: num("平均取得価額［円］")?,
-        total_purchase_amount: num("取得総額［円］")?,
-        current_price: num("現在値［円］")?,
+        average_purchase_price,
+        total_purchase_amount,
+        current_price,
         // 前日比は変動なし時に 0 または "-" が仕様上ありうるため 0.0 フォールバック
         daily_change: parse_number(&parse_optional_string(row, "現在値（前日比）［円］"))
             .unwrap_or(Decimal::ZERO),
-        market_value: num("時価評価額［円］")?,
+        market_value,
         // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
         profit_loss_rate: parse_number(&parse_optional_string(row, "評価損益［％］"))
             .unwrap_or(Decimal::ZERO),
