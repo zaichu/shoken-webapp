@@ -1,6 +1,6 @@
 use crate::dto::{AssetBalance, SearchFacets};
-use crate::receipts::search::{filter_by_config, FilterConfig, SearchOption};
-use crate::receipts::search_support::create_search_options;
+use crate::list_search::support::create_search_options;
+use crate::list_search::{filter_by_config, FilterConfig, SearchOption};
 
 pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
     FilterConfig {

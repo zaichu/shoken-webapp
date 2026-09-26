@@ -1,4 +1,4 @@
-use crate::receipts::search::{is_valid_iso_date, SearchOption};
+use crate::list_search::{is_valid_iso_date, SearchOption};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 

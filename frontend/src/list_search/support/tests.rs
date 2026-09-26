@@ -1,5 +1,5 @@
 use super::*;
-use crate::receipts::search::get_unique_values;
+use crate::list_search::get_unique_values;
 use rust_decimal_macros::dec;
 
 #[derive(Clone)]

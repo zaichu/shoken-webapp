@@ -1,6 +1,6 @@
 use crate::dto::{Dividend, Mutualfund};
-use crate::receipts::search_group_key::{create_group_key_fn, GroupKeyRule};
-use crate::receipts::search_support::group_and_summarize;
+use crate::list_search::group_key::{create_group_key_fn, GroupKeyRule};
+use crate::list_search::support::group_and_summarize;
 use crate::receipts::{ReceiptCell, ReceiptItem, ReceiptsTab};
 use crate::receipts_domain::{
     calculate_domestic_daily, create_year_month_key, format_currency, sort_dividends,

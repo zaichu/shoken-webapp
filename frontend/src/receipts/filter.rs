@@ -1,9 +1,9 @@
-use crate::receipts::search::{
+use crate::list_search::support::{
+    create_search_options, reorder_columns_by_search, ColumnReorderRule,
+};
+use crate::list_search::{
     create_year_options, filter_by_config, get_unique_values, is_js_whitespace, FilterConfig,
     SearchOption,
-};
-use crate::receipts::search_support::{
-    create_search_options, reorder_columns_by_search, ColumnReorderRule,
 };
 use crate::receipts::{ReceiptItem, ReceiptsTab};
 use rust_decimal::Decimal;

@@ -7,7 +7,7 @@ use crate::dividend_per_share::{
     post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
 };
 use crate::dto::{AssetBalance, Dividend};
-use crate::receipts::search_group_key::derive_security_code_from_query;
+use crate::list_search::group_key::derive_security_code_from_query;
 use crate::receipts_domain::{format_currency, format_number, DividendTotals};
 use crate::session::SessionStore;
 use leptos::prelude::*;

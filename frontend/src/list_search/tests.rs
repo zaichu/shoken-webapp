@@ -44,7 +44,7 @@ fn string_getter(field: &str) -> fn(&Item) -> &str {
     }
 }
 fn fixture() -> Fixture {
-    serde_json::from_str(include_str!("../../../tests/fixtures/receipts/search.json")).unwrap()
+    serde_json::from_str(include_str!("../../tests/fixtures/receipts/search.json")).unwrap()
 }
 fn check(case: &Case) {
     let c = &case.config;

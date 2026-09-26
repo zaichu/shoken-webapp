@@ -6,6 +6,7 @@ mod csv_flow;
 mod dividend_info;
 mod dividend_per_share;
 mod dto;
+mod list_search;
 mod pages;
 mod pagination;
 mod receipts;

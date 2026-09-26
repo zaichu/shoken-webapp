@@ -1,5 +1,5 @@
+use crate::list_search::SearchOption;
 use crate::receipts::filter::{DateSegment, ReceiptSearch, SearchKey};
-use crate::receipts::search::SearchOption;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 

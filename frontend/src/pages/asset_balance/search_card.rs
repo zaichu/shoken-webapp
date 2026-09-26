@@ -1,6 +1,6 @@
 use crate::asset_balance::search::clear_search_query;
 use crate::components::collapsible_search_card::CollapsibleSearchCard;
-use crate::receipts::search::SearchOption;
+use crate::list_search::SearchOption;
 use leptos::prelude::*;
 
 #[component]

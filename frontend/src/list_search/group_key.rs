@@ -1,4 +1,4 @@
-use crate::receipts::search::{is_js_whitespace, parse_search_tokens};
+use crate::list_search::{is_js_whitespace, parse_search_tokens};
 
 pub struct GroupKeyRule<'a, T> {
     pub test: fn(&T, &str) -> bool,
