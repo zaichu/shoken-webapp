@@ -45,8 +45,8 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
     path = "/api/v1/session",
     operation_id = "v1_get_session",
     responses(
-        (status = 200, body = UserResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "現在のユーザー情報を返す", body = UserResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -63,7 +63,7 @@ pub async fn get_session(
     path = "/api/v1/session",
     operation_id = "v1_delete_session",
     responses(
-        (status = 200, body = MessageResponse),
+        (status = 200, description = "ログアウトしました", body = MessageResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -77,10 +77,10 @@ pub async fn delete_session(State(state): State<AppState>, jar: CookieJar) -> im
     path = "/api/v1/account",
     operation_id = "v1_delete_account",
     responses(
-        (status = 200, body = MessageResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
-        (status = 500, body = ErrorResponse),
+        (status = 200, description = "アカウントを削除しました", body = MessageResponse),
+        (status = 400, description = "削除の確認が取れていない", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 500, description = "サーバーエラー", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -123,8 +123,8 @@ pub async fn delete_account(
     path = "/api/v1/account-deletion-confirmations",
     operation_id = "v1_create_account_deletion_confirmation",
     responses(
-        (status = 200, body = MessageResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "削除確認の Cookie を発行しました", body = MessageResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -154,7 +154,7 @@ pub async fn create_account_deletion_confirmation(
     operation_id = "v1_google_authorize",
     responses(
         (status = 302, description = "Google OAuth 認証ページへリダイレクト"),
-        (status = 500, body = ErrorResponse),
+        (status = 500, description = "サーバーエラー", body = ErrorResponse),
     ),
 )]
 pub async fn google_authorize(
@@ -175,8 +175,8 @@ pub async fn google_authorize(
     ),
     responses(
         (status = 302, description = "ログイン成功後にフロントエンドへリダイレクト"),
-        (status = 401, body = ErrorResponse),
-        (status = 500, body = ErrorResponse),
+        (status = 401, description = "OAuth の認証に失敗", body = ErrorResponse),
+        (status = 500, description = "サーバーエラー", body = ErrorResponse),
     ),
 )]
 pub async fn google_callback(

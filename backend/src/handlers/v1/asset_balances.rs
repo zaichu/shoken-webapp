@@ -33,9 +33,9 @@ use axum::{
         ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, body = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "保有銘柄の一覧を返す", body = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>),
+        (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -59,9 +59,9 @@ pub async fn list(
     operation_id = "v1_asset_balance_replace",
     request_body = BulkCreateAssetBalanceRequest,
     responses(
-        (status = 200, body = BulkCreateResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "保有銘柄を一括置換しました", body = BulkCreateResponse),
+        (status = 400, description = "リクエストが不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -81,8 +81,8 @@ pub async fn replace(
     path = "/api/v1/asset-balances",
     operation_id = "v1_asset_balance_delete_all",
     responses(
-        (status = 200, body = MessageResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "全ての保有銘柄データを削除しました", body = MessageResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -104,9 +104,9 @@ pub async fn delete_all(
     operation_id = "v1_asset_balance_validate_import",
     request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
-        (status = 200, body = CsvPreviewResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "CSV のプレビューを返す", body = CsvPreviewResponse),
+        (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -125,9 +125,9 @@ pub async fn validate_import(
     operation_id = "v1_asset_balance_import",
     request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
-        (status = 201, body = CsvUploadResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 201, description = "CSV のインポートが完了しました", body = CsvUploadResponse),
+        (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
