@@ -930,6 +930,125 @@ async fn auth_session_upsert_rotate_and_delete() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn account_delete_confirmation_http_lifecycle() {
+    let (pool, _node) = start_test_pool().await;
+    let info = GoogleUserInfo {
+        sub: format!("google-sub-http-{}", Uuid::new_v4()),
+        email: "http-lifecycle@example.com".to_string(),
+        name: None,
+        picture: None,
+    };
+    let session_token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("セッション発行");
+    let user_id: Option<(Uuid,)> = sqlx::query_as("SELECT user_id FROM sessions WHERE id = $1")
+        .bind(Uuid::parse_str(&session_token).unwrap())
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    let user_id = user_id.expect("セッション行がある").0;
+
+    let state = AppState {
+        pool: pool.clone(),
+        secrets: Arc::new(Secrets {
+            database_url: String::new(),
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        }),
+        client: Client::new(),
+        dividend_cache: backend::state::DividendCacheState::default(),
+    };
+    let app = backend::handlers::v1::auth_routes().with_state(state);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/account-deletion-confirmations")
+                .header("cookie", format!("session_token={session_token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let set_cookie = response
+        .headers()
+        .get_all(axum::http::header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find(|c| c.starts_with("account_delete_confirmation="))
+        .expect("確認 Cookie が発行されること");
+    let confirmation = set_cookie
+        .split(';')
+        .next()
+        .and_then(|kv| kv.split_once('='))
+        .map(|(_, v)| v.to_string())
+        .expect("Cookie 値を取り出せること");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri("/api/v1/account")
+                .header(
+                    "cookie",
+                    format!(
+                        "session_token={session_token}; account_delete_confirmation={confirmation}"
+                    ),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let cookies: Vec<String> = response
+        .headers()
+        .get_all(axum::http::header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok().map(String::from))
+        .collect();
+    for name in ["session_token", "account_delete_confirmation"] {
+        let cleared = cookies
+            .iter()
+            .any(|c| c.starts_with(&format!("{name}=")) && c.contains("Max-Age=0"));
+        assert!(cleared, "{name} が削除応答で失効すること: {cookies:?}");
+    }
+
+    let remaining_session: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
+            .bind(Uuid::parse_str(&session_token).unwrap())
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+    assert!(remaining_session.is_none());
+    let remaining_user: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    assert!(remaining_user.is_none());
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/session")
+                .header("cookie", format!("session_token={session_token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn search_facets_group_by_domain_fields() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
