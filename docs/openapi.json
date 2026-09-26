@@ -148,6 +148,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -317,6 +327,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -371,6 +391,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -398,6 +428,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -454,6 +494,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -566,6 +616,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -750,6 +810,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -777,6 +847,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -833,6 +913,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -1064,6 +1154,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1091,6 +1191,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -1147,6 +1257,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
@@ -1378,6 +1498,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1405,6 +1535,16 @@
           },
           "401": {
             "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
             "content": {
               "application/json": {
                 "schema": {
