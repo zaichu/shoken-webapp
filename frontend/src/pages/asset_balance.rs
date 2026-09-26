@@ -3,7 +3,7 @@ mod chart;
 mod csv;
 mod csv_section;
 mod data;
-mod format;
+pub(crate) mod format;
 mod holdings;
 mod main_content;
 mod rail;
