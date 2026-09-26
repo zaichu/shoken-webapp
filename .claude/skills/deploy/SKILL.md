@@ -18,7 +18,7 @@ description: |
 
 ### 自動デプロイ（推奨）
 - `main` ブランチへのマージで自動デプロイ（GitHub Actions）
-- `backend/**` の変更時のみトリガー
+- `backend/**`・`shared/**`・`fly.toml` の変更時にトリガー
 - **手動デプロイは不要**
 
 ### 手動デプロイ（緊急時のみ）
