@@ -121,7 +121,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
                 data-testid="assetbalance-workspace"
             >
-                // DOM 順は rail 先(キーボード・読み上げ順のため)、sm 以上は order で見た目を main 先に戻す
+                // DOM 順は rail 先(キーボード・読み上げ順のため)、見た目は order で main 先にする
                 <aside class="order-2" data-testid="assetbalance-utility-rail">
                     <div class="rail-panel">
                         <AssetBalanceCsvSection store=view_csv.clone() />

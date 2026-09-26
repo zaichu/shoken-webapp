@@ -96,17 +96,17 @@ pub(crate) fn HoldingCard(
                 </div>
             </div>
 
-            <div class="mt-2 flex items-end justify-between gap-3" data-testid="portfolio-card-valuation">
-                <div class="min-w-0">
+            <div class="mt-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1" data-testid="portfolio-card-valuation">
+                <div>
                     <p class="text-xs font-medium text-slate-500">"評価額"</p>
-                    <p class="truncate text-lg font-bold tabular-nums text-slate-950">
+                    <p class="whitespace-nowrap text-lg font-bold tabular-nums text-slate-950">
                         {valuation.market}
                     </p>
                 </div>
-                <div class="min-w-0 text-right">
+                <div class="ml-auto text-right">
                     <p class="text-xs font-medium text-slate-500">"評価損益"</p>
                     <p
-                        class=format!("truncate text-sm font-bold tabular-nums {}", valuation.class)
+                        class=format!("whitespace-nowrap text-sm font-bold tabular-nums {}", valuation.class)
                         data-negative=valuation.negative
                     >
                         {valuation.profit_loss}

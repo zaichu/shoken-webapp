@@ -199,13 +199,13 @@ pub(crate) fn PortfolioSummary(
                         })}
                 </div>
                 <div
-                    class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4"
+                    class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
                     data-testid="portfolio-kpi-grid"
                 >
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"合計取得総額"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl lg:text-2xl text-primary tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-primary tabular-nums"
                         >
                             {format_currency(total_purchase_amount)}
                         </p>
@@ -213,7 +213,7 @@ pub(crate) fn PortfolioSummary(
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"年間配当金額"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl lg:text-2xl text-slate-950 tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-950 tabular-nums"
                             data-testid="portfolio-annual-dividends"
                         >
                             {move || {
@@ -227,7 +227,7 @@ pub(crate) fn PortfolioSummary(
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"配当利回り"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl lg:text-2xl text-slate-950 tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-950 tabular-nums"
                             data-testid="portfolio-dividend-yield"
                         >
                             {move || {
@@ -240,7 +240,7 @@ pub(crate) fn PortfolioSummary(
                     </div>
                     <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"保有銘柄数"</p>
-                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl lg:text-2xl text-slate-700 tabular-nums">
+                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-700 tabular-nums">
                             {if is_filtered {
                                 format!("{display_count} / {total_count}")
                             } else {
