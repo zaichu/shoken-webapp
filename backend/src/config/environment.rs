@@ -1,17 +1,13 @@
 use std::env;
 
 /// 本番環境かどうかを判定
-/// RUST_ENV=production または APP_ENV=production の場合に true。
+/// RUST_ENV または APP_ENV のどちらかが production の場合に true
+/// (fail-safe: 一方が development でも他方が production なら本番扱いにする)。
 /// BACKEND_URL のスキームには依存しない(環境変数の書き間違いで
 /// セキュリティ設定が緩まないよう、明示的な値のみで判定する)
 pub fn is_production_env() -> bool {
-    if let Ok(v) = env::var("RUST_ENV") {
-        return v == "production";
-    }
-    if let Ok(v) = env::var("APP_ENV") {
-        return v == "production";
-    }
-    false
+    env::var("RUST_ENV").ok().as_deref() == Some("production")
+        || env::var("APP_ENV").ok().as_deref() == Some("production")
 }
 
 pub fn backend_url() -> String {
@@ -66,14 +62,16 @@ mod tests {
     fn test_is_production_env() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (RUST_ENV, APP_ENV, BACKEND_URL, expected)
-        // BACKEND_URL のスキームは判定に使わない(明示設定のみで判定する)
+        // BACKEND_URL のスキームは判定に使わない(明示設定のみで判定する)。
+        // 一方が development でも他方が production なら本番扱い(fail-safe)
         let cases = [
             (Some("production"), None, None, true),
             (None, Some("production"), None, true),
             (None, None, Some("https://api.example.com"), false),
             (None, None, Some("http://api.example.com"), false),
             (None, None, None, false),
-            (Some("development"), Some("production"), None, false),
+            (Some("development"), Some("production"), None, true),
+            (Some("production"), Some("development"), None, true),
         ];
         for (rust_env, app_env, backend_url, expected) in cases {
             with_vars(
