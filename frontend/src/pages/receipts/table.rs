@@ -5,7 +5,7 @@ use super::cards::{
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
 use crate::components::security_link::{CopyableInstrumentName, SecurityCodeLink};
-use crate::receipts::filter::column_order;
+use crate::receipts::filter::{column_order, promoted_column};
 use crate::receipts::{ReceiptCell, ReceiptItem, ReceiptsTab};
 use leptos::ev;
 use leptos::prelude::*;
@@ -60,13 +60,13 @@ pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
 pub(crate) fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
     match tab {
         ReceiptsTab::Dividend => &[
-            "96px", "76px", "76px", "88px", "", "80px", "72px", "92px", "80px", "92px",
+            "96px", "76px", "76px", "88px", "", "80px", "72px", "104px", "88px", "104px",
         ],
         ReceiptsTab::DomesticStock => &[
-            "96px", "88px", "", "76px", "72px", "80px", "92px", "92px", "92px", "80px", "92px",
+            "96px", "88px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
         ],
         ReceiptsTab::MutualFund => &[
-            "96px", "", "76px", "72px", "80px", "92px", "92px", "92px", "80px", "92px",
+            "96px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
         ],
     }
 }
@@ -94,19 +94,18 @@ pub(crate) fn table_column_tiers(tab: ReceiptsTab) -> &'static [ColumnTier] {
     match tab {
         ReceiptsTab::Dividend => &[Core, Wider, Wide, Core, Core, Wide, Wide, Core, Core, Core],
         ReceiptsTab::DomesticStock => &[
-            Core, Core, Core, Wider, Wider, Wide, Wide, Wide, Core, Core, Core,
+            Core, Core, Core, Wider, Wider, Wide, Wide, Wider, Core, Core, Core,
         ],
         ReceiptsTab::MutualFund => &[Core, Core, Wider, Wider, Wide, Core, Wide, Core, Core, Core],
     }
 }
 
 // 検索で前に出した列は、狭い画面でも隠さない
-fn displayed_tiers(tab: ReceiptsTab, order: &[usize]) -> Vec<ColumnTier> {
+fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -> Vec<ColumnTier> {
     order
         .iter()
-        .enumerate()
-        .map(|(position, &column)| {
-            if position < column {
+        .map(|&column| {
+            if promoted == Some(column) {
                 ColumnTier::Core
             } else {
                 table_column_tiers(tab)[column]
@@ -161,6 +160,7 @@ pub(crate) fn ReceiptTable(
     let headers: &[&'static str] = table_headers(tab);
     let groups: Vec<TableGroup> = table_groups(tab, &rows, &all_rows, &query);
     let order = column_order(tab, &rows, &query);
+    let promoted = promoted_column(tab, &rows, &query);
     let fields = card_fields(tab);
     let labels = summary_labels(tab);
     let slug = TAB_IDS[tab as usize];
@@ -202,7 +202,7 @@ pub(crate) fn ReceiptTable(
     let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
     let cell_classes: Vec<String> = order
         .iter()
-        .zip(displayed_tiers(tab, &order))
+        .zip(displayed_tiers(tab, &order, promoted))
         .map(|(i, tier)| {
             let align = match table_column_aligns(tab)[*i] {
                 "center" => "text-center",
@@ -212,7 +212,7 @@ pub(crate) fn ReceiptTable(
             format!("{align}{}", tier.class())
         })
         .collect();
-    let tiers = displayed_tiers(tab, &order);
+    let tiers = displayed_tiers(tab, &order, promoted);
     let group_label_spans: Vec<(&'static str, usize)> = [
         (" xl:hidden print:hidden", ColumnTier::Core),
         (

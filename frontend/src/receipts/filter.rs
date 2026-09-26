@@ -381,6 +381,38 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptItem]) -> SearchCatego
     }
 }
 
+fn product_matches(row: &ReceiptItem, query: &str) -> bool {
+    row.product().to_lowercase().contains(query)
+}
+
+fn account_matches(row: &ReceiptItem, query: &str) -> bool {
+    row.account().to_lowercase().contains(query)
+}
+
+const DIVIDEND_REORDER_RULES: &[ColumnReorderRule<ReceiptItem>] = &[
+    ColumnReorderRule {
+        column_key: 1,
+        matches: product_matches,
+    },
+    ColumnReorderRule {
+        column_key: 2,
+        matches: account_matches,
+    },
+];
+
+const DOMESTIC_REORDER_RULES: &[ColumnReorderRule<ReceiptItem>] = &[ColumnReorderRule {
+    column_key: 3,
+    matches: account_matches,
+}];
+
+fn reorder_rules(tab: ReceiptsTab) -> (&'static [ColumnReorderRule<ReceiptItem>], usize) {
+    match tab {
+        ReceiptsTab::Dividend => (DIVIDEND_REORDER_RULES, 1),
+        ReceiptsTab::DomesticStock => (DOMESTIC_REORDER_RULES, 2),
+        ReceiptsTab::MutualFund => (&[], 0),
+    }
+}
+
 pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Vec<usize> {
     let base: Vec<_> = (0..if tab == ReceiptsTab::DomesticStock {
         11
@@ -388,36 +420,21 @@ pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Vec<
         10
     })
         .collect();
-    let account = |r: &ReceiptItem, q: &str| r.account().to_lowercase().contains(q);
-    match tab {
-        ReceiptsTab::Dividend => reorder_columns_by_search(
-            &base,
-            rows,
-            query,
-            &[
-                ColumnReorderRule {
-                    column_key: 1,
-                    matches: |r: &ReceiptItem, q| r.product().to_lowercase().contains(q),
-                },
-                ColumnReorderRule {
-                    column_key: 2,
-                    matches: account,
-                },
-            ],
-            1,
-        ),
-        ReceiptsTab::DomesticStock => reorder_columns_by_search(
-            &base,
-            rows,
-            query,
-            &[ColumnReorderRule {
-                column_key: 3,
-                matches: account,
-            }],
-            2,
-        ),
-        ReceiptsTab::MutualFund => base,
+    let (rules, fixed) = reorder_rules(tab);
+    reorder_columns_by_search(&base, rows, query, rules, fixed)
+}
+
+/// 検索に一致して前に出す列。column_order と同じ規則で最初に一致したもの
+pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Option<usize> {
+    if query.is_empty() {
+        return None;
     }
+    let query = query.to_lowercase();
+    reorder_rules(tab)
+        .0
+        .iter()
+        .find(|rule| rows.iter().any(|row| (rule.matches)(row, &query)))
+        .map(|rule| rule.column_key)
 }
 
 #[cfg(test)]
