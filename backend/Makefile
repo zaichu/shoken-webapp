@@ -12,7 +12,7 @@ all: check run
 .PHONY: run
 run:
 	@echo "🚀 ローカルでサーバーを起動します..."
-	$(CARGO) run --bin backend
+	env APP_ENV="$${APP_ENV:-development}" $(CARGO) run --bin backend
 
 .PHONY: deploy
 deploy:

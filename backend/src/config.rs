@@ -220,7 +220,7 @@ mod tests {
             );
         }
         {
-            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
             let _cors_origins = EnvGuard::set(
                 "CORS_ORIGINS",
                 Some("http://custom-origin.example.com:8080"),
@@ -242,7 +242,8 @@ mod tests {
             );
         }
         {
-            let _app_env = EnvGuard::set("APP_ENV", None);
+            // localhost オリジンの保持を検証するため開発用の値を明示する(未設定は本番扱いで除去される)
+            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
             let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("http://localhost:8080"));
             let app = build_test_app(&Config::from_env());
             assert_eq!(

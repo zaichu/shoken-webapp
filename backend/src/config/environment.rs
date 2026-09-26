@@ -1,13 +1,26 @@
 use std::env;
 
-/// 本番環境かどうかを判定
-/// RUST_ENV または APP_ENV のどちらかが production の場合に true
-/// (fail-safe: 一方が development でも他方が production なら本番扱いにする)。
-/// BACKEND_URL のスキームには依存しない(環境変数の書き間違いで
-/// セキュリティ設定が緩まないよう、明示的な値のみで判定する)
+/// 開発用として明示設定しうる環境名。
+/// これ以外の値(未設定・不明値を含む)は安全側に本番として扱う
+const DEVELOPMENT_ENV_VALUES: &[&str] = &["local", "dev", "development", "test"];
+
+/// 本番環境かどうかを判定(fail-safe)
+/// RUST_ENV / APP_ENV に設定された値がすべて開発用の値のときだけ非本番(false)。
+/// 未設定・不明値・本番値との混在はすべて本番扱いにし、環境変数の設定漏れや
+/// 書き間違いでセキュリティ設定が緩まないようにする。
+/// BACKEND_URL のスキームには依存しない
 pub fn is_production_env() -> bool {
-    env::var("RUST_ENV").ok().as_deref() == Some("production")
-        || env::var("APP_ENV").ok().as_deref() == Some("production")
+    let mut any_set = false;
+    for value in [env::var("RUST_ENV"), env::var("APP_ENV")]
+        .into_iter()
+        .flatten()
+    {
+        if !DEVELOPMENT_ENV_VALUES.contains(&value.as_str()) {
+            return true;
+        }
+        any_set = true;
+    }
+    !any_set
 }
 
 pub fn backend_url() -> String {
@@ -23,7 +36,7 @@ pub fn server_addr() -> String {
 }
 
 /// CookieをSecureで発行するか判定
-/// 本番環境(APP_ENV/RUST_ENV=production)では SECURE_COOKIE の値に関わらず true。
+/// 本番環境(環境変数が未設定の場合を含む)では SECURE_COOKIE の値に関わらず true。
 /// 非本番では SECURE_COOKIE=true/1 の明示指定のみ true。
 /// BACKEND_URL のスキームには依存しない
 pub fn is_secure_cookie() -> bool {
@@ -64,16 +77,22 @@ mod tests {
     fn test_is_production_env() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (RUST_ENV, APP_ENV, BACKEND_URL, expected)
-        // BACKEND_URL のスキームは判定に使わない(明示設定のみで判定する)。
-        // 一方が development でも他方が production なら本番扱い(fail-safe)
+        // fail-safe: 未設定・不明値・非開発値の混在はすべて本番扱い。
+        // 設定値がすべて開発用の値のときだけ非本番。
+        // BACKEND_URL のスキームは判定に使わない
         let cases = [
             (Some("production"), None, None, true),
             (None, Some("production"), None, true),
-            (None, None, Some("https://api.example.com"), false),
-            (None, None, Some("http://api.example.com"), false),
-            (None, None, None, false),
+            (None, None, Some("https://api.example.com"), true),
+            (None, None, Some("http://api.example.com"), true),
+            (None, None, None, true),
             (Some("development"), Some("production"), None, true),
             (Some("production"), Some("development"), None, true),
+            (Some("development"), Some("staging"), None, true),
+            (Some("development"), None, None, false),
+            (None, Some("local"), None, false),
+            (None, Some("test"), None, false),
+            (Some("dev"), Some("development"), None, false),
         ];
         for (rust_env, app_env, backend_url, expected) in cases {
             with_vars(
@@ -140,23 +159,26 @@ mod tests {
     fn test_is_secure_cookie() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (SECURE_COOKIE, APP_ENV, BACKEND_URL, expected)
-        // 本番では SECURE_COOKIE の値に関わらず Secure。非本番では明示指定のみ有効。
-        // BACKEND_URL のスキームは判定に使わない
+        // 本番(環境変数の未設定を含む)では SECURE_COOKIE の値に関わらず Secure。
+        // 非本番では明示指定のみ有効。BACKEND_URL のスキームは判定に使わない
         type CookieCase = (
             Option<&'static str>,
             Option<&'static str>,
             Option<&'static str>,
             bool,
         );
-        let cases: [CookieCase; 7] = [
+        let cases: [CookieCase; 9] = [
             (Some("true"), None, None, true),
             (Some("1"), None, None, true),
-            (Some("false"), None, None, false),
+            (Some("false"), None, None, true),
             (None, Some("production"), None, true),
             // 本番で SECURE_COOKIE=false を明示しても無効にできない(fail-safe)
             (Some("false"), Some("production"), None, true),
-            (None, None, Some("https://api.example.com"), false),
-            (None, None, None, false),
+            (None, None, Some("https://api.example.com"), true),
+            (None, None, None, true),
+            // 開発用の値を明示した場合だけ非本番(SECURE_COOKIE 必須化は外れる)
+            (None, Some("development"), None, false),
+            (Some("false"), Some("development"), None, false),
         ];
         for (secure_cookie, app_env, backend_url, expected) in cases {
             with_vars(

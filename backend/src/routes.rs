@@ -360,6 +360,9 @@ mod tests {
     #[tokio::test]
     async fn test_csv_upload_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await;
+        // Origin なし POST を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
         let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
         for (path, ip) in [
             ("/api/v1/domestic-stock-imports", "1.2.3.4"),
@@ -399,6 +402,9 @@ mod tests {
     #[tokio::test]
     async fn test_data_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await;
+        // Origin なし PUT を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
         let _data_rate_limit_rps = EnvGuard::set("DATA_RATE_LIMIT_RPS", Some("1"));
         // 認証 extractor より先に limiter が動くため、未認証 GET(401 相当)でも
         // 同一 IP の2回目は 429 が返る
@@ -455,6 +461,10 @@ mod tests {
     }
     #[tokio::test]
     async fn test_request_body_limit_boundary() {
+        let _lock = ENV_MUTEX.lock().await;
+        // Origin なし POST を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
         // 上限以下のリクエストはボディ制限を通過しルーティングまで到達する。
         // POST /api/v1/dividends は未定義のため 405。413 が返ると
         // REQUEST_BODY_LIMIT の値そのものが小さくなっている。

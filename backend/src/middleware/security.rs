@@ -37,17 +37,10 @@ pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
 
 /// Origin/Referer なし unsafe method を拒否すべき環境かどうかを判定する
 ///
-/// RUST_ENV / APP_ENV がローカル開発用の exempt 値でない明示値に設定されている場合のみ true。
-/// 未設定(ローカル開発)は緩い判定に留め、BACKEND_URL のスキームには依存しない
+/// 本番相当の環境(環境変数の未設定を含む)では true。
+/// RUST_ENV / APP_ENV がすべて開発用の値に明示設定されている場合のみ緩い判定にする
 fn is_strict_origin_check() -> bool {
-    const EXEMPT: &[&str] = &["local", "dev", "development", "test"];
-    if let Ok(v) = std::env::var("RUST_ENV") {
-        return !EXEMPT.contains(&v.as_str());
-    }
-    if let Ok(v) = std::env::var("APP_ENV") {
-        return !EXEMPT.contains(&v.as_str());
-    }
-    false
+    crate::config::is_production_env()
 }
 
 /// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
@@ -187,7 +180,8 @@ mod tests {
     #[tokio::test]
     async fn test_validate_origin() {
         let _lock = ENV_MUTEX.lock().await;
-        let _app_env = EnvGuard::set("APP_ENV", None);
+        // Origin/Referer なしを通すケースがあるため、開発用の値を明示して緩い判定にする
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
         let _rust_env = EnvGuard::set("RUST_ENV", None);
         let _backend_url = EnvGuard::set("BACKEND_URL", None);
 
@@ -297,25 +291,25 @@ mod tests {
             );
         }
 
-        // APP_ENV 未設定のとき Origin/Referer なしは通過
+        // APP_ENV/RUST_ENV 未設定のときも Origin/Referer なしは 403(fail-safe で本番扱い)
         {
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _rust_env = EnvGuard::set("RUST_ENV", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
             assert_eq!(
                 oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::OK
+                StatusCode::FORBIDDEN
             );
         }
 
-        // BACKEND_URL が https でも APP_ENV/RUST_ENV が未設定なら通過(明示設定のみで判定)
+        // BACKEND_URL のスキームは判定に使わない(https でも未設定なら本番扱いで拒否)
         {
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _rust_env = EnvGuard::set("RUST_ENV", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", Some("https://api.example.com"));
             assert_eq!(
                 oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::OK
+                StatusCode::FORBIDDEN
             );
         }
 
@@ -394,6 +388,8 @@ mod tests {
     async fn test_security_headers() {
         {
             let _lock = ENV_MUTEX.lock().await;
+            // Secure Cookie 判定を外すため開発用の値を明示する(未設定は本番扱いで Secure 固定)
+            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
             let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
 

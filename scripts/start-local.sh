@@ -70,6 +70,7 @@ echo "2/3 Starting backend..."
 (
   cd "${BACKEND_DIR}"
   DATABASE_URL="${DATABASE_URL}" \
+    APP_ENV="${APP_ENV:-development}" \
     BACKEND_URL="${BACKEND_URL}" \
     FRONTEND_URL="${FRONTEND_URL}" \
     CORS_ORIGINS="${CORS_ORIGINS}" \
