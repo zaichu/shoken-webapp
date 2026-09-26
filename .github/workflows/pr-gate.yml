@@ -31,20 +31,20 @@ jobs:
       issues: read
       statuses: write
     steps:
-      # review 系イベントではデフォルトで PR のマージ ref が取り出されるため、base 側を明示して PR 側のコードが実行されないようにする
+      # イベントによっては PR 側や古い base のコードが取り出されるため、常に default ブランチ(スクリプト配置済み・信頼済み)を読む
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: .github/scripts
       - name: Check linked issue and unresolved comments
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
         with:
           script: |
-            const gate = require(
-              `${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-gate.js`
-            );
             try {
+              const gate = require(
+                `${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-gate.js`
+              );
               await gate.run({ github, context, core });
             } catch (error) {
               // 判定は commit status にだけ出す。評価自体の失敗でジョブを赤くしない
