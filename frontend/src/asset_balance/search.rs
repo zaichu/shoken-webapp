@@ -5,7 +5,9 @@ use crate::list_search::{filter_by_config, FilterConfig, SearchOption};
 pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
     FilterConfig {
         string_fields: None,
-        partial_string_fields: Some(vec![|row| &row.security_code, |row| &row.security_name]),
+        partial_string_fields: Some(vec![|row| row.security_code.as_str(), |row| {
+            &row.security_name
+        }]),
         date_field: None,
         year_search: false,
         year_month_search: false,

@@ -438,10 +438,10 @@ mod tests {
 
     fn dividend(code: &str, name: &str) -> Dividend {
         Dividend {
-            id: "id".to_string(),
+            id: "id".to_string().into(),
             settlement_date: "2024-03-01".to_string(),
             product: "特定口座".to_string(),
-            account: "SBI証券".to_string(),
+            account: "SBI証券".parse().unwrap(),
             security_code: code.to_string(),
             security_name: name.to_string(),
             unit_price: dec!(30),
@@ -604,8 +604,8 @@ mod tests {
     #[test]
     fn investment_amount_is_price_times_shares() {
         let row = AssetBalance {
-            id: "id".to_string(),
-            security_code: "7203".to_string(),
+            id: "id".to_string().into(),
+            security_code: "7203".parse().unwrap(),
             security_name: "銘柄".to_string(),
             shares: dec!(100),
             executing_shares: dec!(0),

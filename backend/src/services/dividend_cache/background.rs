@@ -1,6 +1,8 @@
 use crate::errors::{ApiError, UpstreamError};
 use crate::services::market_data::providers::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
+use shared::dividend_per_share::DividendCacheStatus;
+use shared::value::SecurityCode;
 use sqlx::PgPool;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -20,7 +22,7 @@ pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
 const MAX_CONCURRENT_REFRESHES: usize = 5;
 
 enum RefreshOutcome {
-    Fetched(String),
+    Fetched(DividendCacheStatus),
     /// acquire_rate_slot の失敗 → 全体中断
     RateSlotFailed(ApiError),
     /// 429 → cooldown 設定 + 全体中断
@@ -33,7 +35,7 @@ enum RefreshOutcome {
 pub fn spawn_background_refresh(
     pool: PgPool,
     jquants_client: JQuantsClient,
-    codes: Vec<String>,
+    codes: Vec<SecurityCode>,
     running: Arc<AtomicBool>,
 ) {
     // 多重起動防止: false → true の比較交換に成功した場合のみ実行
@@ -182,7 +184,7 @@ mod tests {
         spawn_background_refresh(
             pool,
             JQuantsClient::new(Client::new(), "dummy_key".to_string()),
-            vec!["1234".to_string()],
+            vec!["1234".parse().unwrap()],
             Arc::clone(&running),
         );
 

@@ -8,12 +8,13 @@ use crate::models::domestic_stock::{
 };
 use crate::services::bulk_helpers::{
     delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, UserDataDomain,
+    DeleteTarget, RowLimit, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_date, parse_required_number, parse_required_string, RowNumber,
+    parse_required_account, parse_required_date, parse_required_number,
+    parse_required_security_code, parse_required_string, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -22,9 +23,9 @@ use crate::services::search_filters::{
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::tax::{compute_taxes, SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE};
+use shared::value::UserId;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
-use uuid::Uuid;
 
 const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -69,7 +70,7 @@ impl DomesticStockFilter {
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DomesticStockFilter) {
+fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DomesticStockFilter) {
     push_search_filters(
         qb,
         user_id,
@@ -86,7 +87,7 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Domesti
 
 pub async fn search(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     params: &DomesticStockSearchQueryParams,
 ) -> Result<PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>, ApiError> {
     info!("[domestic_stock.search] リクエスト受信");
@@ -127,7 +128,7 @@ pub async fn search(
 /// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
 async fn fetch_summary(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DomesticStockFilter,
 ) -> Result<DomesticStockSummary, ApiError> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -158,7 +159,7 @@ async fn fetch_summary(
 
 async fn fetch_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DomesticStockFilter,
 ) -> Result<SearchFacets, ApiError> {
     let accounts_fut =
@@ -194,7 +195,7 @@ async fn fetch_facets(
 
 async fn fetch_group_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DomesticStockFilter,
     group_field: GroupField,
     order: FacetOrder,
@@ -212,7 +213,7 @@ async fn fetch_group_facets(
 /// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
 async fn fetch_security_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DomesticStockFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
     facets::fetch_security_facets(pool, "domestic_stocks", "trade_date DESC, id DESC", |qb| {
@@ -235,9 +236,9 @@ async fn fetch_security_facets(
 ///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
 pub async fn bulk_create(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     items: &[CreateDomesticStockRequest],
-    limit: i64,
+    limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let timer = match BulkTimer::new_with_guard("domestic_stock", items) {
         Ok(t) => t,
@@ -370,9 +371,9 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
 
 pub async fn upload_csv(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     bytes: &[u8],
-    user_row_limit: i64,
+    user_row_limit: RowLimit,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
@@ -395,13 +396,13 @@ fn transform_domestic_stock_row(
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;
     let settlement_date = parse_required_date(row, "受渡日", row_num)?;
-    let account = parse_required_string(row, "口座", row_num)?;
+    let account = parse_required_account(row, "口座", row_num)?;
     let realized_pnl = parse_required_number(row, "実現損益[円]", row_num)?;
-    let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
+    let tax = compute_taxes(&account, realized_pnl);
     Ok(CreateDomesticStockRequest {
         trade_date,
         settlement_date,
-        security_code: parse_required_string(row, "銘柄コード", row_num)?,
+        security_code: parse_required_security_code(row, "銘柄コード", row_num)?,
         security_name: normalize_security_name(&parse_required_string(row, "銘柄名", row_num)?),
         account,
         shares: parse_required_number(row, "数量[株]", row_num)?,
@@ -409,12 +410,12 @@ fn transform_domestic_stock_row(
         proceeds: parse_required_number(row, "売却/決済額[円]", row_num)?,
         purchase_price: parse_required_number(row, "平均取得価額[円]", row_num)?,
         realized_profit_and_loss: realized_pnl,
-        taxes,
-        realized_profit_and_loss_after_tax: realized_pnl_after_tax,
+        taxes: tax.taxes,
+        realized_profit_and_loss_after_tax: tax.realized_profit_and_loss_after_tax,
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
+pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::DomesticStocks).await
 }
 #[cfg(test)]
@@ -422,6 +423,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+    use uuid::Uuid;
 
     const HEADER: &str =
         "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
@@ -506,9 +508,9 @@ mod tests {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
             settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
-            security_code: "9508".to_string(),
+            security_code: "9508".parse().unwrap(),
             security_name: "九州電力".to_string(),
-            account: "特定".to_string(),
+            account: "特定".parse().unwrap(),
             shares: dec!(100),
             asked_price: dec!(1880),
             proceeds: dec!(188000),
@@ -535,7 +537,7 @@ mod tests {
 
         sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
-        let user_id = Uuid::new_v4();
+        let user_id = UserId::from(Uuid::new_v4());
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
             .bind(format!("test_google_{user_id}"))
@@ -546,10 +548,14 @@ mod tests {
 
         let items = vec![make_test_item(); 5];
 
-        let first = bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
+        let first = bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+            .await
+            .unwrap();
         assert_eq!((first.inserted, first.skipped), (5, 0));
 
-        let second = bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
+        let second = bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+            .await
+            .unwrap();
         assert_eq!((second.inserted, second.skipped), (0, 5));
     }
 
@@ -635,7 +641,7 @@ mod tests {
         let filter = DomesticStockFilter::from_params(&params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -655,7 +661,7 @@ mod tests {
             DomesticStockFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -673,9 +679,9 @@ mod tests {
         CreateDomesticStockRequest {
             trade_date,
             settlement_date: trade_date,
-            security_code: security_code.to_string(),
+            security_code: security_code.parse().unwrap(),
             security_name: "テスト株式会社".to_string(),
-            account: account.to_string(),
+            account: account.parse().unwrap(),
             shares: dec!(100),
             asked_price: dec!(1000),
             proceeds: dec!(100000),
@@ -701,7 +707,7 @@ mod tests {
         let pool = sqlx::PgPool::connect(&url).await.unwrap();
         sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
-        let user_id = Uuid::new_v4();
+        let user_id = UserId::from(Uuid::new_v4());
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
             .bind(user_id)
             .bind(format!("test_google_{user_id}"))
@@ -721,7 +727,9 @@ mod tests {
             make_summary_item(day1, "NISA", "9433", dec!(2000)),
             make_summary_item(day2, "特定", "5020", dec!(-3000)),
         ];
-        bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
+        bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+            .await
+            .unwrap();
 
         let mut params = DomesticStockSearchQueryParams::default();
         params.search.include_summary = Some(true);

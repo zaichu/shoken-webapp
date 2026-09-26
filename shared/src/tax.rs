@@ -1,37 +1,40 @@
+use crate::value::Account;
 use rust_decimal::Decimal;
 
-/// 特定口座の源泉徴収税率（所得税15% + 住民税5% + 復興特別所得税0.315%）
+/// 税率（所得税15.315% + 住民税5%）
 pub const TAX_RATE: Decimal = Decimal::from_parts(20315, 0, 0, false, 5);
 
-/// 口座種別の文字列に含まれる特定口座の判定キーワード（"特定" / "特定口座" など）
+/// 特定口座を示すキーワード
 pub const SPECIFIC_ACCOUNT_KEYWORD: &str = "特定";
 
-/// account 名に「特定」を含むか（特定口座かどうか）
-#[must_use]
-pub fn is_taxable_account(account: &str) -> bool {
-    account.contains(SPECIFIC_ACCOUNT_KEYWORD)
-}
-
-/// 利益がプラスの場合だけ floor(利益 * 税率) を返す。損失・ゼロなら 0。
+/// 税額を計算（実現損益が正の場合のみ課税）
 #[must_use]
 pub fn tax_amount(realized_pnl: Decimal) -> Decimal {
-    if realized_pnl.is_sign_positive() {
-        (realized_pnl * TAX_RATE).floor()
-    } else {
-        Decimal::ZERO
+    if realized_pnl <= Decimal::ZERO {
+        return Decimal::ZERO;
     }
+    (realized_pnl * TAX_RATE).floor()
 }
 
-/// 行単位の税金を計算する（特定口座かつ利益がある場合のみ）。
-/// 戻り値は (税額, 税引後損益)。
+/// 税額と税引後損益の計算結果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TaxBreakdown {
+    pub taxes: Decimal,
+    pub realized_profit_and_loss_after_tax: Decimal,
+}
+
+/// 税額と税引後損益を計算
 #[must_use]
-pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal) {
-    let taxes = if is_taxable_account(account) {
+pub fn compute_taxes(account: &Account, realized_pnl: Decimal) -> TaxBreakdown {
+    let taxes = if account.is_specific() {
         tax_amount(realized_pnl)
     } else {
         Decimal::ZERO
     };
-    (taxes, realized_pnl - taxes)
+    TaxBreakdown {
+        taxes,
+        realized_profit_and_loss_after_tax: realized_pnl - taxes,
+    }
 }
 
 #[cfg(test)]
@@ -39,34 +42,48 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
-    #[test]
-    fn tax_rate_is_20_315_percent() {
-        assert_eq!(TAX_RATE, dec!(0.20315));
+    fn account(s: &str) -> Account {
+        Account::try_from(s).expect("test account")
     }
 
     #[test]
-    fn compute_taxes_only_taxes_specific_account_profit() {
-        for (account, pnl, expected_taxes, expected_after) in [
-            ("特定", dec!(10000), dec!(2031), dec!(7969)),
-            ("特定口座", dec!(10000), dec!(2031), dec!(7969)),
-            ("特定", dec!(-5000), Decimal::ZERO, dec!(-5000)),
-            ("特定", dec!(0), Decimal::ZERO, dec!(0)),
-            ("NISA", dec!(10000), Decimal::ZERO, dec!(10000)),
-            ("NISA口座", dec!(10000), Decimal::ZERO, dec!(10000)),
-            ("一般口座", dec!(10000), Decimal::ZERO, dec!(10000)),
-        ] {
-            assert_eq!(
-                compute_taxes(account, pnl),
-                (expected_taxes, expected_after)
-            );
-        }
+    fn is_specific_matches_keyword() {
+        assert!(account("特定").is_specific());
+        assert!(account("特定口座").is_specific());
+        assert!(account("特定・一般").is_specific());
+        assert!(!account("NISA").is_specific());
+        assert!(!account("一般").is_specific());
     }
 
     #[test]
-    fn tax_amount_floors_positive_profit_only() {
+    fn tax_amount_only_on_positive() {
         assert_eq!(tax_amount(dec!(10000)), dec!(2031));
-        assert_eq!(tax_amount(dec!(1)), dec!(0));
         assert_eq!(tax_amount(dec!(0)), dec!(0));
-        assert_eq!(tax_amount(dec!(-1)), dec!(0));
+        assert_eq!(tax_amount(dec!(-500)), dec!(0));
+    }
+
+    #[test]
+    fn compute_taxes_returns_breakdown() {
+        assert_eq!(
+            compute_taxes(&account("特定口座"), dec!(10000)),
+            TaxBreakdown {
+                taxes: dec!(2031),
+                realized_profit_and_loss_after_tax: dec!(7969),
+            }
+        );
+        assert_eq!(
+            compute_taxes(&account("NISA"), dec!(10000)),
+            TaxBreakdown {
+                taxes: dec!(0),
+                realized_profit_and_loss_after_tax: dec!(10000),
+            }
+        );
+        assert_eq!(
+            compute_taxes(&account("特定"), dec!(-500)),
+            TaxBreakdown {
+                taxes: dec!(0),
+                realized_profit_and_loss_after_tax: dec!(-500),
+            }
+        );
     }
 }

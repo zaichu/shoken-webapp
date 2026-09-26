@@ -1,9 +1,10 @@
+use shared::value::UserId;
 use sqlx::PgPool;
-use uuid::Uuid;
 
 use crate::{
     errors::ApiError,
     models::csv_import::{CsvPreviewResponse, CsvUploadResponse},
+    services::bulk_helpers::RowLimit,
 };
 
 /// CSV アップロードをサポートするドメインのトレイト
@@ -19,9 +20,9 @@ pub trait CsvDomain: Send + Sync + 'static {
     /// `async_trait` 時代と同様に `Send` な Future を要求する。
     fn upload_csv(
         pool: &PgPool,
-        user_id: Uuid,
+        user_id: UserId,
         bytes: &[u8],
-        user_row_limit: i64,
+        user_row_limit: RowLimit,
     ) -> impl std::future::Future<Output = Result<CsvUploadResponse, ApiError>> + Send;
 }
 
@@ -44,9 +45,9 @@ impl CsvDomain for DividendDomain {
 
     async fn upload_csv(
         pool: &PgPool,
-        user_id: Uuid,
+        user_id: UserId,
         bytes: &[u8],
-        user_row_limit: i64,
+        user_row_limit: RowLimit,
     ) -> Result<CsvUploadResponse, ApiError> {
         crate::services::dividend::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
@@ -59,9 +60,9 @@ impl CsvDomain for DomesticStockDomain {
 
     async fn upload_csv(
         pool: &PgPool,
-        user_id: Uuid,
+        user_id: UserId,
         bytes: &[u8],
-        user_row_limit: i64,
+        user_row_limit: RowLimit,
     ) -> Result<CsvUploadResponse, ApiError> {
         crate::services::domestic_stock::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
@@ -74,9 +75,9 @@ impl CsvDomain for MutualfundDomain {
 
     async fn upload_csv(
         pool: &PgPool,
-        user_id: Uuid,
+        user_id: UserId,
         bytes: &[u8],
-        user_row_limit: i64,
+        user_row_limit: RowLimit,
     ) -> Result<CsvUploadResponse, ApiError> {
         crate::services::mutualfund::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
@@ -89,9 +90,9 @@ impl CsvDomain for AssetBalanceDomain {
 
     async fn upload_csv(
         pool: &PgPool,
-        user_id: Uuid,
+        user_id: UserId,
         bytes: &[u8],
-        user_row_limit: i64,
+        user_row_limit: RowLimit,
     ) -> Result<CsvUploadResponse, ApiError> {
         crate::services::asset_balance::upload_csv(pool, user_id, bytes, user_row_limit).await
     }

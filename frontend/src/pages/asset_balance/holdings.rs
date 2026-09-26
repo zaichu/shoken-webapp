@@ -24,7 +24,7 @@ pub(crate) fn holding_view(row: &AssetBalance) -> HoldingView {
         row.security_name.as_str()
     };
     HoldingView {
-        code: row.security_code.clone(),
+        code: row.security_code.to_string(),
         name: normalize_display_name(name_source),
         shares: dec_to_f64(&row.shares),
         average_price: dec_to_f64(&row.average_purchase_price),

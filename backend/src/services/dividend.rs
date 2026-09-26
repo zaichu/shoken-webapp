@@ -8,13 +8,13 @@ use crate::models::dividend::{
 };
 use crate::services::bulk_helpers::{
     delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, UserDataDomain,
+    DeleteTarget, RowLimit, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
-    RowNumber,
+    parse_optional_string, parse_required_account, parse_required_date, parse_required_number,
+    parse_required_string, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -22,9 +22,9 @@ use crate::services::search_filters::{
 };
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
+use shared::value::UserId;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
-use uuid::Uuid;
 
 const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -71,7 +71,7 @@ impl DividendFilter {
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &DividendFilter) {
+fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DividendFilter) {
     push_search_filters(
         qb,
         user_id,
@@ -89,7 +89,7 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Dividen
 
 pub async fn search(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     params: &DividendSearchQueryParams,
 ) -> Result<PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>, ApiError> {
     info!("[dividend.search] リクエスト受信");
@@ -124,7 +124,7 @@ pub async fn search(
 
 async fn fetch_summary(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DividendFilter,
 ) -> Result<DividendSummary, ApiError> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -142,7 +142,7 @@ async fn fetch_summary(
 
 async fn fetch_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DividendFilter,
 ) -> Result<SearchFacets, ApiError> {
     let products_fut =
@@ -185,7 +185,7 @@ async fn fetch_facets(
 
 async fn fetch_group_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DividendFilter,
     group_field: GroupField,
     order: FacetOrder,
@@ -199,7 +199,7 @@ async fn fetch_group_facets(
 /// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
 async fn fetch_security_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &DividendFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
     facets::fetch_security_facets(pool, "dividends", "settlement_date DESC, id DESC", |qb| {
@@ -211,9 +211,9 @@ async fn fetch_security_facets(
 /// 配当金を一括追加（重複はスキップ）
 pub async fn bulk_create(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     items: &[CreateDividendRequest],
-    limit: i64,
+    limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let timer = match BulkTimer::new_with_guard("dividend", items) {
         Ok(t) => t,
@@ -290,9 +290,9 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
 
 pub async fn upload_csv(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     bytes: &[u8],
-    user_row_limit: i64,
+    user_row_limit: RowLimit,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
@@ -314,7 +314,7 @@ fn transform_dividend_row(
     Ok(CreateDividendRequest {
         settlement_date: parse_required_date(row, "入金日", row_num)?,
         product: parse_required_string(row, "商品", row_num)?,
-        account: parse_required_string(row, "口座", row_num)?,
+        account: parse_required_account(row, "口座", row_num)?,
         security_code: parse_optional_string(row, "銘柄コード"),
         security_name: normalize_security_name(&parse_required_string(row, "銘柄", row_num)?),
         unit_price: parse_required_number(row, "単価[円/現地通貨]", row_num)?,
@@ -329,7 +329,7 @@ fn transform_dividend_row(
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
+pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::Dividends).await
 }
 #[cfg(test)]
@@ -482,7 +482,7 @@ mod tests {
         let filter = DividendFilter::from_params(&params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -503,7 +503,7 @@ mod tests {
         let filter = DividendFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 

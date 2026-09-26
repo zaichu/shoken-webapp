@@ -4050,6 +4050,7 @@ dependencies = [
  "sqlx",
  "utoipa",
  "uuid",
+ "validator",
 ]
 
 [[package]]

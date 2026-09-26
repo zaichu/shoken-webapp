@@ -31,8 +31,8 @@ fn asset_balance_pages_join_all_pages_in_order() {
     let loaded = pages.finish();
     assert_eq!(loaded.rows.len(), 2300);
     assert_eq!(loaded.total, 2300);
-    assert_eq!(loaded.rows[0].id, "id-0");
-    assert_eq!(loaded.rows[2299].id, "id-2299");
+    assert_eq!(loaded.rows[0].id.as_str(), "id-0");
+    assert_eq!(loaded.rows[2299].id.as_str(), "id-2299");
     // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
     assert_eq!(
         loaded.summary.map(|summary| summary.total_purchase_amount),
@@ -103,7 +103,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
             .and_then(|result| result.ok())
             .expect("loaded");
         assert_eq!(loaded.rows.len(), 1);
-        assert_eq!(loaded.rows[0].id, "id-7203");
+        assert_eq!(loaded.rows[0].id.as_str(), "id-7203");
         assert!(dividends.get_untracked().per_share.is_empty());
         assert_eq!(codes, vec!["7203".to_string()]);
         assert!(

@@ -272,7 +272,7 @@ mod tests {
 
     fn test_user() -> User {
         User {
-            id: uuid::Uuid::new_v4(),
+            id: shared::value::UserId::from(uuid::Uuid::new_v4()),
             google_id: "google-123".to_string(),
             email: "test@example.com".to_string(),
             name: Some("Test User".to_string()),

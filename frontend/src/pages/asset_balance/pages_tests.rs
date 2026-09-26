@@ -9,8 +9,8 @@ use crate::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, Se
 
 fn balance(id: usize) -> AssetBalance {
     AssetBalance {
-        id: format!("id-{id}"),
-        security_code: format!("{id:04}"),
+        id: format!("id-{id}").into(),
+        security_code: format!("{id:04}").parse().unwrap(),
         security_name: "銘柄".to_string(),
         shares: rust_decimal_macros::dec!(100),
         executing_shares: rust_decimal_macros::dec!(0),
@@ -134,7 +134,7 @@ fn resolve_csv_preview_replaces_rows_and_drops_warning() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 1);
-    assert_eq!(resolved.rows[0].security_code, "9999");
+    assert_eq!(resolved.rows[0].security_code.as_str(), "9999");
     assert!(resolved.warning.is_none());
     assert!(resolved.has_csv_file);
     assert!(resolved.summary.is_some());
@@ -148,7 +148,7 @@ fn resolve_list_error_falls_back_to_preview_rows() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 1);
-    assert_eq!(resolved.rows[0].security_code, "9999");
+    assert_eq!(resolved.rows[0].security_code.as_str(), "9999");
     assert!(resolved.summary.is_none());
     assert!(resolved.facets.is_none());
     assert!(resolved.warning.is_none());

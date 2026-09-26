@@ -2,6 +2,7 @@ use crate::csv_flow::CsvPreview;
 use crate::dto::{AssetBalance, CsvPreviewResponse};
 use rust_decimal::Decimal;
 use serde::Deserialize;
+use shared::value::{RecordId, SecurityCode};
 
 pub const LIST_PATH: &str = "/api/v1/asset-balances";
 pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
@@ -36,8 +37,11 @@ pub struct AssetBalanceCsvRow {
 impl From<AssetBalanceCsvRow> for AssetBalance {
     fn from(row: AssetBalanceCsvRow) -> AssetBalance {
         AssetBalance {
-            id: String::new(),
-            security_code: row.security_code,
+            id: RecordId::default(),
+            security_code: row
+                .security_code
+                .parse()
+                .unwrap_or_else(|_| SecurityCode::try_from("0").unwrap()),
             security_name: row.security_name,
             shares: row.shares,
             executing_shares: row.executing_shares,
@@ -134,7 +138,7 @@ mod tests {
         assert!(balance.id.is_empty());
         assert!(balance.created_at.is_empty());
         assert!(balance.updated_at.is_empty());
-        assert_eq!(balance.security_code, "7203");
+        assert_eq!(balance.security_code.as_str(), "7203");
         assert_eq!(balance.security_name, "トヨタ自動車");
         assert_eq!(balance.shares, dec!(100));
         assert_eq!(balance.average_purchase_price, dec!(2500));

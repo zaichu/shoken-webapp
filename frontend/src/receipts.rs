@@ -83,9 +83,9 @@ impl ReceiptCell {
 impl ReceiptItem {
     pub fn id(&self) -> &str {
         match self {
-            ReceiptItem::Dividend(row) => &row.id,
-            ReceiptItem::DomesticStock(row) => &row.id,
-            ReceiptItem::MutualFund(row) => &row.id,
+            ReceiptItem::Dividend(row) => row.id.as_str(),
+            ReceiptItem::DomesticStock(row) => row.id.as_str(),
+            ReceiptItem::MutualFund(row) => row.id.as_str(),
         }
     }
 
@@ -94,7 +94,7 @@ impl ReceiptItem {
             ReceiptItem::Dividend(row) => vec![
                 ReceiptCell::Text(format_date(&row.settlement_date)),
                 ReceiptCell::Text(row.product.clone()),
-                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::Text(row.account.to_string()),
                 ReceiptCell::SecurityCode(row.security_code.clone()),
                 ReceiptCell::InstrumentName {
                     name: row.security_name.clone(),
@@ -108,12 +108,12 @@ impl ReceiptItem {
             ],
             ReceiptItem::DomesticStock(row) => vec![
                 ReceiptCell::Text(format_date(&row.trade_date)),
-                ReceiptCell::SecurityCode(row.security_code.clone()),
+                ReceiptCell::SecurityCode(row.security_code.to_string()),
                 ReceiptCell::InstrumentName {
                     name: row.security_name.clone(),
-                    code: Some(row.security_code.clone()),
+                    code: Some(row.security_code.to_string()),
                 },
-                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::Text(row.account.to_string()),
                 ReceiptCell::Text(format_number(row.shares, 2)),
                 ReceiptCell::Text(format_currency(row.asked_price)),
                 ReceiptCell::Text(format_currency(row.proceeds)),
@@ -128,7 +128,7 @@ impl ReceiptItem {
                     name: row.fund_name.clone(),
                     code: None,
                 },
-                ReceiptCell::Text(row.account.clone()),
+                ReceiptCell::Text(row.account.to_string()),
                 ReceiptCell::Text(format_number(row.shares, 2)),
                 ReceiptCell::Text(format_currency(row.cancellation_unit_price_yen)),
                 ReceiptCell::Text(format_currency(row.cancellation_amount_yen)),
@@ -147,7 +147,7 @@ impl ReceiptItem {
             ReceiptItem::Dividend(row) => vec![
                 row.settlement_date.clone(),
                 row.product.clone(),
-                row.account.clone(),
+                row.account.to_string(),
                 row.security_code.clone(),
                 row.security_name.clone(),
                 row.unit_price.to_string(),
@@ -158,9 +158,9 @@ impl ReceiptItem {
             ],
             ReceiptItem::DomesticStock(row) => vec![
                 row.trade_date.clone(),
-                row.security_code.clone(),
+                row.security_code.to_string(),
                 row.security_name.clone(),
-                row.account.clone(),
+                row.account.to_string(),
                 row.shares.to_string(),
                 row.asked_price.to_string(),
                 row.proceeds.to_string(),
@@ -172,7 +172,7 @@ impl ReceiptItem {
             ReceiptItem::MutualFund(row) => vec![
                 row.trade_date.clone(),
                 row.fund_name.clone(),
-                row.account.clone(),
+                row.account.to_string(),
                 row.shares.to_string(),
                 row.exchange_rate.to_string(),
                 row.cancellation_unit_price_yen.to_string(),

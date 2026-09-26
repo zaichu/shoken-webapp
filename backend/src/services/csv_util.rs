@@ -2,7 +2,9 @@ use crate::models::csv_import::CsvRowError;
 use chrono::NaiveDate;
 use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
+use shared::value::{Account, SecurityCode};
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -124,6 +126,34 @@ pub fn parse_required_string<R: CsvCells>(
     Ok(val.to_string())
 }
 
+/// 必須文字列フィールドを newtype として取得（空・形式不正はエラー）
+fn parse_required_typed<T, E>(s: String, col: &str, row_num: RowNumber) -> Result<T, CsvRowError>
+where
+    T: FromStr<Err = E>,
+    E: fmt::Display,
+{
+    s.parse()
+        .map_err(|e| cell_error(row_num, format!("{col}: {e}")))
+}
+
+/// 必須口座フィールドを取得
+pub fn parse_required_account<R: CsvCells>(
+    row: &R,
+    col: &str,
+    row_num: RowNumber,
+) -> Result<Account, CsvRowError> {
+    parse_required_typed(parse_required_string(row, col, row_num)?, col, row_num)
+}
+
+/// 必須銘柄コードフィールドを取得
+pub fn parse_required_security_code<R: CsvCells>(
+    row: &R,
+    col: &str,
+    row_num: RowNumber,
+) -> Result<SecurityCode, CsvRowError> {
+    parse_required_typed(parse_required_string(row, col, row_num)?, col, row_num)
+}
+
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
 pub fn parse_required_number<R: CsvCells>(
     row: &R,
@@ -218,8 +248,11 @@ mod tests {
             ("NISA", dec!(10000), Decimal::ZERO, dec!(10000)),
         ] {
             assert_eq!(
-                compute_taxes(account, realized_pnl),
-                (expected_taxes, expected_after)
+                compute_taxes(&account.parse().unwrap(), realized_pnl),
+                shared::tax::TaxBreakdown {
+                    taxes: expected_taxes,
+                    realized_profit_and_loss_after_tax: expected_after,
+                }
             );
         }
         use encoding_rs::SHIFT_JIS;
@@ -427,19 +460,20 @@ mod tests {
 
     #[test]
     fn test_compute_taxes() {
+        let taxed = |account: &str| compute_taxes(&account.parse().unwrap(), dec!(10000)).taxes;
+        assert_eq!(taxed("特定口座"), dec!(2031));
+        assert_eq!(taxed("NISA口座"), dec!(0));
+        assert_eq!(taxed("一般口座"), dec!(0));
+
+        let breakdown = compute_taxes(&"特定口座".parse().unwrap(), dec!(10000));
+        assert_eq!(breakdown.taxes, dec!(2031));
+        assert_eq!(breakdown.realized_profit_and_loss_after_tax, dec!(7969));
         assert_eq!(
-            compute_taxes("特定口座", dec!(10000)),
-            (dec!(2031), dec!(7969))
-        );
-        assert_eq!(compute_taxes("特定口座", dec!(0)), (dec!(0), dec!(0)));
-        assert_eq!(compute_taxes("特定口座", dec!(-500)), (dec!(0), dec!(-500)));
-        assert_eq!(
-            compute_taxes("NISA口座", dec!(10000)),
-            (dec!(0), dec!(10000))
-        );
-        assert_eq!(
-            compute_taxes("一般口座", dec!(10000)),
-            (dec!(0), dec!(10000))
+            compute_taxes(&"特定口座".parse().unwrap(), dec!(-500)),
+            shared::tax::TaxBreakdown {
+                taxes: dec!(0),
+                realized_profit_and_loss_after_tax: dec!(-500),
+            }
         );
     }
 
@@ -534,18 +568,22 @@ mod tests {
 
         #[test]
         fn prop_compute_taxes_invariants(
-            account in "[特定一般NISA口座 ]{0,12}",
+            account in "[特定一般NISA口座 ]{1,12}",
             mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
             scale in 0u32..=3u32,
         ) {
+            let account: Account = account.parse().unwrap();
             let pnl = Decimal::new(mantissa, scale);
-            let (taxes, after_tax) = compute_taxes(&account, pnl);
-            proptest::prop_assert!(taxes >= Decimal::ZERO);
-            proptest::prop_assert_eq!(taxes + after_tax, pnl);
-            if !account.contains("特定") || pnl <= Decimal::ZERO {
-                proptest::prop_assert_eq!(taxes, Decimal::ZERO);
+            let breakdown = compute_taxes(&account, pnl);
+            proptest::prop_assert!(breakdown.taxes >= Decimal::ZERO);
+            proptest::prop_assert_eq!(
+                breakdown.taxes + breakdown.realized_profit_and_loss_after_tax,
+                pnl
+            );
+            if !account.is_specific() || pnl <= Decimal::ZERO {
+                proptest::prop_assert_eq!(breakdown.taxes, Decimal::ZERO);
             } else {
-                proptest::prop_assert_eq!(taxes, (pnl * dec!(0.20315)).floor());
+                proptest::prop_assert_eq!(breakdown.taxes, (pnl * dec!(0.20315)).floor());
             }
         }
 

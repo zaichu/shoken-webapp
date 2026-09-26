@@ -2,6 +2,7 @@ use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQ
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use shared::value::{Account, SecurityCode};
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
@@ -31,9 +32,11 @@ impl SearchParamsAccessor for DomesticStockSearchQueryParams {
 pub struct CreateDomesticStockRequest {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
-    pub security_code: String,
+    #[schema(value_type = String)]
+    pub security_code: SecurityCode,
     pub security_name: String,
-    pub account: String,
+    #[schema(value_type = String)]
+    pub account: Account,
     #[schema(value_type = f64)]
     pub shares: Decimal,
     #[schema(value_type = f64)]
@@ -55,19 +58,11 @@ impl Validate for CreateDomesticStockRequest {
         let mut errors = ValidationErrors::new();
         validate_length_field(
             &mut errors,
-            "security_code",
-            &self.security_code,
-            Some(1),
-            Some(10),
-        );
-        validate_length_field(
-            &mut errors,
             "security_name",
             &self.security_name,
             Some(1),
             Some(200),
         );
-        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
         if errors.is_empty() {
             Ok(())
         } else {
@@ -83,9 +78,9 @@ mod tests {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"),
-            security_code: "1234".to_string(),
+            security_code: "1234".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
-            account: "特定".to_string(),
+            account: "特定".parse().expect("valid account"),
             shares: dec!(100),
             asked_price: dec!(1500),
             proceeds: dec!(150000),
@@ -100,14 +95,6 @@ mod tests {
     fn test_create_domestic_stock_request_validation() {
         assert!(base().validate().is_ok());
 
-        // security_code は max=10 のため 11 文字は NG
-        assert!(CreateDomesticStockRequest {
-            security_code: "12345678901".to_string(),
-            ..base()
-        }
-        .validate()
-        .is_err());
-
         // security_name は min=1 のため空文字は NG
         assert!(CreateDomesticStockRequest {
             security_name: String::new(),
@@ -116,13 +103,10 @@ mod tests {
         .validate()
         .is_err());
 
-        // account は min=1 のため空文字は NG
-        assert!(CreateDomesticStockRequest {
-            account: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        // security_code/account の形式は SecurityCode/Account の serde(try_from) が
+        // JSON 入力時に検証するため、Validate の対象ではない
+        assert!("12345678901".parse::<SecurityCode>().is_err());
+        assert!("".parse::<Account>().is_err());
     }
 
     #[test]

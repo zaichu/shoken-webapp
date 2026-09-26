@@ -1,6 +1,7 @@
 use crate::models::common::validate_length_field;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use shared::value::SecurityCode;
 use sqlx::FromRow;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
@@ -8,7 +9,8 @@ use validator::{Validate, ValidationErrors};
 #[derive(Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Stock {
     pub date: NaiveDate,
-    pub code: String,
+    #[schema(value_type = String)]
+    pub code: SecurityCode,
     pub name: String,
     pub market_category: String,
     pub industry_code_33: Option<String>,
@@ -22,7 +24,6 @@ pub struct Stock {
 impl Validate for Stock {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(&mut errors, "code", &self.code, Some(1), Some(10));
         validate_length_field(&mut errors, "name", &self.name, Some(1), Some(100));
         validate_length_field(
             &mut errors,
@@ -80,7 +81,7 @@ mod tests {
     fn make_stock(code: &str, name: &str, market_category: &str) -> Stock {
         Stock {
             date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
-            code: code.to_string(),
+            code: code.parse().expect("有効な銘柄コード"),
             name: name.to_string(),
             market_category: market_category.to_string(),
             industry_code_33: Some("123".to_string()),
@@ -96,9 +97,8 @@ mod tests {
         assert!(make_stock("1234", "テスト株式会社", "プライム")
             .validate()
             .is_ok());
-        assert!(make_stock("", "テスト株式会社", "プライム")
-            .validate()
-            .is_err());
+        // code の形式は SecurityCode の serde(try_from) が検証する
+        assert!("".parse::<SecurityCode>().is_err());
         assert!(make_stock("1234", "", "プライム").validate().is_err());
         assert!(make_stock("1234", "テスト株式会社", "").validate().is_err());
     }

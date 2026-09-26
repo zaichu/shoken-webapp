@@ -2109,6 +2109,16 @@
           }
         }
       },
+      "DividendCacheStatus": {
+        "type": "string",
+        "description": "配当キャッシュの状態。DB は VARCHAR(20)、wire は小文字文字列のまま\n\n| status  | 意味                     |\n|---------|--------------------------|\n| ok      | 有配当データあり         |\n| zero    | 配当なし                 |\n| error   | 取得失敗                 |\n| pending | 未取得/更新待ち          |",
+        "enum": [
+          "ok",
+          "zero",
+          "error",
+          "pending"
+        ]
+      },
       "DividendPerShareBatchRequest": {
         "type": "object",
         "description": "バッチリクエスト",
@@ -2169,7 +2179,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string",
+            "$ref": "#/components/schemas/DividendCacheStatus",
             "description": "ok / zero / pending / error"
           }
         }

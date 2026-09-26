@@ -21,8 +21,8 @@ pub(crate) fn user(id: &str) -> SessionUser {
 
 pub(crate) fn balance_row(id: usize) -> AssetBalance {
     AssetBalance {
-        id: format!("id-{id}"),
-        security_code: format!("{id:04}"),
+        id: format!("id-{id}").into(),
+        security_code: format!("{id:04}").parse().unwrap(),
         security_name: "銘柄".to_string(),
         shares: rust_decimal_macros::dec!(100),
         executing_shares: rust_decimal_macros::dec!(0),

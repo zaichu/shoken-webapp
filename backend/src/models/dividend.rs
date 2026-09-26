@@ -2,6 +2,7 @@ use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQ
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use shared::value::Account;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
@@ -33,7 +34,9 @@ impl SearchParamsAccessor for DividendSearchQueryParams {
 pub struct CreateDividendRequest {
     pub settlement_date: NaiveDate,
     pub product: String,
-    pub account: String,
+    #[schema(value_type = String)]
+    pub account: Account,
+    // 配当の銘柄コードは空文字を許容する既存仕様のため String のまま
     pub security_code: String,
     pub security_name: String,
     #[schema(value_type = f64)]
@@ -52,7 +55,6 @@ impl Validate for CreateDividendRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
         validate_length_field(&mut errors, "product", &self.product, Some(1), Some(100));
-        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
         validate_length_field(
             &mut errors,
             "security_code",
@@ -81,7 +83,7 @@ mod tests {
         CreateDividendRequest {
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             product: "国内株式".to_string(),
-            account: "特定".to_string(),
+            account: "特定".parse().expect("valid account"),
             security_code: "1234".to_string(),
             security_name: "テスト株式会社".to_string(),
             unit_price: dec!(100),
@@ -112,13 +114,8 @@ mod tests {
         .validate()
         .is_err());
 
-        // account は min=1 のため空文字は NG
-        assert!(CreateDividendRequest {
-            account: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        // account の形式は Account の serde(try_from) が JSON 入力時に検証する
+        assert!("".parse::<Account>().is_err());
 
         // security_name は min=1 のため空文字は NG
         assert!(CreateDividendRequest {

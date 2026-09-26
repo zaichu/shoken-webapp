@@ -1,17 +1,22 @@
 use crate::models::market_data::providers::jquants::FinSummaryData;
 use chrono::{DateTime, Utc};
+use shared::dividend_per_share::DividendCacheStatus;
 
 /// キャッシュエントリの is_stale を判定する
 ///
 /// pending は取得中のため stale_at が NULL でも is_stale = false とする。
 /// それ以外は stale_at が NULL または過去なら is_stale = true。
-pub fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
-    status != "pending" && stale_at.is_none_or(|t| t < now)
+pub fn compute_is_stale(
+    status: DividendCacheStatus,
+    stale_at: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+) -> bool {
+    status != DividendCacheStatus::Pending && stale_at.is_none_or(|t| t < now)
 }
 
 /// 決算サマリーから1株配当を抽出する
 /// 優先順位: 来期予想(NxFDivAnn) > 今期予想(FDivAnn) > 実績(DivAnn)
-pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
+pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, DividendCacheStatus) {
     // 有効な配当値を持つ summary の中で開示日が最大のものを選ぶ
     // 同じ開示日の場合は入力順先勝ち（元の sort_by + 線形走査と同挙動）
     let best = data
@@ -37,12 +42,16 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, String) {
         });
 
     if let Some((_, val)) = best {
-        let status = if val > 0.0 { "ok" } else { "zero" };
-        return (Some(val), status.to_string());
+        let status = if val > 0.0 {
+            DividendCacheStatus::Ok
+        } else {
+            DividendCacheStatus::Zero
+        };
+        return (Some(val), status);
     }
 
     // 配当情報が見つからない → ゼロ配当として扱う
-    (Some(0.0), "zero".to_string())
+    (Some(0.0), DividendCacheStatus::Zero)
 }
 
 #[cfg(test)]
@@ -73,12 +82,12 @@ mod tests {
             (
                 vec![make_summary("2024-01-01", Some("100.0"), None, None)],
                 Some(100.0),
-                "ok",
+                DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some("0.0"), None, None)],
                 Some(0.0),
-                "zero",
+                DividendCacheStatus::Zero,
             ),
             (
                 vec![make_summary(
@@ -88,29 +97,29 @@ mod tests {
                     Some("50.0"),
                 )],
                 Some(200.0),
-                "ok",
+                DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", None, None, Some("75.0"))],
                 Some(75.0),
-                "ok",
+                DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)],
                 Some(100.0),
-                "ok",
+                DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))],
                 Some(0.0),
-                "zero",
+                DividendCacheStatus::Zero,
             ),
             (
                 vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)],
                 Some(100.0),
-                "ok",
+                DividendCacheStatus::Ok,
             ),
-            (vec![], Some(0.0), "zero"),
+            (vec![], Some(0.0), DividendCacheStatus::Zero),
         ] {
             let (value, status) = extract_dividend(&data);
 
@@ -124,7 +133,7 @@ mod tests {
         ]);
 
         assert_eq!(value, Some(60.0));
-        assert_eq!(status, "ok");
+        assert_eq!(status, DividendCacheStatus::Ok);
     }
 
     #[test]
@@ -137,7 +146,7 @@ mod tests {
             make_summary("2024-01-01", None, None, Some("99.0")),
         ]);
         assert_eq!(value, Some(30.0));
-        assert_eq!(status, "ok");
+        assert_eq!(status, DividendCacheStatus::Ok);
     }
 
     #[test]
@@ -147,25 +156,37 @@ mod tests {
 
         // HTTP と同じデシリアライズ経路で、欠損値と優先順位を固定する。
         for (fields, expected, status) in [
-            (json!({}), 0.0, "zero"),
+            (json!({}), 0.0, DividendCacheStatus::Zero),
             (
                 json!({"NxFDivAnn": null, "FDivAnn": null, "DivAnn": null}),
                 0.0,
-                "zero",
+                DividendCacheStatus::Zero,
             ),
             (
                 json!({"NxFDivAnn": "12.345", "FDivAnn": "20", "DivAnn": "30"}),
                 12.345,
-                "ok",
+                DividendCacheStatus::Ok,
             ),
             (
                 json!({"NxFDivAnn": "", "FDivAnn": "N/A", "DivAnn": "30"}),
                 30.0,
-                "ok",
+                DividendCacheStatus::Ok,
             ),
-            (json!({"NxFDivAnn": "0", "FDivAnn": "20"}), 0.0, "zero"),
-            (json!({"NxFDivAnn": "-2.5", "FDivAnn": "20"}), -2.5, "zero"),
-            (json!({"NxFDivAnn": "bad", "FDivAnn": "20"}), 20.0, "ok"),
+            (
+                json!({"NxFDivAnn": "0", "FDivAnn": "20"}),
+                0.0,
+                DividendCacheStatus::Zero,
+            ),
+            (
+                json!({"NxFDivAnn": "-2.5", "FDivAnn": "20"}),
+                -2.5,
+                DividendCacheStatus::Zero,
+            ),
+            (
+                json!({"NxFDivAnn": "bad", "FDivAnn": "20"}),
+                20.0,
+                DividendCacheStatus::Ok,
+            ),
         ] {
             let mut row = json!({
                 "DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
@@ -176,10 +197,7 @@ mod tests {
                 .extend(fields.as_object().expect("オブジェクト").clone());
             let upstream: FinSummaryResponse =
                 serde_json::from_value(json!({"data": [row]})).expect("上流 JSON");
-            assert_eq!(
-                extract_dividend(&upstream.data),
-                (Some(expected), status.to_string())
-            );
+            assert_eq!(extract_dividend(&upstream.data), (Some(expected), status));
         }
     }
 
@@ -191,7 +209,10 @@ mod tests {
             make_summary("2023-01-01", Some("100"), None, None),
             make_summary("2024-01-01", Some("99"), None, None),
         ];
-        assert_eq!(extract_dividend(&data), (Some(42.5), "ok".to_string()));
+        assert_eq!(
+            extract_dividend(&data),
+            (Some(42.5), DividendCacheStatus::Ok)
+        );
     }
 
     #[test]
@@ -203,15 +224,15 @@ mod tests {
         let future = Some(now + chrono::Duration::days(7));
 
         for (status, stale_at, expected) in [
-            ("pending", None, false),
-            ("error", None, true),
+            (DividendCacheStatus::Pending, None, false),
+            (DividendCacheStatus::Error, None, true),
             // 429 cooldown 中は error + future stale_at でも stale 扱いしない
-            ("error", future, false),
-            ("ok", past, true),
-            ("ok", future, false),
+            (DividendCacheStatus::Error, future, false),
+            (DividendCacheStatus::Ok, past, true),
+            (DividendCacheStatus::Ok, future, false),
             // stale_at == now はまだ stale でない（期限切れは厳密に過去のみ）
-            ("ok", Some(now), false),
-            ("ok", None, true),
+            (DividendCacheStatus::Ok, Some(now), false),
+            (DividendCacheStatus::Ok, None, true),
         ] {
             assert_eq!(compute_is_stale(status, stale_at, now), expected);
         }

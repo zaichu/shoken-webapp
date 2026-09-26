@@ -1,6 +1,7 @@
 use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use shared::value::SecurityCode;
 use std::{borrow::Cow, collections::BTreeMap};
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors, ValidationErrorsKind};
@@ -10,7 +11,8 @@ pub use shared::domain::{AssetBalance, AssetBalanceSummary};
 /// 保有銘柄作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateAssetBalanceRequest {
-    pub security_code: String,
+    #[schema(value_type = String)]
+    pub security_code: SecurityCode,
     pub security_name: String,
     #[schema(value_type = f64)]
     pub shares: Decimal,
@@ -33,13 +35,6 @@ pub struct CreateAssetBalanceRequest {
 impl Validate for CreateAssetBalanceRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(
-            &mut errors,
-            "security_code",
-            &self.security_code,
-            Some(1),
-            Some(10),
-        );
         validate_length_field(
             &mut errors,
             "security_name",
@@ -132,7 +127,7 @@ mod tests {
 
     fn base() -> CreateAssetBalanceRequest {
         CreateAssetBalanceRequest {
-            security_code: "1234".to_string(),
+            security_code: "1234".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
             shares: dec!(100),
             executing_shares: dec!(0),
@@ -149,21 +144,9 @@ mod tests {
     fn test_create_asset_balance_request_validation() {
         assert!(base().validate().is_ok());
 
-        // security_code は max=10 のため 11 文字は NG
-        assert!(CreateAssetBalanceRequest {
-            security_code: "12345678901".to_string(),
-            ..base()
-        }
-        .validate()
-        .is_err());
-
-        // security_code は min=1 のため空文字は NG
-        assert!(CreateAssetBalanceRequest {
-            security_code: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        // security_code の形式は SecurityCode の serde(try_from) が JSON 入力時に検証する
+        assert!("12345678901".parse::<SecurityCode>().is_err());
+        assert!("".parse::<SecurityCode>().is_err());
 
         // security_name は min=1 のため空文字は NG
         assert!(CreateAssetBalanceRequest {
@@ -191,24 +174,7 @@ mod tests {
 
     #[test]
     fn test_bulk_create_rejects_invalid_element_with_index() {
-        // 2 番目の要素（インデックス 1）の security_code が max=10 を超える
-        let request = BulkCreateAssetBalanceRequest {
-            items: vec![
-                base(),
-                CreateAssetBalanceRequest {
-                    security_code: "12345678901".to_string(),
-                    ..base()
-                },
-            ],
-        };
-        let errors = request.validate().expect_err("不正な要素は拒否される");
-        let message = format!("{errors}");
-        assert!(
-            message.contains("items[1]"),
-            "どの要素が不正か分かること: {message}"
-        );
-
-        // security_name 違反（空文字）もインデックス付きで拒否される
+        // security_name 違反（空文字）はインデックス付きで拒否される
         let request = BulkCreateAssetBalanceRequest {
             items: vec![
                 base(),

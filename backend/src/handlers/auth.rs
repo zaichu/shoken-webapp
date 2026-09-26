@@ -1,6 +1,6 @@
 use crate::errors::{ApiError, ConfigError};
 use crate::models::user::UserResponse;
-use crate::services::auth::{self as auth_service, GoogleOAuthClient};
+use crate::services::auth::{self as auth_service, GoogleOAuthClient, SessionToken};
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
@@ -64,7 +64,7 @@ pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
     clear_oauth_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, secure)
 }
 
-pub fn build_session_cookie(token: &str, secure: bool) -> Cookie<'static> {
+pub fn build_session_cookie(token: SessionToken, secure: bool) -> Cookie<'static> {
     Cookie::build((auth_service::SESSION_COOKIE_NAME, token.to_string()))
         .path("/")
         .http_only(true)
@@ -84,17 +84,12 @@ pub fn clear_session_cookie(secure: bool) -> Cookie<'static> {
         .build()
 }
 
-pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<uuid::Uuid, ApiError> {
-    let session_token = jar
-        .get(auth_service::SESSION_COOKIE_NAME)
-        .map(|c| c.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?;
-
-    let session_id: uuid::Uuid = session_token
+pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError> {
+    jar.get(auth_service::SESSION_COOKIE_NAME)
+        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?
+        .value()
         .parse()
-        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
-
-    Ok(session_id)
+        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))
 }
 
 pub async fn google_auth(
@@ -180,7 +175,7 @@ pub async fn google_callback(
 
     // クロスオリジン（フロントエンド: Vercel, バックエンド: Fly.io）で
     // Cookieを送受信するには SameSite=None + Secure が必要
-    let cookie = build_session_cookie(&session_token, is_secure);
+    let cookie = build_session_cookie(session_token, is_secure);
     let jar = jar.add(cookie);
 
     let frontend_url = &state.secrets.frontend_url;
@@ -193,10 +188,10 @@ pub async fn get_current_user(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<UserResponse>, ApiError> {
-    let session_id = get_session_id_from_jar(&jar)?;
+    let token = get_session_id_from_jar(&jar)?;
 
     // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
-    let user = auth_service::select_user_by_session(&state.pool, session_id)
+    let user = auth_service::select_user_by_session(&state.pool, token)
         .await?
         .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
@@ -204,13 +199,11 @@ pub async fn get_current_user(
 }
 
 pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    if let Some(session_token) = jar
+    if let Some(token) = jar
         .get(auth_service::SESSION_COOKIE_NAME)
-        .map(|c| c.value().to_string())
+        .and_then(|c| c.value().parse::<SessionToken>().ok())
     {
-        if let Ok(session_id) = session_token.parse::<uuid::Uuid>() {
-            let _ = auth_service::delete_session(&state.pool, session_id).await;
-        }
+        let _ = auth_service::delete_session(&state.pool, token).await;
     }
 
     let cookie = clear_session_cookie(state.config.secure_cookie);
@@ -304,6 +297,7 @@ mod tests {
     #[test]
     fn test_cookie_helpers() {
         use crate::services::auth::{OAUTH_STATE_COOKIE_NAME, SESSION_COOKIE_NAME};
+        let token: SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
         for (secure, expected_secure) in [(true, true), (false, false)] {
             for (cookie, expected_name, expected_value) in [
                 (
@@ -312,9 +306,9 @@ mod tests {
                     "test_state",
                 ),
                 (
-                    build_session_cookie("test_token", secure),
+                    build_session_cookie(token, secure),
                     SESSION_COOKIE_NAME,
-                    "test_token",
+                    "550e8400-e29b-41d4-a716-446655440000",
                 ),
             ] {
                 assert_eq!(
@@ -388,13 +382,13 @@ mod tests {
             &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))
         )
         .is_err());
-        let uuid = uuid::Uuid::new_v4();
+        let token = SessionToken::new();
         assert_eq!(
             get_session_id_from_jar(
-                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, uuid.to_string()))
+                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, token.to_string()))
             )
             .unwrap(),
-            uuid
+            token
         );
     }
 }
