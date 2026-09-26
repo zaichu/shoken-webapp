@@ -33,4 +33,26 @@ while read local_ref local_sha remote_ref remote_sha; do
   fi
 done
 
+# CI の cargo-mutants と同じく、base との差分にある変異だけを push 前に確かめる
+if [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo-mutants >/dev/null 2>&1; then
+  base=$(git merge-base origin/main HEAD 2>/dev/null || true)
+  if [ -n "$base" ]; then
+    for crate in shared frontend backend; do
+      git diff --quiet "$base" HEAD -- "$crate/src" 2>/dev/null && continue
+      diff_file=$(mktemp)
+      (cd "$REPO_ROOT/$crate" && git diff --relative "$base" HEAD -- src > "$diff_file")
+      count=$(cd "$REPO_ROOT/$crate" && cargo mutants --list --in-diff "$diff_file" 2>/dev/null | wc -l)
+      if [ "$count" -gt 0 ]; then
+        echo "cargo-mutants: $crate の差分の変異 ${count} 件を確かめます(SKIP_MUTANTS=1 で省略)"
+        if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --in-diff "$diff_file" --no-shuffle); then
+          rm -f "$diff_file"
+          echo "cargo-mutants: 見逃し(MISSED)か時間切れ(TIMEOUT)があります。$crate/mutants.out/missed.txt と timeout.txt を見て直してください" >&2
+          exit 1
+        fi
+      fi
+      rm -f "$diff_file"
+    done
+  fi
+fi
+
 exit 0
