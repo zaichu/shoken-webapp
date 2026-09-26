@@ -5,9 +5,9 @@ use crate::dto::{
     CsvPreviewResponse, CsvUploadResponse, DividendListResponse, DomesticStockListResponse,
     MutualfundListResponse,
 };
-use crate::receipts_csv::{to_preview, CsvPreviewRow};
-use crate::receipts_filter::ReceiptSearch;
-use crate::receipts_pagination::PageCollector;
+use crate::pagination::PageCollector;
+use crate::receipts::csv::{to_preview, CsvPreviewRow};
+use crate::receipts::filter::ReceiptSearch;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use serde::de::DeserializeOwned;

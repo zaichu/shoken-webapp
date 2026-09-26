@@ -5,8 +5,8 @@ use super::*;
 use crate::api::ApiError;
 use crate::csv_flow::CsvPreview;
 use crate::csv_flow::CsvTabState;
-use crate::receipts_csv::CsvPreviewRow;
-use crate::receipts_filter::ReceiptSearch;
+use crate::receipts::csv::CsvPreviewRow;
+use crate::receipts::filter::ReceiptSearch;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -695,7 +695,7 @@ fn has_csv_preview_requires_non_empty_preview_rows() {
                     (generation, tab),
                     CsvTabState {
                         preview: Some(CsvPreview {
-                            rows: vec![crate::receipts_csv::CsvPreviewRow::Dividend(
+                            rows: vec![crate::receipts::csv::CsvPreviewRow::Dividend(
                                 Default::default(),
                             )],
                             ..Default::default()

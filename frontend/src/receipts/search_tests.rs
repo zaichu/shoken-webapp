@@ -1,7 +1,7 @@
 use super::*;
-use crate::receipts_filter::filter_receipts;
-use crate::receipts_filter::tests::dividends;
-use crate::receipts_filter::ReceiptSearch;
+use crate::receipts::filter::filter_receipts;
+use crate::receipts::filter::tests::dividends;
+use crate::receipts::filter::ReceiptSearch;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
