@@ -56,7 +56,7 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| "---".to_string(), format_currency)
+            .map_or_else(|| "—".to_string(), format_currency)
     }
 }
 
@@ -208,12 +208,12 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     let average_price_text = move || {
         asset().map_or_else(
-            || "---".to_string(),
+            || "—".to_string(),
             |a| format_currency(a.average_purchase_price),
         )
     };
     let shares_text =
-        move || asset().map_or_else(|| "---".to_string(), |a| format_number(a.shares, 2));
+        move || asset().map_or_else(|| "—".to_string(), |a| format_number(a.shares, 2));
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
@@ -571,9 +571,9 @@ mod tests {
         assert_eq!(per_share_display(Some(50.1), false), "¥50.1");
         assert_eq!(per_share_display(Some(50.0), false), "¥50");
         assert_eq!(per_share_display(Some(50.12345), false), "¥50.12345");
-        assert_eq!(per_share_display(None, false), "---");
+        assert_eq!(per_share_display(None, false), "—");
         assert_eq!(per_share_display(Some(50.1), true), "取得中...");
-        assert_eq!(per_share_display(Some(f64::NAN), false), "---");
+        assert_eq!(per_share_display(Some(f64::NAN), false), "—");
     }
 
     #[test]

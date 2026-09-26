@@ -347,7 +347,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                             .into_iter()
                             .map(|(label, value)| {
                                 let display = if value.is_empty() {
-                                    "-".to_string()
+                                    "—".to_string()
                                 } else {
                                     value
                                 };

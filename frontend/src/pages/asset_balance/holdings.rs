@@ -91,7 +91,7 @@ pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend) -> String {
         Some("error") => "取得失敗".to_string(),
         _ => match dividend.per_share {
             Some(value) => format_currency(value),
-            None => "---".to_string(),
+            None => "—".to_string(),
         },
     }
 }
@@ -102,7 +102,7 @@ pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {
         Some("error") => "取得失敗".to_string(),
         _ => match dividend.annual {
             Some(value) => format_currency(value),
-            None => "---".to_string(),
+            None => "—".to_string(),
         },
     }
 }
@@ -113,7 +113,7 @@ pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
         Some("error") => "取得失敗".to_string(),
         _ => match dividend.yield_value {
             Some(value) => format_percentage_value(value),
-            None => "---".to_string(),
+            None => "—".to_string(),
         },
     }
 }

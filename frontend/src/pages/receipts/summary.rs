@@ -164,7 +164,7 @@ fn KpiGrid(
                                     "text-2xl font-bold tabular-nums {}",
                                     kpi_value_color(tone)
                                 )
-                                data-negative=(value < Decimal::ZERO).then_some("true")
+                                data-negative=(tone == "red").then_some("true")
                             >
                                 {format_currency(value)}
                             </p>
@@ -227,7 +227,7 @@ pub(crate) fn SummaryStrip(
                                             "truncate text-base font-bold tabular-nums {}",
                                             kpi_value_color(tone)
                                         )
-                                        data-negative=(value < Decimal::ZERO).then_some("true")
+                                        data-negative=(tone == "red").then_some("true")
                                     >
                                         {format_currency(value)}
                                     </span>

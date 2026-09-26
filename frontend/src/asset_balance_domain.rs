@@ -166,7 +166,7 @@ pub(crate) fn format_abs_number(value: f64) -> Option<String> {
 
 pub fn format_number_value(value: f64) -> String {
     match format_abs_number(intl_fixed(value, 2)) {
-        None => "-".to_string(),
+        None => "—".to_string(),
         Some(body) if value < 0.0 => format!("-{body}"),
         Some(body) => body,
     }
@@ -179,6 +179,7 @@ pub struct ValuationResult {
     pub rate: Option<f64>,
 }
 
+#[allow(dead_code)]
 pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
     let (Some(market), Some(purchase)) = (
         to_finite_amount(market_value),
@@ -194,6 +195,20 @@ pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> Val
         f64_to_decimal_exact(purchase),
         market,
         purchase,
+    );
+    ValuationResult {
+        amount: Some(amount),
+        rate,
+    }
+}
+
+/// Decimal の評価額・取得額から求める。率は Decimal に収まらないとき f64 で求める
+pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> ValuationResult {
+    let (amount, rate) = valuation_parts(
+        Some(market),
+        Some(purchase),
+        market.to_f64().unwrap_or(0.0),
+        purchase.to_f64().unwrap_or(0.0),
     );
     ValuationResult {
         amount: Some(amount),

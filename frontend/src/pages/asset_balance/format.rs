@@ -1,4 +1,4 @@
-use crate::asset_balance_domain::{format_abs_number, to_fixed};
+use crate::asset_balance_domain::to_fixed;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
@@ -16,16 +16,8 @@ fn f64_to_decimal(value: f64) -> Option<Decimal> {
         .map(|value| value.normalize())
 }
 
-fn format_currency_f64(value: f64, digits: u32) -> String {
-    match format_abs_number(to_fixed(value, digits)) {
-        None => "—".to_string(),
-        Some(body) if value < 0.0 => format!("-¥{body}"),
-        Some(body) => format!("¥{body}"),
-    }
-}
-
 pub(crate) fn format_currency(value: f64) -> String {
-    f64_to_decimal(value).map_or_else(|| format_currency_f64(value, 15), format_currency_decimal)
+    f64_to_decimal(value).map_or_else(|| "—".to_string(), format_currency_decimal)
 }
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {
@@ -33,13 +25,7 @@ pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {
         return "—".to_string();
     }
     f64_to_decimal(value).map_or_else(
-        || {
-            format!(
-                "{:.prec$}%",
-                to_fixed(value, decimals),
-                prec = decimals as usize
-            )
-        },
+        || "—".to_string(),
         |value| format_percentage_value_decimal(value, decimals),
     )
 }
@@ -72,38 +58,6 @@ pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'sta
     }
 }
 
-pub(crate) fn is_negative_valuation_dec(amount: Option<Decimal>) -> bool {
-    amount.is_some_and(|value| {
-        value.round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero) < Decimal::ZERO
-    })
-}
-
-pub(crate) fn valuation_tone_dec(amount: Option<Decimal>) -> (&'static str, Option<&'static str>) {
-    if is_negative_valuation_dec(amount) {
-        ("text-red-700", Some("true"))
-    } else {
-        ("text-slate-800", None)
-    }
-}
-
-pub(crate) fn format_valuation_amount_dec(amount: Option<Decimal>) -> String {
-    match amount {
-        Some(value) => format_currency_decimal(
-            value
-                .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
-                .normalize(),
-        ),
-        None => "—".to_string(),
-    }
-}
-
-pub(crate) fn format_valuation_rate_dec(rate: Option<Decimal>, decimals: u32) -> String {
-    match rate {
-        Some(value) => format_percentage_value_decimal(value, decimals),
-        None => "—".to_string(),
-    }
-}
-
 pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
     match amount {
         Some(value) if !value.is_finite() => "—".to_string(),
@@ -115,7 +69,7 @@ pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
                         .normalize(),
                 )
             })
-            .unwrap_or_else(|| format_currency_f64(to_fixed(value, 0), 0)),
+            .unwrap_or_else(|| "—".to_string()),
         None => "—".to_string(),
     }
 }

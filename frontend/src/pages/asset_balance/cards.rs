@@ -1,16 +1,15 @@
 use super::format::{
-    format_currency, format_fixed_percent, format_valuation_amount, format_valuation_amount_dec,
-    format_valuation_rate, format_valuation_rate_dec, valuation_tone, valuation_tone_dec,
+    format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
+    valuation_tone,
 };
 use super::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
 use super::summary::ChartItem;
-use crate::asset_balance_domain::{calculate_valuation, format_number_value};
+use crate::asset_balance_domain::{calculate_valuation_from_decimal, format_number_value};
 use crate::components::security_link::SecurityCodeLink;
 use crate::dividend_per_share::DividendMaps;
 use leptos::prelude::*;
-use rust_decimal::Decimal;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
@@ -29,7 +28,7 @@ pub(crate) fn HoldingCard(
     let average_price = item.view.average_price;
     let dividend =
         Memo::new(move |_| holding_dividend(&code, shares, average_price, &dividends.get()));
-    let percentage_text = item.percentage.map_or("-".to_string(), |percentage| {
+    let percentage_text = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });
     let bar_width = item.percentage.map_or("NaN%".to_string(), |percentage| {
@@ -150,42 +149,19 @@ pub(crate) fn HoldingValuationCard(
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let amount_dec = item.view.market_dec.checked_sub(item.view.purchase_dec);
-    let rate_dec = match amount_dec {
-        Some(amount) if item.view.purchase_dec != Decimal::ZERO => amount
-            .checked_div(item.view.purchase_dec)
-            .and_then(|rate| rate.checked_mul(Decimal::ONE_HUNDRED)),
-        _ => None,
-    };
-    let fallback = calculate_valuation(
-        &serde_json::json!(item.view.market),
-        &serde_json::json!(item.view.purchase),
-    );
-    let (valuation_class, valuation_negative) = amount_dec.map_or_else(
-        || valuation_tone(fallback.amount),
-        |_| valuation_tone_dec(amount_dec),
-    );
+    let valuation = calculate_valuation_from_decimal(item.view.market_dec, item.view.purchase_dec);
+    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
     let market_display = format_currency(item.view.market);
     let current_price_display = format_currency(item.view.current_price);
-    let profit_loss = match amount_dec {
-        Some(amount) => match rate_dec {
-            None => format!("{}（算出不可）", format_valuation_amount_dec(Some(amount))),
+    let profit_loss = match valuation.amount {
+        None => "—".to_string(),
+        Some(amount) => match valuation.rate {
+            None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
             Some(rate) => format!(
                 "{}（{}）",
-                format_valuation_amount_dec(Some(amount)),
-                format_valuation_rate_dec(Some(rate), 1),
+                format_valuation_amount(Some(amount)),
+                format_valuation_rate(Some(rate), 1),
             ),
-        },
-        None => match fallback.amount {
-            None => "—".to_string(),
-            Some(amount) => match fallback.rate {
-                None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
-                Some(rate) => format!(
-                    "{}（{}）",
-                    format_valuation_amount(Some(amount)),
-                    format_valuation_rate(Some(rate), 1),
-                ),
-            },
         },
     };
     let composition = item.percentage.map_or("—".to_string(), |percentage| {

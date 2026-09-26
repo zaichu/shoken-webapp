@@ -85,7 +85,7 @@ fn holding_dividend_matches_component_cases() {
 
     let missing = holding_dividend("9999", 10.0, 100.0, &maps);
     assert_eq!(missing.per_share, None);
-    assert_eq!(format_dividend_per_share(&missing), "---");
+    assert_eq!(format_dividend_per_share(&missing), "—");
 
     let pending = holding_dividend("0001", 10.0, 100.0, &maps);
     assert_eq!(format_dividend_per_share(&pending), "取得中...");
@@ -97,7 +97,7 @@ fn holding_dividend_matches_component_cases() {
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
     assert_eq!(format_dividend_per_share(&zero), "¥0");
-    assert_eq!(format_dividend_yield(&zero), "---");
+    assert_eq!(format_dividend_yield(&zero), "—");
 
     let zero_price = holding_dividend("7203", 10.0, 0.0, &maps);
     assert_eq!(zero_price.yield_value, None);
@@ -164,22 +164,10 @@ fn number_and_currency_formatters_match_intl_cases() {
         "¥0.123456789012346"
     );
     assert_eq!(format_fixed_percent(f64::NAN, 1), "—");
-    assert_eq!(
-        format_currency(1e29),
-        "¥100,000,000,000,000,000,000,000,000,000"
-    );
-    assert_eq!(
-        format_currency(-1e29),
-        "-¥100,000,000,000,000,000,000,000,000,000"
-    );
-    assert_eq!(
-        format_valuation_amount(Some(1e29)),
-        "¥100,000,000,000,000,000,000,000,000,000"
-    );
-    assert_eq!(
-        format_fixed_percent(1e30, 1),
-        "1000000000000000019884624838656.0%"
-    );
+    assert_eq!(format_currency(1e29), "—");
+    assert_eq!(format_currency(-1e29), "—");
+    assert_eq!(format_valuation_amount(Some(1e29)), "—");
+    assert_eq!(format_fixed_percent(1e30, 1), "—");
 }
 
 #[test]

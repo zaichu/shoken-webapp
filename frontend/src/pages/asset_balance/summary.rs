@@ -206,9 +206,6 @@ pub(crate) fn PortfolioSummary(
                         <p class="mb-1 text-xs font-medium text-slate-600">"合計取得総額"</p>
                         <p
                             class="text-base font-bold sm:text-3xl text-primary tabular-nums"
-                            data-negative=move || {
-                                if total_purchase_amount < 0.0 { Some("true") } else { None }
-                            }
                         >
                             {format_currency(total_purchase_amount)}
                         </p>
@@ -222,7 +219,7 @@ pub(crate) fn PortfolioSummary(
                             {move || {
                                 kpi.with(|kpi| {
                                     kpi.total_annual_dividends
-                                        .map_or("---".to_string(), format_currency)
+                                        .map_or("—".to_string(), format_currency)
                                 })
                             }}
                         </p>
@@ -236,7 +233,7 @@ pub(crate) fn PortfolioSummary(
                             {move || {
                                 kpi.with(|kpi| {
                                     kpi.dividend_yield
-                                        .map_or("---".to_string(), format_percentage_value)
+                                        .map_or("—".to_string(), format_percentage_value)
                                 })
                             }}
                         </p>

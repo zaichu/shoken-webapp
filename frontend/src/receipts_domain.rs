@@ -118,7 +118,7 @@ pub fn format_date(value: &str) -> String {
     if valid_iso_date(value) {
         format!("{}/{}/{}", &value[..4], &value[5..7], &value[8..])
     } else {
-        "-".to_string()
+        "—".to_string()
     }
 }
 
@@ -628,8 +628,8 @@ mod tests {
     #[test]
     fn date_helpers_match_react_output_and_reject_invalid_values() {
         assert_eq!(format_date("2023-12-25"), "2023/12/25");
-        assert_eq!(format_date("2023-02-29"), "-");
-        assert_eq!(format_date("string"), "-");
+        assert_eq!(format_date("2023-02-29"), "—");
+        assert_eq!(format_date("string"), "—");
         assert_eq!(create_year_month_key("2023-12-25"), "2023-12");
         assert_eq!(create_year_month_key("invalid"), "");
         assert_eq!(create_iso_date_key("2023-01-05"), "2023-01-05");
@@ -643,7 +643,7 @@ mod tests {
             "X024-03-01",
         ] {
             assert!(!valid_iso_date(malformed), "{malformed}");
-            assert_eq!(format_date(malformed), "-", "{malformed}");
+            assert_eq!(format_date(malformed), "—", "{malformed}");
         }
     }
 
@@ -859,7 +859,7 @@ mod tests {
                 proptest::prop_assert_eq!(create_year_month_key(&input), input[..7].to_string());
                 proptest::prop_assert_eq!(create_iso_date_key(&input), input);
             } else {
-                proptest::prop_assert_eq!(format_date(&input), "-");
+                proptest::prop_assert_eq!(format_date(&input), "—");
                 proptest::prop_assert_eq!(create_year_month_key(&input), "");
             }
         }
