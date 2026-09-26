@@ -1,4 +1,4 @@
-use crate::api::ApiClient;
+use crate::api::{ApiClient, ApiError};
 use crate::asset_balance_domain::calculate_valuation_from_decimal;
 use crate::dto::{
     AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
@@ -145,6 +145,7 @@ pub fn HomePage() -> impl IntoView {
 struct Overview {
     asset: Option<AssetBalanceSummary>,
     dividend: Option<DividendSummary>,
+    unauthorized: bool,
 }
 
 async fn fetch_overview(year: u32) -> Overview {
@@ -155,9 +156,7 @@ async fn fetch_overview(year: u32) -> Overview {
             "/api/v1/asset-balances",
             &[("per_page", "1"), ("include_summary", "true")],
         )
-        .await
-        .ok()
-        .and_then(|response| response.summary);
+        .await;
     let dividend = client
         .get_json::<DividendListResponse>(
             "/api/v1/dividends",
@@ -167,10 +166,16 @@ async fn fetch_overview(year: u32) -> Overview {
                 ("include_summary", "true"),
             ],
         )
-        .await
-        .ok()
-        .and_then(|response| response.summary);
-    Overview { asset, dividend }
+        .await;
+    let unauthorized = [asset.as_ref().err(), dividend.as_ref().err()]
+        .into_iter()
+        .flatten()
+        .any(ApiError::is_unauthorized);
+    Overview {
+        asset: asset.ok().and_then(|response| response.summary),
+        dividend: dividend.ok().and_then(|response| response.summary),
+        unauthorized,
+    }
 }
 
 #[component]
@@ -185,9 +190,14 @@ fn HomeOverview() -> impl IntoView {
         }
         leptos::task::spawn_local(async move {
             let loaded = fetch_overview(js_sys::Date::new_0().get_full_year()).await;
-            if session.is_current(generation) {
-                overview.set(Some((generation, loaded)));
+            if !session.is_current(generation) {
+                return;
             }
+            if loaded.unauthorized {
+                session.mark_unauthenticated();
+                return;
+            }
+            overview.set(Some((generation, loaded)));
         });
     });
     move || {
@@ -204,45 +214,60 @@ fn HomeOverview() -> impl IntoView {
 #[component]
 fn OverviewTiles(loaded: Option<Overview>) -> impl IntoView {
     let busy = loaded.is_none();
-    let Overview { asset, dividend } = loaded.unwrap_or_default();
+    let Overview {
+        asset, dividend, ..
+    } = loaded.unwrap_or_default();
+    let failed = !busy && (asset.is_none() || dividend.is_none());
     let market = asset
         .as_ref()
         .map(|summary| format_currency(dec_to_f64(&summary.total_market_value)));
-    let valuation = asset.as_ref().map(|summary| {
-        calculate_valuation_from_decimal(summary.total_market_value, summary.total_purchase_amount)
-    });
+    let valuation = asset
+        .as_ref()
+        .filter(|summary| {
+            !(summary.total_market_value.is_zero() && summary.total_purchase_amount.is_zero())
+        })
+        .map(|summary| {
+            calculate_valuation_from_decimal(
+                summary.total_market_value,
+                summary.total_purchase_amount,
+            )
+        });
     let (profit_class, profit_negative) =
         valuation_tone(valuation.as_ref().and_then(|valuation| valuation.amount));
-    let profit = valuation.map(|valuation| match valuation.rate {
-        Some(rate) => format!(
-            "{}（{}）",
-            format_valuation_amount(valuation.amount),
-            format_valuation_rate(Some(rate), 1),
-        ),
-        None => format_valuation_amount(valuation.amount),
+    let profit_rate = valuation.as_ref().map(|valuation| match valuation.rate {
+        Some(rate) => format_valuation_rate(Some(rate), 1),
+        None => "算出不可".to_string(),
     });
+    let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
     let dividend = dividend
         .as_ref()
         .map(|summary| format_currency(dec_to_f64(&summary.total_net_amount_received)));
     view! {
-        <section aria-label="資産の概要" aria-busy=busy.then_some("true") data-testid="home-overview">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <OverviewTile label="評価額" value=market busy=busy value_class="text-slate-950" negative=None />
+        <section
+            aria-label="資産の概要"
+            aria-busy=if busy { "true" } else { "false" }
+            data-testid="home-overview"
+        >
+            <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <OverviewTile label="評価額" value=market busy=busy />
                 <OverviewTile
                     label="評価損益"
                     value=profit
                     busy=busy
                     value_class=profit_class
                     negative=profit_negative
+                    note=profit_rate
                 />
-                <OverviewTile
-                    label="今年の配当(税引)"
-                    value=dividend
-                    busy=busy
-                    value_class="text-slate-950"
-                    negative=None
-                />
+                <OverviewTile label="今年の配当金(税引)" value=dividend busy=busy />
             </div>
+            {failed
+                .then(|| {
+                    view! {
+                        <p class="mt-2 text-xs font-medium text-slate-600" role="status">
+                            "一部の集計を取得できませんでした。"
+                        </p>
+                    }
+                })}
         </section>
     }
 }
@@ -252,22 +277,36 @@ fn OverviewTile(
     label: &'static str,
     value: Option<String>,
     busy: bool,
-    value_class: &'static str,
-    negative: Option<&'static str>,
+    #[prop(default = "text-slate-950")] value_class: &'static str,
+    #[prop(default = None)] negative: Option<&'static str>,
+    #[prop(default = None)] note: Option<String>,
 ) -> impl IntoView {
     view! {
         <div class="rounded-xl border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
             <p class="text-sm font-medium text-slate-600">{label}</p>
             {if busy {
-                view! { <div class="mt-2 h-7 w-32 animate-pulse rounded bg-slate-200" aria-hidden="true"></div> }
+                view! {
+                    <div
+                        class="mt-2 h-7 w-32 animate-pulse rounded bg-slate-200"
+                        aria-hidden="true"
+                    ></div>
+                }
                     .into_any()
             } else {
                 view! {
                     <p
-                        class=format!("mt-1 whitespace-nowrap text-2xl font-black tabular-nums {value_class}")
+                        class=format!(
+                            "mt-1 whitespace-nowrap text-2xl font-black tabular-nums {value_class}",
+                        )
                         data-negative=negative
                     >
                         {value.unwrap_or_else(|| "—".to_string())}
+                        {note
+                            .map(|note| {
+                                view! {
+                                    <span class="ml-2 text-sm font-bold">{format!("（{note}）")}</span>
+                                }
+                            })}
                     </p>
                 }
                     .into_any()
