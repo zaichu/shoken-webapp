@@ -11,8 +11,7 @@ use crate::errors::simple_error_response;
 
 /// セキュリティヘッダー付与ミドルウェア
 ///
-/// `secure_cookie`（Secure Cookie 環境か）だけ真のとき HSTS を付与する。
-/// 環境変数はリクエストごとに読まず、ルータ構築時に解決済みの値を渡す
+/// `secure_cookie`（Secure Cookie 環境か）だけ真のとき HSTS を付与する
 pub async fn add_security_headers(secure_cookie: bool, req: Request<Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
     let headers = response.headers_mut();

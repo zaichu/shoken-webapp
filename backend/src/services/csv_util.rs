@@ -169,6 +169,25 @@ mod tests {
             .collect()
     }
     #[test]
+    fn test_cell_error_display() {
+        for (error, expected) in [
+            (
+                CellError::MissingRequired("銘柄コード".to_string()),
+                "必須列 '銘柄コード' が空または存在しません",
+            ),
+            (
+                CellError::InvalidNumber("abc".to_string()),
+                "数値のパースに失敗しました: 'abc'",
+            ),
+            (
+                CellError::InvalidDate("2024-13-40".to_string()),
+                "日付のパースに失敗しました: '2024-13-40'",
+            ),
+        ] {
+            assert_eq!(error.to_string(), expected);
+        }
+    }
+    #[test]
     fn test_parse_utilities() {
         for (input, expected) in [
             ("1,234", dec!(1234)),

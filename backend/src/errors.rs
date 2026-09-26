@@ -238,7 +238,18 @@ impl IntoResponse for ApiError {
             }
             Self::Config(e) => tracing::error!("Config error: {e}"),
             Self::Internal(msg) => tracing::error!("Internal error: {msg}"),
-            Self::Upstream(e) => tracing::error!("Upstream error: {e}"),
+            Self::Upstream(e) => {
+                if is_production_env() {
+                    match e {
+                        UpstreamError::Http { status, .. } => {
+                            tracing::error!("Upstream error: status {status}")
+                        }
+                        _ => tracing::error!("Upstream error [{}]", e.code()),
+                    }
+                } else {
+                    tracing::error!("Upstream error: {e}");
+                }
+            }
             _ => {}
         }
         let status = self.status();
@@ -333,6 +344,27 @@ mod tests {
             ),
         ] {
             check(error, status, code);
+        }
+    }
+
+    #[test]
+    fn test_upstream_response_messages() {
+        assert_eq!(
+            ApiError::Upstream(UpstreamError::RateLimited).response_message(),
+            "上流サービスのレート制限に達しました。しばらくしてから再試行してください"
+        );
+        for e in [
+            UpstreamError::Http {
+                status: 500,
+                body: "raw provider detail".to_string(),
+            },
+            UpstreamError::OAuth("Googleトークン交換エラー"),
+            UpstreamError::Decode(serde_json::from_str::<serde_json::Value>("bad").unwrap_err()),
+        ] {
+            assert_eq!(
+                ApiError::Upstream(e).response_message(),
+                "外部サービスとの通信に失敗しました"
+            );
         }
     }
 

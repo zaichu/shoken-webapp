@@ -48,7 +48,7 @@ pub struct AppState {
     pub client: Client,
     /// 配当キャッシュのバックグラウンド更新状態（多重起動防止）
     pub dividend_cache: DividendCacheState,
-    /// 起動時に一度だけ解決した実行設定（呼び出しのたびに環境変数を読まない）
+    /// 起動時に解決した実行設定
     pub config: Arc<Config>,
     /// 起動時に構築した Google OAuth クライアント（認証情報が揃わない場合は None）
     pub google_oauth: Option<GoogleOAuthClient>,

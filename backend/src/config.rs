@@ -215,16 +215,62 @@ mod tests {
             ),
             (10, 1, "http://example.com", 2)
         );
-        let url = Config::from_env().backend_url;
-        let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| {
-            env::var("PORT").map_or_else(
-                |_| "http://localhost:3001".to_string(),
-                |port| format!("http://localhost:{port}"),
-            )
-        });
-        assert_eq!(url, expected_url);
-        assert!(Config::from_env().server_addr.starts_with("0.0.0.0:"));
-        let _ = Config::from_env().secure_cookie;
+    }
+
+    #[test]
+    fn test_config_backend_url_and_server_addr_from_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        // (BACKEND_URL, PORT, backend_url, server_addr)
+        let cases: [(
+            Option<&'static str>,
+            Option<&'static str>,
+            &'static str,
+            &'static str,
+        ); 4] = [
+            (
+                Some("https://api.example.com"),
+                Some("9000"),
+                "https://api.example.com",
+                "0.0.0.0:9000",
+            ),
+            (
+                Some("https://api.example.com"),
+                None,
+                "https://api.example.com",
+                "0.0.0.0:3001",
+            ),
+            (None, Some("8080"), "http://localhost:8080", "0.0.0.0:8080"),
+            (None, None, "http://localhost:3001", "0.0.0.0:3001"),
+        ];
+        for (backend_url, port, expected_url, expected_addr) in cases {
+            temp_env::with_vars([("BACKEND_URL", backend_url), ("PORT", port)], || {
+                let config = Config::from_env();
+                assert_eq!(
+                    (config.backend_url.as_str(), config.server_addr.as_str()),
+                    (expected_url, expected_addr),
+                    "BACKEND_URL={backend_url:?} PORT={port:?}"
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn test_config_user_row_limit_from_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        for (value, expected) in [
+            (Some("50"), 50),
+            (Some("abc"), DEFAULT_USER_ROW_LIMIT),
+            (Some("-5"), -5),
+            (None, DEFAULT_USER_ROW_LIMIT),
+        ] {
+            temp_env::with_var("USER_ROW_LIMIT", value, || {
+                assert_eq!(
+                    Config::from_env().user_row_limit,
+                    expected,
+                    "USER_ROW_LIMIT={value:?}"
+                );
+            });
+        }
     }
     #[test]
     fn test_config_secure_cookie_from_env() {

@@ -63,7 +63,6 @@ pub fn app_router(state: AppState, startup_ready: &Arc<AtomicBool>) -> Router {
     spawn_keyed_limiter_cleanup(stock_search_limiter.as_ref());
     spawn_keyed_limiter_cleanup(data_limiter.as_ref());
 
-    // セキュリティ判定はリクエストごとに環境変数を読まず、起動時解決済みの Config から渡す
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let strict_origin_check = config.is_production();
     let secure_cookie = config.secure_cookie;
@@ -652,5 +651,50 @@ mod tests {
             Some("my-custom-id"),
             "existing x-request-id should be propagated unchanged"
         );
+    }
+
+    #[tokio::test]
+    async fn test_production_config_wires_strict_origin_and_hsts() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        // 本番相当(Config::default): Origin/Referer なしの unsafe method は 403、HSTS を付与
+        let router = app_router(make_test_state(), &startup_ready);
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/dividends/import")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::FORBIDDEN);
+        assert_eq!(
+            resp.headers().get("Strict-Transport-Security").unwrap(),
+            "max-age=31536000; includeSubDomains"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_development_config_passes_origin_and_skips_hsts() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        let config = Config {
+            runtime_env: crate::config::RuntimeEnv::Development,
+            secure_cookie: false,
+            ..Config::default()
+        };
+        let router = app_router(make_test_state_with_config(config), &startup_ready);
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/dividends/import")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::FORBIDDEN);
+        assert!(resp.headers().get("Strict-Transport-Security").is_none());
     }
 }

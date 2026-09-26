@@ -23,27 +23,18 @@ where
     (items, errors)
 }
 
-pub fn build_preview_response<T>(items: &[T], mut errors: Vec<CsvRowError>) -> CsvPreviewResponse
+pub fn build_preview_response<T>(items: &[T], errors: Vec<CsvRowError>) -> CsvPreviewResponse
 where
     T: serde::Serialize,
 {
-    let mut rows = Vec::with_capacity(items.len());
-    for (index, item) in items.iter().enumerate() {
-        match serde_json::to_value(item) {
-            Ok(value) => rows.push(value),
-            Err(e) => {
-                tracing::error!("プレビュー行のシリアライズに失敗: {e}");
-                errors.push(CsvRowError {
-                    row: index + 1,
-                    message: "行のシリアライズに失敗しました".to_string(),
-                });
-            }
-        }
-    }
+    let rows = items
+        .iter()
+        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
+        .collect();
 
     CsvPreviewResponse {
-        total_rows: rows.len() + errors.len(),
-        valid_rows: rows.len(),
+        total_rows: items.len() + errors.len(),
+        valid_rows: items.len(),
         errors,
         rows,
     }
