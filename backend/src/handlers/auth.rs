@@ -11,7 +11,8 @@ use axum_extra::extract::{
     cookie::{Cookie, SameSite},
     CookieJar,
 };
-use oauth2::{CsrfToken, Scope};
+use oauth2::{CsrfToken, PkceCodeChallenge, Scope};
+use openidconnect::Nonce;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -44,8 +45,8 @@ fn google_oauth_credentials(state: &AppState) -> Result<(&str, &str), ApiError> 
     Ok((client_id, client_secret))
 }
 
-pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
-    Cookie::build((auth_service::OAUTH_STATE_COOKIE_NAME, state.to_string()))
+fn build_oauth_cookie(name: &'static str, value: &str, secure: bool) -> Cookie<'static> {
+    Cookie::build((name, value.to_string()))
         .path("/")
         .http_only(true)
         .secure(secure)
@@ -54,14 +55,22 @@ pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
         .build()
 }
 
-pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
-    Cookie::build((auth_service::OAUTH_STATE_COOKIE_NAME, ""))
+fn clear_oauth_cookie(name: &'static str, secure: bool) -> Cookie<'static> {
+    Cookie::build((name, ""))
         .path("/")
         .http_only(true)
         .secure(secure)
         .same_site(same_site(secure))
         .max_age(time::Duration::seconds(0))
         .build()
+}
+
+pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
+    build_oauth_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, state, secure)
+}
+
+pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
+    clear_oauth_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, secure)
 }
 
 pub fn build_session_cookie(token: &str, secure: bool) -> Cookie<'static> {
@@ -104,17 +113,30 @@ pub async fn google_auth(
     let (client_id, client_secret) = google_oauth_credentials(&state)?;
     let client = create_oauth_client(client_id, client_secret)?;
 
+    let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+    let nonce = Nonce::new_random();
     let (auth_url, csrf_token) = client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("openid".to_string()))
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("profile".to_string()))
+        .set_pkce_challenge(pkce_challenge)
+        .add_extra_param("nonce", nonce.secret())
         .url();
 
     let is_secure = config::is_secure_cookie();
-    let state_cookie = build_state_cookie(csrf_token.secret(), is_secure);
-
-    let jar = jar.add(state_cookie);
+    let jar = jar
+        .add(build_state_cookie(csrf_token.secret(), is_secure))
+        .add(build_oauth_cookie(
+            auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME,
+            pkce_verifier.secret(),
+            is_secure,
+        ))
+        .add(build_oauth_cookie(
+            auth_service::OAUTH_NONCE_COOKIE_NAME,
+            nonce.secret(),
+            is_secure,
+        ));
 
     Ok((jar, Redirect::to(auth_url.as_str())))
 }
@@ -136,16 +158,39 @@ pub async fn google_callback(
     }
 
     let is_secure = config::is_secure_cookie();
-    let jar = jar.remove(clear_state_cookie(is_secure));
+    let pkce_verifier = jar
+        .get(auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME)
+        .map(|c| c.value().to_string());
+    let nonce = jar
+        .get(auth_service::OAUTH_NONCE_COOKIE_NAME)
+        .map(|c| c.value().to_string());
+    let jar = jar
+        .remove(clear_state_cookie(is_secure))
+        .remove(clear_oauth_cookie(
+            auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME,
+            is_secure,
+        ))
+        .remove(clear_oauth_cookie(
+            auth_service::OAUTH_NONCE_COOKIE_NAME,
+            is_secure,
+        ));
 
     let (client_id, client_secret) = google_oauth_credentials(&state)?;
     let client = create_oauth_client(client_id, client_secret)?;
+
+    let pkce_verifier = pkce_verifier.ok_or_else(|| {
+        ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません".to_string())
+    })?;
+    let nonce =
+        nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません".to_string()))?;
 
     let session_token = auth_service::authenticate_with_google_code(
         &state.pool,
         &state.client,
         &client,
         query.code,
+        pkce_verifier,
+        Nonce::new(nonce),
     )
     .await?;
 

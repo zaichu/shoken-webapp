@@ -1,6 +1,6 @@
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, EndpointNotSet, EndpointSet, RedirectUrl,
-    TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, EndpointNotSet, EndpointSet,
+    PkceCodeVerifier, RedirectUrl, TokenUrl,
 };
 use openidconnect::{
     core::{
@@ -22,6 +22,8 @@ use crate::models::user::{GoogleUserInfo, User};
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
+pub const OAUTH_PKCE_VERIFIER_COOKIE_NAME: &str = "oauth_pkce_verifier";
+pub const OAUTH_NONCE_COOKIE_NAME: &str = "oauth_nonce";
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -159,6 +161,7 @@ fn verify_google_id_token(
     token: &CoreIdToken,
     client_id: &ClientId,
     keys: CoreJsonWebKeySet,
+    nonce: &Nonce,
 ) -> Result<GoogleUserInfo, ApiError> {
     // Googleの非対称署名のみ許可。クライアントシークレットを署名鍵として扱わない。
     let verifier = CoreIdTokenVerifier::new_public_client(
@@ -167,16 +170,8 @@ fn verify_google_id_token(
         keys,
     )
     .set_allowed_algs(vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256]);
-    // 既存の認可コードフローはnonceを送信しない。未要求nonceも受理しない。
-    // CSRFのstate照合はコールバックハンドラーで従来どおり実施する。
     let claims = token
-        .claims(&verifier, |nonce: Option<&Nonce>| {
-            if nonce.is_some() {
-                Err("未要求のnonce".to_string())
-            } else {
-                Ok(())
-            }
-        })
+        .claims(&verifier, nonce)
         .map_err(|_| ApiError::OAuthError("Google IDトークン検証エラー".into()))?;
 
     // 署名・iss・aud・expの検証を通ったclaimだけをDB更新に使用する。
@@ -198,26 +193,36 @@ fn verify_google_id_token(
     })
 }
 
+async fn exchange_google_code(
+    oauth_client: &GoogleOAuthClient,
+    code: String,
+    pkce_verifier: String,
+) -> Result<CoreTokenResponse, ApiError> {
+    oauth_client
+        .exchange_code(AuthorizationCode::new(code))
+        .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier))
+        .request_async(shared_oauth_http_client()?)
+        .await
+        // パースエラーにはレスポンス本文が含まれ得るため、詳細をログや応答に出さない。
+        .map_err(|_| ApiError::OAuthError("Googleトークン交換エラー".into()))
+}
+
 /// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
 pub async fn authenticate_with_google_code(
     pool: &PgPool,
     _http_client: &reqwest::Client,
     oauth_client: &GoogleOAuthClient,
     code: String,
+    pkce_verifier: String,
+    nonce: Nonce,
 ) -> Result<String, ApiError> {
-    let oauth_http_client = shared_oauth_http_client()?;
-    let token_result = oauth_client
-        .exchange_code(AuthorizationCode::new(code))
-        .request_async(oauth_http_client)
-        .await
-        // パースエラーにはレスポンス本文が含まれ得るため、詳細をログや応答に出さない。
-        .map_err(|_| ApiError::OAuthError("Googleトークン交換エラー".into()))?;
+    let token_result = exchange_google_code(oauth_client, code, pkce_verifier).await?;
 
     let id_token = token_result
         .id_token()
         .ok_or_else(|| ApiError::OAuthError("Google IDトークンがありません".into()))?;
-    let keys = shared_google_jwks(oauth_http_client).await?;
-    let user_info = verify_google_id_token(id_token, oauth_client.client_id(), keys)?;
+    let keys = shared_google_jwks(shared_oauth_http_client()?).await?;
+    let user_info = verify_google_id_token(id_token, oauth_client.client_id(), keys, &nonce)?;
 
     let session_token = upsert_user_and_rotate_session(pool, &user_info).await?;
 
@@ -416,7 +421,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         serde_json::json!({
             "iss": "https://accounts.google.com", "aud": "client-id", "sub": "test-subject",
             "exp": chrono::Utc::now().timestamp() + 3600, "iat": chrono::Utc::now().timestamp(),
-            "email": "oidc@example.com", "name": "テスト利用者",
+            "email": "oidc@example.com", "name": "テスト利用者", "nonce": "test-nonce",
             "picture": "https://example.com/avatar.png"
         })
     }
@@ -424,8 +429,13 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     #[test]
     fn test_oidc_verified_profile() {
         let (token, keys) = signed_token(valid_claims());
-        let user =
-            verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).unwrap();
+        let user = verify_google_id_token(
+            &token,
+            &ClientId::new("client-id".into()),
+            keys,
+            &Nonce::new("test-nonce".into()),
+        )
+        .unwrap();
         assert_eq!(user.sub, "test-subject");
         assert_eq!(user.email, "oidc@example.com");
         assert_eq!(user.name.as_deref(), Some("テスト利用者"));
@@ -451,10 +461,29 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             claims[field] = value;
             let (token, keys) = signed_token(claims);
             assert!(
-                verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).is_err(),
+                verify_google_id_token(
+                    &token,
+                    &ClientId::new("client-id".into()),
+                    keys,
+                    &Nonce::new("test-nonce".into())
+                )
+                .is_err(),
                 "{field}"
             );
         }
+        let mut claims = valid_claims();
+        claims.as_object_mut().unwrap().remove("nonce");
+        let (token, keys) = signed_token(claims);
+        assert!(
+            verify_google_id_token(
+                &token,
+                &ClientId::new("client-id".into()),
+                keys,
+                &Nonce::new("test-nonce".into())
+            )
+            .is_err(),
+            "nonce 欠落"
+        );
         let (token, keys) = signed_token(valid_claims());
         let serialized = serde_json::to_value(&token).unwrap();
         let mut jwt = serialized.as_str().unwrap().as_bytes().to_vec();
@@ -462,13 +491,18 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         jwt[start] = if jwt[start] == b'A' { b'B' } else { b'A' };
         let tampered: CoreIdToken =
             serde_json::from_value(serde_json::json!(String::from_utf8(jwt).unwrap())).unwrap();
-        assert!(
-            verify_google_id_token(&tampered, &ClientId::new("client-id".into()), keys).is_err()
-        );
+        assert!(verify_google_id_token(
+            &tampered,
+            &ClientId::new("client-id".into()),
+            keys,
+            &Nonce::new("test-nonce".into())
+        )
+        .is_err());
         assert!(verify_google_id_token(
             &token,
             &ClientId::new("client-id".into()),
-            CoreJsonWebKeySet::new(vec![])
+            CoreJsonWebKeySet::new(vec![]),
+            &Nonce::new("test-nonce".into())
         )
         .is_err());
     }
@@ -539,8 +573,13 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             .request_async(&build_oauth_http_client().unwrap())
             .await
             .unwrap();
-        let user =
-            verify_google_id_token(response.id_token().unwrap(), client.client_id(), keys).unwrap();
+        let user = verify_google_id_token(
+            response.id_token().unwrap(),
+            client.client_id(),
+            keys,
+            &Nonce::new("test-nonce".into()),
+        )
+        .unwrap();
         assert_eq!(user.sub, "test-subject");
     }
 
@@ -550,8 +589,13 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         claims.as_object_mut().unwrap().remove("name");
         claims.as_object_mut().unwrap().remove("picture");
         let (token, keys) = signed_token(claims);
-        let user =
-            verify_google_id_token(&token, &ClientId::new("client-id".into()), keys).unwrap();
+        let user = verify_google_id_token(
+            &token,
+            &ClientId::new("client-id".into()),
+            keys,
+            &Nonce::new("test-nonce".into()),
+        )
+        .unwrap();
         assert!(user.name.is_none());
         assert!(user.picture.is_none());
     }
@@ -579,6 +623,140 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.fly.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
             "redirect_uri が /api/v1/oauth/google/callback でない: {}",
             url_str
+        );
+    }
+
+    #[tokio::test]
+    async fn test_oauth_login_to_token_exchange_round_trip() {
+        use axum::{extract::State, response::IntoResponse};
+        use axum_extra::extract::CookieJar;
+        use oauth2::PkceCodeChallenge;
+        use wiremock::{
+            matchers::{body_string_contains, method},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let secrets = std::sync::Arc::new(crate::state::Secrets {
+            database_url: String::new(),
+            jquants_api_key: None,
+            google_client_id: Some("client-id".to_string()),
+            google_client_secret: Some("client-secret".to_string()),
+            frontend_url: "http://localhost:8080".to_string(),
+        });
+        let app_state = crate::state::AppState {
+            pool: crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+                .expect("pool"),
+            secrets,
+            client: reqwest::Client::new(),
+            dividend_cache: crate::state::DividendCacheState::default(),
+        };
+        let (jar, redirect) =
+            crate::handlers::auth::google_auth(State(app_state), CookieJar::new())
+                .await
+                .expect("認可リダイレクト発行失敗");
+        let response = redirect.into_response();
+        let location = response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .and_then(|value| value.to_str().ok())
+            .expect("Location ヘッダがありません");
+        let url = url::Url::parse(location).expect("認可URLのパース失敗");
+        assert_eq!(url.as_str().split('?').next(), Some(GOOGLE_AUTH_URL));
+        let params: std::collections::HashMap<String, String> =
+            url.query_pairs().into_owned().collect();
+        assert_eq!(
+            params.get("client_id").map(String::as_str),
+            Some("client-id")
+        );
+        assert_eq!(
+            params.get("code_challenge_method").map(String::as_str),
+            Some("S256")
+        );
+        let challenge = params
+            .get("code_challenge")
+            .expect("認可URLに code_challenge がありません");
+        let nonce_param = params
+            .get("nonce")
+            .expect("認可URLに nonce がありません")
+            .clone();
+        let state_param = params.get("state").expect("認可URLに state がありません");
+        assert_eq!(
+            params
+                .get("redirect_uri")
+                .map(|uri| uri.ends_with("/api/v1/oauth/google/callback")),
+            Some(true)
+        );
+
+        for name in [
+            OAUTH_STATE_COOKIE_NAME,
+            OAUTH_PKCE_VERIFIER_COOKIE_NAME,
+            OAUTH_NONCE_COOKIE_NAME,
+        ] {
+            let cookie = jar
+                .get(name)
+                .unwrap_or_else(|| panic!("Cookie {name} がありません"));
+            assert_eq!(cookie.http_only(), Some(true), "{name} は HttpOnly");
+        }
+        assert_eq!(
+            jar.get(OAUTH_STATE_COOKIE_NAME).unwrap().value(),
+            state_param
+        );
+        assert_eq!(
+            jar.get(OAUTH_NONCE_COOKIE_NAME).unwrap().value(),
+            nonce_param
+        );
+        let verifier = jar
+            .get(OAUTH_PKCE_VERIFIER_COOKIE_NAME)
+            .unwrap()
+            .value()
+            .to_string();
+        assert_eq!(
+            PkceCodeChallenge::from_code_verifier_sha256(&PkceCodeVerifier::new(verifier.clone()))
+                .as_str(),
+            challenge,
+            "code_challenge は Cookie の verifier の S256 ハッシュであること"
+        );
+
+        let server = MockServer::start().await;
+        let mut claims = valid_claims();
+        claims["nonce"] = serde_json::json!(nonce_param.as_str());
+        let (token, keys) = signed_token(claims);
+        Mock::given(method("POST"))
+            .and(body_string_contains("grant_type=authorization_code"))
+            .and(body_string_contains("code=auth-code"))
+            .and(body_string_contains(format!("code_verifier={verifier}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "access_token": "test-access-token", "token_type": "Bearer",
+                "expires_in": 3600, "id_token": token
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = create_oauth_client("client-id", "client-secret")
+            .unwrap()
+            .set_token_uri(TokenUrl::new(server.uri()).unwrap());
+        let token_result = exchange_google_code(&client, "auth-code".to_string(), verifier)
+            .await
+            .expect("トークン交換失敗");
+
+        let id_token = token_result.id_token().expect("IDトークンがありません");
+        let user = verify_google_id_token(
+            id_token,
+            client.client_id(),
+            keys.clone(),
+            &Nonce::new(nonce_param),
+        )
+        .expect("nonce 一致の ID トークンは受理されること");
+        assert_eq!(user.sub, "test-subject");
+        assert!(
+            verify_google_id_token(
+                id_token,
+                client.client_id(),
+                keys,
+                &Nonce::new("attacker-nonce".to_string()),
+            )
+            .is_err(),
+            "nonce 不一致の ID トークンは拒否されること"
         );
     }
 
