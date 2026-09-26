@@ -23,7 +23,7 @@ SQLx migration の baseline 管理。
 | 0012 | `0012_financial_statements_cache.sql` | 決算サマリー取得結果の DB バック TTL キャッシュテーブルを追加 |
 | 0013 | `0013_drop_financial_statements_cache.sql` | financial-statements 廃止に伴い 0012 のキャッシュテーブルを削除 |
 | 0014 | `0014_hash_session_tokens.sql` | sessions に token_hash を NULL 可で追加し既存行を backfill（段階的移行・平文は後続で除去） |
-| 0015 | `0015_session_id_internal_key.sql` | token_hash を NOT NULL にし、平文トークンと同じ値の sessions.id を振り直して内部キーにする |
+| 0015 | `0015_session_id_internal_key.sql` | token_hash を NOT NULL にし、平文トークンと同じ値の sessions.id を振り直して内部キーにする（デプロイ中に旧版が発行した行は #1038 で振り直す） |
 
 ## 重要な注意
 
