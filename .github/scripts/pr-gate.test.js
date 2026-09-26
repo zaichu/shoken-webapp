@@ -256,10 +256,11 @@ test('ワークフローの run-name が RUN_NAME_PREFIX 付きでクォート�
   assert.ok((m[1] ?? m[2]).startsWith(gate.RUN_NAME_PREFIX));
 });
 
+// GraphQL の Actor.login は "dependabot" を返す(REST の "dependabot[bot]" と異なる)
 test('dependabot の PR は Issue 紐づけなしでも成功になる', async () => {
   const pr = {
     ...basePr,
-    author: { login: 'dependabot[bot]' },
+    author: { __typename: 'Bot', login: 'dependabot' },
     body: 'Bumps foo from 1.0.0 to 1.0.1',
     closingIssuesReferences: { totalCount: 0 },
   };
@@ -276,7 +277,7 @@ test('dependabot の PR は Issue 紐づけなしでも成功になる', async (
 test('dependabot の PR でも未解決コメントは検出する', async () => {
   const pr = {
     ...basePr,
-    author: { login: 'dependabot[bot]' },
+    author: { __typename: 'Bot', login: 'dependabot' },
     body: 'Bumps foo from 1.0.0 to 1.0.1',
     closingIssuesReferences: { totalCount: 0 },
   };
@@ -288,6 +289,38 @@ test('dependabot の PR でも未解決コメントは検出する', async () =>
   await gate.run({ github, context: ctx(), core: makeCore() });
   assert.equal(calls.statuses[0].state, 'failure');
   assert.match(calls.statuses[0].description, /未解決のコメント/);
+});
+
+test('dependabot という login の人間アカウントは免除しない', async () => {
+  const pr = {
+    ...basePr,
+    author: { __typename: 'User', login: 'dependabot' },
+    body: 'no refs',
+    closingIssuesReferences: { totalCount: 0 },
+  };
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+  ];
+  const { github, calls } = makeGithub({ pr, runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.match(calls.statuses[0].description, /Issue が紐づいていません/);
+});
+
+test('REST 形式の dependabot[bot] login でも免除される', async () => {
+  const pr = {
+    ...basePr,
+    author: { login: 'dependabot[bot]' },
+    body: 'Bumps foo from 1.0.0 to 1.0.1',
+    closingIssuesReferences: { totalCount: 0 },
+  };
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+  ];
+  const { github, calls } = makeGithub({ pr, runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses[0].state, 'success');
+  assert.match(calls.statuses[0].description, /紐づけ免除/);
 });
 
 test('紐づけなしの場合は failure ステータスを書く', async () => {
