@@ -29,7 +29,7 @@ pub(crate) fn AssetBalanceRailExtras(
             }
         })}
         {has_rows.then(|| view! { <AssetBalanceSearchCard query=search_query options=options /> })}
-        <AssetReviewPromptCard rows=rows />
+        {has_rows.then(|| view! { <AssetReviewPromptCard rows=rows /> })}
     }
 }
 

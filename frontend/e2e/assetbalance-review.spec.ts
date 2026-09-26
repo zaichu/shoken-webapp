@@ -306,16 +306,12 @@ test('Clipboard API がない環境では失敗表示になる', async ({ page }
   ).toBeVisible();
 });
 
-test('保有データが0件のときコピーボタンは無効になる', async ({ page }) => {
+test('保有データが0件のときAI総評プロンプトは出さない', async ({ page }) => {
   await stubClipboard(page);
   await setupAssetBalanceMocks(page, []);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoAssetBalance(page);
   await expect(page.getByText('資産管理データがありません')).toBeVisible();
 
-  const card = page.getByTestId('asset-review-prompt-card');
-  await expect(card).toBeVisible();
-  await expect(
-    card.getByRole('button', { name: 'AI総評プロンプトをコピー' }),
-  ).toBeDisabled();
+  await expect(page.getByTestId('asset-review-prompt-card')).toHaveCount(0);
 });

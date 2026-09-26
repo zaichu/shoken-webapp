@@ -16,6 +16,35 @@ const CHART_COLORS: [&str; 10] = [
     "#84cc16", "#6366f1",
 ];
 
+struct ValuationDisplay {
+    market: String,
+    profit_loss: String,
+    class: &'static str,
+    negative: Option<&'static str>,
+}
+
+fn valuation_display(item: &ChartItem) -> ValuationDisplay {
+    let valuation = calculate_valuation_from_decimal(item.view.market_dec, item.view.purchase_dec);
+    let (class, negative) = valuation_tone(valuation.amount);
+    let profit_loss = match valuation.amount {
+        None => "—".to_string(),
+        Some(amount) => match valuation.rate {
+            None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
+            Some(rate) => format!(
+                "{}（{}）",
+                format_valuation_amount(Some(amount)),
+                format_valuation_rate(Some(rate), 1),
+            ),
+        },
+    };
+    ValuationDisplay {
+        market: format_currency(item.view.market),
+        profit_loss,
+        class,
+        negative,
+    }
+}
+
 #[component]
 pub(crate) fn HoldingCard(
     item: ChartItem,
@@ -23,6 +52,7 @@ pub(crate) fn HoldingCard(
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
     let color = CHART_COLORS[index % CHART_COLORS.len()];
+    let valuation = valuation_display(&item);
     let code = item.view.code.clone();
     let shares = item.view.shares;
     let average_price = item.view.average_price;
@@ -58,22 +88,43 @@ pub(crate) fn HoldingCard(
                                         .to_string()
                                 />
                             </span>
-                            <p class="truncate text-[15px] font-semibold text-slate-800" title=item.view.name.clone()>
+                            <p class="line-clamp-2 text-[15px] font-semibold text-slate-800" title=item.view.name.clone()>
                                 {item.view.name.clone()}
                             </p>
                         </div>
                     </div>
                 </div>
-                <div class="shrink-0 text-right">
-                    <p class="text-xl font-bold text-slate-800">{percentage_text}</p>
+            </div>
+
+            <div class="mt-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1" data-testid="portfolio-card-valuation">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">"評価額"</p>
+                    <p class="whitespace-nowrap text-lg font-bold tabular-nums text-slate-950">
+                        {valuation.market}
+                    </p>
+                </div>
+                <div class="ml-auto text-right">
+                    <p class="text-xs font-medium text-slate-500">"評価損益"</p>
+                    <p
+                        class=format!("whitespace-nowrap text-sm font-bold tabular-nums {}", valuation.class)
+                        data-negative=valuation.negative
+                    >
+                        {valuation.profit_loss}
+                    </p>
                 </div>
             </div>
 
-            <div class="mt-2.5 h-2 w-full rounded-full bg-slate-100 max-sm:hidden">
-                <div
-                    class="h-full rounded-full transition-all duration-300"
-                    style=format!("width: {bar_width}; background-color: {color}")
-                />
+            <div class="mt-2.5 flex items-center gap-2">
+                <div class="h-2 flex-1 rounded-full bg-slate-100">
+                    <div
+                        class="h-full rounded-full transition-all duration-300"
+                        style=format!("width: {bar_width}; background-color: {color}")
+                    />
+                </div>
+                <span class="shrink-0 text-xs font-medium tabular-nums text-slate-500">
+                    "構成比 "
+                    {percentage_text}
+                </span>
             </div>
 
             <div
@@ -149,21 +200,13 @@ pub(crate) fn HoldingValuationCard(
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let valuation = calculate_valuation_from_decimal(item.view.market_dec, item.view.purchase_dec);
-    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
-    let market_display = format_currency(item.view.market);
+    let ValuationDisplay {
+        market: market_display,
+        profit_loss,
+        class: valuation_class,
+        negative: valuation_negative,
+    } = valuation_display(&item);
     let current_price_display = format_currency(item.view.current_price);
-    let profit_loss = match valuation.amount {
-        None => "—".to_string(),
-        Some(amount) => match valuation.rate {
-            None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
-            Some(rate) => format!(
-                "{}（{}）",
-                format_valuation_amount(Some(amount)),
-                format_valuation_rate(Some(rate), 1),
-            ),
-        },
-    };
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });

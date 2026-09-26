@@ -495,7 +495,7 @@ async function expectAssetBalanceErrorLayout(page: Page) {
   await expect(main.getByRole('alert')).toHaveText(
     /^エラー:\s*サーバーエラーが発生しました$/,
   );
-  await expect(rail.getByText('AI総評プロンプト', { exact: true })).toBeVisible();
+  await expect(rail.getByText('AI総評プロンプト', { exact: true })).toHaveCount(0);
   await expect(main).not.toContainText('資産管理データがありません');
 }
 
