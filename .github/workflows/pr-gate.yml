@@ -16,7 +16,8 @@ on:
         type: number
 
 # issue_comment 等では実行の head SHA が PR の head にならないため、PR 番号で実行を見分ける
-run-name: PR gate #${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}
+# " #" は YAML のコメント開始と解釈されるため必ずクォートする
+run-name: "PR gate #${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}"
 
 jobs:
   pr-gate:
@@ -24,14 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     permissions:
+      actions: read
       contents: read
       pull-requests: read
       issues: read
       statuses: write
     steps:
-      # pull_request_target では base 側のコードが取り出される。判定スクリプトの読み込み専用
+      # review 系イベントではデフォルトで PR のマージ ref が取り出されるため、base 側を明示して PR 側のコードが実行されないようにする
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
         with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
           sparse-checkout: .github/scripts
       - name: Check linked issue and unresolved comments

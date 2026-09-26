@@ -138,26 +138,53 @@ function evaluateGate({ linked, nodes }) {
   return { problems, unresolved, description };
 }
 
+// 評価も書込みも行わない状態の実行は「後続の判定」として数えない
+const NON_PUBLISHING_RUN_STATES = new Set([
+  'action_required',
+  'cancelled',
+  'skipped',
+  'stale',
+]);
+
+// fork PR でステータスを書けるのは pull_request_target / workflow_dispatch の実行だけ
+const WRITE_CAPABLE_EVENTS = new Set(['pull_request_target', 'workflow_dispatch']);
+
 async function laterRunsExist(
   github,
-  { owner, repo, prNumber, runId }
+  { owner, repo, prNumber, runId, isCrossRepository }
 ) {
-  const [{ data: me }, { data: list }] = await Promise.all([
-    github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId }),
-    github.rest.actions.listWorkflowRuns({
+  const { data: me } = await github.rest.actions.getWorkflowRun({
+    owner,
+    repo,
+    run_id: runId,
+  });
+  const myCreatedAt = new Date(me.created_at).getTime();
+
+  const candidates = [];
+  let page = 1;
+  // created で自実行以降にサーバ側絞り込みしつつ、件数が多い場合は全ページを見る
+  for (;;) {
+    const { data: list } = await github.rest.actions.listWorkflowRuns({
       owner,
       repo,
       workflow_id: WORKFLOW_FILE,
-      per_page: 50,
-    }),
-  ]);
-  const myCreatedAt = new Date(me.created_at).getTime();
+      created: `>=${me.created_at}`,
+      per_page: 100,
+      page,
+    });
+    candidates.push(...list.workflow_runs);
+    if (list.workflow_runs.length < 100) break;
+    page += 1;
+  }
+
   const expectedName = `${RUN_NAME_PREFIX}${prNumber}`;
-  // created_at は秒粒度のため、同刻の同時実行は run id(単調増加)で優劣を付ける
-  const later = list.workflow_runs.filter(
+  const later = candidates.filter(
     (run) =>
       run.id !== runId &&
       run.display_title === expectedName &&
+      !NON_PUBLISHING_RUN_STATES.has(run.conclusion ?? run.status) &&
+      (!isCrossRepository || WRITE_CAPABLE_EVENTS.has(run.event)) &&
+      // created_at は秒粒度のため、同刻の同時実行は run id(単調増加)で優劣を付ける
       (new Date(run.created_at).getTime() > myCreatedAt ||
         (new Date(run.created_at).getTime() === myCreatedAt && run.id > runId))
   );
@@ -201,6 +228,7 @@ async function run({ github, context, core }) {
     repo,
     prNumber,
     runId: context.runId,
+    isCrossRepository: pr.isCrossRepository,
   });
   if (later.length > 0) {
     core.info(
@@ -232,6 +260,8 @@ module.exports = {
   RUN_NAME_PREFIX,
   STATUS_CONTEXT,
   WORKFLOW_FILE,
+  NON_PUBLISHING_RUN_STATES,
+  WRITE_CAPABLE_EVENTS,
   resolvePrNumber,
   evaluateGate,
   hasLinkedIssue,

@@ -33,7 +33,18 @@ function makeGithub({ pr = basePr, runs = [], myRunId = 100, statusError = null 
             },
           };
         },
-        listWorkflowRuns: async () => ({ data: { workflow_runs: runs } }),
+        listWorkflowRuns: async ({ created, per_page = 100, page = 1 }) => {
+          const since = created?.startsWith('>=')
+            ? new Date(created.slice(2)).getTime()
+            : -Infinity;
+          const filtered = runs.filter(
+            (r) => new Date(r.created_at).getTime() >= since
+          );
+          const start = (page - 1) * per_page;
+          return {
+            data: { workflow_runs: filtered.slice(start, start + per_page) },
+          };
+        },
       },
       repos: {
         createCommitStatus: async (args) => {
@@ -147,6 +158,93 @@ test('created_at が同じ同時実行は run id で優劣を付ける', async (
   });
   await gate.run({ github: gh2, context: ctx(), core: makeCore() });
   assert.equal(c2.statuses.length, 0);
+});
+
+test('後続実行が2ページ目にある場合も見つける', async () => {
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+    ...Array.from({ length: 150 }, (_, i) => ({
+      id: 200 + i,
+      display_title: 'PR gate #99',
+      created_at: '2026-01-03T00:00:00Z',
+    })),
+    { id: 400, display_title: 'PR gate #42', created_at: '2026-01-04T00:00:00Z' },
+  ];
+  const { github, calls } = makeGithub({ runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses.length, 0);
+});
+
+test('cancelled・action_required の後続実行は後続とみなさない', async () => {
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+    {
+      id: 101,
+      display_title: 'PR gate #42',
+      created_at: '2026-01-03T00:00:00Z',
+      status: 'completed',
+      conclusion: 'cancelled',
+    },
+    {
+      id: 102,
+      display_title: 'PR gate #42',
+      created_at: '2026-01-04T00:00:00Z',
+      status: 'action_required',
+      conclusion: null,
+    },
+  ];
+  const { github, calls } = makeGithub({ runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses.length, 1);
+});
+
+test('fork PR では書込み可能なイベントの後続実行だけを数える', async () => {
+  const pr = { ...basePr, isCrossRepository: true };
+  const commentRun = {
+    id: 101,
+    display_title: 'PR gate #42',
+    created_at: '2026-01-03T00:00:00Z',
+    event: 'issue_comment',
+    status: 'completed',
+    conclusion: 'success',
+  };
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+    commentRun,
+  ];
+  const { github, calls } = makeGithub({ pr, runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses.length, 1);
+
+  const runs2 = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+    commentRun,
+    {
+      id: 102,
+      display_title: 'PR gate #42',
+      created_at: '2026-01-04T00:00:00Z',
+      event: 'pull_request_target',
+      status: 'in_progress',
+      conclusion: null,
+    },
+  ];
+  const { github: gh2, calls: c2 } = makeGithub({ pr, runs: runs2 });
+  await gate.run({ github: gh2, context: ctx(), core: makeCore() });
+  assert.equal(c2.statuses.length, 0);
+});
+
+test('ワークフローの run-name が RUN_NAME_PREFIX 付きでクォートされている', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const yamlText = fs.readFileSync(
+    path.join(__dirname, '..', 'workflows', gate.WORKFLOW_FILE),
+    'utf8'
+  );
+  const line = yamlText.match(/^run-name:\s*(.+)$/m);
+  assert.ok(line, 'run-name が見つかる');
+  const m = line[1].trim().match(/^"(.*)"$|^'(.*)'$/);
+  assert.ok(m, 'run-name はクォート必須(" #" はコメント開始になる)');
+  assert.ok((m[1] ?? m[2]).startsWith(gate.RUN_NAME_PREFIX));
 });
 
 test('紐づけなしの場合は failure ステータスを書く', async () => {
