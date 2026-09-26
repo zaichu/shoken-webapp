@@ -1,4 +1,4 @@
-mod asset_balance;
+pub(crate) mod asset_balance;
 mod home;
 mod login;
 mod not_found;

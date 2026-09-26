@@ -1,4 +1,15 @@
+use crate::api::{ApiClient, ApiError};
+use crate::asset_balance_domain::calculate_valuation_from_decimal;
+use crate::dto::{
+    AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
+};
+use crate::pages::asset_balance::format::{
+    format_valuation_amount, format_valuation_rate, valuation_tone,
+};
+use crate::session::{use_session, SessionStore};
 use leptos::prelude::*;
+use shared::format::format_currency as format_currency_decimal;
+use std::future::Future;
 
 const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
     (
@@ -31,12 +42,6 @@ const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
     ),
 ];
 
-const NEXT_ACTIONS: &[(&str, &str)] = &[
-    ("/search", "銘柄検索"),
-    ("/assetbalance", "資産管理"),
-    ("/receipts", "取引明細"),
-];
-
 const FLOW_STEPS: &[(&str, &str)] = &[
     ("01", "CSV取得"),
     ("02", "各ページで取込"),
@@ -47,39 +52,19 @@ const FLOW_STEPS: &[(&str, &str)] = &[
 pub fn HomePage() -> impl IntoView {
     view! {
         <div class="page-surface space-y-7">
-            <div class="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)] lg:items-end">
-                <div>
-                    <p class="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-amber-700">
-                        "Portfolio Desk"
-                    </p>
-                    <h1 class="text-3xl font-black leading-tight tracking-normal text-slate-950 sm:text-4xl">
-                        "証券Web"
-                    </h1>
-                    <p class="mt-2 max-w-2xl text-sm font-medium text-slate-600">
-                        "資産、配当、取引明細をひとつの作業面で確認します。"
-                    </p>
-                </div>
-                <div class="rounded-xl border border-slate-950/10 bg-slate-950 p-4 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)]">
-                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-300">
-                        "Current Focus"
-                    </p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        {NEXT_ACTIONS
-                            .iter()
-                            .map(|(to, label)| {
-                                view! {
-                                    <a
-                                        href={*to}
-                                        class="home-nav-chip"
-                                    >
-                                        {*label}
-                                    </a>
-                                }
-                            })
-                            .collect_view()}
-                    </div>
-                </div>
+            <div>
+                <p class="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-amber-700">
+                    "Portfolio Desk"
+                </p>
+                <h1 class="text-3xl font-black leading-tight tracking-normal text-slate-950 sm:text-4xl">
+                    "証券Web"
+                </h1>
+                <p class="mt-2 max-w-2xl text-sm font-medium text-slate-600">
+                    "資産、配当、取引明細をひとつの作業面で確認します。"
+                </p>
             </div>
+
+            <HomeOverview />
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {STATUS_ITEMS
@@ -104,7 +89,7 @@ pub fn HomePage() -> impl IntoView {
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
                                     {*sub}
                                 </span>
                             </div>
@@ -136,44 +121,228 @@ pub fn HomePage() -> impl IntoView {
                     .collect_view()}
             </div>
 
-            <div class="grid gap-4 border-t border-slate-950/10 pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
-                <section>
-                    <h2 class="text-sm font-black text-slate-950">"データ確認フロー"</h2>
-                    <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                        {FLOW_STEPS
-                            .iter()
-                            .map(|(step, text)| {
+            <section class="border-t border-slate-950/10 pt-5">
+                <h2 class="text-sm font-black text-slate-950">"データ確認フロー"</h2>
+                <div class="mt-3 grid gap-2 sm:grid-cols-3">
+                    {FLOW_STEPS
+                        .iter()
+                        .map(|(step, text)| {
+                            view! {
+                                <div class="rounded-lg border border-slate-950/10 bg-white/75 px-3 py-3">
+                                    <span class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">
+                                        {*step}
+                                    </span>
+                                    <p class="mt-1 text-sm font-bold text-slate-800">{*text}</p>
+                                </div>
+                            }
+                        })
+                        .collect_view()}
+                </div>
+            </section>
+        </div>
+    }
+}
+
+// 外側の None は取得中、内側の None は取得失敗
+type SummarySlot<T> = RwSignal<Option<(u64, Option<T>)>>;
+
+async fn fetch_asset_summary() -> Result<Option<AssetBalanceSummary>, ApiError> {
+    ApiClient::read_client()
+        .get_json::<AssetBalanceListResponse>(
+            "/api/v1/asset-balances",
+            &[("per_page", "1"), ("include_summary", "true")],
+        )
+        .await
+        .map(|response| response.summary)
+}
+
+async fn fetch_dividend_summary(year: u32) -> Result<Option<DividendSummary>, ApiError> {
+    let year = year.to_string();
+    ApiClient::read_client()
+        .get_json::<DividendListResponse>(
+            "/api/v1/dividends",
+            &[
+                ("per_page", "1"),
+                ("year", year.as_str()),
+                ("include_summary", "true"),
+            ],
+        )
+        .await
+        .map(|response| response.summary)
+}
+
+fn load_summary<T: Send + Sync + 'static>(
+    session: SessionStore,
+    generation: u64,
+    slot: SummarySlot<T>,
+    fetch: impl Future<Output = Result<Option<T>, ApiError>> + 'static,
+) {
+    leptos::task::spawn_local(async move {
+        let result = fetch.await;
+        if !session.is_current(generation) {
+            return;
+        }
+        if result.as_ref().is_err_and(ApiError::is_unauthorized) {
+            session.mark_unauthenticated();
+            return;
+        }
+        slot.set(Some((generation, result.ok().flatten())));
+    });
+}
+
+fn current_summary<T: Clone + Send + Sync + 'static>(
+    slot: SummarySlot<T>,
+    generation: u64,
+) -> Option<Option<T>> {
+    slot.get()
+        .filter(|(cached, _)| *cached == generation)
+        .map(|(_, summary)| summary)
+}
+
+#[component]
+fn HomeOverview() -> impl IntoView {
+    let session = use_session();
+    let asset: SummarySlot<AssetBalanceSummary> = RwSignal::new(None);
+    let dividend: SummarySlot<DividendSummary> = RwSignal::new(None);
+    Effect::new(move |_| {
+        let generation = session.generation.get();
+        if session.user.get().is_none() {
+            asset.set(None);
+            dividend.set(None);
+            return;
+        }
+        load_summary(session, generation, asset, fetch_asset_summary());
+        load_summary(
+            session,
+            generation,
+            dividend,
+            fetch_dividend_summary(js_sys::Date::new_0().get_full_year()),
+        );
+    });
+    let snapshot = move || {
+        let generation = session.generation.get();
+        (
+            current_summary(asset, generation),
+            current_summary(dividend, generation),
+        )
+    };
+    view! {
+        <Show when=move || session.user.get().is_some()>
+            <section
+                aria-label="資産の概要"
+                aria-busy=move || {
+                    let (asset, dividend) = snapshot();
+                    if asset.is_none() || dividend.is_none() { "true" } else { "false" }
+                }
+                data-testid="home-overview"
+            >
+                {move || {
+                    let (asset, dividend) = snapshot();
+                    view! { <OverviewTiles asset=asset dividend=dividend /> }
+                }}
+                <p class="text-xs font-medium text-slate-600" role="status" aria-live="polite">
+                    {move || {
+                        let (asset, dividend) = snapshot();
+                        matches!((asset, dividend), (Some(None), _) | (_, Some(None)))
+                            .then(|| {
                                 view! {
-                                    <div class="rounded-lg border border-slate-950/10 bg-white/75 px-3 py-3">
-                                        <span class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">
-                                            {*step}
-                                        </span>
-                                        <p class="mt-1 text-sm font-bold text-slate-800">{*text}</p>
-                                    </div>
+                                    <span class="mt-2 block">"一部の集計を取得できませんでした。"</span>
                                 }
                             })
-                            .collect_view()}
-                    </div>
-                </section>
-                <section class="rounded-lg border border-slate-950/10 bg-white/70 px-4 py-3">
-                    <h2 class="text-sm font-black text-slate-950">"操作ショートカット"</h2>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        {NEXT_ACTIONS
-                            .iter()
-                            .map(|(to, label)| {
+                    }}
+                </p>
+            </section>
+        </Show>
+    }
+}
+
+#[component]
+fn OverviewTiles(
+    asset: Option<Option<AssetBalanceSummary>>,
+    dividend: Option<Option<DividendSummary>>,
+) -> impl IntoView {
+    let asset_busy = asset.is_none();
+    let dividend_busy = dividend.is_none();
+    let asset = asset.flatten();
+    let market = asset
+        .as_ref()
+        .map(|summary| format_currency_decimal(summary.total_market_value));
+    let valuation = asset
+        .as_ref()
+        .filter(|summary| {
+            !(summary.total_market_value.is_zero() && summary.total_purchase_amount.is_zero())
+        })
+        .map(|summary| {
+            calculate_valuation_from_decimal(
+                summary.total_market_value,
+                summary.total_purchase_amount,
+            )
+        });
+    let (profit_class, profit_negative) =
+        valuation_tone(valuation.as_ref().and_then(|valuation| valuation.amount));
+    let profit_rate = valuation.as_ref().map(|valuation| match valuation.rate {
+        Some(rate) => format_valuation_rate(Some(rate), 1),
+        None => "算出不可".to_string(),
+    });
+    let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
+    let dividend = dividend
+        .flatten()
+        .map(|summary| format_currency_decimal(summary.total_net_amount_received));
+    view! {
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <OverviewTile label="評価額" value=market busy=asset_busy />
+            <OverviewTile
+                label="評価損益"
+                value=profit
+                busy=asset_busy
+                value_class=profit_class
+                negative=profit_negative
+                note=profit_rate
+            />
+            <OverviewTile label="今年の配当金(税引)" value=dividend busy=dividend_busy />
+        </div>
+    }
+}
+
+#[component]
+fn OverviewTile(
+    label: &'static str,
+    value: Option<String>,
+    busy: bool,
+    #[prop(default = "text-slate-950")] value_class: &'static str,
+    #[prop(default = None)] negative: Option<&'static str>,
+    #[prop(default = None)] note: Option<String>,
+) -> impl IntoView {
+    view! {
+        <div class="rounded-xl border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
+            <p class="text-sm font-medium text-slate-600">{label}</p>
+            {if busy {
+                view! {
+                    <div
+                        class="mt-2 h-7 w-32 animate-pulse rounded bg-slate-200"
+                        aria-hidden="true"
+                    ></div>
+                }
+                    .into_any()
+            } else {
+                view! {
+                    <p
+                        class=format!(
+                            "mt-1 flex flex-wrap items-baseline gap-x-2 text-2xl font-black tabular-nums {value_class}",
+                        )
+                        data-negative=negative
+                    >
+                        <span class="break-all">{value.unwrap_or_else(|| "—".to_string())}</span>
+                        {note
+                            .map(|note| {
                                 view! {
-                                    <a
-                                        href={*to}
-                                        class="home-link-button"
-                                    >
-                                        {*label}
-                                    </a>
+                                    <span class="whitespace-nowrap text-sm font-bold">{format!("（{note}）")}</span>
                                 }
-                            })
-                            .collect_view()}
-                    </div>
-                </section>
-            </div>
+                            })}
+                    </p>
+                }
+                    .into_any()
+            }}
         </div>
     }
 }
