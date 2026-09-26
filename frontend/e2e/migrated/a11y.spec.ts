@@ -609,11 +609,6 @@ const TARGET_EXCLUSIONS: TargetExclusion[] = [
     match: (t) => t.tag === 'A' && t.cls.includes('stock-link-button'),
   },
   {
-    issue: 1071,
-    mobileOnly: true,
-    match: (t) => t.cls.includes('home-nav-chip') || t.cls.includes('home-link-button'),
-  },
-  {
     issue: 1070,
     mobileOnly: true,
     match: (t) => t.tag === 'A' && t.name.endsWith('（新しいタブで開く）'),
