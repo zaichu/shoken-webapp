@@ -442,6 +442,17 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     }
 
     #[test]
+    fn test_hash_session_token_matches_canonical_uuid_digest() {
+        let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        // SQL の sha256(convert_to(id::text, 'UTF8')) と一致するよう、
+        // 小文字ハイフン付きの正規形文字列をハッシュする
+        assert_eq!(
+            hash_session_token(id),
+            Sha256::digest(id.to_string().as_bytes()).to_vec()
+        );
+    }
+
+    #[test]
     fn test_oidc_verified_profile() {
         let (token, keys) = signed_token(valid_claims());
         let user = verify_google_id_token(
