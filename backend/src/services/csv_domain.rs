@@ -21,6 +21,7 @@ pub trait CsvDomain: Send + Sync + 'static {
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
+        user_row_limit: i64,
     ) -> impl std::future::Future<Output = Result<CsvUploadResponse, ApiError>> + Send;
 }
 
@@ -45,8 +46,9 @@ impl CsvDomain for DividendDomain {
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
+        user_row_limit: i64,
     ) -> Result<CsvUploadResponse, ApiError> {
-        crate::services::dividend::upload_csv(pool, user_id, bytes).await
+        crate::services::dividend::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
 }
 
@@ -59,8 +61,9 @@ impl CsvDomain for DomesticStockDomain {
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
+        user_row_limit: i64,
     ) -> Result<CsvUploadResponse, ApiError> {
-        crate::services::domestic_stock::upload_csv(pool, user_id, bytes).await
+        crate::services::domestic_stock::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
 }
 
@@ -73,8 +76,9 @@ impl CsvDomain for MutualfundDomain {
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
+        user_row_limit: i64,
     ) -> Result<CsvUploadResponse, ApiError> {
-        crate::services::mutualfund::upload_csv(pool, user_id, bytes).await
+        crate::services::mutualfund::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
 }
 
@@ -87,8 +91,9 @@ impl CsvDomain for AssetBalanceDomain {
         pool: &PgPool,
         user_id: Uuid,
         bytes: &[u8],
+        user_row_limit: i64,
     ) -> Result<CsvUploadResponse, ApiError> {
-        crate::services::asset_balance::upload_csv(pool, user_id, bytes).await
+        crate::services::asset_balance::upload_csv(pool, user_id, bytes, user_row_limit).await
     }
 }
 #[cfg(test)]

@@ -7,14 +7,14 @@ use crate::models::common::{
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
-    BulkTimer, DeleteTarget, UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
+    DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
 use crate::services::csv_pipeline::parse_csv_with_config;
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{parse_number, parse_optional_string, CsvCells};
+use crate::services::csv_util::{parse_number, parse_optional_string, CsvCells, RowNumber};
 use crate::services::facets;
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
@@ -164,17 +164,7 @@ async fn fetch_security_facets(
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
-/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
-    pool: &PgPool,
-    user_id: Uuid,
-    items: &[CreateAssetBalanceRequest],
-) -> Result<BulkCreateResponse, ApiError> {
-    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
-}
-
-/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
-pub async fn bulk_create_with_limit(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateAssetBalanceRequest],
@@ -265,12 +255,13 @@ pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
     bytes: &[u8],
+    user_row_limit: i64,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
         &ASSET_BALANCE_CSV_CONFIG,
         transform_asset_balance_rows,
-        |items| async move { bulk_create(pool, user_id, &items).await },
+        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
     )
     .await
 }
@@ -307,19 +298,19 @@ fn is_account_summary_row(row: &CsvRow) -> bool {
 ///   - 評価損益（%）: NISA 等で表示されない場合に "-"
 fn transform_asset_balance_row(
     row: &CsvRow,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<CreateAssetBalanceRequest, CsvRowError> {
     let num = |col: &str| {
         let raw = parse_optional_string(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             return Err(CsvRowError {
-                row: row_num,
+                row: row_num.get(),
                 message: format!("必須列 '{col}' が空または値なし"),
             });
         }
         parse_number(trimmed).map_err(|e| CsvRowError {
-            row: row_num,
+            row: row_num.get(),
             message: format!("{col}: {e}"),
         })
     };
@@ -483,10 +474,7 @@ mod tests {
             preview.errors
         );
 
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
 
         for (rows, expected_codes) in [
             (

@@ -2,17 +2,18 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv_util::RowNumber;
 use std::future::Future;
 
 pub fn validate_csv_rows<T, F>(rows: &[CsvRow], transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
 where
-    F: Fn(&CsvRow, usize) -> Result<T, CsvRowError>,
+    F: Fn(&CsvRow, RowNumber) -> Result<T, CsvRowError>,
 {
     let mut items = Vec::new();
     let mut errors = Vec::new();
 
     for (index, row) in rows.iter().enumerate() {
-        let row_num = index + 1;
+        let row_num = RowNumber::new(index + 1);
         match transform_row(row, row_num) {
             Ok(item) => items.push(item),
             Err(error) => errors.push(error),
@@ -22,18 +23,27 @@ where
     (items, errors)
 }
 
-pub fn build_preview_response<T>(items: &[T], errors: Vec<CsvRowError>) -> CsvPreviewResponse
+pub fn build_preview_response<T>(items: &[T], mut errors: Vec<CsvRowError>) -> CsvPreviewResponse
 where
     T: serde::Serialize,
 {
-    let rows = items
-        .iter()
-        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
-        .collect();
+    let mut rows = Vec::with_capacity(items.len());
+    for (index, item) in items.iter().enumerate() {
+        match serde_json::to_value(item) {
+            Ok(value) => rows.push(value),
+            Err(e) => {
+                tracing::error!("プレビュー行のシリアライズに失敗: {e}");
+                errors.push(CsvRowError {
+                    row: index + 1,
+                    message: "行のシリアライズに失敗しました".to_string(),
+                });
+            }
+        }
+    }
 
     CsvPreviewResponse {
-        total_rows: items.len() + errors.len(),
-        valid_rows: items.len(),
+        total_rows: rows.len() + errors.len(),
+        valid_rows: rows.len(),
         errors,
         rows,
     }
@@ -144,7 +154,7 @@ mod tests {
             let value = row.get("key").cloned().unwrap_or_default();
             if value == "bad" {
                 Err(CsvRowError {
-                    row: row_num,
+                    row: row_num.get(),
                     message: "invalid".to_string(),
                 })
             } else {
@@ -205,7 +215,7 @@ mod tests {
 
         assert!(matches!(
             build_csv_preview(b"", &PREVIEW_TEST_CONFIG, collect_names),
-            Err(ApiError::ValidationError(_))
+            Err(ApiError::Csv(_))
         ));
     }
 
@@ -250,7 +260,7 @@ mod tests {
             },
         )
         .await;
-        assert!(matches!(result, Err(ApiError::ValidationError(_))));
+        assert!(matches!(result, Err(ApiError::Csv(_))));
         assert!(
             !bulk_invoked.get(),
             "bulk_create must not run when parse fails"

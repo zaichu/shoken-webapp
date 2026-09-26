@@ -1,4 +1,4 @@
-use backend::config::{self, Config};
+use backend::config::Config;
 use backend::db::{run_migrations, wait_for_pool_with_retry};
 use backend::logging;
 use backend::routes::app_router;
@@ -41,9 +41,9 @@ async fn main() {
             std::process::exit(1);
         });
 
-    let router = app_router(state, &config, &startup_ready);
+    let router = app_router(state, &startup_ready);
 
-    let addr = config::server_addr();
+    let addr = config.server_addr;
 
     let t0 = Instant::now();
 

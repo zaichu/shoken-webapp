@@ -10,7 +10,10 @@ use axum::{
 use crate::errors::simple_error_response;
 
 /// セキュリティヘッダー付与ミドルウェア
-pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
+///
+/// `secure_cookie`（Secure Cookie 環境か）だけ真のとき HSTS を付与する。
+/// 環境変数はリクエストごとに読まず、ルータ構築時に解決済みの値を渡す
+pub async fn add_security_headers(secure_cookie: bool, req: Request<Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
     headers.insert(
@@ -26,21 +29,13 @@ pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
         "Content-Security-Policy",
         HeaderValue::from_static("default-src 'none'"),
     );
-    if crate::config::is_secure_cookie() {
+    if secure_cookie {
         headers.insert(
             "Strict-Transport-Security",
             HeaderValue::from_static("max-age=31536000; includeSubDomains"),
         );
     }
     response
-}
-
-/// Origin/Referer なし unsafe method を拒否すべき環境かどうかを判定する
-///
-/// 本番相当の環境(環境変数の未設定を含む)では true。
-/// RUST_ENV / APP_ENV がすべて開発用の値に明示設定されている場合のみ緩い判定にする
-fn is_strict_origin_check() -> bool {
-    crate::config::is_production_env()
 }
 
 /// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
@@ -69,8 +64,10 @@ fn csrf_error() -> Response {
 /// POST/PUT/DELETE リクエストに対して Origin ヘッダーを検証し、
 /// 許可されたオリジンからのリクエストのみ通過させる。
 /// allowed_origins は Config::cors_origins と一致させる。
+/// `strict_origin_check`（本番相当か）はルータ構築時に解決済みの値を渡す
 pub async fn validate_origin(
     allowed_origins: Arc<Vec<String>>,
+    strict_origin_check: bool,
     request: Request<Body>,
     next: Next,
 ) -> Response {
@@ -120,7 +117,7 @@ pub async fn validate_origin(
                 None => {
                     // Origin も Referer もなし
                     // 本番・staging 等の明示設定済み環境では CSRF リスクがあるため拒否する
-                    if is_strict_origin_check() {
+                    if strict_origin_check {
                         csrf_error()
                     } else {
                         next.run(request).await
@@ -137,11 +134,10 @@ pub async fn validate_origin(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_env::{EnvGuard, ENV_MUTEX};
     use axum::{middleware, routing::post, Router};
     use tower::ServiceExt;
 
-    fn test_app() -> Router {
+    fn test_app(strict_origin_check: bool) -> Router {
         let allowed_origins = Arc::new(vec![
             "https://shoken-webapp.vercel.app".to_string(),
             "http://localhost:8080".to_string(),
@@ -154,14 +150,16 @@ mod tests {
             .route("/test", post(|| async { "ok" }))
             .layer(middleware::from_fn(move |req, next| {
                 let origins = allowed_origins.clone();
-                async move { validate_origin(origins, req, next).await }
+                async move { validate_origin(origins, strict_origin_check, req, next).await }
             }))
     }
 
-    fn security_headers_app() -> Router {
+    fn security_headers_app(secure_cookie: bool) -> Router {
         Router::new()
             .route("/test", post(|| async { "ok" }))
-            .layer(middleware::from_fn(add_security_headers))
+            .layer(middleware::from_fn(move |req, next| {
+                add_security_headers(secure_cookie, req, next)
+            }))
     }
 
     async fn oneshot_status(app: Router, method: Method, headers: &[(&str, &str)]) -> StatusCode {
@@ -178,12 +176,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_origin() {
-        let _lock = ENV_MUTEX.lock().await;
-        // Origin/Referer なしを通すケースがあるため、開発用の値を明示して緩い判定にする
-        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
-        let _rust_env = EnvGuard::set("RUST_ENV", None);
-        let _backend_url = EnvGuard::set("BACKEND_URL", None);
-
         for (input, expected) in [
             (
                 "http://localhost:8080/some/page",
@@ -210,7 +202,7 @@ mod tests {
         }
 
         assert_ne!(
-            oneshot_status(test_app(), Method::GET, &[]).await,
+            oneshot_status(test_app(false), Method::GET, &[]).await,
             StatusCode::FORBIDDEN
         );
 
@@ -251,7 +243,7 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                oneshot_status(test_app(), Method::POST, headers).await,
+                oneshot_status(test_app(false), Method::POST, headers).await,
                 expected
             );
         }
@@ -261,7 +253,7 @@ mod tests {
             .route("/test", axum::routing::delete(|| async { "ok" }))
             .layer(middleware::from_fn(move |req, next| {
                 let origins = allowed_origins.clone();
-                async move { validate_origin(origins, req, next).await }
+                async move { validate_origin(origins, false, req, next).await }
             }));
 
         assert_eq!(
@@ -276,102 +268,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_validate_origin_production_strict() {
-        let _lock = ENV_MUTEX.lock().await;
-
-        // APP_ENV=production のとき Origin/Referer なしは 403
-        {
-            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
+    async fn test_validate_origin_strict() {
+        // strict では Origin/Referer なしの unsafe method は 403
+        assert_eq!(
+            oneshot_status(test_app(true), Method::POST, &[]).await,
+            StatusCode::FORBIDDEN
+        );
+        // strict でも GET/HEAD/OPTIONS はスキップして通過
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+            assert_ne!(
+                oneshot_status(test_app(true), method, &[]).await,
                 StatusCode::FORBIDDEN
             );
         }
-
-        // APP_ENV/RUST_ENV 未設定のときも Origin/Referer なしは 403(fail-safe で本番扱い)
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::FORBIDDEN
-            );
-        }
-
-        // BACKEND_URL のスキームは判定に使わない(https でも未設定なら本番扱いで拒否)
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", Some("https://api.example.com"));
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::FORBIDDEN
-            );
-        }
-
-        // APP_ENV=production でも GET/HEAD/OPTIONS は Origin 検証をスキップして通過
-        {
-            let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
-                assert_ne!(
-                    oneshot_status(test_app(), method, &[]).await,
-                    StatusCode::FORBIDDEN
-                );
-            }
-        }
-
-        // APP_ENV=staging のとき Origin/Referer なしは 403（非本番でも明示設定済みなら拒否）
-        {
-            let _app_env = EnvGuard::set("APP_ENV", Some("staging"));
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::FORBIDDEN
-            );
-        }
-
-        // APP_ENV=development のとき Origin/Referer なしは通過（exempt 値）
-        {
-            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
-            let _rust_env = EnvGuard::set("RUST_ENV", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::OK
-            );
-        }
-
-        // RUST_ENV=staging のとき Origin/Referer なしは 403
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            let _rust_env = EnvGuard::set("RUST_ENV", Some("staging"));
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::FORBIDDEN
-            );
-        }
-
-        // RUST_ENV=test のとき Origin/Referer なしは通過（exempt 値）
-        {
-            let _app_env = EnvGuard::set("APP_ENV", None);
-            let _rust_env = EnvGuard::set("RUST_ENV", Some("test"));
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
-            assert_eq!(
-                oneshot_status(test_app(), Method::POST, &[]).await,
-                StatusCode::OK
-            );
-        }
+        // 非 strict では Origin/Referer なしでも通過
+        assert_eq!(
+            oneshot_status(test_app(false), Method::POST, &[]).await,
+            StatusCode::OK
+        );
     }
 
-    async fn security_headers_response() -> axum::response::Response {
-        security_headers_app()
+    async fn security_headers_response(secure_cookie: bool) -> axum::response::Response {
+        security_headers_app(secure_cookie)
             .oneshot(
                 Request::builder()
                     .method(Method::POST)
@@ -385,41 +303,28 @@ mod tests {
 
     #[tokio::test]
     async fn test_security_headers() {
-        {
-            let _lock = ENV_MUTEX.lock().await;
-            // Secure Cookie 判定を外すため開発用の値を明示する(未設定は本番扱いで Secure 固定)
-            let _app_env = EnvGuard::set("APP_ENV", Some("development"));
-            let _secure_cookie = EnvGuard::set("SECURE_COOKIE", None);
-            let _backend_url = EnvGuard::set("BACKEND_URL", None);
+        let resp = security_headers_response(false).await;
 
-            let resp = security_headers_response().await;
-
-            for (name, expected) in [
-                ("X-Content-Type-Options", "nosniff"),
-                ("X-Frame-Options", "DENY"),
-                ("Referrer-Policy", "strict-origin-when-cross-origin"),
-                ("Content-Security-Policy", "default-src 'none'"),
-            ] {
-                assert_eq!(resp.headers().get(name).unwrap(), expected);
-            }
-
-            assert!(
-                resp.headers().get("Strict-Transport-Security").is_none(),
-                "secure cookie 無効時は HSTS を付与しない"
-            );
+        for (name, expected) in [
+            ("X-Content-Type-Options", "nosniff"),
+            ("X-Frame-Options", "DENY"),
+            ("Referrer-Policy", "strict-origin-when-cross-origin"),
+            ("Content-Security-Policy", "default-src 'none'"),
+        ] {
+            assert_eq!(resp.headers().get(name).unwrap(), expected);
         }
 
-        {
-            let _lock = ENV_MUTEX.lock().await;
-            let _secure_cookie = EnvGuard::set("SECURE_COOKIE", Some("true"));
+        assert!(
+            resp.headers().get("Strict-Transport-Security").is_none(),
+            "secure cookie 無効時は HSTS を付与しない"
+        );
 
-            let resp = security_headers_response().await;
+        let resp = security_headers_response(true).await;
 
-            assert_eq!(
-                resp.headers().get("Strict-Transport-Security").unwrap(),
-                "max-age=31536000; includeSubDomains"
-            );
-        }
+        assert_eq!(
+            resp.headers().get("Strict-Transport-Security").unwrap(),
+            "max-age=31536000; includeSubDomains"
+        );
     }
 
     proptest::proptest! {

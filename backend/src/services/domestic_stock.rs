@@ -7,13 +7,13 @@ use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
-    BulkTimer, DeleteTarget, UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
+    DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_date, parse_required_number, parse_required_string,
+    parse_required_date, parse_required_number, parse_required_string, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -233,18 +233,7 @@ async fn fetch_security_facets(
 ///   純増分CSV（新規分のみ）で既存行と同一ハッシュの行が含まれる場合は
 ///   batch_index <= existing_count でスキップされる。
 ///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
-///
-/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
-    pool: &PgPool,
-    user_id: Uuid,
-    items: &[CreateDomesticStockRequest],
-) -> Result<BulkCreateResponse, ApiError> {
-    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
-}
-
-/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
-pub async fn bulk_create_with_limit(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateDomesticStockRequest],
@@ -383,12 +372,13 @@ pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
     bytes: &[u8],
+    user_row_limit: i64,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
         &DOMESTIC_STOCK_CSV_CONFIG,
         transform_domestic_stock_rows,
-        |items| async move { bulk_create(pool, user_id, &items).await },
+        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
     )
     .await
 }
@@ -401,7 +391,7 @@ fn transform_domestic_stock_rows(
 
 fn transform_domestic_stock_row(
     row: &CsvRow,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;
     let settlement_date = parse_required_date(row, "受渡日", row_num)?;
@@ -509,10 +499,7 @@ mod tests {
             assert_preview_error(header, row, expected_message);
         }
 
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
     }
 
     fn make_test_item() -> CreateDomesticStockRequest {
@@ -559,10 +546,10 @@ mod tests {
 
         let items = vec![make_test_item(); 5];
 
-        let first = bulk_create(&pool, user_id, &items).await.unwrap();
+        let first = bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
         assert_eq!((first.inserted, first.skipped), (5, 0));
 
-        let second = bulk_create(&pool, user_id, &items).await.unwrap();
+        let second = bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
         assert_eq!((second.inserted, second.skipped), (0, 5));
     }
 
@@ -635,7 +622,7 @@ mod tests {
             let err = DomesticStockFilter::from_params(&params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
-                matches!(err, ApiError::ValidationError(_)),
+                matches!(err, ApiError::Validation(_)),
                 "field={field} の失敗が ValidationError ではない"
             );
         }
@@ -734,7 +721,7 @@ mod tests {
             make_summary_item(day1, "NISA", "9433", dec!(2000)),
             make_summary_item(day2, "特定", "5020", dec!(-3000)),
         ];
-        bulk_create(&pool, user_id, &items).await.unwrap();
+        bulk_create(&pool, user_id, &items, i64::MAX).await.unwrap();
 
         let mut params = DomesticStockSearchQueryParams::default();
         params.search.include_summary = Some(true);

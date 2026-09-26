@@ -7,13 +7,14 @@ use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
-    BulkTimer, DeleteTarget, UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
+    DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
     parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
+    RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -208,17 +209,7 @@ async fn fetch_security_facets(
 }
 
 /// 配当金を一括追加（重複はスキップ）
-/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
-    pool: &PgPool,
-    user_id: Uuid,
-    items: &[CreateDividendRequest],
-) -> Result<BulkCreateResponse, ApiError> {
-    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
-}
-
-/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
-pub async fn bulk_create_with_limit(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateDividendRequest],
@@ -301,12 +292,13 @@ pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
     bytes: &[u8],
+    user_row_limit: i64,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
         &DIVIDEND_CSV_CONFIG,
         transform_dividend_rows,
-        |items| async move { bulk_create(pool, user_id, &items).await },
+        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
     )
     .await
 }
@@ -317,7 +309,7 @@ fn transform_dividend_rows(rows: &[CsvRow]) -> (Vec<CreateDividendRequest>, Vec<
 
 fn transform_dividend_row(
     row: &CsvRow,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<CreateDividendRequest, CsvRowError> {
     Ok(CreateDividendRequest {
         settlement_date: parse_required_date(row, "入金日", row_num)?,
@@ -369,10 +361,7 @@ mod tests {
             (2, 2, true, 2)
         );
 
-        assert!(matches!(
-            preview_csv(b""),
-            Err(ApiError::ValidationError(_))
-        ));
+        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
 
         let preview = preview_from_lines(&[
             HEADER,
@@ -480,7 +469,7 @@ mod tests {
             let err = DividendFilter::from_params(&params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
-                matches!(err, ApiError::ValidationError(_)),
+                matches!(err, ApiError::Validation(_)),
                 "field={field} の失敗が ValidationError ではない"
             );
         }

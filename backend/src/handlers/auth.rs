@@ -1,7 +1,6 @@
-use crate::config;
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ConfigError};
 use crate::models::user::UserResponse;
-use crate::services::auth::{self as auth_service, create_oauth_client};
+use crate::services::auth::{self as auth_service, GoogleOAuthClient};
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
@@ -29,20 +28,12 @@ pub fn same_site(secure: bool) -> SameSite {
     }
 }
 
-fn google_oauth_credentials(state: &AppState) -> Result<(&str, &str), ApiError> {
-    let client_id =
-        state.secrets.google_client_id.as_deref().ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_ID が設定されていません".to_string())
-        })?;
-    let client_secret = state
-        .secrets
-        .google_client_secret
-        .as_deref()
-        .ok_or_else(|| {
-            ApiError::ApiError("GOOGLE_CLIENT_SECRET が設定されていません".to_string())
-        })?;
-
-    Ok((client_id, client_secret))
+fn google_oauth_client(state: &AppState) -> Result<&GoogleOAuthClient, ApiError> {
+    state.google_oauth.as_ref().ok_or_else(|| {
+        ApiError::Config(ConfigError::Missing(
+            "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が設定されていません",
+        ))
+    })
 }
 
 fn build_oauth_cookie(name: &'static str, value: &str, secure: bool) -> Cookie<'static> {
@@ -97,11 +88,11 @@ pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<uuid::Uuid, ApiError> 
     let session_token = jar
         .get(auth_service::SESSION_COOKIE_NAME)
         .map(|c| c.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
+        .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?;
 
     let session_id: uuid::Uuid = session_token
         .parse()
-        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
+        .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
 
     Ok(session_id)
 }
@@ -110,8 +101,7 @@ pub async fn google_auth(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<(CookieJar, Redirect), ApiError> {
-    let (client_id, client_secret) = google_oauth_credentials(&state)?;
-    let client = create_oauth_client(client_id, client_secret)?;
+    let client = google_oauth_client(&state)?;
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
     let nonce = Nonce::new_random();
@@ -124,7 +114,7 @@ pub async fn google_auth(
         .add_extra_param("nonce", nonce.secret())
         .url();
 
-    let is_secure = config::is_secure_cookie();
+    let is_secure = state.config.secure_cookie;
     let jar = jar
         .add(build_state_cookie(csrf_token.secret(), is_secure))
         .add(build_oauth_cookie(
@@ -149,15 +139,13 @@ pub async fn google_callback(
     let stored_state = jar
         .get(auth_service::OAUTH_STATE_COOKIE_NAME)
         .map(|c| c.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません".to_string()))?;
+        .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません"))?;
 
     if query.state != stored_state {
-        return Err(ApiError::Unauthorized(
-            "OAuth state が一致しません".to_string(),
-        ));
+        return Err(ApiError::Unauthorized("OAuth state が一致しません"));
     }
 
-    let is_secure = config::is_secure_cookie();
+    let is_secure = state.config.secure_cookie;
     let pkce_verifier = jar
         .get(auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME)
         .map(|c| c.value().to_string());
@@ -175,19 +163,15 @@ pub async fn google_callback(
             is_secure,
         ));
 
-    let (client_id, client_secret) = google_oauth_credentials(&state)?;
-    let client = create_oauth_client(client_id, client_secret)?;
+    let client = google_oauth_client(&state)?;
 
-    let pkce_verifier = pkce_verifier.ok_or_else(|| {
-        ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません".to_string())
-    })?;
-    let nonce =
-        nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません".to_string()))?;
+    let pkce_verifier = pkce_verifier
+        .ok_or_else(|| ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません"))?;
+    let nonce = nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません"))?;
 
     let session_token = auth_service::authenticate_with_google_code(
         &state.pool,
-        &state.client,
-        &client,
+        client,
         query.code,
         pkce_verifier,
         Nonce::new(nonce),
@@ -214,7 +198,7 @@ pub async fn get_current_user(
     // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
     let user = auth_service::select_user_by_session(&state.pool, session_id)
         .await?
-        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
+        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
     Ok(Json(user.into()))
 }
@@ -229,8 +213,7 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoR
         }
     }
 
-    let is_secure = config::is_secure_cookie();
-    let cookie = clear_session_cookie(is_secure);
+    let cookie = clear_session_cookie(state.config.secure_cookie);
 
     let jar = jar.remove(cookie);
 
@@ -275,6 +258,8 @@ mod tests {
             secrets,
             client: Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: Arc::new(crate::config::Config::default()),
+            google_oauth: None,
         }
     }
     fn test_app() -> Router {
@@ -360,26 +345,24 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn test_google_oauth_credentials() {
+    async fn test_google_oauth_client() {
         let mut state = make_test_state();
-        state.secrets = Arc::new(Secrets {
-            database_url: String::new(),
-            jquants_api_key: None,
-            google_client_id: Some("test-client-id".to_string()),
-            google_client_secret: Some("test-client-secret".to_string()),
-            frontend_url: String::new(),
-        });
-        assert_eq!(
-            google_oauth_credentials(&state).unwrap(),
-            ("test-client-id", "test-client-secret")
+        assert!(google_oauth_client(&state).is_err());
+        state.google_oauth = Some(
+            crate::services::auth::create_oauth_client(
+                "test-client-id",
+                "test-client-secret",
+                "http://localhost:3001",
+            )
+            .unwrap(),
         );
-        assert!(google_oauth_credentials(&make_test_state()).is_err());
+        assert!(google_oauth_client(&state).is_ok());
     }
 
     #[tokio::test]
     async fn test_google_callback_matching_state_proceeds_past_state_check() {
         use crate::services::auth::OAUTH_STATE_COOKIE_NAME;
-        // state が一致する場合は Unauthorized にならず、後段の credentials チェックへ進む
+        // state が一致する場合は Unauthorized にならず、後段の OAuth クライアント確認へ進む
         let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "test-state"));
         let result = google_callback(
             State(make_test_state()),
@@ -390,10 +373,10 @@ mod tests {
             jar,
         )
         .await;
-        let err = result.expect_err("credentials 未設定のためエラーになる");
+        let err = result.expect_err("OAuth クライアント未設定のためエラーになる");
         assert!(
-            matches!(err, ApiError::ApiError(_)),
-            "state 一致時は credentials エラーになるはず: {err:?}"
+            matches!(err, ApiError::Config(_)),
+            "state 一致時は Config エラーになるはず: {err:?}"
         );
     }
 

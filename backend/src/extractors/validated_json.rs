@@ -25,13 +25,13 @@ where
         let result: Result<Json<T>, JsonRejection> = Json::<T>::from_request(req, state).await;
         let Json(value) = result.map_err(|e| {
             error!("[ValidatedJson] JSONパースエラー: {}", e);
-            ApiError::JsonParseError
+            ApiError::JsonParse
         })?;
 
         value.validate().map_err(|rejection| {
             let msg = format!("{rejection}").replace('\n', ", ");
             error!("[ValidatedJson] バリデーションエラー: {}", msg);
-            ApiError::ValidationError(msg)
+            ApiError::Validation(msg)
         })?;
 
         Ok(ValidatedJson(value))
@@ -106,7 +106,7 @@ mod tests {
             )
             .await
             .unwrap_err(),
-            ApiError::JsonParseError
+            ApiError::JsonParse
         ));
         assert!(matches!(
             ValidatedJson::<TestData>::from_request(
@@ -121,7 +121,7 @@ mod tests {
             )
             .await
             .unwrap_err(),
-            ApiError::ValidationError(_)
+            ApiError::Validation(_)
         ));
     }
 }

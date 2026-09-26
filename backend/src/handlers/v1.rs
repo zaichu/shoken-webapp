@@ -120,6 +120,8 @@ mod tests {
             }),
             client: reqwest::Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: Arc::new(crate::config::Config::default()),
+            google_oauth: None,
         }
     }
 
@@ -199,7 +201,6 @@ mod tests {
             .merge(data_routes())
             .merge(stock_search_routes())
             .merge(csv_upload_routes())
-            .merge(crate::handlers::csv_import::csv_import_routes())
             .with_state(make_test_state());
 
         let status = check_status(router.clone(), Method::POST, "/api/v1/stocks").await;

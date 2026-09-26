@@ -1,5 +1,4 @@
 use crate::{
-    config,
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     handlers::auth::same_site,
@@ -37,7 +36,7 @@ fn account_delete_confirmation_mac(
     nonce: &str,
 ) -> Result<Hmac<Sha256>, ApiError> {
     let mut mac = Hmac::<Sha256>::new_from_slice(session_token.as_bytes())
-        .map_err(|_| ApiError::ApiError("アカウント削除確認の生成に失敗しました".to_string()))?;
+        .map_err(|_| ApiError::Internal("アカウント削除確認の生成に失敗しました"))?;
     mac.update(format!("account-delete:{issued_at}:{nonce}").as_bytes());
     Ok(mac)
 }
@@ -135,24 +134,24 @@ pub async fn delete_account(
 
     let confirmation = jar
         .get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME)
-        .ok_or_else(|| ApiError::ApiError("アカウント削除確認が完了していません".to_string()))?;
+        .ok_or_else(|| ApiError::Validation("アカウント削除確認が完了していません".to_string()))?;
     if !verify_account_delete_confirmation(
         confirmation.value(),
         &session_id.to_string(),
         chrono::Utc::now().timestamp(),
     ) {
-        return Err(ApiError::ApiError(
+        return Err(ApiError::Validation(
             "アカウント削除確認が無効です".to_string(),
         ));
     }
 
     let user_id = auth_service::select_user_id_by_session(&state.pool, session_id)
         .await?
-        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです".to_string()))?;
+        .ok_or(ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
     auth_service::delete_account(&state.pool, user_id).await?;
 
-    let is_secure = config::is_secure_cookie();
+    let is_secure = state.config.secure_cookie;
     let jar = jar
         .remove(crate::handlers::auth::clear_session_cookie(is_secure))
         .remove(clear_account_delete_confirmation_cookie(is_secure));
@@ -177,14 +176,14 @@ pub async fn delete_account(
     security(("cookieAuth" = []))
 )]
 pub async fn create_account_deletion_confirmation(
-    auth_user: AuthenticatedUser,
+    State(state): State<AppState>,
+    _auth_user: AuthenticatedUser,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    let _ = auth_user;
     let session_id = crate::handlers::auth::get_session_id_from_jar(&jar)?;
     let confirmation =
         issue_account_delete_confirmation(&session_id.to_string(), chrono::Utc::now().timestamp())?;
-    let is_secure = config::is_secure_cookie();
+    let is_secure = state.config.secure_cookie;
     let jar = jar.add(build_account_delete_confirmation_cookie(
         confirmation,
         is_secure,
@@ -266,6 +265,8 @@ mod tests {
             }),
             client: reqwest::Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: Arc::new(crate::config::Config::default()),
+            google_oauth: None,
         }
     }
 
@@ -372,10 +373,14 @@ mod tests {
             auth_service::SESSION_COOKIE_NAME,
             session_id.to_string(),
         ));
-        let response = create_account_deletion_confirmation(AuthenticatedUser(test_user()), jar)
-            .await
-            .expect("確認発行が失敗しないこと")
-            .into_response();
+        let response = create_account_deletion_confirmation(
+            State(make_test_state()),
+            AuthenticatedUser(test_user()),
+            jar,
+        )
+        .await
+        .expect("確認発行が失敗しないこと")
+        .into_response();
         let set_cookie = response
             .headers()
             .get_all(SET_COOKIE)
@@ -419,7 +424,7 @@ mod tests {
             .err()
             .expect("閉じたpoolのため削除は失敗する");
         assert!(
-            matches!(err, ApiError::DatabaseError(_)),
+            matches!(err, ApiError::Database(_)),
             "有効な確認は削除処理へ進むこと: {err:?}"
         );
 
@@ -443,7 +448,7 @@ mod tests {
                 .err()
                 .expect("無効な確認は拒否されること");
             assert!(
-                matches!(err, ApiError::ApiError(ref msg) if msg.contains("無効")),
+                matches!(err, ApiError::Validation(ref msg) if msg.contains("無効")),
                 "{case}: {err:?}"
             );
         }
@@ -457,7 +462,7 @@ mod tests {
             .err()
             .expect("確認 Cookie なしは拒否されること");
         assert!(
-            matches!(err, ApiError::ApiError(ref msg) if msg.contains("完了していません")),
+            matches!(err, ApiError::Validation(ref msg) if msg.contains("完了していません")),
             "Cookie 未提示: {err:?}"
         );
     }

@@ -515,7 +515,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'CSV_ERROR',
             message: 'CSVファイル（.csv）のみアップロードできます',
           },
         }),

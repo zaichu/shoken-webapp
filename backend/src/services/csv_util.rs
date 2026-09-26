@@ -4,6 +4,45 @@ use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::str::FromStr;
+use thiserror::Error;
+
+/// CSV の行番号（ヘッダー除く、1始まり）
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RowNumber(usize);
+
+impl RowNumber {
+    pub fn new(n: usize) -> Self {
+        Self(n)
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
+
+impl std::fmt::Display for RowNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// CSV セルのパース失敗。Display は従来の文言を維持する
+#[derive(Debug, Clone, PartialEq, Error)]
+pub enum CellError {
+    #[error("必須列 '{0}' が空または存在しません")]
+    MissingRequired(String),
+    #[error("数値のパースに失敗しました: '{0}'")]
+    InvalidNumber(String),
+    #[error("日付のパースに失敗しました: '{0}'")]
+    InvalidDate(String),
+}
+
+fn cell_error(row_num: RowNumber, message: String) -> CsvRowError {
+    CsvRowError {
+        row: row_num.get(),
+        message,
+    }
+}
 
 /// UTF-8 デコードを試み、失敗時は Shift-JIS にフォールバック
 pub fn decode_bytes(bytes: &[u8]) -> String {
@@ -17,7 +56,7 @@ pub fn decode_bytes(bytes: &[u8]) -> String {
 
 /// 数値文字列をパース（カンマ区切り・括弧マイナス対応）
 /// 例: "1,234" → 1234、"(500)" → -500、"-" → 0（値なし）
-pub fn parse_number(s: &str) -> Result<Decimal, String> {
+pub fn parse_number(s: &str) -> Result<Decimal, CellError> {
     let s = s.trim();
     if s.is_empty() || s == "-" {
         return Ok(Decimal::ZERO);
@@ -28,13 +67,13 @@ pub fn parse_number(s: &str) -> Result<Decimal, String> {
         (false, s)
     };
     let s = s.replace(',', "");
-    let value = Decimal::from_str(&s).map_err(|_| format!("数値のパースに失敗しました: '{s}'"))?;
+    let value = Decimal::from_str(&s).map_err(|_| CellError::InvalidNumber(s.clone()))?;
     // trailing zero を除去して表記差（"1" vs "1.0"）がハッシュに影響しないよう正規化する
     Ok(if negative { -value } else { value }.normalize())
 }
 
 /// 日付文字列をパース（"YYYY/MM/DD" または "YYYY-MM-DD"）
-pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
+pub fn parse_date(s: &str) -> Result<NaiveDate, CellError> {
     let s = s.trim();
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y/%m/%d") {
         return Ok(d);
@@ -42,7 +81,7 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         return Ok(d);
     }
-    Err(format!("日付のパースに失敗しました: '{s}'"))
+    Err(CellError::InvalidDate(s.to_string()))
 }
 
 /// 行から列名でセル値を参照する（列が存在しない場合は空文字）
@@ -68,18 +107,19 @@ pub fn parse_optional_string<R: CsvCells>(row: &R, col: &str) -> String {
     row.cell(col).to_string()
 }
 
+fn missing_required(col: &str) -> String {
+    CellError::MissingRequired(col.to_string()).to_string()
+}
+
 /// 必須文字列フィールドを取得（空の場合はエラー）
 pub fn parse_required_string<R: CsvCells>(
     row: &R,
     col: &str,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<String, CsvRowError> {
     let val = row.cell(col);
     if val.trim().is_empty() {
-        return Err(CsvRowError {
-            row: row_num,
-            message: format!("必須列 '{col}' が空または存在しません"),
-        });
+        return Err(cell_error(row_num, missing_required(col)));
     }
     Ok(val.to_string())
 }
@@ -88,32 +128,23 @@ pub fn parse_required_string<R: CsvCells>(
 pub fn parse_required_number<R: CsvCells>(
     row: &R,
     col: &str,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<Decimal, CsvRowError> {
     let raw = row.cell(col);
     if raw.trim().is_empty() {
-        return Err(CsvRowError {
-            row: row_num,
-            message: format!("必須列 '{col}' が空または存在しません"),
-        });
+        return Err(cell_error(row_num, missing_required(col)));
     }
-    parse_number(raw).map_err(|e| CsvRowError {
-        row: row_num,
-        message: format!("{col}: {e}"),
-    })
+    parse_number(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 
 /// 必須日付フィールドを取得（パース失敗でエラー）
 pub fn parse_required_date<R: CsvCells>(
     row: &R,
     col: &str,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<NaiveDate, CsvRowError> {
     let raw = row.cell(col);
-    parse_date(raw).map_err(|e| CsvRowError {
-        row: row_num,
-        message: format!("{col}: {e}"),
-    })
+    parse_date(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 #[cfg(test)]
 mod tests {
@@ -200,36 +231,43 @@ mod tests {
             csv::StringRecord::from(vec!["", "value"]),
             make_header_map(&["col_a", "col_b"]),
         );
-        let err = parse_required_string(&cells, "col_a", 3).unwrap_err();
+        let err = parse_required_string(&cells, "col_a", RowNumber::new(3)).unwrap_err();
         assert_eq!((err.row, err.message.contains("col_a")), (3, true));
-        assert_eq!(parse_required_string(&cells, "col_b", 1).unwrap(), "value");
+        assert_eq!(
+            parse_required_string(&cells, "col_b", RowNumber::new(1)).unwrap(),
+            "value"
+        );
         let cells = (
             csv::StringRecord::from(vec!["abc", "1,234", ""]),
             make_header_map(&["invalid", "valid", "empty"]),
         );
         assert_eq!(
-            parse_required_number(&cells, "invalid", 5).unwrap_err().row,
+            parse_required_number(&cells, "invalid", RowNumber::new(5))
+                .unwrap_err()
+                .row,
             5
         );
         assert_eq!(
-            parse_required_number(&cells, "valid", 1).unwrap(),
+            parse_required_number(&cells, "valid", RowNumber::new(1)).unwrap(),
             dec!(1234)
         );
-        let err = parse_required_number(&cells, "empty", 7).unwrap_err();
+        let err = parse_required_number(&cells, "empty", RowNumber::new(7)).unwrap_err();
         assert_eq!((err.row, err.message.contains("empty")), (7, true));
         let cells = (
             csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]),
             make_header_map(&["invalid", "valid", "out_of_range"]),
         );
         assert_eq!(
-            parse_required_date(&cells, "invalid", 2).unwrap_err().row,
+            parse_required_date(&cells, "invalid", RowNumber::new(2))
+                .unwrap_err()
+                .row,
             2
         );
         assert_eq!(
-            parse_required_date(&cells, "valid", 1).unwrap(),
+            parse_required_date(&cells, "valid", RowNumber::new(1)).unwrap(),
             NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()
         );
-        let err = parse_required_date(&cells, "out_of_range", 9).unwrap_err();
+        let err = parse_required_date(&cells, "out_of_range", RowNumber::new(9)).unwrap_err();
         assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
     fn make_row(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -279,12 +317,15 @@ mod tests {
     fn test_parse_required_string_row() {
         let row = make_row(&[("名前", "テスト"), ("空欄", "")]);
         // 存在するカラムで値あり → Ok(値)
-        assert_eq!(parse_required_string(&row, "名前", 1).unwrap(), "テスト");
+        assert_eq!(
+            parse_required_string(&row, "名前", RowNumber::new(1)).unwrap(),
+            "テスト"
+        );
         // 空のカラム → Err(CsvRowError)
-        let err = parse_required_string(&row, "空欄", 2).unwrap_err();
+        let err = parse_required_string(&row, "空欄", RowNumber::new(2)).unwrap_err();
         assert_eq!((err.row, err.message.contains("空欄")), (2, true));
         // 存在しないカラム → Err(CsvRowError)
-        let err = parse_required_string(&row, "missing", 3).unwrap_err();
+        let err = parse_required_string(&row, "missing", RowNumber::new(3)).unwrap_err();
         assert_eq!((err.row, err.message.contains("missing")), (3, true));
     }
 
@@ -292,12 +333,20 @@ mod tests {
     fn test_parse_required_number_row() {
         let row = make_row(&[("数値", "1,234"), ("空欄", ""), ("不正", "abc")]);
         // 有効な数値 "1,234" → Ok(dec!(1234))
-        assert_eq!(parse_required_number(&row, "数値", 1).unwrap(), dec!(1234));
+        assert_eq!(
+            parse_required_number(&row, "数値", RowNumber::new(1)).unwrap(),
+            dec!(1234)
+        );
         // 空文字 → Err
-        let err = parse_required_number(&row, "空欄", 2).unwrap_err();
+        let err = parse_required_number(&row, "空欄", RowNumber::new(2)).unwrap_err();
         assert_eq!((err.row, err.message.contains("空欄")), (2, true));
         // 不正な文字列 "abc" → Err
-        assert_eq!(parse_required_number(&row, "不正", 3).unwrap_err().row, 3);
+        assert_eq!(
+            parse_required_number(&row, "不正", RowNumber::new(3))
+                .unwrap_err()
+                .row,
+            3
+        );
     }
 
     #[test]
@@ -305,11 +354,11 @@ mod tests {
         let row = make_row(&[("日付", "2024/01/15"), ("不正", "not-a-date")]);
         // 有効な日付 "2024/01/15" → Ok
         assert_eq!(
-            parse_required_date(&row, "日付", 1).unwrap(),
+            parse_required_date(&row, "日付", RowNumber::new(1)).unwrap(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
         );
         // 不正な文字列 "not-a-date" → Err
-        let err = parse_required_date(&row, "不正", 2).unwrap_err();
+        let err = parse_required_date(&row, "不正", RowNumber::new(2)).unwrap_err();
         assert_eq!((err.row, err.message.contains("不正")), (2, true));
     }
 

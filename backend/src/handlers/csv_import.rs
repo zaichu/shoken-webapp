@@ -1,40 +1,32 @@
-use crate::errors::ApiError;
-use crate::extractors::auth::AuthenticatedUser;
+use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
 use crate::services::csv_domain::CsvDomain;
-use crate::state::AppState;
-use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json, Router};
-use serde::Serialize;
+use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
 use uuid::Uuid;
-
-pub fn csv_import_routes() -> Router<AppState> {
-    Router::new()
-}
 
 /// マルチパートフォームから `file` フィールドのバイト列を取得する
 pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, ApiError> {
-    while let Some(field) = multipart.next_field().await.map_err(|e| {
-        ApiError::ValidationError(format!("マルチパートの読み込みに失敗しました: {e}"))
-    })? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| CsvError::MultipartRead(e.to_string()))?
+    {
         if field.name() == Some("file") {
             // ファイル拡張子チェック（.csv のみ許可・ファイル名なしも拒否）
             let filename = field.file_name().unwrap_or("");
             if !filename.to_lowercase().ends_with(".csv") {
-                return Err(ApiError::ValidationError(
-                    "CSVファイル（.csv）のみアップロードできます".to_string(),
-                ));
+                return Err(CsvError::InvalidFileType.into());
             }
-            let bytes = field.bytes().await.map_err(|e| {
-                ApiError::ValidationError(format!("ファイルの読み込みに失敗しました: {e}"))
-            })?;
+            let bytes = field
+                .bytes()
+                .await
+                .map_err(|e| CsvError::FileRead(e.to_string()))?;
             return Ok(bytes.to_vec());
         }
     }
-    Err(ApiError::ValidationError(
-        "fileフィールドが見つかりません".to_string(),
-    ))
+    Err(CsvError::MissingFile.into())
 }
 
 /// ドメイン共通のプレビュー処理
@@ -50,32 +42,17 @@ pub async fn handle_preview_csv<D: CsvDomain>(
 
 /// ドメイン共通のアップロード処理
 ///
-/// ハンドラーから `handle_upload_csv::<DividendDomain>(&state.pool, auth_user.id(), multipart).await` のように呼ぶ。
+/// ハンドラーから `handle_upload_csv::<DividendDomain>(&state.pool, auth_user.id(), multipart, state.config.user_row_limit).await` のように呼ぶ。
 /// HTTP ステータスコードは呼び出し元ハンドラーが決める。
 pub async fn handle_upload_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     multipart: Multipart,
+    user_row_limit: i64,
 ) -> Result<Json<CsvUploadResponse>, ApiError> {
     let bytes = read_csv_file_bytes(multipart).await?;
-    let response = D::upload_csv(pool, user_id, &bytes).await?;
+    let response = D::upload_csv(pool, user_id, &bytes, user_row_limit).await?;
     Ok(Json(response))
-}
-
-/// 一覧検索の定型レスポンス整形（200 OK + JSON）
-///
-/// 各ドメインの `list` ハンドラーから `handle_list(search_future).await` のように呼ぶ。
-/// 検索サービスの呼び出しを Future として渡すことで、サービス固有の型に依存せず
-/// ジェネリクスによる静的ディスパッチを維持する。
-/// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool` / `&params`）が
-/// 戻り値に漏れ出さないようにする。
-pub async fn handle_list<Fut, R>(search: Fut) -> Result<(StatusCode, Json<R>), ApiError>
-where
-    Fut: std::future::Future<Output = Result<R, ApiError>>,
-    R: Serialize,
-{
-    let result = search.await?;
-    Ok((StatusCode::OK, Json(result)))
 }
 
 /// 全削除の定型処理（削除実行 + 完了メッセージ）
@@ -91,16 +68,6 @@ pub async fn handle_delete_all(
     Ok(ok_message(message))
 }
 
-/// CSV バリデーションの委譲ヘルパー（DB 書き込みなし）
-///
-/// 認証は `AuthenticatedUser` エクストラクターで保証し、実処理は `handle_preview_csv` に委譲する。
-pub async fn handle_validate_import<D: CsvDomain>(
-    _auth_user: AuthenticatedUser,
-    multipart: Multipart,
-) -> Result<impl IntoResponse, ApiError> {
-    handle_preview_csv::<D>(multipart).await
-}
-
 /// CSV インポートの委譲ヘルパー（201 Created + JSON）
 ///
 /// 実処理は `handle_upload_csv` に委譲し、ステータスコード付与まで面倒を見る。
@@ -109,8 +76,9 @@ pub async fn handle_import_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     multipart: Multipart,
+    user_row_limit: i64,
 ) -> Result<(StatusCode, Json<CsvUploadResponse>), ApiError> {
-    let json = handle_upload_csv::<D>(pool, user_id, multipart).await?;
+    let json = handle_upload_csv::<D>(pool, user_id, multipart, user_row_limit).await?;
     Ok((StatusCode::CREATED, json))
 }
 #[cfg(test)]
@@ -157,6 +125,7 @@ mod tests {
             _pool: &sqlx::PgPool,
             _user_id: Uuid,
             _bytes: &[u8],
+            _user_row_limit: i64,
         ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
             unreachable!("preview test does not call upload")
         }
@@ -175,6 +144,7 @@ mod tests {
             _pool: &sqlx::PgPool,
             _user_id: Uuid,
             bytes: &[u8],
+            _user_row_limit: i64,
         ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
             Ok(crate::models::csv_import::CsvUploadResponse {
                 inserted: usize::from(!bytes.is_empty()),
@@ -237,7 +207,8 @@ mod tests {
         State(pool): State<sqlx::PgPool>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        let json = handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart).await?;
+        let json =
+            handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart, 100_000).await?;
         Ok((StatusCode::CREATED, json))
     }
 
@@ -275,7 +246,7 @@ mod tests {
                     error.error.code.as_str(),
                     msg_fragment.is_none_or(|fragment| { error.error.message.contains(fragment) }),
                 ),
-                (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", true)
+                (StatusCode::BAD_REQUEST, "CSV_ERROR", true)
             );
         }
 

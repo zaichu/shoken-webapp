@@ -31,22 +31,20 @@ where
 
         let jar = CookieJar::from_request_parts(parts, state)
             .await
-            .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました".to_string()))?;
+            .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました"))?;
 
         let session_token = jar
             .get(auth_service::SESSION_COOKIE_NAME)
             .map(|c| c.value().to_string())
-            .ok_or_else(|| ApiError::Unauthorized("ログインが必要です".to_string()))?;
+            .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?;
         let session_id: uuid::Uuid = session_token
             .parse()
-            .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです".to_string()))?;
+            .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
         // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
         let user = auth_service::select_user_by_session(&app_state.pool, session_id)
             .await
-            .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました".to_string()))?
-            .ok_or_else(|| {
-                ApiError::Unauthorized("セッションが無効または期限切れです".to_string())
-            })?;
+            .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました"))?
+            .ok_or(ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
         Ok(AuthenticatedUser(user))
     }

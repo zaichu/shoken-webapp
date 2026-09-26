@@ -1,4 +1,4 @@
-use crate::errors::ApiError;
+use crate::errors::{ApiError, UpstreamError};
 use crate::services::market_data::providers::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
 use sqlx::PgPool;
@@ -12,7 +12,7 @@ use super::persistence::{fetch_and_cache, update_cache_error, update_cache_error
 
 /// 429 レートリミットエラーの場合に background refresh を打ち切るべきか判定する
 pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
-    matches!(e, ApiError::RateLimitError(_))
+    matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
 }
 
 /// DB レート制御が 12秒間隔を保証するため、5 は同時に予約/待機させる上限であり、
@@ -152,19 +152,23 @@ mod tests {
 
     #[test]
     fn test_should_abort_on_rate_limit_error() {
-        let e = ApiError::RateLimitError("429 Too Many Requests".to_string());
+        let e = ApiError::Upstream(UpstreamError::RateLimited);
         assert!(should_abort_on_error(&e));
     }
 
     #[test]
     fn test_should_not_abort_on_other_api_error() {
-        let e = ApiError::ApiError("500 Internal Server Error".to_string());
+        let e = ApiError::Upstream(UpstreamError::Http {
+            status: 500,
+            body: "500 Internal Server Error".to_string(),
+        });
         assert!(!should_abort_on_error(&e));
     }
 
     #[test]
-    fn test_should_not_abort_on_network_error() {
-        let e = ApiError::NetworkError("connection refused".to_string());
+    fn test_should_not_abort_on_decode_error() {
+        let serde_err = serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
+        let e = ApiError::Upstream(UpstreamError::Decode(serde_err));
         assert!(!should_abort_on_error(&e));
     }
 

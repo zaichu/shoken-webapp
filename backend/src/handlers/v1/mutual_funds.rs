@@ -11,7 +11,8 @@ use crate::{
 };
 use axum::{
     extract::{Multipart, Query, State},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
 
 /// 投資信託一覧を取得（v1）
@@ -47,12 +48,8 @@ pub async fn list_transactions(
     auth_user: AuthenticatedUser,
     Query(params): Query<MutualfundSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_list(mutualfund_service::search(
-        &state.pool,
-        auth_user.id(),
-        &params,
-    ))
-    .await
+    let result = mutualfund_service::search(&state.pool, auth_user.id(), &params).await?;
+    Ok((StatusCode::OK, Json(result)))
 }
 
 /// 投資信託を全削除（v1）
@@ -96,8 +93,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_validate_import::<MutualfundDomain>(_auth_user, multipart)
-        .await
+    crate::handlers::csv_import::handle_preview_csv::<MutualfundDomain>(multipart).await
 }
 
 /// 投資信託 CSV をインポート（v1）
@@ -122,6 +118,7 @@ pub async fn import(
         &state.pool,
         auth_user.id(),
         multipart,
+        state.config.user_row_limit,
     )
     .await
 }
