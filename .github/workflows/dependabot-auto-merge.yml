@@ -28,3 +28,16 @@ jobs:
         run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # auto-merge は PR に残存する設定なので、対象外への変更時(グループPRの再構成など)は明示的に解除する
+      - name: Disable auto-merge for other updates
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-minor'
+        run: |
+          pr="${{ github.event.pull_request.html_url }}"
+          if [ "$(gh pr view "$pr" --json autoMergeRequest --jq '.autoMergeRequest != null')" = "true" ]; then
+            gh pr merge --disable-auto "$pr"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
