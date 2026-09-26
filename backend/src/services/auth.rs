@@ -193,7 +193,6 @@ fn verify_google_id_token(
     })
 }
 
-/// Google OAuth コードをトークンに交換する。PKCE verifier を必ず付与する。
 async fn exchange_google_code(
     oauth_client: &GoogleOAuthClient,
     code: String,
