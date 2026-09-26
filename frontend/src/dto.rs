@@ -1,10 +1,25 @@
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 // FacetOption はテスト（cfg(test)）からのみ参照されるため bin クレートでは unused 警告が出る
 #[allow(unused_imports)]
-pub use shared::common::{FacetOption, MessageResponse, SearchFacets};
+pub use shared::common::FacetOption;
+pub use shared::common::{MessageResponse, PaginatedSearchResponse, SearchFacets};
 pub use shared::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+pub use shared::domain::{
+    AssetBalance, AssetBalanceSummary, Dividend, DividendSummary, DomesticStock,
+    DomesticStockSummary, Mutualfund,
+};
+
+// wire 形が DomesticStockSummary と同一なので、serde の実装を wasm に増やさないよう使い回す
+pub type MutualfundSummary = DomesticStockSummary;
+
+pub type DomesticStockListResponse =
+    PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>;
+pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>;
+pub type MutualfundListResponse =
+    PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>;
+pub type AssetBalanceListResponse =
+    PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Stock {
@@ -24,156 +39,6 @@ pub struct Stock {
     pub size_code: Option<String>,
     #[serde(default)]
     pub size_category: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DomesticStock {
-    pub id: String,
-    pub trade_date: String,
-    pub settlement_date: String,
-    pub security_code: String,
-    pub security_name: String,
-    pub account: String,
-    pub shares: Decimal,
-    pub asked_price: Decimal,
-    pub proceeds: Decimal,
-    pub purchase_price: Decimal,
-    pub realized_profit_and_loss: Decimal,
-    pub taxes: Decimal,
-    pub realized_profit_and_loss_after_tax: Decimal,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DomesticStockSummary {
-    pub total_realized_profit_and_loss: Decimal,
-    pub total_taxes: Decimal,
-    pub total_realized_profit_and_loss_after_tax: Decimal,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DomesticStockListResponse {
-    pub data: Vec<DomesticStock>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
-    #[serde(default)]
-    pub summary: Option<DomesticStockSummary>,
-    #[serde(default)]
-    pub facets: Option<SearchFacets>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Dividend {
-    pub id: String,
-    pub settlement_date: String,
-    pub product: String,
-    pub account: String,
-    pub security_code: String,
-    pub security_name: String,
-    pub unit_price: Decimal,
-    pub shares: Decimal,
-    pub dividends_before_tax: Decimal,
-    pub taxes: Decimal,
-    pub net_amount_received: Decimal,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DividendSummary {
-    pub total_dividends_before_tax: Decimal,
-    pub total_taxes: Decimal,
-    pub total_net_amount_received: Decimal,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DividendListResponse {
-    pub data: Vec<Dividend>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
-    #[serde(default)]
-    pub summary: Option<DividendSummary>,
-    #[serde(default)]
-    pub facets: Option<SearchFacets>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Mutualfund {
-    pub id: String,
-    pub trade_date: String,
-    pub settlement_date: String,
-    pub fund_name: String,
-    pub account: String,
-    pub shares: Decimal,
-    pub exchange_rate: Decimal,
-    pub cancellation_unit_price_yen: Decimal,
-    pub cancellation_amount_yen: Decimal,
-    pub average_acquisition_price_yen: Decimal,
-    pub realized_profit_and_loss: Decimal,
-    pub taxes: Decimal,
-    pub realized_profit_and_loss_after_tax: Decimal,
-    #[serde(default)]
-    pub dividends: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct MutualfundSummary {
-    pub total_realized_profit_and_loss: Decimal,
-    pub total_taxes: Decimal,
-    pub total_realized_profit_and_loss_after_tax: Decimal,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct MutualfundListResponse {
-    pub data: Vec<Mutualfund>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
-    #[serde(default)]
-    pub summary: Option<MutualfundSummary>,
-    #[serde(default)]
-    pub facets: Option<SearchFacets>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct AssetBalance {
-    pub id: String,
-    pub security_code: String,
-    pub security_name: String,
-    pub shares: Decimal,
-    pub executing_shares: Decimal,
-    pub average_purchase_price: Decimal,
-    pub total_purchase_amount: Decimal,
-    pub current_price: Decimal,
-    pub daily_change: Decimal,
-    pub market_value: Decimal,
-    pub profit_loss_rate: Decimal,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct AssetBalanceSummary {
-    pub total_market_value: Decimal,
-    pub total_purchase_amount: Decimal,
-    pub total_daily_change: Decimal,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct AssetBalanceListResponse {
-    pub data: Vec<AssetBalance>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
-    #[serde(default)]
-    pub summary: Option<AssetBalanceSummary>,
-    #[serde(default)]
-    pub facets: Option<SearchFacets>,
 }
 
 fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(

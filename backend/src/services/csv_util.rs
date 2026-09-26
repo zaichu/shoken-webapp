@@ -2,7 +2,6 @@ use crate::models::csv_import::CsvRowError;
 use chrono::NaiveDate;
 use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -45,18 +44,6 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
         return Ok(d);
     }
     Err(format!("日付のパースに失敗しました: '{}'", s))
-}
-
-/// 税金を計算する（特定口座かつ利益がある場合のみ）
-pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal) {
-    let tax_rate = dec!(0.20315);
-    if account.contains("特定") && realized_pnl > Decimal::ZERO {
-        let taxes = (realized_pnl * tax_rate).floor();
-        let after_tax = realized_pnl - taxes;
-        (taxes, after_tax)
-    } else {
-        (Decimal::ZERO, realized_pnl)
-    }
 }
 
 /// レコードから指定列の値を取得（列が存在しない場合は空文字）
@@ -124,20 +111,6 @@ pub fn parse_required_string_row(
         });
     }
     Ok(val.to_string())
-}
-
-/// 銘柄名を正規化する
-///
-/// 証券会社のCSVによっては "K D D I" のように各文字間にスペースが挿入される場合がある。
-/// すべてのトークンが1文字の場合はスペースを除去して結合する（例: "K D D I" → "KDDI"）。
-/// 複数文字のトークンが含まれる場合（例: "eMAXIS Slim 全世界株式"）はそのまま返す。
-pub fn normalize_security_name(name: &str) -> String {
-    let tokens: Vec<&str> = name.split_whitespace().collect();
-    if tokens.len() > 1 && tokens.iter().all(|t| t.chars().count() == 1) {
-        tokens.join("")
-    } else {
-        name.trim().to_string()
-    }
 }
 
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
@@ -209,6 +182,7 @@ pub fn parse_required_date_row(
 }
 #[cfg(test)]
 mod tests {
+    use shared::{normalize::normalize_security_name, tax::compute_taxes};
     use {super::*, rust_decimal_macros::dec};
     fn time_n(label: &str, n: usize, mut f: impl FnMut()) {
         let start = std::time::Instant::now();
@@ -622,19 +596,6 @@ mod tests {
             proptest::prop_assert_eq!(decode_bytes(input.as_bytes()), expected);
             let with_bom = format!("\u{FEFF}{input}");
             proptest::prop_assert_eq!(decode_bytes(with_bom.as_bytes()), input);
-        }
-
-        #[test]
-        fn prop_normalize_security_name_matches_naive_model(input in "[ -~ぁ-龥]{0,40}") {
-            let expected = {
-                let tokens: Vec<&str> = input.split_whitespace().collect();
-                if tokens.len() > 1 && tokens.iter().all(|t| t.chars().count() == 1) {
-                    tokens.concat()
-                } else {
-                    input.trim().to_string()
-                }
-            };
-            proptest::prop_assert_eq!(normalize_security_name(&input), expected);
         }
     }
 }

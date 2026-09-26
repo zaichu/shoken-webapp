@@ -1,98 +1,15 @@
-use crate::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund};
+use crate::dto::{Dividend, DomesticStock, Mutualfund};
 use rust_decimal::{Decimal, RoundingStrategy};
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-const TAX_RATE: Decimal = Decimal::from_parts(20315, 0, 0, false, 5);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DomesticDailySummary {
-    pub filter: String,
-    pub total_realized_profit_and_loss: Decimal,
-    pub total_taxes: Decimal,
-    pub total_realized_profit_and_loss_after_tax: Decimal,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
-pub struct DividendTotals {
-    pub total_dividends_before_tax: Decimal,
-    pub total_taxes: Decimal,
-    pub total_net_amount_received: Decimal,
-}
-
-pub fn calculate_domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
-    let mut groups: BTreeMap<&str, (Decimal, Decimal)> = BTreeMap::new();
-    for row in rows {
-        let totals = groups.entry(&row.trade_date).or_default();
-        if row.account.contains("特定") {
-            totals.0 += row.realized_profit_and_loss;
-        } else {
-            totals.1 += row.realized_profit_and_loss;
-        }
-    }
-    groups
-        .into_iter()
-        .rev()
-        .map(|(date, (specific, tax_exempt))| {
-            let profit = specific + tax_exempt;
-            let taxes = if specific.is_sign_positive() {
-                (specific * TAX_RATE).floor()
-            } else {
-                Decimal::ZERO
-            };
-            DomesticDailySummary {
-                filter: date.to_string(),
-                total_realized_profit_and_loss: profit,
-                total_taxes: taxes,
-                total_realized_profit_and_loss_after_tax: profit - taxes,
-            }
-        })
-        .collect()
-}
-
-pub fn calculate_domestic_total(rows: &[DomesticStock]) -> DomesticStockSummary {
-    calculate_domestic_daily(rows).into_iter().fold(
-        DomesticStockSummary {
-            total_realized_profit_and_loss: Decimal::ZERO,
-            total_taxes: Decimal::ZERO,
-            total_realized_profit_and_loss_after_tax: Decimal::ZERO,
-        },
-        |mut total, day| {
-            total.total_realized_profit_and_loss += day.total_realized_profit_and_loss;
-            total.total_taxes += day.total_taxes;
-            total.total_realized_profit_and_loss_after_tax +=
-                day.total_realized_profit_and_loss_after_tax;
-            total
-        },
-    )
-}
-
-pub fn calculate_dividends(rows: &[Dividend]) -> DividendTotals {
-    rows.iter()
-        .fold(DividendTotals::default(), |mut total, row| {
-            total.total_dividends_before_tax += row.dividends_before_tax;
-            total.total_taxes += row.taxes;
-            total.total_net_amount_received += row.net_amount_received;
-            total
-        })
-}
-
-pub fn calculate_mutual_funds(rows: &[Mutualfund]) -> DomesticStockSummary {
-    rows.iter().fold(
-        DomesticStockSummary {
-            total_realized_profit_and_loss: Decimal::ZERO,
-            total_taxes: Decimal::ZERO,
-            total_realized_profit_and_loss_after_tax: Decimal::ZERO,
-        },
-        |mut total, row| {
-            total.total_realized_profit_and_loss += row.realized_profit_and_loss;
-            total.total_taxes += row.taxes;
-            total.total_realized_profit_and_loss_after_tax +=
-                row.realized_profit_and_loss_after_tax;
-            total
-        },
-    )
-}
+pub use shared::domain::DividendSummary as DividendTotals;
+pub use shared::summary::{
+    dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
+    domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
+};
+// テストの期待値構築でのみ参照する（bin では unused になる）
+#[allow(unused_imports)]
+pub use shared::summary::DomesticDailySummary;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -307,19 +224,6 @@ pub fn normalize_security_code(value: &str) -> String {
 }
 
 #[cfg(test)]
-pub fn normalize_security_name(value: &str) -> String {
-    value
-        .chars()
-        .map(|character| match character {
-            'Ａ'..='Ｚ' | 'ａ'..='ｚ' | '０'..='９' => {
-                char::from_u32(character as u32 - 0xfee0).unwrap_or(character)
-            }
-            _ => character,
-        })
-        .collect()
-}
-
-#[cfg(test)]
 pub fn safe_add(a: Decimal, b: Decimal) -> Decimal {
     a + b
 }
@@ -374,9 +278,12 @@ pub fn format_percentage_value(value: Decimal, decimals: u32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dto::{Dividend, DomesticStock, Mutualfund};
+    use crate::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund};
     use rust_decimal_macros::dec;
     use serde::de::DeserializeOwned;
+    use serde::Deserialize;
+    use shared::domain::MutualfundSummary;
+    use shared::normalize::normalize_display_name;
 
     #[derive(Deserialize)]
     struct FixtureDocument<T> {
@@ -440,7 +347,7 @@ mod tests {
     #[derive(Deserialize)]
     struct MutualFundExpectedCase {
         name: String,
-        total: DomesticStockSummary,
+        total: MutualfundSummary,
     }
 
     fn fixture<T: DeserializeOwned>(json: &str) -> FixtureDocument<T> {
@@ -698,7 +605,7 @@ mod tests {
     fn mutual_funds_return_zero_for_empty_input() {
         assert_eq!(
             calculate_mutual_funds(&[]),
-            stock_totals(dec!(0), dec!(0), dec!(0))
+            mutual_totals(dec!(0), dec!(0), dec!(0))
         );
     }
 
@@ -706,7 +613,7 @@ mod tests {
     fn mutual_funds_return_the_single_row_values() {
         assert_eq!(
             calculate_mutual_funds(&[mutual_fund(dec!(50000), dec!(10157), dec!(39843))]),
-            stock_totals(dec!(50000), dec!(10157), dec!(39843))
+            mutual_totals(dec!(50000), dec!(10157), dec!(39843))
         );
     }
 
@@ -720,7 +627,7 @@ mod tests {
 
         assert_eq!(
             calculate_mutual_funds(&rows),
-            stock_totals(dec!(65000), dec!(15235), dec!(49765))
+            mutual_totals(dec!(65000), dec!(15235), dec!(49765))
         );
     }
 
@@ -859,8 +766,8 @@ mod tests {
         assert_eq!(parse_number("invalid"), dec!(0));
         assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
         assert_eq!(normalize_security_code("brk.b"), "BRK.B");
-        assert_eq!(normalize_security_name("ＫＤＤＩ１２３"), "KDDI123");
-        assert_eq!(normalize_security_name("日本株ABC123"), "日本株ABC123");
+        assert_eq!(normalize_display_name("ＫＤＤＩ１２３"), "KDDI123");
+        assert_eq!(normalize_display_name("日本株ABC123"), "日本株ABC123");
         assert_eq!(safe_add(dec!(0.1), dec!(0.2)), dec!(0.3));
         assert_eq!(safe_subtract(dec!(0.3), dec!(0.1)), dec!(0.2));
         assert_eq!(safe_multiply(dec!(0.1), dec!(3)), dec!(0.3));
@@ -877,7 +784,7 @@ mod tests {
         assert_eq!(calculate_percentage(dec!(25), dec!(100), 2), dec!(25));
         assert_eq!(calculate_percentage(dec!(1), dec!(3), 1), dec!(33.3));
         assert_eq!(calculate_percentage(dec!(10), dec!(0), 2), dec!(0));
-        assert_eq!(TAX_RATE, dec!(0.20315));
+        assert_eq!(shared::tax::TAX_RATE, dec!(0.20315));
     }
 
     #[test]
@@ -917,7 +824,7 @@ mod tests {
             .map(|(date, (specific, exempt))| {
                 let profit = specific + exempt;
                 let taxes = if specific > Decimal::ZERO {
-                    (specific * TAX_RATE).floor()
+                    (specific * shared::tax::TAX_RATE).floor()
                 } else {
                     Decimal::ZERO
                 };
@@ -1178,6 +1085,14 @@ mod tests {
 
     fn stock_totals(profit: Decimal, taxes: Decimal, after_tax: Decimal) -> DomesticStockSummary {
         DomesticStockSummary {
+            total_realized_profit_and_loss: profit,
+            total_taxes: taxes,
+            total_realized_profit_and_loss_after_tax: after_tax,
+        }
+    }
+
+    fn mutual_totals(profit: Decimal, taxes: Decimal, after_tax: Decimal) -> MutualfundSummary {
+        MutualfundSummary {
             total_realized_profit_and_loss: profit,
             total_taxes: taxes,
             total_realized_profit_and_loss_after_tax: after_tax,

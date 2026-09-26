@@ -7,7 +7,7 @@ use crate::api::ApiError;
 use crate::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::asset_balance::portfolio::chart_display;
 use crate::asset_balance_domain::{
-    calculate_portfolio_kpi, format_number_value, normalize_security_code, normalize_security_name,
+    calculate_portfolio_kpi, format_number_value, normalize_display_name, normalize_security_code,
     summarize_valuation_with_summary, total_purchase_amount, KpiHolding, SummaryOverride,
     ValuationItem,
 };
@@ -120,8 +120,8 @@ fn holding_dividend_matches_component_cases() {
 
 #[test]
 fn security_name_normalization_cases() {
-    assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
-    assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
+    assert_eq!(normalize_display_name("ＫＤＤＩ"), "KDDI");
+    assert_eq!(normalize_display_name("トヨタ自動車"), "トヨタ自動車");
     assert_eq!(normalize_security_code(" 7203: トヨタ自動車 "), "7203");
     assert!(is_searchable_code("7203"));
     assert!(is_searchable_code("BRK.B"));

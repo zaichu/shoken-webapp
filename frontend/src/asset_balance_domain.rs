@@ -418,17 +418,7 @@ pub fn normalize_security_code(value: &str) -> String {
         .to_uppercase()
 }
 
-/// `formatters.ts` の `normalizeSecurityName` に対応する。
-pub fn normalize_security_name(name: &str) -> String {
-    name.chars()
-        .map(|character| match character {
-            'Ａ'..='Ｚ' | 'ａ'..='ｚ' | '０'..='９' => {
-                char::from_u32(character as u32 - 0xfee0).unwrap_or(character)
-            }
-            _ => character,
-        })
-        .collect()
-}
+pub use shared::normalize::normalize_display_name;
 
 #[cfg(test)]
 mod tests {
@@ -892,8 +882,8 @@ mod tests {
         assert_eq!(normalize_security_code("brk.b"), "BRK.B");
         assert_eq!(normalize_security_code("  "), "");
         assert_eq!(normalize_security_code(""), "");
-        assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
-        assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
+        assert_eq!(normalize_display_name("ＫＤＤＩ"), "KDDI");
+        assert_eq!(normalize_display_name("トヨタ自動車"), "トヨタ自動車");
     }
 
     proptest::proptest! {

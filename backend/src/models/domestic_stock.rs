@@ -1,41 +1,11 @@
 use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use utoipa::ToSchema;
-use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
-/// 国内株式取引モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct DomesticStock {
-    pub id: Uuid,
-    #[serde(skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
-    pub user_id: Uuid,
-    pub trade_date: NaiveDate,
-    pub settlement_date: NaiveDate,
-    pub security_code: String,
-    pub security_name: String,
-    pub account: String,
-    #[schema(value_type = f64)]
-    pub shares: Decimal,
-    #[schema(value_type = f64)]
-    pub asked_price: Decimal,
-    #[schema(value_type = f64)]
-    pub proceeds: Decimal,
-    #[schema(value_type = f64)]
-    pub purchase_price: Decimal,
-    #[schema(value_type = f64)]
-    pub realized_profit_and_loss: Decimal,
-    #[schema(value_type = f64)]
-    pub taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub realized_profit_and_loss_after_tax: Decimal,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+pub use shared::domain::{DomesticStock, DomesticStockSummary};
 
 /// 国内株式取引一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 国内株式固有の絞り込み）
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
@@ -54,21 +24,6 @@ impl SearchParamsAccessor for DomesticStockSearchQueryParams {
     fn search_params(&self) -> &SearchQueryParams {
         &self.search
     }
-}
-
-/// 国内株式取引 検索条件全体の集計
-///
-/// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座を分離し、
-/// 特定口座の実現損益合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として
-/// 日次集計した結果を合計する。
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct DomesticStockSummary {
-    #[schema(value_type = f64)]
-    pub total_realized_profit_and_loss: Decimal,
-    #[schema(value_type = f64)]
-    pub total_taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
 /// 国内株式取引作成リクエスト
