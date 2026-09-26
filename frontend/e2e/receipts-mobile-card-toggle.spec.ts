@@ -117,10 +117,10 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
 
   const first = cards
     .nth(0)
-    .getByRole('button', { name: 'トヨタ自動車 ¥ 2,391' });
+    .getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
   const second = cards
     .nth(1)
-    .getByRole('button', { name: 'トヨタ自動車 ¥ 2,391' });
+    .getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
   await first.click();
   await expect(first).toHaveAttribute('aria-expanded', 'true');
   await expect(second).toHaveAttribute('aria-expanded', 'false');
@@ -175,7 +175,7 @@ test('CSVプレビューで前方の行を絞り込みで除外しても開閉�
   const cards = page.getByTestId('receipt-card-list').getByTestId('receipt-card');
   await expect(cards).toHaveCount(3);
 
-  const toyota = page.getByRole('button', { name: 'トヨタ自動車 ¥ 2,391' });
+  const toyota = page.getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
   await toyota.nth(0).click();
   await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
   await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');

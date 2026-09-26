@@ -36,9 +36,9 @@ pub(crate) fn card_fields(tab: ReceiptsTab) -> CardFields {
 
 pub(crate) fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
     match tab {
-        ReceiptsTab::Dividend => ["配当金", "税額", "税引後"],
-        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後"],
-        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引損益"],
+        ReceiptsTab::Dividend => ["配当金", "税額", "税引後受取額"],
+        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後損益"],
+        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引後損益"],
     }
 }
 
@@ -286,9 +286,9 @@ fn ReceiptItemCard(
     } = card;
     let aria_label = format!("{name} {amount}");
     let amount_class = if amount_negative {
-        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-red-800"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-red-700"
     } else {
-        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-slate-950"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-slate-950"
     };
     view! {
         <div data-testid="receipt-card" class="rounded-lg border border-slate-300 bg-white">
@@ -362,7 +362,7 @@ fn ReceiptItemCard(
                                                 CardDetailValue::Text { negative: true, .. }
                                             );
                                             let value_class = if negative {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
                                             } else {
                                                 "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
                                             };
@@ -435,6 +435,12 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
+    let primary_negative = is_negative_text(&primary_value);
+    let primary_value_class = if primary_negative {
+        "text-sm font-semibold tabular-nums text-red-300"
+    } else {
+        "text-sm font-semibold tabular-nums text-white"
+    };
     let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
     view! {
         <section data-testid="receipt-card-group">
@@ -465,7 +471,7 @@ pub(crate) fn MobileCardGroup(
                         aria-hidden="true"
                     >
                         <span class="text-xs text-slate-200">{primary_label}</span>
-                        <span class="font-mono text-sm font-semibold tabular-nums text-white">
+                        <span class=primary_value_class>
                             {primary_value}
                         </span>
                         <svg
@@ -508,7 +514,7 @@ pub(crate) fn MobileCardGroup(
                                             .map(|(label, value)| {
                                                 let negative = is_negative_text(value);
                                                 let value_class = if negative {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
                                                 } else {
                                                     "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
                                                 };

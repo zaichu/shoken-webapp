@@ -18,9 +18,9 @@ fn f64_to_decimal(value: f64) -> Option<Decimal> {
 
 fn format_currency_f64(value: f64, digits: u32) -> String {
     match format_abs_number(to_fixed(value, digits)) {
-        None => "-".to_string(),
-        Some(body) if value < 0.0 => format!("¥ -{body}"),
-        Some(body) => format!("¥ {body}"),
+        None => "—".to_string(),
+        Some(body) if value < 0.0 => format!("-¥{body}"),
+        Some(body) => format!("¥{body}"),
     }
 }
 
@@ -30,7 +30,7 @@ pub(crate) fn format_currency(value: f64) -> String {
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {
     if value.is_nan() {
-        return "-".to_string();
+        return "—".to_string();
     }
     f64_to_decimal(value).map_or_else(
         || {
@@ -66,9 +66,41 @@ pub(crate) fn is_negative_valuation(amount: Option<f64>) -> bool {
 
 pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'static str>) {
     if is_negative_valuation(amount) {
-        ("text-red-800", Some("true"))
+        ("text-red-700", Some("true"))
     } else {
         ("text-slate-800", None)
+    }
+}
+
+pub(crate) fn is_negative_valuation_dec(amount: Option<Decimal>) -> bool {
+    amount.is_some_and(|value| {
+        value.round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero) < Decimal::ZERO
+    })
+}
+
+pub(crate) fn valuation_tone_dec(amount: Option<Decimal>) -> (&'static str, Option<&'static str>) {
+    if is_negative_valuation_dec(amount) {
+        ("text-red-700", Some("true"))
+    } else {
+        ("text-slate-800", None)
+    }
+}
+
+pub(crate) fn format_valuation_amount_dec(amount: Option<Decimal>) -> String {
+    match amount {
+        Some(value) => format_currency_decimal(
+            value
+                .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
+                .normalize(),
+        ),
+        None => "—".to_string(),
+    }
+}
+
+pub(crate) fn format_valuation_rate_dec(rate: Option<Decimal>, decimals: u32) -> String {
+    match rate {
+        Some(value) => format_percentage_value_decimal(value, decimals),
+        None => "—".to_string(),
     }
 }
 

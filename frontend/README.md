@@ -49,6 +49,13 @@ npx playwright test --config playwright.vercel.config.ts
 
 `style/input.css` を Trunk の pre_build フックで `style/output.css` に生成し、`index.html` から読み込みます。生成物は Git 管理外です。
 
+## デザインの決まり
+
+- 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
+- 色はマイナスの損益のみ `text-red-700`(暗背景は `red-300`)。税額・配当・利回りは色なし
+- 書式は `shared::format` に集約。`pages/asset_balance/format.rs` は薄い委譲のみ
+- 配当の第三ラベルは `税引後受取額`、株・投信は `税引後損益`
+
 ## デプロイ
 
 GitHub Actions の `deploy-frontend.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。本番デプロイは main の `workflow_dispatch` と `LEPTOS_PRODUCTION_ENABLED=true` で有効になります。

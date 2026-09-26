@@ -33,7 +33,7 @@ pub(crate) fn search_security_code(rows: &[Dividend], query: &str) -> String {
 
 fn format_percentage_value(value: f64) -> String {
     if value.is_nan() {
-        return "-".to_string();
+        return "—".to_string();
     }
     format!("{:.2}%", to_fixed(value, 2))
 }
@@ -568,9 +568,9 @@ mod tests {
 
     #[test]
     fn per_share_display_uses_short_decimal_digits() {
-        assert_eq!(per_share_display(Some(50.1), false), "¥ 50.1");
-        assert_eq!(per_share_display(Some(50.0), false), "¥ 50");
-        assert_eq!(per_share_display(Some(50.12345), false), "¥ 50.12345");
+        assert_eq!(per_share_display(Some(50.1), false), "¥50.1");
+        assert_eq!(per_share_display(Some(50.0), false), "¥50");
+        assert_eq!(per_share_display(Some(50.12345), false), "¥50.12345");
         assert_eq!(per_share_display(None, false), "---");
         assert_eq!(per_share_display(Some(50.1), true), "取得中...");
         assert_eq!(per_share_display(Some(f64::NAN), false), "---");
@@ -580,7 +580,7 @@ mod tests {
     fn percentage_value_matches_react_to_fixed() {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(0.9564), "0.96%");
-        assert_eq!(format_percentage_value(f64::NAN), "-");
+        assert_eq!(format_percentage_value(f64::NAN), "—");
     }
 
     #[test]

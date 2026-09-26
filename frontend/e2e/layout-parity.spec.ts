@@ -450,8 +450,8 @@ async function expectPortfolioValuationTotals(page: Page) {
   const summary = page.getByTestId('portfolio-valuation-summary');
   await expect(summary).toBeVisible();
   await expect(summary).toContainText('保有資産の評価額');
-  await expect(summary).toContainText('¥ 5,580,000');
-  await expect(summary).toContainText('評価損益 ¥ 220,000（4.1%）');
+  await expect(summary).toContainText('¥5,580,000');
+  await expect(summary).toContainText('評価損益 ¥220,000（4.1%）');
   await expect(summary).toContainText('取込データ時点');
 }
 
@@ -570,15 +570,15 @@ test('資産管理の負の評価損益は赤字としてマークされる', as
   const summaryLoss = page
     .getByTestId('portfolio-valuation-summary')
     .locator('[data-negative="true"]');
-  await expect(summaryLoss).toHaveText('評価損益 ¥ -10,000（-3.7%）');
-  await expect(summaryLoss).toHaveClass(/text-red-800/);
+  await expect(summaryLoss).toHaveText('評価損益 -¥10,000（-3.7%）');
+  await expect(summaryLoss).toHaveClass(/text-red-700/);
 
   const cardLoss = page
     .getByTestId('portfolio-valuation-card')
     .first()
     .locator('[data-negative="true"]');
-  await expect(cardLoss).toHaveText('¥ -10,000（-3.7%）');
-  await expect(cardLoss).toHaveClass(/text-red-800/);
+  await expect(cardLoss).toHaveText('-¥10,000（-3.7%）');
+  await expect(cardLoss).toHaveClass(/text-red-700/);
 });
 
 for (const width of [1440, 390]) {

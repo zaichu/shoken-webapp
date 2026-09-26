@@ -93,12 +93,12 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432 2024");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].label, "ＮＴＴ");
-    assert_eq!(groups[0].summary, ["¥ 500", "¥ 100", "¥ 400"]);
+    assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432");
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].rows.len(), 2);
-    assert_eq!(groups[0].summary, ["¥ 1,000", "¥ 200", "¥ 800"]);
+    assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
 }
 #[test]
 fn dividend_product_and_account_group_keys_follow_priority() {
@@ -124,7 +124,7 @@ fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
     let rows = domestic();
     let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "7203");
     assert_eq!(groups[0].label, "2024年3月1日");
-    assert_eq!(groups[0].summary, ["¥ 1,000", "¥ 203", "¥ 797"]);
+    assert_eq!(groups[0].summary, ["¥1,000", "¥203", "¥797"]);
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {
@@ -169,10 +169,13 @@ fn next_tab_index_cycles_like_react_tablist() {
 
 #[test]
 fn negative_text_detection_matches_formatted_values() {
+    assert!(is_negative_text("-¥1,234"));
     assert!(is_negative_text("¥ -1,234"));
     assert!(is_negative_text("-500"));
     assert!(is_negative_text("-1.5"));
+    assert!(!is_negative_text("¥1,234"));
     assert!(!is_negative_text("¥ 1,234"));
+    assert!(!is_negative_text("-¥0"));
     assert!(!is_negative_text("¥ -0"));
     assert!(!is_negative_text("+3"));
     assert!(!is_negative_text(""));
@@ -198,15 +201,15 @@ fn card_fields_point_at_expected_columns() {
     let cases = [
         (
             ReceiptsTab::Dividend,
-            ("銘柄名", "受取額", "入金日", "口座"),
+            ("銘柄名", "税引後受取額", "入金日", "口座"),
         ),
         (
             ReceiptsTab::DomesticStock,
-            ("銘柄名", "税引後", "約定日", "口座"),
+            ("銘柄名", "税引後損益", "約定日", "口座"),
         ),
         (
             ReceiptsTab::MutualFund,
-            ("ファンド名", "税引損益", "約定日", "口座"),
+            ("ファンド名", "税引後損益", "約定日", "口座"),
         ),
     ];
     for (tab, expected) in cases {
@@ -270,7 +273,7 @@ fn card_row_data_matches_react_card_fields() {
     );
     assert_eq!(card.key, "dividend:r:old");
     assert_eq!(card.name, "日本電信電話");
-    assert_eq!(card.amount, "¥ 400");
+    assert_eq!(card.amount, "¥400");
     assert!(!card.amount_negative);
     assert_eq!(card.date, "06/21");
     assert_eq!(card.account, "特定");
@@ -446,7 +449,7 @@ fn kpi_styles_match_tone() {
     assert_eq!(kpi_card_bg("red"), "border-rose-100 bg-rose-50");
     assert_eq!(kpi_card_bg("other"), "border-slate-200 bg-white");
     assert_eq!(kpi_value_color("emerald"), "text-teal-700");
-    assert_eq!(kpi_value_color("red"), "text-red-500");
+    assert_eq!(kpi_value_color("red"), "text-red-700");
     assert_eq!(kpi_value_color("other"), "text-slate-800");
 }
 
@@ -454,15 +457,15 @@ fn kpi_styles_match_tone() {
 fn summary_and_empty_hint_labels_match_tabs() {
     assert_eq!(
         summary_labels(ReceiptsTab::Dividend),
-        ["配当金", "税額", "税引後"]
+        ["配当金", "税額", "税引後受取額"]
     );
     assert_eq!(
         summary_labels(ReceiptsTab::DomesticStock),
-        ["損益", "税額", "税引後"]
+        ["損益", "税額", "税引後損益"]
     );
     assert_eq!(
         summary_labels(ReceiptsTab::MutualFund),
-        ["実現損益", "税額", "税引損益"]
+        ["実現損益", "税額", "税引後損益"]
     );
     assert_eq!(
         empty_hint(ReceiptsTab::Dividend),

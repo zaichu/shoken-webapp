@@ -26,7 +26,7 @@ pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
             "数量",
             "配当金",
             "税額",
-            "受取額",
+            "税引後受取額",
         ],
         ReceiptsTab::DomesticStock => &[
             "約定日",
@@ -39,7 +39,7 @@ pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
             "取得価額",
             "損益",
             "税額",
-            "税引後",
+            "税引後損益",
         ],
         ReceiptsTab::MutualFund => &[
             "約定日",
@@ -51,7 +51,7 @@ pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
             "取得価額",
             "実現損益",
             "税額",
-            "税引損益",
+            "税引後損益",
         ],
     }
 }

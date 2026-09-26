@@ -1,6 +1,6 @@
 use super::format::{
-    format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
-    valuation_tone,
+    format_currency, format_fixed_percent, format_valuation_amount, format_valuation_amount_dec,
+    format_valuation_rate, format_valuation_rate_dec, valuation_tone, valuation_tone_dec,
 };
 use super::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
@@ -10,6 +10,7 @@ use crate::asset_balance_domain::{calculate_valuation, format_number_value};
 use crate::components::security_link::SecurityCodeLink;
 use crate::dividend_per_share::DividendMaps;
 use leptos::prelude::*;
+use rust_decimal::Decimal;
 
 const CHART_COLORS: [&str; 10] = [
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
@@ -36,7 +37,7 @@ pub(crate) fn HoldingCard(
     });
     let dividend_class = move |present: bool| {
         if present {
-            "mt-0.5 truncate text-[12px] font-semibold text-emerald-600"
+            "mt-0.5 truncate text-[12px] font-semibold text-slate-800"
         } else {
             "mt-0.5 truncate text-[12px] font-semibold text-slate-500"
         }
@@ -149,24 +150,42 @@ pub(crate) fn HoldingValuationCard(
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let valuation = calculate_valuation(
+    let amount_dec = item.view.market_dec.checked_sub(item.view.purchase_dec);
+    let rate_dec = match amount_dec {
+        Some(amount) if item.view.purchase_dec != Decimal::ZERO => amount
+            .checked_div(item.view.purchase_dec)
+            .and_then(|rate| rate.checked_mul(Decimal::ONE_HUNDRED)),
+        _ => None,
+    };
+    let fallback = calculate_valuation(
         &serde_json::json!(item.view.market),
         &serde_json::json!(item.view.purchase),
     );
-    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
+    let (valuation_class, valuation_negative) = amount_dec.map_or_else(
+        || valuation_tone(fallback.amount),
+        |_| valuation_tone_dec(amount_dec),
+    );
     let market_display = format_currency(item.view.market);
     let current_price_display = format_currency(item.view.current_price);
-    let profit_loss = match valuation.amount {
-        None => "—".to_string(),
-        Some(amount) => match valuation.rate {
-            None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
-            Some(rate) => {
-                format!(
+    let profit_loss = match amount_dec {
+        Some(amount) => match rate_dec {
+            None => format!("{}（算出不可）", format_valuation_amount_dec(Some(amount))),
+            Some(rate) => format!(
+                "{}（{}）",
+                format_valuation_amount_dec(Some(amount)),
+                format_valuation_rate_dec(Some(rate), 1),
+            ),
+        },
+        None => match fallback.amount {
+            None => "—".to_string(),
+            Some(amount) => match fallback.rate {
+                None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
+                Some(rate) => format!(
                     "{}（{}）",
                     format_valuation_amount(Some(amount)),
                     format_valuation_rate(Some(rate), 1),
-                )
-            }
+                ),
+            },
         },
     };
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
@@ -263,19 +282,19 @@ pub(crate) fn HoldingValuationCard(
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"予想年間配当"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_annual(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"1株配当"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_per_share(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"取得額基準利回り"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_yield(&dividend)}
                                         </dd>
                                     </div>

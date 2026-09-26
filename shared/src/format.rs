@@ -71,9 +71,9 @@ pub fn format_currency_with_options(
         true,
     );
     if value.is_sign_negative() {
-        format!("{currency} -{formatted}")
+        format!("-{currency}{formatted}")
     } else {
-        format!("{currency} {formatted}")
+        format!("{currency}{formatted}")
     }
 }
 
@@ -111,20 +111,20 @@ mod tests {
 
     #[test]
     fn currency_formatter_places_sign_after_symbol() {
-        assert_eq!(format_currency(dec!(12345)), "¥ 12,345");
-        assert_eq!(format_currency(dec!(-12345)), "¥ -12,345");
-        assert_eq!(format_currency(dec!(0)), "¥ 0");
+        assert_eq!(format_currency(dec!(12345)), "¥12,345");
+        assert_eq!(format_currency(dec!(-12345)), "-¥12,345");
+        assert_eq!(format_currency(dec!(0)), "¥0");
         assert_eq!(
             format_currency_with_options(dec!(12345), "$", 0, 15),
-            "$ 12,345"
+            "$12,345"
         );
         assert_eq!(
             format_currency_with_options(dec!(123.456), "¥", 0, 2),
-            "¥ 123.46"
+            "¥123.46"
         );
         assert_eq!(
             format_currency_with_options(dec!(-1.5), "¥", 0, 15),
-            "¥ -1.5"
+            "-¥1.5"
         );
     }
 
@@ -192,10 +192,10 @@ mod tests {
         fn prop_format_currency_sign_convention(value in arb_decimal()) {
             let output = format_currency(value);
             if value.is_sign_negative() {
-                proptest::prop_assert!(output.starts_with("¥ -"), "output={output}");
+                proptest::prop_assert!(output.starts_with("-¥"), "output={output}");
                 proptest::prop_assert!(!output.contains("--"));
             } else {
-                proptest::prop_assert!(output.starts_with("¥ "), "output={output}");
+                proptest::prop_assert!(output.starts_with('¥'), "output={output}");
                 proptest::prop_assert!(!output.contains('-'));
             }
         }
