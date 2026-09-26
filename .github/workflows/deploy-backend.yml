@@ -8,6 +8,8 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
+  # GITHUB_TOKEN による dependabot の自動マージでは push イベントが発火しないため、手動デプロイ用に残す
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,7 +23,7 @@ jobs:
       run:
         working-directory: backend
     outputs:
-      backend: ${{ steps.detect.outputs.backend }}
+      backend: ${{ steps.gate.outputs.backend }}
 
     steps:
       - name: Checkout repository
@@ -38,31 +40,36 @@ jobs:
               - 'backend/**'
               - '.github/workflows/deploy-backend.yml'
 
+      # 手動実行は dependabot 自動マージ後のデプロイ経路なので、直前コミットが frontend だけでも検証を通す
+      - name: Resolve backend detection
+        id: gate
+        run: echo "backend=${{ steps.detect.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust toolchain
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
 
       - name: Cache Rust dependencies
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
         with:
           workspaces: backend
           shared-key: deploy-backend
 
       - name: Lint (clippy)
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         run: SQLX_OFFLINE=true cargo clippy -- -D warnings
 
       - name: Run tests
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         run: SQLX_OFFLINE=true cargo test
 
       - name: Generate OpenAPI schema
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         run: cargo run --bin generate_openapi
 
       - name: Check OpenAPI schema is up to date
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           if ! git diff --exit-code docs/openapi.json; then
@@ -71,11 +78,11 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1 https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1
 
       - name: Build Docker image
-        if: steps.detect.outputs.backend == 'true'
+        if: steps.gate.outputs.backend == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0 https://github.com/docker/build-push-action/releases/tag/v7.4.0
         with:
           context: ./backend
@@ -87,7 +94,9 @@ jobs:
   deploy:
     name: Deploy to Fly.io
     needs: [test-and-build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:

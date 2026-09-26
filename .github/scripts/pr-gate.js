@@ -19,6 +19,9 @@ const prQuery = `
         body
         headRefOid
         isCrossRepository
+        author {
+          login
+        }
         closingIssuesReferences(first: 1) {
           totalCount
         }
@@ -106,7 +109,7 @@ async function hasLinkedIssue(github, { owner, repo }, pr) {
 const isBot = (author) =>
   author?.__typename === 'Bot' || (author?.login ?? '').endsWith('[bot]');
 
-function evaluateGate({ linked, nodes }) {
+function evaluateGate({ linked, nodes, issueLinkExempt = false }) {
   const unresolved = nodes.filter((node) => {
     const body = node.body ?? '';
     return (
@@ -133,7 +136,9 @@ function evaluateGate({ linked, nodes }) {
   const description =
     problems.length > 0
       ? statusParts.join(' / ')
-      : 'Issue 紐づけ済み・未解決コメントなし';
+      : issueLinkExempt
+        ? 'Issue 紐づけ免除(dependabot)・未解決コメントなし'
+        : 'Issue 紐づけ済み・未解決コメントなし';
 
   return { problems, unresolved, description };
 }
@@ -206,15 +211,18 @@ async function run({ github, context, core }) {
     return;
   }
 
+  // dependabot の PR は Issue 紐づけを免除する(未解決コメントの確認は通常どおり行う)
+  const skipIssueLink = pr.author?.login === 'dependabot[bot]';
   const [comments, reviews, linked] = await Promise.all([
     fetchAll(github, { owner, repo, prNumber }, 'comments'),
     fetchAll(github, { owner, repo, prNumber }, 'reviews'),
-    hasLinkedIssue(github, { owner, repo }, pr),
+    skipIssueLink ? true : hasLinkedIssue(github, { owner, repo }, pr),
   ]);
 
   const { problems, unresolved, description } = evaluateGate({
     linked,
     nodes: [...comments, ...reviews],
+    issueLinkExempt: skipIssueLink,
   });
 
   core.info(`linked issue: ${linked}`);
