@@ -289,7 +289,7 @@ pub async fn bulk_create_with_limit(
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(result)
+    timer.finish_from_result(&result)
 }
 
 /// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）

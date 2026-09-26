@@ -54,15 +54,15 @@ pub fn create_oauth_client(
         .set_client_secret(ClientSecret::new(client_secret.to_string()))
         .set_auth_uri(
             AuthUrl::new(GOOGLE_AUTH_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {}", e)))?,
+                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {e}")))?,
         )
         .set_token_uri(
             TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {}", e)))?,
+                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {e}")))?,
         )
         .set_redirect_uri(
             RedirectUrl::new(redirect_url)
-                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {}", e)))?,
+                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {e}")))?,
         );
 
     Ok(client)
@@ -80,7 +80,7 @@ pub fn build_oauth_http_client() -> Result<oauth2::reqwest::Client, ApiError> {
         .timeout(std::time::Duration::from_secs(10))
         .redirect(oauth2::reqwest::redirect::Policy::limited(3))
         .build()
-        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {}", e)))
+        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {e}")))
 }
 
 /// 起動時に共有OAuthクライアントを初期化する（`main.rs` の起動処理から呼ぶ）。
@@ -645,8 +645,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         let url_str = auth_url.to_string();
         assert!(
             url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.fly.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
-            "redirect_uri が /api/v1/oauth/google/callback でない: {}",
-            url_str
+            "redirect_uri が /api/v1/oauth/google/callback でない: {url_str}"
         );
     }
 
@@ -801,7 +800,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     async fn start_auth_test_pool() -> (PgPool, impl Drop) {
         let node = Postgres::default().start().await.unwrap();
         let port = node.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+        let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
         let mut last_error = None;
         let mut pool_opt = None;
         for _ in 0..20 {

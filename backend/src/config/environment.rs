@@ -26,13 +26,13 @@ pub fn is_production_env() -> bool {
 pub fn backend_url() -> String {
     env::var("BACKEND_URL").unwrap_or_else(|_| {
         let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
-        format!("http://localhost:{}", port)
+        format!("http://localhost:{port}")
     })
 }
 
 pub fn server_addr() -> String {
     let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
-    format!("0.0.0.0:{}", port)
+    format!("0.0.0.0:{port}")
 }
 
 /// CookieをSecureで発行するか判定
@@ -43,9 +43,7 @@ pub fn is_secure_cookie() -> bool {
     if is_production_env() {
         return true;
     }
-    env::var("SECURE_COOKIE")
-        .map(|v| v == "true" || v == "1")
-        .unwrap_or(false)
+    env::var("SECURE_COOKIE").is_ok_and(|v| v == "true" || v == "1")
 }
 
 /// CSV アップロード系ルートへのレート制限（リクエスト/秒）。0 は無制限

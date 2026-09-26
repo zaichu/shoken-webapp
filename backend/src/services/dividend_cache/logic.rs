@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 /// pending は取得中のため stale_at が NULL でも is_stale = false とする。
 /// それ以外は stale_at が NULL または過去なら is_stale = true。
 pub fn compute_is_stale(status: &str, stale_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
-    status != "pending" && stale_at.map(|t| t < now).unwrap_or(true)
+    status != "pending" && stale_at.is_none_or(|t| t < now)
 }
 
 /// 決算サマリーから1株配当を抽出する

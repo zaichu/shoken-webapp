@@ -24,7 +24,7 @@ const BODY_LIMIT: usize = 1024 * 1024;
 async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
     let node = PgImage::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = {
         let mut last_error = None;
@@ -48,7 +48,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
             sleep(Duration::from_millis(500)).await;
         }
 
-        pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {:?}", last_error))
+        pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {last_error:?}"))
     };
 
     crate::db::run_migrations(&pool)
@@ -75,7 +75,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
     (pool, node)
 }
 
-fn setup_test_app(pool: Pool<Postgres>) -> Router {
+fn setup_test_app(pool: &Pool<Postgres>) -> Router {
     Router::new()
         .route("/api/v1/stocks", get(search))
         .with_state(crate::AppState {
@@ -122,7 +122,7 @@ async fn read_json(response: axum::response::Response) -> Value {
 #[ignore = "requires Docker to run Postgres container"]
 async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
-    let app = setup_test_app(pool);
+    let app = setup_test_app(&pool);
 
     let response = call(app.clone(), "GET", "/api/v1/stocks?query=1234", None).await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -174,7 +174,7 @@ fn test_stock_search_query_validation_bounds() {
 async fn test_search_stock_rejects_empty_query() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
-    let app = setup_test_app(pool);
+    let app = setup_test_app(&pool);
 
     assert_eq!(
         call(app, "GET", "/api/v1/stocks?query=", None)
@@ -188,7 +188,7 @@ async fn test_search_stock_rejects_empty_query() {
 async fn test_search_stock_rejects_too_long_query() {
     let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
         .unwrap();
-    let app = setup_test_app(pool);
+    let app = setup_test_app(&pool);
 
     // バリデーションは DB 問い合わせより先に行われるため、DB なしでも 400 が返る
     let uri = format!("/api/v1/stocks?query={}", "a".repeat(101));

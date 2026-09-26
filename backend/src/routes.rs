@@ -35,7 +35,7 @@ const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 const COMPRESSION_MIN_SIZE: u64 = 1024;
 
 fn spawn_keyed_limiter_cleanup(
-    limiter: &Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+    limiter: Option<&Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) {
     if let Some(limiter) = limiter {
         let limiter = limiter.clone();
@@ -49,7 +49,7 @@ fn spawn_keyed_limiter_cleanup(
     }
 }
 
-pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBool>) -> Router {
+pub fn app_router(state: AppState, config: &Config, startup_ready: &Arc<AtomicBool>) -> Router {
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
@@ -57,13 +57,13 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     let stock_search_limiter = build_keyed_rate_limiter(config.stock_search_rate_limit_rps);
     // 認証済みデータ系(dividends 等)は無制限呼び出しによる DB/外部API 負荷を抑止するため IP 単位の keyed limiter
     let data_limiter = build_keyed_rate_limiter(config.data_rate_limit_rps);
-    spawn_keyed_limiter_cleanup(&auth_limiter);
-    spawn_keyed_limiter_cleanup(&csv_limiter);
-    spawn_keyed_limiter_cleanup(&stock_search_limiter);
-    spawn_keyed_limiter_cleanup(&data_limiter);
+    spawn_keyed_limiter_cleanup(auth_limiter.as_ref());
+    spawn_keyed_limiter_cleanup(csv_limiter.as_ref());
+    spawn_keyed_limiter_cleanup(stock_search_limiter.as_ref());
+    spawn_keyed_limiter_cleanup(data_limiter.as_ref());
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
-    let ready = Arc::clone(&startup_ready);
+    let ready = Arc::clone(startup_ready);
     let gated_domain = domain_routes(
         auth_limiter,
         csv_limiter,
@@ -84,7 +84,7 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     ));
 
     // /ready と /health は TraceLayer の対象外にする（startup 中の expected 503 を ERROR ログから除外）
-    let ready_for_check = Arc::clone(&startup_ready);
+    let ready_for_check = Arc::clone(startup_ready);
     let probe_routes = Router::new()
         .route("/health", get(|| async { "OK" }))
         .route(
@@ -374,7 +374,7 @@ mod tests {
                 app_router(
                     make_test_state(),
                     &Config::from_env(),
-                    Arc::new(AtomicBool::new(true)),
+                    &Arc::new(AtomicBool::new(true)),
                 ),
                 Method::POST,
                 path,
@@ -385,7 +385,7 @@ mod tests {
         let resp = app_router(
             make_test_state(),
             &Config::from_env(),
-            Arc::new(AtomicBool::new(true)),
+            &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
             Request::builder()
@@ -418,7 +418,7 @@ mod tests {
                 app_router(
                     make_test_state(),
                     &Config::from_env(),
-                    Arc::new(AtomicBool::new(true)),
+                    &Arc::new(AtomicBool::new(true)),
                 ),
                 Method::GET,
                 uri,
@@ -431,7 +431,7 @@ mod tests {
             app_router(
                 make_test_state(),
                 &Config::from_env(),
-                Arc::new(AtomicBool::new(true)),
+                &Arc::new(AtomicBool::new(true)),
             ),
             Method::PUT,
             "/api/v1/asset-balances",
@@ -451,7 +451,7 @@ mod tests {
             app_router(
                 make_test_state(),
                 &Config::from_env(),
-                Arc::new(AtomicBool::new(true)),
+                &Arc::new(AtomicBool::new(true)),
             ),
             Method::GET,
             "/api/v1/stocks?query=",
@@ -471,7 +471,7 @@ mod tests {
         let resp = app_router(
             make_test_state(),
             &Config::from_env(),
-            Arc::new(AtomicBool::new(true)),
+            &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
             Request::builder()
@@ -488,7 +488,7 @@ mod tests {
         let resp = app_router(
             make_test_state(),
             &Config::from_env(),
-            Arc::new(AtomicBool::new(true)),
+            &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
             Request::builder()
@@ -506,11 +506,7 @@ mod tests {
     #[tokio::test]
     async fn test_ready_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -527,11 +523,7 @@ mod tests {
     #[tokio::test]
     async fn test_ready_returns_200_after_startup() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -548,11 +540,7 @@ mod tests {
     #[tokio::test]
     async fn test_health_returns_200_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -569,11 +557,7 @@ mod tests {
     #[tokio::test]
     async fn test_domain_route_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -590,11 +574,7 @@ mod tests {
     #[tokio::test]
     async fn test_domain_route_returns_401_after_startup() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -611,11 +591,7 @@ mod tests {
     #[tokio::test]
     async fn test_legacy_paths_return_404() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(
-            make_test_state(),
-            &Config::from_env(),
-            Arc::clone(&startup_ready),
-        );
+        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
         for (method, uri) in [
             (Method::GET, "/auth/me"),
             (Method::GET, "/jquants/fins/summary"),

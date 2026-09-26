@@ -100,7 +100,7 @@ async fn connect_with_retry(database_url: &str) -> PgPool {
         sleep(Duration::from_millis(500)).await;
     }
 
-    panic!("Failed to connect to Postgres: {:?}", last_error);
+    panic!("Failed to connect to Postgres: {last_error:?}");
 }
 
 #[tokio::test]
@@ -111,7 +111,7 @@ async fn db_integration_with_docker_and_migrations() {
 
     let node = Postgres::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool)
@@ -160,7 +160,7 @@ async fn db_integration_with_docker_and_migrations() {
     let app = app_router(
         state,
         &config,
-        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        &std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
     );
 
     let req = Request::builder()
@@ -194,7 +194,7 @@ async fn db_integration_with_docker_and_migrations() {
 fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     CreateAssetBalanceRequest {
         security_code: code.to_string(),
-        security_name: format!("テスト銘柄{}", code),
+        security_name: format!("テスト銘柄{code}"),
         shares: dec!(100),
         executing_shares: dec!(0),
         average_purchase_price: dec!(1000),
@@ -212,7 +212,7 @@ fn make_dividend_item(security_code: &str) -> CreateDividendRequest {
         product: "国内株式".to_string(),
         account: "特定".to_string(),
         security_code: security_code.to_string(),
-        security_name: format!("銘柄_{}", security_code),
+        security_name: format!("銘柄_{security_code}"),
         unit_price: dec!(100.0),
         shares: dec!(100.0),
         dividends_before_tax: dec!(1000.0),
@@ -226,7 +226,7 @@ fn make_domestic_stock_item(security_code: &str) -> CreateDomesticStockRequest {
         trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
         settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
         security_code: security_code.to_string(),
-        security_name: format!("銘柄_{}", security_code),
+        security_name: format!("銘柄_{security_code}"),
         account: "特定".to_string(),
         shares: dec!(100.0),
         asked_price: dec!(1000.0),
@@ -294,7 +294,7 @@ fn make_asset_balance_csv() -> &'static str {
 async fn start_test_pool() -> (PgPool, impl Drop) {
     let node = Postgres::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{}/postgres", port);
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
     (pool, node)

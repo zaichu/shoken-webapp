@@ -50,7 +50,7 @@ impl BulkTimer {
     /// u64 → usize の変換が失敗した場合は ApiError を返す。
     pub fn finish_from_result(
         self,
-        result: PgQueryResult,
+        result: &PgQueryResult,
     ) -> Result<BulkCreateResponse, ApiError> {
         let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
             ApiError::ApiError("bulk insert の rows_affected が usize に収まりません".to_string())

@@ -41,7 +41,7 @@ where
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築
 pub fn finish_csv_upload(
-    result: BulkCreateResponse,
+    result: &BulkCreateResponse,
     errors: Vec<CsvRowError>,
 ) -> CsvUploadResponse {
     CsvUploadResponse {
@@ -81,7 +81,7 @@ where
     let rows = parse_csv_with_config(bytes, config)?;
     let (items, errors) = transform_rows(&rows);
     let result = bulk_create(items).await?;
-    Ok(finish_csv_upload(result, errors))
+    Ok(finish_csv_upload(&result, errors))
 }
 #[cfg(test)]
 mod tests {
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_finish_csv_upload() {
         let response = finish_csv_upload(
-            crate::models::common::BulkCreateResponse {
+            &crate::models::common::BulkCreateResponse {
                 inserted: 3,
                 skipped: 1,
             },
