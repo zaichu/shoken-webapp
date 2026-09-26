@@ -19,7 +19,7 @@ use {
     tower::ServiceExt,
 };
 
-const BODY_LIMIT: usize = 100;
+const BODY_LIMIT: usize = 1024 * 1024;
 
 async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
     let node = PgImage::default().start().await.unwrap();
