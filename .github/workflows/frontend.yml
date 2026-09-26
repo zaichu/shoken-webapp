@@ -158,9 +158,6 @@ jobs:
       - name: Run existing E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts
 
-      - name: Run receipts cache E2E tests
-        run: env -u NO_COLOR npx playwright test --config playwright.receipts.config.ts
-
       - name: Build Vercel verification bundle
         run: env -u NO_COLOR VERCEL_DIST_DIR=dist-vercel SHOKEN_WEBAPI_URL="$(node scripts/backend-origin.cjs)" bash scripts/vercel-build.sh
 

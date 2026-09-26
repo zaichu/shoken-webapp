@@ -26,11 +26,8 @@ Playwright は Trunk の開発サーバーを自動起動します。worktree �
 
 ```bash
 env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts
-env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.receipts.config.ts
 env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.vercel.config.ts
 ```
-
-実 DB と backend を使う取引明細スモークは `frontend/scripts/run-real-backend-smoke.sh` で実行します。DB → backend → Leptos の順に起動し、認証済み session と fixture を投入します。
 
 ## バックエンド
 

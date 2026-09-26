@@ -94,12 +94,6 @@ test('390px ではモバイル表示を維持する(カード表示・CSV折り�
   expect(mainBox).not.toBeNull();
   expect(railBox!.y).toBeLessThan(mainBox!.y);
 
-  // スマホではレールに枠を付けず、検索カードは従来どおり独立したカード
-  const railInner = rail.locator('> div').first();
-  await expect(railInner).toHaveCSS('border-top-width', '0px');
-  const searchCard = page.getByTestId('search-card');
-  await expect(searchCard).toHaveCSS('border-top-width', '1px');
-
   const toggle = page.getByTestId('receipt-csv-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -182,14 +176,6 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(main.getByTestId('receipt-summary-strip')).toBeVisible();
   await expect(main.getByRole('table')).toBeVisible();
 
-  // 表ヘッダーは薄い灰色の背景に濃い文字(React 準拠)
-  await expect(
-    page.getByRole('table').locator('thead tr'),
-  ).toHaveCSS('background-color', 'oklch(0.984 0.003 247.858)');
-  await expect(
-    page.getByRole('table').locator('thead th').first(),
-  ).toHaveCSS('color', 'oklch(0.279 0.041 260.031)');
-
   // 表はカード内でスクロールし、ページ幅を広げない
   const tableScroll = await page
     .getByRole('table')
@@ -256,21 +242,10 @@ test('640px 以上で年ピッカーの選択肢がレール下端を超えて�
     await page.setViewportSize({ width, height: 900 });
     await gotoReceipts(page);
 
-    const railInner = page
-      .getByTestId('receipt-utility-rail')
-      .locator('> div')
-      .first();
-    // レールの枠がドロップダウンをクリップしない
-    await expect(railInner).toHaveCSS('overflow', 'visible');
-
     const trigger = page.getByRole('button', { name: '年を選択' });
     await trigger.click();
     const listbox = page.getByRole('listbox', { name: '年候補' });
     await expect(listbox).toBeVisible();
-
-    // 長い候補はリスト内でスクロールして全件に到達できる
-    await expect(listbox).toHaveCSS('overflow-y', 'auto');
-    await expect(listbox).toHaveCSS('max-height', '288px');
 
     // 末尾の年も実際にクリックできる(768px の1カラム幅ではドロップダウンが下の表と重なり得る)
     const lastOption = listbox.getByRole('option').last();

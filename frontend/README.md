@@ -26,13 +26,10 @@ cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 cargo clippy --all-targets -- -D warnings
 cargo test
 npx playwright test --config playwright.leptos.config.ts
-npx playwright test --config playwright.receipts.config.ts
 npx playwright test --config playwright.vercel.config.ts
 ```
 
-`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。`playwright.receipts.config.ts` は取引明細の E2E を実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。
-
-実 backend と DB を使うスモークテストは `scripts/run-real-backend-smoke.sh` を使います。DB → backend → Leptos の順に起動します。
+`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。
 
 ## CSS
 

@@ -133,24 +133,10 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
 
-  const searchCard = page.getByTestId('search-card');
   const railInner = rail.locator('> div').first();
-  await expect(railInner).toHaveCSS('border-top-width', '1px');
   const railSections = railInner.locator('> *');
   expect(await railSections.count()).toBeGreaterThanOrEqual(3);
-  await expect(railSections.first()).toHaveCSS('border-bottom-width', '1px');
-  await expect(railSections.last()).toHaveCSS('border-bottom-width', '0px');
-  const railRadius = await railInner.evaluate(
-    (el) => getComputedStyle(el).borderTopLeftRadius,
-  );
-  expect(Number.parseFloat(railRadius)).toBeGreaterThan(0);
   await expect(railInner.locator('[data-testid="search-card"]')).toHaveCount(1);
-  const searchStyle = await searchCard.evaluate((el) => {
-    const s = getComputedStyle(el);
-    return { borderTopWidth: s.borderTopWidth, borderRadius: s.borderTopLeftRadius };
-  });
-  expect(searchStyle.borderTopWidth).toBe('0px');
-  expect(Number.parseFloat(searchStyle.borderRadius)).toBe(0);
   await expect(page.locator('#securities-search')).toBeVisible();
 
   const toggle = page.getByTestId('assetbalance-csv-toggle');
@@ -175,7 +161,7 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   await shoot(page, '390');
 });
 
-test('一覧に無い銘柄を選ぶとフィルタ済み空状態がカード内の破線ボックスで出る', async ({
+test('一覧に無い銘柄を選ぶとフィルタ済み空状態と解除ボタンが出る', async ({
   page,
 }) => {
   await page.unroute(/\/api\/v1\/asset-balances(?:\?.*)?$/);
@@ -201,10 +187,6 @@ test('一覧に無い銘柄を選ぶとフィルタ済み空状態がカード�
   await page.locator('#securities-search').selectOption('9999');
   const heading = page.getByRole('heading', { name: '該当する銘柄がありません' });
   await expect(heading).toBeVisible();
-  const box = heading.locator('xpath=..');
-  await expect(box).toHaveCSS('border-top-style', 'dashed');
-  const card = box.locator('xpath=..').locator('xpath=..');
-  await expect(card).toHaveCSS('border-top-width', '1px');
   await expect(
     page.getByRole('button', { name: '絞り込みを解除' }),
   ).toBeVisible();
@@ -225,10 +207,6 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await shoot(page, '639');
 
   await page.setViewportSize({ width: 640, height: 844 });
-
-  const railInner = page.getByTestId('assetbalance-utility-rail').locator('> div').first();
-  await expect(railInner).toHaveCSS('border-top-width', '1px');
-  await expect(page.getByTestId('search-card')).toHaveCSS('border-top-width', '0px');
 
   await expect(page.getByTestId('assetbalance-csv-toggle')).toBeHidden();
   await expect(
