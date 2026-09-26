@@ -13,20 +13,64 @@ use axum::{
     response::{IntoResponse, Json},
 };
 use axum_extra::extract::{cookie::Cookie, CookieJar};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 const ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME: &str = "account_delete_confirmation";
+const ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS: i64 = 10 * 60;
 
-fn build_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
-    Cookie::build((
-        ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME,
-        uuid::Uuid::new_v4().to_string(),
-    ))
-    .path("/api/v1/account")
-    .http_only(true)
-    .secure(secure)
-    .same_site(same_site(secure))
-    .max_age(time::Duration::minutes(10))
-    .build()
+fn build_account_delete_confirmation_cookie(value: String, secure: bool) -> Cookie<'static> {
+    Cookie::build((ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME, value))
+        .path("/api/v1/account")
+        .http_only(true)
+        .secure(secure)
+        .same_site(same_site(secure))
+        .max_age(time::Duration::seconds(
+            ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS,
+        ))
+        .build()
+}
+
+fn account_delete_confirmation_mac(
+    session_token: &str,
+    issued_at: i64,
+    nonce: &str,
+) -> Result<Hmac<Sha256>, ApiError> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(session_token.as_bytes())
+        .map_err(|_| ApiError::ApiError("アカウント削除確認の生成に失敗しました".to_string()))?;
+    mac.update(format!("account-delete:{issued_at}:{nonce}").as_bytes());
+    Ok(mac)
+}
+
+fn issue_account_delete_confirmation(
+    session_token: &str,
+    issued_at: i64,
+) -> Result<String, ApiError> {
+    let nonce = uuid::Uuid::new_v4().simple().to_string();
+    let tag = account_delete_confirmation_mac(session_token, issued_at, &nonce)?
+        .finalize()
+        .into_bytes();
+    Ok(format!("{issued_at}.{nonce}.{}", hex::encode(tag)))
+}
+
+fn verify_account_delete_confirmation(value: &str, session_token: &str, now: i64) -> bool {
+    let mut parts = value.splitn(3, '.');
+    let (Some(issued_at), Some(nonce), Some(tag)) = (parts.next(), parts.next(), parts.next())
+    else {
+        return false;
+    };
+    let Ok(issued_at) = issued_at.parse::<i64>() else {
+        return false;
+    };
+    if !(0..=ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS).contains(&(now - issued_at)) {
+        return false;
+    }
+    let Ok(tag) = hex::decode(tag) else {
+        return false;
+    };
+    account_delete_confirmation_mac(session_token, issued_at, nonce)
+        .map(|mac| mac.verify_slice(&tag).is_ok())
+        .unwrap_or(false)
 }
 
 fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
@@ -93,10 +137,15 @@ pub async fn delete_account(
     let confirmation = jar
         .get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME)
         .ok_or_else(|| ApiError::ApiError("アカウント削除確認が完了していません".to_string()))?;
-    confirmation
-        .value()
-        .parse::<uuid::Uuid>()
-        .map_err(|_| ApiError::ApiError("アカウント削除確認が無効です".to_string()))?;
+    if !verify_account_delete_confirmation(
+        confirmation.value(),
+        &session_id.to_string(),
+        chrono::Utc::now().timestamp(),
+    ) {
+        return Err(ApiError::ApiError(
+            "アカウント削除確認が無効です".to_string(),
+        ));
+    }
 
     let user_id = auth_service::select_user_id_by_session(&state.pool, session_id)
         .await?
@@ -133,8 +182,14 @@ pub async fn create_account_deletion_confirmation(
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
     let _ = auth_user;
+    let session_id = crate::handlers::auth::get_session_id_from_jar(&jar)?;
+    let confirmation =
+        issue_account_delete_confirmation(&session_id.to_string(), chrono::Utc::now().timestamp())?;
     let is_secure = config::is_secure_cookie();
-    let jar = jar.add(build_account_delete_confirmation_cookie(is_secure));
+    let jar = jar.add(build_account_delete_confirmation_cookie(
+        confirmation,
+        is_secure,
+    ));
 
     Ok((
         jar,
@@ -195,7 +250,7 @@ mod tests {
     #[test]
     fn test_account_delete_confirmation_cookie_is_http_only_and_scoped() {
         for secure in [true, false] {
-            let cookie = build_account_delete_confirmation_cookie(secure);
+            let cookie = build_account_delete_confirmation_cookie(String::new(), secure);
             assert_eq!(cookie.name(), ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME);
             assert_eq!(cookie.path(), Some("/api/v1/account"));
             assert_eq!(cookie.http_only(), Some(true));
