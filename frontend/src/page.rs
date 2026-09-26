@@ -116,7 +116,7 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen flex flex-col bg-slate-50 text-slate-950">
             <a
                 href="#main-content"
-                class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-primary"
+                class="skip-link"
             >
                 "メインコンテンツへスキップ"
             </a>
@@ -208,15 +208,15 @@ fn SearchForm(
     on_submit: impl Fn(web_sys::SubmitEvent) + 'static,
 ) -> impl IntoView {
     view! {
-        <div class="rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none mb-5 overflow-hidden border-slate-950/10">
+        <div class="panel-card mb-5 overflow-hidden">
             <div class="p-4 sm:p-5">
                 <form on:submit=on_submit>
-                    <div class="flex w-full items-stretch rounded-lg border border-slate-300 bg-white p-1 shadow-inner shadow-slate-200/80 focus-within:border-amber-600 focus-within:ring-2 focus-within:ring-amber-500/20">
+                    <div class="search-input-frame">
                         <div class="flex-1 min-w-0">
                             <div class="w-full">
                                 <input
                                     type="text"
-                                    class="block px-3 py-2 text-sm font-medium text-slate-950 bg-white border rounded-md transition-[border-color,box-shadow,background-color] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/25 border-slate-300 focus:border-amber-600 w-full h-11 rounded-r-none border-0 bg-transparent text-base shadow-none focus:ring-0"
+                                    class="search-input"
                                     placeholder="銘柄コードまたは銘柄名"
                                     aria-label="銘柄コードまたは銘柄名"
                                     autocomplete="off"
@@ -231,7 +231,7 @@ fn SearchForm(
                         </div>
                         <button
                             type="submit"
-                            class="inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-slate-950 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-slate-800 active:bg-slate-950 px-4 py-2 text-sm max-sm:min-h-[44px] h-11 shrink-0 whitespace-nowrap rounded-md px-5"
+                            class="search-submit no-print"
                             disabled=move || loading.get() || stock_code.get().is_empty()
                             data-loading=move || loading.get().then_some("true")
                             aria-label=move || {
@@ -260,7 +260,7 @@ fn SearchForm(
 #[component]
 fn EmptySearch() -> impl IntoView {
     view! {
-        <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center py-10">
+        <div class="empty-state py-10">
             <div class="mb-3 text-slate-400" aria-hidden="true">
                 <svg
                     class="h-10 w-10"
@@ -316,7 +316,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
     let name = stock.name.clone();
     view! {
         <div>
-            <div class="rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none mb-4 overflow-hidden">
+            <div class="panel-card mb-4 overflow-hidden">
                 <div class="border-b border-slate-950/10 bg-slate-950 px-5 py-4 text-white">
                     <div class="flex flex-wrap items-end justify-between gap-3">
                         <div>
@@ -325,7 +325,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                             </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
                         </div>
-                        <span class="inline-flex rounded-md border border-white/20 bg-white px-3 py-1 font-mono text-sm font-black tracking-wider text-slate-950">
+                        <span class="code-chip">
                             {code.clone()}
                         </span>
                     </div>
@@ -370,7 +370,7 @@ fn StockInfoLinks(code: String) -> impl IntoView {
                     let href = template.replace("{code}", &code);
                     view! {
                         <a
-                            class="inline-flex items-center justify-between gap-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors"
+                            class="stock-link-button"
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"

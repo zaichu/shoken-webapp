@@ -112,7 +112,7 @@ pub fn ConfirmDeleteModal(
                         </h5>
                         <button
                             type="button"
-                            class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded disabled:cursor-not-allowed disabled:opacity-60"
+                            class="modal-close-button"
                             aria-label="閉じる"
                             disabled=move || loading.get()
                             on:click=move |_| close_cancel()

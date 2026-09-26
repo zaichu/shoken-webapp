@@ -53,7 +53,7 @@ pub fn CsvActionRail(
             <div class="bg-slate-50/60 px-5 sm:hidden">
                 <button
                     type="button"
-                    class="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    class="rail-toggle"
                     on:click=move |_| csv_expanded.update(|v| *v = !*v)
                     aria-expanded=move || csv_expanded.get().to_string()
                     aria-controls=csv_body_id.clone()
@@ -204,7 +204,7 @@ fn CsvFileInput(
                         <p class="text-sm font-semibold text-slate-800">"CSVファイルを選択"</p>
                     </div>
                 </div>
-                <span class="inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
+                <span class="file-chip">
                     "参照"
                 </span>
             </label>
@@ -220,7 +220,7 @@ fn CsvFileInput(
             />
             <input
                 type="text"
-                class="w-full rounded-[1.15rem] border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100"
+                class="csv-file-input"
                 readonly
                 placeholder="ファイル未選択"
                 prop:value=move || selected_file_name.get()
