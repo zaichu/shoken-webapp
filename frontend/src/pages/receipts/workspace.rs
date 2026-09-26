@@ -40,13 +40,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 <div class="workspace-rail">
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
-                        // 一覧取得の失敗は本文に出すため、レールには CSV のエラーだけを出す
-                        let message = if matches!(panel_state.get(), TabState::Failed(_)) {
-                            alert_store.csv_state(tab).error
-                        } else {
-                            alert_store.rail_error(tab)
-                        };
-                        let Some(message) = message else {
+                        let Some(message) = alert_store.csv_state(tab).error else {
                             return ().into_any();
                         };
                         view! {

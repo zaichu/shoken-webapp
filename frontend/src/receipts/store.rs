@@ -11,7 +11,9 @@ use crate::receipts::filter::ReceiptSearch;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use serde::de::DeserializeOwned;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 pub(crate) const RECEIPT_LIST_PER_PAGE: usize = 1000;
 // API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
@@ -123,27 +125,6 @@ impl ReceiptsStore {
 
     pub fn count(&self, tab: ReceiptsTab) -> usize {
         self.rows(tab).len()
-    }
-
-    // CSV エラーはタブ内の操作レール側が表示するため、ここでは一覧取得失敗だけを返す
-    pub fn error(&self) -> Option<String> {
-        let generation = self.session.generation.get();
-        self.cache.with(|map| {
-            ReceiptsTab::ALL
-                .iter()
-                .find_map(|tab| match map.get(&(generation, *tab)) {
-                    Some(TabState::Failed(message)) => Some(message.clone()),
-                    _ => None,
-                })
-        })
-    }
-
-    // 選択中タブの失敗を他タブの取得エラーより先に返し、バックグラウンドの失敗で CSV の結果が隠れないようにする
-    pub fn rail_error(&self, tab: ReceiptsTab) -> Option<String> {
-        if let TabState::Failed(message) = self.tab_state(tab) {
-            return Some(message);
-        }
-        self.csv_state(tab).error.or_else(|| self.error())
     }
 
     pub fn tab_state(&self, tab: ReceiptsTab) -> TabState {
@@ -497,12 +478,23 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
 
     let fetch_session = session;
     let cache_signal = cache;
+    // 同じタブの取得が重なったとき、先に始めた取得の結果で新しい結果を上書きしないため
+    let latest_fetch: Rc<RefCell<HashMap<(u64, ReceiptsTab), u64>>> = Rc::default();
     let fetch = Action::new_unsync(move |(generation, tab): &(u64, ReceiptsTab)| {
         let (generation, tab) = (*generation, *tab);
         let session = fetch_session;
+        let rev = {
+            let mut latest = latest_fetch.borrow_mut();
+            let rev = latest.entry((generation, tab)).or_default();
+            *rev += 1;
+            *rev
+        };
+        let latest_fetch = Rc::clone(&latest_fetch);
         async move {
             let rows = fetch_list(tab).await;
-            if !should_apply_fetch_result(&session, generation) {
+            if !should_apply_fetch_result(&session, generation)
+                || latest_fetch.borrow().get(&(generation, tab)) != Some(&rev)
+            {
                 return;
             }
             cache_signal.update(|map| {

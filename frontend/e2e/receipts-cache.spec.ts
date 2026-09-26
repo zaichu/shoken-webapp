@@ -240,6 +240,8 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
     });
 
     await page.goto('/receipts');
+    const failedTabName = { dividends: '配当金', domestic: '国内株式', funds: '投資信託' }[failedTab];
+    await page.getByRole('tab', { name: failedTabName }).click();
     await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
     // 全タブ分の発行直後に遅れて届く重複も拾えるよう、合計が500ms不変になるまで待つ
     let lastTotal = 0;
