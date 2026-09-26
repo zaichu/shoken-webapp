@@ -319,11 +319,13 @@ mod tests {
             "発行した確認は同じセッション・期限内で受理されること"
         );
 
-        let expired = issue_account_delete_confirmation(
-            &session,
-            now - ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS - 1,
-        )
-        .unwrap();
+        // TTL=600秒の境界: 599秒前は受理、601秒前は拒否
+        let just_valid = issue_account_delete_confirmation(&session, now - 599).unwrap();
+        assert!(
+            verify_account_delete_confirmation(&just_valid, &session, now),
+            "TTL 直前の確認は受理されること"
+        );
+        let expired = issue_account_delete_confirmation(&session, now - 601).unwrap();
         assert!(
             !verify_account_delete_confirmation(&expired, &session, now),
             "期限切れの確認は拒否されること"
@@ -420,7 +422,7 @@ mod tests {
 
         let expired = issue_account_delete_confirmation(
             &session_id.to_string(),
-            chrono::Utc::now().timestamp() - ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS - 1,
+            chrono::Utc::now().timestamp() - 601,
         )
         .unwrap();
         let other_session = issue_account_delete_confirmation(
