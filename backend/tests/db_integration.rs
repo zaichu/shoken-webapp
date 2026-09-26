@@ -1492,12 +1492,45 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         "期待しないエラー: {err:?}"
     );
 
-    // 追記型(domestic_stocks/mutualfunds)も同じ判定
-    for domain in [UserDataDomain::DomesticStocks, UserDataDomain::MutualFunds] {
-        assert!(ensure_user_row_limit_with(&pool, user_id, domain, 4, LIMIT)
+    let domestic_items = vec![
+        make_domestic_stock_item("6501"),
+        make_domestic_stock_item("6758"),
+    ];
+    domestic_stock_svc::bulk_create(&pool, user_id, &domestic_items)
+        .await
+        .expect("初回 bulk_create は成功");
+    assert!(
+        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::DomesticStocks, 1, LIMIT)
             .await
-            .is_err());
-    }
+            .is_ok()
+    );
+    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::DomesticStocks, 2, LIMIT)
+        .await
+        .expect_err("既存2+追加2=4 > 3 で拒否");
+    assert!(
+        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        "期待しないエラー: {err:?}"
+    );
+
+    let mutualfund_items = vec![
+        make_mutualfund_item("ファンドA"),
+        make_mutualfund_item("ファンドB"),
+    ];
+    mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items)
+        .await
+        .expect("初回 bulk_create は成功");
+    assert!(
+        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::MutualFunds, 1, LIMIT)
+            .await
+            .is_ok()
+    );
+    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::MutualFunds, 2, LIMIT)
+        .await
+        .expect_err("既存2+追加2=4 > 3 で拒否");
+    assert!(
+        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        "期待しないエラー: {err:?}"
+    );
 
     // 置換型(asset_balances): 追加分のみで上限判定(既存行数を見ない)
     let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
