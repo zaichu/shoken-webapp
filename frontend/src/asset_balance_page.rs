@@ -2025,18 +2025,6 @@ mod tests {
     }
 
     #[test]
-    fn currency_formatter_matches_react_cases() {
-        assert_eq!(format_currency(850000.0), "¥ 850,000");
-        assert_eq!(format_currency(0.0), "¥ 0");
-        assert_eq!(format_currency(-250000.0), "¥ -250,000");
-        assert_eq!(format_currency(2600.0), "¥ 2,600");
-        assert_eq!(format_currency(123.456), "¥ 123.456");
-        assert_eq!(format_currency(f64::NAN), "-");
-        assert_eq!(format_number_value(100.0), "100");
-        assert_eq!(format_number_value(-12345.0), "-12,345");
-    }
-
-    #[test]
     fn percentage_formatter_matches_react_cases() {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(1.3770010052107338), "1.38%");
@@ -2122,8 +2110,9 @@ mod tests {
     }
 
     #[test]
-    fn number_formatter_matches_intl_cases() {
+    fn number_and_currency_formatters_match_intl_cases() {
         assert_eq!(format_number_value(100.0), "100");
+        assert_eq!(format_number_value(-12345.0), "-12,345");
         assert_eq!(format_number_value(1.5), "1.5");
         assert_eq!(format_number_value(1.2345), "1.23");
         assert_eq!(format_number_value(-0.001), "-0");
@@ -2136,11 +2125,16 @@ mod tests {
         assert_eq!(format_number_value(-1.005), "-1.01");
         assert_eq!(format_number_value(2.675), "2.68");
         assert_eq!(format_number_value(0.995), "1");
+        assert_eq!(format_currency(850000.0), "¥ 850,000");
+        assert_eq!(format_currency(0.0), "¥ 0");
+        assert_eq!(format_currency(-250000.0), "¥ -250,000");
+        assert_eq!(format_currency(2600.0), "¥ 2,600");
+        assert_eq!(format_currency(123.456), "¥ 123.456");
+        assert_eq!(format_currency(f64::NAN), "-");
         assert_eq!(
             format_currency("0.123456789012345678".parse::<f64>().unwrap()),
             "¥ 0.123456789012346"
         );
-        assert_eq!(format_currency(850000.0), "¥ 850,000");
         assert_eq!(format_fixed_percent(f64::NAN, 1), "-");
     }
 

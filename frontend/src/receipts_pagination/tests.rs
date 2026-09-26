@@ -41,38 +41,11 @@ fn joins_more_than_two_pages_in_order() {
 }
 
 #[test]
-fn stops_at_max_pages_when_pages_never_run_short() {
-    let mut pages = PageCollector::new(3, 2);
-    assert!(pages.push(rows(0..3), 100));
-    assert!(!pages.push(rows(3..6), 100));
-    assert!(pages.truncated());
-    assert_eq!(pages.into_rows(), rows(0..6));
-}
-
-#[test]
-fn one_row_over_the_cap_is_truncated() {
-    let mut pages = PageCollector::new(3, 2);
-    assert!(pages.push(rows(0..3), 7));
-    assert!(!pages.push(rows(3..6), 7));
-    assert!(pages.truncated());
-    assert_eq!(pages.into_rows(), rows(0..6));
-}
-
-#[test]
 fn empty_first_page_is_not_truncated() {
     let mut pages = PageCollector::<usize>::new(1000, 100);
     assert!(!pages.push(Vec::new(), 0));
     assert!(!pages.truncated());
     assert!(pages.into_rows().is_empty());
-}
-
-#[test]
-fn empty_last_page_at_max_pages_is_not_truncated() {
-    let mut pages = PageCollector::new(3, 2);
-    assert!(pages.push(rows(0..3), 100));
-    assert!(!pages.push(Vec::new(), 100));
-    assert!(!pages.truncated());
-    assert_eq!(pages.into_rows(), rows(0..3));
 }
 
 #[test]
@@ -82,21 +55,22 @@ fn natural_end_before_max_pages_is_not_truncated() {
     assert!(!pages.truncated());
 }
 
+// 上限到達時の打ち切り判定は「末尾ページが満杯か」「total に未到達か」の2条件の組み合わせ
 #[test]
-fn reaching_total_exactly_at_max_pages_is_not_truncated() {
-    let mut pages = PageCollector::new(3, 2);
-    assert!(pages.push(rows(0..3), 6));
-    assert!(!pages.push(rows(3..6), 6));
-    assert!(!pages.truncated());
-}
-
-#[test]
-fn short_last_page_at_max_pages_is_not_truncated() {
-    let mut pages = PageCollector::new(3, 2);
-    assert!(pages.push(rows(0..3), 100));
-    assert!(!pages.push(rows(3..5), 100));
-    assert!(!pages.truncated());
-    assert_eq!(pages.into_rows(), rows(0..5));
+fn truncation_depends_on_last_page_fullness_and_total() {
+    for (name, last_page, total, want_truncated, want_rows) in [
+        ("cap_reached_with_full_pages", rows(3..6), 100, true, 6),
+        ("one_row_over_the_cap", rows(3..6), 7, true, 6),
+        ("empty_last_page_at_cap", Vec::new(), 100, false, 3),
+        ("reaching_total_exactly_at_cap", rows(3..6), 6, false, 6),
+        ("short_last_page_at_cap", rows(3..5), 100, false, 5),
+    ] {
+        let mut pages = PageCollector::new(3, 2);
+        assert!(pages.push(rows(0..3), total), "{name}");
+        assert!(!pages.push(last_page, total), "{name}");
+        assert_eq!(pages.truncated(), want_truncated, "{name}");
+        assert_eq!(pages.into_rows().len(), want_rows, "{name}");
+    }
 }
 
 #[test]
