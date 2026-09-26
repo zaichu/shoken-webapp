@@ -204,7 +204,6 @@ pub async fn bulk_create(
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
-    ensure_user_row_limit(pool, user_id, UserDataDomain::MutualFunds, items.len()).await?;
 
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
@@ -231,6 +230,16 @@ pub async fn bulk_create(
         .iter()
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
+
+    let mut tx = pool.begin().await?;
+
+    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
+        .bind(format!("{user_id}:mutualfunds"))
+        .execute(&mut *tx)
+        .await?;
+
+    ensure_user_row_limit(&mut *tx, user_id, UserDataDomain::MutualFunds, items.len()).await?;
 
     let result = sqlx::query(
         r#"
@@ -261,9 +270,10 @@ pub async fn bulk_create(
     .bind(&realized_pls)
     .bind(&taxes)
     .bind(&realized_pls_after_tax)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
 
+    tx.commit().await?;
     timer.finish_from_result(result)
 }
 

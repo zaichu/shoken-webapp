@@ -107,13 +107,31 @@ fn exceeds_user_row_limit(
 
 /// 書き込み前に、利用者ごとの保存行数が上限を超えないことを確認する。
 /// 追記型(dividends/domestic_stocks/mutualfunds)は既存行数との合算、
-/// 置換型(asset_balances)は追加分のみで上限を判定する
-pub async fn ensure_user_row_limit(
-    pool: &PgPool,
+/// 置換型(asset_balances)は追加分のみで上限を判定する。
+/// `executor` には `&PgPool` または `&mut Transaction`(同一 tx 内で直列化する場合)を渡す
+pub async fn ensure_user_row_limit<'e, E>(
+    executor: E,
     user_id: Uuid,
     domain: UserDataDomain,
     additional: usize,
-) -> Result<(), ApiError> {
+) -> Result<(), ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    ensure_user_row_limit_with(executor, user_id, domain, additional, user_row_limit()).await
+}
+
+/// `ensure_user_row_limit` の上限値を明示指定するバリアント(テスト・内部利用用)
+pub async fn ensure_user_row_limit_with<'e, E>(
+    executor: E,
+    user_id: Uuid,
+    domain: UserDataDomain,
+    additional: usize,
+    limit: i64,
+) -> Result<(), ApiError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     let existing = if domain.replaces_existing() {
         None
     } else {
@@ -123,7 +141,7 @@ pub async fn ensure_user_row_limit(
                     "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
                 )
                 .bind(user_id)
-                .fetch_one(pool)
+                .fetch_one(executor)
                 .await?
             }
             UserDataDomain::DomesticStocks => {
@@ -131,7 +149,7 @@ pub async fn ensure_user_row_limit(
                     "SELECT COUNT(*) FROM domestic_stocks WHERE user_id = $1",
                 )
                 .bind(user_id)
-                .fetch_one(pool)
+                .fetch_one(executor)
                 .await?
             }
             UserDataDomain::MutualFunds => {
@@ -139,13 +157,12 @@ pub async fn ensure_user_row_limit(
                     "SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1",
                 )
                 .bind(user_id)
-                .fetch_one(pool)
+                .fetch_one(executor)
                 .await?
             }
             UserDataDomain::AssetBalances => unreachable!(),
         }
     };
-    let limit = user_row_limit();
     if exceeds_user_row_limit(domain, existing, additional, limit) {
         return Err(ApiError::ValidationError(format!(
             "1アカウントあたりの保存件数の上限({limit}件)を超えています。既存データを整理してから取り込んでください"

@@ -217,7 +217,6 @@ pub async fn bulk_create(
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
-    ensure_user_row_limit(pool, user_id, UserDataDomain::Dividends, items.len()).await?;
 
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let settlement_dates: Vec<chrono::NaiveDate> =
@@ -232,6 +231,16 @@ pub async fn bulk_create(
         items.iter().map(|i| i.dividends_before_tax).collect();
     let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
     let net_amounts: Vec<Decimal> = items.iter().map(|i| i.net_amount_received).collect();
+
+    let mut tx = pool.begin().await?;
+
+    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
+        .bind(format!("{user_id}:dividends"))
+        .execute(&mut *tx)
+        .await?;
+
+    ensure_user_row_limit(&mut *tx, user_id, UserDataDomain::Dividends, items.len()).await?;
 
     let result = sqlx::query(
         r#"
@@ -258,9 +267,10 @@ pub async fn bulk_create(
     .bind(&dividends_before_taxes)
     .bind(&taxes)
     .bind(&net_amounts)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
 
+    tx.commit().await?;
     timer.finish_from_result(result)
 }
 

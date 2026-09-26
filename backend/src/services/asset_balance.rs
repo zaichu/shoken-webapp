@@ -172,7 +172,6 @@ pub async fn bulk_create(
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
     let timer = BulkTimer::new("asset_balance", total);
-    ensure_user_row_limit(pool, user_id, UserDataDomain::AssetBalances, total).await?;
 
     let user_ids = user_ids_for_bulk_insert(user_id, total);
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
@@ -195,6 +194,8 @@ pub async fn bulk_create(
         .bind(user_id.to_string())
         .execute(&mut *tx)
         .await?;
+
+    ensure_user_row_limit(&mut *tx, user_id, UserDataDomain::AssetBalances, total).await?;
 
     sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
         .bind(user_id)

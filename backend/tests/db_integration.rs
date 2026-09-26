@@ -1183,17 +1183,24 @@ async fn dividend_cache_persistence_and_rate_slot() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn user_row_limit_rejects_over_limit_inserts() {
-    use backend::services::bulk_helpers::{ensure_user_row_limit, UserDataDomain};
-    let _limit = EnvGuard::set("USER_ROW_LIMIT", Some("3"));
+    use backend::services::bulk_helpers::{ensure_user_row_limit_with, UserDataDomain};
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
+    const LIMIT: i64 = 3;
 
     // 追記型(dividends): 既存行数 + 追加分が上限を超えると拒否
     let items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
     dividend_svc::bulk_create(&pool, user_id, &items)
         .await
         .expect("初回 bulk_create は成功");
-    let err = dividend_svc::bulk_create(&pool, user_id, &items)
+
+    // 上限ちょうど(既存2+追加1=3)は許可、超過(既存2+追加2=4)は拒否
+    assert!(
+        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::Dividends, 1, LIMIT)
+            .await
+            .is_ok()
+    );
+    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::Dividends, 2, LIMIT)
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
@@ -1201,32 +1208,30 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         "期待しないエラー: {err:?}"
     );
 
-    // 上限ちょうど(既存2+追加1=3)は許可、超過(既存2+追加2=4)は拒否
-    assert!(
-        ensure_user_row_limit(&pool, user_id, UserDataDomain::Dividends, 1)
+    // 追記型(domestic_stocks/mutualfunds)も同じ判定
+    for domain in [UserDataDomain::DomesticStocks, UserDataDomain::MutualFunds] {
+        assert!(ensure_user_row_limit_with(&pool, user_id, domain, 4, LIMIT)
             .await
-            .is_ok()
-    );
-    assert!(
-        ensure_user_row_limit(&pool, user_id, UserDataDomain::Dividends, 2)
-            .await
-            .is_err()
-    );
+            .is_err());
+    }
 
     // 置換型(asset_balances): 追加分のみで上限判定(既存行数を見ない)
     let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
     asset_balance_svc::bulk_create(&pool, user_id, &asset_items)
         .await
         .expect("asset_balances は置換のため上限内");
-    let asset_over: Vec<_> = (0..4)
-        .map(|i| make_asset_item(&format!("{i:04}")))
-        .collect();
-    let err = asset_balance_svc::bulk_create(&pool, user_id, &asset_over)
+    // 既存2件あっても追加分4件 > 上限3 で拒否(既存行数を見ない)
+    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::AssetBalances, 4, LIMIT)
         .await
         .expect_err("追加4件 > 上限3 で拒否");
     assert!(
         matches!(err, backend::errors::ApiError::ValidationError(_)),
         "期待しないエラー: {err:?}"
+    );
+    assert!(
+        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::AssetBalances, 3, LIMIT)
+            .await
+            .is_ok()
     );
 }
 
