@@ -116,6 +116,7 @@ pub(crate) fn ReceiptsMainContent(
                             totals=totals
                             expanded=summary_expanded
                             mobile_expanded=store.mobile_summary_expanded
+                            preview=preview_active.get()
                         />
                         <ReceiptTable
                             tab=tab

@@ -314,7 +314,13 @@ pub(crate) fn DividendSummarySection(
     totals: DividendTotals,
     expanded: RwSignal<bool>,
     mobile_expanded: RwSignal<bool>,
+    #[prop(optional)] preview: bool,
 ) -> impl IntoView {
+    let title = if preview {
+        "集計情報(プレビュー)"
+    } else {
+        "集計情報"
+    };
     let open_label = |open: bool| if open { "閉じる" } else { "開く" };
     let totals_mobile = totals.clone();
     view! {
@@ -334,11 +340,21 @@ pub(crate) fn DividendSummarySection(
                         }
                     }
                     aria-controls="receipt-summary-mobile-body"
-                    aria-label="集計情報"
+                    aria-label=title
                     data-testid="receipt-summary-compact-toggle"
                     on:click=move |_| mobile_expanded.update(|open| *open = !*open)
                 >
-                    <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                    <span class="flex min-w-0 items-center gap-2">
+                        {preview
+                            .then(|| {
+                                view! {
+                                    <span class="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                                        "プレビュー"
+                                    </span>
+                                }
+                            })}
+                        <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                    </span>
                     <span class="flex shrink-0 items-center gap-1 text-slate-700">
                         <span class="text-xs font-semibold">
                             {move || open_label(mobile_expanded.get())}
@@ -395,7 +411,7 @@ pub(crate) fn DividendSummarySection(
                     on:click=move |_| expanded.update(|open| *open = !*open)
                 >
                     <div>
-                        <h2 class="text-sm font-black text-slate-950">"集計情報"</h2>
+                        <h2 class="text-sm font-black text-slate-950">{title}</h2>
                     </div>
                     <span
                         class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700"
