@@ -164,9 +164,18 @@ fn number_and_currency_formatters_match_intl_cases() {
         "¥0.123456789012346"
     );
     assert_eq!(format_fixed_percent(f64::NAN, 1), "—");
-    assert_eq!(format_currency(1e29), "—");
-    assert_eq!(format_currency(-1e29), "—");
-    assert_eq!(format_valuation_amount(Some(1e29)), "—");
+    assert_eq!(
+        format_currency(1e29),
+        "¥100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_currency(-1e29),
+        "-¥100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_valuation_amount(Some(1e29)),
+        "¥100,000,000,000,000,000,000,000,000,000"
+    );
     assert_eq!(format_fixed_percent(1e30, 1), "—");
 }
 

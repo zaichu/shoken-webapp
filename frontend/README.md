@@ -53,7 +53,7 @@ npx playwright test --config playwright.vercel.config.ts
 
 - 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
 - 色はマイナスの損益のみ `text-red-700`(暗背景は `red-300`)。税額・配当・利回りは色なし
-- 書式は `shared::format` に集約。`pages/asset_balance/format.rs` は薄い委譲のみ
+- 書式は `shared::format` に集約。`pages/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと Decimal に収まらない値の表示のみ
 - 税引後の見出しは、配当が集計 `配当金(税引)`・月の見出し `税引後`・列 `受取額`、国内株式が `実現損益(税引)`・`税引後`、投資信託が `実現損益(税引)`・`税引損益`
 
 ## デプロイ

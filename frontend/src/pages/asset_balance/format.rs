@@ -1,4 +1,4 @@
-use crate::asset_balance_domain::to_fixed;
+use crate::asset_balance_domain::{format_abs_number, to_fixed};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
@@ -16,8 +16,20 @@ fn f64_to_decimal(value: f64) -> Option<Decimal> {
         .map(|value| value.normalize())
 }
 
+// Decimal に収まらない合計でも、f64 のまま同じ書式で出す
+fn format_currency_beyond_decimal(value: f64) -> String {
+    match format_abs_number(to_fixed(value, 0)) {
+        Some(body) if value < 0.0 => format!("-¥{body}"),
+        Some(body) => format!("¥{body}"),
+        None => "—".to_string(),
+    }
+}
+
 pub(crate) fn format_currency(value: f64) -> String {
-    f64_to_decimal(value).map_or_else(|| "—".to_string(), format_currency_decimal)
+    f64_to_decimal(value).map_or_else(
+        || format_currency_beyond_decimal(value),
+        format_currency_decimal,
+    )
 }
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {
@@ -69,7 +81,7 @@ pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
                         .normalize(),
                 )
             })
-            .unwrap_or_else(|| "—".to_string()),
+            .unwrap_or_else(|| format_currency_beyond_decimal(value)),
         None => "—".to_string(),
     }
 }
