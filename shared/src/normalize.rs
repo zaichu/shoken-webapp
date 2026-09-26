@@ -6,7 +6,6 @@
 ///
 /// 一意制約と content_hash はこの規則で正規化された名前をキーにしている。
 /// 半角化などを追加する場合は既存行の名前・ハッシュを移行する必要がある。
-#[must_use]
 pub fn normalize_security_name(name: &str) -> String {
     let tokens: Vec<&str> = name.split_whitespace().collect();
     if tokens.len() > 1 && tokens.iter().all(|t| t.chars().count() == 1) {
@@ -18,7 +17,6 @@ pub fn normalize_security_name(name: &str) -> String {
 
 /// 表示・照合用の銘柄名正規化。全角英数字（Ａ-Ｚ／ａ-ｚ／０-９）を半角に直す。
 /// 取込時の正規化とは用途が違うため、trim やトークン結合は行わない。
-#[must_use]
 pub fn normalize_display_name(name: &str) -> String {
     name.chars()
         .map(|character| match character {
@@ -30,9 +28,8 @@ pub fn normalize_display_name(name: &str) -> String {
         .collect()
 }
 
-/// 一覧・検索の銘柄コード照合用の正規化。"コード: 名前"（全角コロン含む）形式は
-/// コロン手前を取り、空白を除去して大文字化する（" 7974: 任天堂 " → "7974"）。
-#[must_use]
+/// 証券コード正規化。`:`・`：` 以降を捨て、空白をすべて除去して大文字化する
+/// （" 7974: 任天堂 " → "7974"、"brk.b" → "BRK.B"）。
 pub fn normalize_security_code(value: &str) -> String {
     value
         .split([':', '：'])
@@ -86,20 +83,22 @@ mod tests {
     }
 
     #[test]
-    fn security_code_takes_label_prefix_strips_whitespace_and_uppercases() {
+    fn security_code_takes_head_before_colon_and_uppercases() {
         for (input, expected) in [
             (" 7974: 任天堂 ", "7974"),
             ("7203: トヨタ自動車", "7203"),
-            ("7203：名前", "7203"),
+            ("6758：ソニー", "6758"),
             ("brk.b", "BRK.B"),
-            ("12 34", "1234"),
-            ("7203:", "7203"),
-            (":7203", ""),
-            (" : 7203", ""),
-            ("", ""),
-            ("  ", ""),
+            ("a b 1: x", "AB1"),
         ] {
-            assert_eq!(normalize_security_code(input), expected, "{input}");
+            assert_eq!(normalize_security_code(input), expected);
+        }
+    }
+
+    #[test]
+    fn security_code_handles_empty_and_leading_colon() {
+        for (input, expected) in [("", ""), ("  ", ""), (" : ABC", ""), ("：", "")] {
+            assert_eq!(normalize_security_code(input), expected);
         }
     }
 }
