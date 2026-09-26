@@ -119,7 +119,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: [84, 64, 64, 72, 160, 72, 56, 84, 64, 84],
+    widths: [96, 76, 76, 88, 0, 80, 72, 92, 80, 92],
     aligns: [
       'left',
       'left',
@@ -135,7 +135,7 @@ const TABLE_SPEC = {
   },
   domesticstock: {
     tabName: '国内株式',
-    widths: [84, 72, 156, 60, 56, 76, 82, 82, 82, 64, 84],
+    widths: [96, 88, 0, 76, 72, 80, 92, 92, 92, 80, 92],
     aligns: [
       'left',
       'center',
@@ -152,7 +152,7 @@ const TABLE_SPEC = {
   },
   mutualfund: {
     tabName: '投資信託',
-    widths: [112, 300, 60, 112, 98, 128, 116, 112, 106, 118],
+    widths: [96, 0, 76, 72, 80, 92, 92, 92, 80, 92],
     aligns: [
       'left',
       'left',
@@ -269,19 +269,11 @@ async function tableMetrics(page: Page): Promise<TableMetrics> {
   });
 }
 
-// table-fixed の表の実幅は max(列幅合計, コンテナ幅)。
-// 収まる幅では横スクロールなし、収まらない幅では列幅を保ったまま内部スクロールする
-function expectTableFit(metrics: TableMetrics, widths: readonly number[]) {
-  const sum = widths.reduce((a, b) => a + b, 0);
+// 狭い幅では優先度の低い列を隠し、表は内部スクロールせずカード幅に収める
+function expectTableFit(metrics: TableMetrics) {
   expect(metrics.layout).toBe('fixed');
-  expect(metrics.overflowX).toBe('auto');
-  expect(Math.abs(metrics.tableWidth - Math.max(sum, metrics.clientWidth))).toBeLessThanOrEqual(2);
-  expect(Math.abs(metrics.scrollWidth - metrics.tableWidth)).toBeLessThanOrEqual(2);
-  if (sum <= metrics.clientWidth) {
-    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-  } else {
-    expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
-  }
+  expect(metrics.overflowX).toBe('visible');
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
 }
 
 async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number[]) {
@@ -305,8 +297,10 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
   expect(headerStyles).toHaveLength(widths.length);
   headerStyles.forEach((style, i) => {
     expect(style.scope).toBe('col');
-    expect(style.width, `th[${i}] の固定幅`).toBe(`${widths[i]}px`);
-    expect(style.maxWidth, `th[${i}] の最大幅`).toBe(`${widths[i]}px`);
+    // 0 は残り幅を使う列
+    const expected = widths[i] === 0 ? '' : `${widths[i]}px`;
+    expect(style.width, `th[${i}] の固定幅`).toBe(expected);
+    expect(style.maxWidth, `th[${i}] の最大幅`).toBe(expected);
     expect(style.overflow).toBe('hidden');
     expect(style.textOverflow).toBe('ellipsis');
     expect(style.whiteSpace).toBe('nowrap');
@@ -387,14 +381,11 @@ async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) 
   expect(plainTitles.length).toBeGreaterThan(0);
   plainTitles.forEach(({ title, text }) => expect(title).toBe(text));
 
-  const groupRows = table.locator('tbody tr:has(td[colspan])');
-  const badge = groupRows
-    .first()
-    .locator('td')
-    .first()
-    .locator('span')
-    .nth(1);
-  await expect(badge).toHaveText(/^\d+件$/);
+  // 件数は2件以上の月だけ出す
+  const badges = await table
+    .locator('tbody tr:has(td[colspan]) td[colspan] span:nth-child(2)')
+    .allTextContents();
+  badges.forEach((text) => expect(text).toMatch(/^([2-9]|\d{2,})件$/));
 
   if (slug === 'domesticstock') {
     const negative = table.locator('tbody td[data-negative="true"]').first();
@@ -421,11 +412,11 @@ async function expectNoPageOverflow(page: Page, width: number) {
   expect(scrollWidth, 'ページ自体は横にはみ出さない').toBeLessThanOrEqual(width + 1);
 }
 
-// スクロールラッパーの max-height は計測後に入るので、数値が入るまでを描画完了の合図にする
+// 見出し行の top はヘッダー高さの計測後に入るので、数値が入るまでを描画完了の合図にする
 async function expectTableSettled(page: Page) {
-  await expect(page.getByRole('table').locator('xpath=..')).toHaveAttribute(
+  await expect(page.getByRole('table').locator('thead')).toHaveAttribute(
     'style',
-    /max-height:\s*[\d.]+px/,
+    /top:\s*[\d.]+px/,
   );
 }
 
@@ -525,7 +516,7 @@ for (const width of [1440, 1024]) {
 
       const spec = TABLE_SPEC[slug];
       await expectColumnWidthsAndEllipsis(page, spec.widths);
-      expectTableFit(await tableMetrics(page), spec.widths);
+      expectTableFit(await tableMetrics(page));
       await expectReceiptTableDetailStyles(page, slug);
       await expectTableSettled(page);
 
@@ -544,12 +535,12 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     .getByTestId('search-card')
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
-  const reordered = [84, 72, 60, 156, 56, 76, 82, 82, 82, 64, 84];
+  const reordered = [96, 88, 76, 0, 72, 80, 92, 92, 92, 80, 92];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');
   await expect(ths.nth(3)).toHaveText('銘柄名');
   await expectColumnWidthsAndEllipsis(page, reordered);
-  expectTableFit(await tableMetrics(page), reordered);
+  expectTableFit(await tableMetrics(page));
   await expectTableSettled(page);
   await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
 });
