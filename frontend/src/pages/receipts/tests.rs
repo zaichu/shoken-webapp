@@ -454,7 +454,7 @@ fn kpi_styles_match_tone() {
 fn summary_and_empty_hint_labels_match_tabs() {
     assert_eq!(
         summary_labels(ReceiptsTab::Dividend),
-        ["配当金", "税額", "受取額"]
+        ["配当金", "税額", "税引後"]
     );
     assert_eq!(
         summary_labels(ReceiptsTab::DomesticStock),
