@@ -122,7 +122,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 data-testid="assetbalance-workspace"
             >
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、sm 以上は order で見た目を main 先に戻す
-                <aside class="order-1 sm:order-2" data-testid="assetbalance-utility-rail">
+                <aside class="order-2" data-testid="assetbalance-utility-rail">
                     <div class="rail-panel">
                         <AssetBalanceCsvSection store=view_csv.clone() />
                         {move || {
@@ -168,7 +168,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         }}
                     </div>
                 </aside>
-                <div class="min-w-0 order-2 sm:order-1" data-testid="assetbalance-main-stage">
+                <div class="min-w-0 order-1" data-testid="assetbalance-main-stage">
                     {move || {
                         let generation = render_session.generation.get();
                         let state = view_csv.csv_state();
