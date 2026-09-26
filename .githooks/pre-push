@@ -54,6 +54,11 @@ if [ "$check_mutants" = 1 ] && [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo
     trap 'rm -f "$diff_file"' EXIT
     for crate in shared frontend backend; do
       git diff --quiet "$base" HEAD -- "$crate/src" 2>/dev/null && continue
+      # cargo-mutants は作業ツリーを測るため、未コミットの変更があると push するコミットとずれる
+      if [ -n "$(git status --porcelain -- "$crate" shared)" ]; then
+        echo "⚠️  $crate(または依存する shared)に未コミットの変更があるため $crate の cargo-mutants をスキップします" >&2
+        continue
+      fi
       (cd "$REPO_ROOT/$crate" && git diff --relative "$base" HEAD -- src > "$diff_file")
       if ! list=$(cd "$REPO_ROOT/$crate" && cargo mutants --list --in-diff "$diff_file"); then
         echo "cargo-mutants: $crate の変異の一覧を作れませんでした(SKIP_MUTANTS=1 で省略)" >&2
