@@ -307,8 +307,11 @@ async fn rotate_session_in_tx(
     let session_id = uuid::Uuid::new_v4();
     sqlx::query(
         r#"
-        WITH deleted AS (
-            DELETE FROM sessions WHERE user_id = $1 OR expires_at <= NOW()
+        WITH expired AS (
+            SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
+        ),
+        deleted AS (
+            DELETE FROM sessions WHERE user_id = $1 OR id IN (SELECT id FROM expired)
         )
         INSERT INTO sessions (id, user_id, token_hash)
         VALUES ($2, $1, $3)

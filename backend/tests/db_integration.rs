@@ -982,18 +982,86 @@ async fn session_token_hash_rolling_deploy_compat() {
         "token_hash NULL の旧版発行セッションが有効であること"
     );
 
-    // 新版が発行するセッションは id と token_hash の両方を持ち、旧版の平文照合でも解決できる
+    // rotate は期限切れの行を掃除する。他トランザクションがロック中の行はスキップして待たない
+    let other_user = create_test_user(&pool).await;
+    let expired_row = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, NOW() - INTERVAL '1 hour')",
+    )
+    .bind(expired_row)
+    .bind(other_user)
+    .execute(&pool)
+    .await
+    .expect("期限切れセッション挿入");
+    let locked_expired = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, NOW() - INTERVAL '1 hour')",
+    )
+    .bind(locked_expired)
+    .bind(other_user)
+    .execute(&pool)
+    .await
+    .expect("ロック対象の期限切れセッション挿入");
+    let mut lock_tx = pool.begin().await.expect("ロック用トランザクション");
+    sqlx::query("SELECT id FROM sessions WHERE id = $1 FOR UPDATE")
+        .bind(locked_expired)
+        .fetch_one(&mut *lock_tx)
+        .await
+        .expect("期限切れ行のロック");
+
     let info = GoogleUserInfo {
         sub: format!("test_google_{user_id}"),
         email: "rolling@example.com".to_string(),
         name: None,
         picture: None,
     };
-    let new_token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
-        .await
-        .expect("新版のセッション発行");
+    // ロック中の他ユーザーの期限切れ行があってもログインは停滞しない
+    let new_token = timeout(
+        Duration::from_secs(5),
+        auth_svc::upsert_user_and_rotate_session(&pool, &info),
+    )
+    .await
+    .expect("他ユーザーのロック中の期限切れ行でログインが停滞しないこと")
+    .expect("新版のセッション発行");
     let new_session = Uuid::parse_str(&new_token).expect("セッションIDはUUID");
-    // rotate は同一ユーザーの旧セッションを失効させるため legacy 側は消える
+
+    // 同一ユーザーの旧セッションは rotate で失効する(平文フォールバック行も対象)
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, legacy)
+            .await
+            .expect("rotate 後の旧セッション照合")
+            .is_none(),
+        "rotate で移行済みの旧セッションが失効すること"
+    );
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, old_version_issued)
+            .await
+            .expect("rotate 後の旧版発行セッション照合")
+            .is_none(),
+        "rotate で token_hash NULL の旧版発行セッションも失効すること"
+    );
+    // 期限切れ行は掃除されるが、ロック中の行はスキップされる
+    let expired_row_left: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
+        .bind(expired_row)
+        .fetch_optional(&pool)
+        .await
+        .expect("期限切れ行の確認");
+    assert!(
+        expired_row_left.is_none(),
+        "他ユーザーの期限切れ行が rotate で削除されること"
+    );
+    let locked_row_left: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
+        .bind(locked_expired)
+        .fetch_optional(&pool)
+        .await
+        .expect("ロック中の期限切れ行の確認");
+    assert!(
+        locked_row_left.is_some(),
+        "ロック中の期限切れ行は削除をスキップされること"
+    );
+    lock_tx.rollback().await.expect("ロック解除");
+
+    // 新版が発行するセッションは id と token_hash の両方を持ち、旧版の平文照合でも解決できる
     let row: Option<(Uuid, Option<Vec<u8>>)> =
         sqlx::query_as("SELECT id, token_hash FROM sessions WHERE id = $1")
             .bind(new_session)
