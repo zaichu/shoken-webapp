@@ -14,7 +14,7 @@ use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_cs
 #[cfg(test)]
 use crate::services::csv_pipeline::parse_csv_with_config;
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{get_row_cell, parse_number, parse_optional_string_row};
+use crate::services::csv_util::{parse_number, parse_optional_string, CsvCells};
 use crate::services::facets;
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
@@ -295,8 +295,7 @@ fn transform_asset_balance_rows(
 /// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
 /// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
 fn is_account_summary_row(row: &CsvRow) -> bool {
-    get_row_cell(row, "銘柄コード").trim().is_empty()
-        && row.values().any(|value| value.contains("口座合計"))
+    row.cell("銘柄コード").trim().is_empty() && row.values().any(|value| value.contains("口座合計"))
 }
 
 /// 保有銘柄 CSV の1行をパースして CreateAssetBalanceRequest に変換
@@ -311,37 +310,37 @@ fn transform_asset_balance_row(
     row_num: usize,
 ) -> Result<CreateAssetBalanceRequest, CsvRowError> {
     let num = |col: &str| {
-        let raw = parse_optional_string_row(row, col);
+        let raw = parse_optional_string(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             return Err(CsvRowError {
                 row: row_num,
-                message: format!("必須列 '{}' が空または値なし", col),
+                message: format!("必須列 '{col}' が空または値なし"),
             });
         }
         parse_number(trimmed).map_err(|e| CsvRowError {
             row: row_num,
-            message: format!("{}: {}", col, e),
+            message: format!("{col}: {e}"),
         })
     };
 
-    let security_code = parse_optional_string_row(row, "銘柄コード").replace('"', "");
+    let security_code = parse_optional_string(row, "銘柄コード").replace('"', "");
     Ok(CreateAssetBalanceRequest {
         security_code,
-        security_name: normalize_security_name(&parse_optional_string_row(row, "銘柄名")),
+        security_name: normalize_security_name(&parse_optional_string(row, "銘柄名")),
         shares: num("保有数量［株］")?,
         // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
-        executing_shares: parse_number(&parse_optional_string_row(row, "執行中［株］"))
+        executing_shares: parse_number(&parse_optional_string(row, "執行中［株］"))
             .unwrap_or(Decimal::ZERO),
         average_purchase_price: num("平均取得価額［円］")?,
         total_purchase_amount: num("取得総額［円］")?,
         current_price: num("現在値［円］")?,
         // 前日比は変動なし時に 0 または "-" が仕様上ありうるため 0.0 フォールバック
-        daily_change: parse_number(&parse_optional_string_row(row, "現在値（前日比）［円］"))
+        daily_change: parse_number(&parse_optional_string(row, "現在値（前日比）［円］"))
             .unwrap_or(Decimal::ZERO),
         market_value: num("時価評価額［円］")?,
         // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
-        profit_loss_rate: parse_number(&parse_optional_string_row(row, "評価損益［％］"))
+        profit_loss_rate: parse_number(&parse_optional_string(row, "評価損益［％］"))
             .unwrap_or(Decimal::ZERO),
     })
 }
