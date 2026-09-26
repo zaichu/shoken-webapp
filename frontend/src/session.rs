@@ -70,7 +70,7 @@ impl SessionStore {
         self.generation.get_untracked() == generation
     }
 
-    fn same_identity(old: &Option<SessionUser>, new: &Option<SessionUser>) -> bool {
+    fn same_identity(old: Option<&SessionUser>, new: Option<&SessionUser>) -> bool {
         match (old, new) {
             (Some(a), Some(b)) => a.id == b.id,
             (None, None) => true,
@@ -80,7 +80,7 @@ impl SessionStore {
 
     fn set_user(&self, user: Option<SessionUser>) {
         let previous = self.user.get_untracked();
-        if previous.is_some() && !Self::same_identity(&previous, &user) {
+        if previous.is_some() && !Self::same_identity(previous.as_ref(), user.as_ref()) {
             self.generation.update(|generation| *generation += 1);
         }
         self.user.set(user);
@@ -230,10 +230,13 @@ mod tests {
 
     #[test]
     fn identity_comparison() {
-        assert!(SessionStore::same_identity(&None, &None));
-        assert!(SessionStore::same_identity(&alice(), &alice()));
-        assert!(!SessionStore::same_identity(&None, &alice()));
-        assert!(!SessionStore::same_identity(&alice(), &None));
+        assert!(SessionStore::same_identity(None, None));
+        assert!(SessionStore::same_identity(
+            alice().as_ref(),
+            alice().as_ref()
+        ));
+        assert!(!SessionStore::same_identity(None, alice().as_ref()));
+        assert!(!SessionStore::same_identity(alice().as_ref(), None));
     }
 
     #[test]
