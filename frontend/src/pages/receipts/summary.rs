@@ -180,7 +180,13 @@ fn KpiGrid(
 pub(crate) fn SummaryStrip(
     items: Vec<(&'static str, Decimal, &'static str)>,
     expanded: RwSignal<bool>,
+    #[prop(optional)] preview: bool,
 ) -> impl IntoView {
+    let title = if preview {
+        "集計情報(プレビュー)"
+    } else {
+        "集計情報"
+    };
     let mobile_expanded = expanded;
     let mobile_body_id = "receipt-summary-mobile-body";
     let primary = items.last().copied();
@@ -204,21 +210,32 @@ pub(crate) fn SummaryStrip(
                     }
                     aria-controls=mobile_body_id
                     aria-label=primary.map_or_else(
-                        || "集計情報".to_string(),
-                        |(label, value, _)| format!("{label} {}", format_currency(value)),
+                        || title.to_string(),
+                        |(label, value, _)| {
+                            let prefix = if preview { "プレビュー " } else { "" };
+                            format!("{prefix}{label} {}", format_currency(value))
+                        },
                     )
                     data-testid="receipt-summary-compact-toggle"
                 >
                     {primary.map_or_else(
                         || {
                             view! {
-                                <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                                <span class="text-sm font-black text-slate-950">{title}</span>
                             }
                                 .into_any()
                         },
                         |(label, value, tone)| {
                             view! {
                                 <span class="flex min-w-0 items-baseline gap-2">
+                                    {preview
+                                        .then(|| {
+                                            view! {
+                                                <span class="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                                                    "プレビュー"
+                                                </span>
+                                            }
+                                        })}
                                     <span class="shrink-0 text-xs font-medium text-slate-600">
                                         {label}
                                     </span>
@@ -265,7 +282,7 @@ pub(crate) fn SummaryStrip(
                 <div
                     id=mobile_body_id
                     role="region"
-                    aria-label="集計情報"
+                    aria-label=title
                     hidden=move || !mobile_expanded.get()
                     class="border-t border-slate-950/10 py-3"
                 >
@@ -289,7 +306,7 @@ pub(crate) fn SummaryStrip(
                     data-testid="receipt-header"
                 >
                     <div>
-                        <h2 class="text-sm font-black text-slate-950">"集計情報"</h2>
+                        <h2 class="text-sm font-black text-slate-950">{title}</h2>
                     </div>
                 </div>
                 <div class="pt-3">
