@@ -99,8 +99,7 @@ pub fn last_activity_ms() -> Option<u64> {
 
 const LOGOUT_CLAIM_LOCK: &str = "logout_claim";
 const LOGOUT_CLAIMED_KEY: &str = "logout_claimed_at";
-// ロックの保持時間と、ロックが使えない環境での二重送信の判定幅。
-// 次の無操作ログアウトは最短でも30分後なので、この幅なら取り違えない
+// 次の無操作ログアウトは最短でも30分後なので、この幅なら次回と取り違えない
 const RECENT_CLAIM_MS: u64 = 60_000;
 
 fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
@@ -123,9 +122,7 @@ fn try_claim() -> bool {
     true
 }
 
-// 別タブと同時に期限が切れても DELETE を送るのは1つだけにする。
-// localStorage はタブ間で即時に同期されないため、取ったタブがロックを保持し続け、他タブは ifAvailable で諦める。
-// navigator.locks が無い環境では読み書きの競合が残るが、DELETE は冪等なのでベストエフォートに落とす
+// localStorage はタブ間で即時に同期されないので、取ったタブがロックを保持して他タブを ifAvailable で諦めさせる
 pub async fn claim_logout_once() -> bool {
     let Some((locks, request)) = web_sys::window()
         .and_then(|window| js_sys::Reflect::get(&window.navigator(), &"locks".into()).ok())
@@ -143,6 +140,7 @@ pub async fn claim_logout_once() -> bool {
     let Some(resolve) = resolve_slot else {
         return try_claim();
     };
+    let on_rejected_resolve = resolve.clone();
     let callback = Closure::wrap(Box::new(move |lock: JsValue| -> JsValue {
         let claimed = !lock.is_null() && try_claim();
         let _ = resolve.call1(&JsValue::NULL, &JsValue::from_bool(claimed));
@@ -161,23 +159,30 @@ pub async fn claim_logout_once() -> bool {
     }) as Box<dyn FnMut(JsValue) -> JsValue>);
     let options = js_sys::Object::new();
     let _ = js_sys::Reflect::set(&options, &"ifAvailable".into(), &JsValue::TRUE);
-    if request
+    let Some(requested) = request
         .call3(
             &locks,
             &JsValue::from_str(LOGOUT_CLAIM_LOCK),
             &options,
             callback.as_ref().unchecked_ref(),
         )
-        .is_err()
-    {
+        .ok()
+        .and_then(|value| value.dyn_into::<js_sys::Promise>().ok())
+    else {
         return try_claim();
-    }
+    };
+    // callback を呼ばずに reject されると decision が決まらないため
+    let on_rejected = Closure::once(move |_error: JsValue| {
+        let _ = on_rejected_resolve.call1(&JsValue::NULL, &JsValue::from_bool(try_claim()));
+    });
+    let _ = requested.catch(&on_rejected);
     let claimed = wasm_bindgen_futures::JsFuture::from(decision)
         .await
         .ok()
         .and_then(|value| value.as_bool())
         .unwrap_or(false);
     drop(callback);
+    on_rejected.forget();
     claimed
 }
 
