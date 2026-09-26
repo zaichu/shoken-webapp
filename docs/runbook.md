@@ -139,6 +139,7 @@ git fetch origin --prune
 毎週月曜日に Dependabot PR が作成されます。Dependabot の PR は Issue の紐づけを免除されますが、未解決コメントは通常どおり PR gate の対象です。
 
 - **パッチ・マイナー更新**: `dependabot-auto-merge.yml` が `gh pr merge --auto --squash` を設定し、CI が green になれば自動マージされます
+- **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。backend の依存がマージされたら `gh workflow run deploy-backend.yml` で手動デプロイしてください(frontend は `deploy-frontend.yml` の workflow_dispatch)
 - **メジャー更新**: 自動マージしません。エージェントが破壊的変更を確認して対応します
 - **セキュリティ更新**: `priority: P1` として扱い、優先して対応します
 - **CI が red の PR**: 失敗原因を調査して対応方針を決定（修正 / 保留 / close）

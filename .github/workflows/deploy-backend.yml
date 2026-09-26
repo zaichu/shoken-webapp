@@ -8,6 +8,8 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
+  # GITHUB_TOKEN による dependabot の自動マージでは push イベントが発火しないため、手動デプロイ用に残す
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -87,7 +89,9 @@ jobs:
   deploy:
     name: Deploy to Fly.io
     needs: [test-and-build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
