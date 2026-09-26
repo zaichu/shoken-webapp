@@ -6,8 +6,9 @@ use crate::dto::{
 use crate::pages::asset_balance::format::{
     dec_to_f64, format_currency, format_valuation_amount, format_valuation_rate, valuation_tone,
 };
-use crate::session::use_session;
+use crate::session::{use_session, SessionStore};
 use leptos::prelude::*;
+use std::future::Future;
 
 const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
     (
@@ -141,23 +142,22 @@ pub fn HomePage() -> impl IntoView {
     }
 }
 
-#[derive(Clone, Default)]
-struct Overview {
-    asset: Option<AssetBalanceSummary>,
-    dividend: Option<DividendSummary>,
-    unauthorized: bool,
-}
+// 外側の None は取得中、内側の None は取得失敗
+type SummarySlot<T> = RwSignal<Option<(u64, Option<T>)>>;
 
-async fn fetch_overview(year: u32) -> Overview {
-    let client = ApiClient::read_client();
-    let year = year.to_string();
-    let asset = client
+async fn fetch_asset_summary() -> Result<Option<AssetBalanceSummary>, ApiError> {
+    ApiClient::read_client()
         .get_json::<AssetBalanceListResponse>(
             "/api/v1/asset-balances",
             &[("per_page", "1"), ("include_summary", "true")],
         )
-        .await;
-    let dividend = client
+        .await
+        .map(|response| response.summary)
+}
+
+async fn fetch_dividend_summary(year: u32) -> Result<Option<DividendSummary>, ApiError> {
+    let year = year.to_string();
+    ApiClient::read_client()
         .get_json::<DividendListResponse>(
             "/api/v1/dividends",
             &[
@@ -166,58 +166,103 @@ async fn fetch_overview(year: u32) -> Overview {
                 ("include_summary", "true"),
             ],
         )
-        .await;
-    let unauthorized = [asset.as_ref().err(), dividend.as_ref().err()]
-        .into_iter()
-        .flatten()
-        .any(ApiError::is_unauthorized);
-    Overview {
-        asset: asset.ok().and_then(|response| response.summary),
-        dividend: dividend.ok().and_then(|response| response.summary),
-        unauthorized,
-    }
+        .await
+        .map(|response| response.summary)
+}
+
+fn load_summary<T: Send + Sync + 'static>(
+    session: SessionStore,
+    generation: u64,
+    slot: SummarySlot<T>,
+    fetch: impl Future<Output = Result<Option<T>, ApiError>> + 'static,
+) {
+    leptos::task::spawn_local(async move {
+        let result = fetch.await;
+        if !session.is_current(generation) {
+            return;
+        }
+        if result.as_ref().is_err_and(ApiError::is_unauthorized) {
+            session.mark_unauthenticated();
+            return;
+        }
+        slot.set(Some((generation, result.ok().flatten())));
+    });
+}
+
+fn current_summary<T: Clone + Send + Sync + 'static>(
+    slot: SummarySlot<T>,
+    generation: u64,
+) -> Option<Option<T>> {
+    slot.get()
+        .filter(|(cached, _)| *cached == generation)
+        .map(|(_, summary)| summary)
 }
 
 #[component]
 fn HomeOverview() -> impl IntoView {
     let session = use_session();
-    let overview: RwSignal<Option<(u64, Overview)>> = RwSignal::new(None);
+    let asset: SummarySlot<AssetBalanceSummary> = RwSignal::new(None);
+    let dividend: SummarySlot<DividendSummary> = RwSignal::new(None);
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
-            overview.set(None);
+            asset.set(None);
+            dividend.set(None);
             return;
         }
-        leptos::task::spawn_local(async move {
-            let loaded = fetch_overview(js_sys::Date::new_0().get_full_year()).await;
-            if !session.is_current(generation) {
-                return;
-            }
-            if loaded.unauthorized {
-                session.mark_unauthenticated();
-                return;
-            }
-            overview.set(Some((generation, loaded)));
-        });
+        load_summary(session, generation, asset, fetch_asset_summary());
+        load_summary(
+            session,
+            generation,
+            dividend,
+            fetch_dividend_summary(js_sys::Date::new_0().get_full_year()),
+        );
     });
-    move || {
-        session.user.get()?;
+    let snapshot = move || {
         let generation = session.generation.get();
-        let loaded = overview
-            .get()
-            .filter(|(cached, _)| *cached == generation)
-            .map(|(_, loaded)| loaded);
-        Some(view! { <OverviewTiles loaded=loaded /> })
+        (
+            current_summary(asset, generation),
+            current_summary(dividend, generation),
+        )
+    };
+    view! {
+        <Show when=move || session.user.get().is_some()>
+            <section
+                aria-label="資産の概要"
+                aria-busy=move || {
+                    let (asset, dividend) = snapshot();
+                    if asset.is_none() || dividend.is_none() { "true" } else { "false" }
+                }
+                data-testid="home-overview"
+            >
+                {move || {
+                    let (asset, dividend) = snapshot();
+                    view! { <OverviewTiles asset=asset dividend=dividend /> }
+                }}
+                <p class="text-xs font-medium text-slate-600" role="status">
+                    {move || {
+                        let (asset, dividend) = snapshot();
+                        matches!((asset, dividend), (Some(None), _) | (_, Some(None)))
+                            .then(|| {
+                                view! {
+                                    <span class="mt-2 block">"一部の集計を取得できませんでした。"</span>
+                                }
+                            })
+                    }}
+                </p>
+            </section>
+        </Show>
     }
 }
 
 #[component]
-fn OverviewTiles(loaded: Option<Overview>) -> impl IntoView {
-    let busy = loaded.is_none();
-    let Overview {
-        asset, dividend, ..
-    } = loaded.unwrap_or_default();
-    let failed = !busy && (asset.is_none() || dividend.is_none());
+fn OverviewTiles(
+    asset: Option<Option<AssetBalanceSummary>>,
+    dividend: Option<Option<DividendSummary>>,
+) -> impl IntoView {
+    let asset_busy = asset.is_none();
+    let dividend_busy = dividend.is_none();
+    let asset = asset.flatten();
     let market = asset
         .as_ref()
         .map(|summary| format_currency(dec_to_f64(&summary.total_market_value)));
@@ -240,35 +285,21 @@ fn OverviewTiles(loaded: Option<Overview>) -> impl IntoView {
     });
     let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
     let dividend = dividend
-        .as_ref()
+        .flatten()
         .map(|summary| format_currency(dec_to_f64(&summary.total_net_amount_received)));
     view! {
-        <section
-            aria-label="資産の概要"
-            aria-busy=if busy { "true" } else { "false" }
-            data-testid="home-overview"
-        >
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                <OverviewTile label="評価額" value=market busy=busy />
-                <OverviewTile
-                    label="評価損益"
-                    value=profit
-                    busy=busy
-                    value_class=profit_class
-                    negative=profit_negative
-                    note=profit_rate
-                />
-                <OverviewTile label="今年の配当金(税引)" value=dividend busy=busy />
-            </div>
-            {failed
-                .then(|| {
-                    view! {
-                        <p class="mt-2 text-xs font-medium text-slate-600" role="status">
-                            "一部の集計を取得できませんでした。"
-                        </p>
-                    }
-                })}
-        </section>
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <OverviewTile label="評価額" value=market busy=asset_busy />
+            <OverviewTile
+                label="評価損益"
+                value=profit
+                busy=asset_busy
+                value_class=profit_class
+                negative=profit_negative
+                note=profit_rate
+            />
+            <OverviewTile label="今年の配当金(税引)" value=dividend busy=dividend_busy />
+        </div>
     }
 }
 
