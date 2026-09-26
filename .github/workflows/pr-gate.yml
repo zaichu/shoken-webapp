@@ -1,7 +1,7 @@
 name: PR gate
 
 on:
-  # fork PR では pull_request 系イベントの GITHUB_TOKEN が read-only に降格しステータスを書けないため pull_request_target を使う(コードの checkout はしない)
+  # fork PR では pull_request 系イベントの GITHUB_TOKEN が read-only に降格しステータスを書けないため pull_request_target を使う
   pull_request_target:
     types: [opened, edited, synchronize, reopened]
   issue_comment:
@@ -15,9 +15,9 @@ on:
         required: true
         type: number
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr || github.ref }}
-  cancel-in-progress: true
+# issue_comment 等では実行の head SHA が PR の head にならないため、PR 番号で実行を見分ける
+# " #" は YAML のコメント開始と解釈されるため必ずクォートする
+run-name: "PR gate #${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}"
 
 jobs:
   pr-gate:
@@ -25,171 +25,35 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     permissions:
+      actions: read
       contents: read
       pull-requests: read
       issues: read
       statuses: write
     steps:
+      # イベントによっては PR 側や古い base のコードが取り出されるため、常に default ブランチ(スクリプト配置済み・信頼済み)を読む
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
       - name: Check linked issue and unresolved comments
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
         with:
           script: |
-            const prNumber =
-              context.payload.pull_request?.number ??
-              context.payload.issue?.number ??
-              Number(context.payload.inputs?.pr);
-            const { owner, repo } = context.repo;
-
-            const prQuery = `
-              query($owner: String!, $repo: String!, $pr: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    body
-                    headRefOid
-                    isCrossRepository
-                    closingIssuesReferences(first: 1) {
-                      totalCount
-                    }
-                  }
-                }
-              }
-            `;
-            const listQuery = (field) => `
-              query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    ${field}(first: 100, after: $cursor) {
-                      nodes {
-                        isMinimized
-                        body
-                        url
-                        author {
-                          __typename
-                          login
-                        }
-                      }
-                      pageInfo {
-                        hasNextPage
-                        endCursor
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-
-            const prResult = await github.graphql(prQuery, {
-              owner,
-              repo,
-              pr: prNumber,
-            });
-            const pr = prResult.repository.pullRequest;
-            if (!pr) {
-              core.setFailed(`pull request #${prNumber} not found`);
+            let gate;
+            try {
+              gate = require(
+                `${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-gate.js`
+              );
+            } catch (error) {
+              // スクリプト未配置は rollout 不備。緑のまま握り潰すと気づけないため失敗にする
+              core.setFailed(`gate script not found: ${error.message}`);
               return;
             }
-
-            const fetchAll = async (field) => {
-              const nodes = [];
-              let cursor = null;
-              do {
-                const result = await github.graphql(listQuery(field), {
-                  owner,
-                  repo,
-                  pr: prNumber,
-                  cursor,
-                });
-                const connection = result.repository.pullRequest[field];
-                nodes.push(...connection.nodes.filter(Boolean));
-                cursor = connection.pageInfo.hasNextPage
-                  ? connection.pageInfo.endCursor
-                  : null;
-              } while (cursor);
-              return nodes;
-            };
-            const comments = await fetchAll('comments');
-            const reviews = await fetchAll('reviews');
-
-            const refNumbers = [
-              ...new Set(
-                [...(pr.body ?? '').matchAll(/(?:Refs|Part of)\s+#(\d+)/gi)].map(
-                  (m) => Number(m[1])
-                )
-              ),
-            ];
-            let linked = pr.closingIssuesReferences.totalCount > 0;
-            for (const n of refNumbers) {
-              if (linked) break;
-              try {
-                const result = await github.graphql(
-                  `query($owner: String!, $repo: String!, $n: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      issue(number: $n) {
-                        state
-                      }
-                    }
-                  }`,
-                  { owner, repo, n }
-                );
-                if (result.repository.issue) linked = true;
-              } catch (error) {
-                // 実在しない番号や PR 番号は NOT_FOUND エラーになる → 紐づけなしとして扱う
-                if (!(error.errors ?? []).every((e) => e.type === 'NOT_FOUND')) {
-                  throw error;
-                }
-              }
-            }
-
-            // author=null(退会済みアカウント)は bot と判定できないため人のコメントとして扱う
-            const isBot = (author) =>
-              author?.__typename === 'Bot' ||
-              (author?.login ?? '').endsWith('[bot]');
-            const unresolved = [...comments, ...reviews].filter((node) => {
-              const body = node.body ?? '';
-              return (
-                !isBot(node.author) &&
-                !node.isMinimized &&
-                body.trim() !== '' &&
-                !body.includes('<!-- no-action -->')
-              );
-            });
-
-            const problems = [];
-            if (!linked) problems.push('Issue が紐づいていません');
-            if (unresolved.length > 0) {
-              problems.push(`未解決のコメントが ${unresolved.length} 件あります`);
-            }
-
-            core.info(`linked issue: ${linked}`);
-            for (const node of unresolved) {
-              core.info(`unresolved comment: ${node.url}`);
-            }
-
-            // ステータス説明は 140 字制限があるため、収まる分だけ URL を連結する
-            const statusParts = [...problems];
-            for (const node of unresolved) {
-              if ([...statusParts, node.url].join(' / ').length <= 140) {
-                statusParts.push(node.url);
-              }
-            }
-            const description =
-              problems.length > 0
-                ? statusParts.join(' / ')
-                : 'Issue 紐づけ済み・未解決コメントなし';
-
-            const headSha = pr.headRefOid;
             try {
-              await github.rest.repos.createCommitStatus({
-                owner,
-                repo,
-                sha: headSha,
-                state: problems.length > 0 ? 'failure' : 'success',
-                context: 'PR gate',
-                description: description.slice(0, 140),
-                target_url: `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${context.runId}`,
-              });
+              await gate.run({ github, context, core });
             } catch (error) {
-              // fork PR へのコメント/レビューイベントでは write が read に降格される。ステータスは pull_request_target か手動再実行で付け直す
-              if (!pr.isCrossRepository) throw error;
-              core.warning(`commit status not written for fork PR: ${error.message}`);
+              // 判定は commit status にだけ出す。評価自体の失敗でジョブを赤くしない
+              core.warning(`PR gate evaluation failed: ${error.stack ?? error}`);
             }
