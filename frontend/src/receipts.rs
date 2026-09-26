@@ -1,3 +1,8 @@
+pub(crate) mod csv;
+pub(crate) mod filter;
+pub(crate) mod search;
+pub(crate) mod search_group_key;
+pub(crate) mod search_support;
 mod store;
 
 use crate::receipts_domain::{format_currency, format_date, format_number};

@@ -1,7 +1,9 @@
+mod cross_tab;
+mod idle;
+mod pending_logout;
+
 use crate::api::{ApiClient, ApiError};
-use crate::cross_tab;
 use crate::dto::{MessageResponse, SessionUser};
-use crate::pending_logout;
 use leptos::prelude::*;
 
 fn oauth_authorize_url() -> String {
@@ -181,7 +183,7 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
-    crate::idle::watch_idle_logout(session);
+    idle::watch_idle_logout(session);
     cross_tab::watch_logout_notifications(session);
     let startup = session;
     leptos::task::spawn_local(async move {

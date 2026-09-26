@@ -1,7 +1,7 @@
 use super::store::should_apply_fetch_result;
 use super::*;
 use crate::api::ApiError;
-use crate::receipts_filter::ReceiptSearch;
+use crate::receipts::filter::ReceiptSearch;
 use crate::session::SessionStore;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};

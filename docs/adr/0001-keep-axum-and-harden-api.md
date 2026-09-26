@@ -82,11 +82,12 @@ is intentionally pragmatic and does not require a framework migration.
 
 ### Frontend: Leptos (CSR) の単一 Wasm アプリ
 
-- `frontend/src/` はページ・部品単位のフラットなモジュール（`home_page.rs`、
-  `receipts_page.rs`、`receipts_filter.rs`、`csv_rail.rs` 等）で構成する。
-  `src/*/` のサブディレクトリは `api/` を除きテストのみを置く。React 時代の
-  `features/`・`components/`（Atomic Design）・`src/generated/api.ts` の
-  構成は Leptos 移行で廃止した。
+- `frontend/src/` はまとまりごとのモジュールで構成する。画面は `pages/`
+  （`home.rs`、`receipts.rs`、`asset_balance.rs` 等）、画面横断の共通部品は
+  `components/`、機能ごとの状態・ロジックは `receipts/`・`asset_balance/`、
+  セッション周辺は `session/`、API 呼び出しは `api/` に置く。React 時代の
+  `features/`・Atomic Design・`src/generated/api.ts` の構成は Leptos 移行で
+  廃止した。
 - API 呼び出しは `src/api/` に置く。共通の wire 型は `shared/` クレートに置き、
   `frontend/src/dto.rs` がそれを re-export する（フロント固有の型は dto.rs
   側に持つ）。`docs/openapi.json` との一致を契約テストで確認する。
@@ -111,8 +112,9 @@ is intentionally pragmatic and does not require a framework migration.
 - **Persistence boundary**: SQLx queries live inside service modules; no
   generic repository abstraction.
 - **Frontend boundary**: each module owns its components and API calls;
-  shared concerns are promoted to `src/api/`・`shared/` クレートの wire 型
-  （`src/dto.rs` が re-export）として再利用される場合にのみ切り出す。
+  shared concerns are promoted to `src/components/`・`src/api/`・`shared/`
+  クレートの wire 型（`src/dto.rs` が re-export）として再利用される場合に
+  のみ切り出す。
 
 ### When to revisit
 
