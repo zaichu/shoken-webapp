@@ -97,7 +97,6 @@ mod tests {
 
     #[test]
     fn security_code_handles_empty_and_leading_colon() {
-        // 早期 return の有無で分岐し得る境界入力
         for (input, expected) in [("", ""), ("  ", ""), (" : ABC", ""), ("：", "")] {
             assert_eq!(normalize_security_code(input), expected);
         }
