@@ -331,7 +331,7 @@ fn UserMenu(
 pub fn SiteFooter() -> impl IntoView {
     view! {
         <footer class="mt-auto border-t border-slate-200 bg-white py-4">
-            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
+            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
                 {FOOTER_LINKS
                     .iter()
                     .map(|(label, href)| {

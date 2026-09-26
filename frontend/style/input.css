@@ -191,7 +191,7 @@
   }
 
   .stock-link-button {
-    @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors max-sm:min-h-11;
+    @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors max-sm:min-h-11 max-sm:px-2 max-sm:text-xs;
   }
 
   .feature-card {

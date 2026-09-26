@@ -317,9 +317,15 @@ pub(crate) fn ReceiptTable(
                                                                 .map(|(col_index, cell)| {
                                                                     let align = cell_classes[col_index];
                                                                     match cell {
+                                                                        ReceiptCell::SecurityCode(code) if code.trim().is_empty() => view! {
+                                                                            <td class=align>
+                                                                                <SecurityCodeLink value=code />
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
                                                                         ReceiptCell::SecurityCode(code) => view! {
                                                                             <td class=align>
-                                                                                <span class="code-badge">
+                                                                                <span class="code-badge py-0">
                                                                                     <SecurityCodeLink value=code class="font-semibold".to_string() />
                                                                                 </span>
                                                                             </td>
