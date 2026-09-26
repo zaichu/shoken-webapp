@@ -17,7 +17,7 @@ pub(crate) fn SecurityDropdown(
             view! {
                 <div>
                     <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
-                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.securities.clone())
                         on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
                         <option value="">"全て表示"</option>
@@ -45,7 +45,7 @@ pub(crate) fn YearDropdown(
                     <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
                     <select
                         id="years-search"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.years.clone())
                         on:change=move |event| search.update(|state| {
                             state.select_quick(SearchKey::Years, event_target_value(&event))
@@ -90,7 +90,7 @@ pub(crate) fn ToggleCategory(
                                     } else {
                                         "rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
                                     }
-                                    aria-pressed=move || search.with(|state| state.selected_queries.get(search_key) == aria_value)
+                                    aria-pressed=move || if search.with(|state| state.selected_queries.get(search_key) == aria_value) { "true" } else { "false" }
                                     aria-label=move || search.with(|state| {
                                         if state.selected_queries.get(search_key) == option.value {
                                             format!("{}（選択中）", option.value)
@@ -276,7 +276,7 @@ fn YearPicker(
                 type="button"
                 aria-label="年を選択"
                 aria-haspopup="listbox"
-                aria-expanded=move || is_open.get()
+                aria-expanded=move || if is_open.get() { "true" } else { "false" }
                 class=move || if search.with(|state| state.date_inputs.year_value.is_empty()) {
                     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:border-slate-400"
                 } else {
@@ -329,7 +329,7 @@ fn YearPicker(
                                             id={format!("receipts-year-option-{index}")}
                                             type="button"
                                             role="option"
-                                            aria-selected=move || click_search.with(|state| state.date_inputs.year_value == selected_value)
+                                            aria-selected=move || if click_search.with(|state| state.date_inputs.year_value == selected_value) { "true" } else { "false" }
                                             class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
                                                 "rounded bg-amber-50 px-1 py-1.5 text-center text-sm font-semibold text-amber-900 ring-1 ring-inset ring-amber-400"
                                             } else {
@@ -403,7 +403,7 @@ pub(crate) fn DatePeriod(
                                     } else {
                                         "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
                                     }
-                                    aria-pressed=move || search.with(|state| visible_date_segment(state, has_years()) == segment)
+                                    aria-pressed=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) { "true" } else { "false" }
                                     on:click=move |_| {
                                         click_picker.set(false);
                                         click_search.update(|state| state.change_date_segment(segment));

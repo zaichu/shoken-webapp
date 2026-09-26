@@ -232,7 +232,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                     {move || {
                         asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-400">{ASSET_BALANCE_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-slate-500">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
                 </div>
@@ -249,7 +249,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                     {move || {
                         asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-400">{ASSET_BALANCE_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-slate-500">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
                 </div>
@@ -258,7 +258,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     <p class="text-2xl font-bold tabular-nums text-primary">{per_share_text}</p>
                     {move || {
                         (!loading() && per_share().is_none()).then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-400">{JQUANTS_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-slate-500">{JQUANTS_HINT}</p> }
                         })
                     }}
                 </div>

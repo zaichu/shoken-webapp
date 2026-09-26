@@ -101,7 +101,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         <div
             class="mt-2"
             aria-busy=move || {
-                !busy_session.loaded.get()
+                if !busy_session.loaded.get()
                     || busy_csv.csv_busy()
                     || busy_ops.with(|ops| !ops.inflight.is_empty())
                     || (busy_session.user.get().is_some()
@@ -110,7 +110,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                             .filter(|(cached, _)| {
                                 *cached == busy_session.generation.get()
                             })
-                            .is_none())
+                            .is_none()) {
+                    "true"
+                } else {
+                    "false"
+                }
             }
         >
             <div

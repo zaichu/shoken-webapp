@@ -9,7 +9,7 @@ mod tabs;
 mod workspace;
 
 use crate::components::confirm_modal::ConfirmDeleteModal;
-use crate::components::ui::{ListSkeleton, PageHeader};
+use crate::components::ui::PageHeader;
 use crate::receipts::{use_receipts_data, ReceiptsTab, TabState};
 use crate::session::use_session;
 use leptos::prelude::*;
@@ -60,31 +60,31 @@ pub fn ReceiptsPage() -> impl IntoView {
         <div
             class="mt-0"
             aria-busy=move || {
-                busy.auth_loading()
+                if busy.auth_loading()
                     || busy.any_tab_fetching()
                     || ReceiptsTab::ALL.iter().any(|tab| {
                         let state = busy.csv_state(*tab);
                         state.saving || state.deleting
-                    })
+                    }) {
+                    "true"
+                } else {
+                    "false"
+                }
             }
         >
             <div data-testid="receipts-workspace">
                 {move || {
                     let workspace = panels_store.clone();
-                    if panels_loading.get() {
-                        view! { <ListSkeleton /> }.into_any()
-                    } else {
-                        view! {
-                            {ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <TabPanel store=workspace.clone() tab=tab /> }
-                                })
-                                .collect_view()}
-                        }
-                            .into_any()
-                    }
+                    // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
+                    // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
+                    let loading = panels_loading.get();
+                    ReceiptsTab::ALL
+                        .iter()
+                        .copied()
+                        .map(|tab| {
+                            view! { <TabPanel store=workspace.clone() tab=tab loading=loading /> }
+                        })
+                        .collect_view()
                 }}
             </div>
             {move || {

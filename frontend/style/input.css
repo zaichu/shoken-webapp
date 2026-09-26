@@ -14,11 +14,11 @@
   --color-info-hover: #1d4ed8;
   --color-warning: #d97706;
   --color-warning-hover: #b45309;
-  --color-danger: #dc3545;
-  --color-danger-hover: #bb2d3b;
+  --color-danger: #b91c1c;
+  --color-danger-hover: #991b1b;
   --color-light: #f8fafc;
   --color-dark: #111827;
-  --color-negative: #dc3545;
+  --color-negative: #b91c1c;
   --color-negative-dark: #ff6b6b;
   --color-accent: #c08403;
   --color-accent-soft: #fff7ed;
@@ -79,6 +79,16 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background: #64748b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -217,7 +227,7 @@
   }
 
   .security-code-link {
-    @apply text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+    @apply inline-flex min-h-6 items-center text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
   }
 
   .site-header {
@@ -245,7 +255,7 @@
   }
 
   .copyable-name {
-    @apply inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+    @apply inline-flex min-h-6 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
   }
 
   .copy-icon {

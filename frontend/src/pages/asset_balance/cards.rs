@@ -176,7 +176,7 @@ pub(crate) fn HoldingValuationCard(
         <div class="rounded-lg border border-slate-950/10 bg-white shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
             <button
                 type="button"
-                aria-expanded=move || open.get()
+                aria-expanded=move || if open.get() { "true" } else { "false" }
                 aria-controls=detail_id.clone()
                 on:click=move |_| open.update(|value| *value = !*value)
                 class="block min-h-[44px] w-full px-3.5 py-4 text-left"
