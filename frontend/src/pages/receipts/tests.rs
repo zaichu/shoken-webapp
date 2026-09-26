@@ -280,9 +280,64 @@ fn card_row_data_matches_react_card_fields() {
     assert_eq!(card.details.len(), 10);
     assert_eq!(card.details[0].label, "入金日");
     assert!(card.details.iter().all(|detail| match &detail.value {
-        CardDetailValue::Text { text, negative } => *negative == is_negative_text(text),
+        CardDetailValue::Text { text, negative } => {
+            *negative == (is_profit_label(&detail.label) && is_negative_text(text))
+        }
         CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
     }));
+}
+
+fn detail_negative(card: &CardRowData, label: &str) -> bool {
+    card.details
+        .iter()
+        .find(|detail| detail.label == label)
+        .is_some_and(|detail| matches!(detail.value, CardDetailValue::Text { negative: true, .. }))
+}
+
+fn card_for(tab: ReceiptsTab, row: ReceiptItem) -> CardRowData {
+    let rows = vec![row];
+    let cells = rows[0].cells();
+    let order = column_order(tab, &rows, "");
+    card_row_data(
+        "k".to_string(),
+        &cells,
+        table_headers(tab),
+        &order,
+        card_fields(tab),
+    )
+}
+
+#[test]
+fn negative_tax_and_dividend_stay_neutral() {
+    let mut stock = match domestic().remove(0) {
+        ReceiptItem::DomesticStock(row) => row,
+        _ => unreachable!(),
+    };
+    stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
+    stock.taxes = rust_decimal::Decimal::from(-203);
+    stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
+    let card = card_for(ReceiptsTab::DomesticStock, ReceiptItem::DomesticStock(stock));
+    assert!(detail_negative(&card, "損益"));
+    assert!(!detail_negative(&card, "税額"));
+
+    let mut dividend = match dividends().remove(0) {
+        ReceiptItem::Dividend(row) => row,
+        _ => unreachable!(),
+    };
+    dividend.taxes = rust_decimal::Decimal::from(-100);
+    dividend.net_amount_received = rust_decimal::Decimal::from(-50);
+    let card = card_for(ReceiptsTab::Dividend, ReceiptItem::Dividend(dividend));
+    assert!(!detail_negative(&card, "税額"));
+    assert!(!detail_negative(&card, "受取額"));
+    assert!(!card.amount_negative);
+}
+
+#[test]
+fn dividend_subtotal_is_not_profit() {
+    assert!(!summary_is_profit(ReceiptsTab::Dividend, "税引後"));
+    assert!(summary_is_profit(ReceiptsTab::DomesticStock, "税引後"));
+    assert!(summary_is_profit(ReceiptsTab::MutualFund, "税引損益"));
+    assert!(!summary_is_profit(ReceiptsTab::DomesticStock, "税額"));
 }
 
 #[test]

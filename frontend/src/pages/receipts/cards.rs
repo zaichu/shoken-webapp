@@ -46,6 +46,11 @@ pub(crate) fn is_profit_label(label: &str) -> bool {
     matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
 }
 
+// 配当の月の小計は国内株式と同じ「税引後」だが、損益ではないので色を付けない
+pub(crate) fn summary_is_profit(tab: ReceiptsTab, label: &str) -> bool {
+    tab != ReceiptsTab::Dividend && is_profit_label(label)
+}
+
 pub(crate) fn is_negative_text(value: &str) -> bool {
     let normalized: String = value
         .trim()
@@ -401,6 +406,7 @@ fn ReceiptItemCard(
 
 #[component]
 pub(crate) fn MobileCardGroup(
+    tab: ReceiptsTab,
     label: String,
     count: usize,
     summary: Vec<(&'static str, String)>,
@@ -446,7 +452,8 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
-    let primary_negative = is_profit_label(primary_label) && is_negative_text(&primary_value);
+    let primary_negative =
+        summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
     let primary_value_class = if primary_negative {
         "text-sm font-semibold tabular-nums text-red-300"
     } else {
@@ -523,8 +530,8 @@ pub(crate) fn MobileCardGroup(
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
-                                                let negative =
-                                                    is_profit_label(label) && is_negative_text(value);
+                                                let negative = summary_is_profit(tab, label)
+                                                    && is_negative_text(value);
                                                 let value_class = if negative {
                                                     "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
                                                 } else {

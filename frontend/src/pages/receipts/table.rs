@@ -1,6 +1,6 @@
 use super::cards::{
     card_fields, card_key, card_ordinal, card_row_data, idless_row_ordinals, is_negative_text,
-    is_profit_label, summary_labels, CardRowData, MobileCardGroup,
+    is_profit_label, summary_is_profit, summary_labels, CardRowData, MobileCardGroup,
 };
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
@@ -289,7 +289,7 @@ pub(crate) fn ReceiptTable(
                                                     .iter()
                                                     .zip(labels.iter())
                                                     .map(|(value, label)| {
-                                                        let negative = is_profit_label(label)
+                                                        let negative = summary_is_profit(tab, label)
                                                             && is_negative_text(value);
                                                         view! {
                                                             <td
@@ -372,6 +372,7 @@ pub(crate) fn ReceiptTable(
                             .map(|(group_index, key, label, count, summary, cards)| {
                                 view! {
                                     <MobileCardGroup
+                                        tab=tab
                                         label=label
                                         count=count
                                         summary=summary
