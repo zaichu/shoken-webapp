@@ -48,7 +48,10 @@ impl BulkTimer {
 
     /// PgQueryResult から rows_affected を取り出して finish する。
     /// u64 → usize の変換が失敗した場合は ApiError を返す。
-    pub fn finish_from_result(self, result: PgQueryResult) -> Result<BulkCreateResponse, ApiError> {
+    pub fn finish_from_result(
+        self,
+        result: PgQueryResult,
+    ) -> Result<BulkCreateResponse, ApiError> {
         let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
             ApiError::ApiError("bulk insert の rows_affected が usize に収まりません".to_string())
         })?;
@@ -91,6 +94,26 @@ impl UserDataDomain {
     fn replaces_existing(self) -> bool {
         matches!(self, Self::AssetBalances)
     }
+
+    fn domain(self) -> &'static str {
+        match self {
+            Self::AssetBalances => "asset_balance",
+            Self::Dividends => "dividend",
+            Self::DomesticStocks => "domestic_stock",
+            Self::MutualFunds => "mutualfund",
+        }
+    }
+
+    /// ユーザー紐付き行を持つ実テーブル名。SQL 文字列の構築に使えるよう
+    /// 列挙値から固定マッピングで返す(外部入力は混入しない)
+    fn table_name(self) -> &'static str {
+        match self {
+            Self::AssetBalances => "asset_balances",
+            Self::Dividends => "dividends",
+            Self::DomesticStocks => "domestic_stocks",
+            Self::MutualFunds => "mutualfunds",
+        }
+    }
 }
 
 /// 上限判定の純粋ロジック(DB 非依存)。existing は追記型のみ使用する
@@ -126,33 +149,13 @@ where
     let existing = if domain.replaces_existing() {
         None
     } else {
-        match domain {
-            UserDataDomain::Dividends => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
-                )
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?
-            }
-            UserDataDomain::DomesticStocks => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM domestic_stocks WHERE user_id = $1",
-                )
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?
-            }
-            UserDataDomain::MutualFunds => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1",
-                )
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?
-            }
-            UserDataDomain::AssetBalances => unreachable!(),
-        }
+        sqlx::query_scalar::<_, Option<i64>>(sqlx::AssertSqlSafe(format!(
+            "SELECT COUNT(*) FROM {} WHERE user_id = $1",
+            domain.table_name()
+        )))
+        .bind(user_id)
+        .fetch_one(executor)
+        .await?
     };
     if exceeds_user_row_limit(domain, existing, additional, limit) {
         return Err(ApiError::ValidationError(format!(
@@ -162,24 +165,7 @@ where
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DeleteTarget {
-    AssetBalances,
-    Dividends,
-    DomesticStocks,
-    MutualFunds,
-}
-
-impl DeleteTarget {
-    fn domain(self) -> &'static str {
-        match self {
-            Self::AssetBalances => "asset_balance",
-            Self::Dividends => "dividend",
-            Self::DomesticStocks => "domestic_stock",
-            Self::MutualFunds => "mutualfund",
-        }
-    }
-}
+pub type DeleteTarget = UserDataDomain;
 
 /// ユーザーに紐づく全レコードを削除する共通実装。
 ///
