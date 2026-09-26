@@ -202,7 +202,6 @@ pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> Val
     }
 }
 
-/// Decimal の評価額・取得額から求める。率は Decimal に収まらないとき f64 で求める
 pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> ValuationResult {
     let (amount, rate) = valuation_parts(
         Some(market),

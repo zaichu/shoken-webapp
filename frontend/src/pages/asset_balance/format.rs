@@ -33,11 +33,17 @@ pub(crate) fn format_currency(value: f64) -> String {
 }
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {
-    if value.is_nan() {
+    if !value.is_finite() {
         return "—".to_string();
     }
     f64_to_decimal(value).map_or_else(
-        || "—".to_string(),
+        || {
+            format!(
+                "{:.prec$}%",
+                to_fixed(value, decimals),
+                prec = decimals as usize
+            )
+        },
         |value| format_percentage_value_decimal(value, decimals),
     )
 }

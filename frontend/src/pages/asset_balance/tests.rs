@@ -176,7 +176,11 @@ fn number_and_currency_formatters_match_intl_cases() {
         format_valuation_amount(Some(1e29)),
         "¥100,000,000,000,000,000,000,000,000,000"
     );
-    assert_eq!(format_fixed_percent(1e30, 1), "—");
+    assert_eq!(
+        format_fixed_percent(1e30, 1),
+        "1000000000000000019884624838656.0%"
+    );
+    assert_eq!(format_fixed_percent(f64::INFINITY, 1), "—");
 }
 
 #[test]
