@@ -36,14 +36,14 @@ pub(crate) fn card_fields(tab: ReceiptsTab) -> CardFields {
 
 pub(crate) fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
     match tab {
-        ReceiptsTab::Dividend => ["配当金", "税額", "税引後受取額"],
-        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後損益"],
-        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引後損益"],
+        ReceiptsTab::Dividend => ["配当金", "税額", "税引後"],
+        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後"],
+        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引損益"],
     }
 }
 
 pub(crate) fn is_profit_label(label: &str) -> bool {
-    matches!(label, "損益" | "実現損益" | "税引後損益")
+    matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
 }
 
 pub(crate) fn is_negative_text(value: &str) -> bool {

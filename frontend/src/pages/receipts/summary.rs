@@ -53,7 +53,7 @@ pub(crate) fn header_summary(
             vec![
                 ("配当金", values[0], ""),
                 ("税額", values[1], ""),
-                ("税引後受取額", values[2], ""),
+                ("配当金(税引)", values[2], ""),
             ]
         }
         ReceiptsTab::DomesticStock => {
@@ -87,7 +87,7 @@ pub(crate) fn header_summary(
             vec![
                 ("実現損益", values[0], profit_tone(values[0])),
                 ("税額", values[1], ""),
-                ("税引後損益", values[2], profit_tone(values[2])),
+                ("実現損益(税引)", values[2], profit_tone(values[2])),
             ]
         }
         ReceiptsTab::MutualFund => {
@@ -121,7 +121,7 @@ pub(crate) fn header_summary(
             vec![
                 ("実現損益", values[0], profit_tone(values[0])),
                 ("税額", values[1], ""),
-                ("税引後損益", values[2], profit_tone(values[2])),
+                ("実現損益(税引)", values[2], profit_tone(values[2])),
             ]
         }
     }

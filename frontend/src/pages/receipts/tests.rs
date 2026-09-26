@@ -201,15 +201,15 @@ fn card_fields_point_at_expected_columns() {
     let cases = [
         (
             ReceiptsTab::Dividend,
-            ("銘柄名", "税引後受取額", "入金日", "口座"),
+            ("銘柄名", "受取額", "入金日", "口座"),
         ),
         (
             ReceiptsTab::DomesticStock,
-            ("銘柄名", "税引後損益", "約定日", "口座"),
+            ("銘柄名", "税引後", "約定日", "口座"),
         ),
         (
             ReceiptsTab::MutualFund,
-            ("ファンド名", "税引後損益", "約定日", "口座"),
+            ("ファンド名", "税引損益", "約定日", "口座"),
         ),
     ];
     for (tab, expected) in cases {
@@ -457,15 +457,15 @@ fn kpi_styles_match_tone() {
 fn summary_and_empty_hint_labels_match_tabs() {
     assert_eq!(
         summary_labels(ReceiptsTab::Dividend),
-        ["配当金", "税額", "税引後受取額"]
+        ["配当金", "税額", "税引後"]
     );
     assert_eq!(
         summary_labels(ReceiptsTab::DomesticStock),
-        ["損益", "税額", "税引後損益"]
+        ["損益", "税額", "税引後"]
     );
     assert_eq!(
         summary_labels(ReceiptsTab::MutualFund),
-        ["実現損益", "税額", "税引後損益"]
+        ["実現損益", "税額", "税引損益"]
     );
     assert_eq!(
         empty_hint(ReceiptsTab::Dividend),

@@ -153,10 +153,10 @@ test('グループ見出しは主要集計を常時表示しタップで全集�
   const cardList = page.getByTestId('receipt-card-list');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
 
-  const toggle = cardList.getByRole('button', { name: /2024年3月 2件 税引後受取額 ¥3,985/ });
+  const toggle = cardList.getByRole('button', { name: /2024年3月 2件 税引後 ¥3,985/ });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   const region = cardList.getByRole('region', {
-    name: /2024年3月 2件 税引後受取額 ¥3,985/,
+    name: /2024年3月 2件 税引後 ¥3,985/,
   });
   await expect(region).toBeHidden();
 
@@ -184,7 +184,7 @@ test('カードはタップで全列の明細を開閉できる', async ({ page 
   const region = cardList.getByRole('region', { name: 'トヨタ自動車 ¥2,391' });
   await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
   await expect(region).toBeVisible();
-  for (const label of ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量', '配当金', '税額', '税引後受取額']) {
+  for (const label of ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量', '配当金', '税額', '受取額']) {
     await expect(region.getByText(label, { exact: true })).toBeVisible();
   }
   await expect(region.getByText('2024/03/01', { exact: true })).toBeVisible();
@@ -252,7 +252,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAttribute('aria-label', /税引後受取額 ¥4,782/);
+  await expect(toggle).toHaveAttribute('aria-label', /配当金\(税引\) ¥4,782/);
   await expect(page.getByTestId('receipt-summary-desktop')).toBeHidden();
 
   await toggle.click();
@@ -260,7 +260,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const region = page.getByRole('region', { name: '集計情報' });
   await expect(region).toBeVisible();
   await expect(region.getByText('配当金', { exact: true })).toBeVisible();
-  await expect(region.getByText('税引後受取額', { exact: true })).toBeVisible();
+  await expect(region.getByText('配当金(税引)', { exact: true })).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -285,7 +285,7 @@ test('国内株式タブでもカードが開き銘柄リンクとコピーが�
   await expect(
     region.getByRole('button', { name: '任天堂(7974) をコピー' }),
   ).toBeVisible();
-  await expect(region.getByText('税引後損益', { exact: true })).toBeVisible();
+  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
 });
 
 test('投資信託タブでもカードが開きファンド名をコピーできる', async ({ page }) => {
@@ -309,7 +309,7 @@ test('投資信託タブでもカードが開きファンド名をコピーで�
       name: 'eMAXIS Slim 米国株式(S&P500) をコピー',
     }),
   ).toBeVisible();
-  await expect(region.getByText('税引後損益', { exact: true })).toBeVisible();
+  await expect(region.getByText('税引損益', { exact: true })).toBeVisible();
 });
 
 test('検索条件を変えても同じカードと集計は閉じない', async ({ page }) => {
@@ -331,7 +331,7 @@ test('検索条件を変えても同じカードと集計は閉じない', async
   ).toBeVisible();
 
   const groupToggle = cardList.getByRole('button', {
-    name: /2024年3月 2件 税引後受取額/,
+    name: /2024年3月 2件 税引後/,
   });
   await groupToggle.click();
   const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
@@ -346,7 +346,7 @@ test('検索条件を変えても同じカードと集計は閉じない', async
     cardList.getByRole('region', { name: '日本電信電話 ¥1,594' }),
   ).toBeVisible();
   await expect(
-    cardList.getByRole('button', { name: /1件 税引後受取額 ¥1,594/ }),
+    cardList.getByRole('button', { name: /1件 税引後 ¥1,594/ }),
   ).toHaveAttribute('aria-expanded', 'false');
   await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
 });
