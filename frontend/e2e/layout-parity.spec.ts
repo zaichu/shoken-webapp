@@ -119,7 +119,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: [96, 76, 76, 88, 0, 80, 72, 92, 80, 92],
+    widths: [96, 76, 76, 88, 0, 80, 72, 104, 88, 104],
     aligns: [
       'left',
       'left',
@@ -135,7 +135,7 @@ const TABLE_SPEC = {
   },
   domesticstock: {
     tabName: '国内株式',
-    widths: [96, 88, 0, 76, 72, 80, 92, 92, 92, 80, 92],
+    widths: [96, 88, 0, 76, 72, 80, 104, 104, 104, 88, 104],
     aligns: [
       'left',
       'center',
@@ -152,7 +152,7 @@ const TABLE_SPEC = {
   },
   mutualfund: {
     tabName: '投資信託',
-    widths: [96, 0, 76, 72, 80, 92, 92, 92, 80, 92],
+    widths: [96, 0, 76, 72, 80, 104, 104, 104, 88, 104],
     aligns: [
       'left',
       'left',
@@ -385,6 +385,10 @@ async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) 
   const badges = await table
     .locator('tbody tr:has(td[colspan]) td[colspan] span:nth-child(2)')
     .allTextContents();
+  // モックで2件以上の月があるのは配当金だけ
+  if (slug === 'dividend') {
+    expect(badges.length).toBeGreaterThan(0);
+  }
   badges.forEach((text) => expect(text).toMatch(/^([2-9]|\d{2,})件$/));
 
   if (slug === 'domesticstock') {
@@ -502,7 +506,7 @@ test.beforeEach(async ({ context }) => {
 
 for (const width of [1440, 1024]) {
   for (const slug of TABS) {
-    test(`取引明細テーブルはカード内に収まるか内部スクロールする(${slug} ${width}px)`, async ({
+    test(`取引明細テーブルは内部スクロールせずカード内に収まる(${slug} ${width}px)`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
@@ -535,7 +539,7 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     .getByTestId('search-card')
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
-  const reordered = [96, 88, 76, 0, 72, 80, 92, 92, 92, 80, 92];
+  const reordered = [96, 88, 76, 0, 72, 80, 104, 104, 104, 88, 104];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');
   await expect(ths.nth(3)).toHaveText('銘柄名');

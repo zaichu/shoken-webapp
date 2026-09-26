@@ -199,7 +199,6 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   );
   expect(documentWidth).toBeLessThanOrEqual(1920);
 
-
   // 印刷時も高さ制限とスクロールはなく全行を出力する
   await page.emulateMedia({ media: 'print' });
   const printWrap = await page.getByRole('table').evaluate((table) => {
