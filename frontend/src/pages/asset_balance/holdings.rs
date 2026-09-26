@@ -1,5 +1,5 @@
 use super::format::{dec_to_f64, format_currency, format_percentage_value};
-use crate::asset_balance_domain::normalize_security_name;
+use crate::asset_balance_domain::normalize_display_name;
 use crate::dividend_per_share::DividendMaps;
 use crate::dto::AssetBalance;
 
@@ -22,7 +22,7 @@ pub(crate) fn holding_view(row: &AssetBalance) -> HoldingView {
     };
     HoldingView {
         code: row.security_code.clone(),
-        name: normalize_security_name(name_source),
+        name: normalize_display_name(name_source),
         shares: dec_to_f64(&row.shares),
         average_price: dec_to_f64(&row.average_purchase_price),
         purchase: dec_to_f64(&row.total_purchase_amount),
