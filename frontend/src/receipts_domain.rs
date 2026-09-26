@@ -3,6 +3,7 @@ use rust_decimal::{Decimal, RoundingStrategy};
 use std::collections::BTreeMap;
 
 pub use shared::domain::DividendSummary as DividendTotals;
+pub use shared::normalize::normalize_security_code;
 pub use shared::summary::{
     dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
     domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
@@ -211,16 +212,6 @@ pub fn format_currency_with_options(
 #[cfg(test)]
 pub fn parse_number(value: &str) -> Decimal {
     value.replace(',', "").parse().unwrap_or(Decimal::ZERO)
-}
-
-pub fn normalize_security_code(value: &str) -> String {
-    value
-        .split([':', '：'])
-        .next()
-        .unwrap_or_default()
-        .split_whitespace()
-        .collect::<String>()
-        .to_uppercase()
 }
 
 #[cfg(test)]
