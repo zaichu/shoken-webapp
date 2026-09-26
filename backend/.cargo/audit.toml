@@ -1,13 +1,6 @@
 # cargo audit の除外設定の正本。ローカルの `cargo audit` と CI の両方がこのファイルを読む
 [advisories]
 ignore = [
-    # paste クレートが unmaintained。utoipa-axum の間接依存で直接除去できない。
-    # 手続きマクロのみでセキュリティリスクは低い。utoipa-axum の後継で解消され次第削除する。
-    "RUSTSEC-2024-0436",
-    # rkyv の archive validation 脆弱性。rust_decimal の optional 依存として Cargo.lock に含まれるが、
-    # rkyv feature は有効化していない（cargo tree -e features で確認済み）。
-    # rust_decimal が rkyv 0.8.17 以降へ移行し次第削除する。
-    "RUSTSEC-2026-0235",
     # rsa（openidconnect 経由）の Marvin Attack。Google の公開 JWKS による署名検証のみで、
     # 秘密鍵での署名・復号は行わないため影響しない。上流に修正版がない。
     "RUSTSEC-2023-0071",
