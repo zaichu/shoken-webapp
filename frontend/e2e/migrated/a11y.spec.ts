@@ -460,9 +460,15 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
 test('ログインと404に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await page.unrouteAll({ behavior: 'wait' });
   await page.route(ROUTES.authMe, (route) => route.fulfill(json({}, 401)));
-  await scanBothViewports(page, 'ログイン', () => page.goto('/login'));
+  await scanBothViewports(page, 'ログイン', () => page.goto('/login'), true, () =>
+    expect(page.getByRole('button', { name: /Googleでログイン/ })).toBeVisible({ timeout: 10000 }),
+  );
   await mockSession(page);
-  await scanBothViewports(page, '404', () => page.goto('/no-such-page-xyz'));
+  await scanBothViewports(page, '404', () => page.goto('/no-such-page-xyz'), true, () =>
+    expect(page.getByRole('heading', { name: '404 - ページが見つかりません' })).toBeVisible({
+      timeout: 10000,
+    }),
+  );
 });
 
 // .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
@@ -640,7 +646,8 @@ async function collectSmallTargets(page: Page, min: number): Promise<TargetOffen
       if (h.getAttribute('aria-hidden') === 'true') {
         continue;
       }
-      if (h.getAttribute('tabindex') === '-1') {
+      // 非選択のタブは roving tabindex で -1 だが、クリックで選べるので測る
+      if (h.getAttribute('tabindex') === '-1' && h.getAttribute('role') !== 'tab') {
         continue;
       }
       const inputType = h.getAttribute('type');
