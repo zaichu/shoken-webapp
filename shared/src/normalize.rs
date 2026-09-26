@@ -28,9 +28,21 @@ pub fn normalize_display_name(name: &str) -> String {
         .collect()
 }
 
+/// 証券コード正規化。`:`・`：` 以降を捨て、空白をすべて除去して大文字化する
+/// （" 7974: 任天堂 " → "7974"、"brk.b" → "BRK.B"）。
+pub fn normalize_security_code(value: &str) -> String {
+    value
+        .split([':', '：'])
+        .next()
+        .unwrap_or_default()
+        .split_whitespace()
+        .collect::<String>()
+        .to_uppercase()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{normalize_display_name, normalize_security_name};
+    use super::{normalize_display_name, normalize_security_code, normalize_security_name};
 
     #[test]
     fn security_name_joins_single_character_tokens() {
@@ -68,5 +80,25 @@ mod tests {
         assert_eq!(normalize_display_name("カＡタ"), "カAタ");
         // 表示用は変換のみ。trim・結合はしない
         assert_eq!(normalize_display_name(" J T "), " J T ");
+    }
+
+    #[test]
+    fn security_code_takes_head_before_colon_and_uppercases() {
+        for (input, expected) in [
+            (" 7974: 任天堂 ", "7974"),
+            ("7203: トヨタ自動車", "7203"),
+            ("6758：ソニー", "6758"),
+            ("brk.b", "BRK.B"),
+            ("a b 1: x", "AB1"),
+        ] {
+            assert_eq!(normalize_security_code(input), expected);
+        }
+    }
+
+    #[test]
+    fn security_code_handles_empty_and_leading_colon() {
+        for (input, expected) in [("", ""), ("  ", ""), (" : ABC", ""), ("：", "")] {
+            assert_eq!(normalize_security_code(input), expected);
+        }
     }
 }
