@@ -42,10 +42,10 @@ impl Validate for StockSearchQuery {
         ("query" = String, Query, description = "銘柄コードまたは銘柄名")
     ),
     responses(
-        (status = 200, body = Stock),
-        (status = 400, body = ErrorResponse),
-        (status = 404, body = ErrorResponse),
-        (status = 429, body = ErrorResponse),
+        (status = 200, description = "銘柄情報を返す", body = Stock),
+        (status = 400, description = "検索クエリが不正", body = ErrorResponse),
+        (status = 404, description = "銘柄が見つからない", body = ErrorResponse),
+        (status = 429, description = "リクエストが多すぎる", body = ErrorResponse),
     )
 )]
 pub async fn search(

@@ -18,7 +18,7 @@
         "operationId": "v1_delete_account",
         "responses": {
           "200": {
-            "description": "",
+            "description": "アカウントを削除しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -28,7 +28,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "削除の確認が取れていない",
             "content": {
               "application/json": {
                 "schema": {
@@ -38,7 +38,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -48,7 +48,7 @@
             }
           },
           "500": {
-            "description": "",
+            "description": "サーバーエラー",
             "content": {
               "application/json": {
                 "schema": {
@@ -74,7 +74,7 @@
         "operationId": "v1_create_account_deletion_confirmation",
         "responses": {
           "200": {
-            "description": "",
+            "description": "削除確認の Cookie を発行しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -84,7 +84,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -120,7 +120,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "CSV のプレビューを返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -130,7 +130,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -140,7 +140,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -176,7 +176,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "CSV のインポートが完了しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -186,7 +186,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -196,7 +196,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -289,7 +289,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "保有銘柄の一覧を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -299,7 +299,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "検索パラメータが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -309,7 +309,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -343,7 +343,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "保有銘柄を一括置換しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -353,7 +353,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "リクエストが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -363,7 +363,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -387,7 +387,7 @@
         "operationId": "v1_asset_balance_delete_all",
         "responses": {
           "200": {
-            "description": "",
+            "description": "全ての保有銘柄データを削除しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -397,7 +397,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -433,7 +433,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "CSV のプレビューを返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -443,7 +443,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -453,7 +453,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -489,7 +489,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "CSV のインポートが完了しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -499,7 +499,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -509,7 +509,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -545,7 +545,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "配当利回りの一覧を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -555,7 +555,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "リクエストが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -565,7 +565,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -722,7 +722,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "配当金の一覧を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -732,7 +732,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "検索パラメータが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -742,7 +742,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -766,7 +766,7 @@
         "operationId": "v1_dividend_delete_all",
         "responses": {
           "200": {
-            "description": "",
+            "description": "全ての配当金データを削除しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -776,7 +776,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -812,7 +812,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "CSV のプレビューを返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -822,7 +822,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -832,7 +832,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -868,7 +868,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "CSV のインポートが完了しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -878,7 +878,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -888,7 +888,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1036,7 +1036,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "国内株式取引の一覧を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -1046,7 +1046,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "検索パラメータが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -1056,7 +1056,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1080,7 +1080,7 @@
         "operationId": "v1_domestic_stock_transaction_delete_all",
         "responses": {
           "200": {
-            "description": "",
+            "description": "全ての国内株式取引データを削除しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -1090,7 +1090,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1126,7 +1126,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "CSV のプレビューを返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -1136,7 +1136,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -1146,7 +1146,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1182,7 +1182,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "CSV のインポートが完了しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -1192,7 +1192,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "CSV の形式が不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -1202,7 +1202,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1350,7 +1350,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "投資信託取引の一覧を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -1360,7 +1360,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "検索パラメータが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -1370,7 +1370,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1394,7 +1394,7 @@
         "operationId": "v1_mutual_fund_transaction_delete_all",
         "responses": {
           "200": {
-            "description": "",
+            "description": "全ての投資信託データを削除しました",
             "content": {
               "application/json": {
                 "schema": {
@@ -1404,7 +1404,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1433,7 +1433,7 @@
             "description": "Google OAuth 認証ページへリダイレクト"
           },
           "500": {
-            "description": "",
+            "description": "サーバーエラー",
             "content": {
               "application/json": {
                 "schema": {
@@ -1477,7 +1477,7 @@
             "description": "ログイン成功後にフロントエンドへリダイレクト"
           },
           "401": {
-            "description": "",
+            "description": "OAuth の認証に失敗",
             "content": {
               "application/json": {
                 "schema": {
@@ -1487,7 +1487,7 @@
             }
           },
           "500": {
-            "description": "",
+            "description": "サーバーエラー",
             "content": {
               "application/json": {
                 "schema": {
@@ -1508,7 +1508,7 @@
         "operationId": "v1_get_session",
         "responses": {
           "200": {
-            "description": "",
+            "description": "現在のユーザー情報を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -1518,7 +1518,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "認証が必要",
             "content": {
               "application/json": {
                 "schema": {
@@ -1542,7 +1542,7 @@
         "operationId": "v1_delete_session",
         "responses": {
           "200": {
-            "description": "",
+            "description": "ログアウトしました",
             "content": {
               "application/json": {
                 "schema": {
@@ -1579,7 +1579,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "銘柄情報を返す",
             "content": {
               "application/json": {
                 "schema": {
@@ -1589,7 +1589,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "検索クエリが不正",
             "content": {
               "application/json": {
                 "schema": {
@@ -1599,7 +1599,7 @@
             }
           },
           "404": {
-            "description": "",
+            "description": "銘柄が見つからない",
             "content": {
               "application/json": {
                 "schema": {
@@ -1609,7 +1609,7 @@
             }
           },
           "429": {
-            "description": "",
+            "description": "リクエストが多すぎる",
             "content": {
               "application/json": {
                 "schema": {

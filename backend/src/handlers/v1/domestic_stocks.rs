@@ -35,9 +35,9 @@ use axum::{
         ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, body = PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "国内株式取引の一覧を返す", body = PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>),
+        (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -60,8 +60,8 @@ pub async fn list_transactions(
     path = "/api/v1/domestic-stock-transactions",
     operation_id = "v1_domestic_stock_transaction_delete_all",
     responses(
-        (status = 200, body = MessageResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "全ての国内株式取引データを削除しました", body = MessageResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -83,9 +83,9 @@ pub async fn delete_transactions(
     operation_id = "v1_domestic_stock_validate_import",
     request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
-        (status = 200, body = CsvPreviewResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 200, description = "CSV のプレビューを返す", body = CsvPreviewResponse),
+        (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -106,9 +106,9 @@ pub async fn validate_import(
     operation_id = "v1_domestic_stock_import",
     request_body(content = CsvUploadForm, content_type = "multipart/form-data"),
     responses(
-        (status = 201, body = CsvUploadResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 401, body = ErrorResponse),
+        (status = 201, description = "CSV のインポートが完了しました", body = CsvUploadResponse),
+        (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]

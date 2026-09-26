@@ -104,4 +104,27 @@ mod tests {
         assert_eq!(scheme["in"], "cookie");
         assert_eq!(scheme["name"], "session_token");
     }
+
+    #[test]
+    fn all_responses_have_description() {
+        let doc = serde_json::to_value(ApiDoc::openapi()).expect("OpenAPI がシリアライズできる");
+        let mut missing = Vec::new();
+        for (path, item) in doc["paths"].as_object().expect("paths はオブジェクト") {
+            for (method, operation) in item.as_object().expect("path item はオブジェクト") {
+                for (status, response) in operation["responses"]
+                    .as_object()
+                    .expect("responses はオブジェクト")
+                {
+                    if response["description"].as_str().is_none_or(str::is_empty) {
+                        missing.push(format!("{} {} {}", method.to_uppercase(), path, status));
+                    }
+                }
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "description がないレスポンスがあります:\n{}",
+            missing.join("\n")
+        );
+    }
 }
