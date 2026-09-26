@@ -53,7 +53,7 @@ impl BulkTimer {
         result: &PgQueryResult,
     ) -> Result<BulkCreateResponse, ApiError> {
         let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
-            ApiError::ApiError("bulk insert の rows_affected が usize に収まりません".to_string())
+            ApiError::Internal("bulk insert の rows_affected が usize に収まりません")
         })?;
         Ok(self.finish(inserted))
     }
@@ -62,21 +62,6 @@ impl BulkTimer {
 /// bulk insert の UNNEST に渡す user_id 配列を生成する。
 pub fn user_ids_for_bulk_insert(user_id: Uuid, total: usize) -> Vec<Uuid> {
     vec![user_id; total]
-}
-
-/// 利用者あたりのドメイン別保存行数の既定上限。
-/// 証券口座の取引履歴は年間数百〜数千行の想定に十分な余裕を持たせつつ、
-/// DB(Neon)容量の悪用を抑止する値。USER_ROW_LIMIT で上書き可能
-const DEFAULT_MAX_USER_ROWS: i64 = 100_000;
-
-/// 現在の保存行数上限を返す(USER_ROW_LIMIT、未設定・不正値は既定値)
-/// 本番コードの bulk_create が既定値として参照する。テストでは env を触らず
-/// `bulk_create_with_limit` / `ensure_user_row_limit_with` に値を直接渡す
-pub fn user_row_limit() -> i64 {
-    std::env::var("USER_ROW_LIMIT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(DEFAULT_MAX_USER_ROWS)
 }
 
 /// 行数上限を適用するユーザー紐付き書き込みドメイン
@@ -167,7 +152,7 @@ where
         }
     };
     if exceeds_user_row_limit(domain, existing, additional, limit) {
-        return Err(ApiError::ValidationError(format!(
+        return Err(ApiError::Validation(format!(
             "1アカウントあたりの保存件数の上限({limit}件)を超えています。既存データを整理してから取り込んでください"
         )));
     }

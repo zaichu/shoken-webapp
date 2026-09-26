@@ -105,6 +105,8 @@ mod tests {
                 secrets,
                 client: Client::new(),
                 dividend_cache: crate::state::DividendCacheState::default(),
+                config: Arc::new(crate::config::Config::default()),
+                google_oauth: None,
             })
     }
 

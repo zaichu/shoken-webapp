@@ -9,19 +9,18 @@ use uuid::Uuid;
 
 pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
-        .map_err(|_| ApiError::ValidationError(format!("{field} の形式が不正です（YYYY-MM-DD）")))
+        .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
 }
 
 pub fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
-    let invalid = || ApiError::ValidationError("year の値が不正です".to_string());
+    let invalid = || ApiError::Validation("year の値が不正です".to_string());
     let start = NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(invalid)?;
     let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).ok_or_else(invalid)?;
     Ok((start, end))
 }
 
 pub fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
-    let invalid =
-        || ApiError::ValidationError("year_month の形式が不正です（YYYY-MM）".to_string());
+    let invalid = || ApiError::Validation("year_month の形式が不正です（YYYY-MM）".to_string());
     let (year_str, month_str) = value.split_once('-').ok_or_else(invalid)?;
     let year: i32 = year_str.parse().map_err(|_| invalid())?;
     let month: u32 = month_str.parse().map_err(|_| invalid())?;
@@ -279,7 +278,7 @@ mod tests {
             assert!(
                 matches!(
                     parse_year_month_range(invalid),
-                    Err(ApiError::ValidationError(_))
+                    Err(ApiError::Validation(_))
                 ),
                 "value={invalid} は ValidationError になるべき"
             );
@@ -293,7 +292,7 @@ mod tests {
             assert!(
                 matches!(
                     parse_date_param("date", invalid),
-                    Err(ApiError::ValidationError(_))
+                    Err(ApiError::Validation(_))
                 ),
                 "value={invalid} は ValidationError になるべき"
             );
@@ -456,7 +455,7 @@ mod tests {
                 }
                 Err(e) => {
                     proptest::prop_assert!(
-                        matches!(e, ApiError::ValidationError(_)),
+                        matches!(e, ApiError::Validation(_)),
                         "year={year} の Err が ValidationError ではない"
                     );
                 }
@@ -484,7 +483,7 @@ mod tests {
                 }
                 Err(e) => {
                     proptest::prop_assert!(
-                        matches!(e, ApiError::ValidationError(_)),
+                        matches!(e, ApiError::Validation(_)),
                         "input={input} の Err が ValidationError ではない"
                     );
                     proptest::prop_assert!(

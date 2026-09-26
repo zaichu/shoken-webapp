@@ -2,17 +2,18 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv_util::RowNumber;
 use std::future::Future;
 
 pub fn validate_csv_rows<T, F>(rows: &[CsvRow], transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
 where
-    F: Fn(&CsvRow, usize) -> Result<T, CsvRowError>,
+    F: Fn(&CsvRow, RowNumber) -> Result<T, CsvRowError>,
 {
     let mut items = Vec::new();
     let mut errors = Vec::new();
 
     for (index, row) in rows.iter().enumerate() {
-        let row_num = index + 1;
+        let row_num = RowNumber::new(index + 1);
         match transform_row(row, row_num) {
             Ok(item) => items.push(item),
             Err(error) => errors.push(error),
@@ -144,7 +145,7 @@ mod tests {
             let value = row.get("key").cloned().unwrap_or_default();
             if value == "bad" {
                 Err(CsvRowError {
-                    row: row_num,
+                    row: row_num.get(),
                     message: "invalid".to_string(),
                 })
             } else {
@@ -205,7 +206,7 @@ mod tests {
 
         assert!(matches!(
             build_csv_preview(b"", &PREVIEW_TEST_CONFIG, collect_names),
-            Err(ApiError::ValidationError(_))
+            Err(ApiError::Csv(_))
         ));
     }
 
@@ -250,7 +251,7 @@ mod tests {
             },
         )
         .await;
-        assert!(matches!(result, Err(ApiError::ValidationError(_))));
+        assert!(matches!(result, Err(ApiError::Csv(_))));
         assert!(
             !bulk_invoked.get(),
             "bulk_create must not run when parse fails"

@@ -45,12 +45,8 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<AssetBalanceSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_list(asset_balance_service::search(
-        &state.pool,
-        auth_user.id(),
-        &params,
-    ))
-    .await
+    let result = asset_balance_service::search(&state.pool, auth_user.id(), &params).await?;
+    Ok((StatusCode::OK, Json(result)))
 }
 
 /// 保有銘柄を全置換（v1）
@@ -72,8 +68,13 @@ pub async fn replace(
     auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<BulkCreateAssetBalanceRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let response =
-        asset_balance_service::bulk_create(&state.pool, auth_user.id(), &data.items).await?;
+    let response = asset_balance_service::bulk_create(
+        &state.pool,
+        auth_user.id(),
+        &data.items,
+        state.config.user_row_limit,
+    )
+    .await?;
     Ok((StatusCode::OK, Json(response)))
 }
 
@@ -118,8 +119,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_validate_import::<AssetBalanceDomain>(_auth_user, multipart)
-        .await
+    crate::handlers::csv_import::handle_preview_csv::<AssetBalanceDomain>(multipart).await
 }
 
 /// 保有銘柄 CSV をインポート（v1）
@@ -144,6 +144,7 @@ pub async fn import(
         &state.pool,
         auth_user.id(),
         multipart,
+        state.config.user_row_limit,
     )
     .await
 }

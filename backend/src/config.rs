@@ -4,11 +4,12 @@ pub mod cors;
 pub mod environment;
 
 pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
-pub use environment::{
-    backend_url, csv_rate_limit_rps, data_rate_limit_rps, is_production_env, is_secure_cookie,
-    server_addr,
-};
+pub use environment::RuntimeEnv;
 
+/// `USER_ROW_LIMIT` 未設定時の既定値（ユーザー1人あたりの登録行数上限）
+pub const DEFAULT_USER_ROW_LIMIT: i64 = 100_000;
+
+#[derive(Debug, Clone)]
 pub struct Config {
     pub cors_origins: Vec<String>,
     pub database_max_connections: u32,
@@ -20,6 +21,16 @@ pub struct Config {
     pub stock_search_rate_limit_rps: u32,
     /// 認証済みデータ系ルート(`/api/v1/*`)への IP 単位レート制限（リクエスト/秒）。0 は無制限
     pub data_rate_limit_rps: u32,
+    /// 実行環境（起動時に一度だけ解決）
+    pub runtime_env: RuntimeEnv,
+    /// Cookie を Secure で発行するか。本番では SECURE_COOKIE の値に関わらず true
+    pub secure_cookie: bool,
+    /// OAuth リダイレクト等に使うバックエンドの外部 URL
+    pub backend_url: String,
+    /// サーバの待ち受けアドレス
+    pub server_addr: String,
+    /// ユーザー1人あたりの登録行数上限
+    pub user_row_limit: i64,
 }
 
 impl Default for Config {
@@ -37,6 +48,12 @@ impl Default for Config {
             csv_rate_limit_rps: 2,
             stock_search_rate_limit_rps: 10,
             data_rate_limit_rps: 10,
+            // 未設定は本番扱いにする fail-safe と同じ既定値に揃える
+            runtime_env: RuntimeEnv::Production,
+            secure_cookie: true,
+            backend_url: "http://localhost:3001".to_string(),
+            server_addr: "0.0.0.0:3001".to_string(),
+            user_row_limit: DEFAULT_USER_ROW_LIMIT,
         }
     }
 }
@@ -44,6 +61,21 @@ impl Default for Config {
 impl Config {
     pub fn from_env() -> Self {
         let mut config = Config::default();
+
+        config.runtime_env = RuntimeEnv::from_env();
+        config.secure_cookie = config.is_production()
+            || env::var("SECURE_COOKIE").is_ok_and(|v| v == "true" || v == "1");
+
+        let port = env::var("PORT").unwrap_or_else(|_| "3001".to_string());
+        config.backend_url =
+            env::var("BACKEND_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
+        config.server_addr = format!("0.0.0.0:{port}");
+
+        if let Ok(v) = env::var("USER_ROW_LIMIT") {
+            if let Ok(n) = v.parse() {
+                config.user_row_limit = n;
+            }
+        }
 
         if let Ok(origins) = env::var("CORS_ORIGINS") {
             let parsed = parse_cors_origins(&origins);
@@ -59,17 +91,24 @@ impl Config {
         if let Some(v) = parse_rps("STOCK_SEARCH_RATE_LIMIT_RPS") {
             config.stock_search_rate_limit_rps = v;
         }
+        if let Some(v) = parse_rps("CSV_RATE_LIMIT_RPS") {
+            config.csv_rate_limit_rps = v;
+        }
+        if let Some(v) = parse_rps("DATA_RATE_LIMIT_RPS") {
+            config.data_rate_limit_rps = v;
+        }
 
-        config.csv_rate_limit_rps = csv_rate_limit_rps();
-        config.data_rate_limit_rps = data_rate_limit_rps();
-
-        if is_production_env() {
+        if config.is_production() {
             config
                 .cors_origins
                 .retain(|origin| !is_localhost_origin(origin));
         }
 
         config
+    }
+
+    pub fn is_production(&self) -> bool {
+        self.runtime_env.is_production()
     }
 }
 #[cfg(test)]
@@ -107,8 +146,9 @@ mod tests {
                 secrets,
                 client: Client::new(),
                 dividend_cache: crate::state::DividendCacheState::default(),
+                config: Arc::new(config.clone()),
+                google_oauth: None,
             },
-            config,
             &Arc::new(std::sync::atomic::AtomicBool::new(true)),
         )
     }
@@ -164,10 +204,7 @@ mod tests {
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             database_max_connections: 10,
-            auth_rate_limit_rps: 10,
-            csv_rate_limit_rps: 2,
-            stock_search_rate_limit_rps: 10,
-            data_rate_limit_rps: 10,
+            ..Config::default()
         };
         assert_eq!(
             (
@@ -178,17 +215,94 @@ mod tests {
             ),
             (10, 1, "http://example.com", 2)
         );
-        let url = backend_url();
-        let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| {
-            env::var("PORT").map_or_else(
-                |_| "http://localhost:3001".to_string(),
-                |port| format!("http://localhost:{port}"),
-            )
-        });
-        assert_eq!(url, expected_url);
-        assert!(server_addr().starts_with("0.0.0.0:"));
-        let _ = is_secure_cookie();
     }
+
+    #[test]
+    fn test_config_backend_url_and_server_addr_from_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        // (BACKEND_URL, PORT, backend_url, server_addr)
+        let cases: [(
+            Option<&'static str>,
+            Option<&'static str>,
+            &'static str,
+            &'static str,
+        ); 4] = [
+            (
+                Some("https://api.example.com"),
+                Some("9000"),
+                "https://api.example.com",
+                "0.0.0.0:9000",
+            ),
+            (
+                Some("https://api.example.com"),
+                None,
+                "https://api.example.com",
+                "0.0.0.0:3001",
+            ),
+            (None, Some("8080"), "http://localhost:8080", "0.0.0.0:8080"),
+            (None, None, "http://localhost:3001", "0.0.0.0:3001"),
+        ];
+        for (backend_url, port, expected_url, expected_addr) in cases {
+            temp_env::with_vars([("BACKEND_URL", backend_url), ("PORT", port)], || {
+                let config = Config::from_env();
+                assert_eq!(
+                    (config.backend_url.as_str(), config.server_addr.as_str()),
+                    (expected_url, expected_addr),
+                    "BACKEND_URL={backend_url:?} PORT={port:?}"
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn test_config_user_row_limit_from_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        for (value, expected) in [
+            (Some("50"), 50),
+            (Some("abc"), DEFAULT_USER_ROW_LIMIT),
+            (Some("-5"), -5),
+            (None, DEFAULT_USER_ROW_LIMIT),
+        ] {
+            temp_env::with_var("USER_ROW_LIMIT", value, || {
+                assert_eq!(
+                    Config::from_env().user_row_limit,
+                    expected,
+                    "USER_ROW_LIMIT={value:?}"
+                );
+            });
+        }
+    }
+    #[test]
+    fn test_config_secure_cookie_from_env() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        // 本番(未設定・不明値を含む)では SECURE_COOKIE=false を明示しても無効にできない(fail-safe)
+        type Case = (Option<&'static str>, Option<&'static str>, bool);
+        let cases: [Case; 6] = [
+            (None, None, true),
+            (Some("false"), None, true),
+            (Some("false"), Some("production"), true),
+            (None, Some("development"), false),
+            (Some("false"), Some("development"), false),
+            (Some("true"), Some("development"), true),
+        ];
+        for (secure_cookie, app_env, expected) in cases {
+            temp_env::with_vars(
+                [
+                    ("SECURE_COOKIE", secure_cookie),
+                    ("APP_ENV", app_env),
+                    ("RUST_ENV", None),
+                ],
+                || {
+                    assert_eq!(
+                        Config::from_env().secure_cookie,
+                        expected,
+                        "SECURE_COOKIE={secure_cookie:?} APP_ENV={app_env:?}"
+                    );
+                },
+            );
+        }
+    }
+
     #[test]
     fn test_config_from_env_stock_search_rps() {
         let _guard = ENV_MUTEX.blocking_lock();

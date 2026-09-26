@@ -17,8 +17,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-use crate::config;
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ConfigError, UpstreamError};
 use crate::models::user::{GoogleUserInfo, User};
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
@@ -31,7 +30,7 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_ISSUER: &str = "https://accounts.google.com";
 const GOOGLE_JWKS_URL: &str = "https://www.googleapis.com/oauth2/v3/certs";
 
-type GoogleOAuthClient = oauth2::Client<
+pub type GoogleOAuthClient = oauth2::Client<
     oauth2::basic::BasicErrorResponse,
     CoreTokenResponse,
     oauth2::basic::BasicTokenIntrospectionResponse,
@@ -47,23 +46,15 @@ type GoogleOAuthClient = oauth2::Client<
 pub fn create_oauth_client(
     client_id: &str,
     client_secret: &str,
+    backend_url: &str,
 ) -> Result<GoogleOAuthClient, ApiError> {
-    let redirect_url = format!("{}/api/v1/oauth/google/callback", config::backend_url());
+    let redirect_url = format!("{backend_url}/api/v1/oauth/google/callback");
 
     let client = oauth2::Client::new(ClientId::new(client_id.to_string()))
         .set_client_secret(ClientSecret::new(client_secret.to_string()))
-        .set_auth_uri(
-            AuthUrl::new(GOOGLE_AUTH_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("認証URL解析エラー: {e}")))?,
-        )
-        .set_token_uri(
-            TokenUrl::new(GOOGLE_TOKEN_URL.to_string())
-                .map_err(|e| ApiError::ApiError(format!("トークンURL解析エラー: {e}")))?,
-        )
-        .set_redirect_uri(
-            RedirectUrl::new(redirect_url)
-                .map_err(|e| ApiError::ApiError(format!("リダイレクトURL解析エラー: {e}")))?,
-        );
+        .set_auth_uri(AuthUrl::new(GOOGLE_AUTH_URL.to_string()).map_err(ConfigError::UrlParse)?)
+        .set_token_uri(TokenUrl::new(GOOGLE_TOKEN_URL.to_string()).map_err(ConfigError::UrlParse)?)
+        .set_redirect_uri(RedirectUrl::new(redirect_url).map_err(ConfigError::UrlParse)?);
 
     Ok(client)
 }
@@ -80,7 +71,7 @@ pub fn build_oauth_http_client() -> Result<oauth2::reqwest::Client, ApiError> {
         .timeout(std::time::Duration::from_secs(10))
         .redirect(oauth2::reqwest::redirect::Policy::limited(3))
         .build()
-        .map_err(|e| ApiError::OAuthError(format!("OAuth HTTPクライアント構築エラー: {e}")))
+        .map_err(|e| ApiError::OAuth(format!("OAuth HTTPクライアント構築エラー: {e}")))
 }
 
 /// 起動時に共有OAuthクライアントを初期化する（`main.rs` の起動処理から呼ぶ）。
@@ -109,9 +100,9 @@ fn shared_oauth_http_client() -> Result<&'static oauth2::reqwest::Client, ApiErr
         return Ok(client);
     }
     init_oauth_http_client()?;
-    OAUTH_HTTP_CLIENT.get().ok_or_else(|| {
-        ApiError::OAuthError("OAuth HTTPクライアントが初期化されていません".to_string())
-    })
+    OAUTH_HTTP_CLIENT
+        .get()
+        .ok_or_else(|| ApiError::OAuth("OAuth HTTPクライアントが初期化されていません".to_string()))
 }
 
 // 起動時に先読みし、取得成功後5分間は共有する。期限切れ後の最初の要求で更新する。
@@ -144,7 +135,7 @@ impl GoogleJwksCache {
         }
         let keys = CoreJsonWebKeySet::fetch_async(url, client)
             .await
-            .map_err(|_| ApiError::OAuthError("Google JWKS取得エラー".into()))?;
+            .map_err(|_| UpstreamError::OAuth("Google JWKS取得エラー"))?;
         // 更新失敗時は期限切れの鍵を使用しない。
         *entry = Some((keys.clone(), Instant::now()));
         Ok(keys)
@@ -154,7 +145,7 @@ impl GoogleJwksCache {
 async fn shared_google_jwks(
     client: &oauth2::reqwest::Client,
 ) -> Result<CoreJsonWebKeySet, ApiError> {
-    let url = JsonWebKeySetUrl::new(GOOGLE_JWKS_URL.to_string())?;
+    let url = JsonWebKeySetUrl::new(GOOGLE_JWKS_URL.to_string()).map_err(ConfigError::UrlParse)?;
     GOOGLE_JWKS_CACHE.get(client, &url).await
 }
 
@@ -167,20 +158,20 @@ fn verify_google_id_token(
     // Googleの非対称署名のみ許可。クライアントシークレットを署名鍵として扱わない。
     let verifier = CoreIdTokenVerifier::new_public_client(
         client_id.clone(),
-        IssuerUrl::new(GOOGLE_ISSUER.to_string())?,
+        IssuerUrl::new(GOOGLE_ISSUER.to_string()).map_err(ConfigError::UrlParse)?,
         keys,
     )
     .set_allowed_algs(vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256]);
     let claims = token
         .claims(&verifier, nonce)
-        .map_err(|_| ApiError::OAuthError("Google IDトークン検証エラー".into()))?;
+        .map_err(|_| ApiError::OAuth("Google IDトークン検証エラー".into()))?;
 
     // 署名・iss・aud・expの検証を通ったclaimだけをDB更新に使用する。
     Ok(GoogleUserInfo {
         sub: claims.subject().as_str().to_string(),
         email: claims
             .email()
-            .ok_or_else(|| ApiError::OAuthError("Google IDトークンにemailがありません".into()))?
+            .ok_or_else(|| ApiError::OAuth("Google IDトークンにemailがありません".into()))?
             .as_str()
             .to_string(),
         name: claims
@@ -205,13 +196,12 @@ async fn exchange_google_code(
         .request_async(shared_oauth_http_client()?)
         .await
         // パースエラーにはレスポンス本文が含まれ得るため、詳細をログや応答に出さない。
-        .map_err(|_| ApiError::OAuthError("Googleトークン交換エラー".into()))
+        .map_err(|_| UpstreamError::OAuth("Googleトークン交換エラー").into())
 }
 
 /// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
 pub async fn authenticate_with_google_code(
     pool: &PgPool,
-    _http_client: &reqwest::Client,
     oauth_client: &GoogleOAuthClient,
     code: String,
     pkce_verifier: String,
@@ -221,7 +211,7 @@ pub async fn authenticate_with_google_code(
 
     let id_token = token_result
         .id_token()
-        .ok_or_else(|| ApiError::OAuthError("Google IDトークンがありません".into()))?;
+        .ok_or_else(|| ApiError::OAuth("Google IDトークンがありません".into()))?;
     let keys = shared_google_jwks(shared_oauth_http_client()?).await?;
     let user_info = verify_google_id_token(id_token, oauth_client.client_id(), keys, &nonce)?;
 
@@ -362,10 +352,7 @@ pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sq
 }
 #[cfg(test)]
 mod tests {
-    use {
-        super::*,
-        crate::test_env::{EnvGuard, ENV_MUTEX},
-    };
+    use super::*;
 
     use openidconnect::{
         core::{
@@ -589,7 +576,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             .expect(1)
             .mount(&server)
             .await;
-        let client = create_oauth_client("client-id", "client-secret")
+        let client = create_oauth_client("client-id", "client-secret", "http://localhost:3001")
             .unwrap()
             .set_token_uri(TokenUrl::new(server.uri()).unwrap());
         let response = client
@@ -638,9 +625,12 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
 
     #[tokio::test]
     async fn test_oauth_redirect_uri_is_v1_path() {
-        let _lock = ENV_MUTEX.lock().await;
-        let _env = EnvGuard::set("BACKEND_URL", Some("https://shoken-backend.fly.dev"));
-        let client = create_oauth_client("client-id", "client-secret").unwrap();
+        let client = create_oauth_client(
+            "client-id",
+            "client-secret",
+            "https://shoken-backend.fly.dev",
+        )
+        .unwrap();
         let (auth_url, _csrf) = client.authorize_url(oauth2::CsrfToken::new_random).url();
         let url_str = auth_url.to_string();
         assert!(
@@ -672,6 +662,10 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             secrets,
             client: reqwest::Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: std::sync::Arc::new(crate::config::Config::default()),
+            google_oauth: Some(
+                create_oauth_client("client-id", "client-secret", "http://localhost:3001").unwrap(),
+            ),
         };
         let (jar, redirect) =
             crate::handlers::auth::google_auth(State(app_state), CookieJar::new())
@@ -755,7 +749,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             .expect(1)
             .mount(&server)
             .await;
-        let client = create_oauth_client("client-id", "client-secret")
+        let client = create_oauth_client("client-id", "client-secret", "http://localhost:3001")
             .unwrap()
             .set_token_uri(TokenUrl::new(server.uri()).unwrap());
         let token_result = exchange_google_code(&client, "auth-code".to_string(), verifier)

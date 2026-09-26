@@ -1,4 +1,4 @@
-use crate::errors::ApiError;
+use crate::errors::{ApiError, UpstreamError};
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 use crate::models::market_data::providers::jquants::FinSummaryResponse;
 use reqwest::Client;
@@ -53,7 +53,7 @@ impl JQuantsClient {
             .await
             .map_err(|e| {
                 tracing::error!("決算サマリー取得ネットワークエラー: {}", e);
-                ApiError::NetworkError(format!("決算サマリー取得エラー: {e}"))
+                UpstreamError::Transport(e)
             })?;
 
         let status = response.status();
@@ -67,18 +67,18 @@ impl JQuantsClient {
                 error_text
             );
             if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                return Err(ApiError::RateLimitError(format!(
-                    "J-Quants APIのレート制限に達しました: {error_text}"
-                )));
+                return Err(UpstreamError::RateLimited.into());
             }
-            return Err(ApiError::ApiError(format!(
-                "JQuants決算サマリー取得エラー ({status}): {error_text}"
-            )));
+            return Err(UpstreamError::Http {
+                status: status.as_u16(),
+                body: error_text,
+            }
+            .into());
         }
 
         let response_text = response.text().await.map_err(|e| {
             tracing::error!("レスポンス本文取得エラー: {}", e);
-            ApiError::NetworkError(format!("レスポンス読み取りエラー: {e}"))
+            UpstreamError::Transport(e)
         })?;
 
         tracing::debug!("JQuants API レスポンス本文: {}", response_text);
@@ -90,7 +90,7 @@ impl JQuantsClient {
                     e,
                     response_text
                 );
-                ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {e}"))
+                UpstreamError::Decode(e)
             })?;
 
         Ok(fin_summary_response)
@@ -220,11 +220,11 @@ mod tests {
 
         let error = fetch_mock_fin_summary(&server)
             .await
-            .expect_err("429 では RateLimitError を返すこと");
+            .expect_err("429 では RateLimited を返すこと");
 
         assert!(matches!(
             error,
-            ApiError::RateLimitError(message) if message.contains("rate limited")
+            ApiError::Upstream(UpstreamError::RateLimited)
         ));
     }
 
@@ -241,11 +241,14 @@ mod tests {
 
         let error = fetch_mock_fin_summary(&server)
             .await
-            .expect_err("非 2xx では ApiError を返すこと");
+            .expect_err("非 2xx では Http エラーを返すこと");
 
         assert!(matches!(
             error,
-            ApiError::ApiError(message) if message.contains("upstream failed")
+            ApiError::Upstream(UpstreamError::Http {
+                status: 500,
+                ref body,
+            }) if body.contains("upstream failed")
         ));
     }
 
@@ -262,11 +265,11 @@ mod tests {
 
         let error = fetch_mock_fin_summary(&server)
             .await
-            .expect_err("不正 JSON では NetworkError を返すこと");
+            .expect_err("不正 JSON では Decode エラーを返すこと");
 
         assert!(matches!(
             error,
-            ApiError::NetworkError(message) if message.contains("解析エラー")
+            ApiError::Upstream(UpstreamError::Decode(_))
         ));
     }
 

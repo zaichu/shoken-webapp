@@ -54,7 +54,7 @@ pub async fn search(
 ) -> Result<impl IntoResponse, ApiError> {
     params.validate().map_err(|e| {
         let msg = format!("{e}").replace('\n', ", ");
-        ApiError::ValidationError(msg)
+        ApiError::Validation(msg)
     })?;
     let stock = stock_service::search(&state.pool, &params.query).await?;
     Ok((StatusCode::OK, Json(stock)))

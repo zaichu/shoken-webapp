@@ -7,13 +7,13 @@ use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
-    BulkTimer, DeleteTarget, UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
+    DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_date, parse_required_number, parse_required_string, CsvCells,
+    parse_required_date, parse_required_number, parse_required_string, CsvCells, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -195,17 +195,7 @@ async fn fetch_group_facets(
 }
 
 /// 投資信託を一括追加（重複はスキップ）
-/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
-    pool: &PgPool,
-    user_id: Uuid,
-    items: &[CreateMutualfundRequest],
-) -> Result<BulkCreateResponse, ApiError> {
-    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
-}
-
-/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
-pub async fn bulk_create_with_limit(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateMutualfundRequest],
@@ -304,12 +294,13 @@ pub async fn upload_csv(
     pool: &PgPool,
     user_id: Uuid,
     bytes: &[u8],
+    user_row_limit: i64,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
         &MUTUALFUND_CSV_CONFIG,
         transform_mutualfund_rows,
-        |items| async move { bulk_create(pool, user_id, &items).await },
+        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
     )
     .await
 }
@@ -320,7 +311,7 @@ fn transform_mutualfund_rows(rows: &[CsvRow]) -> (Vec<CreateMutualfundRequest>, 
 
 fn transform_mutualfund_row(
     row: &CsvRow,
-    row_num: usize,
+    row_num: RowNumber,
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;
     let settlement_date = parse_required_date(row, "受渡日", row_num)?;
@@ -367,7 +358,7 @@ mod tests {
                 preview.valid_rows,
                 preview.rows.len(),
                 preview.errors.is_empty(),
-                matches!(preview_csv(b""), Err(ApiError::ValidationError(_)))
+                matches!(preview_csv(b""), Err(ApiError::Csv(_)))
             ),
             (1, 1, 1, true, true)
         );
@@ -448,7 +439,7 @@ mod tests {
             let err = MutualfundFilter::from_params(&params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
-                matches!(err, ApiError::ValidationError(_)),
+                matches!(err, ApiError::Validation(_)),
                 "field={field} の失敗が ValidationError ではない"
             );
         }

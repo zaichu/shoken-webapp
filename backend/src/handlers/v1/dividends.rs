@@ -12,7 +12,8 @@ use crate::{
 };
 use axum::{
     extract::{Multipart, Query, State},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
 
 /// 配当金一覧を取得（v1）
@@ -49,12 +50,8 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<DividendSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_list(dividend_service::search(
-        &state.pool,
-        auth_user.id(),
-        &params,
-    ))
-    .await
+    let result = dividend_service::search(&state.pool, auth_user.id(), &params).await?;
+    Ok((StatusCode::OK, Json(result)))
 }
 
 /// 配当金を全削除（v1）
@@ -98,8 +95,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_validate_import::<DividendDomain>(_auth_user, multipart)
-        .await
+    crate::handlers::csv_import::handle_preview_csv::<DividendDomain>(multipart).await
 }
 
 /// 配当金 CSV をインポート（v1）
@@ -124,6 +120,7 @@ pub async fn import(
         &state.pool,
         auth_user.id(),
         multipart,
+        state.config.user_row_limit,
     )
     .await
 }

@@ -1,4 +1,4 @@
-use crate::errors::ApiError;
+use crate::errors::{ApiError, CsvError};
 use crate::services::csv_util::decode_bytes;
 use std::collections::HashMap;
 
@@ -16,7 +16,7 @@ pub fn parse_csv_with_config(
     config: &CsvParserConfig,
 ) -> Result<Vec<CsvRow>, ApiError> {
     if bytes.is_empty() {
-        return Err(ApiError::ValidationError("CSVが空です".to_string()));
+        return Err(CsvError::Empty.into());
     }
 
     let content = strip_header_rows(&decode_bytes(bytes), config.skip_header_rows);
@@ -26,18 +26,14 @@ pub fn parse_csv_with_config(
 
     let headers = reader
         .headers()
-        .map_err(|error| {
-            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {error}"))
-        })?
+        .map_err(|error| CsvError::HeaderRead(error.to_string()))?
         .iter()
         .map(|header| header.trim().to_string())
         .collect::<Vec<_>>();
 
     let mut rows = Vec::new();
     for record in reader.records() {
-        let record = record.map_err(|error| {
-            ApiError::ValidationError(format!("CSV行の読み込みに失敗しました: {error}"))
-        })?;
+        let record = record.map_err(|error| CsvError::RowRead(error.to_string()))?;
 
         if is_all_empty_record(&record) {
             continue;
@@ -116,10 +112,7 @@ mod tests {
     fn test_parse_csv_empty_bytes() {
         let result = parse_csv_with_config(b"", &BASIC_CONFIG);
 
-        assert!(matches!(
-            result,
-            Err(ApiError::ValidationError(msg)) if msg == "CSVが空です"
-        ));
+        assert!(matches!(result, Err(ApiError::Csv(CsvError::Empty))));
     }
 
     #[test]

@@ -16,7 +16,7 @@ use tower_http::{
 use utoipa::OpenApi;
 
 use crate::{
-    config::{build_cors_layer, Config},
+    config::build_cors_layer,
     handlers,
     middleware::{
         add_security_headers, build_keyed_rate_limiter, keyed_rate_limit, validate_origin,
@@ -49,7 +49,8 @@ fn spawn_keyed_limiter_cleanup(
     }
 }
 
-pub fn app_router(state: AppState, config: &Config, startup_ready: &Arc<AtomicBool>) -> Router {
+pub fn app_router(state: AppState, startup_ready: &Arc<AtomicBool>) -> Router {
+    let config = &state.config;
     // auth は IP 単位の keyed limiter（ブルートフォース/DoS 対策）
     let auth_limiter = build_keyed_rate_limiter(config.auth_rate_limit_rps);
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
@@ -63,6 +64,8 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: &Arc<AtomicBo
     spawn_keyed_limiter_cleanup(data_limiter.as_ref());
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
+    let strict_origin_check = config.is_production();
+    let secure_cookie = config.secure_cookie;
     let ready = Arc::clone(startup_ready);
     let gated_domain = domain_routes(
         auth_limiter,
@@ -113,7 +116,7 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: &Arc<AtomicBo
         .merge(probe_routes)
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
-            async move { validate_origin(origins, req, next).await }
+            async move { validate_origin(origins, strict_origin_check, req, next).await }
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(build_cors_layer(&config.cors_origins))
@@ -131,8 +134,25 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: &Arc<AtomicBo
             ),
         )
         // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する
-        .layer(middleware::from_fn(add_security_headers))
+        .layer(middleware::from_fn(move |req, next| {
+            add_security_headers(secure_cookie, req, next)
+        }))
         .with_state(state)
+}
+
+/// `Some(limiter)` のときだけ keyed rate limit を付与する
+fn with_rate_limit(
+    routes: Router<AppState>,
+    limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+) -> Router<AppState> {
+    if let Some(l) = limiter {
+        routes.layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
+    } else {
+        routes
+    }
 }
 
 /// ドメインルートをまとめたルーター（認証・コア機能）
@@ -142,44 +162,16 @@ fn domain_routes(
     stock_search_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     data_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
-    let auth_routes = if let Some(l) = auth_limiter {
-        handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { keyed_rate_limit(l, req, next).await }
-        }))
-    } else {
-        handlers::v1::auth_routes()
-    };
-    let csv_upload_routes = if let Some(l) = csv_limiter {
-        csv_upload_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { keyed_rate_limit(l, req, next).await }
-        }))
-    } else {
-        csv_upload_routes()
-    };
-    let stock_search_routes = if let Some(l) = stock_search_limiter {
-        handlers::v1::stock_search_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { keyed_rate_limit(l, req, next).await }
-        }))
-    } else {
-        handlers::v1::stock_search_routes()
-    };
-    let data_routes = if let Some(l) = data_limiter {
-        handlers::v1::data_routes().layer(middleware::from_fn(move |req, next| {
-            let l = l.clone();
-            async move { keyed_rate_limit(l, req, next).await }
-        }))
-    } else {
-        handlers::v1::data_routes()
-    };
+    let auth_routes = with_rate_limit(handlers::v1::auth_routes(), auth_limiter);
+    let csv_upload_routes = with_rate_limit(csv_upload_routes(), csv_limiter);
+    let stock_search_routes =
+        with_rate_limit(handlers::v1::stock_search_routes(), stock_search_limiter);
+    let data_routes = with_rate_limit(handlers::v1::data_routes(), data_limiter);
 
     Router::new()
         .merge(auth_routes)
         .merge(csv_upload_routes)
         .merge(stock_search_routes)
-        .merge(handlers::csv_import::csv_import_routes())
         .merge(data_routes)
 }
 
@@ -190,7 +182,10 @@ fn csv_upload_routes() -> Router<AppState> {
 mod tests {
     use {
         super::*,
-        crate::test_env::{EnvGuard, ENV_MUTEX},
+        crate::{
+            config::Config,
+            test_env::{EnvGuard, ENV_MUTEX},
+        },
         axum::{
             body::Body,
             http::{Method, Request},
@@ -199,6 +194,10 @@ mod tests {
         tower::ServiceExt,
     };
     fn make_test_state() -> AppState {
+        make_test_state_with_config(Config::default())
+    }
+
+    fn make_test_state_with_config(config: Config) -> AppState {
         let database_url = "postgresql://user:password@localhost/test_db";
         let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool");
         let secrets = Arc::new(crate::state::Secrets {
@@ -213,6 +212,8 @@ mod tests {
             secrets,
             client: reqwest::Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: Arc::new(config),
+            google_oauth: None,
         }
     }
     #[tokio::test]
@@ -372,8 +373,7 @@ mod tests {
         ] {
             assert_rate_limited(
                 app_router(
-                    make_test_state(),
-                    &Config::from_env(),
+                    make_test_state_with_config(Config::from_env()),
                     &Arc::new(AtomicBool::new(true)),
                 ),
                 Method::POST,
@@ -383,8 +383,7 @@ mod tests {
             .await;
         }
         let resp = app_router(
-            make_test_state(),
-            &Config::from_env(),
+            make_test_state_with_config(Config::from_env()),
             &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
@@ -416,8 +415,7 @@ mod tests {
         ] {
             assert_rate_limited(
                 app_router(
-                    make_test_state(),
-                    &Config::from_env(),
+                    make_test_state_with_config(Config::from_env()),
                     &Arc::new(AtomicBool::new(true)),
                 ),
                 Method::GET,
@@ -429,8 +427,7 @@ mod tests {
         // PUT /api/v1/asset-balances も data_routes に含まれるため制限対象
         assert_rate_limited(
             app_router(
-                make_test_state(),
-                &Config::from_env(),
+                make_test_state_with_config(Config::from_env()),
                 &Arc::new(AtomicBool::new(true)),
             ),
             Method::PUT,
@@ -449,8 +446,7 @@ mod tests {
         // 1リクエスト目は 400（limiter 通過）、同一 IP からの 2リクエスト目は 429 が返る
         assert_rate_limited(
             app_router(
-                make_test_state(),
-                &Config::from_env(),
+                make_test_state_with_config(Config::from_env()),
                 &Arc::new(AtomicBool::new(true)),
             ),
             Method::GET,
@@ -469,8 +465,7 @@ mod tests {
         // POST /api/v1/dividends は未定義のため 405。413 が返ると
         // REQUEST_BODY_LIMIT の値そのものが小さくなっている。
         let resp = app_router(
-            make_test_state(),
-            &Config::from_env(),
+            make_test_state_with_config(Config::from_env()),
             &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
@@ -486,8 +481,7 @@ mod tests {
         assert_eq!(resp.status(), axum::http::StatusCode::METHOD_NOT_ALLOWED);
 
         let resp = app_router(
-            make_test_state(),
-            &Config::from_env(),
+            make_test_state_with_config(Config::from_env()),
             &Arc::new(AtomicBool::new(true)),
         )
         .oneshot(
@@ -506,7 +500,7 @@ mod tests {
     #[tokio::test]
     async fn test_ready_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -523,7 +517,7 @@ mod tests {
     #[tokio::test]
     async fn test_ready_returns_200_after_startup() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -540,7 +534,7 @@ mod tests {
     #[tokio::test]
     async fn test_health_returns_200_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -557,7 +551,7 @@ mod tests {
     #[tokio::test]
     async fn test_domain_route_returns_503_during_startup() {
         let startup_ready = Arc::new(AtomicBool::new(false));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -574,7 +568,7 @@ mod tests {
     #[tokio::test]
     async fn test_domain_route_returns_401_after_startup() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         let resp = router
             .oneshot(
                 Request::builder()
@@ -591,7 +585,7 @@ mod tests {
     #[tokio::test]
     async fn test_legacy_paths_return_404() {
         let startup_ready = Arc::new(AtomicBool::new(true));
-        let router = app_router(make_test_state(), &Config::from_env(), &startup_ready);
+        let router = app_router(make_test_state(), &startup_ready);
         for (method, uri) in [
             (Method::GET, "/auth/me"),
             (Method::GET, "/jquants/fins/summary"),
@@ -657,5 +651,50 @@ mod tests {
             Some("my-custom-id"),
             "existing x-request-id should be propagated unchanged"
         );
+    }
+
+    #[tokio::test]
+    async fn test_production_config_wires_strict_origin_and_hsts() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        // 本番相当(Config::default): Origin/Referer なしの unsafe method は 403、HSTS を付与
+        let router = app_router(make_test_state(), &startup_ready);
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/dividends/import")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::FORBIDDEN);
+        assert_eq!(
+            resp.headers().get("Strict-Transport-Security").unwrap(),
+            "max-age=31536000; includeSubDomains"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_development_config_passes_origin_and_skips_hsts() {
+        let startup_ready = Arc::new(AtomicBool::new(true));
+        let config = Config {
+            runtime_env: crate::config::RuntimeEnv::Development,
+            secure_cookie: false,
+            ..Config::default()
+        };
+        let router = app_router(make_test_state_with_config(config), &startup_ready);
+        let resp = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/dividends/import")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_ne!(resp.status(), axum::http::StatusCode::FORBIDDEN);
+        assert!(resp.headers().get("Strict-Transport-Security").is_none());
     }
 }

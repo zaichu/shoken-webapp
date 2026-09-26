@@ -2,6 +2,9 @@ use reqwest::Client;
 use sqlx::PgPool;
 use std::sync::{atomic::AtomicBool, Arc};
 
+use crate::config::Config;
+use crate::services::auth::GoogleOAuthClient;
+
 /// 環境変数から取得するシークレット情報
 #[derive(Clone, Debug)]
 pub struct Secrets {
@@ -45,6 +48,10 @@ pub struct AppState {
     pub client: Client,
     /// 配当キャッシュのバックグラウンド更新状態（多重起動防止）
     pub dividend_cache: DividendCacheState,
+    /// 起動時に解決した実行設定
+    pub config: Arc<Config>,
+    /// 起動時に構築した Google OAuth クライアント（認証情報が揃わない場合は None）
+    pub google_oauth: Option<GoogleOAuthClient>,
 }
 #[cfg(test)]
 mod tests {

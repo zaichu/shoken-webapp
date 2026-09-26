@@ -10,15 +10,29 @@ pub fn build_startup_state(
     secrets: Arc<Secrets>,
     config: &Config,
 ) -> Result<(PgPool, AppState), String> {
+    crate::errors::init_runtime_env(config.runtime_env);
     // URL 検証のみ行い、実接続は background startup task で行う。
     let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)?;
     // OAuthトークン交換用のHTTPクライアントを起動時に1つ構築し、以降使い回す。
     services::auth::init_oauth_http_client().map_err(|e| e.to_string())?;
+    // Google OAuth クライアントも起動時に構築する。認証情報が揃わない環境(テスト等)は None
+    let google_oauth = match (
+        secrets.google_client_id.as_deref(),
+        secrets.google_client_secret.as_deref(),
+    ) {
+        (Some(client_id), Some(client_secret)) => Some(
+            services::auth::create_oauth_client(client_id, client_secret, &config.backend_url)
+                .map_err(|e| e.to_string())?,
+        ),
+        _ => None,
+    };
     let state = AppState {
         pool: pool.clone(),
         secrets,
         client: Client::new(),
         dividend_cache: DividendCacheState::default(),
+        config: Arc::new(config.clone()),
+        google_oauth,
     };
 
     Ok((pool, state))

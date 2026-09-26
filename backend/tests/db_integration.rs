@@ -154,12 +154,12 @@ async fn db_integration_with_docker_and_migrations() {
         secrets,
         client,
         dividend_cache: backend::state::DividendCacheState::default(),
+        config: Arc::new(Config::from_env()),
+        google_oauth: None,
     };
 
-    let config = Config::from_env();
     let app = app_router(
         state,
-        &config,
         &std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
     );
 
@@ -324,7 +324,7 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[])
+    let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[], i64::MAX)
         .await
         .expect("empty mutualfund bulk_create failed");
     assert_eq!(mutualfund_empty.inserted, 0);
@@ -334,14 +334,15 @@ async fn service_coverage_all_domains() {
         make_mutualfund_item("テスト投信A"),
         make_mutualfund_item("テスト投信B"),
     ];
-    let mutualfund_created = mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items)
-        .await
-        .expect("mutualfund bulk_create failed");
+    let mutualfund_created =
+        mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items, i64::MAX)
+            .await
+            .expect("mutualfund bulk_create failed");
     assert_eq!(mutualfund_created.inserted, 2);
     assert_eq!(mutualfund_created.skipped, 0);
 
     let mutualfund_uploaded =
-        mutualfund_svc::upload_csv(&pool, user_id, make_mutualfund_csv().as_bytes())
+        mutualfund_svc::upload_csv(&pool, user_id, make_mutualfund_csv().as_bytes(), i64::MAX)
             .await
             .expect("mutualfund upload_csv failed");
     assert_eq!(mutualfund_uploaded.inserted, 1);
@@ -377,21 +378,21 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[])
+    let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], i64::MAX)
         .await
         .expect("empty dividend bulk_create failed");
     assert_eq!(dividend_empty.inserted, 0);
     assert_eq!(dividend_empty.skipped, 0);
 
     let dividend_items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
-    let dividend_created = dividend_svc::bulk_create(&pool, user_id, &dividend_items)
+    let dividend_created = dividend_svc::bulk_create(&pool, user_id, &dividend_items, i64::MAX)
         .await
         .expect("dividend bulk_create failed");
     assert_eq!(dividend_created.inserted, 2);
     assert_eq!(dividend_created.skipped, 0);
 
     let dividend_uploaded =
-        dividend_svc::upload_csv(&pool, user_id, make_dividend_csv().as_bytes())
+        dividend_svc::upload_csv(&pool, user_id, make_dividend_csv().as_bytes(), i64::MAX)
             .await
             .expect("dividend upload_csv failed");
     assert_eq!(dividend_uploaded.inserted, 1);
@@ -427,7 +428,7 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let domestic_stock_empty = domestic_stock_svc::bulk_create(&pool, user_id, &[])
+    let domestic_stock_empty = domestic_stock_svc::bulk_create(&pool, user_id, &[], i64::MAX)
         .await
         .expect("empty domestic_stock bulk_create failed");
     assert_eq!(domestic_stock_empty.inserted, 0);
@@ -438,16 +439,20 @@ async fn service_coverage_all_domains() {
         make_domestic_stock_item("3002"),
     ];
     let domestic_stock_created =
-        domestic_stock_svc::bulk_create(&pool, user_id, &domestic_stock_items)
+        domestic_stock_svc::bulk_create(&pool, user_id, &domestic_stock_items, i64::MAX)
             .await
             .expect("domestic_stock bulk_create failed");
     assert_eq!(domestic_stock_created.inserted, 2);
     assert_eq!(domestic_stock_created.skipped, 0);
 
-    let domestic_stock_uploaded =
-        domestic_stock_svc::upload_csv(&pool, user_id, make_domestic_stock_csv().as_bytes())
-            .await
-            .expect("domestic_stock upload_csv failed");
+    let domestic_stock_uploaded = domestic_stock_svc::upload_csv(
+        &pool,
+        user_id,
+        make_domestic_stock_csv().as_bytes(),
+        i64::MAX,
+    )
+    .await
+    .expect("domestic_stock upload_csv failed");
     assert_eq!(domestic_stock_uploaded.inserted, 1);
     assert_eq!(domestic_stock_uploaded.skipped, 0);
     assert!(domestic_stock_uploaded.errors.is_empty());
@@ -481,7 +486,7 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let asset_balance_empty = asset_balance_svc::bulk_create(&pool, user_id, &[])
+    let asset_balance_empty = asset_balance_svc::bulk_create(&pool, user_id, &[], i64::MAX)
         .await
         .expect("empty asset_balance bulk_create failed");
     assert_eq!(asset_balance_empty.inserted, 0);
@@ -489,7 +494,7 @@ async fn service_coverage_all_domains() {
 
     let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("1605")];
     let asset_balance_created =
-        asset_balance_svc::bulk_create(&pool, user_id, &asset_balance_items)
+        asset_balance_svc::bulk_create(&pool, user_id, &asset_balance_items, i64::MAX)
             .await
             .expect("asset_balance bulk_create failed");
     assert_eq!(asset_balance_created.inserted, 2);
@@ -503,10 +508,14 @@ async fn service_coverage_all_domains() {
         2
     );
 
-    let asset_balance_uploaded =
-        asset_balance_svc::upload_csv(&pool, user_id, make_asset_balance_csv().as_bytes())
-            .await
-            .expect("asset_balance upload_csv failed");
+    let asset_balance_uploaded = asset_balance_svc::upload_csv(
+        &pool,
+        user_id,
+        make_asset_balance_csv().as_bytes(),
+        i64::MAX,
+    )
+    .await
+    .expect("asset_balance upload_csv failed");
     assert_eq!(asset_balance_uploaded.inserted, 1);
     assert_eq!(asset_balance_uploaded.skipped, 0);
     assert!(asset_balance_uploaded.errors.is_empty());
@@ -542,7 +551,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
 
     // 1回目: 2銘柄を登録
     let items_a = vec![make_asset_item("1001"), make_asset_item("1002")];
-    asset_balance_svc::bulk_create(&pool, user_id, &items_a)
+    asset_balance_svc::bulk_create(&pool, user_id, &items_a, i64::MAX)
         .await
         .expect("1回目 bulk_create 失敗");
 
@@ -552,7 +561,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
         make_asset_item("2002"),
         make_asset_item("2003"),
     ];
-    asset_balance_svc::bulk_create(&pool, user_id, &items_b)
+    asset_balance_svc::bulk_create(&pool, user_id, &items_b, i64::MAX)
         .await
         .expect("2回目 bulk_create 失敗");
 
@@ -591,12 +600,12 @@ async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
 
     // 2タスクを同時に起動して advisory lock による直列化を確認
     let (res_a, res_b) = tokio::join!(
-        tokio::spawn(
-            async move { asset_balance_svc::bulk_create(&pool_a, user_id, &items_a).await }
-        ),
-        tokio::spawn(
-            async move { asset_balance_svc::bulk_create(&pool_b, user_id, &items_b).await }
-        ),
+        tokio::spawn(async move {
+            asset_balance_svc::bulk_create(&pool_a, user_id, &items_a, i64::MAX).await
+        }),
+        tokio::spawn(async move {
+            asset_balance_svc::bulk_create(&pool_b, user_id, &items_b, i64::MAX).await
+        }),
     );
     res_a.unwrap().expect("task_a 失敗");
     res_b.unwrap().expect("task_b 失敗");
@@ -625,7 +634,7 @@ async fn dividend_bulk_create_and_list() {
         make_dividend_item("1002"),
         make_dividend_item("1003"),
     ];
-    let created = dividend_svc::bulk_create(&pool, user_id, &items)
+    let created = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("dividend bulk_create failed");
     assert_eq!(created.inserted, 3);
@@ -703,13 +712,13 @@ async fn dividend_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_dividend_item("2001")];
 
-    let first = dividend_svc::bulk_create(&pool, user_id, &items)
+    let first = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("first dividend bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = dividend_svc::bulk_create(&pool, user_id, &items)
+    let second = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("second dividend bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -727,7 +736,7 @@ async fn domestic_stock_bulk_create_and_list() {
         make_domestic_stock_item("3002"),
         make_domestic_stock_item("3003"),
     ];
-    let created = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+    let created = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("domestic_stock bulk_create failed");
     assert_eq!(created.inserted, 3);
@@ -758,13 +767,13 @@ async fn domestic_stock_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_domestic_stock_item("4001")];
 
-    let first = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+    let first = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("first domestic_stock bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = domestic_stock_svc::bulk_create(&pool, user_id, &items)
+    let second = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("second domestic_stock bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -781,7 +790,7 @@ async fn mutualfund_bulk_create_and_list() {
         make_mutualfund_item("テスト投信A"),
         make_mutualfund_item("テスト投信B"),
     ];
-    let created = mutualfund_svc::bulk_create(&pool, user_id, &items)
+    let created = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("mutualfund bulk_create failed");
     assert_eq!(created.inserted, 2);
@@ -812,13 +821,13 @@ async fn mutualfund_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_mutualfund_item("テスト投信C")];
 
-    let first = mutualfund_svc::bulk_create(&pool, user_id, &items)
+    let first = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("first mutualfund bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = mutualfund_svc::bulk_create(&pool, user_id, &items)
+    let second = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
         .await
         .expect("second mutualfund bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -1123,6 +1132,8 @@ async fn account_delete_confirmation_http_lifecycle() {
         }),
         client: Client::new(),
         dividend_cache: backend::state::DividendCacheState::default(),
+        config: Arc::new(Config::default()),
+        google_oauth: None,
     };
     let app = backend::handlers::v1::auth_routes().with_state(state);
 
@@ -1228,7 +1239,7 @@ async fn search_facets_group_by_domain_fields() {
     other.product = "投資信託".to_string();
     other.account = "NISA".to_string();
     other.settlement_date = NaiveDate::from_ymd_opt(2023, 1, 10).unwrap();
-    dividend_svc::bulk_create(&pool, user_id, &[older, newer, other])
+    dividend_svc::bulk_create(&pool, user_id, &[older, newer, other], i64::MAX)
         .await
         .expect("dividend bulk_create");
 
@@ -1287,7 +1298,7 @@ async fn search_facets_group_by_domain_fields() {
     ds_older.account = "NISA".to_string();
     ds_older.trade_date = NaiveDate::from_ymd_opt(2023, 5, 15).unwrap();
     let ds_newer = make_domestic_stock_item("3002");
-    domestic_stock_svc::bulk_create(&pool, user_id, &[ds_older, ds_newer])
+    domestic_stock_svc::bulk_create(&pool, user_id, &[ds_older, ds_newer], i64::MAX)
         .await
         .expect("domestic_stock bulk_create");
 
@@ -1337,7 +1348,7 @@ async fn search_facets_group_by_domain_fields() {
     let mf_older = make_mutualfund_item("テスト投信A");
     let mut mf_newer = make_mutualfund_item("テスト投信B");
     mf_newer.trade_date = NaiveDate::from_ymd_opt(2023, 8, 1).unwrap();
-    mutualfund_svc::bulk_create(&pool, user_id, &[mf_older, mf_newer])
+    mutualfund_svc::bulk_create(&pool, user_id, &[mf_older, mf_newer], i64::MAX)
         .await
         .expect("mutualfund bulk_create");
 
@@ -1370,7 +1381,7 @@ async fn search_facets_group_by_domain_fields() {
     );
 
     let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
-    asset_balance_svc::bulk_create(&pool, user_id, &asset_items)
+    asset_balance_svc::bulk_create(&pool, user_id, &asset_items, i64::MAX)
         .await
         .expect("asset_balance bulk_create");
 
@@ -1474,7 +1485,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
 
     // 追記型(dividends): 既存行数 + 追加分が上限を超えると拒否
     let items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
-    dividend_svc::bulk_create(&pool, user_id, &items)
+    dividend_svc::bulk_create(&pool, user_id, &items, LIMIT)
         .await
         .expect("初回 bulk_create は成功");
 
@@ -1488,7 +1499,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
-        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
 
@@ -1496,7 +1507,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         make_domestic_stock_item("6501"),
         make_domestic_stock_item("6758"),
     ];
-    domestic_stock_svc::bulk_create(&pool, user_id, &domestic_items)
+    domestic_stock_svc::bulk_create(&pool, user_id, &domestic_items, LIMIT)
         .await
         .expect("初回 bulk_create は成功");
     assert!(
@@ -1508,7 +1519,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
-        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
 
@@ -1516,7 +1527,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         make_mutualfund_item("ファンドA"),
         make_mutualfund_item("ファンドB"),
     ];
-    mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items)
+    mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items, LIMIT)
         .await
         .expect("初回 bulk_create は成功");
     assert!(
@@ -1528,13 +1539,13 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
-        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
 
     // 置換型(asset_balances): 追加分のみで上限判定(既存行数を見ない)
     let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
-    asset_balance_svc::bulk_create(&pool, user_id, &asset_items)
+    asset_balance_svc::bulk_create(&pool, user_id, &asset_items, LIMIT)
         .await
         .expect("asset_balances は置換のため上限内");
     // 既存2件あっても追加分4件 > 上限3 で拒否(既存行数を見ない)
@@ -1542,7 +1553,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect_err("追加4件 > 上限3 で拒否");
     assert!(
-        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
     assert!(
@@ -1560,14 +1571,14 @@ async fn bulk_create_respects_user_row_limit() {
     let items = vec![make_dividend_item("1001")];
 
     // 上限値は引数で渡す(プロセス全体の環境変数を書き換えると並行テストに影響する)
-    let err = dividend_svc::bulk_create_with_limit(&pool, user_id, &items, 0)
+    let err = dividend_svc::bulk_create(&pool, user_id, &items, 0)
         .await
         .expect_err("上限0で追加1件でも拒否");
     assert!(
-        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
-    dividend_svc::bulk_create_with_limit(&pool, user_id, &items, 100)
+    dividend_svc::bulk_create(&pool, user_id, &items, 100)
         .await
         .expect("上限内なら成功");
 }

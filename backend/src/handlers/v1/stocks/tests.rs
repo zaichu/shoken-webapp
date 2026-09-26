@@ -89,6 +89,8 @@ fn setup_test_app(pool: &Pool<Postgres>) -> Router {
             }),
             client: Client::new(),
             dividend_cache: crate::state::DividendCacheState::default(),
+            config: Arc::new(crate::config::Config::default()),
+            google_oauth: None,
         })
 }
 
