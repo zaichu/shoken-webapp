@@ -264,9 +264,9 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-slate-200">
-                <div class="rounded-lg bg-emerald-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"配当金額 (配当利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-emerald-600">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
@@ -280,15 +280,15 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                         }}
                     </p>
                 </div>
-                <div class="rounded-lg bg-red-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"税額"</p>
-                    <p class="text-2xl font-bold tabular-nums text-red-500">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_taxes)}
                     </p>
                 </div>
-                <div class="rounded-lg bg-emerald-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"受取金額 (累積利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-emerald-600">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();

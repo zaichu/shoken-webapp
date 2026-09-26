@@ -210,10 +210,10 @@ pub(crate) fn PortfolioSummary(
                             {format_currency(total_purchase_amount)}
                         </p>
                     </div>
-                    <div class="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
+                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"年間配当金額"</p>
                         <p
-                            class="text-base font-bold sm:text-3xl text-teal-700 tabular-nums"
+                            class="text-base font-bold sm:text-3xl text-slate-950 tabular-nums"
                             data-testid="portfolio-annual-dividends"
                         >
                             {move || {
@@ -224,10 +224,10 @@ pub(crate) fn PortfolioSummary(
                             }}
                         </p>
                     </div>
-                    <div class="rounded-lg border border-teal-200 bg-teal-50 px-4 py-4 shadow-sm">
+                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-slate-600">"配当利回り"</p>
                         <p
-                            class="text-base font-bold sm:text-3xl text-teal-700 tabular-nums"
+                            class="text-base font-bold sm:text-3xl text-slate-950 tabular-nums"
                             data-testid="portfolio-dividend-yield"
                         >
                             {move || {

@@ -109,7 +109,7 @@ pub(crate) fn HoldingCard(
                 </div>
             </div>
 
-            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-emerald-50/55">
+            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50">
                 <div class="min-w-0 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"1株配当"</p>
                     <p
@@ -119,7 +119,7 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_per_share)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
+                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"年間配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.annual.is_some()))
@@ -128,7 +128,7 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_annual)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
+                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"配当利回り"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
