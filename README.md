@@ -41,7 +41,6 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 trunk build --release
 npx playwright test --config playwright.leptos.config.ts
-npx playwright test --config playwright.receipts.config.ts
 npx playwright test --config playwright.vercel.config.ts
 ```
 

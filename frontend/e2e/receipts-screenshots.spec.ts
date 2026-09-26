@@ -6,7 +6,7 @@ import * as path from 'path';
  * 取引明細(/receipts)のスクリーンショットを PC(1920x1080) / スマホ(390x844)
  * の両幅で撮り、リポジトリルートの .playwright-mcp/ に leptos- プレフィックスで
  * 保存する。API は page.route() でモックするためバックエンド・ログイン不要。
- * 実行: LEPTOS_E2E_PORT=8096 npx playwright test --config playwright.receipts.config.ts receipts-screenshots.spec.ts
+ * 実行: LEPTOS_E2E_PORT=8096 npx playwright test --config playwright.leptos.config.ts receipts-screenshots.spec.ts
  */
 
 const MOCK_USER = {
