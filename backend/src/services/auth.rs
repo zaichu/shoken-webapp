@@ -444,11 +444,15 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     #[test]
     fn test_hash_session_token_matches_canonical_uuid_digest() {
         let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        // SQL の sha256(convert_to(id::text, 'UTF8')) と一致するよう、
-        // 小文字ハイフン付きの正規形文字列をハッシュする
+        // SQL の sha256(convert_to(id::text, 'UTF8')) と同じ、
+        // 小文字ハイフン付き正規形文字列への SHA-256 の固定値
+        let digest_hex: String = hash_session_token(id)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         assert_eq!(
-            hash_session_token(id),
-            Sha256::digest(id.to_string().as_bytes()).to_vec()
+            digest_hex,
+            "a3a9e1ed9732cab28868127be00f1ce921acaefdd5c3b23a6e9e0072bd9c1a34"
         );
     }
 
