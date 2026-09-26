@@ -928,8 +928,6 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert!(remaining.is_none());
 }
 
-/// 確認 Cookie 発行→HTTP 認証→アカウント削除→Cookie クリアまでの通しテスト。
-/// 単体テストでカバーしない HTTP 認証・削除成功・クッキー失効の経路を実 DB で確かめる。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn account_delete_confirmation_http_lifecycle() {
@@ -964,7 +962,6 @@ async fn account_delete_confirmation_http_lifecycle() {
     };
     let app = backend::handlers::v1::auth_routes().with_state(state);
 
-    // 確認開始: HTTP のセッション認証を通って確認 Cookie が発行される
     let response = app
         .clone()
         .oneshot(
@@ -992,7 +989,6 @@ async fn account_delete_confirmation_http_lifecycle() {
         .map(|(_, v)| v.to_string())
         .expect("Cookie 値を取り出せること");
 
-    // 削除: セッション Cookie + 確認 Cookie で 200・両 Cookie が失効する
     let response = app
         .clone()
         .oneshot(
@@ -1024,7 +1020,6 @@ async fn account_delete_confirmation_http_lifecycle() {
         assert!(cleared, "{name} が削除応答で失効すること: {cookies:?}");
     }
 
-    // ユーザーとセッションは消え、同じ Cookie では 401 になる
     let remaining_session: Option<(Uuid,)> =
         sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
             .bind(Uuid::parse_str(&session_token).unwrap())
