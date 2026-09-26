@@ -1,16 +1,18 @@
 use crate::dto::{Dividend, DomesticStock, Mutualfund};
-use rust_decimal::{Decimal, RoundingStrategy};
+use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 pub use shared::domain::DividendSummary as DividendTotals;
+#[cfg(test)]
+pub use shared::format::format_percentage_value;
+pub use shared::format::{format_currency, format_number};
 pub use shared::normalize::normalize_security_code;
+#[cfg(test)]
+pub use shared::summary::DomesticDailySummary;
 pub use shared::summary::{
     dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
     domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
 };
-// テストの期待値構築でのみ参照する（bin では unused になる）
-#[allow(unused_imports)]
-pub use shared::summary::DomesticDailySummary;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -137,78 +139,6 @@ pub fn create_iso_date_key(value: &str) -> String {
     }
 }
 
-pub fn format_number(value: Decimal, maximum_fraction_digits: u32) -> String {
-    format_number_with_options(value, 0, maximum_fraction_digits, true)
-}
-
-pub fn format_number_with_options(
-    value: Decimal,
-    minimum_fraction_digits: u32,
-    maximum_fraction_digits: u32,
-    use_grouping: bool,
-) -> String {
-    let rounded = value.round_dp_with_strategy(
-        maximum_fraction_digits,
-        RoundingStrategy::MidpointAwayFromZero,
-    );
-    let raw = rounded.normalize().to_string();
-    let (sign, unsigned) = raw
-        .strip_prefix('-')
-        .map_or(("", raw.as_str()), |v| ("-", v));
-    let (integer, fraction) = unsigned
-        .split_once('.')
-        .map_or((unsigned, None), |(i, f)| (i, Some(f)));
-    let grouped = if use_grouping {
-        let reversed: String = integer
-            .chars()
-            .rev()
-            .enumerate()
-            .flat_map(|(index, character)| {
-                if (index + 1) % 3 == 0 && index + 1 < integer.len() {
-                    vec![character, ',']
-                } else {
-                    vec![character]
-                }
-            })
-            .collect();
-        reversed.chars().rev().collect()
-    } else {
-        integer.to_string()
-    };
-    let mut fraction = fraction.unwrap_or_default().to_string();
-    while fraction.len() < minimum_fraction_digits as usize {
-        fraction.push('0');
-    }
-    if fraction.is_empty() {
-        format!("{sign}{grouped}")
-    } else {
-        format!("{sign}{grouped}.{fraction}")
-    }
-}
-
-pub fn format_currency(value: Decimal) -> String {
-    format_currency_with_options(value, "¥", 0, 15)
-}
-
-pub fn format_currency_with_options(
-    value: Decimal,
-    currency: &str,
-    minimum_fraction_digits: u32,
-    maximum_fraction_digits: u32,
-) -> String {
-    let formatted = format_number_with_options(
-        value.abs(),
-        minimum_fraction_digits,
-        maximum_fraction_digits,
-        true,
-    );
-    if value.is_sign_negative() {
-        format!("{currency} -{formatted}")
-    } else {
-        format!("{currency} {formatted}")
-    }
-}
-
 #[cfg(test)]
 pub fn parse_number(value: &str) -> Decimal {
     value.replace(',', "").parse().unwrap_or(Decimal::ZERO)
@@ -256,14 +186,6 @@ pub fn format_percentage(value: Decimal, total: Decimal, decimals: u32) -> Strin
     } else {
         format_percentage_value(calculate_percentage(value, total, decimals), decimals)
     }
-}
-
-#[cfg(test)]
-pub fn format_percentage_value(value: Decimal, decimals: u32) -> String {
-    format!(
-        "{}%",
-        format_number_with_options(value, decimals, decimals, false)
-    )
 }
 
 #[cfg(test)]
@@ -726,32 +648,6 @@ mod tests {
     }
 
     #[test]
-    fn number_formatter_supports_fraction_and_grouping_options() {
-        assert_eq!(format_number(dec!(12345), 2), "12,345");
-        assert_eq!(format_number(dec!(-12345), 2), "-12,345");
-        assert_eq!(format_number(dec!(123.456), 2), "123.46");
-        assert_eq!(format_number_with_options(dec!(123), 2, 2, true), "123.00");
-        assert_eq!(
-            format_number_with_options(dec!(12345), 0, 2, false),
-            "12345"
-        );
-    }
-
-    #[test]
-    fn currency_formatter_supports_sign_symbol_and_fraction_options() {
-        assert_eq!(format_currency(dec!(12345)), "¥ 12,345");
-        assert_eq!(format_currency(dec!(-12345)), "¥ -12,345");
-        assert_eq!(
-            format_currency_with_options(dec!(12345), "$", 0, 15),
-            "$ 12,345"
-        );
-        assert_eq!(
-            format_currency_with_options(dec!(123.456), "¥", 0, 2),
-            "¥ 123.46"
-        );
-    }
-
-    #[test]
     fn parse_normalize_and_decimal_helpers_match_react_cases() {
         assert_eq!(parse_number("1,234"), dec!(1234));
         assert_eq!(parse_number("invalid"), dec!(0));
@@ -771,7 +667,6 @@ mod tests {
         assert_eq!(format_percentage(dec!(25), dec!(100), 2), "25.00%");
         assert_eq!(format_percentage(dec!(1), dec!(3), 1), "33.3%");
         assert_eq!(format_percentage(dec!(10), dec!(0), 2), "0%");
-        assert_eq!(format_percentage_value(dec!(25.5), 2), "25.50%");
         assert_eq!(calculate_percentage(dec!(25), dec!(100), 2), dec!(25));
         assert_eq!(calculate_percentage(dec!(1), dec!(3), 1), dec!(33.3));
         assert_eq!(calculate_percentage(dec!(10), dec!(0), 2), dec!(0));
@@ -926,65 +821,6 @@ mod tests {
                 sorted.iter().map(|r| r.settlement_date.clone()).collect::<Vec<_>>(),
                 expected
             );
-        }
-
-        #[test]
-        fn prop_format_number_with_options_invariants(
-            mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
-            scale in 0u32..=4u32,
-            min_max in (0u32..=6u32, 0u32..=6u32),
-            use_grouping in proptest::bool::ANY,
-        ) {
-            let value = Decimal::new(mantissa, scale);
-            let min = min_max.0.min(min_max.1);
-            let max = min_max.0.max(min_max.1);
-            let output = format_number_with_options(value, min, max, use_grouping);
-
-            let unsigned = output.strip_prefix('-').unwrap_or(&output);
-            let (integer, fraction) = unsigned
-                .split_once('.')
-                .map_or((unsigned, ""), |(i, f)| (i, f));
-            proptest::prop_assert!(fraction.len() <= max as usize);
-            proptest::prop_assert!(fraction.len() >= min as usize);
-
-            let digits: String = integer.chars().filter(|c| *c != ',').collect();
-            let comma_positions: Vec<usize> = integer
-                .chars()
-                .enumerate()
-                .filter(|(_, c)| *c == ',')
-                .map(|(i, _)| i)
-                .collect();
-            for pos in comma_positions {
-                proptest::prop_assert_eq!((integer.len() - pos) % 4, 0, "output={}", output);
-            }
-
-            let reparsed: Decimal = format!(
-                "{}{}{}{}",
-                if output.starts_with('-') { "-" } else { "" },
-                digits,
-                if fraction.is_empty() { "" } else { "." },
-                fraction
-            )
-            .parse()
-            .unwrap();
-            proptest::prop_assert_eq!(
-                reparsed,
-                value.round_dp_with_strategy(max, RoundingStrategy::MidpointAwayFromZero),
-                "output={}",
-                output
-            );
-        }
-
-        #[test]
-        fn prop_format_currency_sign_convention(value in arb_decimal()) {
-            let output = format_currency(value);
-            if value.is_sign_negative() {
-                proptest::prop_assert!(output.starts_with("¥ -"), "output={output}");
-                proptest::prop_assert!(!output.contains("--"));
-            } else {
-                proptest::prop_assert!(output.starts_with("¥ "), "output={output}");
-                proptest::prop_assert!(!output.contains('-'));
-            }
         }
 
         #[test]
