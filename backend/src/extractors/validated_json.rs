@@ -29,7 +29,7 @@ where
         })?;
 
         value.validate().map_err(|rejection| {
-            let msg = format!("{}", rejection).replace('\n', ", ");
+            let msg = format!("{rejection}").replace('\n', ", ");
             error!("[ValidatedJson] バリデーションエラー: {}", msg);
             ApiError::ValidationError(msg)
         })?;

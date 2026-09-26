@@ -28,8 +28,7 @@ pub fn parse_number(s: &str) -> Result<Decimal, String> {
         (false, s)
     };
     let s = s.replace(',', "");
-    let value =
-        Decimal::from_str(&s).map_err(|_| format!("数値のパースに失敗しました: '{}'", s))?;
+    let value = Decimal::from_str(&s).map_err(|_| format!("数値のパースに失敗しました: '{s}'"))?;
     // trailing zero を除去して表記差（"1" vs "1.0"）がハッシュに影響しないよう正規化する
     Ok(if negative { -value } else { value }.normalize())
 }
@@ -43,141 +42,77 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         return Ok(d);
     }
-    Err(format!("日付のパースに失敗しました: '{}'", s))
+    Err(format!("日付のパースに失敗しました: '{s}'"))
 }
 
-/// レコードから指定列の値を取得（列が存在しない場合は空文字）
+/// 行から列名でセル値を参照する（列が存在しない場合は空文字）
+pub trait CsvCells {
+    fn cell(&self, name: &str) -> &str;
+}
+
+impl CsvCells for HashMap<String, String> {
+    fn cell(&self, name: &str) -> &str {
+        self.get(name).map_or("", String::as_str)
+    }
+}
+
 #[cfg(test)]
-pub fn get_cell<'a>(
-    record: &'a csv::StringRecord,
-    header_map: &HashMap<String, usize>,
-    name: &str,
-) -> &'a str {
-    header_map
-        .get(name)
-        .and_then(|&i| record.get(i))
-        .unwrap_or("")
-}
-
-/// 行マップから指定列の値を取得（列が存在しない場合は空文字）
-pub fn get_row_cell<'a>(row: &'a HashMap<String, String>, name: &str) -> &'a str {
-    row.get(name).map(String::as_str).unwrap_or("")
+impl CsvCells for (csv::StringRecord, HashMap<String, usize>) {
+    fn cell(&self, name: &str) -> &str {
+        self.1.get(name).and_then(|&i| self.0.get(i)).unwrap_or("")
+    }
 }
 
 /// オプション文字列フィールドを取得（空の場合は空文字列）
-#[cfg(test)]
-pub fn parse_optional_string(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
-    col: &str,
-) -> String {
-    get_cell(record, header_map, col).to_string()
-}
-
-/// 行マップからオプション文字列フィールドを取得（空の場合は空文字列）
-pub fn parse_optional_string_row(row: &HashMap<String, String>, col: &str) -> String {
-    get_row_cell(row, col).to_string()
+pub fn parse_optional_string<R: CsvCells>(row: &R, col: &str) -> String {
+    row.cell(col).to_string()
 }
 
 /// 必須文字列フィールドを取得（空の場合はエラー）
-#[cfg(test)]
-pub fn parse_required_string(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+pub fn parse_required_string<R: CsvCells>(
+    row: &R,
     col: &str,
     row_num: usize,
 ) -> Result<String, CsvRowError> {
-    let val = get_cell(record, header_map, col);
+    let val = row.cell(col);
     if val.trim().is_empty() {
         return Err(CsvRowError {
             row: row_num,
-            message: format!("必須列 '{}' が空または存在しません", col),
-        });
-    }
-    Ok(val.to_string())
-}
-
-/// 行マップから必須文字列フィールドを取得（空の場合はエラー）
-pub fn parse_required_string_row(
-    row: &HashMap<String, String>,
-    col: &str,
-    row_num: usize,
-) -> Result<String, CsvRowError> {
-    let val = get_row_cell(row, col);
-    if val.trim().is_empty() {
-        return Err(CsvRowError {
-            row: row_num,
-            message: format!("必須列 '{}' が空または存在しません", col),
+            message: format!("必須列 '{col}' が空または存在しません"),
         });
     }
     Ok(val.to_string())
 }
 
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
-#[cfg(test)]
-pub fn parse_required_number(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+pub fn parse_required_number<R: CsvCells>(
+    row: &R,
     col: &str,
     row_num: usize,
 ) -> Result<Decimal, CsvRowError> {
-    let raw = get_cell(record, header_map, col);
+    let raw = row.cell(col);
     if raw.trim().is_empty() {
         return Err(CsvRowError {
             row: row_num,
-            message: format!("必須列 '{}' が空または存在しません", col),
+            message: format!("必須列 '{col}' が空または存在しません"),
         });
     }
     parse_number(raw).map_err(|e| CsvRowError {
         row: row_num,
-        message: format!("{}: {}", col, e),
-    })
-}
-
-/// 行マップから必須数値フィールドを取得（空またはパース失敗でエラー）
-pub fn parse_required_number_row(
-    row: &HashMap<String, String>,
-    col: &str,
-    row_num: usize,
-) -> Result<Decimal, CsvRowError> {
-    let raw = get_row_cell(row, col);
-    if raw.trim().is_empty() {
-        return Err(CsvRowError {
-            row: row_num,
-            message: format!("必須列 '{}' が空または存在しません", col),
-        });
-    }
-    parse_number(raw).map_err(|e| CsvRowError {
-        row: row_num,
-        message: format!("{}: {}", col, e),
+        message: format!("{col}: {e}"),
     })
 }
 
 /// 必須日付フィールドを取得（パース失敗でエラー）
-#[cfg(test)]
-pub fn parse_required_date(
-    record: &csv::StringRecord,
-    header_map: &HashMap<String, usize>,
+pub fn parse_required_date<R: CsvCells>(
+    row: &R,
     col: &str,
     row_num: usize,
 ) -> Result<NaiveDate, CsvRowError> {
-    let raw = get_cell(record, header_map, col);
+    let raw = row.cell(col);
     parse_date(raw).map_err(|e| CsvRowError {
         row: row_num,
-        message: format!("{}: {}", col, e),
-    })
-}
-
-/// 行マップから必須日付フィールドを取得（パース失敗でエラー）
-pub fn parse_required_date_row(
-    row: &HashMap<String, String>,
-    col: &str,
-    row_num: usize,
-) -> Result<NaiveDate, CsvRowError> {
-    let raw = get_row_cell(row, col);
-    parse_date(raw).map_err(|e| CsvRowError {
-        row: row_num,
-        message: format!("{}: {}", col, e),
+        message: format!("{col}: {e}"),
     })
 }
 #[cfg(test)]
@@ -216,12 +151,12 @@ mod tests {
         for input in ["(123", "123)", "(", ")"] {
             assert!(parse_number(input).is_err());
         }
-        let (record, header_map) = (
+        let cells = (
             csv::StringRecord::from(vec!["", "value"]),
             make_header_map(&["empty", "filled"]),
         );
         for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] {
-            assert_eq!(parse_optional_string(&record, &header_map, col), expected);
+            assert_eq!(parse_optional_string(&cells, col), expected);
         }
         let expected_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
         for input in ["2024/01/15", "2024-01-15"] {
@@ -245,12 +180,12 @@ mod tests {
         );
         let (bytes, _, _) = SHIFT_JIS.encode("テスト");
         assert_eq!(decode_bytes(&bytes), "テスト");
-        let (record, header_map) = (
+        let cells = (
             csv::StringRecord::from(vec!["value"]),
             make_header_map(&["present"]),
         );
-        assert_eq!(get_cell(&record, &header_map, "present"), "value");
-        assert_eq!(get_cell(&record, &header_map, "missing"), "");
+        assert_eq!(cells.cell("present"), "value");
+        assert_eq!(cells.cell("missing"), "");
         for (input, expected) in [
             ("K D D I", "KDDI"),
             ("I N P E X", "INPEX"),
@@ -261,47 +196,40 @@ mod tests {
         ] {
             assert_eq!(normalize_security_name(input), expected);
         }
-        let (record, header_map) = (
+        let cells = (
             csv::StringRecord::from(vec!["", "value"]),
             make_header_map(&["col_a", "col_b"]),
         );
-        let err = parse_required_string(&record, &header_map, "col_a", 3).unwrap_err();
+        let err = parse_required_string(&cells, "col_a", 3).unwrap_err();
         assert_eq!((err.row, err.message.contains("col_a")), (3, true));
-        assert_eq!(
-            parse_required_string(&record, &header_map, "col_b", 1).unwrap(),
-            "value"
-        );
-        let (record, hm) = (
+        assert_eq!(parse_required_string(&cells, "col_b", 1).unwrap(), "value");
+        let cells = (
             csv::StringRecord::from(vec!["abc", "1,234", ""]),
             make_header_map(&["invalid", "valid", "empty"]),
         );
         assert_eq!(
-            parse_required_number(&record, &hm, "invalid", 5)
-                .unwrap_err()
-                .row,
+            parse_required_number(&cells, "invalid", 5).unwrap_err().row,
             5
         );
         assert_eq!(
-            parse_required_number(&record, &hm, "valid", 1).unwrap(),
+            parse_required_number(&cells, "valid", 1).unwrap(),
             dec!(1234)
         );
-        let err = parse_required_number(&record, &hm, "empty", 7).unwrap_err();
+        let err = parse_required_number(&cells, "empty", 7).unwrap_err();
         assert_eq!((err.row, err.message.contains("empty")), (7, true));
-        let (record, hm) = (
+        let cells = (
             csv::StringRecord::from(vec!["not-a-date", "2024/03/01", "2024/13/40"]),
             make_header_map(&["invalid", "valid", "out_of_range"]),
         );
         assert_eq!(
-            parse_required_date(&record, &hm, "invalid", 2)
-                .unwrap_err()
-                .row,
+            parse_required_date(&cells, "invalid", 2).unwrap_err().row,
             2
         );
         assert_eq!(
-            parse_required_date(&record, &hm, "valid", 1).unwrap(),
+            parse_required_date(&cells, "valid", 1).unwrap(),
             NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()
         );
-        let err = parse_required_date(&record, &hm, "out_of_range", 9).unwrap_err();
+        let err = parse_required_date(&cells, "out_of_range", 9).unwrap_err();
         assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
     }
     fn make_row(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -342,24 +270,21 @@ mod tests {
     fn test_parse_optional_string_row() {
         let row = make_row(&[("名前", "テスト")]);
         // 存在するカラムは値を返す
-        assert_eq!(parse_optional_string_row(&row, "名前"), "テスト");
+        assert_eq!(parse_optional_string(&row, "名前"), "テスト");
         // 存在しないカラムは空文字を返す
-        assert_eq!(parse_optional_string_row(&row, "missing"), "");
+        assert_eq!(parse_optional_string(&row, "missing"), "");
     }
 
     #[test]
     fn test_parse_required_string_row() {
         let row = make_row(&[("名前", "テスト"), ("空欄", "")]);
         // 存在するカラムで値あり → Ok(値)
-        assert_eq!(
-            parse_required_string_row(&row, "名前", 1).unwrap(),
-            "テスト"
-        );
+        assert_eq!(parse_required_string(&row, "名前", 1).unwrap(), "テスト");
         // 空のカラム → Err(CsvRowError)
-        let err = parse_required_string_row(&row, "空欄", 2).unwrap_err();
+        let err = parse_required_string(&row, "空欄", 2).unwrap_err();
         assert_eq!((err.row, err.message.contains("空欄")), (2, true));
         // 存在しないカラム → Err(CsvRowError)
-        let err = parse_required_string_row(&row, "missing", 3).unwrap_err();
+        let err = parse_required_string(&row, "missing", 3).unwrap_err();
         assert_eq!((err.row, err.message.contains("missing")), (3, true));
     }
 
@@ -367,18 +292,12 @@ mod tests {
     fn test_parse_required_number_row() {
         let row = make_row(&[("数値", "1,234"), ("空欄", ""), ("不正", "abc")]);
         // 有効な数値 "1,234" → Ok(dec!(1234))
-        assert_eq!(
-            parse_required_number_row(&row, "数値", 1).unwrap(),
-            dec!(1234)
-        );
+        assert_eq!(parse_required_number(&row, "数値", 1).unwrap(), dec!(1234));
         // 空文字 → Err
-        let err = parse_required_number_row(&row, "空欄", 2).unwrap_err();
+        let err = parse_required_number(&row, "空欄", 2).unwrap_err();
         assert_eq!((err.row, err.message.contains("空欄")), (2, true));
         // 不正な文字列 "abc" → Err
-        assert_eq!(
-            parse_required_number_row(&row, "不正", 3).unwrap_err().row,
-            3
-        );
+        assert_eq!(parse_required_number(&row, "不正", 3).unwrap_err().row, 3);
     }
 
     #[test]
@@ -386,11 +305,11 @@ mod tests {
         let row = make_row(&[("日付", "2024/01/15"), ("不正", "not-a-date")]);
         // 有効な日付 "2024/01/15" → Ok
         assert_eq!(
-            parse_required_date_row(&row, "日付", 1).unwrap(),
+            parse_required_date(&row, "日付", 1).unwrap(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
         );
         // 不正な文字列 "not-a-date" → Err
-        let err = parse_required_date_row(&row, "不正", 2).unwrap_err();
+        let err = parse_required_date(&row, "不正", 2).unwrap_err();
         assert_eq!((err.row, err.message.contains("不正")), (2, true));
     }
 
@@ -414,11 +333,11 @@ mod tests {
         let bytes_utf8 = csv_utf8.as_bytes();
         let (bytes_sjis_cow, _, _) = SHIFT_JIS.encode(&csv_utf8);
         let bytes_sjis = bytes_sjis_cow.into_owned();
-        time_n(&format!("decode_bytes (UTF-8, {}行)", ROWS), 10, || {
+        time_n(&format!("decode_bytes (UTF-8, {ROWS}行)"), 10, || {
             std::hint::black_box(decode_bytes(std::hint::black_box(bytes_utf8)));
         });
         time_n(
-            &format!("decode_bytes (Shift-JIS フォールバック, {}行)", ROWS),
+            &format!("decode_bytes (Shift-JIS フォールバック, {ROWS}行)"),
             10,
             || {
                 std::hint::black_box(decode_bytes(std::hint::black_box(bytes_sjis.as_slice())));

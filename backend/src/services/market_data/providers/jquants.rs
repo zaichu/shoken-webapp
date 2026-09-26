@@ -53,7 +53,7 @@ impl JQuantsClient {
             .await
             .map_err(|e| {
                 tracing::error!("決算サマリー取得ネットワークエラー: {}", e);
-                ApiError::NetworkError(format!("決算サマリー取得エラー: {}", e))
+                ApiError::NetworkError(format!("決算サマリー取得エラー: {e}"))
             })?;
 
         let status = response.status();
@@ -68,19 +68,17 @@ impl JQuantsClient {
             );
             if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 return Err(ApiError::RateLimitError(format!(
-                    "J-Quants APIのレート制限に達しました: {}",
-                    error_text
+                    "J-Quants APIのレート制限に達しました: {error_text}"
                 )));
             }
             return Err(ApiError::ApiError(format!(
-                "JQuants決算サマリー取得エラー ({}): {}",
-                status, error_text
+                "JQuants決算サマリー取得エラー ({status}): {error_text}"
             )));
         }
 
         let response_text = response.text().await.map_err(|e| {
             tracing::error!("レスポンス本文取得エラー: {}", e);
-            ApiError::NetworkError(format!("レスポンス読み取りエラー: {}", e))
+            ApiError::NetworkError(format!("レスポンス読み取りエラー: {e}"))
         })?;
 
         tracing::debug!("JQuants API レスポンス本文: {}", response_text);
@@ -92,7 +90,7 @@ impl JQuantsClient {
                     e,
                     response_text
                 );
-                ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {}", e))
+                ApiError::NetworkError(format!("決算サマリーレスポンス解析エラー: {e}"))
             })?;
 
         Ok(fin_summary_response)
@@ -120,7 +118,7 @@ mod tests {
         JQuantsClient::with_base_url(Client::new(), api_key, base_url.to_string())
             .get_fin_summary(params)
             .await
-            .unwrap_or_else(|e| panic!("API呼び出しエラー: {:?}", e))
+            .unwrap_or_else(|e| panic!("API呼び出しエラー: {e:?}"))
     }
 
     async fn fetch_mock_fin_summary(server: &MockServer) -> Result<FinSummaryResponse, ApiError> {

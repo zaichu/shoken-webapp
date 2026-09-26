@@ -200,7 +200,7 @@ pub async fn google_callback(
     let jar = jar.add(cookie);
 
     let frontend_url = &state.secrets.frontend_url;
-    let redirect_url = format!("{}?login=success", frontend_url);
+    let redirect_url = format!("{frontend_url}?login=success");
 
     Ok((jar, Redirect::to(&redirect_url)).into_response())
 }

@@ -13,8 +13,7 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_optional_string_row, parse_required_date_row, parse_required_number_row,
-    parse_required_string_row,
+    parse_optional_string, parse_required_date, parse_required_number, parse_required_string,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -290,7 +289,7 @@ pub async fn bulk_create_with_limit(
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(result)
+    timer.finish_from_result(&result)
 }
 
 /// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）
@@ -321,20 +320,20 @@ fn transform_dividend_row(
     row_num: usize,
 ) -> Result<CreateDividendRequest, CsvRowError> {
     Ok(CreateDividendRequest {
-        settlement_date: parse_required_date_row(row, "入金日", row_num)?,
-        product: parse_required_string_row(row, "商品", row_num)?,
-        account: parse_required_string_row(row, "口座", row_num)?,
-        security_code: parse_optional_string_row(row, "銘柄コード"),
-        security_name: normalize_security_name(&parse_required_string_row(row, "銘柄", row_num)?),
-        unit_price: parse_required_number_row(row, "単価[円/現地通貨]", row_num)?,
-        shares: parse_required_number_row(row, "数量[株/口]", row_num)?,
-        dividends_before_tax: parse_required_number_row(
+        settlement_date: parse_required_date(row, "入金日", row_num)?,
+        product: parse_required_string(row, "商品", row_num)?,
+        account: parse_required_string(row, "口座", row_num)?,
+        security_code: parse_optional_string(row, "銘柄コード"),
+        security_name: normalize_security_name(&parse_required_string(row, "銘柄", row_num)?),
+        unit_price: parse_required_number(row, "単価[円/現地通貨]", row_num)?,
+        shares: parse_required_number(row, "数量[株/口]", row_num)?,
+        dividends_before_tax: parse_required_number(
             row,
             "配当・分配金合計（税引前）[円/現地通貨]",
             row_num,
         )?,
-        taxes: parse_required_number_row(row, "税額合計[円/現地通貨]", row_num)?,
-        net_amount_received: parse_required_number_row(row, "受取金額[円/現地通貨]", row_num)?,
+        taxes: parse_required_number(row, "税額合計[円/現地通貨]", row_num)?,
+        net_amount_received: parse_required_number(row, "受取金額[円/現地通貨]", row_num)?,
     })
 }
 

@@ -27,7 +27,7 @@ pub fn parse_csv_with_config(
     let headers = reader
         .headers()
         .map_err(|error| {
-            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {}", error))
+            ApiError::ValidationError(format!("CSVヘッダーの読み込みに失敗しました: {error}"))
         })?
         .iter()
         .map(|header| header.trim().to_string())
@@ -36,7 +36,7 @@ pub fn parse_csv_with_config(
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record.map_err(|error| {
-            ApiError::ValidationError(format!("CSV行の読み込みに失敗しました: {}", error))
+            ApiError::ValidationError(format!("CSV行の読み込みに失敗しました: {error}"))
         })?;
 
         if is_all_empty_record(&record) {

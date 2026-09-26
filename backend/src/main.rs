@@ -41,7 +41,7 @@ async fn main() {
             std::process::exit(1);
         });
 
-    let router = app_router(state, &config, Arc::clone(&startup_ready));
+    let router = app_router(state, &config, &startup_ready);
 
     let addr = config::server_addr();
 

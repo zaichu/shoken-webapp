@@ -74,91 +74,97 @@ fn simple_error(status: StatusCode, code: &str, message: String) -> (StatusCode,
     (status, error_details_with_debug(code, message, None))
 }
 
-fn into_http(err: ApiError) -> (StatusCode, ErrorDetails) {
-    match err {
-        ApiError::ValidationError(msg) => {
-            simple_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", msg)
-        }
-        ApiError::JsonParseError => {
-            simple_error(StatusCode::BAD_REQUEST, "JSON_PARSE_ERROR", err.to_string())
-        }
-        ApiError::DatabaseError(ref e) => {
-            let (status, code, message): (StatusCode, &str, &str) = match e {
-                sqlx::Error::RowNotFound => {
-                    (StatusCode::NOT_FOUND, "NOT_FOUND", "Resource not found")
-                }
-                sqlx::Error::Database(db_err) => {
-                    if db_err.is_unique_violation() {
-                        (StatusCode::CONFLICT, "DUPLICATE_ENTRY", "Duplicate entry")
-                    } else if db_err.is_foreign_key_violation() {
-                        (
-                            StatusCode::BAD_REQUEST,
-                            "FOREIGN_KEY_VIOLATION",
-                            "Foreign key constraint violation",
-                        )
-                    } else {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            "DATABASE_ERROR",
-                            "Database error occurred",
-                        )
-                    }
-                }
-                _ => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "DATABASE_ERROR",
-                    "Database error occurred",
-                ),
-            };
-            if is_production_env() {
-                tracing::error!("Database error [{}]", code);
-            } else {
-                tracing::error!("Database error [{}]: {}", code, e);
+impl From<ApiError> for (StatusCode, ErrorDetails) {
+    fn from(err: ApiError) -> Self {
+        match err {
+            ApiError::ValidationError(msg) => {
+                simple_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", msg)
             }
-            (
-                status,
-                error_details_with_debug(code, message.to_string(), Some(e.to_string())),
-            )
-        }
-        ApiError::NotFound => simple_error(StatusCode::NOT_FOUND, "NOT_FOUND", err.to_string()),
-        ApiError::EnvVarError(_) => simple_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "CONFIGURATION_ERROR",
-            "Configuration error".to_string(),
-        ),
-        ApiError::UrlParseError(_) => simple_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "URL_PARSE_ERROR",
-            "Invalid URL".to_string(),
-        ),
-        ApiError::OAuthError(_) => simple_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "OAUTH_ERROR",
-            "Authentication error".to_string(),
-        ),
-        ApiError::Unauthorized(msg) => simple_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg),
-        ApiError::NetworkError(msg) => simple_error(StatusCode::BAD_GATEWAY, "NETWORK_ERROR", msg),
-        ApiError::ApiError(msg) => simple_error(StatusCode::BAD_REQUEST, "API_ERROR", msg),
-        ApiError::RateLimitError(msg) => {
-            simple_error(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", msg)
-        }
-        ApiError::SerdeJsonError(ref e) => {
-            tracing::error!("JSON processing error: {}", e);
-            (
+            ApiError::JsonParseError => {
+                simple_error(StatusCode::BAD_REQUEST, "JSON_PARSE_ERROR", err.to_string())
+            }
+            ApiError::DatabaseError(ref e) => {
+                let (status, code, message): (StatusCode, &str, &str) = match e {
+                    sqlx::Error::RowNotFound => {
+                        (StatusCode::NOT_FOUND, "NOT_FOUND", "Resource not found")
+                    }
+                    sqlx::Error::Database(db_err) => {
+                        if db_err.is_unique_violation() {
+                            (StatusCode::CONFLICT, "DUPLICATE_ENTRY", "Duplicate entry")
+                        } else if db_err.is_foreign_key_violation() {
+                            (
+                                StatusCode::BAD_REQUEST,
+                                "FOREIGN_KEY_VIOLATION",
+                                "Foreign key constraint violation",
+                            )
+                        } else {
+                            (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                "DATABASE_ERROR",
+                                "Database error occurred",
+                            )
+                        }
+                    }
+                    _ => (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "DATABASE_ERROR",
+                        "Database error occurred",
+                    ),
+                };
+                if is_production_env() {
+                    tracing::error!("Database error [{}]", code);
+                } else {
+                    tracing::error!("Database error [{}]: {}", code, e);
+                }
+                (
+                    status,
+                    error_details_with_debug(code, message.to_string(), Some(e.to_string())),
+                )
+            }
+            ApiError::NotFound => simple_error(StatusCode::NOT_FOUND, "NOT_FOUND", err.to_string()),
+            ApiError::EnvVarError(_) => simple_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                error_details_with_debug(
-                    "JSON_ERROR",
-                    "JSON processing error".to_string(),
-                    Some(e.to_string()),
-                ),
-            )
+                "CONFIGURATION_ERROR",
+                "Configuration error".to_string(),
+            ),
+            ApiError::UrlParseError(_) => simple_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "URL_PARSE_ERROR",
+                "Invalid URL".to_string(),
+            ),
+            ApiError::OAuthError(_) => simple_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "OAUTH_ERROR",
+                "Authentication error".to_string(),
+            ),
+            ApiError::Unauthorized(msg) => {
+                simple_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg)
+            }
+            ApiError::NetworkError(msg) => {
+                simple_error(StatusCode::BAD_GATEWAY, "NETWORK_ERROR", msg)
+            }
+            ApiError::ApiError(msg) => simple_error(StatusCode::BAD_REQUEST, "API_ERROR", msg),
+            ApiError::RateLimitError(msg) => {
+                simple_error(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", msg)
+            }
+            ApiError::SerdeJsonError(ref e) => {
+                tracing::error!("JSON processing error: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    error_details_with_debug(
+                        "JSON_ERROR",
+                        "JSON processing error".to_string(),
+                        Some(e.to_string()),
+                    ),
+                )
+            }
         }
     }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_details) = into_http(self);
+        let (status, error_details): (StatusCode, ErrorDetails) = self.into();
         (
             status,
             Json(ErrorResponse {
@@ -331,12 +337,12 @@ mod tests {
                 (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
             ),
         ] {
-            let (status, details) = into_http(ApiError::DatabaseError(SqlxError::Database(
-                Box::new(MockDbError {
+            let (status, details): (StatusCode, ErrorDetails) =
+                ApiError::DatabaseError(SqlxError::Database(Box::new(MockDbError {
                     message: "db error",
                     kind,
-                }),
-            )));
+                })))
+                .into();
             assert_eq!((status, details.code.as_str()), expected);
         }
     }

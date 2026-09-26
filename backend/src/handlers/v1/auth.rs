@@ -69,8 +69,7 @@ fn verify_account_delete_confirmation(value: &str, session_token: &str, now: i64
         return false;
     };
     account_delete_confirmation_mac(session_token, issued_at, nonce)
-        .map(|mac| mac.verify_slice(&tag).is_ok())
-        .unwrap_or(false)
+        .is_ok_and(|mac| mac.verify_slice(&tag).is_ok())
 }
 
 fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {

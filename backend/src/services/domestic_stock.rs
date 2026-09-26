@@ -13,7 +13,7 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_date_row, parse_required_number_row, parse_required_string_row,
+    parse_required_date, parse_required_number, parse_required_string,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -367,7 +367,7 @@ pub async fn bulk_create_with_limit(
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(result)
+    timer.finish_from_result(&result)
 }
 
 /// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
@@ -403,21 +403,21 @@ fn transform_domestic_stock_row(
     row: &CsvRow,
     row_num: usize,
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
-    let trade_date = parse_required_date_row(row, "約定日", row_num)?;
-    let settlement_date = parse_required_date_row(row, "受渡日", row_num)?;
-    let account = parse_required_string_row(row, "口座", row_num)?;
-    let realized_pnl = parse_required_number_row(row, "実現損益[円]", row_num)?;
+    let trade_date = parse_required_date(row, "約定日", row_num)?;
+    let settlement_date = parse_required_date(row, "受渡日", row_num)?;
+    let account = parse_required_string(row, "口座", row_num)?;
+    let realized_pnl = parse_required_number(row, "実現損益[円]", row_num)?;
     let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
     Ok(CreateDomesticStockRequest {
         trade_date,
         settlement_date,
-        security_code: parse_required_string_row(row, "銘柄コード", row_num)?,
-        security_name: normalize_security_name(&parse_required_string_row(row, "銘柄名", row_num)?),
+        security_code: parse_required_string(row, "銘柄コード", row_num)?,
+        security_name: normalize_security_name(&parse_required_string(row, "銘柄名", row_num)?),
         account,
-        shares: parse_required_number_row(row, "数量[株]", row_num)?,
-        asked_price: parse_required_number_row(row, "売却/決済単価[円]", row_num)?,
-        proceeds: parse_required_number_row(row, "売却/決済額[円]", row_num)?,
-        purchase_price: parse_required_number_row(row, "平均取得価額[円]", row_num)?,
+        shares: parse_required_number(row, "数量[株]", row_num)?,
+        asked_price: parse_required_number(row, "売却/決済単価[円]", row_num)?,
+        proceeds: parse_required_number(row, "売却/決済額[円]", row_num)?,
+        purchase_price: parse_required_number(row, "平均取得価額[円]", row_num)?,
         realized_profit_and_loss: realized_pnl,
         taxes,
         realized_profit_and_loss_after_tax: realized_pnl_after_tax,

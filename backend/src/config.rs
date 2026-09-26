@@ -109,7 +109,7 @@ mod tests {
                 dividend_cache: crate::state::DividendCacheState::default(),
             },
             config,
-            Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            &Arc::new(std::sync::atomic::AtomicBool::new(true)),
         )
     }
     async fn preflight(app: Router, origin: &str) -> axum::response::Response {
@@ -180,9 +180,10 @@ mod tests {
         );
         let url = backend_url();
         let expected_url = env::var("BACKEND_URL").unwrap_or_else(|_| {
-            env::var("PORT")
-                .map(|port| format!("http://localhost:{port}"))
-                .unwrap_or_else(|_| "http://localhost:3001".to_string())
+            env::var("PORT").map_or_else(
+                |_| "http://localhost:3001".to_string(),
+                |port| format!("http://localhost:{port}"),
+            )
         });
         assert_eq!(url, expected_url);
         assert!(server_addr().starts_with("0.0.0.0:"));

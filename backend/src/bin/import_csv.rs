@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect(&database_url)
         .await?;
 
-    println!("CSVファイルを読み込み中: {}", csv_path);
+    println!("CSVファイルを読み込み中: {csv_path}");
     let file = File::open(&csv_path)?;
     let reader = BufReader::new(file);
     let mut rdr = csv::ReaderBuilder::new()

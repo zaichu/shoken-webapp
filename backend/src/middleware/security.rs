@@ -52,8 +52,7 @@ fn extract_origin(url: &str) -> Option<&str> {
     let authority_start = after_scheme + 3;
     let end = url[authority_start..]
         .find(['/', '?', '#'])
-        .map(|i| authority_start + i)
-        .unwrap_or(url.len());
+        .map_or(url.len(), |i| authority_start + i);
     Some(&url[..end])
 }
 

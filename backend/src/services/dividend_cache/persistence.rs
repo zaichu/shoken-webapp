@@ -81,11 +81,7 @@ fn truncate_error_message(msg: &str) -> &str {
     if msg.len() <= 200 {
         return msg;
     }
-    let end = msg
-        .char_indices()
-        .nth(200)
-        .map(|(i, _)| i)
-        .unwrap_or(msg.len());
+    let end = msg.char_indices().nth(200).map_or(msg.len(), |(i, _)| i);
     &msg[..end]
 }
 

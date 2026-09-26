@@ -48,7 +48,10 @@ impl BulkTimer {
 
     /// PgQueryResult から rows_affected を取り出して finish する。
     /// u64 → usize の変換が失敗した場合は ApiError を返す。
-    pub fn finish_from_result(self, result: PgQueryResult) -> Result<BulkCreateResponse, ApiError> {
+    pub fn finish_from_result(
+        self,
+        result: &PgQueryResult,
+    ) -> Result<BulkCreateResponse, ApiError> {
         let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
             ApiError::ApiError("bulk insert の rows_affected が usize に収まりません".to_string())
         })?;
@@ -90,6 +93,15 @@ impl UserDataDomain {
     /// 置換型は追加分のみ、追記型は既存行数+追加分で上限を判定する
     fn replaces_existing(self) -> bool {
         matches!(self, Self::AssetBalances)
+    }
+
+    fn domain(self) -> &'static str {
+        match self {
+            Self::AssetBalances => "asset_balance",
+            Self::Dividends => "dividend",
+            Self::DomesticStocks => "domestic_stock",
+            Self::MutualFunds => "mutualfund",
+        }
     }
 }
 
@@ -162,24 +174,7 @@ where
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DeleteTarget {
-    AssetBalances,
-    Dividends,
-    DomesticStocks,
-    MutualFunds,
-}
-
-impl DeleteTarget {
-    fn domain(self) -> &'static str {
-        match self {
-            Self::AssetBalances => "asset_balance",
-            Self::Dividends => "dividend",
-            Self::DomesticStocks => "domestic_stock",
-            Self::MutualFunds => "mutualfund",
-        }
-    }
-}
+pub type DeleteTarget = UserDataDomain;
 
 /// ユーザーに紐づく全レコードを削除する共通実装。
 ///
