@@ -57,7 +57,7 @@ CORS_ORIGINS=http://localhost:8081 # 許可するフロントエンドのオリ�
 # 未設定・不明値・本番値との混在はすべて本番扱いになる。
 # ローカル開発では APP_ENV=development を設定すること（.env.example に同梱済み）
 APP_ENV=development
-SECURE_COOKIE=true                 # 非本番で Secure Cookie を有効化する場合のみ。本番では値に関わらず Secure
+# SECURE_COOKIE=true                # 非本番で Secure Cookie を有効化する場合のみ。本番では値に関わらず Secure
 ```
 
 `.env` ファイルの準備（既存があればそのまま使用）:
