@@ -40,10 +40,11 @@ pub fn format_number_with_options(
     } else {
         integer.to_string()
     };
-    let mut fraction = fraction.unwrap_or_default().to_string();
-    while fraction.len() < minimum_fraction_digits as usize {
-        fraction.push('0');
-    }
+    let fraction = format!(
+        "{:0<width$}",
+        fraction.unwrap_or_default(),
+        width = minimum_fraction_digits as usize
+    );
     if fraction.is_empty() {
         format!("{sign}{grouped}")
     } else {

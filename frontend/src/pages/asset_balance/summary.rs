@@ -63,10 +63,19 @@ pub(crate) fn PortfolioSummary(
             total_purchase_amount: serde_json::json!(view.purchase),
         })
         .collect();
-    let summary_override = summary.as_ref().map(|summary| SummaryOverride {
-        total_purchase_amount: summary.total_purchase_amount,
-        total_market_value: summary.total_market_value,
-    });
+    let summary_override = summary
+        .as_ref()
+        .map(|summary| SummaryOverride {
+            total_purchase_amount: summary.total_purchase_amount,
+            total_market_value: summary.total_market_value,
+        })
+        .or_else(|| {
+            SummaryOverride::sum(
+                views
+                    .iter()
+                    .map(|view| (view.market_dec, view.purchase_dec)),
+            )
+        });
     let valuation = summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());
     let kpi_holdings: Vec<KpiHolding> = views
         .iter()

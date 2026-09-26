@@ -1,6 +1,4 @@
 //! 資産管理の一覧・評価・構成比・KPI の純粋ロジック。
-//!
-//! 金額の入出力は f64 とし、評価損益の加減算は Decimal で行う。
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
@@ -282,6 +280,23 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
 pub struct SummaryOverride {
     pub total_purchase_amount: Decimal,
     pub total_market_value: Decimal,
+}
+
+impl SummaryOverride {
+    pub fn sum(items: impl IntoIterator<Item = (Decimal, Decimal)>) -> Option<Self> {
+        items.into_iter().try_fold(
+            Self {
+                total_purchase_amount: Decimal::ZERO,
+                total_market_value: Decimal::ZERO,
+            },
+            |total, (market, purchase)| {
+                Some(Self {
+                    total_purchase_amount: total.total_purchase_amount.checked_add(purchase)?,
+                    total_market_value: total.total_market_value.checked_add(market)?,
+                })
+            },
+        )
+    }
 }
 
 /// 評価損益の集計。
@@ -784,6 +799,17 @@ mod tests {
         ];
         let summary = summarize_valuation(&items);
         assert_eq!(summary.amount, Some(0.4));
+
+        let totals = SummaryOverride::sum([
+            (dec!(1100.10), dec!(1000.05)),
+            (dec!(2200.20), dec!(2000.15)),
+        ])
+        .expect("totals fit in Decimal");
+        assert_eq!(
+            (totals.total_market_value, totals.total_purchase_amount),
+            (dec!(3300.30), dec!(3000.20))
+        );
+        assert!(SummaryOverride::sum([(Decimal::MAX, dec!(0)), (Decimal::MAX, dec!(0))]).is_none());
 
         let summary = summarize_valuation(&[]);
         assert_eq!(summary.amount, Some(0.0));
