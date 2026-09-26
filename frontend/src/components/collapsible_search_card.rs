@@ -116,7 +116,7 @@ pub fn CollapsibleSearchCard(
                     </button>
                     <button
                         type="button"
-                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700"
+                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 max-sm:h-11 max-sm:w-11"
                         on:click=move |_| toggle()
                         aria-hidden="true"
                         tabindex="-1"

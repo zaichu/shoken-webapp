@@ -43,7 +43,7 @@ npx playwright test --config playwright.vercel.config.ts
 - 読み込み中・失敗・CSV 結果は `role="status"`/`role="alert"` と `aria-live` で伝え、操作中は `aria-busy` を付ける
 - `prefers-reduced-motion` ではアニメーションを止める(`style/input.css` のメディアクエリ)
 - マイナスは `-` の符号と赤の両方で表す(色だけにしない)。文字色は AA コントラストを満たすものだけ使う
-- 直せない違反は除外リストに Issue 番号付きで載せる(今は #1070 のスマホ 44px 未満)
+- 直せない違反は除外リストに Issue 番号付きで載せる(今はなし)
 
 ## CSS
 

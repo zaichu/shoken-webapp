@@ -601,24 +601,7 @@ interface TargetExclusion {
   match: (t: TargetOffender) => boolean;
 }
 
-const TARGET_EXCLUSIONS: TargetExclusion[] = [
-  { issue: 1070, mobileOnly: true, match: (t) => t.tag === 'A' && t.name === '証' },
-  {
-    issue: 1070,
-    mobileOnly: true,
-    match: (t) => t.tag === 'A' && t.cls.includes('stock-link-button'),
-  },
-  {
-    issue: 1070,
-    mobileOnly: true,
-    match: (t) => t.tag === 'A' && t.name.endsWith('（新しいタブで開く）'),
-  },
-  {
-    issue: 1070,
-    mobileOnly: true,
-    match: (t) => t.testid === 'receipt-summary-compact-toggle',
-  },
-];
+const TARGET_EXCLUSIONS: TargetExclusion[] = [];
 
 function targetExcluded(t: TargetOffender, mobile: boolean): number | null {
   const hit = TARGET_EXCLUSIONS.find((e) => (mobile || !e.mobileOnly) && e.match(t));

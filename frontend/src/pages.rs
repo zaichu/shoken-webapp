@@ -336,7 +336,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                             </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
                         </div>
-                        <span class="code-chip">
+                        <span class="code-badge">
                             {code.clone()}
                         </span>
                     </div>
@@ -374,7 +374,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
 #[component]
 fn StockInfoLinks(code: String) -> impl IntoView {
     view! {
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div class="grid grid-cols-1 min-[375px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {STOCK_LINKS
                 .iter()
                 .map(|(name, template)| {
