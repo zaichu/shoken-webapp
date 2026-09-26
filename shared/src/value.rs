@@ -88,6 +88,21 @@ impl FromStr for SecurityCode {
     }
 }
 
+/// レスポンスの JSON を読むときは、DB からのデコードと同じく検証せずに包む。
+/// 旧仕様で保存された値(例: `7203-1`)が1件あっても一覧全体を読めなくしないため
+pub mod unchecked {
+    use super::{Account, SecurityCode};
+    use serde::{Deserialize, Deserializer};
+
+    pub fn security_code<'de, D: Deserializer<'de>>(d: D) -> Result<SecurityCode, D::Error> {
+        String::deserialize(d).map(SecurityCode)
+    }
+
+    pub fn account<'de, D: Deserializer<'de>>(d: D) -> Result<Account, D::Error> {
+        String::deserialize(d).map(Account)
+    }
+}
+
 /// 口座名の検証失敗（1〜100文字以外）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidAccount;

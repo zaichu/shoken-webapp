@@ -86,6 +86,7 @@ impl validator::Validate for DividendPerShareBatchRequest {
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct DividendPerShareItem {
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::security_code")]
     pub security_code: SecurityCode,
     pub dividend_per_share: Option<f64>,
     /// ok / zero / pending / error

@@ -29,9 +29,11 @@ pub struct DomesticStock {
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::security_code")]
     pub security_code: SecurityCode,
     pub security_name: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
     pub account: Account,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
@@ -87,6 +89,7 @@ pub struct Dividend {
     pub settlement_date: NaiveDate,
     pub product: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
     pub account: Account,
     // 配当の銘柄コードは空文字を許容する既存仕様のため String のまま
     pub security_code: String,
@@ -139,6 +142,7 @@ pub struct Mutualfund {
     pub fund_name: String,
     pub dividends: Option<String>,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
     pub account: Account,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
@@ -190,6 +194,7 @@ pub struct AssetBalance {
     #[serde(default, skip_serializing)]
     pub user_id: UserId,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::security_code")]
     pub security_code: SecurityCode,
     pub security_name: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
