@@ -319,7 +319,6 @@ mod tests {
             "発行した確認は同じセッション・期限内で受理されること"
         );
 
-        // TTL=600秒の境界: 599秒前は受理、601秒前は拒否
         let just_valid = issue_account_delete_confirmation(&session, now - 599).unwrap();
         assert!(
             verify_account_delete_confirmation(&just_valid, &session, now),
