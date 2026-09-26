@@ -3,7 +3,7 @@ mod home;
 mod login;
 mod not_found;
 mod receipts;
-mod search;
+mod stock_search;
 
 use crate::components::ui::{
     current_path, Alert, Loading, PageHeader, SiteFooter, SiteHeader, Spinner,
@@ -16,7 +16,7 @@ use leptos::prelude::*;
 use login::LoginPage;
 use not_found::NotFoundPage;
 use receipts::ReceiptsPage;
-use search::use_stock_search;
+use stock_search::use_stock_search;
 
 const BASE_TITLE: &str = "証券Web";
 
@@ -155,14 +155,16 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn SearchPage() -> impl IntoView {
-    let search = use_stock_search();
-    let loading = search.search.pending();
-    let has_invalid = search.has_invalid_code_param;
+    let stock_search = use_stock_search();
+    let loading = stock_search.search.pending();
+    let has_invalid = stock_search.has_invalid_code_param;
 
     let on_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
-        if !loading.get_untracked() && !search.stock_code.get_untracked().is_empty() {
-            search.search.dispatch(search.stock_code.get_untracked());
+        if !loading.get_untracked() && !stock_search.stock_code.get_untracked().is_empty() {
+            stock_search
+                .search
+                .dispatch(stock_search.stock_code.get_untracked());
         }
     };
 
@@ -174,7 +176,7 @@ fn SearchPage() -> impl IntoView {
                 description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
             />
             <SearchForm
-                stock_code=search.stock_code
+                stock_code=stock_search.stock_code
                 loading=loading.into()
                 on_submit=on_submit
             />
@@ -182,8 +184,8 @@ fn SearchPage() -> impl IntoView {
                 <Alert variant="warning">"不正な銘柄コードが指定されています。"</Alert>
             </Show>
             {move || {
-                let data = search.stock_data();
-                let error = search.error_message();
+                let data = stock_search.stock_data();
+                let error = stock_search.error_message();
                 let is_loading = loading.get();
                 if let Some(message) = error {
                     view! {
