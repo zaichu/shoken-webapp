@@ -42,7 +42,7 @@ pub async fn google_auth(
         .url();
 
     // state を Cookie に保存（短い有効期限）
-    let is_secure = is_secure_environment();
+    let is_secure = config::is_secure_cookie();
     let state_cookie = Cookie::build(("oauth_state", csrf_token.secret().to_string()))
         .path("/")
         .http_only(true)
@@ -85,17 +85,11 @@ pub async fn google_callback(
 ### 環境判定
 
 ```rust
-/// 本番環境（HTTPS）かどうかを判定
-fn is_secure_environment() -> bool {
-    // 明示的なフラグを優先
-    if let Ok(secure) = std::env::var("SECURE_COOKIE") {
-        return secure == "true" || secure == "1";
-    }
-    // BACKEND_URL のスキームで判定
-    std::env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
-}
+// config::is_secure_cookie() を使う（独自の環境判定を実装しない）
+// 本番判定は fail-safe: RUST_ENV / APP_ENV の設定値がすべて開発用の値
+// （local / dev / development / test）のときだけ非本番。
+// 未設定・不明値は本番扱い。本番では SECURE_COOKIE の値に関わらず true。
+let is_secure = config::is_secure_cookie();
 ```
 
 ### Cookie 属性
@@ -124,7 +118,7 @@ fn is_secure_environment() -> bool {
 - [ ] `HttpOnly` が true
 - [ ] 本番環境で `Secure` が true
 - [ ] 本番環境で `SameSite=None`（クロスオリジン時）
-- [ ] `is_secure_environment()` を使用（BACKEND_URL 有無だけで判定しない）
+- [ ] `config::is_secure_cookie()` を使用（独自の環境判定や `BACKEND_URL` 依存の判定を実装しない）
 
 ### セッション管理
 - [ ] セッション ID は UUID（推測困難）
@@ -150,16 +144,16 @@ pub struct AuthCallbackQuery {
 }
 ```
 
-### 2. BACKEND_URL の有無だけで本番判定
+### 2. BACKEND_URL で本番判定
 
 ```rust
-// NG: ローカルで BACKEND_URL=http://localhost:3001 設定時に Secure=true になる
-let is_production = std::env::var("BACKEND_URL").is_ok();
-
-// OK: スキームを見る、または明示フラグを使う
+// NG: BACKEND_URL の有無やスキームで本番判定（設定漏れで本番の保護が外れる）
 let is_secure = std::env::var("BACKEND_URL")
     .map(|url| url.starts_with("https://"))
     .unwrap_or(false);
+
+// OK: config::is_secure_cookie()（fail-safe: 未設定・不明値は本番扱い）
+let is_secure = config::is_secure_cookie();
 ```
 
 ### 3. state Cookie を削除し忘れ
@@ -183,8 +177,8 @@ let jar = jar.remove(Cookie::build(("oauth_state", "")).path("/").build());
 | `GOOGLE_CLIENT_SECRET` | OAuth クライアントシークレット | `GOCSPX-xxx` |
 | `BACKEND_URL` | バックエンド URL | `https://api.example.com` |
 | `FRONTEND_URL` | リダイレクト先 | `https://example.com` |
-| `SECURE_COOKIE` | Cookie の Secure 属性を明示制御 | `true` |
-| `RUST_ENV` / `APP_ENV` | 本番環境判定 | `production` |
+| `SECURE_COOKIE` | 非本番で Cookie の Secure 属性を有効化（本番では値に関わらず Secure） | `true` |
+| `RUST_ENV` / `APP_ENV` | 環境判定（開発用の値 `local`/`dev`/`development`/`test` 以外・未設定は本番扱い） | `development` |
 
 ## Google Cloud OAuth 設定
 
@@ -199,5 +193,6 @@ Authorized redirect URI は API バージョン付きのコールバックを登
 
 ## 参考ファイル
 
-- `backend/src/handlers/v1/auth.rs` - 認証ハンドラー
+- `backend/src/handlers/auth.rs` - 認証ハンドラー
 - `backend/src/extractors/auth.rs` - AuthenticatedUser エクストラクター
+- `backend/src/config/environment.rs` - `is_production_env` / `is_secure_cookie`（fail-safe 本番判定）

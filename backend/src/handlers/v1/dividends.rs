@@ -40,6 +40,7 @@ use axum::{
         (status = 200, description = "配当金の一覧を返す", body = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>),
         (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -64,6 +65,7 @@ pub async fn list(
     responses(
         (status = 200, description = "全ての配当金データを削除しました", body = MessageResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -88,6 +90,7 @@ pub async fn delete_all(
         (status = 200, description = "CSV のプレビューを返す", body = CsvPreviewResponse),
         (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -135,6 +138,7 @@ pub async fn import(
         (status = 200, description = "配当利回りの一覧を返す", body = DividendPerShareBatchResponse),
         (status = 400, description = "リクエストが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]

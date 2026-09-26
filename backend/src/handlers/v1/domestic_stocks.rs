@@ -38,6 +38,7 @@ use axum::{
         (status = 200, description = "国内株式取引の一覧を返す", body = PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>),
         (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -62,6 +63,7 @@ pub async fn list_transactions(
     responses(
         (status = 200, description = "全ての国内株式取引データを削除しました", body = MessageResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]
@@ -86,6 +88,7 @@ pub async fn delete_transactions(
         (status = 200, description = "CSV のプレビューを返す", body = CsvPreviewResponse),
         (status = 400, description = "CSV の形式が不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 429, description = "レート制限を超過", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
 )]

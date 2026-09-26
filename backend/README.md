@@ -48,12 +48,16 @@ JQUANTS_API_KEY=your-api-key
 
 # オプション
 PORT=3001                          # デフォルト: 3001
-BACKEND_URL=https://example.com    # 本番環境のURL（https://で始まる場合Secure Cookie有効）
+BACKEND_URL=https://example.com    # バックエンド自身のURL（OAuth リダイレクト等に使用）
 CORS_ORIGINS=http://localhost:8081 # 許可するフロントエンドのオリジン
 
-# 本番環境判定（いずれかを設定）
-RUST_ENV=production                # または APP_ENV=production
-SECURE_COOKIE=true                 # Cookie の Secure 属性を明示的に制御
+# 環境判定（fail-safe）
+# RUST_ENV / APP_ENV の設定値がすべて開発用の値
+# （local / dev / development / test）のときだけ非本番扱い。
+# 未設定・不明値・本番値との混在はすべて本番扱いになる。
+# ローカル開発では APP_ENV=development を設定すること（.env.example に同梱済み）
+APP_ENV=development
+# SECURE_COOKIE=true                # 非本番で Secure Cookie を有効化する場合のみ。本番では値に関わらず Secure
 ```
 
 `.env` ファイルの準備（既存があればそのまま使用）:

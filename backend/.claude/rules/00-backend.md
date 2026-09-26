@@ -140,14 +140,20 @@ pub struct CreateUserRequest {
 
 ## CORS設定
 
-`tower-http` の CorsLayer を使用:
+`tower-http` の CorsLayer を使用（`config/cors.rs` の `build_cors_layer`）:
 
 ```rust
 let cors = CorsLayer::new()
-    .allow_origin(/* ... */)
-    .allow_methods([Method::GET, Method::POST])
-    .allow_headers(Any);
+    // 許可一覧との完全一致のみ通す
+    .allow_origin(AllowOrigin::predicate(|origin, _| /* 許可一覧と照合 */))
+    .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+    // CONTENT_TYPE / ACCEPT / ORIGIN / AUTHORIZATION のみ許可
+    .allow_headers(allowed_headers)
+    .allow_credentials(true)
+    .max_age(Duration::from_secs(3600));
 ```
+
+`allow_headers(Any)` やワイルドカード origin は使わない。本番では localhost オリジンを除外する。
 
 ## テスト
 
