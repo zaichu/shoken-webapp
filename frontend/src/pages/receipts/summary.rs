@@ -195,13 +195,20 @@ pub(crate) fn SummaryStrip(
                         }
                     }
                     aria-controls=mobile_body_id
-                    aria-label=primary
-                        .map(|(label, value, _)| format!("{label} {}", format_currency(value)))
-                        .unwrap_or_else(|| "集計情報".to_string())
+                    aria-label=primary.map_or_else(
+                        || "集計情報".to_string(),
+                        |(label, value, _)| format!("{label} {}", format_currency(value)),
+                    )
                     data-testid="receipt-summary-compact-toggle"
                 >
-                    {primary
-                        .map(|(label, value, tone)| {
+                    {primary.map_or_else(
+                        || {
+                            view! {
+                                <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                            }
+                                .into_any()
+                        },
+                        |(label, value, tone)| {
                             view! {
                                 <span class="flex min-w-0 items-baseline gap-2">
                                     <span class="shrink-0 text-xs font-medium text-slate-600">
@@ -219,13 +226,8 @@ pub(crate) fn SummaryStrip(
                                 </span>
                             }
                                 .into_any()
-                        })
-                        .unwrap_or_else(|| {
-                            view! {
-                                <span class="text-sm font-black text-slate-950">"集計情報"</span>
-                            }
-                                .into_any()
-                        })}
+                        },
+                    )}
                     <span class="flex shrink-0 items-center gap-1 text-slate-700">
                         <span class="text-xs font-semibold">
                             {move || if mobile_expanded.get() { "閉じる" } else { "開く" }}

@@ -27,14 +27,12 @@ pub(crate) fn HoldingCard(
     let average_price = item.view.average_price;
     let dividend =
         Memo::new(move |_| holding_dividend(&code, shares, average_price, &dividends.get()));
-    let percentage_text = item
-        .percentage
-        .map(|percentage| format_fixed_percent(percentage, 1))
-        .unwrap_or("-".to_string());
-    let bar_width = item
-        .percentage
-        .map(|percentage| format!("{}%", percentage.min(100.0)))
-        .unwrap_or("NaN%".to_string());
+    let percentage_text = item.percentage.map_or("-".to_string(), |percentage| {
+        format_fixed_percent(percentage, 1)
+    });
+    let bar_width = item.percentage.map_or("NaN%".to_string(), |percentage| {
+        format!("{}%", percentage.min(100.0))
+    });
     let dividend_class = move |present: bool| {
         if present {
             "mt-0.5 truncate text-[12px] font-semibold text-emerald-600"
@@ -169,10 +167,9 @@ pub(crate) fn HoldingValuationCard(
             }
         },
     };
-    let composition = item
-        .percentage
-        .map(|percentage| format_fixed_percent(percentage, 1))
-        .unwrap_or("—".to_string());
+    let composition = item.percentage.map_or("—".to_string(), |percentage| {
+        format_fixed_percent(percentage, 1)
+    });
     view! {
         <div class="rounded-lg border border-slate-950/10 bg-white shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
             <button

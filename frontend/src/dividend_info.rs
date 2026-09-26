@@ -56,8 +56,7 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map(format_currency)
-            .unwrap_or_else(|| "---".to_string())
+            .map_or_else(|| "---".to_string(), format_currency)
     }
 }
 
@@ -201,22 +200,20 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     let per_share = move || store.per_share.get();
     let loading = move || store.per_share_loading.get();
 
-    let investment = move || asset().map(|a| investment_amount(&a)).unwrap_or(0.0);
+    let investment = move || asset().map_or(0.0, |a| investment_amount(&a));
     let gross = totals.total_dividends_before_tax.to_f64().unwrap_or(0.0);
     let net = totals.total_net_amount_received.to_f64().unwrap_or(0.0);
     let gross_rate = move || dividend_rate(gross, investment());
     let net_rate = move || dividend_rate(net, investment());
 
     let average_price_text = move || {
-        asset()
-            .map(|a| format_currency(a.average_purchase_price))
-            .unwrap_or_else(|| "---".to_string())
+        asset().map_or_else(
+            || "---".to_string(),
+            |a| format_currency(a.average_purchase_price),
+        )
     };
-    let shares_text = move || {
-        asset()
-            .map(|a| format_number(a.shares, 2))
-            .unwrap_or_else(|| "---".to_string())
-    };
+    let shares_text =
+        move || asset().map_or_else(|| "---".to_string(), |a| format_number(a.shares, 2));
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {

@@ -67,8 +67,7 @@ pub(crate) fn table_groups(
             let security_key = |row: &Dividend| {
                 latest
                     .get(row.security_code.as_str())
-                    .map(|r| r.security_name.clone())
-                    .unwrap_or_else(|| row.security_name.clone())
+                    .map_or_else(|| row.security_name.clone(), |r| r.security_name.clone())
             };
             let rules = [
                 GroupKeyRule {

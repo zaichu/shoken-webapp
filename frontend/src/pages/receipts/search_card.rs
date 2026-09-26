@@ -1,8 +1,7 @@
 use super::pickers::{DatePeriod, SecurityDropdown, ToggleCategory, YearDropdown};
 use crate::components::collapsible_search_card::{is_narrow_viewport, CollapsibleSearchCard};
-use crate::receipts::csv::CsvPreviewRow;
 use crate::receipts::filter::{search_categories, DateSegment, ReceiptSearch, SearchKey};
-use crate::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
+use crate::receipts::{ReceiptItem, ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use leptos::prelude::*;
 
 #[component]
@@ -14,11 +13,9 @@ pub(crate) fn ReceiptsSearchCard(
     let search = store.search;
     let display_store = store.clone();
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
-        Some(preview) if !preview.rows.is_empty() => preview
-            .rows
-            .iter()
-            .map(CsvPreviewRow::to_receipt_item)
-            .collect(),
+        Some(preview) if !preview.rows.is_empty() => {
+            preview.rows.into_iter().map(ReceiptItem::from).collect()
+        }
         _ => data.rows.clone(),
     });
     let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));

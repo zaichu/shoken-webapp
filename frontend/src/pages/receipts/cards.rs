@@ -109,8 +109,7 @@ pub(crate) fn card_detail_value(index: usize, cells: &[ReceiptCell]) -> CardDeta
                 .as_deref()
                 .map(crate::receipts_domain::normalize_security_code)
                 .filter(|code| !code.is_empty())
-                .map(|code| format!("{display}({code})"))
-                .unwrap_or_else(|| display.clone());
+                .map_or_else(|| display.clone(), |code| format!("{display}({code})"));
             CardDetailValue::CopyName { display, copy }
         }
         _ => {

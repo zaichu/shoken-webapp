@@ -21,7 +21,7 @@ impl ReceiptsTab {
         ReceiptsTab::MutualFund,
     ];
 
-    pub fn label(&self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "配当金",
             ReceiptsTab::DomesticStock => "国内株式",
@@ -29,7 +29,7 @@ impl ReceiptsTab {
         }
     }
 
-    pub(crate) fn list_path(&self) -> &'static str {
+    pub(crate) fn list_path(self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividends",
             ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-transactions",
@@ -37,7 +37,7 @@ impl ReceiptsTab {
         }
     }
 
-    pub(crate) fn preview_path(&self) -> &'static str {
+    pub(crate) fn preview_path(self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-import-validations",
             ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-import-validations",
@@ -45,7 +45,7 @@ impl ReceiptsTab {
         }
     }
 
-    pub(crate) fn import_path(&self) -> &'static str {
+    pub(crate) fn import_path(self) -> &'static str {
         match self {
             ReceiptsTab::Dividend => "/api/v1/dividend-imports",
             ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-imports",

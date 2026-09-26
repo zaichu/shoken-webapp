@@ -38,8 +38,7 @@ fn trap_focus(event: &web_sys::KeyboardEvent) {
         .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
     let in_trap = active
         .as_ref()
-        .map(|active| focusables.iter().any(|item| same_element(item, active)))
-        .unwrap_or(false);
+        .is_some_and(|active| focusables.iter().any(|item| same_element(item, active)));
     if !in_trap {
         // dialog 自体にフォーカスがある等、トラップ対象外の場合: Shift+Tab は末尾、Tab は先頭へ
         event.prevent_default();
