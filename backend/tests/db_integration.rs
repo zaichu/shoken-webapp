@@ -932,7 +932,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert!(remaining.is_none());
 }
 
-/// 段階的移行中の互換性: 平文のみの旧セッションが backfill・フォールバックの両経路で有効で、
+/// 平文のみの旧セッションが backfill・フォールバックの両経路で有効で、
 /// 新版発行セッションは旧版の平文照合でも解決できること。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]

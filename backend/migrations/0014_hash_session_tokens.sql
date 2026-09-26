@@ -1,6 +1,5 @@
--- 段階的移行の第1段: 既存行の id はそのまま残し、token_hash を NULL 可で追加して埋める。
--- ローリングデプロイ中も旧版が id で照合・発行できるよう、平文の列は消さず NOT NULL も付けない。
--- 平文の削除と token_hash の必須化は、全インスタンスが新版になった後の migration で行う。
+-- ローリングデプロイ中も旧版が id で照合・発行できるよう、既存行の id は残し、
+-- token_hash を NULL 可で追加して埋める。
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS token_hash BYTEA;
 
 UPDATE sessions

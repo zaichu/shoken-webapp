@@ -258,7 +258,7 @@ fn hash_session_token(session_id: uuid::Uuid) -> Vec<u8> {
 }
 
 // ローリングデプロイ中は token_hash が NULL の旧版発行セッションが残り得るため、
-// ハッシュ照合に加えて平文 id でも照合する。平文フォールバックは後続の移行で除去する。
+// ハッシュ照合に加えて平文 id でも照合する。
 pub async fn select_user_by_session(
     pool: &PgPool,
     session_id: uuid::Uuid,
