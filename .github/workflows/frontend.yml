@@ -29,6 +29,7 @@ jobs:
           filters: |
             frontend:
               - "frontend/**"
+              - "shared/**"
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
 

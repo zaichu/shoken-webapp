@@ -9,7 +9,7 @@ description: |
 
 ## 重要: 本番デプロイの経路
 
-- backend: `main` へのマージ(`backend/**` 変更)で `deploy-backend.yml` が自動デプロイ
+- backend: `main` へのマージ(`backend/**`・`shared/**` 変更)で `deploy-backend.yml` が自動デプロイ
 - frontend: PR や `main` への push では自動デプロイしない(Vercel の Git 連携ビルドは `vercel-ignore-build.sh` で常にスキップ)。本番反映は `main` に対する `deploy-frontend.yml` の workflow_dispatch か、Vercel CLI の手動実行のみ
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
@@ -22,8 +22,11 @@ description: |
 - **手動デプロイは不要**
 
 ### 手動デプロイ（緊急時のみ）
+
+`fly.toml` はリポジトリルートに置く（backend の Docker build context が `shared/` を含むルートのため）。リポジトリルートで実行する:
+
 ```bash
-cd backend && flyctl deploy --remote-only
+flyctl deploy --remote-only
 ```
 
 ### ログ確認
@@ -68,7 +71,7 @@ vercel deploy --prebuilt --prod
 ### Fly.io
 ```bash
 flyctl releases list -a shoken-backend
-flyctl deploy --image <previous-image>
+flyctl deploy -a shoken-backend --image <previous-image>
 ```
 
 ### Vercel

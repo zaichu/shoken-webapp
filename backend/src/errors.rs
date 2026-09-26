@@ -6,12 +6,12 @@ use axum::{
 use oauth2::{
     basic::BasicErrorResponseType, url::ParseError, RequestTokenError, StandardErrorResponse,
 };
-use serde::{Deserialize, Serialize};
 use std::env;
 use thiserror::Error;
-use utoipa::ToSchema;
 
 use crate::config::is_production_env;
+
+pub use shared::error::{ErrorDetails, ErrorResponse};
 
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
@@ -40,19 +40,6 @@ pub enum ApiError {
     RateLimitError(String),
     #[error("Serde JSON error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ErrorResponse {
-    pub error: ErrorDetails,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ErrorDetails {
-    pub code: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<String>,
 }
 
 /// `ErrorDetails` を生成する唯一のコンストラクタ

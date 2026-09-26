@@ -1,4 +1,4 @@
-use crate::csv_flow::row_error_text;
+use crate::csv_flow::{row_error_text, CsvUploadResponseExt};
 use crate::dto::CsvUploadResponse;
 use leptos::prelude::*;
 

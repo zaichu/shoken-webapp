@@ -48,6 +48,20 @@ updates:
       - "dependencies"
       - "frontend"
 
+  # Cargo（共有クレート）
+  - package-ecosystem: "cargo"
+    directory: "/shared"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      shared-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

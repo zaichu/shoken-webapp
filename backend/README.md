@@ -184,7 +184,6 @@ backend/
 │   └── state.rs         # アプリケーション状態
 ├── migrations/          # SQLxマイグレーション
 ├── Cargo.toml
-├── Dockerfile
-├── fly.toml             # Fly.io設定
-└── Makefile
+├── Dockerfile           # ビルドコンテキストはリポジトリルート（../shared を参照するため）
+└── Makefile             # fly.toml はリポジトリルートに配置
 ```

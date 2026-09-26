@@ -173,16 +173,23 @@ impl<R> CsvTabState<R> {
     }
 }
 
-impl CsvUploadResponse {
-    pub fn inserted_text(&self) -> String {
+// 共有クレートの型に固有メソッドを生やせないため、表示用文字列の組み立ては拡張トレイトで提供する
+pub trait CsvUploadResponseExt {
+    fn inserted_text(&self) -> String;
+    fn skipped_text(&self) -> Option<String>;
+    fn error_count_text(&self) -> Option<String>;
+}
+
+impl CsvUploadResponseExt for CsvUploadResponse {
+    fn inserted_text(&self) -> String {
         format!("{}件反映", self.inserted)
     }
 
-    pub fn skipped_text(&self) -> Option<String> {
+    fn skipped_text(&self) -> Option<String> {
         (self.skipped > 0).then(|| format!("{}件スキップ", self.skipped))
     }
 
-    pub fn error_count_text(&self) -> Option<String> {
+    fn error_count_text(&self) -> Option<String> {
         (!self.errors.is_empty()).then(|| format!("{}件エラー", self.errors.len()))
     }
 }

@@ -1,0 +1,16 @@
+.git
+frontend
+docs
+.claude
+.agents
+.codex
+.githooks
+claude-review-ops-plugin
+.github
+scripts
+**/target
+**/node_modules
+**/test-results
+**/playwright-report
+**/mutants.out
+measure-wasm.mjs

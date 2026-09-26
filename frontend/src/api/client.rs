@@ -103,16 +103,6 @@ impl fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-#[derive(serde::Deserialize)]
-struct ServerErrorBody {
-    error: ServerErrorDetails,
-}
-
-#[derive(serde::Deserialize)]
-struct ServerErrorDetails {
-    message: Option<String>,
-}
-
 enum RequestBody {
     None,
     Json(String),
@@ -250,8 +240,13 @@ impl ApiClient {
                 .text()
                 .await
                 .ok()
-                .and_then(|text| serde_json::from_str::<ServerErrorBody>(&text).ok())
-                .and_then(|body| body.error.message);
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|body| {
+                    body.get("error")?
+                        .get("message")?
+                        .as_str()
+                        .map(str::to_string)
+                });
             return Err(ApiError::Http {
                 status,
                 server_message,
