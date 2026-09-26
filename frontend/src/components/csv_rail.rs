@@ -111,7 +111,7 @@ pub fn CsvActionRail(
                                 type="button"
                                 class=PRIMARY_BUTTON_CLASS
                                 disabled=move || save_disabled.get()
-                                aria-disabled=move || save_disabled.get()
+                                aria-disabled=move || save_disabled.get().to_string()
                                 on:click=move |_| on_save()
                             >
                                 {move || save_label.get()}
@@ -130,7 +130,7 @@ pub fn CsvActionRail(
                                 type="button"
                                 class=DELETE_BUTTON_CLASS
                                 disabled=move || delete_disabled.get()
-                                aria-disabled=move || delete_disabled.get()
+                                aria-disabled=move || delete_disabled.get().to_string()
                                 on:click=move |_| on_delete_request()
                             >
                                 {move || delete_label.get()}
@@ -175,7 +175,7 @@ fn CsvFileInput(
         if disabled.get() {
             "flex min-h-20 items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors pointer-events-none opacity-65"
         } else {
-            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors hover:border-slate-400 hover:bg-slate-100"
+            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors hover:border-slate-400 hover:bg-slate-100 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-slate-950"
         }
     };
     view! {
@@ -211,7 +211,7 @@ fn CsvFileInput(
                 data-testid="csv-file-input"
                 type="file"
                 accept=".csv"
-                class="hidden"
+                class="sr-only"
                 on:change=on_change
                 disabled=move || disabled.get()
                 aria-label="CSVファイルを選択"

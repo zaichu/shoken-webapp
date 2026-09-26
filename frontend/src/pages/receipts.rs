@@ -60,19 +60,33 @@ pub fn ReceiptsPage() -> impl IntoView {
         <div
             class="mt-0"
             aria-busy=move || {
-                busy.auth_loading()
+                if busy.auth_loading()
                     || busy.any_tab_fetching()
                     || ReceiptsTab::ALL.iter().any(|tab| {
                         let state = busy.csv_state(*tab);
                         state.saving || state.deleting
-                    })
+                    }) {
+                    "true"
+                } else {
+                    "false"
+                }
             }
         >
             <div data-testid="receipts-workspace">
                 {move || {
                     let workspace = panels_store.clone();
                     if panels_loading.get() {
-                        view! { <ListSkeleton /> }.into_any()
+                        let slug = TAB_IDS[workspace.active_tab.get() as usize];
+                        view! {
+                            <div
+                                id={format!("tabpanel-{slug}")}
+                                role="tabpanel"
+                                aria-labelledby={format!("tab-{slug}")}
+                            >
+                                <ListSkeleton />
+                            </div>
+                        }
+                            .into_any()
                     } else {
                         view! {
                             {ReceiptsTab::ALL

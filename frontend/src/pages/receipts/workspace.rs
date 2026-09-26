@@ -98,7 +98,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                                     <p>
                                         <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
                                         {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
-                                        <span class="ml-2 text-xs text-secondary">"（保存モード: 追加）"</span>
+                                        <span class="ml-2 text-xs">"（保存モード: 追加）"</span>
                                     </p>
                                     {has_errors.then(|| {
                                         view! {
