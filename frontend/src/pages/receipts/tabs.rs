@@ -1,6 +1,6 @@
 use super::workspace::ReceiptWorkspace;
 use super::TAB_IDS;
-use crate::components::ui::Loading;
+use crate::components::ui::{ListSkeleton, Loading};
 use crate::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -121,7 +121,11 @@ pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView
 }
 
 #[component]
-pub(crate) fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub(crate) fn TabPanel(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    #[prop(optional)] loading: bool,
+) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let hidden = store.clone();
     let rendered = store.clone();
@@ -136,6 +140,9 @@ pub(crate) fn TabPanel(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView 
                 let store = rendered.clone();
                 if store.active_tab.get() != tab {
                     return ().into_any();
+                }
+                if loading {
+                    return view! { <ListSkeleton /> }.into_any();
                 }
                 if !store.is_authenticated() {
                     return view! { <Loading /> }.into_any();

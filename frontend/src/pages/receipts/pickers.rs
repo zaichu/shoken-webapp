@@ -17,7 +17,7 @@ pub(crate) fn SecurityDropdown(
             view! {
                 <div>
                     <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
-                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.securities.clone())
                         on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
                         <option value="">"全て表示"</option>
@@ -45,7 +45,7 @@ pub(crate) fn YearDropdown(
                     <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
                     <select
                         id="years-search"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.years.clone())
                         on:change=move |event| search.update(|state| {
                             state.select_quick(SearchKey::Years, event_target_value(&event))

@@ -26,7 +26,7 @@ pub(crate) fn AssetBalanceSearchCard(
                         </label>
                         <select
                             id="securities-search"
-                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
                             prop:value=move || query.get()
                             on:change=move |event| query.set(event_target_value(&event))
                         >

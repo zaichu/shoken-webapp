@@ -9,7 +9,7 @@ mod tabs;
 mod workspace;
 
 use crate::components::confirm_modal::ConfirmDeleteModal;
-use crate::components::ui::{ListSkeleton, PageHeader};
+use crate::components::ui::PageHeader;
 use crate::receipts::{use_receipts_data, ReceiptsTab, TabState};
 use crate::session::use_session;
 use leptos::prelude::*;
@@ -75,50 +75,16 @@ pub fn ReceiptsPage() -> impl IntoView {
             <div data-testid="receipts-workspace">
                 {move || {
                     let workspace = panels_store.clone();
-                    if panels_loading.get() {
-                        let loading = workspace.clone();
-                        // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
-                        // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
-                        view! {
-                            {ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    let slug = TAB_IDS[tab as usize];
-                                    let hidden = loading.clone();
-                                    let content = loading.clone();
-                                    view! {
-                                        <div
-                                            id={format!("tabpanel-{slug}")}
-                                            role="tabpanel"
-                                            aria-labelledby={format!("tab-{slug}")}
-                                            hidden=move || hidden.active_tab.get() != tab
-                                        >
-                                            {move || {
-                                                if content.active_tab.get() == tab {
-                                                    view! { <ListSkeleton /> }.into_any()
-                                                } else {
-                                                    ().into_any()
-                                                }
-                                            }}
-                                        </div>
-                                    }
-                                })
-                                .collect_view()}
-                        }
-                            .into_any()
-                    } else {
-                        view! {
-                            {ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <TabPanel store=workspace.clone() tab=tab /> }
-                                })
-                                .collect_view()}
-                        }
-                            .into_any()
-                    }
+                    // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
+                    // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
+                    let loading = panels_loading.get();
+                    ReceiptsTab::ALL
+                        .iter()
+                        .copied()
+                        .map(|tab| {
+                            view! { <TabPanel store=workspace.clone() tab=tab loading=loading /> }
+                        })
+                        .collect_view()
                 }}
             </div>
             {move || {

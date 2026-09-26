@@ -146,10 +146,11 @@ interface AxeExclusion {
   issue: number;
   rule: string;
   target: string;
+  labelPrefix: string;
 }
 
 const AXE_EXCLUSIONS: AxeExclusion[] = [
-  { issue: 1066, rule: 'color-contrast', target: 'text-emerald-600' },
+  { issue: 1066, rule: 'color-contrast', target: 'text-emerald-600', labelPrefix: '資産' },
 ];
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -164,7 +165,10 @@ async function scanAxe(page: Page, label: string) {
         const target = (n.target ?? []).join(' ');
         const html = n.html ?? '';
         const hit = AXE_EXCLUSIONS.find(
-          (e) => e.rule === v.id && (target.includes(e.target) || html.includes(e.target)),
+          (e) =>
+            e.rule === v.id &&
+            label.startsWith(e.labelPrefix) &&
+            (target.includes(e.target) || html.includes(e.target)),
         );
         if (hit) {
           applied.push(`#${hit.issue} ${v.id} ${target}`);
@@ -299,9 +303,9 @@ test('取引明細の3タブに moderate 以上の WCAG 違反がない', async 
   await mockEmptyLists(page);
   await mockReceiptsData(page);
   const tabs = [
-    { label: '配当金', id: 'tab-dividend' },
-    { label: '国内株式', id: 'tab-domesticstock' },
-    { label: '投資信託', id: 'tab-mutualfund' },
+    { label: '配当金', id: 'tab-dividend', visible: DIVIDEND_ROW.security_name },
+    { label: '国内株式', id: 'tab-domesticstock', visible: NEGATIVE_DOMESTIC_ROW.security_name },
+    { label: '投資信託', id: 'tab-mutualfund', visible: 'データがありません' },
   ];
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
@@ -309,7 +313,14 @@ test('取引明細の3タブに moderate 以上の WCAG 違反がない', async 
     await page.waitForLoadState('networkidle');
     for (const tab of tabs) {
       await page.click(`button[role="tab"][id="${tab.id}"]`);
-      await page.waitForTimeout(400);
+      await expect(page.locator(`#${tab.id}`)).toHaveAttribute('aria-selected', 'true');
+      await expect(
+        page
+          .locator(`#tabpanel-${tab.id.replace('tab-', '')}`)
+          .getByText(tab.visible)
+          .filter({ visible: true })
+          .first(),
+      ).toBeVisible({ timeout: 10000 });
       await scanAxe(page, `取引明細${tab.label}(${name})`);
     }
   }
@@ -582,31 +593,36 @@ interface TargetOffender {
 
 interface TargetExclusion {
   issue: number;
+  mobileOnly: boolean;
   match: (t: TargetOffender) => boolean;
 }
 
 const TARGET_EXCLUSIONS: TargetExclusion[] = [
-  { issue: 1070, match: (t) => t.tag === 'A' && t.name === '証' },
+  { issue: 1070, mobileOnly: true, match: (t) => t.tag === 'A' && t.name === '証' },
   {
     issue: 1070,
+    mobileOnly: true,
     match: (t) => t.tag === 'A' && t.cls.includes('stock-link-button'),
   },
   {
     issue: 1071,
+    mobileOnly: true,
     match: (t) => t.cls.includes('home-nav-chip') || t.cls.includes('home-link-button'),
   },
   {
     issue: 1070,
+    mobileOnly: true,
     match: (t) => t.tag === 'A' && t.name.endsWith('（新しいタブで開く）'),
   },
   {
     issue: 1070,
+    mobileOnly: true,
     match: (t) => t.testid === 'receipt-summary-compact-toggle',
   },
 ];
 
-function targetExcluded(t: TargetOffender): number | null {
-  const hit = TARGET_EXCLUSIONS.find((e) => e.match(t));
+function targetExcluded(t: TargetOffender, mobile: boolean): number | null {
+  const hit = TARGET_EXCLUSIONS.find((e) => (mobile || !e.mobileOnly) && e.match(t));
   return hit ? hit.issue : null;
 }
 
@@ -635,9 +651,16 @@ async function collectSmallTargets(page: Page, min: number): Promise<TargetOffen
       if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
         continue;
       }
-      const rect = h.getBoundingClientRect();
+      let rect = h.getBoundingClientRect();
       if (rect.width < 2 && rect.height < 2) {
-        continue;
+        const label = h instanceof HTMLInputElement ? h.labels?.[0] : undefined;
+        if (!label) {
+          continue;
+        }
+        rect = label.getBoundingClientRect();
+        if (rect.width < 2 && rect.height < 2) {
+          continue;
+        }
       }
       if (rect.width < threshold || rect.height < threshold) {
         const cls = h.className && typeof h.className === 'string' ? h.className : '';
@@ -661,20 +684,45 @@ async function assertTargetSize(
   min: number,
 ) {
   await page.setViewportSize(size);
+  const mobile = min >= 44;
   const routes: Array<[string, () => Promise<void>]> = [
     ['ホーム', () => page.goto('/')],
     ['銘柄検索', () => page.goto('/search')],
-    ['資産管理', () => page.goto('/assetbalance')],
-    ['取引明細', () => page.goto('/receipts')],
+    [
+      '資産管理',
+      async () => {
+        await page.goto('/assetbalance');
+        await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({ timeout: 10000 });
+      },
+    ],
+    [
+      '取引明細(配当金)',
+      async () => {
+        await page.goto('/receipts');
+        await expect(
+          page.getByText(DIVIDEND_ROW.security_name).filter({ visible: true }).first(),
+        ).toBeVisible({ timeout: 10000 });
+      },
+    ],
+    [
+      '取引明細(国内株式)',
+      async () => {
+        await page.click('button[role="tab"][id="tab-domesticstock"]');
+        await expect(page.locator('#tab-domesticstock')).toHaveAttribute('aria-selected', 'true');
+        await expect(
+          page.getByText(NEGATIVE_DOMESTIC_ROW.security_name).filter({ visible: true }).first(),
+        ).toBeVisible({ timeout: 10000 });
+      },
+    ],
   ];
   for (const [label, go] of routes) {
     await go();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
     const small = await collectSmallTargets(page, min);
-    const remaining = small.filter((t) => targetExcluded(t) === null);
+    const remaining = small.filter((t) => targetExcluded(t, mobile) === null);
     for (const t of small) {
-      const issue = targetExcluded(t);
+      const issue = targetExcluded(t, mobile);
       if (issue !== null) {
         console.log(`[除外] ${label}: #${issue} ${t.tag} "${t.name}" ${t.w}x${t.h}`);
       }
@@ -692,6 +740,7 @@ test('スマホで操作要素が44px以上ある(除外はIssue付き)', async 
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
+  await mockAssetData(page);
   await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
   await assertTargetSize(page, MOBILE, 44);
 });
@@ -700,6 +749,7 @@ test('PC幅で操作要素が24px以上ある(除外はIssue付き)', async ({ p
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
+  await mockAssetData(page);
   await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
   await assertTargetSize(page, PC, 24);
 });
