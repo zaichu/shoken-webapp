@@ -23,14 +23,16 @@ pub fn server_addr() -> String {
 }
 
 /// CookieをSecureで発行するか判定
-/// SECURE_COOKIE=true/1 の明示指定、または本番環境(APP_ENV/RUST_ENV=production)の場合に true。
+/// 本番環境(APP_ENV/RUST_ENV=production)では SECURE_COOKIE の値に関わらず true。
+/// 非本番では SECURE_COOKIE=true/1 の明示指定のみ true。
 /// BACKEND_URL のスキームには依存しない
 pub fn is_secure_cookie() -> bool {
-    if let Ok(secure) = env::var("SECURE_COOKIE") {
-        return secure == "true" || secure == "1";
+    if is_production_env() {
+        return true;
     }
-
-    is_production_env()
+    env::var("SECURE_COOKIE")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
 }
 
 /// CSV アップロード系ルートへのレート制限（リクエスト/秒）。0 は無制限
@@ -138,18 +140,21 @@ mod tests {
     fn test_is_secure_cookie() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (SECURE_COOKIE, APP_ENV, BACKEND_URL, expected)
-        // BACKEND_URL のスキームは判定に使わない(SECURE_COOKIE 明示または APP_ENV=production のみ)
+        // 本番では SECURE_COOKIE の値に関わらず Secure。非本番では明示指定のみ有効。
+        // BACKEND_URL のスキームは判定に使わない
         type CookieCase = (
             Option<&'static str>,
             Option<&'static str>,
             Option<&'static str>,
             bool,
         );
-        let cases: [CookieCase; 6] = [
+        let cases: [CookieCase; 7] = [
             (Some("true"), None, None, true),
             (Some("1"), None, None, true),
             (Some("false"), None, None, false),
             (None, Some("production"), None, true),
+            // 本番で SECURE_COOKIE=false を明示しても無効にできない(fail-safe)
+            (Some("false"), Some("production"), None, true),
             (None, None, Some("https://api.example.com"), false),
             (None, None, None, false),
         ];
