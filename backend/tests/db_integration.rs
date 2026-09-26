@@ -880,7 +880,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert_eq!(updated.email, "updated@example.com");
 
     // 期限切れセッションはユーザー解決しない
-    sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
+    sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
         .bind(session2)
         .execute(&pool)
         .await
@@ -895,7 +895,7 @@ async fn auth_session_upsert_rotate_and_delete() {
         .is_none());
 
     // delete_session で明示失効
-    sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE id = $1")
+    sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
         .bind(session2)
         .execute(&pool)
         .await

@@ -9,6 +9,7 @@ use openidconnect::{
     },
     IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
 };
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::{
     sync::OnceLock,
@@ -252,6 +253,10 @@ pub async fn upsert_user_and_rotate_session(
     Ok(session_token)
 }
 
+fn hash_session_token(session_id: uuid::Uuid) -> Vec<u8> {
+    Sha256::digest(session_id.to_string().as_bytes()).to_vec()
+}
+
 pub async fn select_user_by_session(
     pool: &PgPool,
     session_id: uuid::Uuid,
@@ -261,10 +266,10 @@ pub async fn select_user_by_session(
         SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
         FROM users u
         INNER JOIN sessions s ON u.id = s.user_id
-        WHERE s.id = $1 AND s.expires_at > NOW()
+        WHERE s.token_hash = $1 AND s.expires_at > NOW()
         "#,
     )
-    .bind(session_id)
+    .bind(hash_session_token(session_id))
     .fetch_optional(pool)
     .await
 }
@@ -276,37 +281,38 @@ pub async fn select_user_id_by_session(
     let user_id: Option<(uuid::Uuid,)> = sqlx::query_as(
         r#"
         SELECT user_id FROM sessions
-        WHERE id = $1 AND expires_at > NOW()
+        WHERE token_hash = $1 AND expires_at > NOW()
         "#,
     )
-    .bind(session_id)
+    .bind(hash_session_token(session_id))
     .fetch_optional(pool)
     .await?;
 
     Ok(user_id.map(|record| record.0))
 }
 
-/// 旧セッションの削除と新セッションの発行を1文でアトミックに行う。
+/// 旧セッションと期限切れセッションの削除、新セッションの発行を1文でアトミックに行う。
 /// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
 async fn rotate_session_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     user_id: uuid::Uuid,
 ) -> Result<String, sqlx::Error> {
-    let session_id: (uuid::Uuid,) = sqlx::query_as(
+    let session_id = uuid::Uuid::new_v4();
+    sqlx::query(
         r#"
         WITH deleted AS (
-            DELETE FROM sessions WHERE user_id = $1
+            DELETE FROM sessions WHERE user_id = $1 OR expires_at <= NOW()
         )
-        INSERT INTO sessions (user_id)
-        VALUES ($1)
-        RETURNING id
+        INSERT INTO sessions (user_id, token_hash)
+        VALUES ($1, $2)
         "#,
     )
     .bind(user_id)
-    .fetch_one(&mut **tx)
+    .bind(hash_session_token(session_id))
+    .execute(&mut **tx)
     .await?;
 
-    Ok(session_id.0.to_string())
+    Ok(session_id.to_string())
 }
 
 async fn upsert_user_in_tx(
@@ -334,8 +340,8 @@ async fn upsert_user_in_tx(
 }
 
 pub async fn delete_session(pool: &PgPool, session_id: uuid::Uuid) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM sessions WHERE id = $1")
-        .bind(session_id)
+    sqlx::query("DELETE FROM sessions WHERE token_hash = $1")
+        .bind(hash_session_token(session_id))
         .execute(pool)
         .await?;
 
