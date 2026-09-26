@@ -61,8 +61,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=Check%2C%20build%2C%20and%20E2E" \
-            --jq '[.check_runs[] | .conclusion] | if length == 0 then "missing" elif any(. == "success") then "success" elif all(. == "skipped") then "skipped" else (.[0] // "pending") end')
-          if [[ "${conclusion}" != "success" && "${conclusion}" != "skipped" ]]; then
+            --jq '.check_runs | sort_by(.started_at) | last | if . == null then "missing" else (.conclusion // "pending") end')
+          if [[ "${conclusion}" == "missing" ]]; then
+            echo "::error::このコミットでは Frontend CI が実行されていません(Dependabot の自動マージなど)。main で Frontend CI を workflow_dispatch で実行し、成功してからデプロイをやり直してください"
+            exit 1
+          fi
+          if [[ "${conclusion}" != "success" ]]; then
             echo "::error::このコミットの Check, build, and E2E が成功していません(${conclusion})。デプロイしません"
             exit 1
           fi
