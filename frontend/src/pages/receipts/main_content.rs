@@ -110,6 +110,7 @@ pub(crate) fn ReceiptsMainContent(
                 if !search_security_code(&dividends, &query).is_empty() {
                     let totals = calculate_dividends(&dividends);
                     return view! {
+                        {preview_active.get().then(|| view! { <PreviewBanner /> })}
                         <DividendSummarySection
                             store=info
                             totals=totals
@@ -137,8 +138,10 @@ pub(crate) fn ReceiptsMainContent(
                 &query,
                 preview_active.get(),
             );
+            let preview = preview_active.get();
             view! {
-                <SummaryStrip items=header expanded=store.mobile_summary_expanded />
+                {preview.then(|| view! { <PreviewBanner /> })}
+                <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
                 <ReceiptTable
                     tab=tab
                     rows=rows
@@ -148,5 +151,19 @@ pub(crate) fn ReceiptsMainContent(
                 />
             }.into_any()
         }}
+    }
+}
+
+#[component]
+fn PreviewBanner() -> impl IntoView {
+    view! {
+        <div
+            role="status"
+            data-testid="receipt-preview-banner"
+            class="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+        >
+            <span class="font-bold">"プレビュー中(未保存)"</span>
+            <span class="ml-2">"表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"</span>
+        </div>
     }
 }
