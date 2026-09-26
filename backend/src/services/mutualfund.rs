@@ -354,7 +354,16 @@ mod tests {
     }
 
     #[test]
-    fn test_mutualfund_filter_from_params_accepts_valid_date_axis_values() {
+    fn test_mutualfund_filter_from_params() {
+        let mut params = MutualfundSearchQueryParams::default();
+        assert!(!params.should_include_summary());
+        assert!(!params.should_include_facets());
+
+        params.search.include_summary = Some(true);
+        params.search.include_facets = Some(true);
+        assert!(params.should_include_summary());
+        assert!(params.should_include_facets());
+
         let mut params = MutualfundSearchQueryParams::default();
         params.search.date = Some("2026-01-15".to_string());
         params.search.date_from = Some("2026-01-01".to_string());
@@ -391,10 +400,7 @@ mod tests {
                 NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
             ))
         );
-    }
 
-    #[test]
-    fn test_mutualfund_filter_from_params_rejects_invalid_date_axis_values() {
         type Apply = fn(&mut MutualfundSearchQueryParams);
         let cases: [(&str, Apply); 5] = [
             ("date", |p| p.search.date = Some("2026/01/15".to_string())),
@@ -423,7 +429,7 @@ mod tests {
     }
 
     #[test]
-    fn test_push_filters_combines_q_tokens_as_and_of_or_across_all_columns() {
+    fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = MutualfundSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
         let filter = MutualfundFilter::from_params(&params).expect("q のみなら検証を通過する");
@@ -438,10 +444,7 @@ mod tests {
         assert_eq!(sql.matches("account ILIKE").count(), 2);
         assert_eq!(sql.matches("fund_name ILIKE").count(), 2);
         assert_eq!(sql.matches("dividends ILIKE").count(), 2);
-    }
 
-    #[test]
-    fn test_push_filters_binds_mutualfund_specific_field_filters() {
         let params = MutualfundSearchQueryParams {
             account: Some("特定".to_string()),
             fund_name: Some("eMAXIS Slim".to_string()),

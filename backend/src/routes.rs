@@ -325,6 +325,7 @@ mod tests {
                 Method::POST,
                 "/api/v1/dividend-per-share-estimates",
             ),
+            (handlers::v1::auth_routes(), Method::GET, "/api/v1/session"),
             (
                 handlers::v1::auth_routes(),
                 Method::DELETE,

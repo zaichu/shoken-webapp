@@ -9,6 +9,7 @@ pub mod models;
 pub mod openapi;
 pub mod routes;
 pub mod services;
+pub mod startup;
 pub mod state;
 #[cfg(test)]
 pub mod test_env;
