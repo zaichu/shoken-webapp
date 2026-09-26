@@ -432,6 +432,16 @@ impl ReceiptsStore {
         }
     }
 
+    pub fn reload(&self, tab: ReceiptsTab) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        if self.refresh_tab_list(generation, tab) {
+            self.fetch.dispatch((generation, tab));
+        }
+    }
+
     // 再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
     pub(crate) fn refresh_tab_list(&self, generation: u64, tab: ReceiptsTab) -> bool {
         let mut refresh = false;

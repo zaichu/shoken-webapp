@@ -445,6 +445,51 @@ pub fn Loading() -> impl IntoView {
     view! { <p role="status">"読み込み中..."</p> }
 }
 
+const RETRY_BUTTON: &str = "inline-flex min-h-11 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2";
+
+#[component]
+pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl IntoView {
+    view! {
+        <div class="panel-card p-4" data-testid="list-load-error">
+            <div
+                class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                role="alert"
+            >
+                <strong>"エラー:"</strong>
+                " "
+                {message}
+            </div>
+            <div class="mt-4">
+                <button type="button" class=RETRY_BUTTON on:click=move |_| on_retry()>
+                    "再読み込み"
+                </button>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+pub fn ListSkeleton() -> impl IntoView {
+    view! {
+        <div class="panel-card p-4" role="status" data-testid="list-skeleton">
+            <span class="sr-only">"データを読み込んでいます..."</span>
+            <div class="grid animate-pulse gap-4" aria-hidden="true">
+                {(0..3)
+                    .map(|_| {
+                        view! {
+                            <div class="grid gap-2 rounded-lg border border-slate-200 p-4">
+                                <div class="h-4 w-1/3 rounded bg-slate-200"></div>
+                                <div class="h-6 w-1/2 rounded bg-slate-200"></div>
+                                <div class="h-4 w-2/3 rounded bg-slate-200"></div>
+                            </div>
+                        }
+                    })
+                    .collect_view()}
+            </div>
+        </div>
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
