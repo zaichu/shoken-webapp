@@ -9,6 +9,7 @@ use openidconnect::{
     },
     IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
 };
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::{
     sync::OnceLock,
@@ -252,6 +253,12 @@ pub async fn upsert_user_and_rotate_session(
     Ok(session_token)
 }
 
+fn hash_session_token(session_id: uuid::Uuid) -> Vec<u8> {
+    Sha256::digest(session_id.to_string().as_bytes()).to_vec()
+}
+
+// ローリングデプロイ中は token_hash が NULL の旧版発行セッションが残り得るため、
+// ハッシュ照合に加えて平文 id でも照合する。
 pub async fn select_user_by_session(
     pool: &PgPool,
     session_id: uuid::Uuid,
@@ -261,9 +268,11 @@ pub async fn select_user_by_session(
         SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
         FROM users u
         INNER JOIN sessions s ON u.id = s.user_id
-        WHERE s.id = $1 AND s.expires_at > NOW()
+        WHERE (s.token_hash = $1 OR (s.token_hash IS NULL AND s.id = $2))
+          AND s.expires_at > NOW()
         "#,
     )
+    .bind(hash_session_token(session_id))
     .bind(session_id)
     .fetch_optional(pool)
     .await
@@ -276,9 +285,11 @@ pub async fn select_user_id_by_session(
     let user_id: Option<(uuid::Uuid,)> = sqlx::query_as(
         r#"
         SELECT user_id FROM sessions
-        WHERE id = $1 AND expires_at > NOW()
+        WHERE (token_hash = $1 OR (token_hash IS NULL AND id = $2))
+          AND expires_at > NOW()
         "#,
     )
+    .bind(hash_session_token(session_id))
     .bind(session_id)
     .fetch_optional(pool)
     .await?;
@@ -286,27 +297,33 @@ pub async fn select_user_id_by_session(
     Ok(user_id.map(|record| record.0))
 }
 
-/// 旧セッションの削除と新セッションの発行を1文でアトミックに行う。
+/// 旧セッションと期限切れセッションの削除、新セッションの発行を1文でアトミックに行う。
 /// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
 async fn rotate_session_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     user_id: uuid::Uuid,
 ) -> Result<String, sqlx::Error> {
-    let session_id: (uuid::Uuid,) = sqlx::query_as(
+    // デプロイ中の旧版が平文 id で照合できるよう、id と token_hash の両方に書く。
+    let session_id = uuid::Uuid::new_v4();
+    sqlx::query(
         r#"
-        WITH deleted AS (
-            DELETE FROM sessions WHERE user_id = $1
+        WITH expired AS (
+            SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
+        ),
+        deleted AS (
+            DELETE FROM sessions WHERE user_id = $1 OR id IN (SELECT id FROM expired)
         )
-        INSERT INTO sessions (user_id)
-        VALUES ($1)
-        RETURNING id
+        INSERT INTO sessions (id, user_id, token_hash)
+        VALUES ($2, $1, $3)
         "#,
     )
     .bind(user_id)
-    .fetch_one(&mut **tx)
+    .bind(session_id)
+    .bind(hash_session_token(session_id))
+    .execute(&mut **tx)
     .await?;
 
-    Ok(session_id.0.to_string())
+    Ok(session_id.to_string())
 }
 
 async fn upsert_user_in_tx(
@@ -334,7 +351,8 @@ async fn upsert_user_in_tx(
 }
 
 pub async fn delete_session(pool: &PgPool, session_id: uuid::Uuid) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM sessions WHERE id = $1")
+    sqlx::query("DELETE FROM sessions WHERE token_hash = $1 OR (token_hash IS NULL AND id = $2)")
+        .bind(hash_session_token(session_id))
         .bind(session_id)
         .execute(pool)
         .await?;
@@ -424,6 +442,21 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             "email": "oidc@example.com", "name": "テスト利用者", "nonce": "test-nonce",
             "picture": "https://example.com/avatar.png"
         })
+    }
+
+    #[test]
+    fn test_hash_session_token_matches_canonical_uuid_digest() {
+        let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        // SQL の sha256(convert_to(id::text, 'UTF8')) と同じ、
+        // 小文字ハイフン付き正規形文字列への SHA-256 の固定値
+        let digest_hex: String = hash_session_token(id)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(
+            digest_hex,
+            "a3a9e1ed9732cab28868127be00f1ce921acaefdd5c3b23a6e9e0072bd9c1a34"
+        );
     }
 
     #[test]
