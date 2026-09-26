@@ -65,7 +65,6 @@ jobs:
     needs: changes
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cargo == 'true'
     runs-on: ubuntu-latest
-    # 除外する advisory は各 working-directory の .cargo/audit.toml を正本とし、ここには書かない
     permissions:
       contents: read
       checks: write

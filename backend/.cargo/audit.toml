@@ -1,7 +1,5 @@
-# cargo audit の除外設定の正本。ローカルの `cargo audit` と CI の両方がこのファイルを読む
 [advisories]
 ignore = [
-    # rsa（openidconnect 経由）の Marvin Attack。Google の公開 JWKS による署名検証のみで、
-    # 秘密鍵での署名・復号は行わないため影響しない。上流に修正版がない。
+    # rsa の Marvin Attack。公開鍵での署名検証にしか使わないため影響しない
     "RUSTSEC-2023-0071",
 ]
