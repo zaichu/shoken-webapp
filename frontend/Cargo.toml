@@ -5,13 +5,13 @@ edition = "2021"
 
 [dependencies]
 leptos = { version = "0.8", features = ["csr"] }
-gloo-net = { version = "0.6", features = ["http"] }
-gloo-timers = { version = "0.3", features = ["futures"] }
+gloo-net = { version = "0.7", features = ["http"] }
+gloo-timers = { version = "0.4", features = ["futures"] }
 http = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 rust_decimal = { version = "1", default-features = false, features = ["serde-float", "serde-arbitrary-precision"] }
-urlencoding = "1"
+urlencoding = "2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
@@ -28,7 +28,7 @@ time = "0.3.51"
 
 # proptest 由来の getrandom が wasm32 で backend 未選択になるため wasm_js を有効化する。
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 
 [profile.release]
