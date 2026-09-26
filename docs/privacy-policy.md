@@ -70,7 +70,7 @@ Google アカウントでログインする際、Google が提供する以下の
 ## 8. セキュリティ
 
 - 通信は HTTPS で暗号化されます
-- セッション Cookie は `HttpOnly` および `Secure` 属性で保護されます
+- 本番環境では、セッション Cookie は `HttpOnly` および `Secure` 属性で保護されます
 - セキュリティ上の問題を発見した場合は [SECURITY.md](../SECURITY.md) の手順で報告してください
 
 ## 9. プライバシーポリシーの変更
