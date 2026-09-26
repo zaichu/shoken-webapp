@@ -199,7 +199,20 @@ pub(crate) fn HoldingValuationCard(
                 <span class="mt-2 flex items-center justify-between gap-2">
                     <span class="shrink-0 text-xs font-medium text-slate-500">"評価損益"</span>
                     <span class="flex min-w-0 items-center gap-1">
-                        <span class="truncate text-sm font-bold tabular-nums text-slate-800">
+                        <span
+                            class=format!(
+                                "truncate text-sm font-bold tabular-nums {}",
+                                if valuation.amount.is_some_and(|amount| amount < 0.0) {
+                                    "text-red-800"
+                                } else {
+                                    "text-slate-800"
+                                },
+                            )
+                            data-negative=valuation
+                                .amount
+                                .is_some_and(|amount| amount < 0.0)
+                                .then_some("true")
+                        >
                             {profit_loss}
                         </span>
                         <span aria-hidden="true" class="shrink-0 text-xs text-slate-400">

@@ -52,11 +52,17 @@ fn percentage_formatter_formats_values() {
     assert_eq!(format_fixed_percent(10.0, 1), "10.0%");
     assert_eq!(format_fixed_percent(8.256880733944955, 1), "8.3%");
     assert_eq!(format_fixed_percent(60.0, 1), "60.0%");
-    assert_eq!(format_valuation_amount(Some(60000.0)), "+¥ 60,000");
+    assert_eq!(format_valuation_amount(Some(60000.0)), "¥ 60,000");
     assert_eq!(format_valuation_amount(Some(-10000.0)), "¥ -10,000");
+    assert_eq!(format_valuation_amount(Some(0.0)), "¥ 0");
+    assert_eq!(
+        format_valuation_amount(Some(3632999.9999999995)),
+        "¥ 3,633,000"
+    );
     assert_eq!(format_valuation_amount(None), "—");
-    assert_eq!(format_valuation_rate(Some(10.0), 1), "+10.0%");
+    assert_eq!(format_valuation_rate(Some(10.0), 1), "10.0%");
     assert_eq!(format_valuation_rate(Some(-10.0), 1), "-10.0%");
+    assert_eq!(format_valuation_rate(Some(0.0), 1), "0.0%");
     assert_eq!(format_valuation_rate(None, 1), "—");
 }
 
@@ -222,8 +228,8 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             })
             .collect();
         let summary_override = filtered.summary.as_ref().map(|summary| SummaryOverride {
-            total_purchase_amount: serde_json::json!(dec_to_f64(&summary.total_purchase_amount,)),
-            total_market_value: serde_json::json!(dec_to_f64(&summary.total_market_value)),
+            total_purchase_amount: summary.total_purchase_amount,
+            total_market_value: summary.total_market_value,
         });
         let valuation =
             summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());

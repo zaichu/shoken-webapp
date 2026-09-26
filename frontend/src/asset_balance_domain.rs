@@ -1,6 +1,6 @@
 //! 資産管理の一覧・評価・構成比・KPI の純粋ロジック。
 //!
-//! 金額計算は f64 とし、表示時の丸めは既存データとの互換性を保つ。
+//! 金額の入出力は f64 とし、評価損益の加減算は Decimal で行う。
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
@@ -31,6 +31,10 @@ pub fn to_finite_amount(value: &Value) -> Option<f64> {
         }
         _ => None,
     }
+}
+
+fn to_decimal_amount(value: &Value) -> Option<Decimal> {
+    to_finite_amount(value).and_then(|amount| Decimal::from_str_exact(&amount.to_string()).ok())
 }
 
 /// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
@@ -153,20 +157,20 @@ pub struct ValuationResult {
 }
 
 pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
-    let market = to_finite_amount(market_value);
-    let purchase = to_finite_amount(purchase_amount);
+    let market = to_decimal_amount(market_value);
+    let purchase = to_decimal_amount(purchase_amount);
     match (market, purchase) {
         (Some(market), Some(purchase)) => {
             let amount = market - purchase;
-            if purchase == 0.0 {
+            if purchase.is_zero() {
                 ValuationResult {
-                    amount: Some(amount),
+                    amount: amount.to_f64(),
                     rate: None,
                 }
             } else {
                 ValuationResult {
-                    amount: Some(amount),
-                    rate: Some(amount / purchase * 100.0),
+                    amount: amount.to_f64(),
+                    rate: (amount / purchase * Decimal::ONE_HUNDRED).to_f64(),
                 }
             }
         }
@@ -195,11 +199,11 @@ pub struct ValuationSummary {
 }
 
 pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
-    let mut total_market = 0.0;
-    let mut total_purchase = 0.0;
+    let mut total_market = Decimal::ZERO;
+    let mut total_purchase = Decimal::ZERO;
     for item in items {
-        let market = to_finite_amount(&item.market_value);
-        let purchase = to_finite_amount(&item.total_purchase_amount);
+        let market = to_decimal_amount(&item.market_value);
+        let purchase = to_decimal_amount(&item.total_purchase_amount);
         match (market, purchase) {
             (Some(market), Some(purchase)) => {
                 total_market += market;
@@ -216,18 +220,18 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
         }
     }
     let amount = total_market - total_purchase;
-    if total_purchase == 0.0 {
+    if total_purchase.is_zero() {
         ValuationSummary {
-            market_value: Some(total_market),
-            amount: Some(amount),
+            market_value: total_market.to_f64(),
+            amount: amount.to_f64(),
             rate: None,
             incomplete: false,
         }
     } else {
         ValuationSummary {
-            market_value: Some(total_market),
-            amount: Some(amount),
-            rate: Some(amount / total_purchase * 100.0),
+            market_value: total_market.to_f64(),
+            amount: amount.to_f64(),
+            rate: (amount / total_purchase * Decimal::ONE_HUNDRED).to_f64(),
             incomplete: false,
         }
     }
@@ -236,8 +240,8 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
 /// API summary による上書き入力。
 #[derive(Clone, Debug)]
 pub struct SummaryOverride {
-    pub total_purchase_amount: Value,
-    pub total_market_value: Value,
+    pub total_purchase_amount: Decimal,
+    pub total_market_value: Decimal,
 }
 
 /// 評価損益の集計。
@@ -251,28 +255,26 @@ pub fn summarize_valuation_with_summary(
     let Some(summary) = summary else {
         return detail;
     };
-    let purchase = to_finite_amount(&summary.total_purchase_amount);
-    let market = to_finite_amount(&summary.total_market_value);
-    match (purchase, market) {
-        (Some(purchase), Some(market)) if !detail.incomplete => {
-            let amount = market - purchase;
-            ValuationSummary {
-                market_value: Some(market),
-                amount: Some(amount),
-                rate: if purchase == 0.0 {
-                    None
-                } else {
-                    Some(amount / purchase * 100.0)
-                },
-                incomplete: false,
-            }
-        }
-        _ => ValuationSummary {
+    if detail.incomplete {
+        return ValuationSummary {
             market_value: None,
             amount: None,
             rate: None,
             incomplete: true,
+        };
+    }
+    let purchase = summary.total_purchase_amount;
+    let market = summary.total_market_value;
+    let amount = market - purchase;
+    ValuationSummary {
+        market_value: market.to_f64(),
+        amount: amount.to_f64(),
+        rate: if purchase.is_zero() {
+            None
+        } else {
+            (amount / purchase * Decimal::ONE_HUNDRED).to_f64()
         },
+        incomplete: false,
     }
 }
 
@@ -407,6 +409,7 @@ pub use shared::normalize::{normalize_display_name, normalize_security_code};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
     use serde::Deserialize;
     use serde_json::json;
 
@@ -676,8 +679,8 @@ mod tests {
         assert!(!no_summary.incomplete);
 
         let small = SummaryOverride {
-            total_purchase_amount: json!(1000),
-            total_market_value: json!(1100),
+            total_purchase_amount: dec!(1000),
+            total_market_value: dec!(1100),
         };
         let prioritized = summarize_valuation_with_summary(&summary_items(), Some(&small));
         assert_eq!(prioritized.market_value, Some(1100.0));
@@ -686,8 +689,8 @@ mod tests {
         assert!(!prioritized.incomplete);
 
         let large = SummaryOverride {
-            total_purchase_amount: json!(1234567),
-            total_market_value: json!(1300000),
+            total_purchase_amount: dec!(1234567),
+            total_market_value: dec!(1300000),
         };
         let reviewed = summarize_valuation_with_summary(&summary_items(), Some(&large));
         assert_eq!(reviewed.market_value, Some(1300000.0));
@@ -697,28 +700,53 @@ mod tests {
     }
 
     #[test]
-    fn summary_override_missing_or_incomplete_detail_is_incomplete() {
-        let null_market = SummaryOverride {
-            total_purchase_amount: json!(1234567),
-            total_market_value: Value::Null,
-        };
-        let missing = summarize_valuation_with_summary(&summary_items(), Some(&null_market));
-        assert!(missing.incomplete);
-        assert_eq!(missing.market_value, None);
-        assert_eq!(missing.amount, None);
-        assert_eq!(missing.rate, None);
-
+    fn summary_override_incomplete_detail_is_incomplete() {
         let incomplete_items = vec![ValuationItem {
             market_value: Value::Null,
             total_purchase_amount: json!(20),
         }];
         let large = SummaryOverride {
-            total_purchase_amount: json!(1234567),
-            total_market_value: json!(1300000),
+            total_purchase_amount: dec!(1234567),
+            total_market_value: dec!(1300000),
         };
         let propagated = summarize_valuation_with_summary(&incomplete_items, Some(&large));
         assert!(propagated.incomplete);
         assert_eq!(propagated.market_value, None);
+    }
+
+    #[test]
+    fn summarize_valuation_totals_are_exact() {
+        let items = vec![
+            ValuationItem {
+                market_value: json!(1100.10),
+                total_purchase_amount: json!(1000.05),
+            },
+            ValuationItem {
+                market_value: json!(2200.20),
+                total_purchase_amount: json!(2000.15),
+            },
+        ];
+        let summary = summarize_valuation(&items);
+        assert_eq!(summary.market_value, Some(3300.30));
+        assert_eq!(summary.amount, Some(300.10));
+        assert!(!summary.incomplete);
+
+        let items = vec![
+            ValuationItem {
+                market_value: json!(1000000.1),
+                total_purchase_amount: json!(999999.95),
+            },
+            ValuationItem {
+                market_value: json!(2000000.2),
+                total_purchase_amount: json!(1999999.95),
+            },
+        ];
+        let summary = summarize_valuation(&items);
+        assert_eq!(summary.amount, Some(0.4));
+
+        let summary = summarize_valuation(&[]);
+        assert_eq!(summary.amount, Some(0.0));
+        assert_eq!(summary.market_value, Some(0.0));
     }
 
     #[test]
@@ -958,11 +986,26 @@ mod tests {
             let result = calculate_valuation(&market_json, &purchase_json);
             match (market, purchase) {
                 (Some(m), Some(p)) => {
-                    proptest::prop_assert_eq!(result.amount, Some(m - p));
-                    if p == 0.0 {
-                        proptest::prop_assert_eq!(result.rate, None);
-                    } else {
-                        proptest::prop_assert_eq!(result.rate, Some((m - p) / p * 100.0));
+                    match (
+                        Decimal::from_str_exact(&m.to_string()),
+                        Decimal::from_str_exact(&p.to_string()),
+                    ) {
+                        (Ok(m_dec), Ok(p_dec)) => {
+                            let amount = m_dec - p_dec;
+                            proptest::prop_assert_eq!(result.amount, amount.to_f64());
+                            if p_dec.is_zero() {
+                                proptest::prop_assert_eq!(result.rate, None);
+                            } else {
+                                proptest::prop_assert_eq!(
+                                    result.rate,
+                                    (amount / p_dec * Decimal::ONE_HUNDRED).to_f64()
+                                );
+                            }
+                        }
+                        _ => {
+                            proptest::prop_assert_eq!(result.amount, None);
+                            proptest::prop_assert_eq!(result.rate, None);
+                        }
                     }
                 }
                 _ => {
