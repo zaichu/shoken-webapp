@@ -19,11 +19,19 @@ pub struct DomesticDailySummary {
     pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
+fn sum_rows<T, S: Default>(rows: &[T], mut add: impl FnMut(&mut S, &T)) -> S {
+    rows.iter().fold(S::default(), |mut total, row| {
+        add(&mut total, row);
+        total
+    })
+}
+
 /// 国内株式の日次集計（新しい日付順）。
 ///
 /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
 /// 特定口座合計がプラスの日だけ `floor(合計 * 税率)` を日次税額とする。
 /// backend の検索 summary SQL と同一の仕様。
+#[must_use]
 pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
     let mut groups: BTreeMap<_, (Decimal, Decimal)> = BTreeMap::new();
     for row in rows {
@@ -51,6 +59,7 @@ pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
 }
 
 /// 国内株式の検索条件全体の合計（日次集計の合算）。
+#[must_use]
 pub fn domestic_total(rows: &[DomesticStock]) -> DomesticStockSummary {
     domestic_daily(rows)
         .into_iter()
@@ -64,26 +73,23 @@ pub fn domestic_total(rows: &[DomesticStock]) -> DomesticStockSummary {
 }
 
 /// 配当金の検索条件全体の合計（行の単純合算。backend の summary SQL と同じ仕様）。
+#[must_use]
 pub fn dividend_totals(rows: &[Dividend]) -> DividendSummary {
-    rows.iter()
-        .fold(DividendSummary::default(), |mut total, row| {
-            total.total_dividends_before_tax += row.dividends_before_tax;
-            total.total_taxes += row.taxes;
-            total.total_net_amount_received += row.net_amount_received;
-            total
-        })
+    sum_rows(rows, |total: &mut DividendSummary, row| {
+        total.total_dividends_before_tax += row.dividends_before_tax;
+        total.total_taxes += row.taxes;
+        total.total_net_amount_received += row.net_amount_received;
+    })
 }
 
 /// 投資信託の検索条件全体の合計（行の単純合算。backend の summary SQL と同じ仕様）。
+#[must_use]
 pub fn mutualfund_totals(rows: &[Mutualfund]) -> MutualfundSummary {
-    rows.iter()
-        .fold(MutualfundSummary::default(), |mut total, row| {
-            total.total_realized_profit_and_loss += row.realized_profit_and_loss;
-            total.total_taxes += row.taxes;
-            total.total_realized_profit_and_loss_after_tax +=
-                row.realized_profit_and_loss_after_tax;
-            total
-        })
+    sum_rows(rows, |total: &mut MutualfundSummary, row| {
+        total.total_realized_profit_and_loss += row.realized_profit_and_loss;
+        total.total_taxes += row.taxes;
+        total.total_realized_profit_and_loss_after_tax += row.realized_profit_and_loss_after_tax;
+    })
 }
 
 #[cfg(test)]
