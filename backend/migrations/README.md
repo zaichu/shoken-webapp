@@ -14,6 +14,15 @@ SQLx migration の baseline 管理。
 | 0003 | `0003_domestic_stocks_search_indexes.sql` | 国内株式検索（account/security_code/security_name の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
 | 0004 | `0004_mutualfunds_search_indexes.sql` | 投資信託検索（account/fund_name/dividends の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
 | 0005 | `0005_asset_balances_search_indexes.sql` | 保有銘柄検索（security_code/security_name の絞り込み、security_code/id 順の一覧取得）向け index を追加 |
+| 0006 | `0006_free_text_search_trgm_indexes.sql` | dividends/domestic_stocks/mutualfunds のフリーワード検索向け GIN trgm index を追加 |
+| 0007 | `0007_drop_idx_dividends_user_id.sql` | 複合 index で代替できる dividends の user_id 単独 index を削除 |
+| 0008 | `0008_drop_idx_domestic_stocks_user_id.sql` | 複合 index で代替できる domestic_stocks の user_id 単独 index を削除 |
+| 0009 | `0009_drop_idx_mutualfunds_user_id.sql` | 複合 index で代替できる mutualfunds の user_id 単独 index を削除 |
+| 0010 | `0010_drop_idx_asset_balances_user_id.sql` | 複合 index で代替できる asset_balances の user_id 単独 index を削除 |
+| 0011 | `0011_drop_idx_asset_balances_user_security_code.sql` | 複合 index で代替できる asset_balances の (user_id, security_code) index を削除 |
+| 0012 | `0012_financial_statements_cache.sql` | 決算サマリー取得結果の DB バック TTL キャッシュテーブルを追加 |
+| 0013 | `0013_drop_financial_statements_cache.sql` | financial-statements 廃止に伴い 0012 のキャッシュテーブルを削除 |
+| 0014 | `0014_hash_session_tokens.sql` | sessions に token_hash を NULL 可で追加し既存行を backfill（段階的移行・平文は後続で除去） |
 
 ## 重要な注意
 
