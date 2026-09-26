@@ -9,7 +9,7 @@ mod tabs;
 mod workspace;
 
 use crate::components::confirm_modal::ConfirmDeleteModal;
-use crate::components::ui::{PageHeader, Spinner};
+use crate::components::ui::{ListSkeleton, PageHeader};
 use crate::receipts::{use_receipts_data, ReceiptsTab, TabState};
 use crate::session::use_session;
 use leptos::prelude::*;
@@ -72,15 +72,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                 {move || {
                     let workspace = panels_store.clone();
                     if panels_loading.get() {
-                        view! {
-                            <section class="px-5 py-4" role="status">
-                                <div class="flex items-center gap-2 text-slate-600">
-                                    <Spinner size="sm" class="" />
-                                    <p class="text-sm">"データを読み込んでいます..."</p>
-                                </div>
-                            </section>
-                        }
-                            .into_any()
+                        view! { <ListSkeleton /> }.into_any()
                     } else {
                         view! {
                             {ReceiptsTab::ALL

@@ -22,14 +22,14 @@ mod tests;
 use crate::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::asset_balance::search::clear_search_query;
 use crate::components::confirm_modal::ConfirmDeleteModal;
-use crate::components::ui::PageHeader;
+use crate::components::ui::{ListLoadError, ListSkeleton, PageHeader};
 use crate::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use csv::{resolve_asset_balance, AssetBalanceCsvStore};
 use csv_section::AssetBalanceCsvSection;
 use data::{load_asset_balances, BalanceSlot, DataOps};
 use leptos::prelude::*;
-use main_content::{AssetBalanceMainContent, CsvStatusMessage};
+use main_content::AssetBalanceMainContent;
 use rail::AssetBalanceRailExtras;
 
 #[component]
@@ -54,8 +54,22 @@ pub fn AssetBalancePage() -> impl IntoView {
     let rail_csv = csv_store.clone();
     let alert_ops = data_ops;
     let busy_ops = data_ops;
-    let alert_session = session;
     let csv_slot = csv_store.csv;
+    let reload = move || {
+        if session.user.get_untracked().is_none() {
+            return;
+        }
+        balances.set(None);
+        load_asset_balances(
+            session,
+            session.generation.get_untracked(),
+            balances,
+            dividends,
+            lookup,
+            csv_slot,
+            data_ops,
+        );
+    };
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
@@ -108,16 +122,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                     <div class="rail-panel">
                         <AssetBalanceCsvSection store=view_csv.clone() />
                         {move || {
-                            // 一覧取得エラーは CSV エラーより優先して同じ位置に出す
-                            let generation = alert_session.generation.get();
-                            balances
-                                .with(|slot| match slot {
-                                    Some((cached, Err(message))) if *cached == generation => {
-                                        Some(message.clone())
-                                    }
-                                    _ => None,
-                                })
-                                .or_else(|| alert_ops.with(|ops| ops.refresh_error.clone()))
+                            alert_ops
+                                .with(|ops| ops.refresh_error.clone())
                                 .or_else(|| alert_csv.csv_state().error)
                                 .map(|message| {
                                     view! {
@@ -162,15 +168,48 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {move || {
                         let generation = render_session.generation.get();
                         let state = view_csv.csv_state();
-                        match balances
-                            .with(|slot| resolve_asset_balance(generation, slot, &state))
-                        {
-                            None => {
+                        let list_error = balances.with(|slot| match slot {
+                            Some((cached, Err(message))) if *cached == generation => {
+                                Some(message.clone())
+                            }
+                            _ => None,
+                        });
+                        let resolved = balances
+                            .with(|slot| resolve_asset_balance(generation, slot, &state));
+                        match (resolved, list_error) {
+                            (None, _) => {
                                 show_all.set(false);
-                                view! { <CsvStatusMessage text="データを読み込んでいます..." /> }
+                                view! { <ListSkeleton /> }.into_any()
+                            }
+                            (Some(resolved), Some(message)) => {
+                                let preview = (state.previewing || !resolved.rows.is_empty())
+                                    .then(|| {
+                                        view! {
+                                            <div class="mt-4">
+                                                <AssetBalanceMainContent
+                                                    state=state
+                                                    rows=resolved.rows
+                                                    summary=resolved.summary
+                                                    has_csv_file=resolved.has_csv_file
+                                                    search_query=search_query
+                                                    dividends=dividends
+                                                    show_all=show_all
+                                                    lookup=lookup
+                                                    generation=generation
+                                                />
+                                            </div>
+                                        }
+                                    });
+                                if preview.is_none() {
+                                    show_all.set(false);
+                                }
+                                view! {
+                                    <ListLoadError message=message on_retry=reload />
+                                    {preview}
+                                }
                                     .into_any()
                             }
-                            Some(resolved) => {
+                            (Some(resolved), None) => {
                                 view! {
                                     <AssetBalanceMainContent
                                         state=state

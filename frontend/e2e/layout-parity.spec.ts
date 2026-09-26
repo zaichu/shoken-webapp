@@ -481,29 +481,22 @@ async function expectReceiptsErrorLayout(page: Page) {
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
   await expect(page.getByRole('alert')).toHaveCount(1);
-  await expect(rail.getByRole('alert')).toHaveText(
+  await expect(main.getByRole('alert')).toHaveText(
     /^エラー:\s*サーバーエラーが発生しました$/,
   );
   await expect(rail.getByTestId('search-card-compact')).toBeVisible();
-  const emptyCard = main.getByTestId('receipt-card');
-  await expect(emptyCard).toBeVisible();
-  await expect(emptyCard).toContainText('データがありません');
-  await expect(emptyCard).toContainText('配当金明細をCSVで追加してください');
+  await expect(main.getByTestId('receipt-card')).toHaveCount(0);
 }
 
 async function expectAssetBalanceErrorLayout(page: Page) {
   const rail = page.getByTestId('assetbalance-utility-rail');
   const main = page.getByTestId('assetbalance-main-stage');
   await expect(page.getByRole('alert')).toHaveCount(1);
-  const card = rail.locator('> div').first();
-  await expect(card.getByRole('alert')).toHaveText(
+  await expect(main.getByRole('alert')).toHaveText(
     /^エラー:\s*サーバーエラーが発生しました$/,
   );
   await expect(rail.getByText('AI総評プロンプト', { exact: true })).toBeVisible();
-  await expect(main).toContainText('資産管理データがありません');
-  await expect(main).toContainText(
-    'CSVファイルをインポートするか、データを登録してください。',
-  );
+  await expect(main).not.toContainText('資産管理データがありません');
 }
 
 async function expectSearchServerError(page: Page) {

@@ -1,7 +1,7 @@
 use super::workspace::ReceiptWorkspace;
 use super::TAB_IDS;
 use crate::components::ui::Loading;
-use crate::receipts::{ReceiptsStore, ReceiptsTab};
+use crate::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -111,7 +111,10 @@ pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView
                     )
                 }
             >
-                {move || counted_store.count(tab).to_string()}
+                {move || match counted_store.tab_state(tab) {
+                    TabState::Ready(data) => data.rows.len().to_string(),
+                    TabState::Loading | TabState::Failed(_) => "—".to_string(),
+                }}
             </span>
         </button>
     }

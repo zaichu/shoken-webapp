@@ -1,7 +1,7 @@
 use super::main_content::ReceiptsMainContent;
 use super::search_card::ReceiptsSearchCard;
 use crate::components::csv_rail::CsvActionRail;
-use crate::components::ui::{Loading, Spinner};
+use crate::components::ui::{ListLoadError, ListSkeleton, Spinner};
 use crate::csv_flow::row_error_text;
 use crate::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
@@ -40,8 +40,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 <div class="workspace-rail">
                     <ReceiptsCsvSection store=csv_store.clone() tab=tab />
                     {move || {
-                        let Some(message) = alert_store.rail_error(tab)
-                        else {
+                        let Some(message) = alert_store.csv_state(tab).error else {
                             return ().into_any();
                         };
                         view! {
@@ -159,18 +158,27 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
             </aside>
             <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
                 {move || match panel_state.get() {
-                    TabState::Loading => view! { <Loading /> }.into_any(),
+                    TabState::Loading => view! { <ListSkeleton /> }.into_any(),
                     TabState::Ready(data) => {
                         view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }
                             .into_any()
                     }
-                    TabState::Failed(_) => {
+                    TabState::Failed(message) => {
+                        let retry_store = main_store.clone();
+                        let preview = main_store.has_csv_preview(tab).then(|| {
+                            view! {
+                                <div class="mt-4">
+                                    <ReceiptsMainContent
+                                        store=main_store.clone()
+                                        tab=tab
+                                        data=empty_tab_data()
+                                    />
+                                </div>
+                            }
+                        });
                         view! {
-                            <ReceiptsMainContent
-                                store=main_store.clone()
-                                tab=tab
-                                data=empty_tab_data()
-                            />
+                            <ListLoadError message=message on_retry=move || retry_store.reload(tab) />
+                            {preview}
                         }
                             .into_any()
                     }

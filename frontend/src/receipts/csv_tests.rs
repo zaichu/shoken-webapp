@@ -178,7 +178,6 @@ fn upload_error_sets_react_message_and_keeps_file() {
         assert!(!state.saving);
         assert_eq!(state.file_name.as_deref(), Some("stocks.csv"));
         assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-        assert!(store.error().is_none());
     });
 }
 
@@ -415,106 +414,6 @@ fn save_csv_requires_selected_file_and_idle_state() {
             map.entry((generation, tab)).or_default().previewing = true;
         });
         assert!(store.try_begin_save(tab).is_none());
-    });
-}
-
-#[test]
-fn error_returns_list_fetch_errors_only() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let csv_error = HashMap::from([(
-            (generation, tab),
-            CsvTabState {
-                error: Some("リクエストが不正です".to_string()),
-                ..Default::default()
-            },
-        )]);
-        let store = test_store(
-            &session,
-            HashMap::from([(
-                (generation, ReceiptsTab::DomesticStock),
-                TabState::Failed("データ取得に失敗しました".to_string()),
-            )]),
-            csv_error,
-        );
-
-        assert_eq!(store.error().as_deref(), Some("データ取得に失敗しました"));
-
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    error: Some("リクエストが不正です".to_string()),
-                    ..Default::default()
-                },
-            )]),
-        );
-        assert!(store.error().is_none());
-    });
-}
-
-#[test]
-fn rail_error_prioritizes_selected_tab() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let selected = ReceiptsTab::MutualFund;
-        let csv_error = || {
-            HashMap::from([(
-                (generation, selected),
-                CsvTabState {
-                    error: Some("CSVの保存に失敗しました".to_string()),
-                    ..Default::default()
-                },
-            )])
-        };
-
-        let store = test_store(
-            &session,
-            HashMap::from([(
-                (generation, ReceiptsTab::Dividend),
-                TabState::Failed("配当の取得に失敗しました".to_string()),
-            )]),
-            csv_error(),
-        );
-        assert_eq!(
-            store.rail_error(selected).as_deref(),
-            Some("CSVの保存に失敗しました")
-        );
-
-        let store = test_store(
-            &session,
-            HashMap::from([(
-                (generation, selected),
-                TabState::Failed("投信の取得に失敗しました".to_string()),
-            )]),
-            csv_error(),
-        );
-        assert_eq!(
-            store.rail_error(selected).as_deref(),
-            Some("投信の取得に失敗しました")
-        );
-
-        let store = test_store(
-            &session,
-            HashMap::from([(
-                (generation, ReceiptsTab::Dividend),
-                TabState::Failed("配当の取得に失敗しました".to_string()),
-            )]),
-            HashMap::new(),
-        );
-        assert_eq!(
-            store.rail_error(selected).as_deref(),
-            Some("配当の取得に失敗しました")
-        );
     });
 }
 
