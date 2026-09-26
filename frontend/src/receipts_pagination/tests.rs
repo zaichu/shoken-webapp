@@ -58,17 +58,29 @@ fn natural_end_before_max_pages_is_not_truncated() {
 #[test]
 fn truncation_depends_on_last_page_fullness_and_total() {
     for (name, last_page, total, want_truncated, want_rows) in [
-        ("cap_reached_with_full_pages", rows(3..6), 100, true, 6),
-        ("one_row_over_the_cap", rows(3..6), 7, true, 6),
-        ("empty_last_page_at_cap", Vec::new(), 100, false, 3),
-        ("reaching_total_exactly_at_cap", rows(3..6), 6, false, 6),
-        ("short_last_page_at_cap", rows(3..5), 100, false, 5),
+        (
+            "cap_reached_with_full_pages",
+            rows(3..6),
+            100,
+            true,
+            rows(0..6),
+        ),
+        ("one_row_over_the_cap", rows(3..6), 7, true, rows(0..6)),
+        ("empty_last_page_at_cap", Vec::new(), 100, false, rows(0..3)),
+        (
+            "reaching_total_exactly_at_cap",
+            rows(3..6),
+            6,
+            false,
+            rows(0..6),
+        ),
+        ("short_last_page_at_cap", rows(3..5), 100, false, rows(0..5)),
     ] {
         let mut pages = PageCollector::new(3, 2);
         assert!(pages.push(rows(0..3), total), "{name}");
         assert!(!pages.push(last_page, total), "{name}");
         assert_eq!(pages.truncated(), want_truncated, "{name}");
-        assert_eq!(pages.into_rows().len(), want_rows, "{name}");
+        assert_eq!(pages.into_rows(), want_rows, "{name}");
     }
 }
 
