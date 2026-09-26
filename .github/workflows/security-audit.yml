@@ -11,6 +11,8 @@ on:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
       - "backend/audit.toml"
+      - "frontend/Cargo.toml"
+      - "frontend/Cargo.lock"
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - ".github/workflows/security-audit.yml"
@@ -20,6 +22,8 @@ on:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
       - "backend/audit.toml"
+      - "frontend/Cargo.toml"
+      - "frontend/Cargo.lock"
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - ".github/workflows/security-audit.yml"
@@ -45,6 +49,8 @@ jobs:
               - "backend/Cargo.toml"
               - "backend/Cargo.lock"
               - "backend/audit.toml"
+              - "frontend/Cargo.toml"
+              - "frontend/Cargo.lock"
               - ".github/workflows/security-audit.yml"
             npm:
               - "frontend/package.json"
@@ -63,7 +69,7 @@ jobs:
     steps:
       # SHA pin: actions/checkout@v7
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Run cargo audit
+      - name: Run cargo audit (backend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +81,15 @@ jobs:
           # perform RSA signing/decryption with a private key, so the attack does not apply. No patched version
           # exists yet upstream.
           ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0235,RUSTSEC-2023-0071
+      - name: Run cargo audit (frontend)
+        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: frontend
+          # RUSTSEC-2024-0436: paste is an unmaintained transitive proc-macro dependency (via leptos).
+          # RUSTSEC-2026-0173: proc-macro-error2 is unmaintained, reached only via leptos proc-macros.
+          # Neither is reachable from user input; both are compile-time only.
+          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0173
 
   npm-audit:
     name: npm audit (Node.js)
