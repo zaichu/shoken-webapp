@@ -45,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      checks: read
     defaults:
       run:
         working-directory: frontend
@@ -53,6 +54,23 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
+      # テストは PR と main の CI で済んでいるため回し直さず、そのコミットの CI の結果だけを確かめる
+      - name: Require passing CI on this commit
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=Check%2C%20build%2C%20and%20E2E" \
+            --jq '.check_runs | sort_by(.started_at) | last | if . == null then "missing" else (.conclusion // "pending") end')
+          if [[ "${conclusion}" == "missing" ]]; then
+            echo "::error::このコミットでは Frontend CI が実行されていません(Dependabot の自動マージなど)。main で Frontend CI を workflow_dispatch で実行し、成功してからデプロイをやり直してください"
+            exit 1
+          fi
+          if [[ "${conclusion}" != "success" ]]; then
+            echo "::error::このコミットの Check, build, and E2E が成功していません(${conclusion})。デプロイしません"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
 
