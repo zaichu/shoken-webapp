@@ -440,11 +440,16 @@ pub(crate) fn MobileCardGroup(
     if summary.is_empty() {
         return view! {
             <section data-testid="receipt-card-group">
-                <div class="flex min-h-[44px] items-center rounded-lg bg-slate-700 px-3 py-2">
-                    <span class="text-sm font-semibold text-white">{label}</span>
-                    <span class="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
-                        {format!("{count}件")}
-                    </span>
+                <div class="flex min-h-[44px] items-center rounded-lg bg-slate-100 px-3 py-2">
+                    <span class="text-sm font-semibold text-slate-700">{label}</span>
+                    {(count >= 2)
+                        .then(|| {
+                            view! {
+                                <span class="ml-2 text-xs font-medium text-slate-600">
+                                    {format!("{count}件")}
+                                </span>
+                            }
+                        })}
                 </div>
                 {card_list}
             </section>
@@ -455,14 +460,14 @@ pub(crate) fn MobileCardGroup(
     let primary_negative =
         summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
     let primary_value_class = if primary_negative {
-        "text-sm font-semibold tabular-nums text-red-300"
+        "text-sm font-semibold tabular-nums text-red-700"
     } else {
-        "text-sm font-semibold tabular-nums text-white"
+        "text-sm font-semibold tabular-nums text-slate-800"
     };
     let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
     view! {
         <section data-testid="receipt-card-group">
-            <div class="overflow-hidden rounded-lg border border-slate-700">
+            <div class="overflow-hidden rounded-lg border border-slate-200">
                 <button
                     id=button_id.clone()
                     type="button"
@@ -478,26 +483,31 @@ pub(crate) fn MobileCardGroup(
                     }
                     class="group-card-trigger"
                 >
-                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700">
                         {label}
-                        <span class="ml-2 inline-flex items-center rounded bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
-                            {format!("{count}件")}
-                        </span>
+                        {(count >= 2)
+                            .then(|| {
+                                view! {
+                                    <span class="ml-2 text-xs font-medium text-slate-600">
+                                        {format!("{count}件")}
+                                    </span>
+                                }
+                            })}
                     </span>
                     <span
                         class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"
                         aria-hidden="true"
                     >
-                        <span class="text-xs text-slate-200">{primary_label}</span>
+                        <span class="text-xs text-slate-600">{primary_label}</span>
                         <span class=primary_value_class>
                             {primary_value}
                         </span>
                         <svg
                             class=move || {
                                 if expanded.get() {
-                                    "h-4 w-4 shrink-0 self-center text-slate-200 rotate-180"
+                                    "h-4 w-4 shrink-0 self-center text-slate-600 rotate-180"
                                 } else {
-                                    "h-4 w-4 shrink-0 self-center text-slate-200"
+                                    "h-4 w-4 shrink-0 self-center text-slate-600"
                                 }
                             }
                             viewBox="0 0 24 24"

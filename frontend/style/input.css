@@ -131,7 +131,7 @@
   }
 
   .table-card {
-    @apply overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none;
+    @apply overflow-clip rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none;
   }
 
   .collapsible-card {
@@ -175,7 +175,7 @@
   }
 
   .group-card-trigger {
-    @apply flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white;
+    @apply flex min-h-[44px] w-full items-center gap-2 bg-slate-100 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
   }
 
   .login-button {
@@ -278,8 +278,8 @@
     @apply w-full rounded-[1.15rem] border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100;
   }
 
-  .table-scroll {
-    @apply relative w-full overflow-auto rounded-lg border border-slate-950/10 bg-white print:overflow-visible! print:max-h-none! [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500;
+  .table-frame {
+    @apply relative w-full rounded-lg border border-slate-950/10 bg-white;
   }
 
   .summary-section-header {

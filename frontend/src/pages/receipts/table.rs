@@ -56,19 +56,63 @@ pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
     }
 }
 
-// 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする
+// 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする。空は残り幅を使う列
 pub(crate) fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
     match tab {
         ReceiptsTab::Dividend => &[
-            "84px", "64px", "64px", "72px", "160px", "72px", "56px", "84px", "64px", "84px",
+            "96px", "76px", "76px", "88px", "", "80px", "72px", "92px", "80px", "92px",
         ],
         ReceiptsTab::DomesticStock => &[
-            "84px", "72px", "156px", "60px", "56px", "76px", "82px", "82px", "82px", "64px", "84px",
+            "96px", "88px", "", "76px", "72px", "80px", "92px", "92px", "92px", "80px", "92px",
         ],
         ReceiptsTab::MutualFund => &[
-            "112px", "300px", "60px", "112px", "98px", "128px", "116px", "112px", "106px", "118px",
+            "96px", "", "76px", "72px", "80px", "92px", "92px", "92px", "80px", "92px",
         ],
     }
+}
+
+// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は xl と 2xl に置く
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub(crate) enum ColumnTier {
+    Core,
+    Wide,
+    Wider,
+}
+
+impl ColumnTier {
+    fn class(self) -> &'static str {
+        match self {
+            ColumnTier::Core => "",
+            ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
+            ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
+        }
+    }
+}
+
+pub(crate) fn table_column_tiers(tab: ReceiptsTab) -> &'static [ColumnTier] {
+    use ColumnTier::{Core, Wide, Wider};
+    match tab {
+        ReceiptsTab::Dividend => &[Core, Wider, Wide, Core, Core, Wide, Wide, Core, Core, Core],
+        ReceiptsTab::DomesticStock => &[
+            Core, Core, Core, Wider, Wider, Wide, Wide, Wide, Core, Core, Core,
+        ],
+        ReceiptsTab::MutualFund => &[Core, Core, Wider, Wider, Wide, Core, Wide, Core, Core, Core],
+    }
+}
+
+// 検索で前に出した列は、狭い画面でも隠さない
+fn displayed_tiers(tab: ReceiptsTab, order: &[usize]) -> Vec<ColumnTier> {
+    order
+        .iter()
+        .enumerate()
+        .map(|(position, &column)| {
+            if position < column {
+                ColumnTier::Core
+            } else {
+                table_column_tiers(tab)[column]
+            }
+        })
+        .collect()
 }
 
 fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
@@ -88,14 +132,22 @@ fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
 
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
 // マウント中だけ生存させたいので thread_local で管理する
-type TableHeightObserver = (
+type HeaderHeightObserver = (
     web_sys::ResizeObserver,
     Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
 );
 thread_local! {
-    static TABLE_HEIGHT_OBSERVERS: RefCell<HashMap<usize, TableHeightObserver>> =
+    static HEADER_HEIGHT_OBSERVERS: RefCell<HashMap<usize, HeaderHeightObserver>> =
         RefCell::new(HashMap::new());
-    static TABLE_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
+    static HEADER_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
+}
+
+fn site_header() -> Option<web_sys::Element> {
+    web_sys::window()?
+        .document()?
+        .query_selector(".site-header")
+        .ok()
+        .flatten()
 }
 
 #[component]
@@ -148,74 +200,64 @@ pub(crate) fn ReceiptTable(
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
     let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
-    let cell_classes: Vec<&'static str> = order
+    let cell_classes: Vec<String> = order
         .iter()
-        .map(|i| match table_column_aligns(tab)[*i] {
-            "center" => "text-center",
-            "right" => "text-right tabular-nums",
-            _ => "text-left",
+        .zip(displayed_tiers(tab, &order))
+        .map(|(i, tier)| {
+            let align = match table_column_aligns(tab)[*i] {
+                "center" => "text-center",
+                "right" => "text-right tabular-nums",
+                _ => "text-left",
+            };
+            format!("{align}{}", tier.class())
         })
         .collect();
-    let table_scroll = NodeRef::<leptos::html::Div>::new();
-    let table_max_height = RwSignal::new(Option::<f64>::None);
-    let measure_table = move || {
-        let Some(element) = table_scroll.get() else {
-            return;
-        };
-        let Some(viewport) = web_sys::window()
-            .and_then(|window| window.inner_height().ok())
-            .and_then(|height| height.as_f64())
-        else {
-            return;
-        };
-        let available = viewport - element.get_bounding_client_rect().top() - 20.0;
-        table_max_height.set(Some(available.max(200.0)));
+    let tiers = displayed_tiers(tab, &order);
+    let group_label_spans: Vec<(&'static str, usize)> = [
+        (" xl:hidden print:hidden", ColumnTier::Core),
+        (
+            " hidden xl:table-cell 2xl:hidden print:hidden",
+            ColumnTier::Wide,
+        ),
+        (" hidden 2xl:table-cell print:table-cell", ColumnTier::Wider),
+    ]
+    .into_iter()
+    .map(|(class, level)| {
+        let visible = tiers.iter().filter(|tier| **tier <= level).count();
+        (class, visible.saturating_sub(labels.len()))
+    })
+    .collect();
+    // サイトのヘッダーも sticky なので、表の見出し行はその直下で止める
+    let header_offset = RwSignal::new(Option::<f64>::None);
+    let measure_header = move || {
+        let height = site_header().map_or(0.0, |header| header.get_bounding_client_rect().height());
+        header_offset.set(Some(height));
     };
-    let on_table_resize = window_event_listener(ev::resize, move |_| measure_table());
-    let observer_key = web_sys::window().and_then(|_| {
+    let on_window_resize = window_event_listener(ev::resize, move |_| measure_header());
+    let observer_key = site_header().and_then(|header| {
         let callback = Closure::<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>::new(move |_| {
-            measure_table();
+            measure_header();
         });
         web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref())
             .ok()
             .map(|observer| {
-                let key = TABLE_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
+                observer.observe(&header);
+                let key = HEADER_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
                     let key = next.get();
                     next.set(key + 1);
                     key
                 });
-                TABLE_HEIGHT_OBSERVERS.with(|observers| {
+                HEADER_HEIGHT_OBSERVERS.with(|observers| {
                     observers.borrow_mut().insert(key, (observer, callback));
                 });
                 key
             })
     });
-    Effect::new(move |_| {
-        measure_table();
-        let (Some(element), Some(key)) = (table_scroll.get(), observer_key) else {
-            return;
-        };
-        TABLE_HEIGHT_OBSERVERS.with(|observers| {
-            let observers = observers.borrow();
-            let Some((observer, _)) = observers.get(&key) else {
-                return;
-            };
-            observer.observe(&element);
-            if let Some(parent) = element.parent_element() {
-                observer.observe(&parent);
-            }
-            if let Some(body) = web_sys::window()
-                .and_then(|window| window.document())
-                .and_then(|document| document.body())
-            {
-                observer.observe(&body);
-            }
-        });
-    });
+    measure_header();
     on_cleanup(move || {
-        on_table_resize.remove();
+        on_window_resize.remove();
         if let Some(key) = observer_key {
-            TABLE_HEIGHT_OBSERVERS.with(|observers| {
+            HEADER_HEIGHT_OBSERVERS.with(|observers| {
                 if let Some((observer, _callback)) = observers.borrow_mut().remove(&key) {
                     observer.disconnect();
                 }
@@ -229,29 +271,33 @@ pub(crate) fn ReceiptTable(
         >
             <div class="p-0" data-testid="receipt-card-body">
                 <div class="hidden sm:block">
-                    <div
-                        node_ref=table_scroll
-                        class="table-scroll"
-                        style:max-height=move || {
-                            table_max_height
-                                .get()
-                                .map(|height| format!("{height}px"))
-                                .unwrap_or_default()
-                        }
-                    >
+                    <div class="table-frame">
                         <table class="receipt-table">
-                            <thead class="sticky top-0 z-10 bg-slate-100 text-slate-800">
+                            <thead
+                                class="sticky z-10 bg-slate-100 text-slate-800"
+                                style:top=move || {
+                                    header_offset
+                                        .get()
+                                        .map(|height| format!("{height}px"))
+                                        .unwrap_or_default()
+                                }
+                            >
                                 <tr class="bg-slate-50">
                                     {headers
                                         .iter()
                                         .zip(widths.iter())
-                                        .map(|(header, width)| {
+                                        .zip(tiers.iter())
+                                        .map(|((header, width), tier)| {
+                                            let width = (!width.is_empty()).then_some(*width);
                                             view! {
                                                 <th
-                                                    class="text-center font-black text-slate-800"
+                                                    class=format!(
+                                                        "text-center font-black text-slate-800{}",
+                                                        tier.class(),
+                                                    )
                                                     scope="col"
-                                                    style:width=*width
-                                                    style:max-width=*width
+                                                    style:width=width
+                                                    style:max-width=width
                                                 >
                                                     {*header}
                                                 </th>
@@ -273,17 +319,29 @@ pub(crate) fn ReceiptTable(
                                         };
                                         view! {
                                             <tr>
-                                                <td
-                                                    colspan={headers.len() - 3}
-                                                    class=format!(
-                                                        "whitespace-normal bg-slate-100 text-slate-800 font-semibold border-l-2 border-slate-500{top}"
-                                                    )
-                                                >
-                                                    <span class="text-sm font-medium">{group.label.clone()}</span>
-                                                    <span class="ml-2 inline-flex items-center rounded bg-slate-600 px-2 py-0.5 text-xs font-medium text-white">
-                                                        {format!("{count}件")}
-                                                    </span>
-                                                </td>
+                                                {group_label_spans
+                                                    .iter()
+                                                    .map(|(class, span)| {
+                                                        view! {
+                                                            <td
+                                                                colspan=*span
+                                                                class=format!(
+                                                                    "whitespace-normal bg-slate-100 text-slate-700 font-semibold border-l-2 border-slate-400{top}{class}"
+                                                                )
+                                                            >
+                                                                <span class="text-sm font-medium">{group.label.clone()}</span>
+                                                                {(count >= 2)
+                                                                    .then(|| {
+                                                                        view! {
+                                                                            <span class="ml-2 text-xs font-medium text-slate-600">
+                                                                                {format!("{count}件")}
+                                                                            </span>
+                                                                        }
+                                                                    })}
+                                                            </td>
+                                                        }
+                                                    })
+                                                    .collect_view()}
                                                 {group
                                                     .summary
                                                     .iter()
@@ -315,7 +373,7 @@ pub(crate) fn ReceiptTable(
                                                                 .into_iter()
                                                                 .enumerate()
                                                                 .map(|(col_index, cell)| {
-                                                                    let align = cell_classes[col_index];
+                                                                    let align = cell_classes[col_index].clone();
                                                                     match cell {
                                                                         ReceiptCell::SecurityCode(code) => view! {
                                                                             <td class=align>
