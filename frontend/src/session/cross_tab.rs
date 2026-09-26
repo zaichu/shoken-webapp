@@ -3,7 +3,6 @@ use crate::session::SessionStore;
 use leptos::ev;
 use leptos::prelude::*;
 use std::cell::{Cell, RefCell};
-use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -99,19 +98,33 @@ pub fn last_activity_ms() -> Option<u64> {
 }
 
 const LOGOUT_CLAIM_LOCK: &str = "logout_claim";
+const LOGOUT_CLAIMED_KEY: &str = "logout_claimed_at";
+// 次の無操作ログアウトは最短でも30分後なので、この幅なら次回と取り違えない
+const RECENT_CLAIM_MS: u64 = 60_000;
 
-fn claim_logout_once_local() -> bool {
-    if pending_logout::is_pending() {
+fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
+    now_ms.saturating_sub(claimed_at_ms) < RECENT_CLAIM_MS
+}
+
+fn try_claim() -> bool {
+    let now = js_sys::Date::now() as u64;
+    let recently_claimed = storage()
+        .and_then(|storage| storage.get_item(LOGOUT_CLAIMED_KEY).ok().flatten())
+        .and_then(|value| value.parse::<u64>().ok())
+        .is_some_and(|claimed_at| is_recent_claim(now, claimed_at));
+    if pending_logout::is_pending() || recently_claimed {
         return false;
     }
     pending_logout::mark();
+    if let Some(storage) = storage() {
+        let _ = storage.set_item(LOGOUT_CLAIMED_KEY, &now.to_string());
+    }
     true
 }
 
-// 別タブと同時に期限が切れても DELETE を送るのは1つだけにする。
-// navigator.locks が無い環境では読み書きの競合が残るが、DELETE は冪等なのでベストエフォートに落とす
+// localStorage はタブ間で即時に同期されないので、取ったタブがロックを保持して他タブを ifAvailable で諦めさせる
 pub async fn claim_logout_once() -> bool {
-    let Some(request) = web_sys::window()
+    let Some((locks, request)) = web_sys::window()
         .and_then(|window| js_sys::Reflect::get(&window.navigator(), &"locks".into()).ok())
         .and_then(|locks| {
             js_sys::Reflect::get(&locks, &"request".into())
@@ -120,32 +133,61 @@ pub async fn claim_logout_once() -> bool {
                 .map(|request| (locks, request))
         })
     else {
-        return claim_logout_once_local();
+        return try_claim();
     };
-    let (locks, request) = request;
-    let claimed = Rc::new(Cell::new(false));
-    let callback = Closure::wrap(Box::new({
-        let claimed = Rc::clone(&claimed);
-        move |_lock: JsValue| {
-            if !pending_logout::is_pending() {
-                pending_logout::mark();
-                claimed.set(true);
-            }
+    let mut resolve_slot = None;
+    let decision = js_sys::Promise::new(&mut |resolve, _reject| resolve_slot = Some(resolve));
+    let Some(resolve) = resolve_slot else {
+        return try_claim();
+    };
+    let on_rejected_resolve = resolve.clone();
+    let callback = Closure::wrap(Box::new(move |lock: JsValue| -> JsValue {
+        let claimed = !lock.is_null() && try_claim();
+        let _ = resolve.call1(&JsValue::NULL, &JsValue::from_bool(claimed));
+        if !claimed {
+            return JsValue::UNDEFINED;
         }
-    }) as Box<dyn FnMut(JsValue)>);
-    let promise = request
-        .call2(
+        js_sys::Promise::new(&mut |release, _reject| {
+            if let Some(window) = web_sys::window() {
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    &release,
+                    RECENT_CLAIM_MS as i32,
+                );
+            }
+        })
+        .into()
+    }) as Box<dyn FnMut(JsValue) -> JsValue>);
+    let options = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&options, &"ifAvailable".into(), &JsValue::TRUE);
+    let Some(requested) = request
+        .call3(
             &locks,
             &JsValue::from_str(LOGOUT_CLAIM_LOCK),
+            &options,
             callback.as_ref().unchecked_ref(),
         )
         .ok()
-        .and_then(|value| value.dyn_into::<js_sys::Promise>().ok());
-    let Some(promise) = promise else {
-        return claim_logout_once_local();
+        .and_then(|value| value.dyn_into::<js_sys::Promise>().ok())
+    else {
+        return try_claim();
     };
-    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-    claimed.get()
+    // callback を呼ばずに reject されると decision が決まらないため
+    let on_rejected = Closure::once(move |_error: JsValue| {
+        let _ = on_rejected_resolve.call1(&JsValue::NULL, &JsValue::from_bool(try_claim()));
+    });
+    let settled = requested.catch(&on_rejected);
+    let claimed = wasm_bindgen_futures::JsFuture::from(decision)
+        .await
+        .ok()
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+    // ロックの保持が終わって要求が決着するまで、JS から呼ばれうるクロージャを生かしておく
+    leptos::task::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(settled).await;
+        drop(callback);
+        drop(on_rejected);
+    });
+    claimed
 }
 
 #[cfg(test)]
