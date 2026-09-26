@@ -472,6 +472,19 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
                 "{field}"
             );
         }
+        let mut claims = valid_claims();
+        claims.as_object_mut().unwrap().remove("nonce");
+        let (token, keys) = signed_token(claims);
+        assert!(
+            verify_google_id_token(
+                &token,
+                &ClientId::new("client-id".into()),
+                keys,
+                &Nonce::new("test-nonce".into())
+            )
+            .is_err(),
+            "nonce 欠落"
+        );
         let (token, keys) = signed_token(valid_claims());
         let serialized = serde_json::to_value(&token).unwrap();
         let mut jwt = serialized.as_str().unwrap().as_bytes().to_vec();
