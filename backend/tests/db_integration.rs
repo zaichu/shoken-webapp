@@ -1237,25 +1237,22 @@ async fn user_row_limit_rejects_over_limit_inserts() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn bulk_create_respects_user_row_limit_env() {
+async fn bulk_create_respects_user_row_limit() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     let items = vec![make_dividend_item("1001")];
 
-    {
-        let _limit = EnvGuard::set("USER_ROW_LIMIT", Some("0"));
-        let err = dividend_svc::bulk_create(&pool, user_id, &items)
-            .await
-            .expect_err("USER_ROW_LIMIT=0 で追加1件でも拒否");
-        assert!(
-            matches!(err, backend::errors::ApiError::ValidationError(_)),
-            "期待しないエラー: {err:?}"
-        );
-    }
-    // env 復元後は通常通り挿入できる
-    dividend_svc::bulk_create(&pool, user_id, &items)
+    // 上限値は引数で渡す(プロセス全体の環境変数を書き換えると並行テストに影響する)
+    let err = dividend_svc::bulk_create_with_limit(&pool, user_id, &items, 0)
         .await
-        .expect("上限解除後は成功");
+        .expect_err("上限0で追加1件でも拒否");
+    assert!(
+        matches!(err, backend::errors::ApiError::ValidationError(_)),
+        "期待しないエラー: {err:?}"
+    );
+    dividend_svc::bulk_create_with_limit(&pool, user_id, &items, 100)
+        .await
+        .expect("上限内なら成功");
 }
 
 #[tokio::test]

@@ -7,8 +7,8 @@ use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
-    UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
+    BulkTimer, DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
@@ -237,10 +237,22 @@ async fn fetch_security_facets(
 ///   純増分CSV（新規分のみ）で既存行と同一ハッシュの行が含まれる場合は
 ///   batch_index <= existing_count でスキップされる。
 ///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
+///
+/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateDomesticStockRequest],
+) -> Result<BulkCreateResponse, ApiError> {
+    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
+}
+
+/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
+pub async fn bulk_create_with_limit(
+    pool: &PgPool,
+    user_id: Uuid,
+    items: &[CreateDomesticStockRequest],
+    limit: i64,
 ) -> Result<BulkCreateResponse, ApiError> {
     let timer = match BulkTimer::new_with_guard("domestic_stock", items) {
         Ok(t) => t,
@@ -273,11 +285,12 @@ pub async fn bulk_create(
         .execute(&mut *tx)
         .await?;
 
-    ensure_user_row_limit(
+    ensure_user_row_limit_with(
         &mut *tx,
         user_id,
         UserDataDomain::DomesticStocks,
         items.len(),
+        limit,
     )
     .await?;
 

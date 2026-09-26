@@ -66,7 +66,10 @@ pub fn user_ids_for_bulk_insert(user_id: Uuid, total: usize) -> Vec<Uuid> {
 /// DB(Neon)容量の悪用を抑止する値。USER_ROW_LIMIT で上書き可能
 const DEFAULT_MAX_USER_ROWS: i64 = 100_000;
 
-fn user_row_limit() -> i64 {
+/// 現在の保存行数上限を返す(USER_ROW_LIMIT、未設定・不正値は既定値)
+/// 本番コードの bulk_create が既定値として参照する。テストでは env を触らず
+/// `bulk_create_with_limit` / `ensure_user_row_limit_with` に値を直接渡す
+pub fn user_row_limit() -> i64 {
     std::env::var("USER_ROW_LIMIT")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -108,20 +111,8 @@ fn exceeds_user_row_limit(
 /// 書き込み前に、利用者ごとの保存行数が上限を超えないことを確認する。
 /// 追記型(dividends/domestic_stocks/mutualfunds)は既存行数との合算、
 /// 置換型(asset_balances)は追加分のみで上限を判定する。
-/// `executor` には `&PgPool` または `&mut Transaction`(同一 tx 内で直列化する場合)を渡す
-pub async fn ensure_user_row_limit<'e, E>(
-    executor: E,
-    user_id: Uuid,
-    domain: UserDataDomain,
-    additional: usize,
-) -> Result<(), ApiError>
-where
-    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
-{
-    ensure_user_row_limit_with(executor, user_id, domain, additional, user_row_limit()).await
-}
-
-/// `ensure_user_row_limit` の上限値を明示指定するバリアント(テスト・内部利用用)
+/// `executor` には `&PgPool` または `&mut Transaction`(同一 tx 内で直列化する場合)を渡す。
+/// 上限値は引数で渡す(プロセス全体の環境変数に依存させない)
 pub async fn ensure_user_row_limit_with<'e, E>(
     executor: E,
     user_id: Uuid,

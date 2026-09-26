@@ -7,8 +7,8 @@ use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
-    UserDataDomain,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
+    BulkTimer, DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
@@ -195,10 +195,21 @@ async fn fetch_group_facets(
 }
 
 /// 投資信託を一括追加（重複はスキップ）
+/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateMutualfundRequest],
+) -> Result<BulkCreateResponse, ApiError> {
+    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
+}
+
+/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
+pub async fn bulk_create_with_limit(
+    pool: &PgPool,
+    user_id: Uuid,
+    items: &[CreateMutualfundRequest],
+    limit: i64,
 ) -> Result<BulkCreateResponse, ApiError> {
     let timer = match BulkTimer::new_with_guard("mutualfund", items) {
         Ok(t) => t,
@@ -239,7 +250,14 @@ pub async fn bulk_create(
         .execute(&mut *tx)
         .await?;
 
-    ensure_user_row_limit(&mut *tx, user_id, UserDataDomain::MutualFunds, items.len()).await?;
+    ensure_user_row_limit_with(
+        &mut *tx,
+        user_id,
+        UserDataDomain::MutualFunds,
+        items.len(),
+        limit,
+    )
+    .await?;
 
     let result = sqlx::query(
         r#"
