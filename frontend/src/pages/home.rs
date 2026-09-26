@@ -4,10 +4,11 @@ use crate::dto::{
     AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
 };
 use crate::pages::asset_balance::format::{
-    dec_to_f64, format_currency, format_valuation_amount, format_valuation_rate, valuation_tone,
+    format_valuation_amount, format_valuation_rate, valuation_tone,
 };
 use crate::session::{use_session, SessionStore};
 use leptos::prelude::*;
+use shared::format::format_currency as format_currency_decimal;
 use std::future::Future;
 
 const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
@@ -239,7 +240,7 @@ fn HomeOverview() -> impl IntoView {
                     let (asset, dividend) = snapshot();
                     view! { <OverviewTiles asset=asset dividend=dividend /> }
                 }}
-                <p class="text-xs font-medium text-slate-600" role="status">
+                <p class="text-xs font-medium text-slate-600" role="status" aria-live="polite">
                     {move || {
                         let (asset, dividend) = snapshot();
                         matches!((asset, dividend), (Some(None), _) | (_, Some(None)))
@@ -265,7 +266,7 @@ fn OverviewTiles(
     let asset = asset.flatten();
     let market = asset
         .as_ref()
-        .map(|summary| format_currency(dec_to_f64(&summary.total_market_value)));
+        .map(|summary| format_currency_decimal(summary.total_market_value));
     let valuation = asset
         .as_ref()
         .filter(|summary| {
@@ -286,7 +287,7 @@ fn OverviewTiles(
     let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
     let dividend = dividend
         .flatten()
-        .map(|summary| format_currency(dec_to_f64(&summary.total_net_amount_received)));
+        .map(|summary| format_currency_decimal(summary.total_net_amount_received));
     view! {
         <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <OverviewTile label="評価額" value=market busy=asset_busy />
@@ -327,15 +328,15 @@ fn OverviewTile(
                 view! {
                     <p
                         class=format!(
-                            "mt-1 whitespace-nowrap text-2xl font-black tabular-nums {value_class}",
+                            "mt-1 flex flex-wrap items-baseline gap-x-2 text-2xl font-black tabular-nums {value_class}",
                         )
                         data-negative=negative
                     >
-                        {value.unwrap_or_else(|| "—".to_string())}
+                        <span class="break-all">{value.unwrap_or_else(|| "—".to_string())}</span>
                         {note
                             .map(|note| {
                                 view! {
-                                    <span class="ml-2 text-sm font-bold">{format!("（{note}）")}</span>
+                                    <span class="whitespace-nowrap text-sm font-bold">{format!("（{note}）")}</span>
                                 }
                             })}
                     </p>
