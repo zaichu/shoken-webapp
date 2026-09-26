@@ -139,4 +139,79 @@ mod tests {
         assert_eq!(total.total_taxes, dec!(3047));
         assert_eq!(total.total_realized_profit_and_loss_after_tax, dec!(10953));
     }
+
+    fn dividend(before_tax: Decimal, taxes: Decimal) -> Dividend {
+        Dividend {
+            id: Default::default(),
+            #[cfg(feature = "typed")]
+            user_id: Default::default(),
+            settlement_date: Default::default(),
+            product: "国内株式".to_string(),
+            account: "特定口座".to_string(),
+            security_code: "1234".to_string(),
+            security_name: "テスト".to_string(),
+            unit_price: dec!(0),
+            shares: dec!(0),
+            dividends_before_tax: before_tax,
+            taxes,
+            net_amount_received: before_tax - taxes,
+            created_at: Default::default(),
+            updated_at: Default::default(),
+        }
+    }
+
+    fn mutualfund(pnl: Decimal, taxes: Decimal) -> Mutualfund {
+        Mutualfund {
+            id: Default::default(),
+            #[cfg(feature = "typed")]
+            user_id: Default::default(),
+            trade_date: Default::default(),
+            settlement_date: Default::default(),
+            fund_name: "テストファンド".to_string(),
+            dividends: None,
+            account: "特定口座".to_string(),
+            shares: dec!(0),
+            exchange_rate: dec!(0),
+            cancellation_unit_price_yen: dec!(0),
+            cancellation_amount_yen: dec!(0),
+            average_acquisition_price_yen: dec!(0),
+            realized_profit_and_loss: pnl,
+            taxes,
+            realized_profit_and_loss_after_tax: pnl - taxes,
+            created_at: Default::default(),
+            updated_at: Default::default(),
+        }
+    }
+
+    #[test]
+    fn dividend_totals_sums_each_column() {
+        let rows = vec![
+            dividend(dec!(1000), dec!(203)),
+            dividend(dec!(500), dec!(101)),
+        ];
+        assert_eq!(
+            dividend_totals(&rows),
+            DividendSummary {
+                total_dividends_before_tax: dec!(1500),
+                total_taxes: dec!(304),
+                total_net_amount_received: dec!(1196),
+            }
+        );
+    }
+
+    #[test]
+    fn mutualfund_totals_sums_each_column() {
+        let rows = vec![
+            mutualfund(dec!(3000), dec!(609)),
+            mutualfund(dec!(-1000), dec!(0)),
+        ];
+        assert_eq!(
+            mutualfund_totals(&rows),
+            MutualfundSummary {
+                total_realized_profit_and_loss: dec!(2000),
+                total_taxes: dec!(609),
+                total_realized_profit_and_loss_after_tax: dec!(1391),
+            }
+        );
+    }
 }

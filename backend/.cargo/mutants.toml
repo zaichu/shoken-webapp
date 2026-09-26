@@ -41,6 +41,9 @@ exclude_re = [
     # models の should_include_facets や handlers の delete_all は評価可能なため
     # services/ の関数に限定する)
     "src/services/.*facets",
+    # 国内株式の集計 SQL は services/domestic_stock.rs の
+    # test_search_summary_matches_frontend_daily_tax_calculation(Docker)で値を検証済み
+    "src/services/domestic_stock\\.rs.*fetch_summary",
     "src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",

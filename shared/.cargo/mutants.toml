@@ -1,0 +1,4 @@
+exclude_re = [
+    # 等価 mutant: 分割後のトークンが1つなら結合しても trim しても同じ文字列になる
+    "replace > with >= in normalize_security_name",
+]
