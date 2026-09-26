@@ -245,7 +245,49 @@ pub async fn google_callback(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        db::connect_pool_lazy,
+        extractors::auth::AuthenticatedUser,
+        models::user::User,
+        state::{AppState, Secrets},
+    };
     use axum_extra::extract::cookie::SameSite;
+    use std::sync::Arc;
+
+    fn make_test_state() -> AppState {
+        let database_url = "postgresql://user:password@localhost/test_db";
+        AppState {
+            pool: connect_pool_lazy(database_url, 1).expect("pool"),
+            secrets: Arc::new(Secrets {
+                database_url: database_url.to_string(),
+                jquants_api_key: None,
+                google_client_id: None,
+                google_client_secret: None,
+                frontend_url: "http://localhost:8080".to_string(),
+            }),
+            client: reqwest::Client::new(),
+            dividend_cache: crate::state::DividendCacheState::default(),
+        }
+    }
+
+    fn test_user() -> User {
+        User {
+            id: uuid::Uuid::new_v4(),
+            google_id: "google-123".to_string(),
+            email: "test@example.com".to_string(),
+            name: Some("Test User".to_string()),
+            picture_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    fn tampered_value(value: &str) -> String {
+        let (head, tag) = value.rsplit_once('.').unwrap();
+        let mut tag = tag.as_bytes().to_vec();
+        tag[0] = if tag[0] == b'0' { b'1' } else { b'0' };
+        format!("{head}.{}", std::str::from_utf8(&tag).unwrap())
+    }
 
     #[test]
     fn test_account_delete_confirmation_cookie_is_http_only_and_scoped() {
@@ -264,5 +306,154 @@ mod tests {
                 })
             );
         }
+    }
+
+    #[test]
+    fn test_account_delete_confirmation_issue_and_verify() {
+        let session = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        let value = issue_account_delete_confirmation(&session, now).unwrap();
+        assert!(
+            verify_account_delete_confirmation(&value, &session, now),
+            "発行した確認は同じセッション・期限内で受理されること"
+        );
+
+        let expired = issue_account_delete_confirmation(
+            &session,
+            now - ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS - 1,
+        )
+        .unwrap();
+        assert!(
+            !verify_account_delete_confirmation(&expired, &session, now),
+            "期限切れの確認は拒否されること"
+        );
+        let future = issue_account_delete_confirmation(&session, now + 1).unwrap();
+        assert!(
+            !verify_account_delete_confirmation(&future, &session, now),
+            "未来に発行された確認は拒否されること"
+        );
+
+        assert!(
+            !verify_account_delete_confirmation(&tampered_value(&value), &session, now),
+            "署名を改ざんした確認は拒否されること"
+        );
+
+        assert!(
+            !verify_account_delete_confirmation(&value, &uuid::Uuid::new_v4().to_string(), now),
+            "別セッションでは受理されないこと"
+        );
+
+        for bad in [
+            "",
+            "garbage",
+            "1.2",
+            "not-a-timestamp.nonce.00",
+            "1.nonce.not-hex",
+        ] {
+            assert!(
+                !verify_account_delete_confirmation(bad, &session, now),
+                "不正な形式 {bad:?} は拒否されること"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_account_delete_confirmation_handler_lifecycle() {
+        use axum::http::header::SET_COOKIE;
+
+        let session_id = uuid::Uuid::new_v4();
+        let jar = CookieJar::new().add(Cookie::new(
+            auth_service::SESSION_COOKIE_NAME,
+            session_id.to_string(),
+        ));
+        let response = create_account_deletion_confirmation(AuthenticatedUser(test_user()), jar)
+            .await
+            .expect("確認発行が失敗しないこと")
+            .into_response();
+        let set_cookie = response
+            .headers()
+            .get_all(SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|c| c.starts_with(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME))
+            .expect("確認 Cookie が発行されること");
+        assert!(set_cookie.contains("HttpOnly"));
+        assert!(set_cookie.contains("Path=/api/v1/account"));
+        let value = set_cookie
+            .split(';')
+            .next()
+            .and_then(|kv| kv.split_once('='))
+            .map(|(_, v)| v.to_string())
+            .expect("Cookie の値を取り出せること");
+        assert!(
+            verify_account_delete_confirmation(
+                &value,
+                &session_id.to_string(),
+                chrono::Utc::now().timestamp()
+            ),
+            "発行された Cookie は発行元セッションで受理されること"
+        );
+
+        let jar_with = |value: &str| {
+            CookieJar::new()
+                .add(Cookie::new(
+                    auth_service::SESSION_COOKIE_NAME,
+                    session_id.to_string(),
+                ))
+                .add(Cookie::new(
+                    ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME,
+                    value.to_string(),
+                ))
+        };
+        // 有効な確認はガードを通過し、後段のDB処理へ進む(閉じたpoolのため即座に失敗する)
+        let state = make_test_state();
+        state.pool.close().await;
+        let err = delete_account(State(state), jar_with(&value))
+            .await
+            .err()
+            .expect("閉じたpoolのため削除は失敗する");
+        assert!(
+            matches!(err, ApiError::DatabaseError(_)),
+            "有効な確認は削除処理へ進むこと: {err:?}"
+        );
+
+        let expired = issue_account_delete_confirmation(
+            &session_id.to_string(),
+            chrono::Utc::now().timestamp() - ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS - 1,
+        )
+        .unwrap();
+        let other_session = issue_account_delete_confirmation(
+            &uuid::Uuid::new_v4().to_string(),
+            chrono::Utc::now().timestamp(),
+        )
+        .unwrap();
+        for (case, cookie_value) in [
+            ("改ざん", tampered_value(&value)),
+            ("期限切れ", expired),
+            ("別セッション", other_session),
+        ] {
+            let err = delete_account(State(make_test_state()), jar_with(&cookie_value))
+                .await
+                .err()
+                .expect("無効な確認は拒否されること");
+            assert!(
+                matches!(err, ApiError::ApiError(ref msg) if msg.contains("無効")),
+                "{case}: {err:?}"
+            );
+        }
+
+        let jar_no_confirmation = CookieJar::new().add(Cookie::new(
+            auth_service::SESSION_COOKIE_NAME,
+            session_id.to_string(),
+        ));
+        let err = delete_account(State(make_test_state()), jar_no_confirmation)
+            .await
+            .err()
+            .expect("確認 Cookie なしは拒否されること");
+        assert!(
+            matches!(err, ApiError::ApiError(ref msg) if msg.contains("完了していません")),
+            "Cookie 未提示: {err:?}"
+        );
     }
 }
