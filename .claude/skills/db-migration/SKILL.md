@@ -52,7 +52,7 @@ ON table_name(user_id, some_column);
 
 ## マイグレーション実行
 
-Shuttle は起動時に自動実行。ローカルでは：
+本番（Fly.io）ではアプリ起動時に `run_migrations` が自動実行する。ローカルでは：
 ```bash
 sqlx migrate run
 ```

@@ -80,15 +80,14 @@ is intentionally pragmatic and does not require a framework migration.
 - Cross-module calls go through service functions, not through HTTP.
 - SQLx is used directly in services. The internal boundary is the service function signature, not a trait.
 
-### Frontend: Feature-first Architecture with Shared UI Components
+### Frontend: Leptos (CSR) の単一 Wasm アプリ
 
-- Code is grouped by feature (`features/auth`, `features/stock`,
-  `features/receipt`, `features/assetBalance`, `features/marketData`,
-  `features/dividendPerShare`).
-- Cross-feature UI primitives stay in `components/` (Atomic Design) and
-  generic utilities stay in `lib/`.
-- Feature API wrappers use the generated API types in `src/generated/api.ts`,
-  driven by `docs/openapi.json`.
+- `frontend/src/` はページ単位のモジュール（`home_page.rs`、`receipts_page.rs`
+  等）と、その配下の画面部品ディレクトリで構成する。React 時代の
+  `features/`・`components/`（Atomic Design）・`src/generated/api.ts` の
+  構成は Leptos 移行で廃止した。
+- API 呼び出しは `src/api/`、契約型は `src/dto.rs` に置き、
+  `docs/openapi.json` との一致を契約テストで確認する。
 
 ### What we are not adopting
 
@@ -109,9 +108,9 @@ is intentionally pragmatic and does not require a framework migration.
   validation, and DB access for that domain.
 - **Persistence boundary**: SQLx queries live inside service modules; no
   generic repository abstraction.
-- **Frontend feature boundary**: each feature owns its hooks, components, and
-  API calls; shared concerns are promoted to `components/` or `lib/` only
-  when reused.
+- **Frontend boundary**: each page module owns its components and API calls;
+  shared concerns are promoted to `src/api/`・`src/dto.rs`・共通 UI モジュール
+  として再利用される場合にのみ切り出す。
 
 ### When to revisit
 

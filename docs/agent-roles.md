@@ -25,7 +25,7 @@
 
 | 役割 | 担当 |
 |---|---|
-| 実装エージェント | OpenCode、Codex（モデル選択は共通 `agent-delegation` skill の該当節を参照） |
+| 実装エージェント | OpenCode、Codex、Devin（モデル選択は共通 `agent-delegation` skill の該当節を参照） |
 | 設計エージェント | Claude Code |
 | 統合エージェント | Claude Code |
 

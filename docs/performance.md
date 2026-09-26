@@ -11,7 +11,7 @@ CSV import 系処理のボトルネックを把握するための計測手順を
 
 ### 1. BulkTimer（本番ログ計測）
 
-`backend/src/services/shared.rs` の `BulkTimer` が全 import 経路に組み込まれており、
+`backend/src/services/bulk_helpers.rs` の `BulkTimer` が全 import 経路に組み込まれており、
 実際のリクエストで以下のログが出力される。
 
 ```
@@ -28,29 +28,29 @@ CSV import 系処理のボトルネックを把握するための計測手順を
 
 ### 2. CSV パース単体タイミングテスト
 
-`csv_parse.rs` に `#[ignore]` タグ付きのタイミングテストを追加済み。
+`csv_util.rs` に `#[ignore]` タグ付きのタイミングテストを追加済み。
 `--nocapture` で elapsed time を標準出力に出力する。
 
 ```bash
 cd backend
-cargo test --lib -- timing_csv_parse --ignored --nocapture
+cargo test --lib -- timing_csv_util --ignored --nocapture
 ```
 
 ---
 
 ## ベースライン（ローカル計測）
 
-環境: WSL2 / デバッグビルド（`cargo test --lib -- timing_csv_parse --ignored --nocapture`）
+環境: WSL2 / デバッグビルド（`cargo test --lib -- timing_csv_util --ignored --nocapture`）
 
 | 対象 | 件数/回数 | 処理時間（デバッグビルド） | 備考 |
 |---|---|---|---|
-| `decode_bytes` (UTF-8) | 1,000 行 × 10 回 | 0.08ms | `timing_csv_parse` テスト |
+| `decode_bytes` (UTF-8) | 1,000 行 × 10 回 | 0.08ms | `timing_csv_util` テスト |
 | `decode_bytes` (Shift-JIS フォールバック) | 1,000 行 × 10 回 | 0.44ms | UTF-8 の約 5.5 倍 |
 | `parse_number` | 50,000 回 | 11.61ms | 0.23µs/回 |
 | `parse_date` | 30,000 回 | 36.71ms | 1.22µs/回 |
 | DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値）。手順: `cd backend && make run` 後に dividend CSV（100件）を POST し、ログの `[dividend.bulk_create] 完了:` 行で確認 |
 
-> 実測値は `cargo test --lib -- timing_csv_parse --ignored --nocapture` で確認すること。
+> 実測値は `cargo test --lib -- timing_csv_util --ignored --nocapture` で確認すること。
 
 ---
 
@@ -59,6 +59,7 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
 ### 高
 - **DB INSERT のラウンドトリップ**: `bulk_create` は UNNEST を使ったバルクINSERTを採用済みだが、
   件数が多い場合（数千件）はトランザクション分割が必要になる可能性がある。
+  なおユーザーごとの保存行数は `USER_ROW_LIMIT`（既定 100,000 行/ドメイン）で上限がある。
 
 ### 中
 - **Shift-JIS デコード**: `decode_bytes()` は UTF-8 を先に試みてエラー時のみ SHIFT_JIS に
@@ -79,5 +80,5 @@ cargo test --lib -- timing_csv_parse --ignored --nocapture
    エンコーディングを決定し、不要な UTF-8 デコード試行を省く。
 2. **大量データのストレステスト**: 10,000 行超の CSV で BulkTimer を観測し、
    DB 側（インデックス競合、VACUUM 頻度）の影響を確認する。
-3. **release ビルドでの計測**: `cargo test --release --lib -- timing_csv_parse --ignored --nocapture`
+3. **release ビルドでの計測**: `cargo test --release --lib -- timing_csv_util --ignored --nocapture`
    でデバッグ/リリースの差を確認する。

@@ -149,7 +149,7 @@ pub async fn google_callback(
     )
     .await?;
 
-    // クロスオリジン（フロントエンド: GitHub Pages, バックエンド: Fly.io）で
+    // クロスオリジン（フロントエンド: Vercel, バックエンド: Fly.io）で
     // Cookieを送受信するには SameSite=None + Secure が必要
     let cookie = build_session_cookie(&session_token, is_secure);
     let jar = jar.add(cookie);
