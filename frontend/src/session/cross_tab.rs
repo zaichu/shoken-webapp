@@ -175,14 +175,18 @@ pub async fn claim_logout_once() -> bool {
     let on_rejected = Closure::once(move |_error: JsValue| {
         let _ = on_rejected_resolve.call1(&JsValue::NULL, &JsValue::from_bool(try_claim()));
     });
-    let _ = requested.catch(&on_rejected);
+    let settled = requested.catch(&on_rejected);
     let claimed = wasm_bindgen_futures::JsFuture::from(decision)
         .await
         .ok()
         .and_then(|value| value.as_bool())
         .unwrap_or(false);
-    drop(callback);
-    on_rejected.forget();
+    // ロックの保持が終わって要求が決着するまで、JS から呼ばれうるクロージャを生かしておく
+    leptos::task::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(settled).await;
+        drop(callback);
+        drop(on_rejected);
+    });
     claimed
 }
 
