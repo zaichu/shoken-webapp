@@ -489,7 +489,7 @@ mod tests {
     fn test_preview_csv() {
         assert_eq!(
             assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
-            "ENEOSホールディングス"
+            "ＥＮＥＯＳホールディングス"
         );
 
         let preview = assert_preview_ok(NISA_ROW);

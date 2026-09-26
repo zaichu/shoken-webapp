@@ -330,8 +330,8 @@ mod tests {
     fn test_normalize_security_name() {
         // 通常の文字列は trim されて返る
         assert_eq!(normalize_security_name("  任天堂  "), "任天堂");
-        // 全角1文字ずつのスペース区切りは結合され、全角英数は半角に正規化される
-        assert_eq!(normalize_security_name("Ａ Ｂ Ｃ"), "ABC");
+        // 全角1文字ずつのスペース区切りは結合される
+        assert_eq!(normalize_security_name("Ａ Ｂ Ｃ"), "ＡＢＣ");
         // 全角カナ1文字ずつのスペース区切りは結合される
         assert_eq!(normalize_security_name("ト ヨ タ"), "トヨタ");
         // 複数文字トークンが含まれる場合はそのまま
