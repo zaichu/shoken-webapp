@@ -227,7 +227,7 @@
   }
 
   .security-code-link {
-    @apply text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+    @apply inline-flex min-h-6 items-center text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
   }
 
   .site-header {
@@ -255,7 +255,7 @@
   }
 
   .copyable-name {
-    @apply inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+    @apply inline-flex min-h-6 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
   }
 
   .copy-icon {

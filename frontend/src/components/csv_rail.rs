@@ -181,6 +181,17 @@ fn CsvFileInput(
     view! {
         <div class="space-y-2.5">
             <label data-testid="csv-file-trigger" class=label_class for=input_id>
+                // ラベル内に置かないと focus-within が発火せず、見えるファイル選択枠にフォーカス枠が出ない
+                <input
+                    id=input_id
+                    data-testid="csv-file-input"
+                    type="file"
+                    accept=".csv"
+                    class="sr-only"
+                    on:change=on_change
+                    disabled=move || disabled.get()
+                    aria-label="CSVファイルを選択"
+                />
                 <div class="flex min-w-0 items-center gap-3">
                     <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
                         <svg
@@ -206,16 +217,6 @@ fn CsvFileInput(
                     "参照"
                 </span>
             </label>
-            <input
-                id=input_id
-                data-testid="csv-file-input"
-                type="file"
-                accept=".csv"
-                class="sr-only"
-                on:change=on_change
-                disabled=move || disabled.get()
-                aria-label="CSVファイルを選択"
-            />
             <input
                 type="text"
                 class="csv-file-input"

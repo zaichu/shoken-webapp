@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Browser } from '@playwright/test';
+import { test, expect, type Locator, type Page, type Browser } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -88,6 +88,14 @@ function json(body: unknown, status = 200) {
   return { status, contentType: 'application/json', body: JSON.stringify(body) };
 }
 
+async function liveRegionTexts(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('[role="status"], [role="alert"], [aria-live]'))
+      .map((el) => ((el as HTMLElement).innerText ?? '').trim())
+      .filter((text) => text.length > 0),
+  );
+}
+
 async function mockSession(page: Page, user: unknown = MOCK_USER, status = 200) {
   await page.route(ROUTES.authMe, (route) =>
     route.fulfill(json(user, status)),
@@ -98,7 +106,7 @@ async function mockEmptyLists(page: Page) {
   await page.route(ROUTES.dividends, (route) => route.fulfill(json(EMPTY_PAGE)));
   await page.route(ROUTES.domesticStocks, (route) => route.fulfill(json(EMPTY_PAGE)));
   await page.route(ROUTES.mutualfunds, (route) => route.fulfill(json(EMPTY_PAGE)));
-  await page.route(ROUTES.assetBalances, (route) => route.fulfill(json([])));
+  await page.route(ROUTES.assetBalances, (route) => route.fulfill(json(EMPTY_PAGE)));
   await page.route(ROUTES.stock, (route) => route.fulfill(json([])));
   await page.route(ROUTES.dividendPerShare, (route) => route.fulfill(json({ items: [] })));
 }
@@ -144,7 +152,7 @@ const AXE_EXCLUSIONS: AxeExclusion[] = [
   { issue: 1066, rule: 'color-contrast', target: 'text-emerald-600' },
 ];
 
-const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag22aa'];
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 async function scanAxe(page: Page, label: string) {
   const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
@@ -194,6 +202,7 @@ async function scanBothViewports(
   label: string,
   go: () => Promise<void>,
   waitNetworkIdle = true,
+  assertState?: () => Promise<void>,
 ) {
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
@@ -203,6 +212,9 @@ async function scanBothViewports(
       await page.waitForTimeout(400);
     } else {
       await page.waitForTimeout(900);
+    }
+    if (assertState) {
+      await assertState();
     }
     await scanAxe(page, `${label}(${name})`);
   }
@@ -236,9 +248,24 @@ test('銘柄検索に moderate 以上の WCAG 違反がない', async ({ page })
 test('資産管理に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
-  await scanBothViewports(page, '資産管理(空)', () => page.goto('/assetbalance'));
+  await scanBothViewports(
+    page,
+    '資産管理(空)',
+    () => page.goto('/assetbalance'),
+    true,
+    () =>
+      expect(page.getByText('資産管理データがありません').first()).toBeVisible({
+        timeout: 10000,
+      }),
+  );
   await mockAssetData(page);
-  await scanBothViewports(page, '資産管理(データあり)', () => page.goto('/assetbalance'));
+  await scanBothViewports(
+    page,
+    '資産管理(データあり)',
+    () => page.goto('/assetbalance'),
+    true,
+    () => expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({ timeout: 10000 }),
+  );
 });
 
 test('資産管理の取得失敗と読み込み中に moderate 以上の WCAG 違反がない', async ({
@@ -249,7 +276,13 @@ test('資産管理の取得失敗と読み込み中に moderate 以上の WCAG �
   await page.route(ROUTES.assetBalances, (route) =>
     route.fulfill(json({ error: '取得に失敗しました' }, 500)),
   );
-  await scanBothViewports(page, '資産管理(取得失敗)', () => page.goto('/assetbalance'));
+  await scanBothViewports(
+    page,
+    '資産管理(取得失敗)',
+    () => page.goto('/assetbalance'),
+    true,
+    () => expect(page.getByTestId('list-load-error')).toBeVisible({ timeout: 10000 }),
+  );
   await page.unroute(ROUTES.assetBalances);
   await page.route(ROUTES.assetBalances, () => {});
   await scanBothViewports(
@@ -257,6 +290,7 @@ test('資産管理の取得失敗と読み込み中に moderate 以上の WCAG �
     '資産管理(読み込み中)',
     () => page.goto('/assetbalance'),
     false,
+    () => expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 }),
   );
 });
 
@@ -290,7 +324,13 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
   await page.route(ROUTES.dividends, (route) =>
     route.fulfill(json({ error: '取得に失敗しました' }, 500)),
   );
-  await scanBothViewports(page, '取引明細(取得失敗)', () => page.goto('/receipts'));
+  await scanBothViewports(
+    page,
+    '取引明細(取得失敗)',
+    () => page.goto('/receipts'),
+    true,
+    () => expect(page.getByTestId('list-load-error')).toBeVisible({ timeout: 10000 }),
+  );
   await page.unroute(ROUTES.dividends);
   await page.route(ROUTES.dividends, () => {});
   await scanBothViewports(
@@ -298,6 +338,7 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
     '取引明細(読み込み中)',
     () => page.goto('/receipts'),
     false,
+    () => expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 }),
   );
 });
 
@@ -376,6 +417,7 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
+  await mockAssetData(page);
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
     await page.goto('/receipts');
@@ -391,14 +433,15 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
+    // 検索カードは行がある時だけ描画される。空・取得失敗だと header が無くスキャンが黙って飛ばされる
     const assetHeader = page.locator('[data-testid="search-card-header"]').first();
-    if ((await assetHeader.count()) > 0) {
-      if ((await assetHeader.getAttribute('aria-expanded')) === 'false') {
-        await assetHeader.click();
-        await page.waitForTimeout(300);
-      }
-      await scanAxe(page, `資産フィルター展開(${name})`);
+    await expect(assetHeader).toBeVisible({ timeout: 10000 });
+    if ((await assetHeader.getAttribute('aria-expanded')) === 'false') {
+      await assetHeader.click();
+      await page.waitForTimeout(300);
     }
+    await expect(assetHeader).toHaveAttribute('aria-expanded', 'true');
+    await scanAxe(page, `資産フィルター展開(${name})`);
   }
   await page.setViewportSize(PC);
 });
@@ -411,6 +454,22 @@ test('ログインと404に moderate 以上の WCAG 違反がない', async ({ p
   await scanBothViewports(page, '404', () => page.goto('/no-such-page-xyz'));
 });
 
+// .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
+async function tabTo(page: Page, target: Locator, maxPresses = 250): Promise<void> {
+  await expect(target).toBeVisible();
+  const reached = () =>
+    target
+      .evaluate((el) => el === document.activeElement)
+      .catch(() => false);
+  for (let pressed = 0; pressed < maxPresses; pressed += 1) {
+    if (await reached()) {
+      return;
+    }
+    await page.keyboard.press('Tab');
+  }
+  expect(await reached(), `${maxPresses}回 Tab しても ${target} に届かなかった`).toBe(true);
+}
+
 test('Tab だけで主要な操作ができる', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
@@ -421,18 +480,24 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
-  await page.click('button[role="tab"][id="tab-dividend"]');
+
+  const dividendTab = page.locator('button[role="tab"][id="tab-dividend"]');
+  const domesticTab = page.locator('button[role="tab"][id="tab-domesticstock"]');
+  await tabTo(page, dividendTab);
+  await expect(dividendTab).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('button[role="tab"][id="tab-domesticstock"]')).toBeFocused();
-  await expect(page.locator('button[role="tab"][id="tab-domesticstock"]')).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await expect(domesticTab).toBeFocused();
+  await expect(domesticTab).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('button[role="tab"][id="tab-dividend"]')).toBeFocused();
+  await expect(dividendTab).toBeFocused();
+  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Space');
+  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
 
   const header = page.locator('[data-testid="search-card-header"]').first();
-  await header.focus();
+  await tabTo(page, header);
   await expect(header).toBeFocused();
   const before = await header.getAttribute('aria-expanded');
   await page.keyboard.press('Enter');
@@ -440,13 +505,22 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     'aria-expanded',
     before === 'true' ? 'false' : 'true',
   );
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Space');
   await expect(header).toHaveAttribute('aria-expanded', before);
 
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
-  await fileInput.focus();
+  await tabTo(page, fileInput);
   await expect(fileInput).toBeFocused();
+  const labelOutline = await page
+    .locator('[data-testid="csv-file-trigger"]')
+    .evaluate((el) => {
+      const style = getComputedStyle(el);
+      return `${style.outlineStyle}/${style.outlineWidth}`;
+    });
+  expect(labelOutline, 'CSVの入力にフォーカスしても表示ラベルに枠が出ない').not.toMatch(
+    /^none\/(0px|none)$/,
+  );
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.keyboard.press('Enter'),
@@ -456,7 +530,9 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存されます', { timeout: 10000 });
 
-  await page.getByRole('button', { name: /全件削除/ }).first().focus();
+  const deleteButton = page.getByRole('button', { name: /全件削除/ }).first();
+  await tabTo(page, deleteButton);
+  await expect(deleteButton).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
   await page.keyboard.press('Escape');
@@ -579,12 +655,12 @@ async function collectSmallTargets(page: Page, min: number): Promise<TargetOffen
   }, min);
 }
 
-test('スマホで操作要素が44px以上ある(除外はIssue付き)', async ({ page }) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await mockReceiptsData(page);
-  await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
-  await page.setViewportSize(MOBILE);
+async function assertTargetSize(
+  page: Page,
+  size: { width: number; height: number },
+  min: number,
+) {
+  await page.setViewportSize(size);
   const routes: Array<[string, () => Promise<void>]> = [
     ['ホーム', () => page.goto('/')],
     ['銘柄検索', () => page.goto('/search')],
@@ -595,7 +671,7 @@ test('スマホで操作要素が44px以上ある(除外はIssue付き)', async 
     await go();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
-    const small = await collectSmallTargets(page, 44);
+    const small = await collectSmallTargets(page, min);
     const remaining = small.filter((t) => targetExcluded(t) === null);
     for (const t of small) {
       const issue = targetExcluded(t);
@@ -610,6 +686,22 @@ test('スマホで操作要素が44px以上ある(除外はIssue付き)', async 
     ).toHaveLength(0);
   }
   await page.setViewportSize(PC);
+}
+
+test('スマホで操作要素が44px以上ある(除外はIssue付き)', async ({ page }) => {
+  await mockSession(page);
+  await mockEmptyLists(page);
+  await mockReceiptsData(page);
+  await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
+  await assertTargetSize(page, MOBILE, 44);
+});
+
+test('PC幅で操作要素が24px以上ある(除外はIssue付き)', async ({ page }) => {
+  await mockSession(page);
+  await mockEmptyLists(page);
+  await mockReceiptsData(page);
+  await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
+  await assertTargetSize(page, PC, 24);
 });
 
 test('320px幅で横スクロールが出ない', async ({ page }) => {
@@ -627,23 +719,44 @@ test('320px幅で横スクロールが出ない', async ({ page }) => {
   await page.setViewportSize(PC);
 });
 
-test('CSVの結果が支援技術に伝わる', async ({ page }) => {
+test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
   await page.route(ROUTES.dividendPreview, (route) =>
     route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] })),
   );
-  await page.route(ROUTES.dividendUpload, (route) =>
-    route.fulfill(json({ inserted: 1, skipped: 0, errors: [] })),
-  );
+  let upload: unknown = { inserted: 1, skipped: 0, errors: [] };
+  await page.route(ROUTES.dividendUpload, (route) => route.fulfill(json(upload)));
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
-  await expect(fileInput).toBeEnabled({ timeout: 10000 });
-  await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
   const preview = page.locator('[role="status"][aria-live="polite"]').first();
-  await expect(preview).toContainText('追加で保存されます', { timeout: 10000 });
+
+  for (const failure of [false, true]) {
+    upload = failure
+      ? { inserted: 0, skipped: 0, errors: [{ row: 2, message: '受取金額が数値ではありません' }] }
+      : { inserted: 1, skipped: 0, errors: [] };
+    await expect(fileInput).toBeEnabled({ timeout: 10000 });
+    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
+    await expect(preview).toContainText('追加で保存されます', { timeout: 10000 });
+    const before = await liveRegionTexts(page);
+    await page.getByRole('button', { name: /追加で保存/ }).first().click();
+    const notice = page.getByTestId('csv-save-result-notice');
+    await expect(notice).toBeVisible({ timeout: 10000 });
+    await expect(notice).toContainText('保存しました');
+    if (failure) {
+      await expect(notice).toContainText('1件エラー');
+    } else {
+      await expect(notice).toContainText('1件反映');
+    }
+    const after = await liveRegionTexts(page);
+    expect(after, 'ライブリージョンの内容が保存で変わらなかった').not.toEqual(before);
+    expect(
+      after.filter((text) => text.includes('保存しました')),
+      '保存結果がライブリージョンに伝わらなかった',
+    ).not.toHaveLength(0);
+  }
 });
 
 test('読み込み中が支援技術に伝わる', async ({ page }) => {
@@ -662,6 +775,13 @@ test('読み込み中が支援技術に伝わる', async ({ page }) => {
     'aria-busy',
     'true',
   );
+  // 読み込み中は選択タブのパネルだけだと非選択タブの aria-controls が解決しない
+  for (const id of ['dividend', 'domesticstock', 'mutualfund']) {
+    const controls = await page
+      .locator(`button[role="tab"][id="tab-${id}"]`)
+      .getAttribute('aria-controls');
+    await expect(page.locator(`#${controls}`)).toHaveCount(1);
+  }
 });
 
 test('取得失敗が支援技術に伝わる', async ({ page }) => {
@@ -688,13 +808,29 @@ test('マイナスは符号と色の両方で表す', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   await page.click('button[role="tab"][id="tab-domesticstock"]');
   await page.waitForTimeout(500);
-  const negatives = await page.evaluate(() => {
-    const els = Array.from(document.querySelectorAll('[data-negative="true"]'));
-    return els.map((el) => (el.textContent ?? '').trim().slice(0, 40));
+  const negative = await page.evaluate(() => {
+    const token = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-negative')
+      .trim();
+    const probe = document.createElement('span');
+    probe.style.color = token;
+    document.body.append(probe);
+    const negativeColor = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      negativeColor,
+      cells: Array.from(document.querySelectorAll('[data-negative="true"]')).map((el) => ({
+        text: (el.textContent ?? '').trim().slice(0, 40),
+        color: getComputedStyle(el).color,
+      })),
+    };
   });
-  expect(negatives.length).toBeGreaterThan(0);
-  for (const text of negatives) {
-    expect(text, `符号なしのマイナス表示: ${text}`).toMatch(/[-−マイナス]/);
+  expect(negative.negativeColor).not.toBe('');
+  expect(negative.cells.length).toBeGreaterThan(0);
+  for (const cell of negative.cells) {
+    const amount = cell.text.replace(/^[\s¥￥$€£]+/, '');
+    expect(amount, `符号なしのマイナス表示: ${cell.text}`).toMatch(/^[-−]|マイナス/);
+    expect(cell.color, `色だけのマイナス表示: ${cell.text}`).toBe(negative.negativeColor);
   }
 });
 
