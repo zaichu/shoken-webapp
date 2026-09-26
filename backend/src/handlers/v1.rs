@@ -30,7 +30,7 @@ pub fn auth_routes() -> Router<AppState> {
         .route("/api/v1/oauth/google/callback", get(auth::google_callback))
 }
 
-/// データ系 v1 ルート（レート制限なし）
+/// データ系 v1 ルート(data_limiter 対象)
 pub fn data_routes() -> Router<AppState> {
     Router::new()
         .route(
