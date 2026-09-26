@@ -44,6 +44,10 @@ updates:
       frontend-rust-dependencies:
         patterns:
           - "*"
+    # getrandom は推移的な 0.3 へ feature を届けるため 0.3 系列を直接指定している。0.4 に上げると wasm32 が壊れる
+    ignore:
+      - dependency-name: "getrandom"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "frontend"
