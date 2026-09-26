@@ -376,7 +376,7 @@ fn apply_list_error(
     if !data_ops.with_untracked(|ops| ops.is_current_list(rev)) {
         return;
     }
-    // キャッシュ済みの行は残し、エラーだけを出す(React は dbQuery.data と error を別々に扱う)
+    // キャッシュ済みの行は残し、エラーだけを出す(キャッシュ済みデータとエラーは別々に扱う)
     let has_cached = balances
         .with_untracked(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation));
     if has_cached {
@@ -2020,12 +2020,12 @@ mod tests {
     }
 
     #[test]
-    fn unauthorized_asset_balance_error_uses_react_message() {
+    fn unauthorized_asset_balance_error_uses_expected_message() {
         assert_eq!(ApiError::http(401).message(), "認証が必要です");
     }
 
     #[test]
-    fn percentage_formatter_matches_react_cases() {
+    fn percentage_formatter_formats_values() {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(1.3770010052107338), "1.38%");
         assert_eq!(format_fixed_percent(5.300076869056115, 1), "5.3%");
@@ -2099,7 +2099,7 @@ mod tests {
     }
 
     #[test]
-    fn security_name_normalization_matches_react_cases() {
+    fn security_name_normalization_cases() {
         assert_eq!(normalize_security_name("ＫＤＤＩ"), "KDDI");
         assert_eq!(normalize_security_name("トヨタ自動車"), "トヨタ自動車");
         assert_eq!(normalize_security_code(" 7203: トヨタ自動車 "), "7203");
@@ -2116,7 +2116,7 @@ mod tests {
         assert_eq!(format_number_value(1.5), "1.5");
         assert_eq!(format_number_value(1.2345), "1.23");
         assert_eq!(format_number_value(-0.001), "-0");
-        // React は符号を丸め前の値の `num < 0` で判定するため -0 は `0` と表示する
+        // 符号は丸め前の値の `num < 0` で判定するため -0 は `0` と表示する
         assert_eq!(format_number_value(-0.0), "0");
         assert_eq!(format_currency(-0.0), "¥ 0");
         assert_eq!(format_number_value(-12345.678), "-12,345.68");
@@ -3060,10 +3060,7 @@ mod tests {
 
             store.data_ops.update(DataOps::begin_list_fetch);
             let rev = store.data_ops.with_untracked(|ops| ops.list_rev);
-            assert!(
-                store.list_loading(),
-                "キャッシュがあっても再取得中は true(React の isFetching と同じ)"
-            );
+            assert!(store.list_loading(), "キャッシュがあっても再取得中は true");
 
             store.data_ops.update(|ops| ops.end_list_fetch(rev));
             assert!(!store.list_loading());

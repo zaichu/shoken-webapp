@@ -271,7 +271,7 @@ async function tableMetrics(page: Page): Promise<TableMetrics> {
 
 // table-fixed の表の実幅は max(列幅合計, コンテナ幅)。
 // 収まる幅では横スクロールなし、収まらない幅では列幅を保ったまま内部スクロールする
-function expectReactTableFit(metrics: TableMetrics, widths: readonly number[]) {
+function expectTableFit(metrics: TableMetrics, widths: readonly number[]) {
   const sum = widths.reduce((a, b) => a + b, 0);
   expect(metrics.layout).toBe('fixed');
   expect(metrics.overflowX).toBe('auto');
@@ -528,7 +528,7 @@ for (const width of [1440, 1024]) {
 
       const spec = TABLE_SPEC[slug];
       await expectColumnWidthsAndEllipsis(page, spec.widths);
-      expectReactTableFit(await tableMetrics(page), spec.widths);
+      expectTableFit(await tableMetrics(page), spec.widths);
       await expectReceiptTableDetailStyles(page, slug);
       await expectTableSettled(page);
 
@@ -552,7 +552,7 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
   await expect(ths.nth(2)).toHaveText('口座');
   await expect(ths.nth(3)).toHaveText('銘柄名');
   await expectColumnWidthsAndEllipsis(page, reordered);
-  expectReactTableFit(await tableMetrics(page), reordered);
+  expectTableFit(await tableMetrics(page), reordered);
   await expectTableSettled(page);
   await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
 });

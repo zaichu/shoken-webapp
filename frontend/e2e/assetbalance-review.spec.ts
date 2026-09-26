@@ -167,7 +167,7 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   });
   await expect(button).toBeEnabled();
 
-  // レール内の順序は CSV → 検索 → 見直し促進カード(React と同じ末尾)
+  // レール内の順序は CSV → 検索 → 見直し促進カード
   const order = await rail
     .locator('> div')
     .first()
