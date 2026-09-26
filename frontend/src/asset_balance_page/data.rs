@@ -48,7 +48,7 @@ async fn fetch_asset_balance_page(page_no: usize) -> Result<AssetBalanceListResp
         .await
 }
 
-/// 一覧 API の全ページ結合。取引明細(`receipts.rs`)と同じく
+/// 一覧 API の全ページ結合。取引明細(`receipts/store.rs`)と同じく
 /// `PageCollector` で末尾ページまで逐次取得し、summary は1ページ目のものを採用する。
 pub(crate) struct AssetBalancePages {
     pub(crate) collector: PageCollector<AssetBalance>,

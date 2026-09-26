@@ -59,7 +59,7 @@ pub enum ReceiptItem {
     MutualFund(crate::dto::Mutualfund),
 }
 
-/// テーブル1セルの内容。React の列定義で銘柄コードは `/search` へのリンク、
+/// テーブル1セルの内容。銘柄コードは `/search` へのリンク、
 /// 銘柄名・ファンド名はコピーボタンを出すため、表示文字列とは別に種別を持つ。
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReceiptCell {

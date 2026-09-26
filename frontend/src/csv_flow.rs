@@ -378,10 +378,7 @@ mod tests {
         }));
         assert!(!state.saving);
         assert!(state.file_name.is_none());
-        assert!(
-            state.preview.is_none(),
-            "React は保存成功の SET_RAW_FILE でプレビューも消す"
-        );
+        assert!(state.preview.is_none(), "保存成功でプレビューも消す");
         assert_eq!(
             state.import_result.as_ref().map(|result| result.inserted),
             Some(2)

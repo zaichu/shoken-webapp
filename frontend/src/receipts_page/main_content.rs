@@ -101,7 +101,7 @@ pub(crate) fn ReceiptsMainContent(
             let query = search.with(|s| s.query.clone());
             let rows = filtered.get();
             // 銘柄コード検索時は上段の集計カードの代わりに
-            // React の DividendInfo（embedded）を折り畳み式で出す
+            // DividendInfo（embedded）を折り畳み式で出す
             if let Some(info) = dividend_info {
                 let dividends: Vec<Dividend> = rows
                     .iter()
