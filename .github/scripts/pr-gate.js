@@ -20,6 +20,7 @@ const prQuery = `
         headRefOid
         isCrossRepository
         author {
+          __typename
           login
         }
         closingIssuesReferences(first: 1) {
@@ -211,8 +212,10 @@ async function run({ github, context, core }) {
     return;
   }
 
-  // dependabot の PR は Issue 紐づけを免除する(未解決コメントの確認は通常どおり行う)
-  const skipIssueLink = pr.author?.login === 'dependabot[bot]';
+  // dependabot の PR は Issue 紐づけを免除する(未解決コメントの確認は通常どおり行う)。
+  // GraphQL の Actor.login は "dependabot"("[bot]" なし)、REST は "dependabot[bot]" を返すため末尾の [bot] を除いて比較する
+  const authorLogin = (pr.author?.login ?? '').replace(/\[bot\]$/, '');
+  const skipIssueLink = isBot(pr.author) && authorLogin === 'dependabot';
   const [comments, reviews, linked] = await Promise.all([
     fetchAll(github, { owner, repo, prNumber }, 'comments'),
     fetchAll(github, { owner, repo, prNumber }, 'reviews'),
