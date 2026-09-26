@@ -13,8 +13,8 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_account, parse_required_date, parse_required_number, parse_required_string,
-    CsvCells, RowNumber,
+    check_max_chars, parse_required_account, parse_required_date, parse_required_number,
+    parse_required_string, CsvCells, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -328,7 +328,12 @@ fn transform_mutualfund_row(
     Ok(CreateMutualfundRequest {
         trade_date,
         settlement_date,
-        fund_name: parse_required_string(row, "ファンド名", row_num)?,
+        fund_name: check_max_chars(
+            parse_required_string(row, "ファンド名", row_num)?,
+            "ファンド名",
+            300,
+            row_num,
+        )?,
         dividends,
         account,
         shares: parse_required_number(row, "数量[口]", row_num)?,

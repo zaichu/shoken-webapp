@@ -136,6 +136,22 @@ where
         .map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 
+/// DB の列の長さを超える値を、一括登録の失敗ではなく行エラーにする
+pub fn check_max_chars(
+    value: String,
+    col: &str,
+    max: usize,
+    row_num: RowNumber,
+) -> Result<String, CsvRowError> {
+    if value.chars().count() > max {
+        return Err(cell_error(
+            row_num,
+            format!("{col}: {max}文字以内で指定してください"),
+        ));
+    }
+    Ok(value)
+}
+
 /// 必須口座フィールドを取得
 pub fn parse_required_account<R: CsvCells>(
     row: &R,

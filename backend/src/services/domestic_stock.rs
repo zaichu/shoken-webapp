@@ -13,7 +13,7 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_account, parse_required_date, parse_required_number,
+    check_max_chars, parse_required_account, parse_required_date, parse_required_number,
     parse_required_security_code, parse_required_string, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
@@ -403,7 +403,12 @@ fn transform_domestic_stock_row(
         trade_date,
         settlement_date,
         security_code: parse_required_security_code(row, "銘柄コード", row_num)?,
-        security_name: normalize_security_name(&parse_required_string(row, "銘柄名", row_num)?),
+        security_name: check_max_chars(
+            normalize_security_name(&parse_required_string(row, "銘柄名", row_num)?),
+            "銘柄名",
+            200,
+            row_num,
+        )?,
         account,
         shares: parse_required_number(row, "数量[株]", row_num)?,
         asked_price: parse_required_number(row, "売却/決済単価[円]", row_num)?,

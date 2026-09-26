@@ -13,8 +13,8 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_optional_string, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_string, RowNumber,
+    check_max_chars, parse_optional_string, parse_required_account, parse_required_date,
+    parse_required_number, parse_required_string, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -313,10 +313,25 @@ fn transform_dividend_row(
 ) -> Result<CreateDividendRequest, CsvRowError> {
     Ok(CreateDividendRequest {
         settlement_date: parse_required_date(row, "入金日", row_num)?,
-        product: parse_required_string(row, "商品", row_num)?,
+        product: check_max_chars(
+            parse_required_string(row, "商品", row_num)?,
+            "商品",
+            100,
+            row_num,
+        )?,
         account: parse_required_account(row, "口座", row_num)?,
-        security_code: parse_optional_string(row, "銘柄コード"),
-        security_name: normalize_security_name(&parse_required_string(row, "銘柄", row_num)?),
+        security_code: check_max_chars(
+            parse_optional_string(row, "銘柄コード"),
+            "銘柄コード",
+            10,
+            row_num,
+        )?,
+        security_name: check_max_chars(
+            normalize_security_name(&parse_required_string(row, "銘柄", row_num)?),
+            "銘柄",
+            200,
+            row_num,
+        )?,
         unit_price: parse_required_number(row, "単価[円/現地通貨]", row_num)?,
         shares: parse_required_number(row, "数量[株/口]", row_num)?,
         dividends_before_tax: parse_required_number(
