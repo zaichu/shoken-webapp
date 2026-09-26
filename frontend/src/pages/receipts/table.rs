@@ -274,7 +274,7 @@ pub(crate) fn ReceiptTable(
                     <div class="table-frame">
                         <table class="receipt-table">
                             <thead
-                                class="sticky z-10 bg-slate-100 text-slate-800"
+                                class="sticky z-10 bg-slate-100 text-slate-800 print:static"
                                 style:top=move || {
                                     header_offset
                                         .get()
