@@ -146,7 +146,7 @@ async function shoot(page: Page, name: string) {
   });
 }
 
-test('1920px では見直し促進カードがレール内に表示され、クリップボードへReactと同じプロンプトをコピーする', async ({
+test('1920px では見直し促進カードがレール内に表示され、クリップボードへ見直し用のプロンプトをコピーする', async ({
   page,
 }) => {
   await stubClipboard(page);

@@ -504,7 +504,7 @@ test.beforeEach(async ({ context }) => {
 
 for (const width of [1440, 1024]) {
   for (const slug of TABS) {
-    test(`取引明細テーブルはカード内に収まるかReact同様に内部スクロールする(${slug} ${width}px)`, async ({
+    test(`取引明細テーブルはカード内に収まるか内部スクロールする(${slug} ${width}px)`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
@@ -548,7 +548,7 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
 });
 
 for (const width of [1440, 390]) {
-  test(`資産管理のページ構成がReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+  test(`資産管理のページ構成(${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.goto('/assetbalance');
     await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
@@ -559,7 +559,7 @@ for (const width of [1440, 390]) {
     await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
   });
 
-  test(`取引明細のエラー構成はReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+  test(`取引明細のエラー構成(${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await mockReceiptFetchErrors(page);
     await page.goto('/receipts');
@@ -568,7 +568,7 @@ for (const width of [1440, 390]) {
     await shoot(page, testInfo, `receipts-error-${width}-leptos`);
   });
 
-  test(`資産管理のエラー構成はReactと同じ(${width}px)`, async ({ page }, testInfo) => {
+  test(`資産管理のエラー構成(${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
       route.fulfill(serverError()),
@@ -580,7 +580,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('検索のエラー文言はReactと同じ', async ({ page }, testInfo) => {
+test('検索のエラー文言', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
     route.fulfill(serverError()),
@@ -590,7 +590,7 @@ test('検索のエラー文言はReactと同じ', async ({ page }, testInfo) => 
   await shoot(page, testInfo, 'search-error-1440-leptos');
 });
 
-test('資産管理の絞り込み空状態はReactと同じ', async ({ page }, testInfo) => {
+test('資産管理の絞り込み空状態', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoFilteredEmptyAssetBalance(page);
   await expect(

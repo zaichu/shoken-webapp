@@ -55,7 +55,6 @@ fn natural_end_before_max_pages_is_not_truncated() {
     assert!(!pages.truncated());
 }
 
-// 上限到達時の打ち切り判定は「末尾ページが満杯か」「total に未到達か」の2条件の組み合わせ
 #[test]
 fn truncation_depends_on_last_page_fullness_and_total() {
     for (name, last_page, total, want_truncated, want_rows) in [
