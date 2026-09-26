@@ -451,7 +451,7 @@ async function expectPortfolioValuationTotals(page: Page) {
   await expect(summary).toBeVisible();
   await expect(summary).toContainText('保有資産の評価額');
   await expect(summary).toContainText('¥ 5,580,000');
-  await expect(summary).toContainText('評価損益 +¥ 220,000（+4.1%）');
+  await expect(summary).toContainText('評価損益 ¥ 220,000（4.1%）');
   await expect(summary).toContainText('取込データ時点');
 }
 

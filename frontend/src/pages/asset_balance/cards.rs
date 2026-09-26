@@ -1,5 +1,6 @@
 use super::format::{
     format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
+    is_negative_valuation,
 };
 use super::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
@@ -202,15 +203,13 @@ pub(crate) fn HoldingValuationCard(
                         <span
                             class=format!(
                                 "truncate text-sm font-bold tabular-nums {}",
-                                if valuation.amount.is_some_and(|amount| amount < 0.0) {
+                                if is_negative_valuation(valuation.amount) {
                                     "text-red-800"
                                 } else {
                                     "text-slate-800"
                                 },
                             )
-                            data-negative=valuation
-                                .amount
-                                .is_some_and(|amount| amount < 0.0)
+                            data-negative=is_negative_valuation(valuation.amount)
                                 .then_some("true")
                         >
                             {profit_loss}

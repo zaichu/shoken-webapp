@@ -4,18 +4,17 @@ use std::collections::BTreeMap;
 
 pub use shared::domain::DividendSummary as DividendTotals;
 pub use shared::format::{format_currency, format_number};
-#[allow(unused_imports)]
+#[cfg(test)]
 pub use shared::format::{
     format_currency_with_options, format_number_with_options, format_percentage_value,
 };
 pub use shared::normalize::normalize_security_code;
+#[cfg(test)]
+pub use shared::summary::DomesticDailySummary;
 pub use shared::summary::{
     dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
     domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
 };
-// テストの期待値構築でのみ参照する（bin では unused になる）
-#[allow(unused_imports)]
-pub use shared::summary::DomesticDailySummary;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default, PartialEq)]

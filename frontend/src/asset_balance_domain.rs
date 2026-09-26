@@ -33,8 +33,33 @@ pub fn to_finite_amount(value: &Value) -> Option<f64> {
     }
 }
 
-fn to_decimal_amount(value: &Value) -> Option<Decimal> {
-    to_finite_amount(value).and_then(|amount| Decimal::from_str_exact(&amount.to_string()).ok())
+fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
+    Decimal::from_str_exact(&value.to_string()).ok()
+}
+
+fn valuation_parts(
+    market_dec: Option<Decimal>,
+    purchase_dec: Option<Decimal>,
+    market: f64,
+    purchase: f64,
+) -> (f64, Option<f64>) {
+    let amount_dec = market_dec
+        .zip(purchase_dec)
+        .and_then(|(market, purchase)| market.checked_sub(purchase));
+    let amount = amount_dec
+        .and_then(|value| value.to_f64())
+        .unwrap_or(market - purchase);
+    let rate = if purchase == 0.0 {
+        None
+    } else {
+        amount_dec
+            .zip(purchase_dec)
+            .and_then(|(amount, purchase)| amount.checked_div(purchase))
+            .and_then(|rate| rate.checked_mul(Decimal::ONE_HUNDRED))
+            .and_then(|rate| rate.to_f64())
+            .or_else(|| Some(amount / purchase * 100.0))
+    };
+    (amount, rate)
 }
 
 /// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
@@ -157,27 +182,24 @@ pub struct ValuationResult {
 }
 
 pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
-    let market = to_decimal_amount(market_value);
-    let purchase = to_decimal_amount(purchase_amount);
-    match (market, purchase) {
-        (Some(market), Some(purchase)) => {
-            let amount = market - purchase;
-            if purchase.is_zero() {
-                ValuationResult {
-                    amount: amount.to_f64(),
-                    rate: None,
-                }
-            } else {
-                ValuationResult {
-                    amount: amount.to_f64(),
-                    rate: (amount / purchase * Decimal::ONE_HUNDRED).to_f64(),
-                }
-            }
-        }
-        _ => ValuationResult {
+    let (Some(market), Some(purchase)) = (
+        to_finite_amount(market_value),
+        to_finite_amount(purchase_amount),
+    ) else {
+        return ValuationResult {
             amount: None,
             rate: None,
-        },
+        };
+    };
+    let (amount, rate) = valuation_parts(
+        f64_to_decimal_exact(market),
+        f64_to_decimal_exact(purchase),
+        market,
+        purchase,
+    );
+    ValuationResult {
+        amount: Some(amount),
+        rate,
     }
 }
 
@@ -199,41 +221,59 @@ pub struct ValuationSummary {
 }
 
 pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
-    let mut total_market = Decimal::ZERO;
-    let mut total_purchase = Decimal::ZERO;
+    let mut market_dec = Decimal::ZERO;
+    let mut purchase_dec = Decimal::ZERO;
+    let mut market_f64 = 0.0;
+    let mut purchase_f64 = 0.0;
+    let mut exact = true;
     for item in items {
-        let market = to_decimal_amount(&item.market_value);
-        let purchase = to_decimal_amount(&item.total_purchase_amount);
-        match (market, purchase) {
-            (Some(market), Some(purchase)) => {
-                total_market += market;
-                total_purchase += purchase;
-            }
-            _ => {
-                return ValuationSummary {
-                    market_value: None,
-                    amount: None,
-                    rate: None,
-                    incomplete: true,
-                };
-            }
+        let (Some(market), Some(purchase)) = (
+            to_finite_amount(&item.market_value),
+            to_finite_amount(&item.total_purchase_amount),
+        ) else {
+            return ValuationSummary {
+                market_value: None,
+                amount: None,
+                rate: None,
+                incomplete: true,
+            };
+        };
+        market_f64 += market;
+        purchase_f64 += purchase;
+        if exact {
+            exact = match (f64_to_decimal_exact(market), f64_to_decimal_exact(purchase)) {
+                (Some(market), Some(purchase)) => match (
+                    market_dec.checked_add(market),
+                    purchase_dec.checked_add(purchase),
+                ) {
+                    (Some(market), Some(purchase)) => {
+                        market_dec = market;
+                        purchase_dec = purchase;
+                        true
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
         }
     }
-    let amount = total_market - total_purchase;
-    if total_purchase.is_zero() {
-        ValuationSummary {
-            market_value: total_market.to_f64(),
-            amount: amount.to_f64(),
-            rate: None,
-            incomplete: false,
-        }
+    let (market_dec, purchase_dec) = if exact {
+        (Some(market_dec), Some(purchase_dec))
     } else {
-        ValuationSummary {
-            market_value: total_market.to_f64(),
-            amount: amount.to_f64(),
-            rate: (amount / total_purchase * Decimal::ONE_HUNDRED).to_f64(),
-            incomplete: false,
-        }
+        (None, None)
+    };
+    let market_total = market_dec
+        .and_then(|value| value.to_f64())
+        .unwrap_or(market_f64);
+    let purchase_total = purchase_dec
+        .and_then(|value| value.to_f64())
+        .unwrap_or(purchase_f64);
+    let (amount, rate) = valuation_parts(market_dec, purchase_dec, market_total, purchase_total);
+    ValuationSummary {
+        market_value: Some(market_total),
+        amount: Some(amount),
+        rate,
+        incomplete: false,
     }
 }
 
@@ -265,15 +305,16 @@ pub fn summarize_valuation_with_summary(
     }
     let purchase = summary.total_purchase_amount;
     let market = summary.total_market_value;
-    let amount = market - purchase;
+    let (amount, rate) = valuation_parts(
+        Some(market),
+        Some(purchase),
+        market.to_f64().unwrap_or(0.0),
+        purchase.to_f64().unwrap_or(0.0),
+    );
     ValuationSummary {
         market_value: market.to_f64(),
-        amount: amount.to_f64(),
-        rate: if purchase.is_zero() {
-            None
-        } else {
-            (amount / purchase * Decimal::ONE_HUNDRED).to_f64()
-        },
+        amount: Some(amount),
+        rate,
         incomplete: false,
     }
 }
@@ -750,6 +791,44 @@ mod tests {
     }
 
     #[test]
+    fn summarize_valuation_overflow_falls_back_to_f64() {
+        let items: Vec<ValuationItem> = (0..8)
+            .map(|_| ValuationItem {
+                market_value: json!(1e28),
+                total_purchase_amount: json!(0.0),
+            })
+            .collect();
+        let summary = summarize_valuation(&items);
+        assert!(!summary.incomplete);
+        assert_eq!(summary.market_value, Some(8e28));
+        assert_eq!(summary.amount, Some(8e28));
+        assert_eq!(summary.rate, None);
+
+        let items = vec![ValuationItem {
+            market_value: json!(1e30),
+            total_purchase_amount: json!(1e29),
+        }];
+        let summary = summarize_valuation(&items);
+        assert!(!summary.incomplete);
+        assert_eq!(summary.market_value, Some(1e30));
+        assert_eq!(summary.amount, Some(9e29));
+        let rate = summary.rate.expect("nonzero purchase must produce a rate");
+        assert!((rate - 900.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn calculate_valuation_rate_overflow_does_not_panic() {
+        let result = calculate_valuation(&json!(1e28), &json!(1e-10));
+        assert_eq!(result.amount, Some(1e28));
+        assert!(result.rate.is_some_and(|rate| rate > 1e30));
+
+        let result = calculate_valuation(&json!(1e30), &json!(1e29));
+        assert_eq!(result.amount, Some(9e29));
+        let rate = result.rate.expect("nonzero purchase must produce a rate");
+        assert!((rate - 900.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn kpi_summary_override_matches_component_cases() {
         let without_summary = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), None);
         assert_eq!(without_summary.total_purchase_amount, 850000.0);
@@ -986,26 +1065,24 @@ mod tests {
             let result = calculate_valuation(&market_json, &purchase_json);
             match (market, purchase) {
                 (Some(m), Some(p)) => {
-                    match (
-                        Decimal::from_str_exact(&m.to_string()),
-                        Decimal::from_str_exact(&p.to_string()),
-                    ) {
-                        (Ok(m_dec), Ok(p_dec)) => {
-                            let amount = m_dec - p_dec;
-                            proptest::prop_assert_eq!(result.amount, amount.to_f64());
-                            if p_dec.is_zero() {
-                                proptest::prop_assert_eq!(result.rate, None);
-                            } else {
-                                proptest::prop_assert_eq!(
-                                    result.rate,
-                                    (amount / p_dec * Decimal::ONE_HUNDRED).to_f64()
-                                );
-                            }
-                        }
-                        _ => {
-                            proptest::prop_assert_eq!(result.amount, None);
-                            proptest::prop_assert_eq!(result.rate, None);
-                        }
+                    let amount = result
+                        .amount
+                        .expect("finite inputs must produce an amount");
+                    let diff = m - p;
+                    proptest::prop_assert_eq!(amount.signum(), diff.signum());
+                    proptest::prop_assert!(
+                        (amount - diff).abs() <= 1e-9 * m.abs().max(p.abs()).max(1.0)
+                    );
+                    if p == 0.0 {
+                        proptest::prop_assert_eq!(result.rate, None);
+                    } else {
+                        let rate = result
+                            .rate
+                            .expect("nonzero purchase must produce a rate");
+                        proptest::prop_assert_eq!(
+                            rate.signum(),
+                            amount.signum() * p.signum()
+                        );
                     }
                 }
                 _ => {

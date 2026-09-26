@@ -1,7 +1,7 @@
 use super::chart::ChartList;
 use super::format::{
     dec_to_f64, format_currency, format_percentage_value, format_valuation_amount,
-    format_valuation_rate,
+    format_valuation_rate, is_negative_valuation,
 };
 use super::holdings::HoldingView;
 use crate::asset_balance::portfolio::chart_plan;
@@ -134,21 +134,18 @@ pub(crate) fn PortfolioSummary(
                 <div class="mt-4" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
                     <p class="mt-1 text-3xl font-black tabular-nums text-slate-950">
-                        {format_valuation_amount(market_value)}
+                        {market_value.map_or("—".to_string(), format_currency)}
                     </p>
                     <p
                         class=format!(
                             "mt-2 text-sm font-bold tabular-nums {}",
-                            if valuation.amount.is_some_and(|amount| amount < 0.0) {
+                            if is_negative_valuation(valuation.amount) {
                                 "text-red-800"
                             } else {
                                 "text-slate-800"
                             },
                         )
-                        data-negative=valuation
-                            .amount
-                            .is_some_and(|amount| amount < 0.0)
-                            .then_some("true")
+                        data-negative=is_negative_valuation(valuation.amount).then_some("true")
                     >
                         "評価損益 "
                         {match valuation.amount {

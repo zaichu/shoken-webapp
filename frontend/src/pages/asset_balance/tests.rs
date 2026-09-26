@@ -162,6 +162,22 @@ fn number_and_currency_formatters_match_intl_cases() {
         "¥ 0.123456789012346"
     );
     assert_eq!(format_fixed_percent(f64::NAN, 1), "-");
+    assert_eq!(
+        format_currency(1e29),
+        "¥ 100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_currency(-1e29),
+        "¥ -100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_valuation_amount(Some(1e29)),
+        "¥ 100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_fixed_percent(1e30, 1),
+        "1000000000000000019884624838656.0%"
+    );
 }
 
 #[test]
@@ -397,6 +413,18 @@ fn dividend_update_does_not_notify_balance_view() {
 fn valuation_formatters_treat_nan_as_missing() {
     assert_eq!(format_valuation_amount(Some(f64::NAN)), "—");
     assert_eq!(format_valuation_rate(Some(f64::NAN), 1), "—");
+}
+
+#[test]
+fn negative_valuation_is_decided_by_rounded_amount() {
+    assert!(!is_negative_valuation(Some(-0.4)));
+    assert!(!is_negative_valuation(Some(0.0)));
+    assert!(!is_negative_valuation(None));
+    assert!(!is_negative_valuation(Some(f64::NAN)));
+    assert!(is_negative_valuation(Some(-0.5)));
+    assert!(is_negative_valuation(Some(-1.0)));
+    assert_eq!(format_valuation_amount(Some(-0.4)), "¥ 0");
+    assert_eq!(format_valuation_amount(Some(-0.5)), "¥ -1");
 }
 
 #[test]
