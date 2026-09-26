@@ -324,6 +324,11 @@ mod tests {
             verify_account_delete_confirmation(&just_valid, &session, now),
             "TTL 直前の確認は受理されること"
         );
+        let at_boundary = issue_account_delete_confirmation(&session, now - 600).unwrap();
+        assert!(
+            verify_account_delete_confirmation(&at_boundary, &session, now),
+            "TTL ちょうどの確認は受理されること"
+        );
         let expired = issue_account_delete_confirmation(&session, now - 601).unwrap();
         assert!(
             !verify_account_delete_confirmation(&expired, &session, now),
