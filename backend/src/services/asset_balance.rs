@@ -14,14 +14,13 @@ use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_cs
 #[cfg(test)]
 use crate::services::csv_pipeline::parse_csv_with_config;
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{
-    get_row_cell, normalize_security_name, parse_number, parse_optional_string_row,
-};
+use crate::services::csv_util::{get_row_cell, parse_number, parse_optional_string_row};
 use crate::services::facets;
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
 };
 use rust_decimal::Decimal;
+use shared::normalize::normalize_security_name;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
 use uuid::Uuid;

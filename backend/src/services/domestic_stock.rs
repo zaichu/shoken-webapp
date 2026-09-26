@@ -13,14 +13,15 @@ use crate::services::bulk_helpers::{
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    compute_taxes, normalize_security_name, parse_required_date_row, parse_required_number_row,
-    parse_required_string_row,
+    parse_required_date_row, parse_required_number_row, parse_required_string_row,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
 use rust_decimal::Decimal;
+use shared::normalize::normalize_security_name;
+use shared::tax::{compute_taxes, SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
 use uuid::Uuid;
@@ -122,8 +123,8 @@ pub async fn search(
 /// 検索条件全体の summary を算出する。
 ///
 /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
-/// 特定口座合計がプラスの時だけ `floor(合計 * 0.20315)` を日次税額として計算したうえで、
-/// 日次結果を合計する。
+/// 特定口座合計がプラスの時だけ `floor(合計 * 税率)` を日次税額として計算したうえで、
+/// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
 async fn fetch_summary(
     pool: &PgPool,
     user_id: Uuid,
@@ -133,27 +134,22 @@ async fn fetch_summary(
         "WITH filtered AS (SELECT trade_date, account, realized_profit_and_loss FROM domestic_stocks",
     );
     push_filters(&mut qb, user_id, filter);
-    qb.push(
-        "), daily AS ( \
+    qb.push("), daily AS (SELECT trade_date, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
+        .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
+        .push(" IN account) > 0), 0) AS specific_total, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
+        .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
+        .push(
+            " IN account) = 0), 0) AS nisa_total FROM filtered GROUP BY trade_date), daily_tax AS (SELECT specific_total, nisa_total, FLOOR(GREATEST(specific_total, 0) * ",
+        )
+        .push_bind(TAX_RATE)
+        .push(
+            ") AS tax FROM daily) \
              SELECT \
-                 trade_date, \
-                 COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION('特定' IN account) > 0), 0) AS specific_total, \
-                 COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION('特定' IN account) = 0), 0) AS nisa_total \
-             FROM filtered \
-             GROUP BY trade_date \
-         ), daily_tax AS ( \
-             SELECT \
-                 specific_total, \
-                 nisa_total, \
-                 FLOOR(GREATEST(specific_total, 0) * 0.20315) AS tax \
-             FROM daily \
-         ) \
-         SELECT \
-             COALESCE(SUM(specific_total + nisa_total), 0) AS total_realized_profit_and_loss, \
-             COALESCE(SUM(tax), 0) AS total_taxes, \
-             COALESCE(SUM(specific_total - tax + nisa_total), 0) AS total_realized_profit_and_loss_after_tax \
-         FROM daily_tax",
-    );
+                 COALESCE(SUM(specific_total + nisa_total), 0) AS total_realized_profit_and_loss, \
+                 COALESCE(SUM(tax), 0) AS total_taxes, \
+                 COALESCE(SUM(specific_total - tax + nisa_total), 0) AS total_realized_profit_and_loss_after_tax \
+             FROM daily_tax",
+        );
     Ok(qb
         .build_query_as::<DomesticStockSummary>()
         .fetch_one(pool)
@@ -493,7 +489,7 @@ mod tests {
     fn test_preview_csv() {
         assert_eq!(
             assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
-            "ＥＮＥＯＳホールディングス"
+            "ENEOSホールディングス"
         );
 
         let preview = assert_preview_ok(NISA_ROW);

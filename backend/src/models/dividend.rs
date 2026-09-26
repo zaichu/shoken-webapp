@@ -1,37 +1,11 @@
 use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use utoipa::ToSchema;
-use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
-/// 配当金モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct Dividend {
-    pub id: Uuid,
-    #[serde(skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
-    pub user_id: Uuid,
-    pub settlement_date: NaiveDate,
-    pub product: String,
-    pub account: String,
-    pub security_code: String,
-    pub security_name: String,
-    #[schema(value_type = f64)]
-    pub unit_price: Decimal,
-    #[schema(value_type = f64)]
-    pub shares: Decimal,
-    #[schema(value_type = f64)]
-    pub dividends_before_tax: Decimal,
-    #[schema(value_type = f64)]
-    pub taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub net_amount_received: Decimal,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+pub use shared::domain::{Dividend, DividendSummary};
 
 /// 配当金一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 配当金固有の絞り込み）
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
@@ -52,17 +26,6 @@ impl SearchParamsAccessor for DividendSearchQueryParams {
     fn search_params(&self) -> &SearchQueryParams {
         &self.search
     }
-}
-
-/// 配当金 検索条件全体の集計
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct DividendSummary {
-    #[schema(value_type = f64)]
-    pub total_dividends_before_tax: Decimal,
-    #[schema(value_type = f64)]
-    pub total_taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub total_net_amount_received: Decimal,
 }
 
 /// 配当金作成リクエスト

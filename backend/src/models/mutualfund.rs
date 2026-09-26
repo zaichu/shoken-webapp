@@ -1,43 +1,11 @@
 use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use utoipa::ToSchema;
-use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
-/// 投資信託モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct Mutualfund {
-    pub id: Uuid,
-    #[serde(skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
-    pub user_id: Uuid,
-    pub trade_date: NaiveDate,
-    pub settlement_date: NaiveDate,
-    pub fund_name: String,
-    pub dividends: Option<String>,
-    pub account: String,
-    #[schema(value_type = f64)]
-    pub shares: Decimal,
-    #[schema(value_type = f64)]
-    pub exchange_rate: Decimal,
-    #[schema(value_type = f64)]
-    pub cancellation_unit_price_yen: Decimal,
-    #[schema(value_type = f64)]
-    pub cancellation_amount_yen: Decimal,
-    #[schema(value_type = f64)]
-    pub average_acquisition_price_yen: Decimal,
-    #[schema(value_type = f64)]
-    pub realized_profit_and_loss: Decimal,
-    #[schema(value_type = f64)]
-    pub taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub realized_profit_and_loss_after_tax: Decimal,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+pub use shared::domain::{Mutualfund, MutualfundSummary};
 
 /// 投資信託作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -82,17 +50,6 @@ impl SearchParamsAccessor for MutualfundSearchQueryParams {
     fn search_params(&self) -> &SearchQueryParams {
         &self.search
     }
-}
-
-/// 投資信託 検索条件全体の集計
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct MutualfundSummary {
-    #[schema(value_type = f64)]
-    pub total_realized_profit_and_loss: Decimal,
-    #[schema(value_type = f64)]
-    pub total_taxes: Decimal,
-    #[schema(value_type = f64)]
-    pub total_realized_profit_and_loss_after_tax: Decimal,
 }
 
 impl Validate for CreateMutualfundRequest {

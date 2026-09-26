@@ -1,41 +1,11 @@
 use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use std::{borrow::Cow, collections::BTreeMap};
 use utoipa::ToSchema;
-use uuid::Uuid;
 use validator::{Validate, ValidationErrors, ValidationErrorsKind};
 
-/// 保有銘柄モデル（DB + APIレスポンス兼用）
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct AssetBalance {
-    pub id: Uuid,
-    #[serde(skip_serializing)]
-    #[allow(dead_code)] // SELECT * で取得されるがRust側では参照しない行所有者ID
-    pub user_id: Uuid,
-    pub security_code: String,
-    pub security_name: String,
-    #[schema(value_type = f64)]
-    pub shares: Decimal,
-    #[schema(value_type = f64)]
-    pub executing_shares: Decimal,
-    #[schema(value_type = f64)]
-    pub average_purchase_price: Decimal,
-    #[schema(value_type = f64)]
-    pub total_purchase_amount: Decimal,
-    #[schema(value_type = f64)]
-    pub current_price: Decimal,
-    #[schema(value_type = f64)]
-    pub daily_change: Decimal,
-    #[schema(value_type = f64)]
-    pub market_value: Decimal,
-    #[schema(value_type = f64)]
-    pub profit_loss_rate: Decimal,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+pub use shared::domain::{AssetBalance, AssetBalanceSummary};
 
 /// 保有銘柄作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -156,18 +126,6 @@ impl SearchParamsAccessor for AssetBalanceSearchQueryParams {
     }
 }
 
-/// 保有銘柄 検索条件全体の集計
-///
-/// profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
-pub struct AssetBalanceSummary {
-    #[schema(value_type = f64)]
-    pub total_market_value: Decimal,
-    #[schema(value_type = f64)]
-    pub total_purchase_amount: Decimal,
-    #[schema(value_type = f64)]
-    pub total_daily_change: Decimal,
-}
 #[cfg(test)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
