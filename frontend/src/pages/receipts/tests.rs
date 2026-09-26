@@ -316,7 +316,10 @@ fn negative_tax_and_dividend_stay_neutral() {
     stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
     stock.taxes = rust_decimal::Decimal::from(-203);
     stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
-    let card = card_for(ReceiptsTab::DomesticStock, ReceiptItem::DomesticStock(stock));
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock),
+    );
     assert!(detail_negative(&card, "損益"));
     assert!(!detail_negative(&card, "税額"));
 
