@@ -554,6 +554,33 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
   await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
 });
 
+test('資産管理の負の評価損益は赤字としてマークされる', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const lossAsset = {
+    ...ASSET_BALANCES[0],
+    total_purchase_amount: 270000,
+    market_value: 260000,
+  };
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated([lossAsset]))),
+  );
+  await page.goto('/assetbalance');
+  await expectAssetDataLoaded(page);
+
+  const summaryLoss = page
+    .getByTestId('portfolio-valuation-summary')
+    .locator('[data-negative="true"]');
+  await expect(summaryLoss).toHaveText('評価損益 ¥ -10,000（-3.7%）');
+  await expect(summaryLoss).toHaveClass(/text-red-800/);
+
+  const cardLoss = page
+    .getByTestId('portfolio-valuation-card')
+    .first()
+    .locator('[data-negative="true"]');
+  await expect(cardLoss).toHaveText('¥ -10,000（-3.7%）');
+  await expect(cardLoss).toHaveClass(/text-red-800/);
+});
+
 for (const width of [1440, 390]) {
   test(`資産管理のページ構成(${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });

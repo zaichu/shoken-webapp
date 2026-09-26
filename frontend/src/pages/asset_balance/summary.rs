@@ -1,13 +1,13 @@
 use super::chart::ChartList;
 use super::format::{
     dec_to_f64, format_currency, format_percentage_value, format_valuation_amount,
-    format_valuation_rate, is_negative_valuation,
+    format_valuation_rate, valuation_tone,
 };
 use super::holdings::HoldingView;
 use crate::asset_balance::portfolio::chart_plan;
 use crate::asset_balance_domain::{
     calculate_portfolio_kpi, summarize_valuation_with_summary, total_purchase_amount, KpiHolding,
-    SummaryOverride, ValuationItem,
+    SummaryOverride, ValuationItem, ValuationSummary,
 };
 use crate::dividend_per_share::DividendMaps;
 use crate::dto::AssetBalanceSummary;
@@ -17,6 +17,41 @@ use leptos::prelude::*;
 pub(crate) struct ChartItem {
     pub(crate) view: HoldingView,
     pub(crate) percentage: Option<f64>,
+}
+
+pub(crate) fn valuation_summary_override(
+    views: &[HoldingView],
+    summary: Option<&AssetBalanceSummary>,
+) -> Option<SummaryOverride> {
+    summary
+        .map(|summary| SummaryOverride {
+            total_purchase_amount: summary.total_purchase_amount,
+            total_market_value: summary.total_market_value,
+        })
+        .or_else(|| {
+            SummaryOverride::sum(
+                views
+                    .iter()
+                    .map(|view| (view.market_dec, view.purchase_dec)),
+            )
+        })
+}
+
+pub(crate) fn portfolio_valuation(
+    views: &[HoldingView],
+    summary: Option<&AssetBalanceSummary>,
+) -> ValuationSummary {
+    let valuation_items: Vec<ValuationItem> = views
+        .iter()
+        .map(|view| ValuationItem {
+            market_value: serde_json::json!(view.market),
+            total_purchase_amount: serde_json::json!(view.purchase),
+        })
+        .collect();
+    summarize_valuation_with_summary(
+        &valuation_items,
+        valuation_summary_override(views, summary).as_ref(),
+    )
 }
 
 #[component]
@@ -56,27 +91,8 @@ pub(crate) fn PortfolioSummary(
         }
         .into_any();
     }
-    let valuation_items: Vec<ValuationItem> = views
-        .iter()
-        .map(|view| ValuationItem {
-            market_value: serde_json::json!(view.market),
-            total_purchase_amount: serde_json::json!(view.purchase),
-        })
-        .collect();
-    let summary_override = summary
-        .as_ref()
-        .map(|summary| SummaryOverride {
-            total_purchase_amount: summary.total_purchase_amount,
-            total_market_value: summary.total_market_value,
-        })
-        .or_else(|| {
-            SummaryOverride::sum(
-                views
-                    .iter()
-                    .map(|view| (view.market_dec, view.purchase_dec)),
-            )
-        });
-    let valuation = summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());
+    let valuation = portfolio_valuation(&views, summary.as_ref());
+    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
     let kpi_holdings: Vec<KpiHolding> = views
         .iter()
         .map(|view| KpiHolding {
@@ -146,15 +162,8 @@ pub(crate) fn PortfolioSummary(
                         {market_value.map_or("—".to_string(), format_currency)}
                     </p>
                     <p
-                        class=format!(
-                            "mt-2 text-sm font-bold tabular-nums {}",
-                            if is_negative_valuation(valuation.amount) {
-                                "text-red-800"
-                            } else {
-                                "text-slate-800"
-                            },
-                        )
-                        data-negative=is_negative_valuation(valuation.amount).then_some("true")
+                        class=format!("mt-2 text-sm font-bold tabular-nums {valuation_class}")
+                        data-negative=valuation_negative
                     >
                         "評価損益 "
                         {match valuation.amount {

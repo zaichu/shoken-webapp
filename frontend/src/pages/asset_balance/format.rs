@@ -64,6 +64,14 @@ pub(crate) fn is_negative_valuation(amount: Option<f64>) -> bool {
     amount.is_some_and(|value| round_to_yen(value) < 0.0)
 }
 
+pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'static str>) {
+    if is_negative_valuation(amount) {
+        ("text-red-800", Some("true"))
+    } else {
+        ("text-slate-800", None)
+    }
+}
+
 pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
     match amount {
         Some(value) if !value.is_finite() => "—".to_string(),
