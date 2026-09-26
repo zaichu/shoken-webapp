@@ -17,17 +17,17 @@ run:
 .PHONY: deploy
 deploy:
 	@echo "🚀 Fly.ioにデプロイします..."
-	$(FLY) deploy
+	$(FLY) deploy ..
 
 .PHONY: status
 status:
 	@echo "📊 Fly.ioサービスのステータスを確認します..."
-	$(FLY) status
+	$(FLY) status -a shoken-backend
 
 .PHONY: logs
 logs:
 	@echo "📜 アプリケーションログを表示します..."
-	$(FLY) logs
+	$(FLY) logs -a shoken-backend
 
 # ビルド関連
 .PHONY: build
@@ -89,7 +89,7 @@ sqlx-prepare:
 .PHONY: docker-build
 docker-build:
 	@echo "🐳 Dockerイメージをビルドします..."
-	docker build -t shoken-backend .
+	docker build -f Dockerfile -t shoken-backend ..
 
 .PHONY: db-up
 db-up:

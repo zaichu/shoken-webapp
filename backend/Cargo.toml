@@ -41,6 +41,7 @@ sentry = "0.49"
 sentry-tower = "0.49"
 url = "2.5"
 futures = "0.3"
+shared = { path = "../shared", features = ["utoipa", "sqlx"] }
 [dev-dependencies]
 testcontainers = "0.27.3"
 testcontainers-modules = { version = "0.15.0", features = ["postgres"] }

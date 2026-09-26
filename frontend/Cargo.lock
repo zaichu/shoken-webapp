@@ -401,6 +401,7 @@ dependencies = [
  "rust_decimal_macros",
  "serde",
  "serde_json",
+ "shared",
  "time",
  "urlencoding",
  "wasm-bindgen",
@@ -1529,6 +1530,14 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

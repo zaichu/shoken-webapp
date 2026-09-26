@@ -1,19 +1,21 @@
 # ビルドステージ
+# backend は ../shared を path 依存で参照するため、ビルドコンテキストはリポジトリルート
 FROM rust:1.96-bookworm AS builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
 # 依存関係のキャッシュ用にCargo.tomlとCargo.lockをコピー
-COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY backend/Cargo.toml backend/Cargo.lock backend/rust-toolchain.toml ./
+COPY shared /app/shared
 
 # ダミーのsrc/main.rsを作成して依存関係をキャッシュ
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release && rm -rf src
 
 # 実際のソースコードをコピー
-COPY src ./src
-COPY migrations ./migrations
-COPY .sqlx ./.sqlx
+COPY backend/src ./src
+COPY backend/migrations ./migrations
+COPY backend/.sqlx ./.sqlx
 
 # 依存関係のビルドキャッシュを無効化しないために、全 Rust ソースのタイムスタンプを更新
 RUN find src -name "*.rs" -exec touch {} +
@@ -34,8 +36,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ビルド成果物をコピー
-COPY --from=builder /app/target/release/backend /app/backend
-COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/backend/target/release/backend /app/backend
+COPY --from=builder /app/backend/migrations /app/migrations
 
 # 非rootユーザーで実行
 RUN useradd -m appuser

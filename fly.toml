@@ -7,7 +7,7 @@ app = 'shoken-backend'
 primary_region = 'nrt'
 
 [build]
-  dockerfile = 'Dockerfile'
+  dockerfile = 'backend/Dockerfile'
 
 [env]
   APP_ENV = 'production'

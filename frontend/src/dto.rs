@@ -1,6 +1,11 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
+// FacetOption はテスト（cfg(test)）からのみ参照されるため bin クレートでは unused 警告が出る
+#[allow(unused_imports)]
+pub use shared::common::{FacetOption, MessageResponse, SearchFacets};
+pub use shared::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Stock {
     pub code: String,
@@ -171,27 +176,6 @@ pub struct AssetBalanceListResponse {
     pub facets: Option<SearchFacets>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CsvRowError {
-    pub row: usize,
-    pub message: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CsvUploadResponse {
-    pub inserted: usize,
-    pub skipped: usize,
-    pub errors: Vec<CsvRowError>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CsvPreviewResponse {
-    pub total_rows: usize,
-    pub valid_rows: usize,
-    pub errors: Vec<CsvRowError>,
-    pub rows: Vec<serde_json::Value>,
-}
-
 fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
@@ -213,35 +197,6 @@ pub struct SessionUser {
     pub name: Option<String>,
     #[serde(default)]
     pub picture_url: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct MessageResponse {
-    pub message: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FacetOption {
-    pub value: String,
-    pub label: String,
-    #[serde(default)]
-    pub count: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
-pub struct SearchFacets {
-    #[serde(default)]
-    pub accounts: Option<Vec<FacetOption>>,
-    #[serde(default)]
-    pub funds: Option<Vec<FacetOption>>,
-    #[serde(default)]
-    pub products: Option<Vec<FacetOption>>,
-    #[serde(default)]
-    pub securities: Option<Vec<FacetOption>>,
-    #[serde(default)]
-    pub year_months: Option<Vec<FacetOption>>,
-    #[serde(default)]
-    pub years: Option<Vec<FacetOption>>,
 }
 
 #[cfg(test)]
