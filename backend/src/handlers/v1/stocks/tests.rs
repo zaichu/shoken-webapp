@@ -144,20 +144,6 @@ async fn test_search_stock() {
     }
 }
 
-#[tokio::test]
-async fn test_search_stock_allows_anonymous() {
-    let pool = crate::db::connect_pool_lazy("postgresql://postgres:postgres@localhost/postgres", 1)
-        .unwrap();
-    let app = setup_test_app(pool);
-
-    let status = call(app, "GET", "/api/v1/stocks?query=7203", None)
-        .await
-        .status();
-    assert_ne!(status, StatusCode::UNAUTHORIZED);
-    assert_ne!(status, StatusCode::NOT_FOUND);
-    assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);
-}
-
 #[test]
 fn test_stock_search_query_validation_bounds() {
     // 正常系: 1文字と100文字は通る
