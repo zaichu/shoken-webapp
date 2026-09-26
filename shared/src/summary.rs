@@ -94,6 +94,7 @@ mod tests {
     fn domestic(date: &str, account: &str, pnl: Decimal, taxes: Decimal) -> DomesticStock {
         DomesticStock {
             id: Default::default(),
+            #[cfg(feature = "typed")]
             user_id: Default::default(),
             trade_date: date.parse().expect("valid date"),
             settlement_date: date.parse().expect("valid date"),
