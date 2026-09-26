@@ -109,7 +109,7 @@ async function hasLinkedIssue(github, { owner, repo }, pr) {
 const isBot = (author) =>
   author?.__typename === 'Bot' || (author?.login ?? '').endsWith('[bot]');
 
-function evaluateGate({ linked, nodes }) {
+function evaluateGate({ linked, nodes, issueLinkExempt = false }) {
   const unresolved = nodes.filter((node) => {
     const body = node.body ?? '';
     return (
@@ -136,7 +136,9 @@ function evaluateGate({ linked, nodes }) {
   const description =
     problems.length > 0
       ? statusParts.join(' / ')
-      : 'Issue 紐づけ済み・未解決コメントなし';
+      : issueLinkExempt
+        ? 'Issue 紐づけ免除(dependabot)・未解決コメントなし'
+        : 'Issue 紐づけ済み・未解決コメントなし';
 
   return { problems, unresolved, description };
 }
@@ -220,6 +222,7 @@ async function run({ github, context, core }) {
   const { problems, unresolved, description } = evaluateGate({
     linked,
     nodes: [...comments, ...reviews],
+    issueLinkExempt: skipIssueLink,
   });
 
   core.info(`linked issue: ${linked}`);

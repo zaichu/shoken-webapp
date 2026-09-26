@@ -270,6 +270,7 @@ test('dependabot の PR は Issue 紐づけなしでも成功になる', async (
   await gate.run({ github, context: ctx(), core: makeCore() });
   assert.equal(calls.statuses.length, 1);
   assert.equal(calls.statuses[0].state, 'success');
+  assert.match(calls.statuses[0].description, /紐づけ免除/);
 });
 
 test('dependabot の PR でも未解決コメントは検出する', async () => {
