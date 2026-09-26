@@ -26,12 +26,15 @@ pub struct PaginationParams {
 }
 
 impl PaginationParams {
+    #[must_use]
     pub fn page(&self) -> i64 {
         self.page.unwrap_or(1).max(1)
     }
+    #[must_use]
     pub fn per_page(&self) -> i64 {
         self.per_page.unwrap_or(200).clamp(1, 1000)
     }
+    #[must_use]
     pub fn offset(&self) -> i64 {
         (self.page() - 1) * self.per_page()
     }
@@ -65,22 +68,27 @@ pub struct SearchQueryParams {
 }
 
 impl SearchQueryParams {
+    #[must_use]
     pub fn page(&self) -> i64 {
         self.pagination.page()
     }
 
+    #[must_use]
     pub fn per_page(&self) -> i64 {
         self.pagination.per_page()
     }
 
+    #[must_use]
     pub fn offset(&self) -> i64 {
         self.pagination.offset()
     }
 
+    #[must_use]
     pub fn should_include_summary(&self) -> bool {
         self.include_summary.unwrap_or(false)
     }
 
+    #[must_use]
     pub fn should_include_facets(&self) -> bool {
         self.include_facets.unwrap_or(false)
     }

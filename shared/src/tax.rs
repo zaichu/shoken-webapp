@@ -7,11 +7,13 @@ pub const TAX_RATE: Decimal = Decimal::from_parts(20315, 0, 0, false, 5);
 pub const SPECIFIC_ACCOUNT_KEYWORD: &str = "特定";
 
 /// account 名に「特定」を含むか（特定口座かどうか）
+#[must_use]
 pub fn is_taxable_account(account: &str) -> bool {
     account.contains(SPECIFIC_ACCOUNT_KEYWORD)
 }
 
 /// 利益がプラスの場合だけ floor(利益 * 税率) を返す。損失・ゼロなら 0。
+#[must_use]
 pub fn tax_amount(realized_pnl: Decimal) -> Decimal {
     if realized_pnl.is_sign_positive() {
         (realized_pnl * TAX_RATE).floor()
@@ -22,6 +24,7 @@ pub fn tax_amount(realized_pnl: Decimal) -> Decimal {
 
 /// 行単位の税金を計算する（特定口座かつ利益がある場合のみ）。
 /// 戻り値は (税額, 税引後損益)。
+#[must_use]
 pub fn compute_taxes(account: &str, realized_pnl: Decimal) -> (Decimal, Decimal) {
     let taxes = if is_taxable_account(account) {
         tax_amount(realized_pnl)
