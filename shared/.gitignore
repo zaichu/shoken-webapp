@@ -1,1 +1,3 @@
 /target
+# ライブラリクレートのため lock は利用側(backend/frontend)で解決される。こちらはコミットしない
+/Cargo.lock
