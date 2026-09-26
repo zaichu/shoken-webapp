@@ -116,7 +116,7 @@ test.beforeEach(async ({ page }) => {
   await setupAssetBalanceMocks(page);
 });
 
-test('390px では検索レールが一覧より上に並びCSV操作は折り畳まれる', async ({ page }) => {
+test('390px では一覧が検索レールより上に並びCSV操作は折り畳まれる', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
 
@@ -126,10 +126,10 @@ test('390px では検索レールが一覧より上に並びCSV操作は折り�
   const mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
-  expect(railBox!.y).toBeLessThan(mainBox!.y);
+  expect(mainBox!.y).toBeLessThan(railBox!.y);
 
   await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
-  await expect(page.getByTestId('portfolio-kpi-grid')).toBeHidden();
+  await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
 
@@ -201,7 +201,7 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
   ).toBeHidden();
   await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
-  await expect(page.getByTestId('portfolio-kpi-grid')).toBeHidden();
+  await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
   await shoot(page, '639');
