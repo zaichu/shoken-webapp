@@ -552,9 +552,9 @@ mod tests {
             dividend_on("2024-02-29"),
         ];
         let domestic = vec![
-            domestic("2024-03-15", "", dec!(0), dec!(0)),
-            domestic("2024-01-10", "", dec!(0), dec!(0)),
-            domestic("2024-02-20", "", dec!(0), dec!(0)),
+            domestic("2024-03-15", "-", dec!(0), dec!(0)),
+            domestic("2024-01-10", "-", dec!(0), dec!(0)),
+            domestic("2024-02-20", "-", dec!(0), dec!(0)),
         ];
         let funds = vec![
             mutual_fund_on("2024-03-12"),
@@ -699,7 +699,7 @@ mod tests {
             std::collections::BTreeMap::new();
         for row in rows {
             let entry = by_date.entry(&row.trade_date).or_default();
-            if row.account.contains("特定") {
+            if row.account.is_specific() {
                 entry.0 += row.realized_profit_and_loss;
             } else {
                 entry.1 += row.realized_profit_and_loss;
@@ -941,12 +941,12 @@ mod tests {
         taxes: rust_decimal::Decimal,
     ) -> DomesticStock {
         DomesticStock {
-            id: String::new(),
+            id: Default::default(),
             trade_date: date.into(),
             settlement_date: date.into(),
-            security_code: String::new(),
+            security_code: "0".parse().unwrap(),
             security_name: String::new(),
-            account: account.into(),
+            account: account.parse().unwrap(),
             shares: dec!(0),
             asked_price: dec!(0),
             proceeds: dec!(0),
@@ -965,10 +965,10 @@ mod tests {
         net: rust_decimal::Decimal,
     ) -> Dividend {
         Dividend {
-            id: String::new(),
+            id: Default::default(),
             settlement_date: "2024-03-01".into(),
             product: String::new(),
-            account: String::new(),
+            account: "-".parse().unwrap(),
             security_code: String::new(),
             security_name: String::new(),
             unit_price: dec!(0),
@@ -997,11 +997,11 @@ mod tests {
         after_tax: rust_decimal::Decimal,
     ) -> Mutualfund {
         Mutualfund {
-            id: String::new(),
+            id: Default::default(),
             trade_date: "2024-03-01".into(),
             settlement_date: "2024-03-05".into(),
             fund_name: String::new(),
-            account: String::new(),
+            account: "-".parse().unwrap(),
             shares: dec!(0),
             exchange_rate: dec!(0),
             cancellation_unit_price_yen: dec!(0),

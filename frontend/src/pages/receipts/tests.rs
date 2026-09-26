@@ -358,7 +358,7 @@ fn idless_rows_keep_unfiltered_positions_as_card_ordinals() {
     let with_id = dividends()[1].clone();
     for item in [&mut first, &mut second, &mut removed] {
         if let ReceiptItem::Dividend(row) = item {
-            row.id.clear();
+            row.id = Default::default();
         }
     }
     let ordinals = idless_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
@@ -379,7 +379,7 @@ fn idless_rows_with_rounding_identical_display_stay_separate() {
     let mut second = dividends()[0].clone();
     for item in [&mut first, &mut second] {
         if let ReceiptItem::Dividend(row) = item {
-            row.id.clear();
+            row.id = Default::default();
         }
     }
     if let ReceiptItem::Dividend(row) = &mut first {

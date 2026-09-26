@@ -1,13 +1,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use shared::value::UserId;
 use sqlx::FromRow;
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 /// データベースのユーザーモデル
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
-    pub id: Uuid,
+    pub id: UserId,
     pub google_id: String,
     pub email: String,
     pub name: Option<String>,
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_user_response_from_user() {
         let user = User {
-            id: Uuid::new_v4(),
+            id: UserId::from(uuid::Uuid::new_v4()),
             google_id: "google123".to_string(),
             email: "test@example.com".to_string(),
             name: Some("テストユーザー".to_string()),

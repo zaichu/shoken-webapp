@@ -30,7 +30,7 @@ pub(crate) fn generate_asset_review_prompt(rows: &[AssetBalance]) -> String {
         .iter()
         .map(|row| {
             [
-                row.security_code.clone(),
+                row.security_code.to_string(),
                 row.security_name.clone(),
                 format_number_value(row.shares.to_f64().unwrap_or(0.0)),
                 format!(
@@ -57,8 +57,8 @@ mod tests {
         average_purchase_price: i64,
     ) -> AssetBalance {
         AssetBalance {
-            id: format!("id-{security_code}"),
-            security_code: security_code.to_string(),
+            id: format!("id-{security_code}").into(),
+            security_code: security_code.parse().unwrap(),
             security_name: security_name.to_string(),
             shares: Decimal::new(shares, 0),
             executing_shares: Decimal::ZERO,

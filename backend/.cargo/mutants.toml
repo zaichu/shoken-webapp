@@ -62,7 +62,7 @@ exclude_re = [
     # JWKS TTL ちょうどの境界(Instant::elapsed が正確に TTL に一致する時刻は作れない)
     "replace < with <= in GoogleJwksCache::get",
     # pnl=0 のとき税額はどちらでも 0、pnl>0 と同じ結果になる
-    "replace > with >= in compute_taxes",
+    "replace <= with < in tax_amount",
     # 分割後のトークン数は常に >=1 で、> と >= は同値
     "replace > with >= in normalize_security_name",
     # elapsed_ms はログ出力のみでレスポンスに影響しない(* → + / / のみ。

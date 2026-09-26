@@ -10,8 +10,11 @@ use openidconnect::{
     IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
 };
 use sha2::{Digest, Sha256};
+use shared::value::UserId;
 use sqlx::PgPool;
 use std::{
+    fmt,
+    str::FromStr,
     sync::OnceLock,
     time::{Duration, Instant},
 };
@@ -19,6 +22,43 @@ use tokio::sync::Mutex;
 
 use crate::errors::{ApiError, ConfigError, UpstreamError};
 use crate::models::user::{GoogleUserInfo, User};
+
+/// セッション Cookie の値。内部は UUID v4。
+/// Cookie の文字列表現と DB の `token_hash`(BYTEA) はいずれも
+/// UUID の正準形（小文字ハイフン付き）文字列から導かれる
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SessionToken(uuid::Uuid);
+
+impl SessionToken {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+
+    /// `sessions.token_hash` と突き合わせるための SHA-256(正準形文字列)
+    pub fn hash(self) -> Vec<u8> {
+        Sha256::digest(self.0.to_string().as_bytes()).to_vec()
+    }
+}
+
+impl Default for SessionToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for SessionToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for SessionToken {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        uuid::Uuid::parse_str(s).map(Self)
+    }
+}
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
@@ -206,7 +246,7 @@ pub async fn authenticate_with_google_code(
     code: String,
     pkce_verifier: String,
     nonce: Nonce,
-) -> Result<String, ApiError> {
+) -> Result<SessionToken, ApiError> {
     let token_result = exchange_google_code(oauth_client, code, pkce_verifier).await?;
 
     let id_token = token_result
@@ -215,9 +255,7 @@ pub async fn authenticate_with_google_code(
     let keys = shared_google_jwks(shared_oauth_http_client()?).await?;
     let user_info = verify_google_id_token(id_token, oauth_client.client_id(), keys, &nonce)?;
 
-    let session_token = upsert_user_and_rotate_session(pool, &user_info).await?;
-
-    Ok(session_token)
+    Ok(upsert_user_and_rotate_session(pool, &user_info).await?)
 }
 
 /// Googleユーザー情報をupsertし、旧セッションを失効させた上で新セッションを発行する。
@@ -234,7 +272,7 @@ pub async fn authenticate_with_google_code(
 pub async fn upsert_user_and_rotate_session(
     pool: &PgPool,
     user_info: &GoogleUserInfo,
-) -> Result<String, sqlx::Error> {
+) -> Result<SessionToken, sqlx::Error> {
     let mut tx = pool.begin().await?;
     let user = upsert_user_in_tx(&mut tx, user_info).await?;
     let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
@@ -243,13 +281,9 @@ pub async fn upsert_user_and_rotate_session(
     Ok(session_token)
 }
 
-fn hash_session_token(session_id: uuid::Uuid) -> Vec<u8> {
-    Sha256::digest(session_id.to_string().as_bytes()).to_vec()
-}
-
 pub async fn select_user_by_session(
     pool: &PgPool,
-    session_id: uuid::Uuid,
+    token: SessionToken,
 ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"
@@ -259,22 +293,22 @@ pub async fn select_user_by_session(
         WHERE s.token_hash = $1 AND s.expires_at > NOW()
         "#,
     )
-    .bind(hash_session_token(session_id))
+    .bind(token.hash())
     .fetch_optional(pool)
     .await
 }
 
 pub async fn select_user_id_by_session(
     pool: &PgPool,
-    session_id: uuid::Uuid,
-) -> Result<Option<uuid::Uuid>, sqlx::Error> {
-    let user_id: Option<(uuid::Uuid,)> = sqlx::query_as(
+    token: SessionToken,
+) -> Result<Option<UserId>, sqlx::Error> {
+    let user_id: Option<(UserId,)> = sqlx::query_as(
         r#"
         SELECT user_id FROM sessions
         WHERE token_hash = $1 AND expires_at > NOW()
         "#,
     )
-    .bind(hash_session_token(session_id))
+    .bind(token.hash())
     .fetch_optional(pool)
     .await?;
 
@@ -285,9 +319,9 @@ pub async fn select_user_id_by_session(
 /// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
 async fn rotate_session_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    user_id: uuid::Uuid,
-) -> Result<String, sqlx::Error> {
-    let session_id = uuid::Uuid::new_v4();
+    user_id: UserId,
+) -> Result<SessionToken, sqlx::Error> {
+    let token = SessionToken::new();
     sqlx::query(
         r#"
         WITH expired AS (
@@ -301,11 +335,11 @@ async fn rotate_session_in_tx(
         "#,
     )
     .bind(user_id)
-    .bind(hash_session_token(session_id))
+    .bind(token.hash())
     .execute(&mut **tx)
     .await?;
 
-    Ok(session_id.to_string())
+    Ok(token)
 }
 
 async fn upsert_user_in_tx(
@@ -332,9 +366,9 @@ async fn upsert_user_in_tx(
     .await
 }
 
-pub async fn delete_session(pool: &PgPool, session_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+pub async fn delete_session(pool: &PgPool, token: SessionToken) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM sessions WHERE token_hash = $1")
-        .bind(hash_session_token(session_id))
+        .bind(token.hash())
         .execute(pool)
         .await?;
 
@@ -342,7 +376,7 @@ pub async fn delete_session(pool: &PgPool, session_id: uuid::Uuid) -> Result<(),
 }
 
 /// ユーザーを削除（CASCADE により関連データも削除）
-pub async fn delete_account(pool: &PgPool, user_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+pub async fn delete_account(pool: &PgPool, user_id: UserId) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(user_id)
         .execute(pool)
@@ -424,13 +458,10 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
 
     #[test]
     fn test_hash_session_token_matches_canonical_uuid_digest() {
-        let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let token: SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
         // SQL の sha256(convert_to(id::text, 'UTF8')) と同じ、
         // 小文字ハイフン付き正規形文字列への SHA-256 の固定値
-        let digest_hex: String = hash_session_token(id)
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let digest_hex: String = token.hash().iter().map(|b| format!("{b:02x}")).collect();
         assert_eq!(
             digest_hex,
             "a3a9e1ed9732cab28868127be00f1ce921acaefdd5c3b23a6e9e0072bd9c1a34"
@@ -820,7 +851,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         (pool, node)
     }
 
-    async fn session_count(pool: &PgPool, user_id: uuid::Uuid) -> i64 {
+    async fn session_count(pool: &PgPool, user_id: UserId) -> i64 {
         sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(pool)
@@ -837,8 +868,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         let first_token = upsert_user_and_rotate_session(&pool, &user_info)
             .await
             .expect("初回ログイン失敗");
-        let first_id: uuid::Uuid = first_token.parse().expect("初回トークンがUUIDでない");
-        let user_id = select_user_id_by_session(&pool, first_id)
+        let user_id = select_user_id_by_session(&pool, first_token)
             .await
             .expect("初回セッション参照失敗")
             .expect("初回セッションが存在しない");
@@ -850,17 +880,16 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             first_token, second_token,
             "再ログインで新トークンが発行されること"
         );
-        let second_id: uuid::Uuid = second_token.parse().expect("再発行トークンがUUIDでない");
 
         assert!(
-            select_user_id_by_session(&pool, first_id)
+            select_user_id_by_session(&pool, first_token)
                 .await
                 .expect("旧セッション参照失敗")
                 .is_none(),
             "旧トークンは失効していること"
         );
         assert_eq!(
-            select_user_id_by_session(&pool, second_id)
+            select_user_id_by_session(&pool, second_token)
                 .await
                 .expect("新セッション参照失敗"),
             Some(user_id),
@@ -895,8 +924,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         let mut live = 0;
         let mut live_user_id = None;
         for token in &tokens {
-            let id: uuid::Uuid = token.parse().expect("発行トークンがUUIDでない");
-            let user_id = select_user_id_by_session(&pool, id)
+            let user_id = select_user_id_by_session(&pool, *token)
                 .await
                 .expect("セッション参照失敗");
             if user_id.is_some() {

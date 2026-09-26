@@ -13,7 +13,8 @@ use backend::{
     models::user::GoogleUserInfo,
     routes::app_router,
     services::asset_balance as asset_balance_svc,
-    services::auth as auth_svc,
+    services::auth::{self as auth_svc, SessionToken},
+    services::bulk_helpers::RowLimit,
     services::dividend as dividend_svc,
     services::dividend_cache,
     services::domestic_stock as domestic_stock_svc,
@@ -51,6 +52,8 @@ fn dividend_search_params_with_pagination(
 use chrono::{NaiveDate, Utc};
 use reqwest::Client;
 use rust_decimal_macros::dec;
+use shared::dividend_per_share::DividendCacheStatus;
+use shared::value::{SecurityCode, UserId};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{env, sync::atomic::AtomicBool, sync::Arc, time::Duration};
 use testcontainers::runners::AsyncRunner;
@@ -193,7 +196,7 @@ async fn db_integration_with_docker_and_migrations() {
 /// テスト用の CreateAssetBalanceRequest を生成するヘルパー
 fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     CreateAssetBalanceRequest {
-        security_code: code.to_string(),
+        security_code: code.parse().unwrap(),
         security_name: format!("テスト銘柄{code}"),
         shares: dec!(100),
         executing_shares: dec!(0),
@@ -210,7 +213,7 @@ fn make_dividend_item(security_code: &str) -> CreateDividendRequest {
     CreateDividendRequest {
         settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
         product: "国内株式".to_string(),
-        account: "特定".to_string(),
+        account: "特定".parse().unwrap(),
         security_code: security_code.to_string(),
         security_name: format!("銘柄_{security_code}"),
         unit_price: dec!(100.0),
@@ -225,9 +228,9 @@ fn make_domestic_stock_item(security_code: &str) -> CreateDomesticStockRequest {
     CreateDomesticStockRequest {
         trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
         settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
-        security_code: security_code.to_string(),
+        security_code: security_code.parse().unwrap(),
         security_name: format!("銘柄_{security_code}"),
-        account: "特定".to_string(),
+        account: "特定".parse().unwrap(),
         shares: dec!(100.0),
         asked_price: dec!(1000.0),
         proceeds: dec!(100000.0),
@@ -244,7 +247,7 @@ fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
         settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
         fund_name: fund_name.to_string(),
         dividends: None,
-        account: "特定".to_string(),
+        account: "特定".parse().unwrap(),
         shares: dec!(1000.0),
         exchange_rate: dec!(1.0),
         cancellation_unit_price_yen: dec!(12000.0),
@@ -300,8 +303,8 @@ async fn start_test_pool() -> (PgPool, impl Drop) {
     (pool, node)
 }
 
-async fn create_test_user(pool: &PgPool) -> Uuid {
-    let user_id = Uuid::new_v4();
+async fn create_test_user(pool: &PgPool) -> UserId {
+    let user_id = UserId::from(Uuid::new_v4());
     sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
         .bind(user_id)
         .bind(format!("test_google_{user_id}"))
@@ -324,9 +327,10 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let mutualfund_empty = mutualfund_svc::bulk_create(&pool, user_id, &[], i64::MAX)
-        .await
-        .expect("empty mutualfund bulk_create failed");
+    let mutualfund_empty =
+        mutualfund_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
+            .await
+            .expect("empty mutualfund bulk_create failed");
     assert_eq!(mutualfund_empty.inserted, 0);
     assert_eq!(mutualfund_empty.skipped, 0);
 
@@ -335,16 +339,20 @@ async fn service_coverage_all_domains() {
         make_mutualfund_item("テスト投信B"),
     ];
     let mutualfund_created =
-        mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items, i64::MAX)
+        mutualfund_svc::bulk_create(&pool, user_id, &mutualfund_items, RowLimit::new(i64::MAX))
             .await
             .expect("mutualfund bulk_create failed");
     assert_eq!(mutualfund_created.inserted, 2);
     assert_eq!(mutualfund_created.skipped, 0);
 
-    let mutualfund_uploaded =
-        mutualfund_svc::upload_csv(&pool, user_id, make_mutualfund_csv().as_bytes(), i64::MAX)
-            .await
-            .expect("mutualfund upload_csv failed");
+    let mutualfund_uploaded = mutualfund_svc::upload_csv(
+        &pool,
+        user_id,
+        make_mutualfund_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("mutualfund upload_csv failed");
     assert_eq!(mutualfund_uploaded.inserted, 1);
     assert_eq!(mutualfund_uploaded.skipped, 0);
     assert!(mutualfund_uploaded.errors.is_empty());
@@ -378,23 +386,28 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], i64::MAX)
+    let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
         .await
         .expect("empty dividend bulk_create failed");
     assert_eq!(dividend_empty.inserted, 0);
     assert_eq!(dividend_empty.skipped, 0);
 
     let dividend_items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
-    let dividend_created = dividend_svc::bulk_create(&pool, user_id, &dividend_items, i64::MAX)
-        .await
-        .expect("dividend bulk_create failed");
+    let dividend_created =
+        dividend_svc::bulk_create(&pool, user_id, &dividend_items, RowLimit::new(i64::MAX))
+            .await
+            .expect("dividend bulk_create failed");
     assert_eq!(dividend_created.inserted, 2);
     assert_eq!(dividend_created.skipped, 0);
 
-    let dividend_uploaded =
-        dividend_svc::upload_csv(&pool, user_id, make_dividend_csv().as_bytes(), i64::MAX)
-            .await
-            .expect("dividend upload_csv failed");
+    let dividend_uploaded = dividend_svc::upload_csv(
+        &pool,
+        user_id,
+        make_dividend_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("dividend upload_csv failed");
     assert_eq!(dividend_uploaded.inserted, 1);
     assert_eq!(dividend_uploaded.skipped, 0);
     assert!(dividend_uploaded.errors.is_empty());
@@ -428,9 +441,10 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let domestic_stock_empty = domestic_stock_svc::bulk_create(&pool, user_id, &[], i64::MAX)
-        .await
-        .expect("empty domestic_stock bulk_create failed");
+    let domestic_stock_empty =
+        domestic_stock_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
+            .await
+            .expect("empty domestic_stock bulk_create failed");
     assert_eq!(domestic_stock_empty.inserted, 0);
     assert_eq!(domestic_stock_empty.skipped, 0);
 
@@ -438,10 +452,14 @@ async fn service_coverage_all_domains() {
         make_domestic_stock_item("3001"),
         make_domestic_stock_item("3002"),
     ];
-    let domestic_stock_created =
-        domestic_stock_svc::bulk_create(&pool, user_id, &domestic_stock_items, i64::MAX)
-            .await
-            .expect("domestic_stock bulk_create failed");
+    let domestic_stock_created = domestic_stock_svc::bulk_create(
+        &pool,
+        user_id,
+        &domestic_stock_items,
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("domestic_stock bulk_create failed");
     assert_eq!(domestic_stock_created.inserted, 2);
     assert_eq!(domestic_stock_created.skipped, 0);
 
@@ -449,7 +467,7 @@ async fn service_coverage_all_domains() {
         &pool,
         user_id,
         make_domestic_stock_csv().as_bytes(),
-        i64::MAX,
+        RowLimit::new(i64::MAX),
     )
     .await
     .expect("domestic_stock upload_csv failed");
@@ -486,17 +504,22 @@ async fn service_coverage_all_domains() {
             .data
             .is_empty()
     );
-    let asset_balance_empty = asset_balance_svc::bulk_create(&pool, user_id, &[], i64::MAX)
-        .await
-        .expect("empty asset_balance bulk_create failed");
+    let asset_balance_empty =
+        asset_balance_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
+            .await
+            .expect("empty asset_balance bulk_create failed");
     assert_eq!(asset_balance_empty.inserted, 0);
     assert_eq!(asset_balance_empty.skipped, 0);
 
     let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("1605")];
-    let asset_balance_created =
-        asset_balance_svc::bulk_create(&pool, user_id, &asset_balance_items, i64::MAX)
-            .await
-            .expect("asset_balance bulk_create failed");
+    let asset_balance_created = asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &asset_balance_items,
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("asset_balance bulk_create failed");
     assert_eq!(asset_balance_created.inserted, 2);
     assert_eq!(asset_balance_created.skipped, 0);
     assert_eq!(
@@ -512,7 +535,7 @@ async fn service_coverage_all_domains() {
         &pool,
         user_id,
         make_asset_balance_csv().as_bytes(),
-        i64::MAX,
+        RowLimit::new(i64::MAX),
     )
     .await
     .expect("asset_balance upload_csv failed");
@@ -526,7 +549,7 @@ async fn service_coverage_all_domains() {
             .expect("asset_balance list failed")
             .data;
     assert_eq!(asset_balance_rows.len(), 1);
-    assert_eq!(asset_balance_rows[0].security_code, "7203");
+    assert_eq!(asset_balance_rows[0].security_code.as_str(), "7203");
 
     assert_eq!(
         asset_balance_svc::delete_all(&pool, user_id)
@@ -551,7 +574,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
 
     // 1回目: 2銘柄を登録
     let items_a = vec![make_asset_item("1001"), make_asset_item("1002")];
-    asset_balance_svc::bulk_create(&pool, user_id, &items_a, i64::MAX)
+    asset_balance_svc::bulk_create(&pool, user_id, &items_a, RowLimit::new(i64::MAX))
         .await
         .expect("1回目 bulk_create 失敗");
 
@@ -561,7 +584,7 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
         make_asset_item("2002"),
         make_asset_item("2003"),
     ];
-    asset_balance_svc::bulk_create(&pool, user_id, &items_b, i64::MAX)
+    asset_balance_svc::bulk_create(&pool, user_id, &items_b, RowLimit::new(i64::MAX))
         .await
         .expect("2回目 bulk_create 失敗");
 
@@ -601,10 +624,12 @@ async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
     // 2タスクを同時に起動して advisory lock による直列化を確認
     let (res_a, res_b) = tokio::join!(
         tokio::spawn(async move {
-            asset_balance_svc::bulk_create(&pool_a, user_id, &items_a, i64::MAX).await
+            asset_balance_svc::bulk_create(&pool_a, user_id, &items_a, RowLimit::new(i64::MAX))
+                .await
         }),
         tokio::spawn(async move {
-            asset_balance_svc::bulk_create(&pool_b, user_id, &items_b, i64::MAX).await
+            asset_balance_svc::bulk_create(&pool_b, user_id, &items_b, RowLimit::new(i64::MAX))
+                .await
         }),
     );
     res_a.unwrap().expect("task_a 失敗");
@@ -634,7 +659,7 @@ async fn dividend_bulk_create_and_list() {
         make_dividend_item("1002"),
         make_dividend_item("1003"),
     ];
-    let created = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let created = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("dividend bulk_create failed");
     assert_eq!(created.inserted, 3);
@@ -712,13 +737,13 @@ async fn dividend_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_dividend_item("2001")];
 
-    let first = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let first = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("first dividend bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = dividend_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let second = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("second dividend bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -736,7 +761,7 @@ async fn domestic_stock_bulk_create_and_list() {
         make_domestic_stock_item("3002"),
         make_domestic_stock_item("3003"),
     ];
-    let created = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let created = domestic_stock_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("domestic_stock bulk_create failed");
     assert_eq!(created.inserted, 3);
@@ -767,13 +792,13 @@ async fn domestic_stock_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_domestic_stock_item("4001")];
 
-    let first = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let first = domestic_stock_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("first domestic_stock bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = domestic_stock_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let second = domestic_stock_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("second domestic_stock bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -790,7 +815,7 @@ async fn mutualfund_bulk_create_and_list() {
         make_mutualfund_item("テスト投信A"),
         make_mutualfund_item("テスト投信B"),
     ];
-    let created = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let created = mutualfund_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("mutualfund bulk_create failed");
     assert_eq!(created.inserted, 2);
@@ -821,13 +846,13 @@ async fn mutualfund_bulk_create_skips_duplicates() {
     let user_id = create_test_user(&pool).await;
     let items = vec![make_mutualfund_item("テスト投信C")];
 
-    let first = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let first = mutualfund_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("first mutualfund bulk_create failed");
     assert_eq!(first.inserted, 1);
     assert_eq!(first.skipped, 0);
 
-    let second = mutualfund_svc::bulk_create(&pool, user_id, &items, i64::MAX)
+    let second = mutualfund_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
         .expect("second mutualfund bulk_create failed");
     assert_eq!(second.inserted, 0);
@@ -849,7 +874,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     let token1 = auth_svc::upsert_user_and_rotate_session(&pool, &info)
         .await
         .expect("初回ログインでセッション発行");
-    let session1 = Uuid::parse_str(&token1).expect("セッションIDはUUID");
+    let session1 = token1;
 
     let user = auth_svc::select_user_by_session(&pool, session1)
         .await
@@ -872,7 +897,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     let token2 = auth_svc::upsert_user_and_rotate_session(&pool, &info2)
         .await
         .expect("再ログインでセッション再発行");
-    let session2 = Uuid::parse_str(&token2).unwrap();
+    let session2 = token2;
     assert_ne!(session1, session2);
     assert!(
         auth_svc::select_user_id_by_session(&pool, session1)
@@ -890,7 +915,7 @@ async fn auth_session_upsert_rotate_and_delete() {
 
     // 期限切れセッションはユーザー解決しない
     let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
-        .bind(session2)
+        .bind(session2.to_string())
         .execute(&pool)
         .await
         .unwrap()
@@ -907,7 +932,7 @@ async fn auth_session_upsert_rotate_and_delete() {
 
     // delete_session で明示失効
     let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
-        .bind(session2)
+        .bind(session2.to_string())
         .execute(&pool)
         .await
         .unwrap()
@@ -925,7 +950,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     let token3 = auth_svc::upsert_user_and_rotate_session(&pool, &info2)
         .await
         .expect("3回目のセッション発行");
-    let session3 = Uuid::parse_str(&token3).unwrap();
+    let session3 = token3;
     auth_svc::delete_account(&pool, user.id)
         .await
         .expect("アカウント削除");
@@ -948,9 +973,9 @@ async fn session_token_hash_rolling_deploy_compat() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    let legacy = Uuid::new_v4();
+    let legacy: SessionToken = Uuid::new_v4().to_string().parse().unwrap();
     sqlx::query("INSERT INTO sessions (user_id, token_hash) VALUES ($2, sha256(convert_to($1::text, 'UTF8')))")
-        .bind(legacy)
+        .bind(legacy.to_string())
         .bind(user_id)
         .execute(&pool)
         .await
@@ -965,6 +990,7 @@ async fn session_token_hash_rolling_deploy_compat() {
 
     // 旧版は id にもトークンを書く
     let old_version_issued = Uuid::new_v4();
+    let old_version_issued_token: SessionToken = old_version_issued.to_string().parse().unwrap();
     sqlx::query("INSERT INTO sessions (id, user_id, token_hash) VALUES ($1, $2, sha256(convert_to($1::text, 'UTF8')))")
         .bind(old_version_issued)
         .bind(user_id)
@@ -972,7 +998,7 @@ async fn session_token_hash_rolling_deploy_compat() {
         .await
         .expect("旧版発行セッションの挿入");
     assert_eq!(
-        auth_svc::select_user_id_by_session(&pool, old_version_issued)
+        auth_svc::select_user_id_by_session(&pool, old_version_issued_token)
             .await
             .expect("旧版発行セッションの照合"),
         Some(user_id),
@@ -1020,7 +1046,7 @@ async fn session_token_hash_rolling_deploy_compat() {
     .await
     .expect("他ユーザーのロック中の期限切れ行でログインが停滞しないこと")
     .expect("新版のセッション発行");
-    let new_session = Uuid::parse_str(&new_token).expect("セッションIDはUUID");
+    let new_session = new_token;
 
     // 同一ユーザーの旧セッションは rotate で失効する
     assert!(
@@ -1031,7 +1057,7 @@ async fn session_token_hash_rolling_deploy_compat() {
         "rotate で移行済みの旧セッションが失効すること"
     );
     assert!(
-        auth_svc::select_user_id_by_session(&pool, old_version_issued)
+        auth_svc::select_user_id_by_session(&pool, old_version_issued_token)
             .await
             .expect("rotate 後の旧版発行セッション照合")
             .is_none(),
@@ -1062,16 +1088,20 @@ async fn session_token_hash_rolling_deploy_compat() {
     let row: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
     )
-    .bind(new_session)
+    .bind(new_session.to_string())
     .fetch_optional(&pool)
     .await
     .expect("新版発行行の取得");
     let (id,) = row.expect("新版発行のセッション行がある");
-    assert_ne!(id, new_session, "id にトークンを保持しないこと");
-    let old_version_view: Option<(Uuid,)> = sqlx::query_as(
-        "SELECT user_id FROM sessions WHERE (token_hash = sha256(convert_to($1::text, 'UTF8')) OR (token_hash IS NULL AND id = $1)) AND expires_at > NOW()",
+    assert_ne!(
+        id.to_string(),
+        new_session.to_string(),
+        "id にトークンを保持しないこと"
+    );
+    let old_version_view: Option<(UserId,)> = sqlx::query_as(
+        "SELECT user_id FROM sessions WHERE (token_hash = sha256(convert_to($1::text, 'UTF8')) OR (token_hash IS NULL AND id = $1::uuid)) AND expires_at > NOW()",
     )
-    .bind(new_session)
+    .bind(new_session.to_string())
     .fetch_optional(&pool)
     .await
     .expect("旧版の照合クエリ");
@@ -1115,7 +1145,7 @@ async fn account_delete_confirmation_http_lifecycle() {
     let user_id: Option<(Uuid,)> = sqlx::query_as(
         "SELECT user_id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
     )
-    .bind(Uuid::parse_str(&session_token).unwrap())
+    .bind(session_token.to_string())
     .fetch_optional(&pool)
     .await
     .unwrap();
@@ -1198,7 +1228,7 @@ async fn account_delete_confirmation_http_lifecycle() {
     let remaining_session: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
     )
-    .bind(Uuid::parse_str(&session_token).unwrap())
+    .bind(session_token.to_string())
     .fetch_optional(&pool)
     .await
     .unwrap();
@@ -1237,11 +1267,16 @@ async fn search_facets_group_by_domain_fields() {
     newer.settlement_date = NaiveDate::from_ymd_opt(2024, 6, 10).unwrap();
     let mut other = make_dividend_item("4002");
     other.product = "投資信託".to_string();
-    other.account = "NISA".to_string();
+    other.account = "NISA".parse().unwrap();
     other.settlement_date = NaiveDate::from_ymd_opt(2023, 1, 10).unwrap();
-    dividend_svc::bulk_create(&pool, user_id, &[older, newer, other], i64::MAX)
-        .await
-        .expect("dividend bulk_create");
+    dividend_svc::bulk_create(
+        &pool,
+        user_id,
+        &[older, newer, other],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("dividend bulk_create");
 
     let mut dividend_params = default_dividend_search_params();
     dividend_params.search.include_facets = Some(true);
@@ -1295,12 +1330,17 @@ async fn search_facets_group_by_domain_fields() {
     );
 
     let mut ds_older = make_domestic_stock_item("3001");
-    ds_older.account = "NISA".to_string();
+    ds_older.account = "NISA".parse().unwrap();
     ds_older.trade_date = NaiveDate::from_ymd_opt(2023, 5, 15).unwrap();
     let ds_newer = make_domestic_stock_item("3002");
-    domestic_stock_svc::bulk_create(&pool, user_id, &[ds_older, ds_newer], i64::MAX)
-        .await
-        .expect("domestic_stock bulk_create");
+    domestic_stock_svc::bulk_create(
+        &pool,
+        user_id,
+        &[ds_older, ds_newer],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("domestic_stock bulk_create");
 
     let mut ds_params = default_domestic_stock_search_params();
     ds_params.search.include_facets = Some(true);
@@ -1348,9 +1388,14 @@ async fn search_facets_group_by_domain_fields() {
     let mf_older = make_mutualfund_item("テスト投信A");
     let mut mf_newer = make_mutualfund_item("テスト投信B");
     mf_newer.trade_date = NaiveDate::from_ymd_opt(2023, 8, 1).unwrap();
-    mutualfund_svc::bulk_create(&pool, user_id, &[mf_older, mf_newer], i64::MAX)
-        .await
-        .expect("mutualfund bulk_create");
+    mutualfund_svc::bulk_create(
+        &pool,
+        user_id,
+        &[mf_older, mf_newer],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("mutualfund bulk_create");
 
     let mut mf_params = default_mutualfund_search_params();
     mf_params.search.include_facets = Some(true);
@@ -1381,7 +1426,7 @@ async fn search_facets_group_by_domain_fields() {
     );
 
     let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
-    asset_balance_svc::bulk_create(&pool, user_id, &asset_items, i64::MAX)
+    asset_balance_svc::bulk_create(&pool, user_id, &asset_items, RowLimit::new(i64::MAX))
         .await
         .expect("asset_balance bulk_create");
 
@@ -1421,34 +1466,51 @@ async fn dividend_cache_persistence_and_rate_slot() {
             .is_empty()
     );
 
-    dividend_cache::persistence::update_cache_error(&pool, "1234", "fetch failed")
-        .await
-        .expect("エラー記録");
-    let items = dividend_cache::get_batch(&pool, &client, None, &["1234".to_string()], &running)
-        .await
-        .unwrap();
+    dividend_cache::persistence::update_cache_error(
+        &pool,
+        &"1234".parse::<SecurityCode>().unwrap(),
+        "fetch failed",
+    )
+    .await
+    .expect("エラー記録");
+    let items =
+        dividend_cache::get_batch(&pool, &client, None, &["1234".parse().unwrap()], &running)
+            .await
+            .unwrap();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].security_code, "1234");
-    assert_eq!(items[0].status, "error");
+    assert_eq!(items[0].security_code.as_str(), "1234");
+    assert_eq!(items[0].status, DividendCacheStatus::Error);
     assert_eq!(items[0].dividend_per_share, None);
     assert!(items[0].is_stale, "error 記録は即時再取得対象");
 
-    dividend_cache::persistence::update_cache_error_with_cooldown(&pool, "5678", "429", 3600)
-        .await
-        .expect("cooldown 付きエラー記録");
-    let items = dividend_cache::get_batch(&pool, &client, None, &["5678".to_string()], &running)
-        .await
-        .unwrap();
-    assert_eq!(items[0].status, "error");
+    dividend_cache::persistence::update_cache_error_with_cooldown(
+        &pool,
+        &"5678".parse::<SecurityCode>().unwrap(),
+        "429",
+        3600,
+    )
+    .await
+    .expect("cooldown 付きエラー記録");
+    let items =
+        dividend_cache::get_batch(&pool, &client, None, &["5678".parse().unwrap()], &running)
+            .await
+            .unwrap();
+    assert_eq!(items[0].status, DividendCacheStatus::Error);
     assert!(!items[0].is_stale, "cooldown 中は再取得対象外");
 
     // 既存行への upsert: stale_at が cooldown で未来に更新される
-    dividend_cache::persistence::update_cache_error_with_cooldown(&pool, "1234", "429", 3600)
-        .await
-        .expect("既存行の上書き");
-    let items = dividend_cache::get_batch(&pool, &client, None, &["1234".to_string()], &running)
-        .await
-        .unwrap();
+    dividend_cache::persistence::update_cache_error_with_cooldown(
+        &pool,
+        &"1234".parse::<SecurityCode>().unwrap(),
+        "429",
+        3600,
+    )
+    .await
+    .expect("既存行の上書き");
+    let items =
+        dividend_cache::get_batch(&pool, &client, None, &["1234".parse().unwrap()], &running)
+            .await
+            .unwrap();
     assert!(!items[0].is_stale);
     let row: (String,) = sqlx::query_as(
         "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '1234'",
@@ -1481,7 +1543,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     use backend::services::bulk_helpers::{ensure_user_row_limit_with, UserDataDomain};
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    const LIMIT: i64 = 3;
+    const LIMIT: RowLimit = RowLimit::new(3);
 
     // 追記型(dividends): 既存行数 + 追加分が上限を超えると拒否
     let items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
@@ -1571,14 +1633,14 @@ async fn bulk_create_respects_user_row_limit() {
     let items = vec![make_dividend_item("1001")];
 
     // 上限値は引数で渡す(プロセス全体の環境変数を書き換えると並行テストに影響する)
-    let err = dividend_svc::bulk_create(&pool, user_id, &items, 0)
+    let err = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(0))
         .await
         .expect_err("上限0で追加1件でも拒否");
     assert!(
         matches!(err, backend::errors::ApiError::Validation(_)),
         "期待しないエラー: {err:?}"
     );
-    dividend_svc::bulk_create(&pool, user_id, &items, 100)
+    dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(100))
         .await
         .expect("上限内なら成功");
 }

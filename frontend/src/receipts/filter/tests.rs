@@ -4,14 +4,14 @@ use crate::dto::{Dividend, DomesticStock, Mutualfund};
 pub(crate) fn dividends() -> Vec<ReceiptItem> {
     let base: Dividend = serde_json::from_value(serde_json::json!({"id":"old", "settlement_date":"2024-06-21", "product":"国内株式", "account":"特定", "security_code":"9432", "security_name":"日本電信電話", "unit_price":5, "shares":100, "dividends_before_tax":500, "taxes":100, "net_amount_received":400, "created_at":"", "updated_at":""})).unwrap();
     let mut latest = base.clone();
-    latest.id = "new".into();
+    latest.id = "new".to_string().into();
     latest.settlement_date = "2026-06-01".into();
     latest.security_name = "ＮＴＴ".into();
     let mut other = latest.clone();
-    other.id = "other".into();
+    other.id = "other".to_string().into();
     other.security_code = "7203".into();
     other.security_name = "トヨタ自動車".into();
-    other.account = "NISA".into();
+    other.account = "NISA".parse().unwrap();
     vec![
         ReceiptItem::Dividend(base),
         ReceiptItem::Dividend(latest),

@@ -20,7 +20,7 @@ impl AssetBalanceLookupStore {
             self.generation = Some(generation);
         }
         for row in rows {
-            let code = normalize_security_code(&row.security_code);
+            let code = normalize_security_code(row.security_code.as_str());
             if !code.is_empty() {
                 self.entries
                     .entry(code)
@@ -82,7 +82,7 @@ pub fn find_by_code<'a>(rows: &'a [AssetBalance], code: &str) -> Option<&'a Asse
         return None;
     }
     rows.iter()
-        .find(|row| normalize_security_code(&row.security_code) == wanted)
+        .find(|row| normalize_security_code(row.security_code.as_str()) == wanted)
 }
 
 pub async fn fetch_single_asset_balance(
@@ -110,8 +110,8 @@ mod tests {
 
     fn row(code: &str) -> AssetBalance {
         AssetBalance {
-            id: format!("id-{code}"),
-            security_code: code.to_string(),
+            id: format!("id-{code}").into(),
+            security_code: code.parse().unwrap(),
             security_name: "銘柄".to_string(),
             shares: dec!(100),
             executing_shares: dec!(0),
@@ -129,15 +129,28 @@ mod tests {
     #[test]
     fn find_matches_normalized_codes() {
         let rows = vec![row("7203"), row("brk.b")];
-        assert_eq!(find_by_code(&rows, "7203").unwrap().security_code, "7203");
+        assert_eq!(
+            find_by_code(&rows, "7203").unwrap().security_code.as_str(),
+            "7203"
+        );
         assert_eq!(
             find_by_code(&rows, "7203: トヨタ自動車")
                 .unwrap()
-                .security_code,
+                .security_code
+                .as_str(),
             "7203"
         );
-        assert_eq!(find_by_code(&rows, "BRK.B").unwrap().security_code, "brk.b");
-        assert_eq!(find_by_code(&rows, " 7203 ").unwrap().security_code, "7203");
+        assert_eq!(
+            find_by_code(&rows, "BRK.B").unwrap().security_code.as_str(),
+            "brk.b"
+        );
+        assert_eq!(
+            find_by_code(&rows, " 7203 ")
+                .unwrap()
+                .security_code
+                .as_str(),
+            "7203"
+        );
         assert!(find_by_code(&rows, "").is_none());
         assert!(find_by_code(&rows, "   ").is_none());
         assert!(find_by_code(&rows, "9999").is_none());
@@ -149,9 +162,13 @@ mod tests {
         let mut store = AssetBalanceLookupStore::new();
         assert!(store.get(1, "7203").is_none());
         store.seed(1, &[row("7203"), row("6758")]);
-        assert_eq!(store.get(1, "7203").unwrap().security_code, "7203");
+        assert_eq!(store.get(1, "7203").unwrap().security_code.as_str(), "7203");
         assert_eq!(
-            store.get(1, "7203: トヨタ自動車").unwrap().security_code,
+            store
+                .get(1, "7203: トヨタ自動車")
+                .unwrap()
+                .security_code
+                .as_str(),
             "7203"
         );
         assert!(store.get(1, "").is_none());
@@ -166,7 +183,7 @@ mod tests {
         store.seed(2, &[row("6758")]);
         assert!(store.get(1, "7203").is_none());
         assert!(store.get(1, "6758").is_none());
-        assert_eq!(store.get(2, "6758").unwrap().security_code, "6758");
+        assert_eq!(store.get(2, "6758").unwrap().security_code.as_str(), "6758");
         assert!(store.get(2, "7203").is_none());
     }
 
@@ -219,7 +236,7 @@ mod tests {
         store.seed(1, &[row("7203"), row("6758")]);
         store.store_single(2, "8306", vec![row("8306")]);
         assert!(store.get(1, "6758").is_none());
-        assert_eq!(store.get(2, "8306").unwrap().security_code, "8306");
+        assert_eq!(store.get(2, "8306").unwrap().security_code.as_str(), "8306");
         assert!(store.get(2, "7203").is_none());
     }
 }

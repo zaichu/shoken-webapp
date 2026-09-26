@@ -241,7 +241,7 @@ impl ReceiptItem {
     pub fn code(&self) -> &str {
         match self {
             Self::Dividend(r) => &r.security_code,
-            Self::DomesticStock(r) => &r.security_code,
+            Self::DomesticStock(r) => r.security_code.as_str(),
             Self::MutualFund(_) => "",
         }
     }
@@ -254,9 +254,9 @@ impl ReceiptItem {
     }
     pub fn account(&self) -> &str {
         match self {
-            Self::Dividend(r) => &r.account,
-            Self::DomesticStock(r) => &r.account,
-            Self::MutualFund(r) => &r.account,
+            Self::Dividend(r) => r.account.as_str(),
+            Self::DomesticStock(r) => r.account.as_str(),
+            Self::MutualFund(r) => r.account.as_str(),
         }
     }
     pub fn product(&self) -> &str {

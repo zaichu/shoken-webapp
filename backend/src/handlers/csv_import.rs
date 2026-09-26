@@ -2,9 +2,10 @@ use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
+use crate::services::bulk_helpers::RowLimit;
 use crate::services::csv_domain::CsvDomain;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
-use uuid::Uuid;
+use shared::value::UserId;
 
 /// マルチパートフォームから `file` フィールドのバイト列を取得する
 pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, ApiError> {
@@ -46,9 +47,9 @@ pub async fn handle_preview_csv<D: CsvDomain>(
 /// HTTP ステータスコードは呼び出し元ハンドラーが決める。
 pub async fn handle_upload_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     multipart: Multipart,
-    user_row_limit: i64,
+    user_row_limit: RowLimit,
 ) -> Result<Json<CsvUploadResponse>, ApiError> {
     let bytes = read_csv_file_bytes(multipart).await?;
     let response = D::upload_csv(pool, user_id, &bytes, user_row_limit).await?;
@@ -74,9 +75,9 @@ pub async fn handle_delete_all(
 /// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
 pub async fn handle_import_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     multipart: Multipart,
-    user_row_limit: i64,
+    user_row_limit: RowLimit,
 ) -> Result<(StatusCode, Json<CsvUploadResponse>), ApiError> {
     let json = handle_upload_csv::<D>(pool, user_id, multipart, user_row_limit).await?;
     Ok((StatusCode::CREATED, json))
@@ -95,7 +96,6 @@ mod tests {
     use serde::de::DeserializeOwned;
     use sqlx::postgres::PgPoolOptions;
     use tower::ServiceExt;
-    use uuid::Uuid;
 
     const BODY_LIMIT: usize = 1024 * 1024;
 
@@ -123,9 +123,9 @@ mod tests {
 
         async fn upload_csv(
             _pool: &sqlx::PgPool,
-            _user_id: Uuid,
+            _user_id: UserId,
             _bytes: &[u8],
-            _user_row_limit: i64,
+            _user_row_limit: RowLimit,
         ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
             unreachable!("preview test does not call upload")
         }
@@ -142,9 +142,9 @@ mod tests {
 
         async fn upload_csv(
             _pool: &sqlx::PgPool,
-            _user_id: Uuid,
+            _user_id: UserId,
             bytes: &[u8],
-            _user_row_limit: i64,
+            _user_row_limit: RowLimit,
         ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
             Ok(crate::models::csv_import::CsvUploadResponse {
                 inserted: usize::from(!bytes.is_empty()),
@@ -207,8 +207,13 @@ mod tests {
         State(pool): State<sqlx::PgPool>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        let json =
-            handle_upload_csv::<UploadDomain>(&pool, Uuid::nil(), multipart, 100_000).await?;
+        let json = handle_upload_csv::<UploadDomain>(
+            &pool,
+            UserId::default(),
+            multipart,
+            RowLimit::new(100_000),
+        )
+        .await?;
         Ok((StatusCode::CREATED, json))
     }
 

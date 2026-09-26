@@ -1,9 +1,10 @@
 use crate::errors::ApiError;
 use crate::models::user::User;
-use crate::services::auth as auth_service;
+use crate::services::auth::{self as auth_service, SessionToken};
 use crate::state::AppState;
 use axum::extract::FromRef;
 use axum_extra::extract::CookieJar;
+use shared::value::UserId;
 
 /// 認証済みユーザーを表すエクストラクター
 /// ハンドラーの引数に指定することで、認証チェックを自動的に行う
@@ -11,7 +12,7 @@ use axum_extra::extract::CookieJar;
 pub struct AuthenticatedUser(pub User);
 
 impl AuthenticatedUser {
-    pub fn id(&self) -> uuid::Uuid {
+    pub fn id(&self) -> UserId {
         self.0.id
     }
 }
@@ -33,15 +34,15 @@ where
             .await
             .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました"))?;
 
-        let session_token = jar
+        let cookie = jar
             .get(auth_service::SESSION_COOKIE_NAME)
-            .map(|c| c.value().to_string())
             .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?;
-        let session_id: uuid::Uuid = session_token
+        let token: SessionToken = cookie
+            .value()
             .parse()
             .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
         // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
-        let user = auth_service::select_user_by_session(&app_state.pool, session_id)
+        let user = auth_service::select_user_by_session(&app_state.pool, token)
             .await
             .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました"))?
             .ok_or(ApiError::Unauthorized("セッションが無効または期限切れです"))?;
@@ -51,11 +52,11 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use {super::AuthenticatedUser, crate::models::user::User, chrono::Utc, uuid::Uuid};
+    use {super::AuthenticatedUser, crate::models::user::User, chrono::Utc, shared::value::UserId};
     #[test]
     fn id_returns_wrapped_user_id() {
         let user = User {
-            id: Uuid::new_v4(),
+            id: UserId::from(uuid::Uuid::new_v4()),
             google_id: "google-123".to_string(),
             email: "test@example.com".to_string(),
             name: Some("Test User".to_string()),

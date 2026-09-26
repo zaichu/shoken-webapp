@@ -8,12 +8,13 @@ use crate::models::mutualfund::{
 };
 use crate::services::bulk_helpers::{
     delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, UserDataDomain,
+    DeleteTarget, RowLimit, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv_util::{
-    parse_required_date, parse_required_number, parse_required_string, CsvCells, RowNumber,
+    check_max_chars, parse_required_account, parse_required_date, parse_required_number,
+    parse_required_string, CsvCells, RowNumber,
 };
 use crate::services::facets::{self, FacetOrder, GroupField};
 use crate::services::search_filters::{
@@ -21,9 +22,9 @@ use crate::services::search_filters::{
 };
 use rust_decimal::Decimal;
 use shared::tax::compute_taxes;
+use shared::value::UserId;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
-use uuid::Uuid;
 
 const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -69,7 +70,7 @@ impl MutualfundFilter {
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &MutualfundFilter) {
+fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &MutualfundFilter) {
     push_search_filters(
         qb,
         user_id,
@@ -86,7 +87,7 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: Uuid, filter: &Mutualf
 
 pub async fn search(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     params: &MutualfundSearchQueryParams,
 ) -> Result<PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>, ApiError> {
     info!("[mutualfund.search] リクエスト受信");
@@ -124,7 +125,7 @@ pub async fn search(
 /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
 async fn fetch_summary(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &MutualfundFilter,
 ) -> Result<MutualfundSummary, ApiError> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -142,7 +143,7 @@ async fn fetch_summary(
 
 async fn fetch_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &MutualfundFilter,
 ) -> Result<SearchFacets, ApiError> {
     let accounts_fut =
@@ -179,7 +180,7 @@ async fn fetch_facets(
 
 async fn fetch_group_facets(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     filter: &MutualfundFilter,
     group_field: GroupField,
     order: FacetOrder,
@@ -197,9 +198,9 @@ async fn fetch_group_facets(
 /// 投資信託を一括追加（重複はスキップ）
 pub async fn bulk_create(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     items: &[CreateMutualfundRequest],
-    limit: i64,
+    limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let timer = match BulkTimer::new_with_guard("mutualfund", items) {
         Ok(t) => t,
@@ -292,9 +293,9 @@ pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
 
 pub async fn upload_csv(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     bytes: &[u8],
-    user_row_limit: i64,
+    user_row_limit: RowLimit,
 ) -> Result<CsvUploadResponse, ApiError> {
     run_csv_upload(
         bytes,
@@ -315,9 +316,9 @@ fn transform_mutualfund_row(
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;
     let settlement_date = parse_required_date(row, "受渡日", row_num)?;
-    let account = parse_required_string(row, "口座", row_num)?;
+    let account = parse_required_account(row, "口座", row_num)?;
     let realized_pnl = parse_required_number(row, "実現損益［円］", row_num)?;
-    let (taxes, realized_pnl_after_tax) = compute_taxes(&account, realized_pnl);
+    let tax = compute_taxes(&account, realized_pnl);
     let dividends_raw = row.cell("分配金");
     let dividends = if dividends_raw.trim().is_empty() {
         None
@@ -327,7 +328,12 @@ fn transform_mutualfund_row(
     Ok(CreateMutualfundRequest {
         trade_date,
         settlement_date,
-        fund_name: parse_required_string(row, "ファンド名", row_num)?,
+        fund_name: check_max_chars(
+            parse_required_string(row, "ファンド名", row_num)?,
+            "ファンド名",
+            300,
+            row_num,
+        )?,
         dividends,
         account,
         shares: parse_required_number(row, "数量[口]", row_num)?,
@@ -336,12 +342,12 @@ fn transform_mutualfund_row(
         cancellation_amount_yen: parse_required_number(row, "解約額［円］", row_num)?,
         average_acquisition_price_yen: parse_required_number(row, "平均取得価額［円］", row_num)?,
         realized_profit_and_loss: realized_pnl,
-        taxes,
-        realized_profit_and_loss_after_tax: realized_pnl_after_tax,
+        taxes: tax.taxes,
+        realized_profit_and_loss_after_tax: tax.realized_profit_and_loss_after_tax,
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: Uuid) -> Result<u64, ApiError> {
+pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
     delete_all_for_user(pool, user_id, DeleteTarget::MutualFunds).await
 }
 #[cfg(test)]
@@ -452,7 +458,7 @@ mod tests {
         let filter = MutualfundFilter::from_params(&params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -472,7 +478,7 @@ mod tests {
             MutualfundFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
-        push_filters(&mut qb, Uuid::nil(), &filter);
+        push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 

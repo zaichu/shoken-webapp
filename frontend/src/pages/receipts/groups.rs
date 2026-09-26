@@ -81,8 +81,8 @@ pub(crate) fn table_groups(
                     key_fn: &|r: &Dividend| r.product.clone(),
                 },
                 GroupKeyRule {
-                    test: |r: &Dividend, t| r.account.to_lowercase() == t,
-                    key_fn: &|r: &Dividend| r.account.clone(),
+                    test: |r: &Dividend, t| r.account.as_str().to_lowercase() == t,
+                    key_fn: &|r: &Dividend| r.account.to_string(),
                 },
             ];
             let key =

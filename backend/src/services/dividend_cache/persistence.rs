@@ -1,6 +1,8 @@
 use crate::errors::ApiError;
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 use crate::services::market_data::providers::jquants::JQuantsClient;
+use shared::dividend_per_share::DividendCacheStatus;
+use shared::value::SecurityCode;
 use sqlx::PgPool;
 
 use super::logic::extract_dividend;
@@ -9,8 +11,8 @@ use super::logic::extract_dividend;
 pub async fn fetch_and_cache(
     pool: &PgPool,
     jquants_client: &JQuantsClient,
-    code: &str,
-) -> Result<String, ApiError> {
+    code: &SecurityCode,
+) -> Result<DividendCacheStatus, ApiError> {
     let params = FinancialStatementsQuery {
         code: code.to_string(),
         from: None,
@@ -38,7 +40,7 @@ pub async fn fetch_and_cache(
     )
     .bind(code)
     .bind(dividend_per_share)
-    .bind(&status)
+    .bind(status)
     .execute(pool)
     .await?;
 
@@ -49,7 +51,7 @@ pub async fn fetch_and_cache(
 /// stale_at を future に設定することで cooldown 中の即時再取得を防ぐ
 pub async fn update_cache_error_with_cooldown(
     pool: &PgPool,
-    code: &str,
+    code: &SecurityCode,
     error_msg: &str,
     cooldown_secs: i32,
 ) -> Result<(), ApiError> {
@@ -88,7 +90,7 @@ fn truncate_error_message(msg: &str) -> &str {
 /// エラー情報をキャッシュに記録する
 pub async fn update_cache_error(
     pool: &PgPool,
-    code: &str,
+    code: &SecurityCode,
     error_msg: &str,
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);

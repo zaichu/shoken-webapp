@@ -1,11 +1,11 @@
 use crate::errors::ApiError;
 use crate::models::common::{PaginatedSearchResponse, SearchQueryParams};
 use chrono::NaiveDate;
+use shared::value::UserId;
 use sqlx::postgres::PgRow;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 use std::future::Future;
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
@@ -153,7 +153,7 @@ pub fn push_token_ilike_filters(
 /// - `token_columns`: フリーワード検索（ILIKE OR）の対象カラム
 pub fn push_search_filters(
     qb: &mut QueryBuilder<Postgres>,
-    user_id: Uuid,
+    user_id: UserId,
     date_axis: Option<(&'static str, &DateAxisFilter)>,
     exact_match_fields: &[(&'static str, &Option<String>)],
     tokens: &[String],

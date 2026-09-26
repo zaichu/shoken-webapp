@@ -209,7 +209,7 @@ pub(crate) fn filtered_portfolio(
                 row.clone()
             } else {
                 lookup
-                    .with(|store| store.get(generation, &row.security_code).cloned())
+                    .with(|store| store.get(generation, row.security_code.as_str()).cloned())
                     .unwrap_or_else(|| row.clone())
             };
             holding_view(&resolved)
@@ -380,7 +380,7 @@ pub(crate) fn apply_loaded_asset_balances(
         &loaded
             .rows
             .iter()
-            .map(|row| row.security_code.clone())
+            .map(|row| row.security_code.to_string())
             .collect::<Vec<_>>(),
     );
     if !preview_active {

@@ -2,6 +2,7 @@ use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQ
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use shared::value::Account;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
@@ -14,7 +15,8 @@ pub struct CreateMutualfundRequest {
     pub settlement_date: NaiveDate,
     pub fund_name: String,
     pub dividends: Option<String>,
-    pub account: String,
+    #[schema(value_type = String)]
+    pub account: Account,
     #[schema(value_type = f64)]
     pub shares: Decimal,
     #[schema(value_type = f64)]
@@ -63,7 +65,6 @@ impl Validate for CreateMutualfundRequest {
             Some(300),
         );
         validate_length_field(&mut errors, "dividends", &self.dividends, None, Some(100));
-        validate_length_field(&mut errors, "account", &self.account, Some(1), Some(100));
         if errors.is_empty() {
             Ok(())
         } else {
@@ -81,7 +82,7 @@ mod tests {
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 19).expect("有効な日付 2024-01-19"),
             fund_name: "テストファンド".to_string(),
             dividends: Some("再投資型".to_string()),
-            account: "特定".to_string(),
+            account: "特定".parse().expect("valid account"),
             shares: dec!(10000),
             exchange_rate: dec!(1),
             cancellation_unit_price_yen: dec!(15000),
@@ -105,13 +106,8 @@ mod tests {
         .validate()
         .is_err());
 
-        // account は min=1 のため空文字は NG
-        assert!(CreateMutualfundRequest {
-            account: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        // account の形式は Account の serde(try_from) が JSON 入力時に検証する
+        assert!("".parse::<Account>().is_err());
 
         // dividends は max=100 のため 101 文字は NG
         assert!(CreateMutualfundRequest {

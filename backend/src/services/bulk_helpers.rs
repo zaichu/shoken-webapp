@@ -1,10 +1,31 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
+use shared::value::UserId;
 use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
+use std::fmt;
 use std::time::Instant;
 use tracing::info;
-use uuid::Uuid;
+
+/// 1ユーザーあたりの保存行数上限（USER_ROW_LIMIT 由来）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RowLimit(i64);
+
+impl RowLimit {
+    pub const fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    pub fn get(self) -> i64 {
+        self.0
+    }
+}
+
+impl fmt::Display for RowLimit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// bulk_create の開始ログ・完了ログ・処理時間計測をまとめた補助構造体
 pub struct BulkTimer {
@@ -60,7 +81,7 @@ impl BulkTimer {
 }
 
 /// bulk insert の UNNEST に渡す user_id 配列を生成する。
-pub fn user_ids_for_bulk_insert(user_id: Uuid, total: usize) -> Vec<Uuid> {
+pub fn user_ids_for_bulk_insert(user_id: UserId, total: usize) -> Vec<UserId> {
     vec![user_id; total]
 }
 
@@ -95,13 +116,14 @@ fn exceeds_user_row_limit(
     domain: UserDataDomain,
     existing: Option<i64>,
     additional: usize,
-    limit: i64,
+    limit: RowLimit,
 ) -> bool {
-    let additional = additional as i64;
+    // usize→i64 は飽和扱い（usize::MAX 級は上限超過とみなしてよい）
+    let additional = i64::try_from(additional).unwrap_or(i64::MAX);
     if domain.replaces_existing() {
-        additional > limit
+        additional > limit.get()
     } else {
-        existing.unwrap_or(0) + additional > limit
+        existing.unwrap_or(0) + additional > limit.get()
     }
 }
 
@@ -112,10 +134,10 @@ fn exceeds_user_row_limit(
 /// 上限値は引数で渡す(プロセス全体の環境変数に依存させない)
 pub async fn ensure_user_row_limit_with<'e, E>(
     executor: E,
-    user_id: Uuid,
+    user_id: UserId,
     domain: UserDataDomain,
     additional: usize,
-    limit: i64,
+    limit: RowLimit,
 ) -> Result<(), ApiError>
 where
     E: sqlx::Executor<'e, Database = sqlx::Postgres>,
@@ -167,29 +189,35 @@ pub type DeleteTarget = UserDataDomain;
 /// `DeleteTarget` ごとに固定SQLを個別に呼び出す。
 pub async fn delete_all_for_user(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: UserId,
     target: DeleteTarget,
 ) -> Result<u64, ApiError> {
     let domain = target.domain();
     info!("[{}.delete_all] リクエスト受信", domain);
     let result = match target {
         DeleteTarget::AssetBalances => {
-            sqlx::query!("DELETE FROM asset_balances WHERE user_id = $1", user_id)
-                .execute(pool)
-                .await?
+            sqlx::query!(
+                "DELETE FROM asset_balances WHERE user_id = $1",
+                user_id.get()
+            )
+            .execute(pool)
+            .await?
         }
         DeleteTarget::Dividends => {
-            sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id)
+            sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id.get())
                 .execute(pool)
                 .await?
         }
         DeleteTarget::DomesticStocks => {
-            sqlx::query!("DELETE FROM domestic_stocks WHERE user_id = $1", user_id)
-                .execute(pool)
-                .await?
+            sqlx::query!(
+                "DELETE FROM domestic_stocks WHERE user_id = $1",
+                user_id.get()
+            )
+            .execute(pool)
+            .await?
         }
         DeleteTarget::MutualFunds => {
-            sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id)
+            sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
                 .execute(pool)
                 .await?
         }
@@ -202,8 +230,10 @@ pub async fn delete_all_for_user(
 #[cfg(test)]
 mod tests {
     use super::{
-        exceeds_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget, UserDataDomain,
+        exceeds_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget, RowLimit,
+        UserDataDomain,
     };
+    use shared::value::UserId;
     use uuid::Uuid;
 
     #[test]
@@ -214,31 +244,61 @@ mod tests {
             UserDataDomain::DomesticStocks,
             UserDataDomain::MutualFunds,
         ] {
-            assert!(!exceeds_user_row_limit(domain, Some(0), 0, 100));
-            assert!(!exceeds_user_row_limit(domain, Some(0), 100, 100));
-            assert!(!exceeds_user_row_limit(domain, Some(99), 1, 100));
-            assert!(exceeds_user_row_limit(domain, Some(100), 1, 100));
-            assert!(exceeds_user_row_limit(domain, Some(0), 101, 100));
-            assert!(exceeds_user_row_limit(domain, Some(99_999), 2, 100_000));
+            assert!(!exceeds_user_row_limit(
+                domain,
+                Some(0),
+                0,
+                RowLimit::new(100)
+            ));
+            assert!(!exceeds_user_row_limit(
+                domain,
+                Some(0),
+                100,
+                RowLimit::new(100)
+            ));
+            assert!(!exceeds_user_row_limit(
+                domain,
+                Some(99),
+                1,
+                RowLimit::new(100)
+            ));
+            assert!(exceeds_user_row_limit(
+                domain,
+                Some(100),
+                1,
+                RowLimit::new(100)
+            ));
+            assert!(exceeds_user_row_limit(
+                domain,
+                Some(0),
+                101,
+                RowLimit::new(100)
+            ));
+            assert!(exceeds_user_row_limit(
+                domain,
+                Some(99_999),
+                2,
+                RowLimit::new(100_000)
+            ));
         }
         // 置換型(asset_balances): 既存行数を見ず追加分のみで判定
         assert!(!exceeds_user_row_limit(
             UserDataDomain::AssetBalances,
             None,
             100,
-            100
+            RowLimit::new(100)
         ));
         assert!(exceeds_user_row_limit(
             UserDataDomain::AssetBalances,
             None,
             101,
-            100
+            RowLimit::new(100)
         ));
         assert!(!exceeds_user_row_limit(
             UserDataDomain::AssetBalances,
             Some(1_000_000),
             1,
-            100
+            RowLimit::new(100)
         ));
     }
 
@@ -265,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_user_ids_for_bulk_insert() {
-        let id = Uuid::new_v4();
+        let id = UserId::from(Uuid::new_v4());
         let result = user_ids_for_bulk_insert(id, 3);
         assert_eq!(result.len(), 3);
         assert!(result.iter().all(|&v| v == id));

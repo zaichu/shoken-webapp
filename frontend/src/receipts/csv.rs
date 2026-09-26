@@ -3,6 +3,16 @@ use crate::dto::CsvPreviewResponse;
 use crate::receipts::{ReceiptItem, ReceiptsTab};
 use rust_decimal::Decimal;
 use serde::Deserialize;
+use shared::value::{Account, RecordId, SecurityCode};
+
+// プレビュー行は lenient に受け取るため、パース不能な値は表示用の代替値に畳む
+fn preview_account(value: String) -> Account {
+    value.parse().unwrap_or_else(|_| "-".parse().unwrap())
+}
+
+fn preview_security_code(value: String) -> SecurityCode {
+    value.parse().unwrap_or_else(|_| "0".parse().unwrap())
+}
 
 // プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -98,10 +108,10 @@ impl From<CsvPreviewRow> for ReceiptItem {
     fn from(row: CsvPreviewRow) -> ReceiptItem {
         match row {
             CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::dto::Dividend {
-                id: String::new(),
+                id: RecordId::default(),
                 settlement_date: row.settlement_date,
                 product: row.product,
-                account: row.account,
+                account: preview_account(row.account),
                 security_code: row.security_code,
                 security_name: row.security_name,
                 unit_price: row.unit_price,
@@ -114,12 +124,12 @@ impl From<CsvPreviewRow> for ReceiptItem {
             }),
             CsvPreviewRow::DomesticStock(row) => {
                 ReceiptItem::DomesticStock(crate::dto::DomesticStock {
-                    id: String::new(),
+                    id: RecordId::default(),
                     trade_date: row.trade_date,
                     settlement_date: row.settlement_date,
-                    security_code: row.security_code,
+                    security_code: preview_security_code(row.security_code),
                     security_name: row.security_name,
-                    account: row.account,
+                    account: preview_account(row.account),
                     shares: row.shares,
                     asked_price: row.asked_price,
                     proceeds: row.proceeds,
@@ -132,11 +142,11 @@ impl From<CsvPreviewRow> for ReceiptItem {
                 })
             }
             CsvPreviewRow::MutualFund(row) => ReceiptItem::MutualFund(crate::dto::Mutualfund {
-                id: String::new(),
+                id: RecordId::default(),
                 trade_date: row.trade_date,
                 settlement_date: row.settlement_date,
                 fund_name: row.fund_name,
-                account: row.account,
+                account: preview_account(row.account),
                 shares: row.shares,
                 exchange_rate: row.exchange_rate,
                 cancellation_unit_price_yen: row.cancellation_unit_price_yen,
@@ -321,7 +331,7 @@ mod tests {
         fn prop_dividend_to_receipt_item_copies_fields(
             date in "[ -~]{0,12}",
             product in ".*",
-            account in ".*",
+            account in ".{1,100}",
             code in ".*",
             name in ".*",
             unit_price in arb_decimal(),
@@ -350,7 +360,7 @@ mod tests {
             };
             proptest::prop_assert_eq!(item.settlement_date, expected.settlement_date);
             proptest::prop_assert_eq!(item.product, expected.product);
-            proptest::prop_assert_eq!(item.account, expected.account);
+            proptest::prop_assert_eq!(item.account.as_str(), expected.account);
             proptest::prop_assert_eq!(item.security_code, expected.security_code);
             proptest::prop_assert_eq!(item.security_name, expected.security_name);
             proptest::prop_assert_eq!(item.unit_price, expected.unit_price);

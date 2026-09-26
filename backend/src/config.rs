@@ -1,5 +1,7 @@
 use std::env;
 
+use crate::services::bulk_helpers::RowLimit;
+
 pub mod cors;
 pub mod environment;
 
@@ -7,7 +9,7 @@ pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
 pub use environment::RuntimeEnv;
 
 /// `USER_ROW_LIMIT` 未設定時の既定値（ユーザー1人あたりの登録行数上限）
-pub const DEFAULT_USER_ROW_LIMIT: i64 = 100_000;
+pub const DEFAULT_USER_ROW_LIMIT: RowLimit = RowLimit::new(100_000);
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -30,7 +32,7 @@ pub struct Config {
     /// サーバの待ち受けアドレス
     pub server_addr: String,
     /// ユーザー1人あたりの登録行数上限
-    pub user_row_limit: i64,
+    pub user_row_limit: RowLimit,
 }
 
 impl Default for Config {
@@ -73,7 +75,7 @@ impl Config {
 
         if let Ok(v) = env::var("USER_ROW_LIMIT") {
             if let Ok(n) = v.parse() {
-                config.user_row_limit = n;
+                config.user_row_limit = RowLimit::new(n);
             }
         }
 
@@ -259,13 +261,13 @@ mod tests {
         let _guard = ENV_MUTEX.blocking_lock();
         for (value, expected) in [
             (Some("50"), 50),
-            (Some("abc"), DEFAULT_USER_ROW_LIMIT),
+            (Some("abc"), 100_000),
             (Some("-5"), -5),
-            (None, DEFAULT_USER_ROW_LIMIT),
+            (None, 100_000),
         ] {
             temp_env::with_var("USER_ROW_LIMIT", value, || {
                 assert_eq!(
-                    Config::from_env().user_row_limit,
+                    Config::from_env().user_row_limit.get(),
                     expected,
                     "USER_ROW_LIMIT={value:?}"
                 );

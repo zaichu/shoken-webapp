@@ -10,6 +10,9 @@ pub type Uuid = String;
 #[cfg(not(feature = "typed"))]
 pub type NaiveDate = String;
 
+#[cfg(feature = "typed")]
+use crate::value::UserId;
+use crate::value::{Account, RecordId, SecurityCode};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -18,15 +21,20 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct DomesticStock {
-    pub id: Uuid,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
+    pub id: RecordId,
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
-    pub security_code: String,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::security_code")]
+    pub security_code: SecurityCode,
     pub security_name: String,
-    pub account: String,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
+    pub account: Account,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
@@ -73,13 +81,17 @@ pub struct DomesticStockSummary {
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Dividend {
-    pub id: Uuid,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
+    pub id: RecordId,
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub settlement_date: NaiveDate,
     pub product: String,
-    pub account: String,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
+    pub account: Account,
+    // 配当の銘柄コードは空文字を許容する既存仕様のため String のまま
     pub security_code: String,
     pub security_name: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
@@ -120,15 +132,18 @@ pub struct DividendSummary {
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Mutualfund {
-    pub id: Uuid,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
+    pub id: RecordId,
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub trade_date: NaiveDate,
     pub settlement_date: NaiveDate,
     pub fund_name: String,
     pub dividends: Option<String>,
-    pub account: String,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
+    pub account: Account,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
@@ -173,11 +188,14 @@ pub struct MutualfundSummary {
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct AssetBalance {
-    pub id: Uuid,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
+    pub id: RecordId,
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
-    pub user_id: Uuid,
-    pub security_code: String,
+    pub user_id: UserId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::security_code")]
+    pub security_code: SecurityCode,
     pub security_name: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,

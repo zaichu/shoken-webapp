@@ -1,7 +1,7 @@
 use crate::domain::{
     Dividend, DividendSummary, DomesticStock, DomesticStockSummary, Mutualfund, MutualfundSummary,
 };
-use crate::tax::{is_taxable_account, tax_amount};
+use crate::tax::tax_amount;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -36,7 +36,7 @@ pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
     let mut groups: BTreeMap<_, (Decimal, Decimal)> = BTreeMap::new();
     for row in rows {
         let totals = groups.entry(&row.trade_date).or_default();
-        if is_taxable_account(&row.account) {
+        if row.account.is_specific() {
             totals.0 += row.realized_profit_and_loss;
         } else {
             totals.1 += row.realized_profit_and_loss;
@@ -104,9 +104,9 @@ mod tests {
             user_id: Default::default(),
             trade_date: date.parse().expect("valid date"),
             settlement_date: date.parse().expect("valid date"),
-            security_code: "1234".to_string(),
+            security_code: "1234".parse().expect("valid code"),
             security_name: "テスト".to_string(),
-            account: account.to_string(),
+            account: account.parse().expect("valid account"),
             shares: dec!(0),
             asked_price: dec!(0),
             proceeds: dec!(0),
@@ -153,7 +153,7 @@ mod tests {
             user_id: Default::default(),
             settlement_date: Default::default(),
             product: "国内株式".to_string(),
-            account: "特定口座".to_string(),
+            account: "特定口座".parse().expect("valid account"),
             security_code: "1234".to_string(),
             security_name: "テスト".to_string(),
             unit_price: dec!(0),
@@ -175,7 +175,7 @@ mod tests {
             settlement_date: Default::default(),
             fund_name: "テストファンド".to_string(),
             dividends: None,
-            account: "特定口座".to_string(),
+            account: "特定口座".parse().expect("valid account"),
             shares: dec!(0),
             exchange_rate: dec!(0),
             cancellation_unit_price_yen: dec!(0),

@@ -48,8 +48,8 @@ fn fixture() -> Fixture {
 
 fn balance(row: &Row) -> AssetBalance {
     AssetBalance {
-        id: row.id.clone(),
-        security_code: row.security_code.clone(),
+        id: row.id.clone().into(),
+        security_code: row.security_code.parse().unwrap(),
         security_name: row.security_name.clone(),
         shares: Decimal::ZERO,
         executing_shares: Decimal::ZERO,
@@ -82,7 +82,7 @@ fn shared_filter_cases_match() {
         let data = balances(&case.data);
         let actual: Vec<_> = filter_asset_balances(&data, &case.query)
             .iter()
-            .map(|row| row.id.clone())
+            .map(|row| row.id.to_string())
             .collect();
         assert_eq!(actual, case.expected_ids, "{}", case.name);
     }
@@ -115,7 +115,7 @@ fn cleared_query_restores_all_rows() {
     assert_eq!(clear_search_query(), String::new());
     let actual: Vec<_> = filter_asset_balances(&data, &clear_search_query())
         .iter()
-        .map(|row| row.id.clone())
+        .map(|row| row.id.to_string())
         .collect();
     assert_eq!(actual, case.expected_ids_all());
 }
