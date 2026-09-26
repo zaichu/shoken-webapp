@@ -45,7 +45,7 @@ pub(crate) fn header_summary(
             vec![
                 ("配当金", values[0], "emerald"),
                 ("税額", values[1], "red"),
-                ("受取金額", values[2], "emerald"),
+                ("配当金(税引)", values[2], "emerald"),
             ]
         }
         ReceiptsTab::DomesticStock => {

@@ -36,7 +36,7 @@ pub(crate) fn card_fields(tab: ReceiptsTab) -> CardFields {
 
 pub(crate) fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
     match tab {
-        ReceiptsTab::Dividend => ["配当金", "税額", "受取額"],
+        ReceiptsTab::Dividend => ["配当金", "税額", "税引後"],
         ReceiptsTab::DomesticStock => ["損益", "税額", "税引後"],
         ReceiptsTab::MutualFund => ["実現損益", "税額", "税引損益"],
     }
