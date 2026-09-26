@@ -19,6 +19,9 @@ const prQuery = `
         body
         headRefOid
         isCrossRepository
+        author {
+          login
+        }
         closingIssuesReferences(first: 1) {
           totalCount
         }
@@ -206,10 +209,12 @@ async function run({ github, context, core }) {
     return;
   }
 
+  // dependabot の PR は Issue 紐づけを免除する(未解決コメントの確認は通常どおり行う)
+  const skipIssueLink = pr.author?.login === 'dependabot[bot]';
   const [comments, reviews, linked] = await Promise.all([
     fetchAll(github, { owner, repo, prNumber }, 'comments'),
     fetchAll(github, { owner, repo, prNumber }, 'reviews'),
-    hasLinkedIssue(github, { owner, repo }, pr),
+    skipIssueLink ? true : hasLinkedIssue(github, { owner, repo }, pr),
   ]);
 
   const { problems, unresolved, description } = evaluateGate({

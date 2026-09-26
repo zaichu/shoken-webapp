@@ -11,9 +11,18 @@ const basePr = {
   closingIssuesReferences: { totalCount: 1 },
 };
 
-function makeGithub({ pr = basePr, runs = [], myRunId = 100, statusError = null }) {
+function makeGithub({
+  pr = basePr,
+  runs = [],
+  myRunId = 100,
+  statusError = null,
+  nodes = [],
+}) {
   const calls = { statuses: [] };
-  const connection = { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+  const connection = {
+    nodes,
+    pageInfo: { hasNextPage: false, endCursor: null },
+  };
   const github = {
     graphql: async () => ({
       repository: {
@@ -245,6 +254,39 @@ test('ワークフローの run-name が RUN_NAME_PREFIX 付きでクォート�
   const m = line[1].trim().match(/^"(.*)"$|^'(.*)'$/);
   assert.ok(m, 'run-name はクォート必須(" #" はコメント開始になる)');
   assert.ok((m[1] ?? m[2]).startsWith(gate.RUN_NAME_PREFIX));
+});
+
+test('dependabot の PR は Issue 紐づけなしでも成功になる', async () => {
+  const pr = {
+    ...basePr,
+    author: { login: 'dependabot[bot]' },
+    body: 'Bumps foo from 1.0.0 to 1.0.1',
+    closingIssuesReferences: { totalCount: 0 },
+  };
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+  ];
+  const { github, calls } = makeGithub({ pr, runs });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses.length, 1);
+  assert.equal(calls.statuses[0].state, 'success');
+});
+
+test('dependabot の PR でも未解決コメントは検出する', async () => {
+  const pr = {
+    ...basePr,
+    author: { login: 'dependabot[bot]' },
+    body: 'Bumps foo from 1.0.0 to 1.0.1',
+    closingIssuesReferences: { totalCount: 0 },
+  };
+  const runs = [
+    { id: 100, display_title: 'PR gate #42', created_at: '2026-01-02T00:00:00Z' },
+  ];
+  const nodes = [{ author: { login: 'user' }, body: 'c', url: 'u1' }];
+  const { github, calls } = makeGithub({ pr, runs, nodes });
+  await gate.run({ github, context: ctx(), core: makeCore() });
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.match(calls.statuses[0].description, /未解決のコメント/);
 });
 
 test('紐づけなしの場合は failure ステータスを書く', async () => {
