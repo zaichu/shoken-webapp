@@ -103,17 +103,6 @@ impl UserDataDomain {
             Self::MutualFunds => "mutualfund",
         }
     }
-
-    /// ユーザー紐付き行を持つ実テーブル名。SQL 文字列の構築に使えるよう
-    /// 列挙値から固定マッピングで返す(外部入力は混入しない)
-    fn table_name(self) -> &'static str {
-        match self {
-            Self::AssetBalances => "asset_balances",
-            Self::Dividends => "dividends",
-            Self::DomesticStocks => "domestic_stocks",
-            Self::MutualFunds => "mutualfunds",
-        }
-    }
 }
 
 /// 上限判定の純粋ロジック(DB 非依存)。existing は追記型のみ使用する
@@ -149,13 +138,33 @@ where
     let existing = if domain.replaces_existing() {
         None
     } else {
-        sqlx::query_scalar::<_, Option<i64>>(sqlx::AssertSqlSafe(format!(
-            "SELECT COUNT(*) FROM {} WHERE user_id = $1",
-            domain.table_name()
-        )))
-        .bind(user_id)
-        .fetch_one(executor)
-        .await?
+        match domain {
+            UserDataDomain::Dividends => {
+                sqlx::query_scalar::<_, Option<i64>>(
+                    "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
+                )
+                .bind(user_id)
+                .fetch_one(executor)
+                .await?
+            }
+            UserDataDomain::DomesticStocks => {
+                sqlx::query_scalar::<_, Option<i64>>(
+                    "SELECT COUNT(*) FROM domestic_stocks WHERE user_id = $1",
+                )
+                .bind(user_id)
+                .fetch_one(executor)
+                .await?
+            }
+            UserDataDomain::MutualFunds => {
+                sqlx::query_scalar::<_, Option<i64>>(
+                    "SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1",
+                )
+                .bind(user_id)
+                .fetch_one(executor)
+                .await?
+            }
+            UserDataDomain::AssetBalances => unreachable!(),
+        }
     };
     if exceeds_user_row_limit(domain, existing, additional, limit) {
         return Err(ApiError::ValidationError(format!(
