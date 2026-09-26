@@ -41,10 +41,17 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
         with:
           script: |
+            let gate;
             try {
-              const gate = require(
+              gate = require(
                 `${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-gate.js`
               );
+            } catch (error) {
+              // スクリプト未配置は rollout 不備。緑のまま握り潰すと気づけないため失敗にする
+              core.setFailed(`gate script not found: ${error.message}`);
+              return;
+            }
+            try {
               await gate.run({ github, context, core });
             } catch (error) {
               // 判定は commit status にだけ出す。評価自体の失敗でジョブを赤くしない
