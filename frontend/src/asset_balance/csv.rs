@@ -32,21 +32,21 @@ pub struct AssetBalanceCsvRow {
     pub profit_loss_rate: Decimal,
 }
 
-impl AssetBalanceCsvRow {
-    // 一覧表示に載せるため AssetBalance に揃える。id・タイムスタンプは未確定なので空
-    pub fn to_asset_balance(&self) -> AssetBalance {
+// 一覧表示に載せるため AssetBalance に揃える。id・タイムスタンプは未確定なので空
+impl From<AssetBalanceCsvRow> for AssetBalance {
+    fn from(row: AssetBalanceCsvRow) -> AssetBalance {
         AssetBalance {
             id: String::new(),
-            security_code: self.security_code.clone(),
-            security_name: self.security_name.clone(),
-            shares: self.shares,
-            executing_shares: self.executing_shares,
-            average_purchase_price: self.average_purchase_price,
-            total_purchase_amount: self.total_purchase_amount,
-            current_price: self.current_price,
-            daily_change: self.daily_change,
-            market_value: self.market_value,
-            profit_loss_rate: self.profit_loss_rate,
+            security_code: row.security_code,
+            security_name: row.security_name,
+            shares: row.shares,
+            executing_shares: row.executing_shares,
+            average_purchase_price: row.average_purchase_price,
+            total_purchase_amount: row.total_purchase_amount,
+            current_price: row.current_price,
+            daily_change: row.daily_change,
+            market_value: row.market_value,
+            profit_loss_rate: row.profit_loss_rate,
             created_at: String::new(),
             updated_at: String::new(),
         }
@@ -130,7 +130,7 @@ mod tests {
             average_purchase_price: dec!(2500),
             ..Default::default()
         };
-        let balance = row.to_asset_balance();
+        let balance = AssetBalance::from(row);
         assert!(balance.id.is_empty());
         assert!(balance.created_at.is_empty());
         assert!(balance.updated_at.is_empty());

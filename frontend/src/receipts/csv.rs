@@ -94,16 +94,16 @@ pub enum CsvPreviewRow {
     MutualFund(MutualfundCsvRow),
 }
 
-impl CsvPreviewRow {
-    pub fn to_receipt_item(&self) -> ReceiptItem {
-        match self {
+impl From<CsvPreviewRow> for ReceiptItem {
+    fn from(row: CsvPreviewRow) -> ReceiptItem {
+        match row {
             CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::dto::Dividend {
                 id: String::new(),
-                settlement_date: row.settlement_date.clone(),
-                product: row.product.clone(),
-                account: row.account.clone(),
-                security_code: row.security_code.clone(),
-                security_name: row.security_name.clone(),
+                settlement_date: row.settlement_date,
+                product: row.product,
+                account: row.account,
+                security_code: row.security_code,
+                security_name: row.security_name,
                 unit_price: row.unit_price,
                 shares: row.shares,
                 dividends_before_tax: row.dividends_before_tax,
@@ -115,11 +115,11 @@ impl CsvPreviewRow {
             CsvPreviewRow::DomesticStock(row) => {
                 ReceiptItem::DomesticStock(crate::dto::DomesticStock {
                     id: String::new(),
-                    trade_date: row.trade_date.clone(),
-                    settlement_date: row.settlement_date.clone(),
-                    security_code: row.security_code.clone(),
-                    security_name: row.security_name.clone(),
-                    account: row.account.clone(),
+                    trade_date: row.trade_date,
+                    settlement_date: row.settlement_date,
+                    security_code: row.security_code,
+                    security_name: row.security_name,
+                    account: row.account,
                     shares: row.shares,
                     asked_price: row.asked_price,
                     proceeds: row.proceeds,
@@ -133,10 +133,10 @@ impl CsvPreviewRow {
             }
             CsvPreviewRow::MutualFund(row) => ReceiptItem::MutualFund(crate::dto::Mutualfund {
                 id: String::new(),
-                trade_date: row.trade_date.clone(),
-                settlement_date: row.settlement_date.clone(),
-                fund_name: row.fund_name.clone(),
-                account: row.account.clone(),
+                trade_date: row.trade_date,
+                settlement_date: row.settlement_date,
+                fund_name: row.fund_name,
+                account: row.account,
                 shares: row.shares,
                 exchange_rate: row.exchange_rate,
                 cancellation_unit_price_yen: row.cancellation_unit_price_yen,
@@ -145,7 +145,7 @@ impl CsvPreviewRow {
                 realized_profit_and_loss: row.realized_profit_and_loss,
                 taxes: row.taxes,
                 realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
-                dividends: Some(row.dividends.clone().unwrap_or_default()),
+                dividends: Some(row.dividends.unwrap_or_default()),
                 created_at: String::new(),
                 updated_at: String::new(),
             }),
@@ -278,7 +278,7 @@ mod tests {
             net_amount_received: dec!(2391),
             ..Default::default()
         });
-        let ReceiptItem::Dividend(item) = dividend.to_receipt_item() else {
+        let ReceiptItem::Dividend(item) = ReceiptItem::from(dividend) else {
             panic!("dividend item expected")
         };
         assert_eq!(item.security_name, "トヨタ自動車");
@@ -293,7 +293,7 @@ mod tests {
             realized_profit_and_loss_after_tax: dec!(3985),
             ..Default::default()
         });
-        let ReceiptItem::DomesticStock(item) = domestic.to_receipt_item() else {
+        let ReceiptItem::DomesticStock(item) = ReceiptItem::from(domestic) else {
             panic!("domestic stock item expected")
         };
         assert_eq!(item.security_name, "任天堂");
@@ -304,7 +304,7 @@ mod tests {
             dividends: None,
             ..Default::default()
         });
-        let ReceiptItem::MutualFund(item) = fund.to_receipt_item() else {
+        let ReceiptItem::MutualFund(item) = ReceiptItem::from(fund) else {
             panic!("mutual fund item expected")
         };
         assert_eq!(item.fund_name, "eMAXIS Slim 全世界株式");
@@ -343,7 +343,8 @@ mod tests {
                 net_amount_received: net,
             };
             let expected = row.clone();
-            let ReceiptItem::Dividend(item) = CsvPreviewRow::Dividend(row).to_receipt_item()
+            let ReceiptItem::Dividend(item) =
+                ReceiptItem::from(CsvPreviewRow::Dividend(row))
             else {
                 panic!("dividend item expected")
             };

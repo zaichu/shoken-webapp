@@ -3,7 +3,6 @@ use super::table::ReceiptTable;
 use super::workspace::empty_hint;
 use crate::dividend_info::{search_security_code, DividendInfoStore, DividendSummarySection};
 use crate::dto::Dividend;
-use crate::receipts::csv::CsvPreviewRow;
 use crate::receipts::filter::filter_receipts;
 use crate::receipts::{ReceiptItem, ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::receipts_domain::calculate_dividends;
@@ -21,11 +20,9 @@ pub(crate) fn ReceiptsMainContent(
     let summary = data.summary.clone();
     let display_store = store.clone();
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
-        Some(preview) if !preview.rows.is_empty() => preview
-            .rows
-            .iter()
-            .map(CsvPreviewRow::to_receipt_item)
-            .collect(),
+        Some(preview) if !preview.rows.is_empty() => {
+            preview.rows.into_iter().map(ReceiptItem::from).collect()
+        }
         _ => data.rows.clone(),
     });
     let preview_store = store.clone();

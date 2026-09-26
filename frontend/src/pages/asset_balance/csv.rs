@@ -312,7 +312,8 @@ pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<A
             preview
                 .rows
                 .iter()
-                .map(AssetBalanceCsvRow::to_asset_balance)
+                .cloned()
+                .map(AssetBalance::from)
                 .collect()
         })
         .unwrap_or_default()
