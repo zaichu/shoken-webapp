@@ -399,14 +399,18 @@ async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) 
   if (slug === 'domesticstock') {
     const negative = table.locator('tbody td[data-negative="true"]').first();
     await expect(negative).toContainText(/-/);
-    // 損益の負値は色で区別する要件。色値は固定せず同じ行の他セルとの差で確かめる
-    const sameRowOther = negative
-      .locator('xpath=..')
-      .locator('td:not([data-negative="true"])')
-      .last();
+    // 損益の負値は色で区別する要件。色値は固定せず同じ列の非負値セルとの差で確かめる
+    const cellIndex = await negative.evaluate(
+      (el) => (el as HTMLTableCellElement).cellIndex,
+    );
+    const nonNegativeInColumn = table
+      .locator(
+        `tbody td:nth-of-type(${cellIndex + 1}):not([data-negative="true"])`,
+      )
+      .first();
     const [negativeColor, otherColor] = await Promise.all([
       negative.evaluate((el) => getComputedStyle(el).color),
-      sameRowOther.evaluate((el) => getComputedStyle(el).color),
+      nonNegativeInColumn.evaluate((el) => getComputedStyle(el).color),
     ]);
     expect(negativeColor).not.toBe(otherColor);
   }
