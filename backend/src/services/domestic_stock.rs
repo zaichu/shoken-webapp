@@ -7,7 +7,8 @@ use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
 use crate::services::bulk_helpers::{
-    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, ensure_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
@@ -245,6 +246,7 @@ pub async fn bulk_create(
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
+    ensure_user_row_limit(pool, user_id, UserDataDomain::DomesticStocks, items.len()).await?;
 
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();

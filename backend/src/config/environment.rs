@@ -45,6 +45,15 @@ pub fn csv_rate_limit_rps() -> u32 {
         .unwrap_or(2)
 }
 
+/// 認証済みデータ系ルートへの IP 単位レート制限（リクエスト/秒）。0 は無制限。
+/// 画面の通常操作は数リクエスト/秒程度のため、auth/stock_search と同じ 10 を既定値にする
+pub fn data_rate_limit_rps() -> u32 {
+    env::var("DATA_RATE_LIMIT_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,6 +172,20 @@ mod tests {
                 },
             );
         }
+    }
+
+    // --- data_rate_limit_rps ---
+
+    #[test]
+    fn test_data_rate_limit_rps() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        assert_eq!(data_rate_limit_rps(), 10);
+        temp_env::with_var("DATA_RATE_LIMIT_RPS", Some("5"), || {
+            assert_eq!(data_rate_limit_rps(), 5);
+        });
+        temp_env::with_var("DATA_RATE_LIMIT_RPS", Some("0"), || {
+            assert_eq!(data_rate_limit_rps(), 0);
+        });
     }
 
     // --- csv_rate_limit_rps ---

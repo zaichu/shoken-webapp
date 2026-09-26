@@ -7,7 +7,8 @@ use crate::models::common::{
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::bulk_helpers::{
-    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, ensure_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
@@ -171,6 +172,7 @@ pub async fn bulk_create(
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
     let timer = BulkTimer::new("asset_balance", total);
+    ensure_user_row_limit(pool, user_id, UserDataDomain::AssetBalances, total).await?;
 
     let user_ids = user_ids_for_bulk_insert(user_id, total);
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();

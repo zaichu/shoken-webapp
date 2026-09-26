@@ -5,7 +5,8 @@ pub mod environment;
 
 pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
 pub use environment::{
-    backend_url, csv_rate_limit_rps, is_production_env, is_secure_cookie, server_addr,
+    backend_url, csv_rate_limit_rps, data_rate_limit_rps, is_production_env, is_secure_cookie,
+    server_addr,
 };
 
 pub struct Config {
@@ -17,6 +18,8 @@ pub struct Config {
     pub csv_rate_limit_rps: u32,
     /// 銘柄検索ルート（`GET /api/v1/stocks`）への IP 単位レート制限（リクエスト/秒）。0 は無制限
     pub stock_search_rate_limit_rps: u32,
+    /// 認証済みデータ系ルート(`/api/v1/*`)への IP 単位レート制限（リクエスト/秒）。0 は無制限
+    pub data_rate_limit_rps: u32,
 }
 
 impl Default for Config {
@@ -33,6 +36,7 @@ impl Default for Config {
             auth_rate_limit_rps: 10,
             csv_rate_limit_rps: 2,
             stock_search_rate_limit_rps: 10,
+            data_rate_limit_rps: 10,
         }
     }
 }
@@ -57,6 +61,7 @@ impl Config {
         }
 
         config.csv_rate_limit_rps = csv_rate_limit_rps();
+        config.data_rate_limit_rps = data_rate_limit_rps();
 
         if is_production_env() {
             config
@@ -162,6 +167,7 @@ mod tests {
             auth_rate_limit_rps: 10,
             csv_rate_limit_rps: 2,
             stock_search_rate_limit_rps: 10,
+            data_rate_limit_rps: 10,
         };
         assert_eq!(
             (
