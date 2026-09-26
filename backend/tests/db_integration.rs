@@ -932,7 +932,7 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert!(remaining.is_none());
 }
 
-/// #1031 版と同時に動いても、双方が発行したセッションを互いに照合・失効できること。
+/// id にもトークンを書く旧版と同時に動いても、双方が発行したセッションを互いに照合・失効できること。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn session_token_hash_rolling_deploy_compat() {
@@ -954,7 +954,7 @@ async fn session_token_hash_rolling_deploy_compat() {
         "移行後も旧 Cookie が有効であること"
     );
 
-    // #1031 版は id にもトークンを書く
+    // 旧版は id にもトークンを書く
     let old_version_issued = Uuid::new_v4();
     sqlx::query("INSERT INTO sessions (id, user_id, token_hash) VALUES ($1, $2, sha256(convert_to($1::text, 'UTF8')))")
         .bind(old_version_issued)
@@ -1049,7 +1049,7 @@ async fn session_token_hash_rolling_deploy_compat() {
     );
     lock_tx.rollback().await.expect("ロック解除");
 
-    // 新版は id にトークンを書かず、#1031 版の照合クエリでも解決できる
+    // 新版は id にトークンを書かず、旧版の照合クエリでも解決できる
     let row: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
     )
