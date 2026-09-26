@@ -156,6 +156,7 @@ fn number_and_currency_formatters_match_intl_cases() {
     assert_eq!(format_currency(-250000.0), "¥ -250,000");
     assert_eq!(format_currency(2600.0), "¥ 2,600");
     assert_eq!(format_currency(123.456), "¥ 123.456");
+    assert_eq!(format_fixed_percent(1.005, 2), "1.01%");
     assert_eq!(format_currency(f64::NAN), "-");
     assert_eq!(
         format_currency("0.123456789012345678".parse::<f64>().unwrap()),
