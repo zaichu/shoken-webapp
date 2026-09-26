@@ -37,7 +37,7 @@ pub fn reorder_columns_by_search<T>(
     base.to_vec()
 }
 
-// React の localeCompare と同じブラウザーの照合順序を利用する。
+// ブラウザーの localeCompare による照合順序を利用する。
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(
     inline_js = "export function receiptLocaleCompare(a, b) { return a.localeCompare(b); }"

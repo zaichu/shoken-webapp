@@ -79,7 +79,7 @@ pub fn CollapsibleSearchCard(
                         {move || {
                             (!expanded.get() && has_active_search.get()).then(|| {
                                 view! {
-                                    <span class="mt-1 inline-flex whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                                    <span class="filter-badge">
                                         "適用中"
                                     </span>
                                 }

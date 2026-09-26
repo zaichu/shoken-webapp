@@ -52,7 +52,7 @@ pub(crate) fn SecurityCodeLink(
     let href = format!("/search?code={}", urlencoding::encode(&code));
     let has_weight = class.as_deref().map(has_font_weight_class).unwrap_or(false);
     let classes = format!(
-        "security-code-link text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500{}{}",
+        "security-code-link{}{}",
         if has_weight { "" } else { " font-bold" },
         class.map(|extra| format!(" {extra}")).unwrap_or_default(),
     );
@@ -134,7 +134,7 @@ pub(crate) fn CopyableInstrumentName(
             type="button"
             aria-label=aria_label
             on:click=move |_| copy_to_clipboard(copy_text.clone())
-            class="group inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500"
+            class="copyable-name group"
         >
             <span>{display}</span>
             <svg
@@ -148,7 +148,7 @@ pub(crate) fn CopyableInstrumentName(
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 aria-hidden="true"
-                class="rounded p-0.5 text-gray-400 opacity-100 group-hover:text-gray-600 group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                class="copy-icon"
             >
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />

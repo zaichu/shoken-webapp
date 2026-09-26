@@ -119,8 +119,7 @@ fn group_thousands(digits: &str) -> String {
     grouped
 }
 
-// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（React の
-// `formatSignedAbsNumber` と同じく `-0.0` は負としない）。
+// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（`-0.0` は負としない）。
 // この関数は絶対値の桁区切りだけを返す。
 pub(crate) fn format_abs_number(value: f64) -> Option<String> {
     if !value.is_finite() {
@@ -234,14 +233,14 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
     }
 }
 
-/// API summary による上書き入力。`AssetPortfolioSummary.tsx` の `summary` に対応する。
+/// API summary による上書き入力。
 #[derive(Clone, Debug)]
 pub struct SummaryOverride {
     pub total_purchase_amount: Value,
     pub total_market_value: Value,
 }
 
-/// 評価損益の集計。`AssetPortfolioSummary.tsx` の `valuation` に対応する。
+/// 評価損益の集計。
 /// summary がある場合は検索条件全体の集計を優先し、なければ表示中データから集計する。
 /// summary の欠損、または明細側の欠損がある場合は不完全として金額・率を表示しない。
 pub fn summarize_valuation_with_summary(
@@ -289,7 +288,7 @@ pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
 }
 
 /// 構成比の一覧。合計を分母に各要素の割合を求める。
-/// 分母の合計は React のテストと同じ素朴な加算で求める。
+/// 分母の合計は素朴な加算で求める。
 /// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
 #[allow(dead_code)]
 pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
@@ -300,8 +299,7 @@ pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
         .collect()
 }
 
-/// チャート表示の除外条件。`AssetPortfolioSummary.tsx` の `chartData` の
-/// `filter` に対応する。取得総額が正の銘柄は残し、そうでなければ
+/// チャート表示の除外条件。取得総額が正の銘柄は残し、そうでなければ
 /// 評価額を持つ銘柄（欠損・0円以外）だけ残す。
 pub fn should_include_chart_item(purchase: Option<f64>, market: Option<f64>) -> bool {
     if let Some(purchase) = purchase {
@@ -312,9 +310,8 @@ pub fn should_include_chart_item(purchase: Option<f64>, market: Option<f64>) -> 
     matches!(market, Some(market) if market != 0.0)
 }
 
-/// チャート用の未丸めパーセンテージ。`PortfolioPieChart.tsx` の
-/// `percentage: (item.value / total) * 100` に対応する。
-/// 分母が 0 の場合は算出不可として `None`（React の `NaN` に相当）を返す。
+/// チャート用の未丸めパーセンテージ（`item.value / total * 100`）。
+/// 分母が 0 の場合は算出不可として `None` を返す。
 /// 評価額を持つ銘柄が1つもない空表示条件では空ベクターを返す。
 pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<Option<f64>> {
     let total: f64 = values.iter().sum();
@@ -333,8 +330,7 @@ pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<O
         .collect()
 }
 
-/// KPI 計算への入力1件。欠損は呼び出し側で `0.0` に寄せる
-///（React の `item.shares || 0`、`item.total_purchase_amount || 0` に対応）。
+/// KPI 計算への入力1件。欠損は呼び出し側で `0.0` に寄せる。
 #[derive(Clone, Debug)]
 pub struct KpiHolding {
     pub security_code: String,
@@ -342,7 +338,7 @@ pub struct KpiHolding {
     pub total_purchase_amount: f64,
 }
 
-/// ポートフォリオ KPI。`AssetPortfolioSummary.tsx` の集計に対応する。
+/// ポートフォリオ KPI。
 #[derive(Clone, Debug, PartialEq)]
 pub struct PortfolioKpi {
     pub total_purchase_amount: f64,

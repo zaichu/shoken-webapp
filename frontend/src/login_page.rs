@@ -28,7 +28,7 @@ pub fn LoginPage() -> impl IntoView {
                         .into_any();
                 }
                 view! {
-                    <div class="rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none w-full shadow-md">
+                    <div class="login-card">
                         <div class="space-y-6 p-6 text-center">
                             <h2 class="text-xl font-semibold">"ログイン"</h2>
                             <p class="text-sm text-secondary">
@@ -36,7 +36,7 @@ pub fn LoginPage() -> impl IntoView {
                             </p>
                             <button
                                 type="button"
-                                class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-dark px-4 py-2 text-sm font-semibold text-dark transition-colors hover:bg-dark hover:text-white"
+                                class="login-button"
                                 on:click=login
                             >
                                 <img

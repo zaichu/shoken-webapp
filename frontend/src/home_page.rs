@@ -70,7 +70,7 @@ pub fn HomePage() -> impl IntoView {
                                 view! {
                                     <a
                                         href={*to}
-                                        class="rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white hover:text-slate-950"
+                                        class="home-nav-chip"
                                     >
                                         {*label}
                                     </a>
@@ -115,7 +115,7 @@ pub fn HomePage() -> impl IntoView {
                                 view! {
                                     <a
                                         href={*to}
-                                        class="group rounded-xl border border-slate-950/10 bg-white/80 px-4 py-4 shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-[0_18px_40px_-32px_rgba(15,23,42,0.85)]"
+                                        class="feature-card group"
                                     >
                                         {inner}
                                     </a>
@@ -164,7 +164,7 @@ pub fn HomePage() -> impl IntoView {
                                 view! {
                                     <a
                                         href={*to}
-                                        class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-950 hover:text-slate-950"
+                                        class="home-link-button"
                                     >
                                         {*label}
                                     </a>

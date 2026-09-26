@@ -73,7 +73,7 @@ pub fn SiteHeader() -> impl IntoView {
         }
     });
     view! {
-        <header class="sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur no-print">
+        <header class="site-header no-print">
             <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 py-3">
                 <div class="flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3">
                     <div class="flex items-center justify-between gap-4">
@@ -81,7 +81,7 @@ pub fn SiteHeader() -> impl IntoView {
                             href="/"
                             class="group inline-flex items-center gap-3 text-white transition-colors hover:text-amber-100"
                         >
-                            <span class="flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white text-sm font-black text-slate-950 shadow-[inset_0_-3px_0_rgba(192,132,3,0.35)] max-sm:h-8 max-sm:w-8">
+                            <span class="header-logo">
                                 "証"
                             </span>
                             // スマホでは副題とサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
@@ -96,7 +96,7 @@ pub fn SiteHeader() -> impl IntoView {
                         </a>
                     </div>
                     <nav
-                        class="flex flex-wrap items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1 max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:overflow-x-auto"
+                        class="header-nav"
                         aria-label="主要ナビゲーション"
                     >
                         {NAV_LINKS
@@ -251,7 +251,7 @@ fn UserMenu(
                     let initials = initials.clone();
                     view! {
                         <div
-                            class="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-slate-700 text-sm font-black text-white max-sm:hidden"
+                            class="header-avatar"
                             aria-label=label
                         >
                             {initials}

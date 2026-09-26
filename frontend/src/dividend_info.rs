@@ -322,13 +322,13 @@ pub(crate) fn DividendSummarySection(
     let totals_mobile = totals.clone();
     view! {
         <section
-            class="mb-3 rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)] max-sm:px-3 max-sm:py-0"
+            class="collapsible-card"
             data-testid="receipt-summary-strip"
         >
             <div class="sm:hidden" data-testid="receipt-summary-compact">
                 <button
                     type="button"
-                    class="flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                    class="collapsible-trigger"
                     aria-expanded=move || {
                         if mobile_expanded.get() {
                             "true"

@@ -12,7 +12,7 @@ const PRIMARY_BUTTON_MD: &str = "inline-flex items-center justify-center rounded
 pub fn NotFoundPage() -> impl IntoView {
     view! {
         <div class="min-h-[50vh] flex items-center justify-center">
-            <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center">
+            <div class="empty-state">
                 <div class="mb-3 text-slate-400" aria-hidden="true">
                     <svg
                         class="h-16 w-16"

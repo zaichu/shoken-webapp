@@ -111,6 +111,176 @@
   .status-message {
     @apply my-4 flex flex-col items-center gap-2;
   }
+
+  .panel-card {
+    @apply rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none;
+  }
+
+  .login-card {
+    @apply rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)] print:border-black print:shadow-none w-full shadow-md;
+  }
+
+  .table-card {
+    @apply overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)] print:border-black print:shadow-none;
+  }
+
+  .collapsible-card {
+    @apply mb-3 rounded-xl border border-slate-950/10 bg-white/95 px-4 py-3 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.85)] max-sm:px-3 max-sm:py-0;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center;
+  }
+
+  .rail-panel {
+    @apply overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] backdrop-blur-sm divide-y divide-slate-950/10;
+  }
+
+  .workspace-rail {
+    @apply sm:relative sm:z-20 sm:divide-y sm:divide-slate-950/10 sm:rounded-xl sm:border sm:border-slate-950/10 sm:bg-white/90 sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)] sm:backdrop-blur-sm;
+  }
+
+  .search-card-mobile {
+    @apply max-sm:rounded-xl max-sm:border max-sm:border-slate-950/10 max-sm:bg-white/90 max-sm:shadow-[0_18px_58px_-42px_rgba(15,23,42,0.9)];
+  }
+
+  .collapsible-trigger {
+    @apply flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
+  }
+
+  .rail-toggle {
+    @apply flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
+  }
+
+  .review-prompt-button {
+    @apply inline-flex w-full items-center justify-center truncate rounded-md border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-700 transition-[background-color,border-color,color,box-shadow,transform] hover:border-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-[44px];
+  }
+
+  .chart-toggle-button {
+    @apply mt-3 w-full rounded-md border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors;
+  }
+
+  .receipt-card-trigger {
+    @apply flex min-h-[90px] w-full flex-col justify-center gap-2 rounded-lg px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700;
+  }
+
+  .group-card-trigger {
+    @apply flex min-h-[44px] w-full items-center gap-2 bg-slate-700 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white;
+  }
+
+  .login-button {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-md border border-dark px-4 py-2 text-sm font-semibold text-dark transition-colors hover:bg-dark hover:text-white;
+  }
+
+  .modal-close-button {
+    @apply text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .search-submit {
+    @apply inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 border border-slate-950 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-slate-800 active:bg-slate-950 px-4 py-2 text-sm max-sm:min-h-[44px] h-11 shrink-0 whitespace-nowrap px-5;
+  }
+
+  .stock-link-button {
+    @apply inline-flex items-center justify-between gap-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors;
+  }
+
+  .home-nav-chip {
+    @apply rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white hover:text-slate-950;
+  }
+
+  .feature-card {
+    @apply rounded-xl border border-slate-950/10 bg-white/80 px-4 py-4 shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-[0_18px_40px_-32px_rgba(15,23,42,0.85)];
+  }
+
+  .home-link-button {
+    @apply inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-950 hover:text-slate-950;
+  }
+
+  .code-badge {
+    @apply inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold tracking-[0.16em] text-blue-700;
+  }
+
+  .filter-chip {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50;
+  }
+
+  .file-chip {
+    @apply inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm;
+  }
+
+  .filter-badge {
+    @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800;
+  }
+
+  .code-chip {
+    @apply inline-flex rounded-md border border-white/20 bg-white px-3 py-1 font-mono text-sm font-black tracking-wider text-slate-950;
+  }
+
+  .security-code-link {
+    @apply text-blue-700 underline-offset-2 hover:text-blue-900 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+  }
+
+  .site-header {
+    @apply sticky top-0 z-40 border-b border-slate-950/10 bg-[#111827]/95 text-white shadow-[0_18px_44px_-34px_rgba(15,23,42,0.95)] backdrop-blur;
+  }
+
+  .header-logo {
+    @apply flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white text-sm font-black text-slate-950 shadow-[inset_0_-3px_0_rgba(192,132,3,0.35)] max-sm:h-8 max-sm:w-8;
+  }
+
+  .header-nav {
+    @apply flex flex-wrap items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1 max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:overflow-x-auto;
+  }
+
+  .header-avatar {
+    @apply flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-slate-700 text-sm font-black text-white max-sm:hidden;
+  }
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-primary;
+  }
+
+  .receipts-tab-list {
+    @apply flex flex-wrap gap-1.5 rounded-xl border border-slate-950/10 bg-white/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto;
+  }
+
+  .copyable-name {
+    @apply inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-blue-500;
+  }
+
+  .copy-icon {
+    @apply rounded p-0.5 text-gray-400 opacity-100 group-hover:text-gray-600 group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
+  }
+
+  .search-input-frame {
+    @apply flex w-full items-stretch rounded-lg border border-slate-300 bg-white p-1 shadow-inner shadow-slate-200/80 focus-within:border-amber-600 focus-within:ring-2 focus-within:ring-amber-500/20;
+  }
+
+  .search-input {
+    @apply block px-3 py-2 text-sm font-medium text-slate-950 bg-white border rounded-md transition-[border-color,box-shadow,background-color] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/25 border-slate-300 focus:border-amber-600 w-full h-11 rounded-r-none border-0 bg-transparent text-base shadow-none focus:ring-0;
+  }
+
+  .year-picker-dropdown {
+    @apply absolute z-10 w-full grid grid-cols-3 gap-1 rounded-b-md border border-t-0 border-slate-300 bg-white px-2 pb-2 pt-1.5 max-h-72 overflow-y-auto;
+  }
+
+  .csv-file-input {
+    @apply w-full rounded-[1.15rem] border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100;
+  }
+
+  .table-scroll {
+    @apply relative w-full overflow-auto rounded-lg border border-slate-950/10 bg-white print:overflow-visible! print:max-h-none! [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-500;
+  }
+
+  .summary-section-header {
+    @apply flex flex-col gap-3 border-b border-slate-950/10 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+}
+
+/* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
+   維持するため、@layer の外に置く(層なしは utilities 層より強い)。 */
+.receipt-table {
+  @apply w-full table-fixed border-collapse text-left text-[12px] leading-5 sm:text-[13px] [&_th]:border [&_th]:border-slate-200 [&_td]:border [&_td]:border-slate-200 print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-slate-100 [&_tbody_th]:border-b [&_tbody_th]:border-slate-100;
 }
 
 @media print {
