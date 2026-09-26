@@ -1083,6 +1083,14 @@ mod tests {
                             rate.signum(),
                             amount.signum() * p.signum()
                         );
+                        if rate.is_finite() {
+                            let reconstructed = rate * p / 100.0;
+                            proptest::prop_assert!(
+                                (reconstructed - amount).abs()
+                                    <= 1e-6 * amount.abs().max(1.0),
+                                "rate={rate} p={p} amount={amount}"
+                            );
+                        }
                     }
                 }
                 _ => {
