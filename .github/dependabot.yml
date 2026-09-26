@@ -48,6 +48,9 @@ updates:
     ignore:
       - dependency-name: "getrandom"
         versions: [">=0.4"]
+      # leptos(server_fn)が gloo-net 0.6 に依存しているため、0.7 を入れると wasm に両方が入る
+      - dependency-name: "gloo-net"
+        versions: [">=0.7"]
     labels:
       - "dependencies"
       - "frontend"
