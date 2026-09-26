@@ -72,16 +72,25 @@ jobs:
     steps:
       # SHA pin: actions/checkout@v7
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # audit-check は .cargo/audit.toml を読まないため、除外 ID を取り出して渡す
+      - name: Read ignored advisories
+        id: ignore
+        run: |
+          for dir in backend frontend; do
+            echo "$dir=$(grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' "$dir/.cargo/audit.toml" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+          done
       - name: Run cargo audit (backend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: backend
+          ignore: ${{ steps.ignore.outputs.backend }}
       - name: Run cargo audit (frontend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: frontend
+          ignore: ${{ steps.ignore.outputs.frontend }}
 
   npm-audit:
     name: npm audit (Node.js)
