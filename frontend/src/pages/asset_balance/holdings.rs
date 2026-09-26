@@ -2,6 +2,7 @@ use super::format::{dec_to_f64, format_currency, format_percentage_value};
 use crate::asset_balance_domain::normalize_display_name;
 use crate::dividend_per_share::DividendMaps;
 use crate::dto::AssetBalance;
+use rust_decimal::Decimal;
 
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {
@@ -11,6 +12,8 @@ pub(crate) struct HoldingView {
     pub(crate) average_price: f64,
     pub(crate) purchase: f64,
     pub(crate) market: f64,
+    pub(crate) purchase_dec: Decimal,
+    pub(crate) market_dec: Decimal,
     pub(crate) current_price: f64,
 }
 
@@ -27,6 +30,8 @@ pub(crate) fn holding_view(row: &AssetBalance) -> HoldingView {
         average_price: dec_to_f64(&row.average_purchase_price),
         purchase: dec_to_f64(&row.total_purchase_amount),
         market: dec_to_f64(&row.market_value),
+        purchase_dec: row.total_purchase_amount,
+        market_dec: row.market_value,
         current_price: dec_to_f64(&row.current_price),
     }
 }

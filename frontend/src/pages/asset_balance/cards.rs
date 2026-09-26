@@ -1,5 +1,6 @@
 use super::format::{
     format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
+    valuation_tone,
 };
 use super::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
@@ -152,6 +153,7 @@ pub(crate) fn HoldingValuationCard(
         &serde_json::json!(item.view.market),
         &serde_json::json!(item.view.purchase),
     );
+    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
     let market_display = format_currency(item.view.market);
     let current_price_display = format_currency(item.view.current_price);
     let profit_loss = match valuation.amount {
@@ -199,7 +201,10 @@ pub(crate) fn HoldingValuationCard(
                 <span class="mt-2 flex items-center justify-between gap-2">
                     <span class="shrink-0 text-xs font-medium text-slate-500">"評価損益"</span>
                     <span class="flex min-w-0 items-center gap-1">
-                        <span class="truncate text-sm font-bold tabular-nums text-slate-800">
+                        <span
+                            class=format!("truncate text-sm font-bold tabular-nums {valuation_class}")
+                            data-negative=valuation_negative
+                        >
                             {profit_loss}
                         </span>
                         <span aria-hidden="true" class="shrink-0 text-xs text-slate-400">

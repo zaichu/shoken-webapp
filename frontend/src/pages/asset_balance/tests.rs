@@ -1,15 +1,16 @@
 use super::data::*;
 use super::format::*;
 use super::holdings::*;
-use super::summary::{PortfolioSummary, PortfolioSummaryProps};
+use super::summary::{
+    portfolio_valuation, valuation_summary_override, PortfolioSummary, PortfolioSummaryProps,
+};
 use super::test_util::*;
 use crate::api::ApiError;
 use crate::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::asset_balance::portfolio::chart_display;
 use crate::asset_balance_domain::{
     calculate_portfolio_kpi, format_number_value, normalize_display_name, normalize_security_code,
-    summarize_valuation_with_summary, total_purchase_amount, KpiHolding, SummaryOverride,
-    ValuationItem,
+    total_purchase_amount, KpiHolding,
 };
 use crate::components::security_link::is_searchable_code;
 use crate::dividend_per_share::DividendMaps;
@@ -52,11 +53,17 @@ fn percentage_formatter_formats_values() {
     assert_eq!(format_fixed_percent(10.0, 1), "10.0%");
     assert_eq!(format_fixed_percent(8.256880733944955, 1), "8.3%");
     assert_eq!(format_fixed_percent(60.0, 1), "60.0%");
-    assert_eq!(format_valuation_amount(Some(60000.0)), "+¥ 60,000");
+    assert_eq!(format_valuation_amount(Some(60000.0)), "¥ 60,000");
     assert_eq!(format_valuation_amount(Some(-10000.0)), "¥ -10,000");
+    assert_eq!(format_valuation_amount(Some(0.0)), "¥ 0");
+    assert_eq!(
+        format_valuation_amount(Some(3632999.9999999995)),
+        "¥ 3,633,000"
+    );
     assert_eq!(format_valuation_amount(None), "—");
-    assert_eq!(format_valuation_rate(Some(10.0), 1), "+10.0%");
+    assert_eq!(format_valuation_rate(Some(10.0), 1), "10.0%");
     assert_eq!(format_valuation_rate(Some(-10.0), 1), "-10.0%");
+    assert_eq!(format_valuation_rate(Some(0.0), 1), "0.0%");
     assert_eq!(format_valuation_rate(None, 1), "—");
 }
 
@@ -150,12 +157,29 @@ fn number_and_currency_formatters_match_intl_cases() {
     assert_eq!(format_currency(-250000.0), "¥ -250,000");
     assert_eq!(format_currency(2600.0), "¥ 2,600");
     assert_eq!(format_currency(123.456), "¥ 123.456");
+    assert_eq!(format_fixed_percent(1.005, 2), "1.01%");
     assert_eq!(format_currency(f64::NAN), "-");
     assert_eq!(
         format_currency("0.123456789012345678".parse::<f64>().unwrap()),
         "¥ 0.123456789012346"
     );
     assert_eq!(format_fixed_percent(f64::NAN, 1), "-");
+    assert_eq!(
+        format_currency(1e29),
+        "¥ 100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_currency(-1e29),
+        "¥ -100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_valuation_amount(Some(1e29)),
+        "¥ 100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(
+        format_fixed_percent(1e30, 1),
+        "1000000000000000019884624838656.0%"
+    );
 }
 
 #[test]
@@ -213,20 +237,20 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         assert!(filtered.summary.is_none());
 
         // PortfolioSummary と同じ手順で画面に出る金額を計算する
-        let valuation_items: Vec<ValuationItem> = filtered
-            .views
-            .iter()
-            .map(|view| ValuationItem {
-                market_value: serde_json::json!(view.market),
-                total_purchase_amount: serde_json::json!(view.purchase),
-            })
-            .collect();
-        let summary_override = filtered.summary.as_ref().map(|summary| SummaryOverride {
-            total_purchase_amount: serde_json::json!(dec_to_f64(&summary.total_purchase_amount,)),
-            total_market_value: serde_json::json!(dec_to_f64(&summary.total_market_value)),
-        });
-        let valuation =
-            summarize_valuation_with_summary(&valuation_items, summary_override.as_ref());
+        let summary_override =
+            valuation_summary_override(&filtered.views, filtered.summary.as_ref())
+                .expect("filtered totals fit in Decimal");
+        assert_eq!(
+            (
+                summary_override.total_market_value,
+                summary_override.total_purchase_amount
+            ),
+            (
+                rust_decimal_macros::dec!(110000),
+                rust_decimal_macros::dec!(100000)
+            )
+        );
+        let valuation = portfolio_valuation(&filtered.views, filtered.summary.as_ref());
         let kpi_holdings: Vec<KpiHolding> = filtered
             .views
             .iter()
@@ -268,6 +292,42 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
                 .summary
                 .map(|summary| summary.total_purchase_amount),
             Some(rust_decimal_macros::dec!(888888))
+        );
+
+        let mut first = balance_row(7203);
+        first.security_name = "Decimal 検証対象 A".to_string();
+        first.total_purchase_amount = rust_decimal_macros::dec!(1000.05);
+        first.market_value = rust_decimal_macros::dec!(1100.10);
+        let mut second = balance_row(6758);
+        second.security_name = "Decimal 検証対象 B".to_string();
+        second.total_purchase_amount = rust_decimal_macros::dec!(2000.15);
+        second.market_value = rust_decimal_macros::dec!(2200.20);
+        let decimal_rows = vec![first, second];
+        lookup.update(|store| store.seed(2, &decimal_rows));
+        let decimal_filtered =
+            filtered_portfolio(&decimal_rows, loaded.summary, "検証対象", lookup, 2, false);
+        assert_eq!(decimal_filtered.views.len(), 2);
+        assert!(decimal_filtered.summary.is_none());
+        let decimal_override =
+            valuation_summary_override(&decimal_filtered.views, decimal_filtered.summary.as_ref())
+                .expect("filtered totals fit in Decimal");
+        assert_eq!(
+            (
+                decimal_override.total_market_value,
+                decimal_override.total_purchase_amount
+            ),
+            (
+                rust_decimal_macros::dec!(3300.30),
+                rust_decimal_macros::dec!(3000.20)
+            )
+        );
+        let decimal_valuation =
+            portfolio_valuation(&decimal_filtered.views, decimal_filtered.summary.as_ref());
+        assert_eq!(decimal_valuation.market_value, Some(3300.3));
+        assert_eq!(decimal_valuation.amount, Some(300.1));
+        assert_eq!(
+            format_currency(decimal_valuation.market_value.unwrap()),
+            "¥ 3,300.3"
         );
     });
 }
@@ -391,6 +451,20 @@ fn dividend_update_does_not_notify_balance_view() {
 fn valuation_formatters_treat_nan_as_missing() {
     assert_eq!(format_valuation_amount(Some(f64::NAN)), "—");
     assert_eq!(format_valuation_rate(Some(f64::NAN), 1), "—");
+}
+
+#[test]
+fn negative_valuation_is_decided_by_rounded_amount() {
+    assert!(!is_negative_valuation(Some(-0.4)));
+    assert!(!is_negative_valuation(Some(0.0)));
+    assert!(!is_negative_valuation(None));
+    assert!(!is_negative_valuation(Some(f64::NAN)));
+    assert!(is_negative_valuation(Some(-0.5)));
+    assert!(is_negative_valuation(Some(-1.0)));
+    assert_eq!(format_valuation_amount(Some(-0.4)), "¥ 0");
+    assert_eq!(format_valuation_amount(Some(-0.5)), "¥ -1");
+    assert_eq!(valuation_tone(Some(-0.5)), ("text-red-800", Some("true")));
+    assert_eq!(valuation_tone(Some(-0.4)), ("text-slate-800", None));
 }
 
 #[test]
