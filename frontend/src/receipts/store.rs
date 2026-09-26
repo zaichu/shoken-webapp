@@ -236,8 +236,7 @@ impl ReceiptsStore {
     pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
         self.csv_state(tab)
             .preview
-            .map(|preview| !preview.rows.is_empty())
-            .unwrap_or(false)
+            .is_some_and(|preview| !preview.rows.is_empty())
     }
 
     pub fn any_tab_fetching(&self) -> bool {

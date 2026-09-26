@@ -696,7 +696,7 @@ fn has_csv_preview_requires_non_empty_preview_rows() {
                     CsvTabState {
                         preview: Some(CsvPreview {
                             rows: vec![crate::receipts::csv::CsvPreviewRow::Dividend(
-                                Default::default(),
+                                crate::receipts::csv::DividendCsvRow::default(),
                             )],
                             ..Default::default()
                         }),

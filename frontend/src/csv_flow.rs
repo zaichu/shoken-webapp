@@ -146,10 +146,10 @@ impl<R> CsvTabState<R> {
         } else if self.previewing {
             "解析中...".to_string()
         } else {
-            self.preview
-                .as_ref()
-                .map(|preview| format!("{}件 {}", preview.valid_rows, action))
-                .unwrap_or_else(|| action.to_string())
+            self.preview.as_ref().map_or_else(
+                || action.to_string(),
+                |preview| format!("{}件 {}", preview.valid_rows, action),
+            )
         }
     }
 

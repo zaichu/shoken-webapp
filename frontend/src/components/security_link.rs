@@ -50,7 +50,7 @@ pub(crate) fn SecurityCodeLink(
         return view! { <span>{code}</span> }.into_any();
     }
     let href = format!("/search?code={}", urlencoding::encode(&code));
-    let has_weight = class.as_deref().map(has_font_weight_class).unwrap_or(false);
+    let has_weight = class.as_deref().is_some_and(has_font_weight_class);
     let classes = format!(
         "security-code-link{}{}",
         if has_weight { "" } else { " font-bold" },

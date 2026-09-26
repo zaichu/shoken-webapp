@@ -134,7 +134,7 @@ pub(crate) fn PortfolioSummary(
                 <div class="mt-4" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
                     <p class="mt-1 text-3xl font-black tabular-nums text-slate-950">
-                        {market_value.map(format_currency).unwrap_or("—".to_string())}
+                        {market_value.map_or("—".to_string(), format_currency)}
                     </p>
                     <p class="mt-2 text-sm font-bold tabular-nums text-slate-800">
                         "評価損益 "
@@ -194,8 +194,7 @@ pub(crate) fn PortfolioSummary(
                             {move || {
                                 kpi.with(|kpi| {
                                     kpi.total_annual_dividends
-                                        .map(format_currency)
-                                        .unwrap_or("---".to_string())
+                                        .map_or("---".to_string(), format_currency)
                                 })
                             }}
                         </p>
@@ -209,8 +208,7 @@ pub(crate) fn PortfolioSummary(
                             {move || {
                                 kpi.with(|kpi| {
                                     kpi.dividend_yield
-                                        .map(format_percentage_value)
-                                        .unwrap_or("---".to_string())
+                                        .map_or("---".to_string(), format_percentage_value)
                                 })
                             }}
                         </p>
