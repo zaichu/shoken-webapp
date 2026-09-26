@@ -20,6 +20,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      shared: ${{ steps.filter.outputs.shared }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
@@ -42,6 +43,11 @@ jobs:
               - "frontend/Cargo.toml"
               - "frontend/Cargo.lock"
               - "frontend/.cargo/**"
+              - ".github/workflows/mutation-testing.yml"
+            shared:
+              - "shared/**/*.rs"
+              - "shared/Cargo.toml"
+              - "shared/.cargo/**"
               - ".github/workflows/mutation-testing.yml"
 
   diff-backend:
@@ -167,6 +173,63 @@ jobs:
             frontend/mutants.out/timeout.txt
           if-no-files-found: ignore
 
+  diff-shared:
+    name: cargo-mutants (shared diff)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          toolchain: 1.96.0
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        with:
+          workspaces: shared -> target
+
+      - name: Install cargo-mutants
+        run: cargo install --locked cargo-mutants@27.1.0
+
+      - name: Make PR diff
+        run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
+
+      - name: List mutants in PR diff
+        id: list
+        run: |
+          count=$(cargo mutants --list --json --in-diff mutants.diff | jq 'length' || true)
+          count=${count:-0}
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "- shared: PR 差分の対象 mutant は **${count}** 件" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run cargo-mutants on PR diff
+        if: steps.list.outputs.count != '0'
+        run: cargo mutants -j 4 --in-diff mutants.diff
+
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: mutants-shared-diff
+          path: |
+            shared/mutants.out/mutants.json
+            shared/mutants.out/outcomes.json
+            shared/mutants.out/caught.txt
+            shared/mutants.out/missed.txt
+            shared/mutants.out/unviable.txt
+            shared/mutants.out/timeout.txt
+          if-no-files-found: ignore
+
   baseline:
     name: Full cargo-mutants baseline ${{ matrix.crate }} shard ${{ matrix.shard }}/4
     if: github.event_name == 'workflow_dispatch'
@@ -174,7 +237,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: [backend, frontend]
+        crate: [backend, frontend, shared]
         shard: [0, 1, 2, 3]
     defaults:
       run:
