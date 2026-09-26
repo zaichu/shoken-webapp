@@ -4,6 +4,8 @@ set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 HEAD_SHA=$(git rev-parse HEAD)
+REMOTE="${1:-origin}"
+check_mutants=0
 
 # stdin から "local_ref local_sha remote_ref remote_sha" を読み取る
 while read local_ref local_sha remote_ref remote_sha; do
@@ -31,26 +33,40 @@ while read local_ref local_sha remote_ref remote_sha; do
       echo "⚠️  push 対象コミットが HEAD と異なるため frontend の clippy/test をスキップします"
     fi
   fi
+
+  # 変異は checkout 中の作業ツリーでしか測れないため、push 対象が HEAD のときだけ確かめる
+  if [ "$local_sha" = "$HEAD_SHA" ]; then
+    check_mutants=1
+  else
+    echo "⚠️  push 対象コミットが HEAD と異なるため cargo-mutants をスキップします"
+  fi
 done
 
 # CI の cargo-mutants と同じく、base との差分にある変異だけを push 前に確かめる
-if [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo-mutants >/dev/null 2>&1; then
-  base=$(git merge-base origin/main HEAD 2>/dev/null || true)
-  if [ -n "$base" ]; then
+if [ "$check_mutants" = 1 ] && [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo-mutants >/dev/null 2>&1; then
+  # 手元の追跡ブランチが古いと main に入済みの変更まで差分に入るため、push 先の main を取り直す
+  git fetch --quiet "$REMOTE" main 2>/dev/null || true
+  base=$(git merge-base "$REMOTE/main" HEAD 2>/dev/null || true)
+  if [ -z "$base" ]; then
+    echo "⚠️  $REMOTE/main が見つからないため cargo-mutants をスキップします(SKIP_MUTANTS=1 で警告を消せます)" >&2
+  else
+    diff_file=$(mktemp)
+    trap 'rm -f "$diff_file"' EXIT
     for crate in shared frontend backend; do
       git diff --quiet "$base" HEAD -- "$crate/src" 2>/dev/null && continue
-      diff_file=$(mktemp)
       (cd "$REPO_ROOT/$crate" && git diff --relative "$base" HEAD -- src > "$diff_file")
-      count=$(cd "$REPO_ROOT/$crate" && cargo mutants --list --in-diff "$diff_file" 2>/dev/null | wc -l)
+      if ! list=$(cd "$REPO_ROOT/$crate" && cargo mutants --list --in-diff "$diff_file"); then
+        echo "cargo-mutants: $crate の変異の一覧を作れませんでした(SKIP_MUTANTS=1 で省略)" >&2
+        exit 1
+      fi
+      count=$(printf '%s' "$list" | grep -c . || true)
       if [ "$count" -gt 0 ]; then
         echo "cargo-mutants: $crate の差分の変異 ${count} 件を確かめます(SKIP_MUTANTS=1 で省略)"
         if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --in-diff "$diff_file" --no-shuffle); then
-          rm -f "$diff_file"
           echo "cargo-mutants: 見逃し(MISSED)か時間切れ(TIMEOUT)があります。$crate/mutants.out/missed.txt と timeout.txt を見て直してください" >&2
           exit 1
         fi
       fi
-      rm -f "$diff_file"
     done
   fi
 fi
