@@ -402,23 +402,7 @@ pub fn calculate_portfolio_kpi(
     }
 }
 
-/// `formatters.ts` の `normalizeSecurityCode` に対応する。
-pub fn normalize_security_code(value: &str) -> String {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    trimmed
-        .split([':', '：'])
-        .next()
-        .unwrap_or_default()
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect::<String>()
-        .to_uppercase()
-}
-
-pub use shared::normalize::normalize_display_name;
+pub use shared::normalize::{normalize_display_name, normalize_security_code};
 
 #[cfg(test)]
 mod tests {
