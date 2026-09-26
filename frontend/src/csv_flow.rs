@@ -21,17 +21,6 @@ impl<R> Default for CsvPreview<R> {
 }
 
 impl<R> CsvPreview<R> {
-    // 画面は有効件数とエラー件数を別々のスタイルで描画するため、連結済みのこの文言は未使用
-    #[allow(dead_code)]
-    pub fn summary_text(&self, action: &str) -> String {
-        let base = format!("{}件 {}", self.valid_rows, action);
-        if self.errors.is_empty() {
-            base
-        } else {
-            format!("{base} / {}件エラー", self.errors.len())
-        }
-    }
-
     pub fn from_response(
         response: CsvPreviewResponse,
         parse: impl Fn(serde_json::Value) -> R,
@@ -467,28 +456,6 @@ mod tests {
 
     #[test]
     fn notice_texts_match_react() {
-        let preview = CsvPreview::<String> {
-            valid_rows: 3,
-            errors: vec![],
-            ..Default::default()
-        };
-        assert_eq!(
-            preview.summary_text("追加で保存されます"),
-            "3件 追加で保存されます"
-        );
-        let with_errors = CsvPreview::<String> {
-            valid_rows: 3,
-            errors: vec![CsvRowError {
-                row: 2,
-                message: "形式エラー".to_string(),
-            }],
-            ..Default::default()
-        };
-        assert_eq!(
-            with_errors.summary_text("追加で保存されます"),
-            "3件 追加で保存されます / 1件エラー"
-        );
-
         let result = CsvUploadResponse {
             inserted: 2,
             skipped: 1,

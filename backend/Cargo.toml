@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.96"
 
+[lints.clippy]
+mod_module_files = "warn"
+
 [dependencies]
 axum = { version = "0.8.9", features = ["macros", "multipart"] }
 encoding_rs = "0.8"

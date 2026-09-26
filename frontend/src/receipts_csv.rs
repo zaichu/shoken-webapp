@@ -1,7 +1,6 @@
 use crate::csv_flow::CsvPreview;
 use crate::dto::CsvPreviewResponse;
 use crate::receipts::{ReceiptItem, ReceiptsTab};
-use crate::receipts_domain::{format_currency, format_date, format_number};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
@@ -96,50 +95,6 @@ pub enum CsvPreviewRow {
 }
 
 impl CsvPreviewRow {
-    // ReceiptItem::cells と同じ列順。プレビュー表は一覧と同じカラムで表示する
-    #[allow(dead_code)]
-    pub fn cells(&self) -> Vec<String> {
-        match self {
-            CsvPreviewRow::Dividend(row) => vec![
-                format_date(&row.settlement_date),
-                row.product.clone(),
-                row.account.clone(),
-                row.security_code.clone(),
-                row.security_name.clone(),
-                format_currency(row.unit_price),
-                format_number(row.shares, 2),
-                format_currency(row.dividends_before_tax),
-                format_currency(row.taxes),
-                format_currency(row.net_amount_received),
-            ],
-            CsvPreviewRow::DomesticStock(row) => vec![
-                format_date(&row.trade_date),
-                row.security_code.clone(),
-                row.security_name.clone(),
-                row.account.clone(),
-                format_number(row.shares, 2),
-                format_currency(row.asked_price),
-                format_currency(row.proceeds),
-                format_currency(row.purchase_price),
-                format_currency(row.realized_profit_and_loss),
-                format_currency(row.taxes),
-                format_currency(row.realized_profit_and_loss_after_tax),
-            ],
-            CsvPreviewRow::MutualFund(row) => vec![
-                format_date(&row.trade_date),
-                row.fund_name.clone(),
-                row.account.clone(),
-                format_number(row.shares, 2),
-                format_currency(row.cancellation_unit_price_yen),
-                format_currency(row.cancellation_amount_yen),
-                format_currency(row.average_acquisition_price_yen),
-                format_currency(row.realized_profit_and_loss),
-                format_currency(row.taxes),
-                format_currency(row.realized_profit_and_loss_after_tax),
-            ],
-        }
-    }
-
     pub fn to_receipt_item(&self) -> ReceiptItem {
         match self {
             CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::dto::Dividend {
@@ -312,37 +267,6 @@ mod tests {
         };
         assert_eq!(row.security_name, "トヨタ自動車");
         assert_eq!(row.unit_price, dec!(0));
-    }
-
-    #[test]
-    fn preview_row_cells_match_list_columns() {
-        let row = CsvPreviewRow::Dividend(DividendCsvRow {
-            settlement_date: "2024-03-01".to_string(),
-            product: "特定口座".to_string(),
-            account: "SBI証券".to_string(),
-            security_code: "7203".to_string(),
-            security_name: "トヨタ自動車".to_string(),
-            unit_price: dec!(30.0),
-            shares: dec!(100),
-            dividends_before_tax: dec!(3000),
-            taxes: dec!(609),
-            net_amount_received: dec!(2391),
-        });
-        assert_eq!(
-            row.cells(),
-            vec![
-                "2024/03/01",
-                "特定口座",
-                "SBI証券",
-                "7203",
-                "トヨタ自動車",
-                "¥ 30",
-                "100",
-                "¥ 3,000",
-                "¥ 609",
-                "¥ 2,391",
-            ]
-        );
     }
 
     #[test]
