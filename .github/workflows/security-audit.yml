@@ -10,7 +10,8 @@ on:
     paths:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
-      - "backend/audit.toml"
+      - "backend/.cargo/audit.toml"
+      - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
       - "frontend/package.json"
@@ -21,7 +22,8 @@ on:
     paths:
       - "backend/Cargo.toml"
       - "backend/Cargo.lock"
-      - "backend/audit.toml"
+      - "backend/.cargo/audit.toml"
+      - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
       - "frontend/package.json"
@@ -48,7 +50,8 @@ jobs:
             cargo:
               - "backend/Cargo.toml"
               - "backend/Cargo.lock"
-              - "backend/audit.toml"
+              - "backend/.cargo/audit.toml"
+              - "frontend/.cargo/audit.toml"
               - "frontend/Cargo.toml"
               - "frontend/Cargo.lock"
               - ".github/workflows/security-audit.yml"
@@ -62,6 +65,7 @@ jobs:
     needs: changes
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cargo == 'true'
     runs-on: ubuntu-latest
+    # 除外する advisory は各 working-directory の .cargo/audit.toml を正本とし、ここには書かない
     permissions:
       contents: read
       checks: write
@@ -74,22 +78,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: backend
-          # RUSTSEC-2024-0436: paste is an unmaintained transitive proc-macro dependency.
-          # RUSTSEC-2026-0235: rkyv is present only as rust_decimal's optional dependency; the rkyv feature is not enabled.
-          # RUSTSEC-2023-0071: rsa (via openidconnect) has a timing side-channel in private-key operations
-          # (Marvin Attack). Our usage is verify-only (Google's public JWKS via CoreIdTokenVerifier); we never
-          # perform RSA signing/decryption with a private key, so the attack does not apply. No patched version
-          # exists yet upstream.
-          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0235,RUSTSEC-2023-0071
       - name: Run cargo audit (frontend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: frontend
-          # RUSTSEC-2024-0436: paste is an unmaintained transitive proc-macro dependency (via leptos).
-          # RUSTSEC-2026-0173: proc-macro-error2 is unmaintained, reached only via leptos proc-macros.
-          # Neither is reachable from user input; both are compile-time only.
-          ignore: RUSTSEC-2024-0436,RUSTSEC-2026-0173
 
   npm-audit:
     name: npm audit (Node.js)

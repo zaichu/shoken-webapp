@@ -1,0 +1,8 @@
+# cargo audit の除外設定の正本。ローカルの `cargo audit` と CI の両方がこのファイルを読む
+[advisories]
+ignore = [
+    # paste クレートが unmaintained。leptos の間接依存で、コンパイル時のみ使われる。
+    "RUSTSEC-2024-0436",
+    # proc-macro-error2 が unmaintained。leptos の手続きマクロ経由でのみ使われ、コンパイル時のみ。
+    "RUSTSEC-2026-0173",
+]
