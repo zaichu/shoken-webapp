@@ -6,7 +6,7 @@ use super::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
 use super::summary::ChartItem;
-use crate::asset_balance_domain::{calculate_valuation, format_number_value};
+use crate::asset_balance_domain::{calculate_valuation_from_decimal, format_number_value};
 use crate::components::security_link::SecurityCodeLink;
 use crate::dividend_per_share::DividendMaps;
 use leptos::prelude::*;
@@ -28,7 +28,7 @@ pub(crate) fn HoldingCard(
     let average_price = item.view.average_price;
     let dividend =
         Memo::new(move |_| holding_dividend(&code, shares, average_price, &dividends.get()));
-    let percentage_text = item.percentage.map_or("-".to_string(), |percentage| {
+    let percentage_text = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });
     let bar_width = item.percentage.map_or("NaN%".to_string(), |percentage| {
@@ -36,7 +36,7 @@ pub(crate) fn HoldingCard(
     });
     let dividend_class = move |present: bool| {
         if present {
-            "mt-0.5 truncate text-[12px] font-semibold text-emerald-600"
+            "mt-0.5 truncate text-[12px] font-semibold text-slate-800"
         } else {
             "mt-0.5 truncate text-[12px] font-semibold text-slate-500"
         }
@@ -109,7 +109,7 @@ pub(crate) fn HoldingCard(
                 </div>
             </div>
 
-            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-emerald-50/55">
+            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50">
                 <div class="min-w-0 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"1株配当"</p>
                     <p
@@ -119,7 +119,7 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_per_share)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
+                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"年間配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.annual.is_some()))
@@ -128,7 +128,7 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_annual)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-emerald-100/80 px-2 py-2 text-xs text-slate-600">
+                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
                     <p class="truncate text-[10px] font-medium text-slate-500">"配当利回り"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
@@ -149,10 +149,7 @@ pub(crate) fn HoldingValuationCard(
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let valuation = calculate_valuation(
-        &serde_json::json!(item.view.market),
-        &serde_json::json!(item.view.purchase),
-    );
+    let valuation = calculate_valuation_from_decimal(item.view.market_dec, item.view.purchase_dec);
     let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
     let market_display = format_currency(item.view.market);
     let current_price_display = format_currency(item.view.current_price);
@@ -160,13 +157,11 @@ pub(crate) fn HoldingValuationCard(
         None => "—".to_string(),
         Some(amount) => match valuation.rate {
             None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
-            Some(rate) => {
-                format!(
-                    "{}（{}）",
-                    format_valuation_amount(Some(amount)),
-                    format_valuation_rate(Some(rate), 1),
-                )
-            }
+            Some(rate) => format!(
+                "{}（{}）",
+                format_valuation_amount(Some(amount)),
+                format_valuation_rate(Some(rate), 1),
+            ),
         },
     };
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
@@ -263,19 +258,19 @@ pub(crate) fn HoldingValuationCard(
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"予想年間配当"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_annual(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"1株配当"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_per_share(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-slate-500">"取得額基準利回り"</dt>
-                                        <dd class="truncate font-semibold text-emerald-600">
+                                        <dd class="truncate font-semibold text-slate-800">
                                             {format_dividend_yield(&dividend)}
                                         </dd>
                                     </div>

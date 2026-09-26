@@ -33,7 +33,7 @@ pub(crate) fn search_security_code(rows: &[Dividend], query: &str) -> String {
 
 fn format_percentage_value(value: f64) -> String {
     if value.is_nan() {
-        return "-".to_string();
+        return "—".to_string();
     }
     format!("{:.2}%", to_fixed(value, 2))
 }
@@ -56,7 +56,7 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| "---".to_string(), format_currency)
+            .map_or_else(|| "—".to_string(), format_currency)
     }
 }
 
@@ -208,12 +208,12 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     let average_price_text = move || {
         asset().map_or_else(
-            || "---".to_string(),
+            || "—".to_string(),
             |a| format_currency(a.average_purchase_price),
         )
     };
     let shares_text =
-        move || asset().map_or_else(|| "---".to_string(), |a| format_number(a.shares, 2));
+        move || asset().map_or_else(|| "—".to_string(), |a| format_number(a.shares, 2));
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
@@ -264,9 +264,9 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-slate-200">
-                <div class="rounded-lg bg-emerald-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"配当金額 (配当利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-emerald-600">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
@@ -280,15 +280,15 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                         }}
                     </p>
                 </div>
-                <div class="rounded-lg bg-red-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"税額"</p>
-                    <p class="text-2xl font-bold tabular-nums text-red-500">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_taxes)}
                     </p>
                 </div>
-                <div class="rounded-lg bg-emerald-50 px-4 py-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-xs font-medium text-slate-600 mb-1">"受取金額 (累積利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-emerald-600">
+                    <p class="text-2xl font-bold tabular-nums text-slate-950">
                         {format_currency(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();
@@ -568,19 +568,19 @@ mod tests {
 
     #[test]
     fn per_share_display_uses_short_decimal_digits() {
-        assert_eq!(per_share_display(Some(50.1), false), "¥ 50.1");
-        assert_eq!(per_share_display(Some(50.0), false), "¥ 50");
-        assert_eq!(per_share_display(Some(50.12345), false), "¥ 50.12345");
-        assert_eq!(per_share_display(None, false), "---");
+        assert_eq!(per_share_display(Some(50.1), false), "¥50.1");
+        assert_eq!(per_share_display(Some(50.0), false), "¥50");
+        assert_eq!(per_share_display(Some(50.12345), false), "¥50.12345");
+        assert_eq!(per_share_display(None, false), "—");
         assert_eq!(per_share_display(Some(50.1), true), "取得中...");
-        assert_eq!(per_share_display(Some(f64::NAN), false), "---");
+        assert_eq!(per_share_display(Some(f64::NAN), false), "—");
     }
 
     #[test]
     fn percentage_value_matches_react_to_fixed() {
         assert_eq!(format_percentage_value(2.0), "2.00%");
         assert_eq!(format_percentage_value(0.9564), "0.96%");
-        assert_eq!(format_percentage_value(f64::NAN), "-");
+        assert_eq!(format_percentage_value(f64::NAN), "—");
     }
 
     #[test]

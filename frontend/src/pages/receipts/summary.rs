@@ -7,6 +7,14 @@ use crate::receipts_domain::{
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
+fn profit_tone(value: Decimal) -> &'static str {
+    if value < Decimal::ZERO {
+        "red"
+    } else {
+        ""
+    }
+}
+
 pub(crate) fn header_summary(
     tab: ReceiptsTab,
     data: &ReceiptTabData,
@@ -43,9 +51,9 @@ pub(crate) fn header_summary(
                 ],
             );
             vec![
-                ("配当金", values[0], "emerald"),
-                ("税額", values[1], "red"),
-                ("配当金(税引)", values[2], "emerald"),
+                ("配当金", values[0], ""),
+                ("税額", values[1], ""),
+                ("配当金(税引)", values[2], ""),
             ]
         }
         ReceiptsTab::DomesticStock => {
@@ -77,9 +85,9 @@ pub(crate) fn header_summary(
                 ],
             );
             vec![
-                ("実現損益", values[0], "emerald"),
-                ("税額", values[1], "red"),
-                ("実現損益(税引)", values[2], "emerald"),
+                ("実現損益", values[0], profit_tone(values[0])),
+                ("税額", values[1], ""),
+                ("実現損益(税引)", values[2], profit_tone(values[2])),
             ]
         }
         ReceiptsTab::MutualFund => {
@@ -111,9 +119,9 @@ pub(crate) fn header_summary(
                 ],
             );
             vec![
-                ("実現損益", values[0], "emerald"),
-                ("税額", values[1], "red"),
-                ("実現損益(税引)", values[2], "emerald"),
+                ("実現損益", values[0], profit_tone(values[0])),
+                ("税額", values[1], ""),
+                ("実現損益(税引)", values[2], profit_tone(values[2])),
             ]
         }
     }
@@ -130,7 +138,7 @@ pub(crate) fn kpi_card_bg(tone: &str) -> &'static str {
 pub(crate) fn kpi_value_color(tone: &str) -> &'static str {
     match tone {
         "emerald" => "text-teal-700",
-        "red" => "text-red-500",
+        "red" => "text-red-700",
         _ => "text-slate-800",
     }
 }
@@ -156,7 +164,7 @@ fn KpiGrid(
                                     "text-2xl font-bold tabular-nums {}",
                                     kpi_value_color(tone)
                                 )
-                                data-negative=(value < Decimal::ZERO).then_some("true")
+                                data-negative=(tone == "red").then_some("true")
                             >
                                 {format_currency(value)}
                             </p>
@@ -219,7 +227,7 @@ pub(crate) fn SummaryStrip(
                                             "truncate text-base font-bold tabular-nums {}",
                                             kpi_value_color(tone)
                                         )
-                                        data-negative=(value < Decimal::ZERO).then_some("true")
+                                        data-negative=(tone == "red").then_some("true")
                                     >
                                         {format_currency(value)}
                                     </span>

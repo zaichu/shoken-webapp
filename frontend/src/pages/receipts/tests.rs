@@ -93,12 +93,12 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432 2024");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].label, "ＮＴＴ");
-    assert_eq!(groups[0].summary, ["¥ 500", "¥ 100", "¥ 400"]);
+    assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432");
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].rows.len(), 2);
-    assert_eq!(groups[0].summary, ["¥ 1,000", "¥ 200", "¥ 800"]);
+    assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
 }
 #[test]
 fn dividend_product_and_account_group_keys_follow_priority() {
@@ -124,7 +124,7 @@ fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
     let rows = domestic();
     let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "7203");
     assert_eq!(groups[0].label, "2024年3月1日");
-    assert_eq!(groups[0].summary, ["¥ 1,000", "¥ 203", "¥ 797"]);
+    assert_eq!(groups[0].summary, ["¥1,000", "¥203", "¥797"]);
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {
@@ -169,10 +169,13 @@ fn next_tab_index_cycles_like_react_tablist() {
 
 #[test]
 fn negative_text_detection_matches_formatted_values() {
+    assert!(is_negative_text("-¥1,234"));
     assert!(is_negative_text("¥ -1,234"));
     assert!(is_negative_text("-500"));
     assert!(is_negative_text("-1.5"));
+    assert!(!is_negative_text("¥1,234"));
     assert!(!is_negative_text("¥ 1,234"));
+    assert!(!is_negative_text("-¥0"));
     assert!(!is_negative_text("¥ -0"));
     assert!(!is_negative_text("+3"));
     assert!(!is_negative_text(""));
@@ -270,16 +273,74 @@ fn card_row_data_matches_react_card_fields() {
     );
     assert_eq!(card.key, "dividend:r:old");
     assert_eq!(card.name, "日本電信電話");
-    assert_eq!(card.amount, "¥ 400");
+    assert_eq!(card.amount, "¥400");
     assert!(!card.amount_negative);
     assert_eq!(card.date, "06/21");
     assert_eq!(card.account, "特定");
     assert_eq!(card.details.len(), 10);
     assert_eq!(card.details[0].label, "入金日");
     assert!(card.details.iter().all(|detail| match &detail.value {
-        CardDetailValue::Text { text, negative } => *negative == is_negative_text(text),
+        CardDetailValue::Text { text, negative } => {
+            *negative == (is_profit_label(&detail.label) && is_negative_text(text))
+        }
         CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
     }));
+}
+
+fn detail_negative(card: &CardRowData, label: &str) -> bool {
+    card.details
+        .iter()
+        .find(|detail| detail.label == label)
+        .is_some_and(|detail| matches!(detail.value, CardDetailValue::Text { negative: true, .. }))
+}
+
+fn card_for(tab: ReceiptsTab, row: ReceiptItem) -> CardRowData {
+    let rows = vec![row];
+    let cells = rows[0].cells();
+    let order = column_order(tab, &rows, "");
+    card_row_data(
+        "k".to_string(),
+        &cells,
+        table_headers(tab),
+        &order,
+        card_fields(tab),
+    )
+}
+
+#[test]
+fn negative_tax_and_dividend_stay_neutral() {
+    let mut stock = match domestic().remove(0) {
+        ReceiptItem::DomesticStock(row) => row,
+        _ => unreachable!(),
+    };
+    stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
+    stock.taxes = rust_decimal::Decimal::from(-203);
+    stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock),
+    );
+    assert!(detail_negative(&card, "損益"));
+    assert!(!detail_negative(&card, "税額"));
+
+    let mut dividend = match dividends().remove(0) {
+        ReceiptItem::Dividend(row) => row,
+        _ => unreachable!(),
+    };
+    dividend.taxes = rust_decimal::Decimal::from(-100);
+    dividend.net_amount_received = rust_decimal::Decimal::from(-50);
+    let card = card_for(ReceiptsTab::Dividend, ReceiptItem::Dividend(dividend));
+    assert!(!detail_negative(&card, "税額"));
+    assert!(!detail_negative(&card, "受取額"));
+    assert!(!card.amount_negative);
+}
+
+#[test]
+fn dividend_subtotal_is_not_profit() {
+    assert!(!summary_is_profit(ReceiptsTab::Dividend, "税引後"));
+    assert!(summary_is_profit(ReceiptsTab::DomesticStock, "税引後"));
+    assert!(summary_is_profit(ReceiptsTab::MutualFund, "税引損益"));
+    assert!(!summary_is_profit(ReceiptsTab::DomesticStock, "税額"));
 }
 
 #[test]
@@ -446,7 +507,7 @@ fn kpi_styles_match_tone() {
     assert_eq!(kpi_card_bg("red"), "border-rose-100 bg-rose-50");
     assert_eq!(kpi_card_bg("other"), "border-slate-200 bg-white");
     assert_eq!(kpi_value_color("emerald"), "text-teal-700");
-    assert_eq!(kpi_value_color("red"), "text-red-500");
+    assert_eq!(kpi_value_color("red"), "text-red-700");
     assert_eq!(kpi_value_color("other"), "text-slate-800");
 }
 

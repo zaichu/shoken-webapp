@@ -1,6 +1,6 @@
 use super::cards::{
     card_fields, card_key, card_ordinal, card_row_data, idless_row_ordinals, is_negative_text,
-    summary_labels, CardRowData, MobileCardGroup,
+    is_profit_label, summary_is_profit, summary_labels, CardRowData, MobileCardGroup,
 };
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
@@ -287,8 +287,10 @@ pub(crate) fn ReceiptTable(
                                                 {group
                                                     .summary
                                                     .iter()
-                                                    .map(|value| {
-                                                        let negative = is_negative_text(value);
+                                                    .zip(labels.iter())
+                                                    .map(|(value, label)| {
+                                                        let negative = summary_is_profit(tab, label)
+                                                            && is_negative_text(value);
                                                         view! {
                                                             <td
                                                                 class=format!(
@@ -328,7 +330,15 @@ pub(crate) fn ReceiptTable(
                                                                         }
                                                                         .into_any(),
                                                                         ReceiptCell::Text(value) => {
-                                                                            let negative = is_negative_text(&value);
+                                                                            let negative =
+                                                                                is_profit_label(
+                                                                                    table_headers(
+                                                                                        tab,
+                                                                                    )
+                                                                                    [order[col_index]],
+                                                                                ) && is_negative_text(
+                                                                                &value,
+                                                                            );
                                                                             let title = value.clone();
                                                                             view! {
                                                                                 <td
@@ -362,6 +372,7 @@ pub(crate) fn ReceiptTable(
                             .map(|(group_index, key, label, count, summary, cards)| {
                                 view! {
                                     <MobileCardGroup
+                                        tab=tab
                                         label=label
                                         count=count
                                         summary=summary

@@ -43,11 +43,18 @@ npx playwright test --config playwright.vercel.config.ts
 - 読み込み中・失敗・CSV 結果は `role="status"`/`role="alert"` と `aria-live` で伝え、操作中は `aria-busy` を付ける
 - `prefers-reduced-motion` ではアニメーションを止める(`style/input.css` のメディアクエリ)
 - マイナスは `-` の符号と赤の両方で表す(色だけにしない)。文字色は AA コントラストを満たすものだけ使う
-- 直せない違反は除外リストに Issue 番号付きで載せる(今は #1066 の配当 emerald、#1070 のスマホ 44px 未満、#1071 のホーム)
+- 直せない違反は除外リストに Issue 番号付きで載せる(今は #1070 のスマホ 44px 未満、#1071 のホーム)
 
 ## CSS
 
 `style/input.css` を Trunk の pre_build フックで `style/output.css` に生成し、`index.html` から読み込みます。生成物は Git 管理外です。
+
+## デザインの決まり
+
+- 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
+- 色はマイナスの損益のみ `text-red-700`(暗背景は `red-300`)。税額・配当・利回りは色なし
+- 書式は `shared::format` に集約。`pages/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと、Decimal に収まらない金額・率の表示のみ
+- 税引後の見出しは、配当が集計 `配当金(税引)`・月の見出し `税引後`・列 `受取額`、国内株式が `実現損益(税引)`・`税引後`、投資信託が `実現損益(税引)`・`税引損益`
 
 ## デプロイ
 

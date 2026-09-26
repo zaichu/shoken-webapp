@@ -200,11 +200,11 @@ fn dividend_cells_match_react_columns_and_formatting() {
             "SBI証券",
             "7203",
             "トヨタ自動車",
-            "¥ 30",
+            "¥30",
             "100",
-            "¥ 3,000",
-            "¥ 609",
-            "¥ 2,391",
+            "¥3,000",
+            "¥609",
+            "¥2,391",
         ]
     );
     assert_eq!(cells[3], ReceiptCell::SecurityCode("7203".to_string()));

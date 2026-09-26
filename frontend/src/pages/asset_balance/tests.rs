@@ -53,12 +53,12 @@ fn percentage_formatter_formats_values() {
     assert_eq!(format_fixed_percent(10.0, 1), "10.0%");
     assert_eq!(format_fixed_percent(8.256880733944955, 1), "8.3%");
     assert_eq!(format_fixed_percent(60.0, 1), "60.0%");
-    assert_eq!(format_valuation_amount(Some(60000.0)), "¥ 60,000");
-    assert_eq!(format_valuation_amount(Some(-10000.0)), "¥ -10,000");
-    assert_eq!(format_valuation_amount(Some(0.0)), "¥ 0");
+    assert_eq!(format_valuation_amount(Some(60000.0)), "¥60,000");
+    assert_eq!(format_valuation_amount(Some(-10000.0)), "-¥10,000");
+    assert_eq!(format_valuation_amount(Some(0.0)), "¥0");
     assert_eq!(
         format_valuation_amount(Some(3632999.9999999995)),
-        "¥ 3,633,000"
+        "¥3,633,000"
     );
     assert_eq!(format_valuation_amount(None), "—");
     assert_eq!(format_valuation_rate(Some(10.0), 1), "10.0%");
@@ -85,7 +85,7 @@ fn holding_dividend_matches_component_cases() {
 
     let missing = holding_dividend("9999", 10.0, 100.0, &maps);
     assert_eq!(missing.per_share, None);
-    assert_eq!(format_dividend_per_share(&missing), "---");
+    assert_eq!(format_dividend_per_share(&missing), "—");
 
     let pending = holding_dividend("0001", 10.0, 100.0, &maps);
     assert_eq!(format_dividend_per_share(&pending), "取得中...");
@@ -96,8 +96,8 @@ fn holding_dividend_matches_component_cases() {
     let zero = holding_dividend("0003", 10.0, 100.0, &maps);
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
-    assert_eq!(format_dividend_per_share(&zero), "¥ 0");
-    assert_eq!(format_dividend_yield(&zero), "---");
+    assert_eq!(format_dividend_per_share(&zero), "¥0");
+    assert_eq!(format_dividend_yield(&zero), "—");
 
     let zero_price = holding_dividend("7203", 10.0, 0.0, &maps);
     assert_eq!(zero_price.yield_value, None);
@@ -145,41 +145,42 @@ fn number_and_currency_formatters_match_intl_cases() {
     assert_eq!(format_number_value(-0.001), "-0");
     // 符号は丸め前の値の `num < 0` で判定するため -0 は `0` と表示する
     assert_eq!(format_number_value(-0.0), "0");
-    assert_eq!(format_currency(-0.0), "¥ 0");
+    assert_eq!(format_currency(-0.0), "¥0");
     assert_eq!(format_number_value(-12345.678), "-12,345.68");
     // Intl.NumberFormat は toFixed と異なり10進の値で半分以上を切り上げる
     assert_eq!(format_number_value(1.005), "1.01");
     assert_eq!(format_number_value(-1.005), "-1.01");
     assert_eq!(format_number_value(2.675), "2.68");
     assert_eq!(format_number_value(0.995), "1");
-    assert_eq!(format_currency(850000.0), "¥ 850,000");
-    assert_eq!(format_currency(0.0), "¥ 0");
-    assert_eq!(format_currency(-250000.0), "¥ -250,000");
-    assert_eq!(format_currency(2600.0), "¥ 2,600");
-    assert_eq!(format_currency(123.456), "¥ 123.456");
+    assert_eq!(format_currency(850000.0), "¥850,000");
+    assert_eq!(format_currency(0.0), "¥0");
+    assert_eq!(format_currency(-250000.0), "-¥250,000");
+    assert_eq!(format_currency(2600.0), "¥2,600");
+    assert_eq!(format_currency(123.456), "¥123.456");
     assert_eq!(format_fixed_percent(1.005, 2), "1.01%");
-    assert_eq!(format_currency(f64::NAN), "-");
+    assert_eq!(format_currency(f64::NAN), "—");
     assert_eq!(
         format_currency("0.123456789012345678".parse::<f64>().unwrap()),
-        "¥ 0.123456789012346"
+        "¥0.123456789012346"
     );
-    assert_eq!(format_fixed_percent(f64::NAN, 1), "-");
+    assert_eq!(format_fixed_percent(f64::NAN, 1), "—");
     assert_eq!(
         format_currency(1e29),
-        "¥ 100,000,000,000,000,000,000,000,000,000"
+        "¥100,000,000,000,000,000,000,000,000,000"
     );
     assert_eq!(
         format_currency(-1e29),
-        "¥ -100,000,000,000,000,000,000,000,000,000"
+        "-¥100,000,000,000,000,000,000,000,000,000"
     );
     assert_eq!(
         format_valuation_amount(Some(1e29)),
-        "¥ 100,000,000,000,000,000,000,000,000,000"
+        "¥100,000,000,000,000,000,000,000,000,000"
     );
     assert_eq!(
         format_fixed_percent(1e30, 1),
         "1000000000000000019884624838656.0%"
     );
+    assert_eq!(format_fixed_percent(f64::INFINITY, 1), "—");
 }
 
 #[test]
@@ -276,7 +277,7 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         assert_eq!(valuation.market_value, Some(110000.0));
         assert_eq!(valuation.amount, Some(10000.0));
         assert_eq!(valuation.rate, Some(10.0));
-        assert_eq!(format_currency(total_purchase), "¥ 100,000");
+        assert_eq!(format_currency(total_purchase), "¥100,000");
         kpi.with(|kpi| {
             assert_eq!(kpi.total_purchase_amount, 100000.0);
             assert_eq!(kpi.total_annual_dividends, Some(5000.0));
@@ -327,7 +328,7 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         assert_eq!(decimal_valuation.amount, Some(300.1));
         assert_eq!(
             format_currency(decimal_valuation.market_value.unwrap()),
-            "¥ 3,300.3"
+            "¥3,300.3"
         );
     });
 }
@@ -461,9 +462,9 @@ fn negative_valuation_is_decided_by_rounded_amount() {
     assert!(!is_negative_valuation(Some(f64::NAN)));
     assert!(is_negative_valuation(Some(-0.5)));
     assert!(is_negative_valuation(Some(-1.0)));
-    assert_eq!(format_valuation_amount(Some(-0.4)), "¥ 0");
-    assert_eq!(format_valuation_amount(Some(-0.5)), "¥ -1");
-    assert_eq!(valuation_tone(Some(-0.5)), ("text-red-800", Some("true")));
+    assert_eq!(format_valuation_amount(Some(-0.4)), "¥0");
+    assert_eq!(format_valuation_amount(Some(-0.5)), "-¥1");
+    assert_eq!(valuation_tone(Some(-0.5)), ("text-red-700", Some("true")));
     assert_eq!(valuation_tone(Some(-0.4)), ("text-slate-800", None));
 }
 

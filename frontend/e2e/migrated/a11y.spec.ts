@@ -149,9 +149,7 @@ interface AxeExclusion {
   labelPrefix: string;
 }
 
-const AXE_EXCLUSIONS: AxeExclusion[] = [
-  { issue: 1066, rule: 'color-contrast', target: 'text-emerald-600', labelPrefix: '資産' },
-];
+const AXE_EXCLUSIONS: AxeExclusion[] = [];
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

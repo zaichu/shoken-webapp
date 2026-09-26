@@ -44,7 +44,7 @@ pub(crate) fn SecurityCodeLink(
 ) -> impl IntoView {
     let code = normalize_security_code(&value);
     if code.is_empty() {
-        return view! { <span>"-"</span> }.into_any();
+        return view! { <span>"—"</span> }.into_any();
     }
     if !is_searchable_code(&code) {
         return view! { <span>{code}</span> }.into_any();
@@ -62,7 +62,7 @@ pub(crate) fn SecurityCodeLink(
 fn display_text(value: &str) -> String {
     let text = value.trim();
     if text.is_empty() {
-        "-".to_string()
+        "—".to_string()
     } else {
         text.to_string()
     }
@@ -177,7 +177,7 @@ mod tests {
             "トヨタ自動車(7203)"
         );
         assert_eq!(instrument_copy_text("トヨタ自動車", None), "トヨタ自動車");
-        assert_eq!(instrument_copy_text("  ", Some("7203")), "-(7203)");
+        assert_eq!(instrument_copy_text("  ", Some("7203")), "—(7203)");
         assert_eq!(
             instrument_copy_text("名", Some("7203: トヨタ自動車")),
             "名(7203)"

@@ -153,10 +153,10 @@ test('グループ見出しは主要集計を常時表示しタップで全集�
   const cardList = page.getByTestId('receipt-card-list');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
 
-  const toggle = cardList.getByRole('button', { name: /2024年3月 2件 税引後 ¥ 3,985/ });
+  const toggle = cardList.getByRole('button', { name: /2024年3月 2件 税引後 ¥3,985/ });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   const region = cardList.getByRole('region', {
-    name: /2024年3月 2件 税引後 ¥ 3,985/,
+    name: /2024年3月 2件 税引後 ¥3,985/,
   });
   await expect(region).toBeHidden();
 
@@ -164,7 +164,7 @@ test('グループ見出しは主要集計を常時表示しタップで全集�
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(region).toBeVisible();
   await expect(region.getByText('配当金', { exact: true })).toBeVisible();
-  await expect(region.getByText('¥ 5,000')).toBeVisible();
+  await expect(region.getByText('¥5,000')).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -176,12 +176,12 @@ test('カードはタップで全列の明細を開閉できる', async ({ page 
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  const cardButton = cardList.getByRole('button', { name: 'トヨタ自動車 ¥ 2,391' });
+  const cardButton = cardList.getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
   await expect(cardButton).toHaveAttribute('aria-expanded', 'false');
   await expect(cardList.getByText('入金日')).toHaveCount(0);
 
   await cardButton.click();
-  const region = cardList.getByRole('region', { name: 'トヨタ自動車 ¥ 2,391' });
+  const region = cardList.getByRole('region', { name: 'トヨタ自動車 ¥2,391' });
   await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
   await expect(region).toBeVisible();
   for (const label of ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量', '配当金', '税額', '受取額']) {
@@ -252,7 +252,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAttribute('aria-label', /配当金\(税引\) ¥ 4,782/);
+  await expect(toggle).toHaveAttribute('aria-label', /配当金\(税引\) ¥4,782/);
   await expect(page.getByTestId('receipt-summary-desktop')).toBeHidden();
 
   await toggle.click();
@@ -273,9 +273,9 @@ test('国内株式タブでもカードが開き銘柄リンクとコピーが�
 
   await page.getByRole('tab', { name: '国内株式' }).click();
   const cardList = page.getByTestId('receipt-card-list');
-  const cardButton = cardList.getByRole('button', { name: '任天堂 ¥ 3,985' });
+  const cardButton = cardList.getByRole('button', { name: '任天堂 ¥3,985' });
   await cardButton.click();
-  const region = cardList.getByRole('region', { name: '任天堂 ¥ 3,985' });
+  const region = cardList.getByRole('region', { name: '任天堂 ¥3,985' });
   await expect(region).toBeVisible();
   await expect(region.getByText('銘柄コード', { exact: true })).toBeVisible();
   await expect(region.getByRole('link', { name: '7974' })).toHaveAttribute(
@@ -320,14 +320,14 @@ test('検索条件を変えても同じカードと集計は閉じない', async
   const firstCard = cardList.getByTestId('receipt-card').first();
   await expect(firstCard.getByRole('button')).toHaveAttribute(
     'aria-label',
-    '日本電信電話 ¥ 1,594',
+    '日本電信電話 ¥1,594',
   );
   const cardButton = cardList.getByRole('button', {
-    name: '日本電信電話 ¥ 1,594',
+    name: '日本電信電話 ¥1,594',
   });
   await cardButton.click();
   await expect(
-    cardList.getByRole('region', { name: '日本電信電話 ¥ 1,594' }),
+    cardList.getByRole('region', { name: '日本電信電話 ¥1,594' }),
   ).toBeVisible();
 
   const groupToggle = cardList.getByRole('button', {
@@ -343,10 +343,10 @@ test('検索条件を変えても同じカードと集計は閉じない', async
 
   await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
   await expect(
-    cardList.getByRole('region', { name: '日本電信電話 ¥ 1,594' }),
+    cardList.getByRole('region', { name: '日本電信電話 ¥1,594' }),
   ).toBeVisible();
   await expect(
-    cardList.getByRole('button', { name: /1件 税引後 ¥ 1,594/ }),
+    cardList.getByRole('button', { name: /1件 税引後 ¥1,594/ }),
   ).toHaveAttribute('aria-expanded', 'false');
   await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
 });
@@ -356,7 +356,7 @@ test('開いたカードは絞り込みで位置が変わっても開いたま�
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  const sony = cardList.getByRole('button', { name: 'ソニーグループ ¥ 797' });
+  const sony = cardList.getByRole('button', { name: 'ソニーグループ ¥797' });
   await sony.click();
   await expect(sony).toHaveAttribute('aria-expanded', 'true');
 
@@ -366,7 +366,7 @@ test('開いたカードは絞り込みで位置が変わっても開いたま�
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(sony).toHaveAttribute('aria-expanded', 'true');
   await expect(
-    cardList.getByRole('region', { name: 'ソニーグループ ¥ 797' }),
+    cardList.getByRole('region', { name: 'ソニーグループ ¥797' }),
   ).toBeVisible();
 });
 

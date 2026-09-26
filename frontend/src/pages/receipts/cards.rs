@@ -42,6 +42,15 @@ pub(crate) fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
     }
 }
 
+pub(crate) fn is_profit_label(label: &str) -> bool {
+    matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
+}
+
+// 配当の月の小計は国内株式と同じ「税引後」だが、損益ではないので色を付けない
+pub(crate) fn summary_is_profit(tab: ReceiptsTab, label: &str) -> bool {
+    tab != ReceiptsTab::Dividend && is_profit_label(label)
+}
+
 pub(crate) fn is_negative_text(value: &str) -> bool {
     let normalized: String = value
         .trim()
@@ -95,13 +104,17 @@ pub(crate) fn is_security_code(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
 }
 
-pub(crate) fn card_detail_value(index: usize, cells: &[ReceiptCell]) -> CardDetailValue {
+pub(crate) fn card_detail_value(
+    label: &str,
+    index: usize,
+    cells: &[ReceiptCell],
+) -> CardDetailValue {
     match cells.get(index) {
         Some(ReceiptCell::SecurityCode(raw)) => CardDetailValue::SecurityCode(raw.clone()),
         Some(ReceiptCell::InstrumentName { name, code }) => {
             let trimmed = name.trim();
             let display = if trimmed.is_empty() {
-                "-".to_string()
+                "—".to_string()
             } else {
                 trimmed.to_string()
             };
@@ -118,7 +131,7 @@ pub(crate) fn card_detail_value(index: usize, cells: &[ReceiptCell]) -> CardDeta
                 .map(|cell| cell_text(cell).to_string())
                 .unwrap_or_default();
             CardDetailValue::Text {
-                negative: is_negative_text(&text),
+                negative: is_profit_label(label) && is_negative_text(&text),
                 text,
             }
         }
@@ -183,10 +196,13 @@ pub(crate) fn card_row_data(
             .unwrap_or_default()
     };
     let amount = text(fields.primary);
+    let amount_profit = headers
+        .get(fields.primary)
+        .is_some_and(|label| is_profit_label(label));
     CardRowData {
         key,
         name: text(fields.name),
-        amount_negative: is_negative_text(&amount),
+        amount_negative: amount_profit && is_negative_text(&amount),
         amount,
         date: short_date(&text(fields.date)).to_string(),
         account: text(fields.account),
@@ -194,7 +210,7 @@ pub(crate) fn card_row_data(
             .iter()
             .map(|&i| CardDetail {
                 label: headers[i].to_string(),
-                value: card_detail_value(i, cells),
+                value: card_detail_value(headers[i], i, cells),
             })
             .collect(),
     }
@@ -208,7 +224,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
         CardDetailValue::SecurityCode(raw) => {
             let code = crate::receipts_domain::normalize_security_code(raw);
             if code.is_empty() {
-                (view! { <span>"-"</span> }.into_any(), None)
+                (view! { <span>"—"</span> }.into_any(), None)
             } else if !is_security_code(&code) {
                 (view! { <span>{code}</span> }.into_any(), None)
             } else {
@@ -286,9 +302,9 @@ fn ReceiptItemCard(
     } = card;
     let aria_label = format!("{name} {amount}");
     let amount_class = if amount_negative {
-        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-red-800"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-red-700"
     } else {
-        "min-w-[11ch] shrink-0 whitespace-nowrap text-right font-mono text-base font-semibold tabular-nums text-slate-950"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-slate-950"
     };
     view! {
         <div data-testid="receipt-card" class="rounded-lg border border-slate-300 bg-white">
@@ -362,7 +378,7 @@ fn ReceiptItemCard(
                                                 CardDetailValue::Text { negative: true, .. }
                                             );
                                             let value_class = if negative {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
                                             } else {
                                                 "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
                                             };
@@ -390,6 +406,7 @@ fn ReceiptItemCard(
 
 #[component]
 pub(crate) fn MobileCardGroup(
+    tab: ReceiptsTab,
     label: String,
     count: usize,
     summary: Vec<(&'static str, String)>,
@@ -435,6 +452,13 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
+    let primary_negative =
+        summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
+    let primary_value_class = if primary_negative {
+        "text-sm font-semibold tabular-nums text-red-300"
+    } else {
+        "text-sm font-semibold tabular-nums text-white"
+    };
     let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
     view! {
         <section data-testid="receipt-card-group">
@@ -465,7 +489,7 @@ pub(crate) fn MobileCardGroup(
                         aria-hidden="true"
                     >
                         <span class="text-xs text-slate-200">{primary_label}</span>
-                        <span class="font-mono text-sm font-semibold tabular-nums text-white">
+                        <span class=primary_value_class>
                             {primary_value}
                         </span>
                         <svg
@@ -506,9 +530,10 @@ pub(crate) fn MobileCardGroup(
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
-                                                let negative = is_negative_text(value);
+                                                let negative = summary_is_profit(tab, label)
+                                                    && is_negative_text(value);
                                                 let value_class = if negative {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-800"
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
                                                 } else {
                                                     "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
                                                 };
