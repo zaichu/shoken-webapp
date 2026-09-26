@@ -880,11 +880,13 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert_eq!(updated.email, "updated@example.com");
 
     // 期限切れセッションはユーザー解決しない
-    sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
+    let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
         .bind(session2)
         .execute(&pool)
         .await
-        .unwrap();
+        .unwrap()
+        .rows_affected();
+    assert_eq!(updated, 1, "期限変更が対象行を更新すること");
     assert!(auth_svc::select_user_id_by_session(&pool, session2)
         .await
         .unwrap()
@@ -895,11 +897,13 @@ async fn auth_session_upsert_rotate_and_delete() {
         .is_none());
 
     // delete_session で明示失効
-    sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
+    let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
         .bind(session2)
         .execute(&pool)
         .await
-        .unwrap();
+        .unwrap()
+        .rows_affected();
+    assert_eq!(updated, 1, "期限復帰が対象行を更新すること");
     auth_svc::delete_session(&pool, session2)
         .await
         .expect("セッション削除");
@@ -926,6 +930,119 @@ async fn auth_session_upsert_rotate_and_delete() {
         .await
         .unwrap();
     assert!(remaining.is_none());
+}
+
+/// 段階的移行中の互換性: 平文のみの旧セッションが backfill・フォールバックの両経路で有効で、
+/// 新版発行セッションは旧版の平文照合でも解決できること。
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn session_token_hash_rolling_deploy_compat() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 移行前に発行されたセッション: id のみの行(token_hash NULL)を再現
+    let legacy = Uuid::new_v4();
+    sqlx::query("INSERT INTO sessions (id, user_id) VALUES ($1, $2)")
+        .bind(legacy)
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .expect("旧形式のセッション挿入");
+
+    // migration の backfill と同じ UPDATE が対象行を更新すること
+    let backfilled = sqlx::query(
+        "UPDATE sessions SET token_hash = sha256(convert_to(id::text, 'UTF8')) WHERE token_hash IS NULL",
+    )
+    .execute(&pool)
+    .await
+    .expect("backfill 失敗")
+    .rows_affected();
+    assert_eq!(backfilled, 1, "backfill が旧セッション行を更新すること");
+    assert_eq!(
+        auth_svc::select_user_id_by_session(&pool, legacy)
+            .await
+            .expect("移行後の旧 Cookie 照合"),
+        Some(user_id),
+        "移行後も旧 Cookie が有効であること"
+    );
+
+    // デプロイ中に旧版が発行したセッション: token_hash NULL のままでも平文フォールバックで有効
+    let old_version_issued = Uuid::new_v4();
+    sqlx::query("INSERT INTO sessions (id, user_id) VALUES ($1, $2)")
+        .bind(old_version_issued)
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .expect("旧版発行セッションの挿入");
+    assert_eq!(
+        auth_svc::select_user_id_by_session(&pool, old_version_issued)
+            .await
+            .expect("平文フォールバック照合"),
+        Some(user_id),
+        "token_hash NULL の旧版発行セッションが有効であること"
+    );
+
+    // 新版が発行するセッションは id と token_hash の両方を持ち、旧版の平文照合でも解決できる
+    let info = GoogleUserInfo {
+        sub: format!("test_google_{user_id}"),
+        email: "rolling@example.com".to_string(),
+        name: None,
+        picture: None,
+    };
+    let new_token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("新版のセッション発行");
+    let new_session = Uuid::parse_str(&new_token).expect("セッションIDはUUID");
+    // rotate は同一ユーザーの旧セッションを失効させるため legacy 側は消える
+    let row: Option<(Uuid, Option<Vec<u8>>)> =
+        sqlx::query_as("SELECT id, token_hash FROM sessions WHERE id = $1")
+            .bind(new_session)
+            .fetch_optional(&pool)
+            .await
+            .expect("新版発行行の取得");
+    let (id, token_hash) = row.expect("新版発行のセッション行がある");
+    assert_eq!(
+        id, new_session,
+        "旧版が平文 id で照合できるよう id にトークンを保持"
+    );
+    assert!(
+        token_hash.as_deref().is_some(),
+        "token_hash が新版でも書き込まれること"
+    );
+    let old_version_view: Option<(Uuid,)> =
+        sqlx::query_as("SELECT user_id FROM sessions WHERE id = $1 AND expires_at > NOW()")
+            .bind(new_session)
+            .fetch_optional(&pool)
+            .await
+            .expect("旧版の照合クエリ");
+    assert_eq!(
+        old_version_view.map(|r| r.0),
+        Some(user_id),
+        "旧版が新版発行セッションを照合できること"
+    );
+
+    // delete_session は両形式を失効できる
+    let plain_only = Uuid::new_v4();
+    sqlx::query("INSERT INTO sessions (id, user_id) VALUES ($1, $2)")
+        .bind(plain_only)
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .expect("平文のみのセッション挿入");
+    auth_svc::delete_session(&pool, plain_only)
+        .await
+        .expect("平文のみのセッション削除");
+    assert!(auth_svc::select_user_id_by_session(&pool, plain_only)
+        .await
+        .unwrap()
+        .is_none());
+    auth_svc::delete_session(&pool, new_session)
+        .await
+        .expect("新版発行セッションの削除");
+    assert!(auth_svc::select_user_id_by_session(&pool, new_session)
+        .await
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]
