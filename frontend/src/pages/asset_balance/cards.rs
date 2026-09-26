@@ -66,9 +66,9 @@ pub(crate) fn HoldingCard(
     });
     let dividend_class = move |present: bool| {
         if present {
-            "mt-0.5 truncate text-[12px] font-semibold text-slate-800"
+            "mt-0.5 truncate text-xs font-semibold text-slate-800"
         } else {
-            "mt-0.5 truncate text-[12px] font-semibold text-slate-500"
+            "mt-0.5 truncate text-xs font-semibold text-slate-500"
         }
     };
     view! {
@@ -78,17 +78,13 @@ pub(crate) fn HoldingCard(
                     <div class="flex items-center gap-2.5 min-w-0">
                         <span class="h-3 w-3 shrink-0 rounded-sm" style=format!("background-color: {color}") />
                         <div class="flex min-w-0 items-center gap-2" data-testid="portfolio-card-identity">
-                            <span
-                                class="inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5"
-                                data-testid="portfolio-card-code"
-                            >
+                            <span class="code-badge" data-testid="portfolio-card-code">
                                 <SecurityCodeLink
                                     value=item.view.code.clone()
-                                    class="text-[11px] font-semibold tracking-[0.16em] no-underline hover:underline"
-                                        .to_string()
+                                    class="font-semibold no-underline hover:underline".to_string()
                                 />
                             </span>
-                            <p class="line-clamp-2 text-[15px] font-semibold text-slate-800" title=item.view.name.clone()>
+                            <p class="line-clamp-2 text-base font-semibold text-slate-800" title=item.view.name.clone()>
                                 {item.view.name.clone()}
                             </p>
                         </div>
@@ -132,27 +128,27 @@ pub(crate) fn HoldingCard(
                 data-testid="portfolio-card-acquisition-stats"
             >
                 <div class="min-w-0 px-2 py-2">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"取得総額"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"取得総額"</p>
                     <p
-                        class="mt-0.5 truncate text-[12px] font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
                         title=format_currency(item.view.purchase)
                     >
                         {format_currency(item.view.purchase)}
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-slate-200/80 px-2 py-2">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"取得単価"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"取得単価"</p>
                     <p
-                        class="mt-0.5 truncate text-[12px] font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
                         title=format_currency(item.view.average_price)
                     >
                         {format_currency(item.view.average_price)}
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-slate-200/80 px-2 py-2">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"数量"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"数量"</p>
                     <p
-                        class="mt-0.5 truncate text-[12px] font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
                         title=format!("{}株", format_number_value(item.view.shares))
                     >
                         {format!("{}株", format_number_value(item.view.shares))}
@@ -162,7 +158,7 @@ pub(crate) fn HoldingCard(
 
             <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50">
                 <div class="min-w-0 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"1株配当"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"1株配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.per_share.is_some()))
                         title=move || dividend.with(format_dividend_per_share)
@@ -171,7 +167,7 @@ pub(crate) fn HoldingCard(
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"年間配当"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"年間配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.annual.is_some()))
                         title=move || dividend.with(format_dividend_annual)
@@ -180,7 +176,7 @@ pub(crate) fn HoldingCard(
                     </p>
                 </div>
                 <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-[10px] font-medium text-slate-500">"配当利回り"</p>
+                    <p class="truncate text-xs font-medium text-slate-500">"配当利回り"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
                         title=move || dividend.with(format_dividend_yield)
@@ -220,7 +216,7 @@ pub(crate) fn HoldingValuationCard(
                 class="block min-h-[44px] w-full px-3.5 py-4 text-left"
             >
                 <span class="flex min-w-0 items-center gap-2">
-                    <span class="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
+                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-slate-800">
                         {item.view.name.clone()}
                     </span>
                     <span

@@ -155,7 +155,7 @@
   }
 
   .collapsible-trigger {
-    @apply flex min-h-[40px] w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
+    @apply flex min-h-11 w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950;
   }
 
   .rail-toggle {
@@ -191,7 +191,7 @@
   }
 
   .stock-link-button {
-    @apply inline-flex items-center justify-between gap-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors;
+    @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-slate-50 hover:border-primary transition-colors max-sm:min-h-11;
   }
 
   .feature-card {
@@ -199,7 +199,7 @@
   }
 
   .code-badge {
-    @apply inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold tracking-[0.16em] text-blue-700;
+    @apply inline-flex shrink-0 items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold tracking-[0.16em] text-blue-700;
   }
 
   .filter-chip {
@@ -212,10 +212,6 @@
 
   .filter-badge {
     @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800;
-  }
-
-  .code-chip {
-    @apply inline-flex rounded-md border border-white/20 bg-white px-3 py-1 font-mono text-sm font-black tracking-wider text-slate-950;
   }
 
   .security-code-link {

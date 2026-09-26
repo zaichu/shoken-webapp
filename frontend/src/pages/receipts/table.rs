@@ -319,7 +319,9 @@ pub(crate) fn ReceiptTable(
                                                                     match cell {
                                                                         ReceiptCell::SecurityCode(code) => view! {
                                                                             <td class=align>
-                                                                                <SecurityCodeLink value=code />
+                                                                                <span class="code-badge">
+                                                                                    <SecurityCodeLink value=code class="font-semibold".to_string() />
+                                                                                </span>
                                                                             </td>
                                                                         }
                                                                         .into_any(),

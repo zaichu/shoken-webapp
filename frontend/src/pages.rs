@@ -336,7 +336,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                             </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
                         </div>
-                        <span class="code-chip">
+                        <span class="code-badge">
                             {code.clone()}
                         </span>
                     </div>
