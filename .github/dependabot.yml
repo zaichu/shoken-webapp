@@ -33,6 +33,20 @@ updates:
     labels:
       - "dependencies"
       - "backend"
+  # Cargo（フロントエンド Leptos）
+  - package-ecosystem: "cargo"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      frontend-rust-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "frontend"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

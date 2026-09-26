@@ -1,18 +1,26 @@
 use std::env;
 
-/// 本番環境かどうかを判定
-/// RUST_ENV=production または APP_ENV=production の場合に true
-/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
+/// 開発用として明示設定しうる環境名。
+/// これ以外の値(未設定・不明値を含む)は安全側に本番として扱う
+const DEVELOPMENT_ENV_VALUES: &[&str] = &["local", "dev", "development", "test"];
+
+/// 本番環境かどうかを判定(fail-safe)
+/// RUST_ENV / APP_ENV に設定された値がすべて開発用の値のときだけ非本番(false)。
+/// 未設定・不明値・本番値との混在はすべて本番扱いにし、環境変数の設定漏れや
+/// 書き間違いでセキュリティ設定が緩まないようにする。
+/// BACKEND_URL のスキームには依存しない
 pub fn is_production_env() -> bool {
-    if let Ok(v) = env::var("RUST_ENV") {
-        return v == "production";
+    let mut any_set = false;
+    for value in [env::var("RUST_ENV"), env::var("APP_ENV")]
+        .into_iter()
+        .flatten()
+    {
+        if !DEVELOPMENT_ENV_VALUES.contains(&value.as_str()) {
+            return true;
+        }
+        any_set = true;
     }
-    if let Ok(v) = env::var("APP_ENV") {
-        return v == "production";
-    }
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
+    !any_set
 }
 
 pub fn backend_url() -> String {
@@ -28,14 +36,15 @@ pub fn server_addr() -> String {
 }
 
 /// CookieをSecureで発行するか判定
-/// BACKEND_URL が https:// で始まる場合、または SECURE_COOKIE=true の場合に true
+/// 本番環境(環境変数が未設定の場合を含む)では SECURE_COOKIE の値に関わらず true。
+/// 非本番では SECURE_COOKIE=true/1 の明示指定のみ true。
+/// BACKEND_URL のスキームには依存しない
 pub fn is_secure_cookie() -> bool {
-    if let Ok(secure) = env::var("SECURE_COOKIE") {
-        return secure == "true" || secure == "1";
+    if is_production_env() {
+        return true;
     }
-
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
+    env::var("SECURE_COOKIE")
+        .map(|v| v == "true" || v == "1")
         .unwrap_or(false)
 }
 
@@ -45,6 +54,15 @@ pub fn csv_rate_limit_rps() -> u32 {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(2)
+}
+
+/// 認証済みデータ系ルートへの IP 単位レート制限（リクエスト/秒）。0 は無制限。
+/// 画面の通常操作は数リクエスト/秒程度のため、auth/stock_search と同じ 10 を既定値にする
+pub fn data_rate_limit_rps() -> u32 {
+    env::var("DATA_RATE_LIMIT_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10)
 }
 
 #[cfg(test)]
@@ -59,12 +77,22 @@ mod tests {
     fn test_is_production_env() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (RUST_ENV, APP_ENV, BACKEND_URL, expected)
+        // fail-safe: 未設定・不明値・非開発値の混在はすべて本番扱い。
+        // 設定値がすべて開発用の値のときだけ非本番。
+        // BACKEND_URL のスキームは判定に使わない
         let cases = [
             (Some("production"), None, None, true),
             (None, Some("production"), None, true),
             (None, None, Some("https://api.example.com"), true),
-            (None, None, Some("http://api.example.com"), false),
-            (None, None, None, false),
+            (None, None, Some("http://api.example.com"), true),
+            (None, None, None, true),
+            (Some("development"), Some("production"), None, true),
+            (Some("production"), Some("development"), None, true),
+            (Some("development"), Some("staging"), None, true),
+            (Some("development"), None, None, false),
+            (None, Some("local"), None, false),
+            (None, Some("test"), None, false),
+            (Some("dev"), Some("development"), None, false),
         ];
         for (rust_env, app_env, backend_url, expected) in cases {
             with_vars(
@@ -130,29 +158,59 @@ mod tests {
     #[test]
     fn test_is_secure_cookie() {
         let _guard = ENV_MUTEX.blocking_lock();
-        // (SECURE_COOKIE, BACKEND_URL, expected)
-        let cases: [(Option<&str>, Option<&str>, bool); 5] = [
-            (Some("true"), None, true),
-            (Some("1"), None, true),
-            (Some("false"), None, false),
-            (None, Some("https://api.example.com"), true),
-            (None, None, false),
+        // (SECURE_COOKIE, APP_ENV, BACKEND_URL, expected)
+        // 本番(環境変数の未設定を含む)では SECURE_COOKIE の値に関わらず Secure。
+        // 非本番では明示指定のみ有効。BACKEND_URL のスキームは判定に使わない
+        type CookieCase = (
+            Option<&'static str>,
+            Option<&'static str>,
+            Option<&'static str>,
+            bool,
+        );
+        let cases: [CookieCase; 9] = [
+            (Some("true"), None, None, true),
+            (Some("1"), None, None, true),
+            (Some("false"), None, None, true),
+            (None, Some("production"), None, true),
+            // 本番で SECURE_COOKIE=false を明示しても無効にできない(fail-safe)
+            (Some("false"), Some("production"), None, true),
+            (None, None, Some("https://api.example.com"), true),
+            (None, None, None, true),
+            // 開発用の値を明示した場合だけ非本番(SECURE_COOKIE 必須化は外れる)
+            (None, Some("development"), None, false),
+            (Some("false"), Some("development"), None, false),
         ];
-        for (secure_cookie, backend_url, expected) in cases {
+        for (secure_cookie, app_env, backend_url, expected) in cases {
             with_vars(
                 [
                     ("SECURE_COOKIE", secure_cookie),
+                    ("APP_ENV", app_env),
+                    ("RUST_ENV", None),
                     ("BACKEND_URL", backend_url),
                 ],
                 || {
                     assert_eq!(
                         is_secure_cookie(),
                         expected,
-                        "SECURE_COOKIE={secure_cookie:?} BACKEND_URL={backend_url:?}"
+                        "SECURE_COOKIE={secure_cookie:?} APP_ENV={app_env:?} BACKEND_URL={backend_url:?}"
                     );
                 },
             );
         }
+    }
+
+    // --- data_rate_limit_rps ---
+
+    #[test]
+    fn test_data_rate_limit_rps() {
+        let _guard = ENV_MUTEX.blocking_lock();
+        assert_eq!(data_rate_limit_rps(), 10);
+        temp_env::with_var("DATA_RATE_LIMIT_RPS", Some("5"), || {
+            assert_eq!(data_rate_limit_rps(), 5);
+        });
+        temp_env::with_var("DATA_RATE_LIMIT_RPS", Some("0"), || {
+            assert_eq!(data_rate_limit_rps(), 0);
+        });
     }
 
     // --- csv_rate_limit_rps ---

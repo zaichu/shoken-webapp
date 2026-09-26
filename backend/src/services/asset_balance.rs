@@ -7,7 +7,8 @@ use crate::models::common::{
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::services::bulk_helpers::{
-    delete_all_for_user, user_ids_for_bulk_insert, BulkTimer, DeleteTarget,
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, user_row_limit,
+    BulkTimer, DeleteTarget, UserDataDomain,
 };
 use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
 #[cfg(test)]
@@ -164,10 +165,21 @@ async fn fetch_security_facets(
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
+/// 保存行数の上限は環境変数(USER_ROW_LIMIT)の既定値を使う
 pub async fn bulk_create(
     pool: &PgPool,
     user_id: Uuid,
     items: &[CreateAssetBalanceRequest],
+) -> Result<BulkCreateResponse, ApiError> {
+    bulk_create_with_limit(pool, user_id, items, user_row_limit()).await
+}
+
+/// bulk_create の上限値を明示指定するバリアント(テスト・内部利用用)
+pub async fn bulk_create_with_limit(
+    pool: &PgPool,
+    user_id: Uuid,
+    items: &[CreateAssetBalanceRequest],
+    limit: i64,
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
     let timer = BulkTimer::new("asset_balance", total);
@@ -193,6 +205,15 @@ pub async fn bulk_create(
         .bind(user_id.to_string())
         .execute(&mut *tx)
         .await?;
+
+    ensure_user_row_limit_with(
+        &mut *tx,
+        user_id,
+        UserDataDomain::AssetBalances,
+        total,
+        limit,
+    )
+    .await?;
 
     sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
         .bind(user_id)

@@ -55,25 +55,33 @@ pub fn app_router(state: AppState, config: &Config, startup_ready: Arc<AtomicBoo
     let csv_limiter = build_keyed_rate_limiter(config.csv_rate_limit_rps);
     // 銘柄検索は未認証かつ前方ワイルドカード検索のため IP 単位の keyed limiter（DoS 対策）
     let stock_search_limiter = build_keyed_rate_limiter(config.stock_search_rate_limit_rps);
+    // 認証済みデータ系(dividends 等)は無制限呼び出しによる DB/外部API 負荷を抑止するため IP 単位の keyed limiter
+    let data_limiter = build_keyed_rate_limiter(config.data_rate_limit_rps);
     spawn_keyed_limiter_cleanup(&auth_limiter);
     spawn_keyed_limiter_cleanup(&csv_limiter);
     spawn_keyed_limiter_cleanup(&stock_search_limiter);
+    spawn_keyed_limiter_cleanup(&data_limiter);
 
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let ready = Arc::clone(&startup_ready);
-    let gated_domain =
-        domain_routes(auth_limiter, csv_limiter, stock_search_limiter).layer(middleware::from_fn(
-            move |req: axum::extract::Request, next: axum::middleware::Next| {
-                let ready = Arc::clone(&ready);
-                async move {
-                    if ready.load(Ordering::Acquire) {
-                        next.run(req).await
-                    } else {
-                        StatusCode::SERVICE_UNAVAILABLE.into_response()
-                    }
+    let gated_domain = domain_routes(
+        auth_limiter,
+        csv_limiter,
+        stock_search_limiter,
+        data_limiter,
+    )
+    .layer(middleware::from_fn(
+        move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let ready = Arc::clone(&ready);
+            async move {
+                if ready.load(Ordering::Acquire) {
+                    next.run(req).await
+                } else {
+                    StatusCode::SERVICE_UNAVAILABLE.into_response()
                 }
-            },
-        ));
+            }
+        },
+    ));
 
     // /ready と /health は TraceLayer の対象外にする（startup 中の expected 503 を ERROR ログから除外）
     let ready_for_check = Arc::clone(&startup_ready);
@@ -132,6 +140,7 @@ fn domain_routes(
     auth_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     csv_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
     stock_search_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
+    data_limiter: Option<Arc<governor::DefaultKeyedRateLimiter<std::net::IpAddr>>>,
 ) -> Router<AppState> {
     let auth_routes = if let Some(l) = auth_limiter {
         handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
@@ -157,13 +166,21 @@ fn domain_routes(
     } else {
         handlers::v1::stock_search_routes()
     };
+    let data_routes = if let Some(l) = data_limiter {
+        handlers::v1::data_routes().layer(middleware::from_fn(move |req, next| {
+            let l = l.clone();
+            async move { keyed_rate_limit(l, req, next).await }
+        }))
+    } else {
+        handlers::v1::data_routes()
+    };
 
     Router::new()
         .merge(auth_routes)
         .merge(csv_upload_routes)
         .merge(stock_search_routes)
         .merge(handlers::csv_import::csv_import_routes())
-        .merge(handlers::v1::data_routes())
+        .merge(data_routes)
 }
 
 fn csv_upload_routes() -> Router<AppState> {
@@ -343,6 +360,9 @@ mod tests {
     #[tokio::test]
     async fn test_csv_upload_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await;
+        // Origin なし POST を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
         let _csv_rate_limit_rps = EnvGuard::set("CSV_RATE_LIMIT_RPS", Some("1"));
         for (path, ip) in [
             ("/api/v1/domestic-stock-imports", "1.2.3.4"),
@@ -380,6 +400,47 @@ mod tests {
         assert_ne!(resp.status(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
     #[tokio::test]
+    async fn test_data_routes_rate_limit_returns_429() {
+        let _lock = ENV_MUTEX.lock().await;
+        // Origin なし PUT を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
+        let _data_rate_limit_rps = EnvGuard::set("DATA_RATE_LIMIT_RPS", Some("1"));
+        // 認証 extractor より先に limiter が動くため、未認証 GET(401 相当)でも
+        // 同一 IP の2回目は 429 が返る
+        for (uri, ip) in [
+            ("/api/v1/dividends", "1.2.3.4"),
+            ("/api/v1/asset-balances", "1.2.3.5"),
+            ("/api/v1/domestic-stock-transactions", "1.2.3.6"),
+            ("/api/v1/mutual-fund-transactions", "1.2.3.7"),
+        ] {
+            assert_rate_limited(
+                app_router(
+                    make_test_state(),
+                    &Config::from_env(),
+                    Arc::new(AtomicBool::new(true)),
+                ),
+                Method::GET,
+                uri,
+                Some(ip),
+            )
+            .await;
+        }
+        // PUT /api/v1/asset-balances も data_routes に含まれるため制限対象
+        assert_rate_limited(
+            app_router(
+                make_test_state(),
+                &Config::from_env(),
+                Arc::new(AtomicBool::new(true)),
+            ),
+            Method::PUT,
+            "/api/v1/asset-balances",
+            Some("1.2.3.8"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
     async fn test_stock_search_routes_rate_limit_returns_429() {
         let _lock = ENV_MUTEX.lock().await;
         let _stock_search_rate_limit_rps = EnvGuard::set("STOCK_SEARCH_RATE_LIMIT_RPS", Some("1"));
@@ -400,6 +461,10 @@ mod tests {
     }
     #[tokio::test]
     async fn test_request_body_limit_boundary() {
+        let _lock = ENV_MUTEX.lock().await;
+        // Origin なし POST を通すため開発用の値を明示する(未設定は本番扱いで 403 になる)
+        let _app_env = EnvGuard::set("APP_ENV", Some("development"));
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
         // 上限以下のリクエストはボディ制限を通過しルーティングまで到達する。
         // POST /api/v1/dividends は未定義のため 405。413 が返ると
         // REQUEST_BODY_LIMIT の値そのものが小さくなっている。
