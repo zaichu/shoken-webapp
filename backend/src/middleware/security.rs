@@ -37,8 +37,8 @@ pub async fn add_security_headers(req: Request<Body>, next: Next) -> Response {
 
 /// Origin/Referer なし unsafe method を拒否すべき環境かどうかを判定する
 ///
-/// - RUST_ENV / APP_ENV が明示設定済みで、ローカル開発用の exempt 値でない → true（拒否）
-/// - 未設定の場合は BACKEND_URL=https:// のみ拒否（ローカル開発は通過）
+/// RUST_ENV / APP_ENV がローカル開発用の exempt 値でない明示値に設定されている場合のみ true。
+/// 未設定(ローカル開発)は緩い判定に留め、BACKEND_URL のスキームには依存しない
 fn is_strict_origin_check() -> bool {
     const EXEMPT: &[&str] = &["local", "dev", "development", "test"];
     if let Ok(v) = std::env::var("RUST_ENV") {
@@ -47,9 +47,7 @@ fn is_strict_origin_check() -> bool {
     if let Ok(v) = std::env::var("APP_ENV") {
         return !EXEMPT.contains(&v.as_str());
     }
-    std::env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
+    false
 }
 
 /// URL 文字列からオリジン部分（scheme://host[:port]）を抽出する
@@ -304,6 +302,17 @@ mod tests {
             let _app_env = EnvGuard::set("APP_ENV", None);
             let _rust_env = EnvGuard::set("RUST_ENV", None);
             let _backend_url = EnvGuard::set("BACKEND_URL", None);
+            assert_eq!(
+                oneshot_status(test_app(), Method::POST, &[]).await,
+                StatusCode::OK
+            );
+        }
+
+        // BACKEND_URL が https でも APP_ENV/RUST_ENV が未設定なら通過(明示設定のみで判定)
+        {
+            let _app_env = EnvGuard::set("APP_ENV", None);
+            let _rust_env = EnvGuard::set("RUST_ENV", None);
+            let _backend_url = EnvGuard::set("BACKEND_URL", Some("https://api.example.com"));
             assert_eq!(
                 oneshot_status(test_app(), Method::POST, &[]).await,
                 StatusCode::OK

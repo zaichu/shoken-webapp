@@ -1,8 +1,9 @@
 use std::env;
 
 /// 本番環境かどうかを判定
-/// RUST_ENV=production または APP_ENV=production の場合に true
-/// 明示的なフラグがない場合のみ BACKEND_URL の https:// スキームで判定
+/// RUST_ENV=production または APP_ENV=production の場合に true。
+/// BACKEND_URL のスキームには依存しない(環境変数の書き間違いで
+/// セキュリティ設定が緩まないよう、明示的な値のみで判定する)
 pub fn is_production_env() -> bool {
     if let Ok(v) = env::var("RUST_ENV") {
         return v == "production";
@@ -10,9 +11,7 @@ pub fn is_production_env() -> bool {
     if let Ok(v) = env::var("APP_ENV") {
         return v == "production";
     }
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
+    false
 }
 
 pub fn backend_url() -> String {
@@ -28,15 +27,14 @@ pub fn server_addr() -> String {
 }
 
 /// CookieをSecureで発行するか判定
-/// BACKEND_URL が https:// で始まる場合、または SECURE_COOKIE=true の場合に true
+/// SECURE_COOKIE=true/1 の明示指定、または本番環境(APP_ENV/RUST_ENV=production)の場合に true。
+/// BACKEND_URL のスキームには依存しない
 pub fn is_secure_cookie() -> bool {
     if let Ok(secure) = env::var("SECURE_COOKIE") {
         return secure == "true" || secure == "1";
     }
 
-    env::var("BACKEND_URL")
-        .map(|url| url.starts_with("https://"))
-        .unwrap_or(false)
+    is_production_env()
 }
 
 /// CSV アップロード系ルートへのレート制限（リクエスト/秒）。0 は無制限
@@ -59,12 +57,14 @@ mod tests {
     fn test_is_production_env() {
         let _guard = ENV_MUTEX.blocking_lock();
         // (RUST_ENV, APP_ENV, BACKEND_URL, expected)
+        // BACKEND_URL のスキームは判定に使わない(明示設定のみで判定する)
         let cases = [
             (Some("production"), None, None, true),
             (None, Some("production"), None, true),
-            (None, None, Some("https://api.example.com"), true),
+            (None, None, Some("https://api.example.com"), false),
             (None, None, Some("http://api.example.com"), false),
             (None, None, None, false),
+            (Some("development"), Some("production"), None, false),
         ];
         for (rust_env, app_env, backend_url, expected) in cases {
             with_vars(
@@ -130,25 +130,35 @@ mod tests {
     #[test]
     fn test_is_secure_cookie() {
         let _guard = ENV_MUTEX.blocking_lock();
-        // (SECURE_COOKIE, BACKEND_URL, expected)
-        let cases: [(Option<&str>, Option<&str>, bool); 5] = [
-            (Some("true"), None, true),
-            (Some("1"), None, true),
-            (Some("false"), None, false),
-            (None, Some("https://api.example.com"), true),
-            (None, None, false),
+        // (SECURE_COOKIE, APP_ENV, BACKEND_URL, expected)
+        // BACKEND_URL のスキームは判定に使わない(SECURE_COOKIE 明示または APP_ENV=production のみ)
+        type CookieCase = (
+            Option<&'static str>,
+            Option<&'static str>,
+            Option<&'static str>,
+            bool,
+        );
+        let cases: [CookieCase; 6] = [
+            (Some("true"), None, None, true),
+            (Some("1"), None, None, true),
+            (Some("false"), None, None, false),
+            (None, Some("production"), None, true),
+            (None, None, Some("https://api.example.com"), false),
+            (None, None, None, false),
         ];
-        for (secure_cookie, backend_url, expected) in cases {
+        for (secure_cookie, app_env, backend_url, expected) in cases {
             with_vars(
                 [
                     ("SECURE_COOKIE", secure_cookie),
+                    ("APP_ENV", app_env),
+                    ("RUST_ENV", None),
                     ("BACKEND_URL", backend_url),
                 ],
                 || {
                     assert_eq!(
                         is_secure_cookie(),
                         expected,
-                        "SECURE_COOKIE={secure_cookie:?} BACKEND_URL={backend_url:?}"
+                        "SECURE_COOKIE={secure_cookie:?} APP_ENV={app_env:?} BACKEND_URL={backend_url:?}"
                     );
                 },
             );
