@@ -123,28 +123,31 @@ pub fn CsvActionRail(
                     }
                 }}
                 {move || {
+                    save_result
+                        .get()
+                        .map(|result| view! { <CsvSaveResultNotice result=result mode_label=mode_label /> })
+                }}
+                {move || {
                     if has_db_data.get() {
                         let on_delete_request = on_delete_request.clone();
                         view! {
-                            <button
-                                type="button"
-                                class=DELETE_BUTTON_CLASS
-                                disabled=move || delete_disabled.get()
-                                aria-disabled=move || delete_disabled.get().to_string()
-                                on:click=move |_| on_delete_request()
-                            >
-                                {move || delete_label.get()}
-                            </button>
+                            // 保存後にボタンがカーソルの下へせり上がらないよう、区切り線の下の最後に置く
+                            <div class="border-t border-slate-200 pt-3">
+                                <button
+                                    type="button"
+                                    class=DELETE_BUTTON_CLASS
+                                    disabled=move || delete_disabled.get()
+                                    aria-disabled=move || delete_disabled.get().to_string()
+                                    on:click=move |_| on_delete_request()
+                                >
+                                    {move || delete_label.get()}
+                                </button>
+                            </div>
                         }
                             .into_any()
                     } else {
                         ().into_any()
                     }
-                }}
-                {move || {
-                    save_result
-                        .get()
-                        .map(|result| view! { <CsvSaveResultNotice result=result mode_label=mode_label /> })
                 }}
             </div>
         </section>
@@ -210,7 +213,7 @@ fn CsvFileInput(
                         </svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold text-slate-800">"CSVファイルを選択"</p>
+                        <p class="whitespace-nowrap text-sm font-semibold text-slate-800">"CSVファイルを選択"</p>
                     </div>
                 </div>
                 <span class="file-chip">
