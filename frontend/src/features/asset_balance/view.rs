@@ -37,11 +37,11 @@ pub fn AssetBalancePage() -> impl IntoView {
     let show_all = RwSignal::new(false);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
-    let busy_csv = csv_store.clone();
-    let view_csv = csv_store.clone();
-    let modal_csv = csv_store.clone();
-    let alert_csv = csv_store.clone();
-    let rail_csv = csv_store.clone();
+    let busy_csv = csv_store;
+    let view_csv = csv_store;
+    let modal_csv = csv_store;
+    let alert_csv = csv_store;
+    let rail_csv = csv_store;
     let alert_ops = data_ops;
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
@@ -114,7 +114,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、見た目は order で main 先にする
                 <aside class="order-2" data-testid="assetbalance-utility-rail">
                     <div class="rail-panel">
-                        <AssetBalanceCsvSection store=view_csv.clone() />
+                        <AssetBalanceCsvSection store=view_csv />
                         {move || {
                             alert_ops
                                 .with(|ops| ops.refresh_error.clone())
@@ -228,10 +228,10 @@ pub fn AssetBalancePage() -> impl IntoView {
                     return ().into_any();
                 }
                 let count = modal_csv.db_count();
-                let deleting_csv = modal_csv.clone();
+                let deleting_csv = modal_csv;
                 let deleting = Memo::new(move |_| deleting_csv.csv_state().deleting);
-                let confirm = modal_csv.clone();
-                let cancel = modal_csv.clone();
+                let confirm = modal_csv;
+                let cancel = modal_csv;
                 view! {
                     <ConfirmDeleteModal
                         title="資産管理データの全件削除".to_string()

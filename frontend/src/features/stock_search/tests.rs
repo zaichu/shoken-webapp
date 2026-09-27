@@ -94,7 +94,7 @@ fn stock_data_and_error_message_follow_result_and_generation() {
             Some("7203".to_string())
         );
         assert!(ok.error_message().is_none());
-        ok.fetch_generation.set(generation + 1);
+        ok.fetch_generation.set(generation.next());
         assert!(ok.stock_data().is_none());
         assert!(ok.error_message().is_none());
 
@@ -107,7 +107,7 @@ fn stock_data_and_error_message_follow_result_and_generation() {
         };
         assert!(err.stock_data().is_none());
         assert_eq!(err.error_message().as_deref(), Some("取得失敗"));
-        err.fetch_generation.set(generation + 1);
+        err.fetch_generation.set(generation.next());
         assert!(err.error_message().is_none());
     });
 }

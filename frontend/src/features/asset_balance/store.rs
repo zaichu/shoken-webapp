@@ -10,7 +10,7 @@ use crate::features::dividend_per_share::{
     post_dividend_batch, unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES,
     DIVIDEND_RETRY_DELAY_MS,
 };
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::PageCollector;
 use leptos::prelude::*;
@@ -113,7 +113,7 @@ pub(crate) fn truncated_list_warning() -> String {
     )
 }
 
-pub(crate) type BalanceSlot = Option<(u64, Result<LoadedAssetBalances, String>)>;
+pub(crate) type BalanceSlot = Option<(Generation, Result<LoadedAssetBalances, String>)>;
 
 // 配当は balances とは別の signal に書く。balances を更新すると
 // ページ側の動的 view が作り直されてカードの開閉状態が失われるため、
@@ -122,7 +122,7 @@ pub(crate) type BalanceSlot = Option<(u64, Result<LoadedAssetBalances, String>)>
 pub(crate) fn apply_dividend_maps(
     balances: &RwSignal<BalanceSlot>,
     dividends: &RwSignal<DividendMaps>,
-    generation: u64,
+    generation: Generation,
     maps: DividendMaps,
 ) {
     let current = balances
@@ -134,7 +134,7 @@ pub(crate) fn apply_dividend_maps(
 
 pub(crate) async fn poll_dividend_maps(
     session: SessionStore,
-    generation: u64,
+    generation: Generation,
     codes: Vec<String>,
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
@@ -198,7 +198,7 @@ pub(crate) fn filtered_portfolio(
     summary: Option<AssetBalanceSummary>,
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    generation: u64,
+    generation: Generation,
     has_csv_file: bool,
 ) -> FilteredPortfolio {
     let views = filter_asset_balances(rows, query)
@@ -221,7 +221,10 @@ pub(crate) fn filtered_portfolio(
     }
 }
 
-pub(crate) fn should_apply_asset_balance_result(session: &SessionStore, generation: u64) -> bool {
+pub(crate) fn should_apply_asset_balance_result(
+    session: &SessionStore,
+    generation: Generation,
+) -> bool {
     session.is_current(generation)
 }
 
@@ -272,7 +275,7 @@ impl DataOps {
 // 取得成功時は lookup の seed と配当取得の開始までここでまとめて行う
 pub(crate) fn load_asset_balances(
     session: SessionStore,
-    generation: u64,
+    generation: Generation,
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
@@ -344,7 +347,7 @@ pub(crate) fn load_asset_balances(
 }
 
 pub(crate) fn apply_list_error(
-    generation: u64,
+    generation: Generation,
     rev: u64,
     message: String,
     balances: RwSignal<BalanceSlot>,
@@ -364,7 +367,7 @@ pub(crate) fn apply_list_error(
 }
 
 pub(crate) fn apply_loaded_asset_balances(
-    generation: u64,
+    generation: Generation,
     loaded: LoadedAssetBalances,
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
@@ -395,8 +398,8 @@ pub(crate) fn apply_loaded_asset_balances(
     (codes, missing)
 }
 
-pub(crate) type AssetCsvSlot = Option<(u64, CsvTabState<AssetBalanceCsvRow>)>;
-pub(crate) type AssetCsvFileSlot = Option<(u64, web_sys::File)>;
+pub(crate) type AssetCsvSlot = Option<(Generation, CsvTabState<AssetBalanceCsvRow>)>;
+pub(crate) type AssetCsvFileSlot = Option<(Generation, web_sys::File)>;
 
 #[cfg(test)]
 mod tests;

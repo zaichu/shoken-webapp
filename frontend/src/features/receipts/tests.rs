@@ -6,7 +6,7 @@ use super::store::should_apply_fetch_result;
 use super::*;
 use crate::api::ApiError;
 use crate::features::receipts::filter::ReceiptSearch;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -73,7 +73,7 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let fetch = Action::new_unsync(|_: &(u64, ReceiptsTab)| async {});
+        let fetch = Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {});
 
         for tab in ReceiptsTab::ALL {
             let cache = RwSignal::new(HashMap::from([(

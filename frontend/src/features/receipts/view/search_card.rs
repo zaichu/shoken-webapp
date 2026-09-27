@@ -11,7 +11,7 @@ pub(crate) fn ReceiptsSearchCard(
     data: ReceiptTabData,
 ) -> impl IntoView {
     let search = store.search;
-    let display_store = store.clone();
+    let display_store = store;
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => {
             preview.rows.into_iter().map(ReceiptItem::from).collect()

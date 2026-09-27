@@ -4,36 +4,36 @@ use leptos::prelude::*;
 
 #[component]
 pub(crate) fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
-    let selected = store.clone();
+    let selected = store;
     let selected_file_name = Memo::new(move |_| selected.csv_state().file_name.unwrap_or_default());
-    let disabled_store = store.clone();
+    let disabled_store = store;
     let file_input_disabled = Memo::new(move |_| {
         !disabled_store.is_authenticated()
             || disabled_store.csv_busy()
             || disabled_store.list_loading()
     });
-    let has_file = store.clone();
+    let has_file = store;
     let has_csv_file =
         Memo::new(move |_| has_file.is_authenticated() && has_file.csv_state().file_name.is_some());
-    let label_store = store.clone();
+    let label_store = store;
     let save_label = Memo::new(move |_| label_store.csv_state().save_label("全件置換で保存"));
-    let save_dis = store.clone();
+    let save_dis = store;
     let save_disabled =
         Memo::new(move |_| save_dis.csv_state().busy() || !can_save_csv(&save_dis.csv_state()));
-    let has_db = store.clone();
+    let has_db = store;
     let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.db_count() > 0);
-    let del_label = store.clone();
+    let del_label = store;
     let delete_label = Memo::new(move |_| del_label.csv_state().delete_label(del_label.db_count()));
-    let del_dis = store.clone();
+    let del_dis = store;
     let delete_disabled = Memo::new(move |_| {
         let state = del_dis.csv_state();
         state.saving || state.deleting || del_dis.list_loading()
     });
-    let result_store = store.clone();
+    let result_store = store;
     let save_result = Memo::new(move |_| result_store.csv_state().import_result);
-    let file_select = store.clone();
-    let save = store.clone();
-    let delete_request = store.clone();
+    let file_select = store;
+    let save = store;
+    let delete_request = store;
     view! {
         // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
         <div class="sm:border-b-0">

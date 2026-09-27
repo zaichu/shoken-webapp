@@ -6,7 +6,7 @@ use crate::api::dto::{
 use crate::api::{ApiClient, ApiError};
 use crate::features::receipts::csv::{to_preview, CsvPreviewRow};
 use crate::features::receipts::filter::ReceiptSearch;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
 use crate::support::pagination::PageCollector;
 use leptos::prelude::*;
@@ -96,7 +96,7 @@ async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ReceiptsStore {
     pub(crate) session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
@@ -105,13 +105,13 @@ pub struct ReceiptsStore {
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
     // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
-    pub(crate) expanded_epoch: RwSignal<Option<u64>>,
+    pub(crate) expanded_epoch: RwSignal<Option<Generation>>,
     pub(crate) visited: RwSignal<HashSet<ReceiptsTab>>,
-    pub(crate) cache: RwSignal<HashMap<(u64, ReceiptsTab), TabState>>,
-    pub(crate) fetch: Action<(u64, ReceiptsTab), ()>,
+    pub(crate) cache: RwSignal<HashMap<(Generation, ReceiptsTab), TabState>>,
+    pub(crate) fetch: Action<(Generation, ReceiptsTab), ()>,
     // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
-    pub(crate) csv: RwSignal<HashMap<(u64, ReceiptsTab), CsvTabState<CsvPreviewRow>>>,
-    pub(crate) csv_files: RwSignal<HashMap<(u64, ReceiptsTab), web_sys::File>>,
+    pub(crate) csv: RwSignal<HashMap<(Generation, ReceiptsTab), CsvTabState<CsvPreviewRow>>>,
+    pub(crate) csv_files: RwSignal<HashMap<(Generation, ReceiptsTab), web_sys::File>>,
 }
 
 impl ReceiptsStore {
@@ -247,7 +247,7 @@ impl ReceiptsStore {
         self.csv_files.update(|map| {
             map.insert((generation, tab), file.clone());
         });
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::preview_csv(tab.preview_path(), &file).await;
             store.apply_preview_result(generation, tab, result);
@@ -258,7 +258,7 @@ impl ReceiptsStore {
         let Some((generation, file)) = self.try_begin_save(tab) else {
             return;
         };
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::upload_csv(tab.import_path(), &file).await;
             if store.apply_upload_result(generation, tab, result) {
@@ -267,7 +267,7 @@ impl ReceiptsStore {
         });
     }
 
-    pub(crate) fn try_begin_save(&self, tab: ReceiptsTab) -> Option<(u64, web_sys::File)> {
+    pub(crate) fn try_begin_save(&self, tab: ReceiptsTab) -> Option<(Generation, web_sys::File)> {
         self.session.user.get_untracked()?;
         let generation = self.session.generation.get_untracked();
         let file = self
@@ -308,14 +308,14 @@ impl ReceiptsStore {
         let Some(generation) = self.try_begin_delete(tab) else {
             return;
         };
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::delete_all(tab.list_path()).await;
             store.apply_delete_result(generation, tab, result);
         });
     }
 
-    pub(crate) fn try_begin_delete(&self, tab: ReceiptsTab) -> Option<u64> {
+    pub(crate) fn try_begin_delete(&self, tab: ReceiptsTab) -> Option<Generation> {
         self.session.user.get_untracked()?;
         let generation = self.session.generation.get_untracked();
         let mut started = false;
@@ -327,7 +327,7 @@ impl ReceiptsStore {
 
     pub(crate) fn apply_preview_result(
         &self,
-        generation: u64,
+        generation: Generation,
         tab: ReceiptsTab,
         result: Result<CsvPreviewResponse, ApiError>,
     ) {
@@ -344,7 +344,7 @@ impl ReceiptsStore {
     // 一覧の再取得が必要になったら true を返す。fetch の起動(dispatch)は呼び出し側が行う
     pub(crate) fn apply_upload_result(
         &self,
-        generation: u64,
+        generation: Generation,
         tab: ReceiptsTab,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
@@ -377,7 +377,7 @@ impl ReceiptsStore {
 
     pub(crate) fn apply_delete_result(
         &self,
-        generation: u64,
+        generation: Generation,
         tab: ReceiptsTab,
         result: Result<(), ApiError>,
     ) {
@@ -424,7 +424,7 @@ impl ReceiptsStore {
     }
 
     // 再取得が必要なら true を返す。fetch の起動(dispatch)は呼び出し側が行う
-    pub(crate) fn refresh_tab_list(&self, generation: u64, tab: ReceiptsTab) -> bool {
+    pub(crate) fn refresh_tab_list(&self, generation: Generation, tab: ReceiptsTab) -> bool {
         let mut refresh = false;
         self.cache.update(|map| {
             refresh = mark_tab_for_refresh(map, generation, tab);
@@ -434,17 +434,20 @@ impl ReceiptsStore {
 }
 
 pub(crate) fn has_stale_generation<V>(
-    map: &HashMap<(u64, ReceiptsTab), V>,
-    generation: u64,
+    map: &HashMap<(Generation, ReceiptsTab), V>,
+    generation: Generation,
 ) -> bool {
     map.keys().any(|(cached, _)| *cached != generation)
 }
 
-pub(crate) fn prune_stale_generation<V>(map: &mut HashMap<(u64, ReceiptsTab), V>, generation: u64) {
+pub(crate) fn prune_stale_generation<V>(
+    map: &mut HashMap<(Generation, ReceiptsTab), V>,
+    generation: Generation,
+) {
     map.retain(|key, _| key.0 == generation);
 }
 
-pub(crate) fn tab_settled(store: &ReceiptsStore, generation: u64, tab: ReceiptsTab) -> bool {
+pub(crate) fn tab_settled(store: &ReceiptsStore, generation: Generation, tab: ReceiptsTab) -> bool {
     store.cache.with(|map| {
         matches!(
             map.get(&(generation, tab)),
@@ -453,13 +456,13 @@ pub(crate) fn tab_settled(store: &ReceiptsStore, generation: u64, tab: ReceiptsT
     })
 }
 
-pub(crate) fn should_apply_fetch_result(session: &SessionStore, generation: u64) -> bool {
+pub(crate) fn should_apply_fetch_result(session: &SessionStore, generation: Generation) -> bool {
     session.is_current(generation)
 }
 
 pub(crate) fn mark_tab_for_refresh(
-    map: &mut HashMap<(u64, ReceiptsTab), TabState>,
-    generation: u64,
+    map: &mut HashMap<(Generation, ReceiptsTab), TabState>,
+    generation: Generation,
     tab: ReceiptsTab,
 ) -> bool {
     if !map.contains_key(&(generation, tab)) {
@@ -479,8 +482,8 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     let fetch_session = session;
     let cache_signal = cache;
     // 同じタブの取得が重なったとき、先に始めた取得の結果で新しい結果を上書きしないため
-    let latest_fetch: Rc<RefCell<HashMap<(u64, ReceiptsTab), u64>>> = Rc::default();
-    let fetch = Action::new_unsync(move |(generation, tab): &(u64, ReceiptsTab)| {
+    let latest_fetch: Rc<RefCell<HashMap<(Generation, ReceiptsTab), u64>>> = Rc::default();
+    let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
         let (generation, tab) = (*generation, *tab);
         let session = fetch_session;
         let rev = {
@@ -524,7 +527,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     };
 
     Effect::new({
-        let store = store.clone();
+        let store = store;
         move |_| {
             let user = session.user.get();
             let active = active_tab.get();

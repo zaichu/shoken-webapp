@@ -18,12 +18,12 @@ pub(crate) fn empty_tab_data() -> ReceiptTabData {
 
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let csv_store = store.clone();
-    let preview_store = store.clone();
-    let loading_store = store.clone();
-    let rail_store = store.clone();
-    let main_store = store.clone();
-    let alert_store = store.clone();
+    let csv_store = store;
+    let preview_store = store;
+    let loading_store = store;
+    let rail_store = store;
+    let main_store = store;
+    let alert_store = store;
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
@@ -38,7 +38,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 // 年ピッカーのドロップダウンを切らないよう overflow は掛けない。
                 // backdrop-blur が作る stack context に listbox が閉じ込められるため、1カラム幅でも表より前面に出す
                 <div class="workspace-rail">
-                    <ReceiptsCsvSection store=csv_store.clone() tab=tab />
+                    <ReceiptsCsvSection store=csv_store tab=tab />
                     {move || {
                         let Some(message) = alert_store.csv_state(tab).error else {
                             return ().into_any();
@@ -139,13 +139,13 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                     }}
                     {move || match panel_state.get() {
                         TabState::Ready(data) => {
-                            view! { <ReceiptsSearchCard store=rail_store.clone() tab=tab data=data /> }
+                            view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
                                 .into_any()
                         }
                         TabState::Failed(_) => {
                             view! {
                                 <ReceiptsSearchCard
-                                    store=rail_store.clone()
+                                    store=rail_store
                                     tab=tab
                                     data=empty_tab_data()
                                 />
@@ -160,16 +160,16 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 {move || match panel_state.get() {
                     TabState::Loading => view! { <ListSkeleton /> }.into_any(),
                     TabState::Ready(data) => {
-                        view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }
+                        view! { <ReceiptsMainContent store=main_store tab=tab data=data /> }
                             .into_any()
                     }
                     TabState::Failed(message) => {
-                        let retry_store = main_store.clone();
+                        let retry_store = main_store;
                         let preview = main_store.has_csv_preview(tab).then(|| {
                             view! {
                                 <div class="mt-4">
                                     <ReceiptsMainContent
-                                        store=main_store.clone()
+                                        store=main_store
                                         tab=tab
                                         data=empty_tab_data()
                                     />
@@ -195,39 +195,39 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
         ReceiptsTab::DomesticStock => "csv-file-input-domesticstock",
         ReceiptsTab::MutualFund => "csv-file-input-mutualfund",
     };
-    let selected = store.clone();
+    let selected = store;
     let selected_file_name =
         Memo::new(move |_| selected.csv_state(tab).file_name.unwrap_or_default());
-    let disabled_store = store.clone();
+    let disabled_store = store;
     let file_input_disabled = Memo::new(move |_| {
         disabled_store.auth_loading()
             || !disabled_store.is_authenticated()
             || disabled_store.csv_busy(tab)
             || disabled_store.any_tab_fetching()
     });
-    let has_file = store.clone();
+    let has_file = store;
     let has_csv_file = Memo::new(move |_| {
         has_file.is_authenticated() && has_file.csv_state(tab).file_name.is_some()
     });
-    let label_store = store.clone();
+    let label_store = store;
     let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label("追加で保存"));
-    let save_dis = store.clone();
+    let save_dis = store;
     let save_disabled = Memo::new(move |_| save_dis.csv_busy(tab));
-    let has_db = store.clone();
+    let has_db = store;
     let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.count(tab) > 0);
-    let del_label = store.clone();
+    let del_label = store;
     let delete_label =
         Memo::new(move |_| del_label.csv_state(tab).delete_label(del_label.count(tab)));
-    let del_dis = store.clone();
+    let del_dis = store;
     let delete_disabled = Memo::new(move |_| {
         let state = del_dis.csv_state(tab);
         state.saving || state.deleting || del_dis.any_tab_fetching()
     });
-    let result_store = store.clone();
+    let result_store = store;
     let save_result = Memo::new(move |_| result_store.csv_state(tab).import_result);
-    let file_select = store.clone();
-    let save = store.clone();
-    let delete_request = store.clone();
+    let file_select = store;
+    let save = store;
+    let delete_request = store;
     view! {
         <CsvActionRail
             input_id=input_id

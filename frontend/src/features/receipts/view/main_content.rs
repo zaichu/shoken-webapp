@@ -20,14 +20,14 @@ pub(crate) fn ReceiptsMainContent(
 ) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
-    let display_store = store.clone();
+    let display_store = store;
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => {
             preview.rows.into_iter().map(ReceiptItem::from).collect()
         }
         _ => data.rows.clone(),
     });
-    let preview_store = store.clone();
+    let preview_store = store;
     let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));

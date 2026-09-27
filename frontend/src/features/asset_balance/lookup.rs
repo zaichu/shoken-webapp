@@ -1,11 +1,12 @@
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::model::normalize_security_code;
+use crate::session::Generation;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
 pub struct AssetBalanceLookupStore {
-    generation: Option<u64>,
+    generation: Option<Generation>,
     entries: HashMap<String, Vec<AssetBalance>>,
 }
 
@@ -14,7 +15,7 @@ impl AssetBalanceLookupStore {
         Self::default()
     }
 
-    pub fn seed(&mut self, generation: u64, rows: &[AssetBalance]) {
+    pub fn seed(&mut self, generation: Generation, rows: &[AssetBalance]) {
         if self.generation != Some(generation) {
             self.entries.clear();
             self.generation = Some(generation);
@@ -29,7 +30,7 @@ impl AssetBalanceLookupStore {
         }
     }
 
-    pub fn get(&self, generation: u64, code: &str) -> Option<&AssetBalance> {
+    pub fn get(&self, generation: Generation, code: &str) -> Option<&AssetBalance> {
         if self.generation != Some(generation) {
             return None;
         }
@@ -42,7 +43,7 @@ impl AssetBalanceLookupStore {
             .and_then(|rows| find_by_code(rows, code))
     }
 
-    pub fn needs_fetch(&self, generation: u64, code: &str, authenticated: bool) -> bool {
+    pub fn needs_fetch(&self, generation: Generation, code: &str, authenticated: bool) -> bool {
         if !authenticated {
             return false;
         }
@@ -53,7 +54,7 @@ impl AssetBalanceLookupStore {
         self.generation != Some(generation) || !self.entries.contains_key(&normalized)
     }
 
-    pub fn store_single(&mut self, generation: u64, code: &str, rows: Vec<AssetBalance>) {
+    pub fn store_single(&mut self, generation: Generation, code: &str, rows: Vec<AssetBalance>) {
         if self.generation != Some(generation) {
             self.entries.clear();
             self.generation = Some(generation);
@@ -64,7 +65,7 @@ impl AssetBalanceLookupStore {
         }
     }
 
-    pub fn clear_if_stale(&mut self, generation: u64) {
+    pub fn clear_if_stale(&mut self, generation: Generation) {
         if self.generation != Some(generation) {
             self.clear();
         }

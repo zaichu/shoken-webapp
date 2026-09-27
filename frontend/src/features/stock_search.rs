@@ -1,18 +1,22 @@
 pub(crate) mod view;
 
 use crate::api::{fetch_stock, Stock};
-use crate::session::use_session;
+use crate::session::{use_session, Generation};
 use leptos::prelude::*;
 
-fn should_apply_search_result(session: &crate::session::SessionStore, generation: u64) -> bool {
+fn should_apply_search_result(
+    session: &crate::session::SessionStore,
+    generation: Generation,
+) -> bool {
     session.is_current(generation)
 }
 
+#[derive(Clone, Copy)]
 pub struct StockSearch {
     pub stock_code: RwSignal<String>,
     pub search: Action<String, Result<Stock, String>>,
     pub has_invalid_code_param: bool,
-    fetch_generation: RwSignal<u64>,
+    fetch_generation: RwSignal<Generation>,
     session: crate::session::SessionStore,
 }
 

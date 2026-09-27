@@ -6,6 +6,7 @@ use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfolio};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
 
@@ -19,7 +20,7 @@ pub(crate) fn AssetBalanceMainContent(
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    generation: u64,
+    generation: Generation,
 ) -> impl IntoView {
     if state.previewing {
         show_all.set(false);

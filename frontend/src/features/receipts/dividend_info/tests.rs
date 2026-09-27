@@ -160,7 +160,7 @@ fn is_current_code_requires_matching_session_generation_and_code() {
         store.current.set(Some((generation, "7203".to_string())));
         assert!(store.is_current_code(generation, "7203"));
         assert!(!store.is_current_code(generation, "6758"));
-        assert!(!store.is_current_code(generation + 1, "7203"));
+        assert!(!store.is_current_code(generation.next(), "7203"));
         session.mark_unauthenticated();
         assert!(!store.is_current_code(generation, "7203"));
     });

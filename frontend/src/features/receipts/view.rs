@@ -20,12 +20,12 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
-    let busy = store.clone();
-    let panels_store = store.clone();
-    let modal_store = store.clone();
+    let busy = store;
+    let panels_store = store;
+    let modal_store = store;
     // 他タブの取得進捗で workspace 全体を再生成するとレール開閉などのローカル状態が
     // 巻き戻るため、分岐条件だけを memo 化して再生成を実際の切替時に限定する
-    let workspace_store = store.clone();
+    let workspace_store = store;
     let panels_loading = Memo::new(move |_| {
         workspace_store.auth_loading()
             || matches!(
@@ -33,7 +33,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                 TabState::Loading
             )
     });
-    let tabs = store.clone();
+    let tabs = store;
     // クリックとキー操作の両経路をカバーするため select_tab ではなく active_tab の変化に追従する
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
@@ -52,7 +52,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     .iter()
                     .copied()
                     .map(|tab| {
-                        view! { <TabButton store=store.clone() tab=tab /> }
+                        view! { <TabButton store=store tab=tab /> }
                     })
                     .collect_view()}
             </div>
@@ -74,7 +74,7 @@ pub fn ReceiptsPage() -> impl IntoView {
         >
             <div data-testid="receipts-workspace">
                 {move || {
-                    let workspace = panels_store.clone();
+                    let workspace = panels_store;
                     // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
                     // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
                     let loading = panels_loading.get();
@@ -82,7 +82,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                         .iter()
                         .copied()
                         .map(|tab| {
-                            view! { <TabPanel store=workspace.clone() tab=tab loading=loading /> }
+                            view! { <TabPanel store=workspace tab=tab loading=loading /> }
                         })
                         .collect_view()
                 }}
@@ -93,10 +93,10 @@ pub fn ReceiptsPage() -> impl IntoView {
                     return ().into_any();
                 }
                 let count = modal_store.count(tab);
-                let deleting_store = modal_store.clone();
+                let deleting_store = modal_store;
                 let deleting = Memo::new(move |_| deleting_store.csv_state(tab).deleting);
-                let confirm = modal_store.clone();
-                let cancel = modal_store.clone();
+                let confirm = modal_store;
+                let cancel = modal_store;
                 view! {
                     <ConfirmDeleteModal
                         title=format!("{}データの全件削除", tab.label())

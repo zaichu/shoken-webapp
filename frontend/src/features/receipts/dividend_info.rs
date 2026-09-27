@@ -7,7 +7,7 @@ use crate::features::dividend_per_share::{
     post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
 };
 use crate::features::receipts::model::{format_currency, format_number, DividendTotals};
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
@@ -64,7 +64,7 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
 #[derive(Clone, Copy)]
 pub(crate) struct DividendInfoStore {
     session: SessionStore,
-    current: RwSignal<Option<(u64, String)>>,
+    current: RwSignal<Option<(Generation, String)>>,
     code_revision: RwSignal<u64>,
     balance_revision: RwSignal<u64>,
     asset_balance: RwSignal<Option<AssetBalance>>,
@@ -85,7 +85,7 @@ impl DividendInfoStore {
         }
     }
 
-    pub fn set_code(&self, generation: u64, authenticated: bool, raw_code: &str) {
+    pub fn set_code(&self, generation: Generation, authenticated: bool, raw_code: &str) {
         let code = normalize_security_code(raw_code);
         let next = (authenticated && is_searchable_code(&code)).then_some((generation, code));
         if self.current.get_untracked() == next {
@@ -129,7 +129,7 @@ impl DividendInfoStore {
         });
     }
 
-    fn is_current_code(&self, generation: u64, code: &str) -> bool {
+    fn is_current_code(&self, generation: Generation, code: &str) -> bool {
         self.session.is_current(generation)
             && self
                 .current
@@ -137,16 +137,16 @@ impl DividendInfoStore {
                 .is_some_and(|(g, c)| g == generation && c == code)
     }
 
-    fn is_balance_active(&self, generation: u64, revision: u64, code: &str) -> bool {
+    fn is_balance_active(&self, generation: Generation, revision: u64, code: &str) -> bool {
         self.balance_revision.get_untracked() == revision && self.is_current_code(generation, code)
     }
 
-    fn is_poll_active(&self, generation: u64, revision: u64, code: &str) -> bool {
+    fn is_poll_active(&self, generation: Generation, revision: u64, code: &str) -> bool {
         self.code_revision.get_untracked() == revision && self.is_current_code(generation, code)
     }
 
     /// pending（バックエンド処理待ち）と通信失敗は別カウンタで打ち切る
-    async fn poll_dividend(&self, generation: u64, revision: u64, code: String) {
+    async fn poll_dividend(&self, generation: Generation, revision: u64, code: String) {
         let codes = vec![code.clone()];
         let max_pending = dividend_pending_max_retries(1);
         let mut pending_used = 0u32;
