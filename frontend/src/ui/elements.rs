@@ -303,7 +303,7 @@ fn UserMenu(
                         </li>
                         <li
                             role="none"
-                            class="px-3 py-2 text-xs font-bold uppercase tracking-badge text-text-subtle"
+                            class="px-3 py-2 text-xs font-bold uppercase tracking-badge text-text-quiet"
                         >
                             "危険な操作"
                         </li>
@@ -365,7 +365,7 @@ impl AlertVariant {
     fn class(self) -> &'static str {
         match self {
             Self::Warning => "border-accent-border bg-accent-soft text-accent-text",
-            Self::Danger => "border-negative-border bg-negative-soft text-negative",
+            Self::Danger => "border-negative-border bg-negative-soft text-negative-vivid",
         }
     }
 }
@@ -466,7 +466,7 @@ pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl Int
     view! {
         <div class="panel-card p-4" data-testid="list-load-error">
             <div
-                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative"
+                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
                 role="alert"
             >
                 <strong>"エラー:"</strong>

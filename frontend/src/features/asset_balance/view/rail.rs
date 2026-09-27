@@ -73,7 +73,7 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     };
     view! {
         <div class="px-5 py-4" data-testid="asset-review-prompt-card">
-            <p class="mb-2 text-xs font-medium text-text-subtle">"AI総評プロンプト"</p>
+            <p class="mb-2 text-xs font-medium text-text-quiet">"AI総評プロンプト"</p>
             <button
                 type="button"
                 class="review-prompt-button no-print"

@@ -263,7 +263,7 @@ fn ReceiptItemCard(
     } = card;
     let aria_label = format!("{name} {amount}");
     let amount_class = if amount_negative {
-        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-negative"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-negative-vivid"
     } else {
         "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-ink"
     };
@@ -339,7 +339,7 @@ fn ReceiptItemCard(
                                                 CardDetailValue::Text { negative: true, .. }
                                             );
                                             let value_class = if negative {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative"
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative-vivid"
                                             } else {
                                                 "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-text"
                                             };
@@ -421,7 +421,7 @@ pub(crate) fn MobileCardGroup(
     let primary_negative =
         summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
     let primary_value_class = if primary_negative {
-        "text-sm font-semibold tabular-nums text-negative"
+        "text-sm font-semibold tabular-nums text-negative-vivid"
     } else {
         "text-sm font-semibold tabular-nums text-text"
     };

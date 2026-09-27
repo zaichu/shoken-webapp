@@ -10,6 +10,8 @@
   --color-fill: var(--color-slate-200);
   --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
+  --color-scrollbar-thumb: #94a3b8;
+  --color-scrollbar-thumb-hover: #64748b;
 
   --color-night: #111827;
   --color-night-soft: var(--color-slate-700);
@@ -23,6 +25,8 @@
   --color-text-soft: var(--color-slate-700);
   --color-text-muted: var(--color-slate-600);
   --color-text-subtle: var(--color-slate-500);
+  /* 旧 --color-secondary と同じ hex(text-secondary 相当の補助テキスト) */
+  --color-text-quiet: #64748b;
   --color-text-faint: var(--color-slate-400);
   --color-text-inverse: var(--color-white);
   --color-text-inverse-muted: var(--color-slate-300);
@@ -39,7 +43,10 @@
   --color-border-xstrong: var(--color-slate-400);
   --color-border-bold: var(--color-slate-500);
 
-  --color-negative: var(--color-red-700);
+  /* 旧 --color-negative/--color-danger と同じ hex(data-negative の赤・削除系ボタン) */
+  --color-negative: #b91c1c;
+  /* 生の red-700 クラス相当(Tailwind v4 の oklch)。属性なしで赤文字にする箇所 */
+  --color-negative-vivid: var(--color-red-700);
   --color-negative-strong: var(--color-red-800);
   --color-negative-soft: var(--color-red-50);
   --color-negative-border: var(--color-red-200);
@@ -146,12 +153,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-fill-strong);
+    background: var(--color-scrollbar-thumb);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-subtle);
+    background: var(--color-scrollbar-thumb-hover);
   }
 }
 

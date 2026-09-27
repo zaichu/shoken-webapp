@@ -121,7 +121,7 @@ pub fn ConfirmDeleteModal(
                     </div>
                     <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
-                        <p class="mt-2 text-sm text-text-subtle">
+                        <p class="mt-2 text-sm text-text-quiet">
                             "対象: "
                             <strong class="text-negative">{item_count}"件"</strong>
                             "のデータ"
@@ -136,7 +136,7 @@ pub fn ConfirmDeleteModal(
                                 .map(|message| {
                                     view! {
                                         <p
-                                            class="mt-3 rounded-md border border-negative-border bg-negative-soft px-3 py-2 text-sm text-negative"
+                                            class="mt-3 rounded-md border border-negative-border bg-negative-soft px-3 py-2 text-sm text-negative-vivid"
                                             role="alert"
                                         >
                                             {message}

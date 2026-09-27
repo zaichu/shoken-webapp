@@ -31,7 +31,7 @@ pub fn LoginPage() -> impl IntoView {
                     <div class="login-card">
                         <div class="space-y-6 p-6 text-center">
                             <h2 class="text-xl font-semibold">"ログイン"</h2>
-                            <p class="text-sm text-text-subtle">
+                            <p class="text-sm text-text-quiet">
                                 "Googleアカウントでログインしてください"
                             </p>
                             <button
