@@ -13,8 +13,8 @@ PALETTE='(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|
 OLD_TOKEN='(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset)-(primary|primary-hover|primary-dark|secondary|secondary-hover|success|success-hover|info-hover|warning|warning-hover|danger|danger-hover|light|dark|negative-dark|bg-body|bg-dark|bg-card-dark|border-dark)\b'
 # 白・黒の直書き(bg-white など)。`bg-surface` / `text-text-inverse` / `bg-scrim` などのトークンを使う
 MONO='([^[:space:]"]+:)*(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
-# `-[...]` 形式の任意値と `[property:value]` 形式の任意プロパティ
-ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\])'
+# `-[...]` 形式の任意値・`-(var)` 形式の CSS 変数省略記法・`[property:value]` 形式の任意プロパティ
+ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\]|[a-z][a-z-]*-\([^)]*\))'
 
 # 許可リスト: 追加するときは理由を添える。形式は grep -E の正規表現(一致する行を除外)。
 ALLOWED_SRC=(
@@ -105,7 +105,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]'; do
+for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]' 'text-(--color-red-700)'; do
   if ! grep -Fq "$expected" <<<"$self_test_output"; then
     echo "ERROR: CSS トークン検査の自己テストが $expected を検出しません" >&2
     exit 1

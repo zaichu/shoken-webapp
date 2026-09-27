@@ -42,7 +42,7 @@
   --color-border-xstrong: var(--color-slate-400);
   --color-border-bold: var(--color-slate-500);
 
-  /* data-negative の !important で上書きする色なので hex で固定している */
+  /* 置換前の描画色を維持するため hex で固定している */
   --color-negative: #b91c1c;
   --color-negative-vivid: var(--color-red-700);
   --color-negative-strong: var(--color-red-800);
