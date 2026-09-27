@@ -122,7 +122,10 @@ fn shared_valuation_cases_match() {
     let fixture = fixture();
     assert_eq!(fixture.valuation_cases.len(), 9);
     for case in &fixture.valuation_cases {
-        let result = calculate_valuation(&case.market_value, &case.purchase_amount);
+        let result = calculate_valuation(
+            to_finite_amount(&case.market_value),
+            to_finite_amount(&case.purchase_amount),
+        );
         assert_optional_amount(result.amount, &case.expected.amount, &case.name, "amount");
         assert_optional_rate(result.rate, &case.expected.rate, &case.name, "rate");
     }
@@ -137,8 +140,8 @@ fn shared_summary_cases_match() {
             .items
             .iter()
             .map(|item| ValuationItem {
-                market_value: item.market_value.clone(),
-                total_purchase_amount: item.total_purchase_amount.clone(),
+                market_value: to_finite_amount(&item.market_value),
+                total_purchase_amount: to_finite_amount(&item.total_purchase_amount),
             })
             .collect();
         let summary = summarize_valuation(&items);
@@ -232,12 +235,12 @@ fn shared_kpi_cases_match() {
 fn summary_items() -> Vec<ValuationItem> {
     vec![
         ValuationItem {
-            market_value: json!(260000),
-            total_purchase_amount: json!(250000),
+            market_value: Some(260000.0),
+            total_purchase_amount: Some(250000.0),
         },
         ValuationItem {
-            market_value: json!(650000),
-            total_purchase_amount: json!(600000),
+            market_value: Some(650000.0),
+            total_purchase_amount: Some(600000.0),
         },
     ]
 }
@@ -292,8 +295,8 @@ fn summary_override_matches_component_cases() {
 #[test]
 fn summary_override_incomplete_detail_is_incomplete() {
     let incomplete_items = vec![ValuationItem {
-        market_value: Value::Null,
-        total_purchase_amount: json!(20),
+        market_value: None,
+        total_purchase_amount: Some(20.0),
     }];
     let large = SummaryOverride {
         total_purchase_amount: dec!(1234567),
@@ -308,12 +311,12 @@ fn summary_override_incomplete_detail_is_incomplete() {
 fn summarize_valuation_totals_are_exact() {
     let items = vec![
         ValuationItem {
-            market_value: json!(1100.10),
-            total_purchase_amount: json!(1000.05),
+            market_value: Some(1100.10),
+            total_purchase_amount: Some(1000.05),
         },
         ValuationItem {
-            market_value: json!(2200.20),
-            total_purchase_amount: json!(2000.15),
+            market_value: Some(2200.20),
+            total_purchase_amount: Some(2000.15),
         },
     ];
     let summary = summarize_valuation(&items);
@@ -323,12 +326,12 @@ fn summarize_valuation_totals_are_exact() {
 
     let items = vec![
         ValuationItem {
-            market_value: json!(1000000.1),
-            total_purchase_amount: json!(999999.95),
+            market_value: Some(1000000.1),
+            total_purchase_amount: Some(999999.95),
         },
         ValuationItem {
-            market_value: json!(2000000.2),
-            total_purchase_amount: json!(1999999.95),
+            market_value: Some(2000000.2),
+            total_purchase_amount: Some(1999999.95),
         },
     ];
     let summary = summarize_valuation(&items);
@@ -354,8 +357,8 @@ fn summarize_valuation_totals_are_exact() {
 fn summarize_valuation_overflow_falls_back_to_f64() {
     let items: Vec<ValuationItem> = (0..8)
         .map(|_| ValuationItem {
-            market_value: json!(1e28),
-            total_purchase_amount: json!(0.0),
+            market_value: Some(1e28),
+            total_purchase_amount: Some(0.0),
         })
         .collect();
     let summary = summarize_valuation(&items);
@@ -365,8 +368,8 @@ fn summarize_valuation_overflow_falls_back_to_f64() {
     assert_eq!(summary.rate, None);
 
     let items = vec![ValuationItem {
-        market_value: json!(1e30),
-        total_purchase_amount: json!(1e29),
+        market_value: Some(1e30),
+        total_purchase_amount: Some(1e29),
     }];
     let summary = summarize_valuation(&items);
     assert!(!summary.incomplete);
@@ -378,11 +381,11 @@ fn summarize_valuation_overflow_falls_back_to_f64() {
 
 #[test]
 fn calculate_valuation_rate_overflow_does_not_panic() {
-    let result = calculate_valuation(&json!(1e28), &json!(1e-10));
+    let result = calculate_valuation(Some(1e28), Some(1e-10));
     assert_eq!(result.amount, Some(1e28));
     assert!(result.rate.is_some_and(|rate| rate > 1e30));
 
-    let result = calculate_valuation(&json!(1e30), &json!(1e29));
+    let result = calculate_valuation(Some(1e30), Some(1e29));
     assert_eq!(result.amount, Some(9e29));
     let rate = result.rate.expect("nonzero purchase must produce a rate");
     assert!((rate - 900.0).abs() < 1e-6);
@@ -461,7 +464,7 @@ fn safe_add_matches_react_rounding() {
 #[test]
 fn huge_values_do_not_panic() {
     assert_eq!(to_finite_amount(&json!(1e30)), Some(1e30));
-    let precision = calculate_valuation(&json!(9007199254740993u64), &json!(9007199254740992u64));
+    let precision = calculate_valuation(Some(9007199254740993.0), Some(9007199254740992.0));
     assert_eq!(precision.amount, Some(0.0));
     let overflow = safe_add(1e308, 1e308);
     assert!(overflow.is_infinite());
@@ -620,7 +623,7 @@ proptest::proptest! {
     ) {
         let market_json = market.map_or_else(|| json!("-"), |v| json!(v));
         let purchase_json = purchase.map_or_else(|| json!("-"), |v| json!(v));
-        let result = calculate_valuation(&market_json, &purchase_json);
+        let result = calculate_valuation(market, purchase);
         match (market, purchase) {
             (Some(m), Some(p)) => {
                 let amount = result

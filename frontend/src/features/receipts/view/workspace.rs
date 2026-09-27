@@ -5,7 +5,7 @@ use crate::features::receipts::{
 };
 use crate::support::csv_flow::row_error_text;
 use crate::ui::csv_rail::CsvActionRail;
-use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner};
+use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
@@ -126,7 +126,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                             <div aria-live="polite" aria-atomic="true">
                                 <section class="px-5 py-4" role="status">
                                     <div class="flex items-center gap-2 text-slate-600">
-                                        <Spinner size="sm" class="" />
+                                        <Spinner size=SpinnerSize::Sm class="" />
                                         <p class="text-sm">
                                             {auth_loading.then_some("認証状態を確認しています...")}
                                             {fetching.then_some("データを読み込んでいます...")}

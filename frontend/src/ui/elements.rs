@@ -354,18 +354,28 @@ pub fn SiteFooter() -> impl IntoView {
     }
 }
 
-fn alert_variant_class(variant: &str) -> &'static str {
-    match variant {
-        "warning" => "border-amber-200 bg-amber-50 text-amber-900",
-        "danger" => "border-red-200 bg-red-50 text-red-700",
-        "success" => "border-teal-200 bg-teal-50 text-teal-800",
-        _ => "border-blue-200 bg-blue-50 text-blue-800",
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlertVariant {
+    Warning,
+    Danger,
+    Success,
+    Info,
+}
+
+impl AlertVariant {
+    fn class(self) -> &'static str {
+        match self {
+            Self::Warning => "border-amber-200 bg-amber-50 text-amber-900",
+            Self::Danger => "border-red-200 bg-red-50 text-red-700",
+            Self::Success => "border-teal-200 bg-teal-50 text-teal-800",
+            Self::Info => "border-blue-200 bg-blue-50 text-blue-800",
+        }
     }
 }
 
 #[component]
-pub fn Alert(variant: &'static str, children: Children) -> impl IntoView {
-    let variant_class = alert_variant_class(variant);
+pub fn Alert(variant: AlertVariant, children: Children) -> impl IntoView {
+    let variant_class = variant.class();
     view! {
         <div
             class={format!(
@@ -401,17 +411,26 @@ pub fn PageHeader(
     }
 }
 
-fn spinner_size_class(size: &str) -> &'static str {
-    match size {
-        "sm" => "h-4 w-4",
-        "lg" => "h-8 w-8",
-        _ => "h-6 w-6",
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpinnerSize {
+    Sm,
+    Lg,
+    Md,
+}
+
+impl SpinnerSize {
+    fn class(self) -> &'static str {
+        match self {
+            Self::Sm => "h-4 w-4",
+            Self::Lg => "h-8 w-8",
+            Self::Md => "h-6 w-6",
+        }
     }
 }
 
 #[component]
-pub fn Spinner(size: &'static str, class: &'static str) -> impl IntoView {
-    let size_class = spinner_size_class(size);
+pub fn Spinner(size: SpinnerSize, class: &'static str) -> impl IntoView {
+    let size_class = size.class();
     view! {
         <span class={format!("inline-flex items-center {class}")}>
             <svg

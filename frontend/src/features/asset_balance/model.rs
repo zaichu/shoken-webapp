@@ -10,6 +10,7 @@ const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "
 
 /// 任意の値を有限数に正規化する。欠損は `None` を返す。
 /// 数値文字列（カンマ区切り可）は数値として扱う。
+#[cfg(test)]
 pub fn to_finite_amount(value: &Value) -> Option<f64> {
     match value {
         Value::Null => None,
@@ -179,12 +180,11 @@ pub struct ValuationResult {
     pub rate: Option<f64>,
 }
 
-#[allow(dead_code)]
-pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
-    let (Some(market), Some(purchase)) = (
-        to_finite_amount(market_value),
-        to_finite_amount(purchase_amount),
-    ) else {
+pub fn calculate_valuation(
+    market_value: Option<f64>,
+    purchase_amount: Option<f64>,
+) -> ValuationResult {
+    let (Some(market), Some(purchase)) = (market_value, purchase_amount) else {
         return ValuationResult {
             amount: None,
             rate: None,
@@ -218,8 +218,8 @@ pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> V
 /// `summarizeValuation` への入力1件。
 #[derive(Clone, Debug)]
 pub struct ValuationItem {
-    pub market_value: Value,
-    pub total_purchase_amount: Value,
+    pub market_value: Option<f64>,
+    pub total_purchase_amount: Option<f64>,
 }
 
 /// 複数銘柄の合計。`valuation.ts` の `summarizeValuation` に対応する。
@@ -239,10 +239,7 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
     let mut purchase_f64 = 0.0;
     let mut exact = true;
     for item in items {
-        let (Some(market), Some(purchase)) = (
-            to_finite_amount(&item.market_value),
-            to_finite_amount(&item.total_purchase_amount),
-        ) else {
+        let (Some(market), Some(purchase)) = (item.market_value, item.total_purchase_amount) else {
             return ValuationSummary {
                 market_value: None,
                 amount: None,

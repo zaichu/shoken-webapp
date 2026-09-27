@@ -1,6 +1,6 @@
 use super::use_stock_search;
 use crate::api::dto::Stock;
-use crate::ui::elements::{Alert, PageHeader, Spinner};
+use crate::ui::elements::{Alert, AlertVariant, PageHeader, Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
@@ -60,7 +60,7 @@ pub(crate) fn SearchPage() -> impl IntoView {
                 on_submit=on_submit
             />
             <Show when=move || has_invalid>
-                <Alert variant="warning">"不正な銘柄コードが指定されています。"</Alert>
+                <Alert variant=AlertVariant::Warning>"不正な銘柄コードが指定されています。"</Alert>
             </Show>
             {move || {
                 let data = stock_search.stock_data();
@@ -68,7 +68,7 @@ pub(crate) fn SearchPage() -> impl IntoView {
                 let is_loading = loading.get();
                 if let Some(message) = error {
                     view! {
-                        <Alert variant="danger">
+                        <Alert variant=AlertVariant::Danger>
                             <strong>"エラー:"</strong>
                             " "
                             {message}
@@ -131,7 +131,7 @@ fn SearchForm(
                             {move || {
                                 if loading.get() {
                                     view! {
-                                        <Spinner size="sm" class="mr-2" />
+                                        <Spinner size=SpinnerSize::Sm class="mr-2" />
                                         "読み込み中..."
                                     }
                                         .into_any()

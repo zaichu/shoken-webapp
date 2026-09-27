@@ -34,17 +34,15 @@ fn nav_active_matches_path_or_prefix() {
 
 #[test]
 fn alert_variant_classes() {
-    assert!(alert_variant_class("warning").contains("amber"));
-    assert!(alert_variant_class("danger").contains("red"));
-    assert!(alert_variant_class("success").contains("teal"));
-    assert!(alert_variant_class("info").contains("blue"));
-    assert!(alert_variant_class("").contains("blue"));
+    assert!(AlertVariant::Warning.class().contains("amber"));
+    assert!(AlertVariant::Danger.class().contains("red"));
+    assert!(AlertVariant::Success.class().contains("teal"));
+    assert!(AlertVariant::Info.class().contains("blue"));
 }
 
 #[test]
 fn spinner_size_classes() {
-    assert_eq!(spinner_size_class("sm"), "h-4 w-4");
-    assert_eq!(spinner_size_class("lg"), "h-8 w-8");
-    assert_eq!(spinner_size_class("md"), "h-6 w-6");
-    assert_eq!(spinner_size_class(""), "h-6 w-6");
+    assert_eq!(SpinnerSize::Sm.class(), "h-4 w-4");
+    assert_eq!(SpinnerSize::Lg.class(), "h-8 w-8");
+    assert_eq!(SpinnerSize::Md.class(), "h-6 w-6");
 }

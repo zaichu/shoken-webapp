@@ -1,5 +1,5 @@
 use crate::session::use_session;
-use crate::ui::elements::Spinner;
+use crate::ui::elements::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 #[component]
@@ -14,7 +14,7 @@ pub fn LoginPage() -> impl IntoView {
                 if !session.loaded.get() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Spinner size="lg" class="text-primary" />
+                            <Spinner size=SpinnerSize::Lg class="text-primary" />
                         </div>
                     }
                         .into_any();
@@ -22,7 +22,7 @@ pub fn LoginPage() -> impl IntoView {
                 if session.user.get().is_some() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Spinner size="lg" class="text-primary" />
+                            <Spinner size=SpinnerSize::Lg class="text-primary" />
                         </div>
                     }
                         .into_any();

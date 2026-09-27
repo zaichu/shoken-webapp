@@ -1,4 +1,4 @@
-use crate::ui::elements::Spinner;
+use crate::ui::elements::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -163,7 +163,7 @@ pub fn ConfirmDeleteModal(
                             {move || {
                                 loading
                                     .get()
-                                    .then(|| view! { <Spinner size="sm" class="mr-2" /> })
+                                    .then(|| view! { <Spinner size=SpinnerSize::Sm class="mr-2" /> })
                             }}
                             {confirm_label}
                         </button>

@@ -44,8 +44,8 @@ pub(crate) fn portfolio_valuation(
     let valuation_items: Vec<ValuationItem> = views
         .iter()
         .map(|view| ValuationItem {
-            market_value: serde_json::json!(view.market),
-            total_purchase_amount: serde_json::json!(view.purchase),
+            market_value: Some(view.market),
+            total_purchase_amount: Some(view.purchase),
         })
         .collect();
     summarize_valuation_with_summary(
