@@ -25,7 +25,6 @@
   --color-text-soft: var(--color-slate-700);
   --color-text-muted: var(--color-slate-600);
   --color-text-subtle: var(--color-slate-500);
-  /* 旧 --color-secondary と同じ hex(text-secondary 相当の補助テキスト) */
   --color-text-quiet: #64748b;
   --color-text-faint: var(--color-slate-400);
   --color-text-inverse: var(--color-white);
@@ -43,9 +42,8 @@
   --color-border-xstrong: var(--color-slate-400);
   --color-border-bold: var(--color-slate-500);
 
-  /* 旧 --color-negative/--color-danger と同じ hex(data-negative の赤・削除系ボタン) */
+  /* data-negative の !important で上書きする色なので hex で固定している */
   --color-negative: #b91c1c;
-  /* 生の red-700 クラス相当(Tailwind v4 の oklch)。属性なしで赤文字にする箇所 */
   --color-negative-vivid: var(--color-red-700);
   --color-negative-strong: var(--color-red-800);
   --color-negative-soft: var(--color-red-50);
@@ -339,7 +337,7 @@
   }
 
   .search-input {
-    @apply block h-11 w-full rounded-l-md border-0 bg-transparent px-3 py-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none focus:ring-0;
+    @apply block h-11 w-full rounded-l-md border-0 border-border-strong bg-surface px-3 py-2 text-sm font-medium text-ink shadow-none transition-[border-color,box-shadow,background-color] placeholder:text-text-faint focus:border-accent-strong focus:outline-none focus:ring-2 focus:ring-accent-bright/25;
   }
 
   .year-picker-dropdown {
