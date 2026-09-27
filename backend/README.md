@@ -181,13 +181,24 @@ backend/
 │   ├── errors.rs        # エラーハンドリング
 │   ├── extractors/      # Axumエクストラクター
 │   ├── handlers/        # リクエストハンドラー
-│   │   ├── v1/          # v1 APIハンドラー
-│   │   └── csv_import.rs # CSV取り込み共通処理
-│   ├── models/          # データモデル
+│   │   ├── common.rs    # ハンドラー共通の応答
+│   │   └── v1/          # v1 API(auth/・csv_import・dividend_per_share を含む)
+│   ├── models/          # リクエスト・応答・DB の型
 │   ├── services/        # ビジネスロジック
+│   │   ├── domain/      # 4ドメイン共通の検索・一括登録・集計
+│   │   ├── csv/         # CSV の解析・検証・取り込み
+│   │   └── market_data/ # 外部の市場データ(J-Quants の型と通信)
 │   └── state.rs         # アプリケーション状態
 ├── migrations/          # SQLxマイグレーション
 ├── Cargo.toml
 ├── Dockerfile           # ビルドコンテキストはリポジトリルート（../shared を参照するため）
 └── Makefile             # fly.toml はリポジトリルートに配置
 ```
+
+### 層の役割と依存の向き
+
+依存は handlers → services → models の一方向にする。
+
+- handlers: リクエストの取り出しと応答の組み立てだけを行い、処理は services に渡す
+- services: 業務ロジックと DB・外部 API へのアクセス。handlers には依存しない
+- models: 型だけを置く。services・handlers には依存しない
