@@ -31,6 +31,30 @@ npx playwright test --config playwright.vercel.config.ts
 
 `playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。
 
+## ソースの構成
+
+機能ごとにまとめる。親モジュールは `foo.rs`、子は `foo/bar.rs` に置き、`mod.rs` は使わない。
+
+```
+src/
+  main.rs, app.rs    起動とルーティング
+  api/               通信クライアント(client)と DTO(dto)
+  session/           ログイン状態・無操作ログアウト・タブ間の同期
+  ui/                複数の機能で使う画面部品
+  features/
+    receipts/        取引明細。model(計算・整形)・store・filter・csv・view(画面)
+    asset_balance/   資産管理。model・store・csv_store・format・view(画面)など
+    stock_search/    銘柄検索。store と view(画面)
+    home, login, not_found, dividend_per_share
+  support/           list_search・pagination・csv_flow など機能をまたぐ処理
+  testing/           テスト用の補助(cfg(test) のみ)
+```
+
+- 依存の向きは view → store → model。model は Leptos に依存しない
+- 機能どうしは `features/<機能>` の公開部分だけを使い、view の中身には触れない
+- テストは各モジュールの `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。1つのモジュールに複数ある場合は `tests.rs` から `tests/<名前>.rs` を宣言する
+- テストの fixture は `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
+
 ## アクセシビリティ
 
 `e2e/migrated/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・CSV プレビュー・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
@@ -53,7 +77,7 @@ npx playwright test --config playwright.vercel.config.ts
 
 - 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
 - 色はマイナスの損益のみ `text-red-700`(暗背景は `red-300`)。税額・配当・利回りは色なし
-- 書式は `shared::format` に集約。`pages/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと、Decimal に収まらない金額・率の表示のみ
+- 書式は `shared::format` に集約。`features/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと、Decimal に収まらない金額・率の表示のみ
 - 税引後の見出しは、配当が集計 `配当金(税引)`・月の見出し `税引後`・列 `受取額`、国内株式が `実現損益(税引)`・`税引後`、投資信託が `実現損益(税引)`・`税引損益`
 
 ## デプロイ
