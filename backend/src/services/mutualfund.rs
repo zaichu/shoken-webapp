@@ -5,10 +5,10 @@ use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
 use crate::services::csv::import::{validate_csv_rows, CsvImport};
-use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_string, CsvCells, RowNumber,
+    parse_required_string, CsvCells, CsvRowView, RowNumber,
 };
 use crate::services::domain::bulk::{
     ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
@@ -44,8 +44,8 @@ impl CsvImport for MutualfundDomain {
     type Row = CreateMutualfundRequest;
     const CSV_CONFIG: CsvParserConfig = MUTUALFUND_CSV_CONFIG;
 
-    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_mutualfund_rows(rows)
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_mutualfund_rows(table)
     }
 
     async fn bulk_create(
@@ -61,19 +61,6 @@ impl CsvImport for MutualfundDomain {
 const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
     exclude_row_fn: None,
-    required_columns: &[
-        "約定日",
-        "受渡日",
-        "ファンド名",
-        "分配金",
-        "口座",
-        "数量[口]",
-        "為替レート［円］",
-        "解約単価［円］",
-        "解約額［円］",
-        "平均取得価額［円］",
-        "実現損益［円］",
-    ],
 };
 
 /// 投資信託検索条件を SQL 条件へ変換した中間表現
@@ -286,12 +273,12 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-fn transform_mutualfund_rows(rows: &[CsvRow]) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(rows, transform_mutualfund_row)
+fn transform_mutualfund_rows(table: &CsvTable) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(table, transform_mutualfund_row)
 }
 
 fn transform_mutualfund_row(
-    row: &CsvRow,
+    row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;

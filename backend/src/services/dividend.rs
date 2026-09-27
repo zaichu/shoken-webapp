@@ -5,10 +5,10 @@ use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
 use crate::services::csv::import::{validate_csv_rows, CsvImport};
-use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
     check_max_chars, parse_optional_string, parse_required_account, parse_required_date,
-    parse_required_number, parse_required_string, RowNumber,
+    parse_required_number, parse_required_string, CsvRowView, RowNumber,
 };
 use crate::services::domain::bulk::{
     ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
@@ -44,8 +44,8 @@ impl CsvImport for DividendDomain {
     type Row = CreateDividendRequest;
     const CSV_CONFIG: CsvParserConfig = DIVIDEND_CSV_CONFIG;
 
-    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_dividend_rows(rows)
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_dividend_rows(table)
     }
 
     async fn bulk_create(
@@ -61,18 +61,6 @@ impl CsvImport for DividendDomain {
 const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
     exclude_row_fn: None,
-    required_columns: &[
-        "入金日",
-        "商品",
-        "口座",
-        "銘柄コード",
-        "銘柄",
-        "単価[円/現地通貨]",
-        "数量[株/口]",
-        "配当・分配金合計（税引前）[円/現地通貨]",
-        "税額合計[円/現地通貨]",
-        "受取金額[円/現地通貨]",
-    ],
 };
 
 /// 配当金検索条件を SQL 条件へ変換した中間表現
@@ -289,12 +277,12 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-fn transform_dividend_rows(rows: &[CsvRow]) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(rows, transform_dividend_row)
+fn transform_dividend_rows(table: &CsvTable) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(table, transform_dividend_row)
 }
 
 fn transform_dividend_row(
-    row: &CsvRow,
+    row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateDividendRequest, CsvRowError> {
     Ok(CreateDividendRequest {

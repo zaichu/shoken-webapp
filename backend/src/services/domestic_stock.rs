@@ -5,10 +5,10 @@ use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
 use crate::services::csv::import::{validate_csv_rows, CsvImport};
-use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_security_code, parse_required_string, RowNumber,
+    parse_required_security_code, parse_required_string, CsvRowView, RowNumber,
 };
 use crate::services::domain::bulk::{
     ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
@@ -48,8 +48,8 @@ impl CsvImport for DomesticStockDomain {
     type Row = CreateDomesticStockRequest;
     const CSV_CONFIG: CsvParserConfig = DOMESTIC_STOCK_CSV_CONFIG;
 
-    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_domestic_stock_rows(rows)
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_domestic_stock_rows(table)
     }
 
     async fn bulk_create(
@@ -65,18 +65,6 @@ impl CsvImport for DomesticStockDomain {
 const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
     exclude_row_fn: None,
-    required_columns: &[
-        "約定日",
-        "受渡日",
-        "銘柄コード",
-        "銘柄名",
-        "口座",
-        "数量[株]",
-        "売却/決済単価[円]",
-        "売却/決済額[円]",
-        "平均取得価額[円]",
-        "実現損益[円]",
-    ],
 };
 
 /// 国内株式検索条件を SQL 条件へ変換した中間表現
@@ -371,13 +359,13 @@ pub async fn bulk_create(
 }
 
 fn transform_domestic_stock_rows(
-    rows: &[CsvRow],
+    table: &CsvTable,
 ) -> (Vec<CreateDomesticStockRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(rows, transform_domestic_stock_row)
+    validate_csv_rows(table, transform_domestic_stock_row)
 }
 
 fn transform_domestic_stock_row(
-    row: &CsvRow,
+    row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;

@@ -7,9 +7,9 @@ use crate::models::csv_import::CsvRowError;
 use crate::services::csv::import::{validate_csv_rows, CsvImport};
 #[cfg(test)]
 use crate::services::csv::pipeline::parse_csv_with_config;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
+    check_max_chars, parse_number, parse_optional_string, CsvCells, CsvRowView, RowNumber,
 };
 use crate::services::domain::bulk::{
     ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
@@ -46,8 +46,8 @@ impl CsvImport for AssetBalanceDomain {
     type Row = CreateAssetBalanceRequest;
     const CSV_CONFIG: CsvParserConfig = ASSET_BALANCE_CSV_CONFIG;
 
-    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_asset_balance_rows(rows)
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_asset_balance_rows(table)
     }
 
     async fn bulk_create(
@@ -63,18 +63,6 @@ impl CsvImport for AssetBalanceDomain {
 const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 6,
     exclude_row_fn: Some(is_account_summary_row),
-    required_columns: &[
-        "銘柄コード",
-        "銘柄名",
-        "保有数量［株］",
-        "執行中［株］",
-        "平均取得価額［円］",
-        "取得総額［円］",
-        "現在値［円］",
-        "現在値（前日比）［円］",
-        "時価評価額［円］",
-        "評価損益［％］",
-    ],
 };
 
 /// 保有銘柄検索条件を SQL 条件へ変換した中間表現
@@ -233,9 +221,9 @@ pub async fn bulk_create(
 }
 
 fn transform_asset_balance_rows(
-    rows: &[CsvRow],
+    table: &CsvTable,
 ) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-    let (items, errors) = validate_csv_rows(rows, transform_asset_balance_row);
+    let (items, errors) = validate_csv_rows(table, transform_asset_balance_row);
     (items.into_iter().flatten().collect(), errors)
 }
 
@@ -243,7 +231,7 @@ fn transform_asset_balance_rows(
 ///
 /// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
 /// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
-fn is_account_summary_row(row: &CsvRow) -> bool {
+fn is_account_summary_row(row: &CsvRowView<'_>) -> bool {
     row.cell("銘柄コード").trim().is_empty() && row.values().any(|value| value.contains("口座合計"))
 }
 
@@ -255,7 +243,7 @@ fn is_account_summary_row(row: &CsvRow) -> bool {
 ///   - 現在値（前日比）: 変動なし時は 0 または "-"
 ///   - 評価損益（%）: NISA 等で表示されない場合に "-"
 fn transform_asset_balance_row(
-    row: &CsvRow,
+    row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<Option<CreateAssetBalanceRequest>, CsvRowError> {
     let num = |col: &str| {
@@ -345,17 +333,16 @@ mod tests {
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        let rows = parse_csv_with_config(
+        let table = parse_csv_with_config(
             format!("{HEADER}\n{row}\n").as_bytes(),
             &CsvParserConfig {
                 skip_header_rows: 0,
                 exclude_row_fn: None,
-                required_columns: ASSET_BALANCE_CSV_CONFIG.required_columns,
             },
         )
         .unwrap();
 
-        transform_asset_balance_rows(&rows)
+        transform_asset_balance_rows(&table)
     }
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
@@ -469,12 +456,12 @@ mod tests {
                 &["1605", "7974"][..],
             ),
         ] {
-            let rows = parse_csv_with_config(
+            let table = parse_csv_with_config(
                 make_asset_balance_csv(rows).as_bytes(),
                 &ASSET_BALANCE_CSV_CONFIG,
             )
             .unwrap();
-            let (items, errors) = transform_asset_balance_rows(&rows);
+            let (items, errors) = transform_asset_balance_rows(&table);
 
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
             assert_eq!(
@@ -489,21 +476,19 @@ mod tests {
 
     #[test]
     fn test_is_account_summary_row() {
-        let make_row = |code: &str, name: &str| {
-            CsvRow::from([
-                ("銘柄コード".to_string(), code.to_string()),
-                ("銘柄名".to_string(), name.to_string()),
-            ])
+        use crate::services::csv::util::HeaderIndex;
+
+        let index = HeaderIndex::new(["銘柄コード", "銘柄名"]);
+        let is_summary = |code: &str, name: &str| {
+            let record = csv::StringRecord::from(vec![code, name]);
+            is_account_summary_row(&CsvRowView::new(&record, &index))
         };
 
-        assert!(is_account_summary_row(&make_row("", "特定口座合計")));
+        assert!(is_summary("", "特定口座合計"));
         // 「口座合計」を含む値があっても銘柄コードが入っていれば集計行ではない
-        assert!(!is_account_summary_row(&make_row(
-            "9999",
-            "口座合計を含む名称"
-        )));
-        assert!(!is_account_summary_row(&make_row("", "普通株式")));
-        assert!(!is_account_summary_row(&make_row("7203", "トヨタ自動車")));
+        assert!(!is_summary("9999", "口座合計を含む名称"));
+        assert!(!is_summary("", "普通株式"));
+        assert!(!is_summary("7203", "トヨタ自動車"));
     }
 
     #[test]

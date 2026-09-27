@@ -1,24 +1,24 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv::pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
-use crate::services::csv::util::RowNumber;
+use crate::services::csv::pipeline::{parse_csv_with_config, CsvParserConfig, CsvTable};
+use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::Domain;
 use shared::value::UserId;
 use sqlx::PgPool;
 use std::future::Future;
 
-pub fn validate_csv_rows<T, F>(rows: &[CsvRow], transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
+pub fn validate_csv_rows<T, F>(table: &CsvTable, transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
 where
-    F: Fn(&CsvRow, RowNumber) -> Result<T, CsvRowError>,
+    F: Fn(&CsvRowView<'_>, RowNumber) -> Result<T, CsvRowError>,
 {
     let mut items = Vec::new();
     let mut errors = Vec::new();
 
-    for (index, row) in rows.iter().enumerate() {
+    for (index, row) in table.rows().enumerate() {
         let row_num = RowNumber::new(index + 1);
-        match transform_row(row, row_num) {
+        match transform_row(&row, row_num) {
             Ok(item) => items.push(item),
             Err(error) => errors.push(error),
         }
@@ -64,10 +64,10 @@ pub fn build_csv_preview<T, F>(
 ) -> Result<CsvPreviewResponse, ApiError>
 where
     T: serde::Serialize,
-    F: FnOnce(&[CsvRow]) -> (Vec<T>, Vec<CsvRowError>),
+    F: FnOnce(&CsvTable) -> (Vec<T>, Vec<CsvRowError>),
 {
-    let rows = parse_csv_with_config(bytes, config)?;
-    let (items, errors) = transform_rows(&rows);
+    let table = parse_csv_with_config(bytes, config)?;
+    let (items, errors) = transform_rows(&table);
     Ok(build_preview_response(&items, errors))
 }
 
@@ -79,21 +79,21 @@ pub async fn run_csv_upload<T, F, BulkFn, BulkFut>(
     bulk_create: BulkFn,
 ) -> Result<CsvUploadResponse, ApiError>
 where
-    F: FnOnce(&[CsvRow]) -> (Vec<T>, Vec<CsvRowError>),
+    F: FnOnce(&CsvTable) -> (Vec<T>, Vec<CsvRowError>),
     BulkFn: FnOnce(Vec<T>) -> BulkFut,
     BulkFut: Future<Output = Result<BulkCreateResponse, ApiError>>,
 {
-    let rows = parse_csv_with_config(bytes, config)?;
-    let (items, errors) = transform_rows(&rows);
+    let table = parse_csv_with_config(bytes, config)?;
+    let (items, errors) = transform_rows(&table);
     let result = bulk_create(items).await?;
     Ok(finish_csv_upload(&result, errors))
 }
-/// CSV から取り込めるドメイン。ドメインごとに持つのは列の定義・行の読み取り・一括登録だけ
+/// CSV から取り込めるドメイン。ドメインごとに持つのはパース設定・行の読み取り・一括登録だけ
 pub trait CsvImport: Domain {
     type Row: serde::Serialize + Send + Sync;
     const CSV_CONFIG: CsvParserConfig;
 
-    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>);
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>);
 
     fn bulk_create(
         pool: &PgPool,
@@ -141,6 +141,8 @@ impl<D: CsvImport> CsvDomain for D {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::csv::util::CsvCells;
+
     fn strings(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| (*value).to_string()).collect()
     }
@@ -168,35 +170,21 @@ mod tests {
         );
     }
 
+    const KEY_CONFIG: CsvParserConfig = CsvParserConfig {
+        skip_header_rows: 0,
+        exclude_row_fn: None,
+    };
+
     #[test]
     fn test_validate_csv_rows() {
-        let rows: Vec<CsvRow> = vec![
-            [("key".to_string(), "a".to_string())]
-                .iter()
-                .cloned()
-                .collect(),
-            [("key".to_string(), "b".to_string())]
-                .iter()
-                .cloned()
-                .collect(),
-        ];
-        let (items, errors): (Vec<String>, _) = validate_csv_rows(&rows, |row, _row_num| {
-            Ok(row.get("key").cloned().unwrap_or_default())
-        });
+        let table = parse_csv_with_config("key\na\nb".as_bytes(), &KEY_CONFIG).unwrap();
+        let (items, errors): (Vec<String>, _) =
+            validate_csv_rows(&table, |row, _row_num| Ok(row.cell("key").to_string()));
         assert_eq!((items, errors.is_empty()), (strings(&["a", "b"]), true));
 
-        let rows: Vec<CsvRow> = vec![
-            [("key".to_string(), "ok".to_string())]
-                .iter()
-                .cloned()
-                .collect(),
-            [("key".to_string(), "bad".to_string())]
-                .iter()
-                .cloned()
-                .collect(),
-        ];
-        let (items, errors): (Vec<String>, _) = validate_csv_rows(&rows, |row, row_num| {
-            let value = row.get("key").cloned().unwrap_or_default();
+        let table = parse_csv_with_config("key\nok\nbad".as_bytes(), &KEY_CONFIG).unwrap();
+        let (items, errors): (Vec<String>, _) = validate_csv_rows(&table, |row, row_num| {
+            let value = row.cell("key").to_string();
             if value == "bad" {
                 Err(CsvRowError {
                     row: row_num.get(),
@@ -212,21 +200,22 @@ mod tests {
             (1, Some(2))
         );
 
-        let (items, errors): (Vec<String>, _) = validate_csv_rows(&[], |_, _| Ok("".to_string()));
+        let table = parse_csv_with_config("key".as_bytes(), &KEY_CONFIG).unwrap();
+        let (items, errors): (Vec<String>, _) =
+            validate_csv_rows(&table, |_, _| Ok("".to_string()));
         assert_eq!((items.is_empty(), errors.is_empty()), (true, true));
     }
 
     const PREVIEW_TEST_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,
         exclude_row_fn: None,
-        required_columns: &["name", "amount"],
     };
 
-    fn collect_names(rows: &[CsvRow]) -> (Vec<String>, Vec<CsvRowError>) {
+    fn collect_names(table: &CsvTable) -> (Vec<String>, Vec<CsvRowError>) {
         let mut items = Vec::new();
         let mut errors = Vec::new();
-        for (index, row) in rows.iter().enumerate() {
-            let name = row.get("name").cloned().unwrap_or_default();
+        for (index, row) in table.rows().enumerate() {
+            let name = row.cell("name").to_string();
             if name.is_empty() {
                 errors.push(CsvRowError {
                     row: index + 1,
