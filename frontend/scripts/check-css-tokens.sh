@@ -9,10 +9,10 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 SCRIPT_PATH="$SCRIPT_DIR/$(basename "$0")"
 cd "$SCRIPT_DIR/.."
 
-PALETTE='(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}'
-OLD_TOKEN='(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset)-(primary|primary-hover|primary-dark|secondary|secondary-hover|success|success-hover|info-hover|warning|warning-hover|danger|danger-hover|light|dark|negative-dark|bg-body|bg-dark|bg-card-dark|border-dark)\b'
+PALETTE='(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}'
+OLD_TOKEN='(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset)-(primary|primary-hover|primary-dark|secondary|secondary-hover|success|success-hover|info-hover|warning|warning-hover|danger|danger-hover|light|dark|negative-dark|bg-body|bg-dark|bg-card-dark|border-dark)\b'
 # 白・黒の直書き(bg-white など)。`bg-surface` / `text-text-inverse` / `bg-scrim` などのトークンを使う
-MONO='([^[:space:]"]+:)*(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
+MONO='([^[:space:]"]+:)*(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
 # `-[...]` 形式の任意値と `[property:value]` 形式の任意プロパティ
 ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\])'
 

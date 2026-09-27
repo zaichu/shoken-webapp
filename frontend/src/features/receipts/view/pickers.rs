@@ -333,7 +333,7 @@ fn YearPicker(
                                             class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
                                                 "rounded bg-accent-soft px-1 py-1.5 text-center text-sm font-semibold text-accent-text ring-1 ring-inset ring-accent-ring"
                                             } else {
-                                                "rounded px-1 py-1.5 text-center text-sm text-text-soft hover:bg-surface-raised hover:text-text-strong"
+                                                "rounded px-1 py-1.5 text-center text-sm text-text-muted hover:bg-surface-raised hover:text-text-strong"
                                             }
                                             on:click=move |_| {
                                                 click_open.set(false);
