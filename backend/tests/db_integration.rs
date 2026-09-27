@@ -17,7 +17,8 @@ use backend::{
     services::auth::{self as auth_svc, SessionToken},
     services::dividend as dividend_svc,
     services::dividend_cache,
-    services::domain::bulk::RowLimit,
+    services::domain::bulk::{self, RowLimit},
+    services::domain::search::search as domain_search,
     services::domestic_stock as domestic_stock_svc,
     services::mutualfund as mutualfund_svc,
     state::{AppState, Secrets},
@@ -321,13 +322,15 @@ async fn service_coverage_all_domains() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    assert!(
-        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
-            .await
-            .expect("initial mutualfund list failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<mutualfund_svc::MutualfundDomain>(
+        &pool,
+        user_id,
+        default_mutualfund_search_params(),
+    )
+    .await
+    .expect("initial mutualfund list failed")
+    .data
+    .is_empty());
     let mutualfund_empty =
         mutualfund_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -359,34 +362,42 @@ async fn service_coverage_all_domains() {
     assert!(mutualfund_uploaded.errors.is_empty());
 
     assert_eq!(
-        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
-            .await
-            .expect("mutualfund list failed")
-            .data
-            .len(),
+        domain_search::<mutualfund_svc::MutualfundDomain>(
+            &pool,
+            user_id,
+            default_mutualfund_search_params(),
+        )
+        .await
+        .expect("mutualfund list failed")
+        .data
+        .len(),
         3
     );
     assert_eq!(
-        mutualfund_svc::delete_all(&pool, user_id)
+        bulk::delete_all::<mutualfund_svc::MutualfundDomain>(&pool, user_id)
             .await
             .expect("mutualfund delete_all failed"),
         3
     );
-    assert!(
-        mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
-            .await
-            .expect("mutualfund list after delete failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<mutualfund_svc::MutualfundDomain>(
+        &pool,
+        user_id,
+        default_mutualfund_search_params(),
+    )
+    .await
+    .expect("mutualfund list after delete failed")
+    .data
+    .is_empty());
 
-    assert!(
-        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
-            .await
-            .expect("initial dividend list failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<dividend_svc::DividendDomain>(
+        &pool,
+        user_id,
+        default_dividend_search_params()
+    )
+    .await
+    .expect("initial dividend list failed")
+    .data
+    .is_empty());
     let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
         .await
         .expect("empty dividend bulk_create failed");
@@ -414,34 +425,42 @@ async fn service_coverage_all_domains() {
     assert!(dividend_uploaded.errors.is_empty());
 
     assert_eq!(
-        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
-            .await
-            .expect("dividend list failed")
-            .data
-            .len(),
+        domain_search::<dividend_svc::DividendDomain>(
+            &pool,
+            user_id,
+            default_dividend_search_params()
+        )
+        .await
+        .expect("dividend list failed")
+        .data
+        .len(),
         3
     );
     assert_eq!(
-        dividend_svc::delete_all(&pool, user_id)
+        bulk::delete_all::<dividend_svc::DividendDomain>(&pool, user_id)
             .await
             .expect("dividend delete_all failed"),
         3
     );
-    assert!(
-        dividend_svc::search(&pool, user_id, &default_dividend_search_params())
-            .await
-            .expect("dividend list after delete failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<dividend_svc::DividendDomain>(
+        &pool,
+        user_id,
+        default_dividend_search_params()
+    )
+    .await
+    .expect("dividend list after delete failed")
+    .data
+    .is_empty());
 
-    assert!(
-        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
-            .await
-            .expect("initial domestic_stock list failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<domestic_stock_svc::DomesticStockDomain>(
+        &pool,
+        user_id,
+        default_domestic_stock_search_params(),
+    )
+    .await
+    .expect("initial domestic_stock list failed")
+    .data
+    .is_empty());
     let domestic_stock_empty =
         domestic_stock_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -477,34 +496,42 @@ async fn service_coverage_all_domains() {
     assert!(domestic_stock_uploaded.errors.is_empty());
 
     assert_eq!(
-        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
-            .await
-            .expect("domestic_stock list failed")
-            .data
-            .len(),
+        domain_search::<domestic_stock_svc::DomesticStockDomain>(
+            &pool,
+            user_id,
+            default_domestic_stock_search_params(),
+        )
+        .await
+        .expect("domestic_stock list failed")
+        .data
+        .len(),
         3
     );
     assert_eq!(
-        domestic_stock_svc::delete_all(&pool, user_id)
+        bulk::delete_all::<domestic_stock_svc::DomesticStockDomain>(&pool, user_id)
             .await
             .expect("domestic_stock delete_all failed"),
         3
     );
-    assert!(
-        domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
-            .await
-            .expect("domestic_stock list after delete failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<domestic_stock_svc::DomesticStockDomain>(
+        &pool,
+        user_id,
+        default_domestic_stock_search_params(),
+    )
+    .await
+    .expect("domestic_stock list after delete failed")
+    .data
+    .is_empty());
 
-    assert!(
-        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-            .await
-            .expect("initial asset_balance list failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("initial asset_balance list failed")
+    .data
+    .is_empty());
     let asset_balance_empty =
         asset_balance_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -524,11 +551,15 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_created.inserted, 2);
     assert_eq!(asset_balance_created.skipped, 0);
     assert_eq!(
-        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-            .await
-            .expect("asset_balance list after bulk_create failed")
-            .data
-            .len(),
+        domain_search::<asset_balance_svc::AssetBalanceDomain>(
+            &pool,
+            user_id,
+            default_asset_balance_search_params(),
+        )
+        .await
+        .expect("asset_balance list after bulk_create failed")
+        .data
+        .len(),
         2
     );
 
@@ -544,27 +575,32 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_uploaded.skipped, 0);
     assert!(asset_balance_uploaded.errors.is_empty());
 
-    let asset_balance_rows =
-        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-            .await
-            .expect("asset_balance list failed")
-            .data;
+    let asset_balance_rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("asset_balance list failed")
+    .data;
     assert_eq!(asset_balance_rows.len(), 1);
     assert_eq!(asset_balance_rows[0].security_code.as_str(), "7203");
 
     assert_eq!(
-        asset_balance_svc::delete_all(&pool, user_id)
+        bulk::delete_all::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id)
             .await
             .expect("asset_balance delete_all failed"),
         1
     );
-    assert!(
-        asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-            .await
-            .expect("asset_balance list after delete failed")
-            .data
-            .is_empty()
-    );
+    assert!(domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("asset_balance list after delete failed")
+    .data
+    .is_empty());
 }
 
 #[tokio::test]
@@ -589,10 +625,14 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
         .await
         .expect("2回目 bulk_create 失敗");
 
-    let rows = asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-        .await
-        .expect("list 失敗")
-        .data;
+    let rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data;
     assert_eq!(
         rows.len(),
         3,
@@ -636,10 +676,14 @@ async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {
     res_a.unwrap().expect("task_a 失敗");
     res_b.unwrap().expect("task_b 失敗");
 
-    let rows = asset_balance_svc::search(&pool, user_id, &default_asset_balance_search_params())
-        .await
-        .expect("list 失敗")
-        .data;
+    let rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data;
 
     // advisory lock で直列化されるため、A(2件) か B(3件) のいずれかのみ存在する
     assert!(
@@ -666,16 +710,20 @@ async fn dividend_bulk_create_and_list() {
     assert_eq!(created.inserted, 3);
     assert_eq!(created.skipped, 0);
 
-    let rows = dividend_svc::search(&pool, user_id, &default_dividend_search_params())
-        .await
-        .expect("dividend list failed")
-        .data;
-    assert_eq!(rows.len(), 3);
-
-    let first_page = dividend_svc::search(
+    let rows = domain_search::<dividend_svc::DividendDomain>(
         &pool,
         user_id,
-        &dividend_search_params_with_pagination(PaginationParams {
+        default_dividend_search_params(),
+    )
+    .await
+    .expect("dividend list failed")
+    .data;
+    assert_eq!(rows.len(), 3);
+
+    let first_page = domain_search::<dividend_svc::DividendDomain>(
+        &pool,
+        user_id,
+        dividend_search_params_with_pagination(PaginationParams {
             page: Some(1),
             per_page: Some(2),
         }),
@@ -689,10 +737,10 @@ async fn dividend_bulk_create_and_list() {
     assert!(first_page.summary.is_none());
     assert!(first_page.facets.is_none());
 
-    let second_page = dividend_svc::search(
+    let second_page = domain_search::<dividend_svc::DividendDomain>(
         &pool,
         user_id,
-        &dividend_search_params_with_pagination(PaginationParams {
+        dividend_search_params_with_pagination(PaginationParams {
             page: Some(2),
             per_page: Some(2),
         }),
@@ -706,10 +754,10 @@ async fn dividend_bulk_create_and_list() {
     assert!(second_page.summary.is_none());
     assert!(second_page.facets.is_none());
 
-    let clamped_page = dividend_svc::search(
+    let clamped_page = domain_search::<dividend_svc::DividendDomain>(
         &pool,
         user_id,
-        &dividend_search_params_with_pagination(PaginationParams {
+        dividend_search_params_with_pagination(PaginationParams {
             page: Some(1),
             per_page: Some(5000),
         }),
@@ -719,15 +767,19 @@ async fn dividend_bulk_create_and_list() {
     assert_eq!(clamped_page.total, 3);
     assert_eq!(clamped_page.per_page, 1000);
 
-    let deleted = dividend_svc::delete_all(&pool, user_id)
+    let deleted = bulk::delete_all::<dividend_svc::DividendDomain>(&pool, user_id)
         .await
         .expect("dividend delete_all failed");
     assert_eq!(deleted, 3);
 
-    let rows = dividend_svc::search(&pool, user_id, &default_dividend_search_params())
-        .await
-        .expect("dividend list after delete failed")
-        .data;
+    let rows = domain_search::<dividend_svc::DividendDomain>(
+        &pool,
+        user_id,
+        default_dividend_search_params(),
+    )
+    .await
+    .expect("dividend list after delete failed")
+    .data;
     assert_eq!(rows.len(), 0);
 }
 
@@ -768,21 +820,29 @@ async fn domestic_stock_bulk_create_and_list() {
     assert_eq!(created.inserted, 3);
     assert_eq!(created.skipped, 0);
 
-    let rows = domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
-        .await
-        .expect("domestic_stock list failed")
-        .data;
+    let rows = domain_search::<domestic_stock_svc::DomesticStockDomain>(
+        &pool,
+        user_id,
+        default_domestic_stock_search_params(),
+    )
+    .await
+    .expect("domestic_stock list failed")
+    .data;
     assert_eq!(rows.len(), 3);
 
-    let deleted = domestic_stock_svc::delete_all(&pool, user_id)
+    let deleted = bulk::delete_all::<domestic_stock_svc::DomesticStockDomain>(&pool, user_id)
         .await
         .expect("domestic_stock delete_all failed");
     assert_eq!(deleted, 3);
 
-    let rows = domestic_stock_svc::search(&pool, user_id, &default_domestic_stock_search_params())
-        .await
-        .expect("domestic_stock list after delete failed")
-        .data;
+    let rows = domain_search::<domestic_stock_svc::DomesticStockDomain>(
+        &pool,
+        user_id,
+        default_domestic_stock_search_params(),
+    )
+    .await
+    .expect("domestic_stock list after delete failed")
+    .data;
     assert_eq!(rows.len(), 0);
 }
 
@@ -822,21 +882,29 @@ async fn mutualfund_bulk_create_and_list() {
     assert_eq!(created.inserted, 2);
     assert_eq!(created.skipped, 0);
 
-    let rows = mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
-        .await
-        .expect("mutualfund list failed")
-        .data;
+    let rows = domain_search::<mutualfund_svc::MutualfundDomain>(
+        &pool,
+        user_id,
+        default_mutualfund_search_params(),
+    )
+    .await
+    .expect("mutualfund list failed")
+    .data;
     assert_eq!(rows.len(), 2);
 
-    let deleted = mutualfund_svc::delete_all(&pool, user_id)
+    let deleted = bulk::delete_all::<mutualfund_svc::MutualfundDomain>(&pool, user_id)
         .await
         .expect("mutualfund delete_all failed");
     assert_eq!(deleted, 2);
 
-    let rows = mutualfund_svc::search(&pool, user_id, &default_mutualfund_search_params())
-        .await
-        .expect("mutualfund list after delete failed")
-        .data;
+    let rows = domain_search::<mutualfund_svc::MutualfundDomain>(
+        &pool,
+        user_id,
+        default_mutualfund_search_params(),
+    )
+    .await
+    .expect("mutualfund list after delete failed")
+    .data;
     assert_eq!(rows.len(), 0);
 }
 
@@ -1281,7 +1349,7 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut dividend_params = default_dividend_search_params();
     dividend_params.search.include_facets = Some(true);
-    let facets = dividend_svc::search(&pool, user_id, &dividend_params)
+    let facets = domain_search::<dividend_svc::DividendDomain>(&pool, user_id, dividend_params)
         .await
         .expect("dividend search")
         .facets
@@ -1345,11 +1413,12 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut ds_params = default_domestic_stock_search_params();
     ds_params.search.include_facets = Some(true);
-    let facets = domestic_stock_svc::search(&pool, user_id, &ds_params)
-        .await
-        .expect("domestic_stock search")
-        .facets
-        .expect("facets 必須");
+    let facets =
+        domain_search::<domestic_stock_svc::DomesticStockDomain>(&pool, user_id, ds_params)
+            .await
+            .expect("domestic_stock search")
+            .facets
+            .expect("facets 必須");
     assert_eq!(
         facets
             .accounts
@@ -1400,7 +1469,7 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut mf_params = default_mutualfund_search_params();
     mf_params.search.include_facets = Some(true);
-    let facets = mutualfund_svc::search(&pool, user_id, &mf_params)
+    let facets = domain_search::<mutualfund_svc::MutualfundDomain>(&pool, user_id, mf_params)
         .await
         .expect("mutualfund search")
         .facets
@@ -1433,7 +1502,7 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut ab_params = default_asset_balance_search_params();
     ab_params.search.include_facets = Some(true);
-    let facets = asset_balance_svc::search(&pool, user_id, &ab_params)
+    let facets = domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id, ab_params)
         .await
         .expect("asset_balance search")
         .facets

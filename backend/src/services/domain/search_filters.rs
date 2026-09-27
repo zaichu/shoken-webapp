@@ -1,11 +1,9 @@
 use crate::errors::ApiError;
-use crate::models::common::{PaginatedSearchResponse, SearchQueryParams};
+use crate::models::common::SearchQueryParams;
 use chrono::NaiveDate;
 use shared::value::UserId;
-use sqlx::postgres::PgRow;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
+use sqlx::{Postgres, QueryBuilder};
 use std::future::Future;
-use utoipa::ToSchema;
 
 pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
@@ -185,65 +183,6 @@ pub async fn fetch_if_included<T>(
     } else {
         Ok(None)
     }
-}
-
-/// count query / data query / summary future / facets future を `tokio::try_join!` で並行実行し
-/// `PaginatedSearchResponse` を組み立てる4ドメイン共通の検索制御フロー。
-///
-/// - `count_sql` / `data_sql`: フィルタ前の `SELECT ... FROM table`（呼び出し側が渡す固定文字列）
-/// - `order_by`: data query に付与する `ORDER BY` 句（先頭スペース込み。LIMIT/OFFSET は本関数側で付与する）
-/// - `push_filters`: count/data 両方の WHERE 句を積むクロージャ（`push_search_filters` 等を呼ぶ想定）
-/// - `summary_fut` / `facets_fut`: `should_include_summary`/`should_include_facets` に応じて
-///   `Some`/`None` を返す形に呼び出し側が組み立てた future をそのまま渡す
-#[allow(clippy::too_many_arguments)]
-pub async fn run_paginated_search<T, Summary, Facets, SummaryFut, FacetsFut>(
-    pool: &PgPool,
-    count_sql: &str,
-    data_sql: &str,
-    order_by: &str,
-    push_filters: impl Fn(&mut QueryBuilder<Postgres>),
-    page: i64,
-    per_page: i64,
-    offset: i64,
-    summary_fut: SummaryFut,
-    facets_fut: FacetsFut,
-) -> Result<PaginatedSearchResponse<T, Summary, Facets>, ApiError>
-where
-    T: for<'r> FromRow<'r, PgRow> + ToSchema + Send + Unpin + 'static,
-    Summary: ToSchema + 'static,
-    Facets: ToSchema + 'static,
-    SummaryFut: Future<Output = Result<Option<Summary>, ApiError>>,
-    FacetsFut: Future<Output = Result<Option<Facets>, ApiError>>,
-{
-    let mut count_qb: QueryBuilder<Postgres> = QueryBuilder::new(count_sql);
-    push_filters(&mut count_qb);
-    let count_fut = async move {
-        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
-        Ok::<_, ApiError>(total)
-    };
-
-    let mut data_qb: QueryBuilder<Postgres> = QueryBuilder::new(data_sql);
-    push_filters(&mut data_qb);
-    data_qb.push(order_by);
-    data_qb.push(" LIMIT ").push_bind(per_page);
-    data_qb.push(" OFFSET ").push_bind(offset);
-    let data_fut = async move {
-        let data = data_qb.build_query_as::<T>().fetch_all(pool).await?;
-        Ok::<_, ApiError>(data)
-    };
-
-    // count/data/summary/facets は相互に依存しないため並行実行する
-    let (total, data, summary, facets) =
-        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
-
-    Ok(PaginatedSearchResponse {
-        data,
-        total,
-        page,
-        per_page,
-        summary,
-        facets,
-    })
 }
 
 #[cfg(test)]

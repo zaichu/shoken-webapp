@@ -1,7 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
-};
+use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
@@ -13,12 +11,12 @@ use crate::services::csv::util::{
     parse_required_number, parse_required_string, RowNumber,
 };
 use crate::services::domain::bulk::{
-    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
-    RowLimit,
+    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
+    push_search_filters, tokens_from_query, DateAxisFilter,
 };
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
@@ -26,7 +24,6 @@ use shared::normalize::normalize_security_name;
 use shared::value::UserId;
 use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracing::info;
 
 /// 配当金ドメイン
 pub struct DividendDomain;
@@ -80,7 +77,7 @@ const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
 
 /// 配当金検索条件を SQL 条件へ変換した中間表現
 #[derive(Debug)]
-struct DividendFilter {
+pub struct DividendFilter {
     date_axis: DateAxisFilter,
     tokens: Vec<String>,
     product: Option<String>,
@@ -89,133 +86,111 @@ struct DividendFilter {
     security_name: Option<String>,
 }
 
-impl DividendFilter {
-    fn from_params(params: &DividendSearchQueryParams) -> Result<Self, ApiError> {
-        let search = &params.search;
-        let date_axis = DateAxisFilter::from_search_params(search)?;
-        let tokens = tokens_from_query(search.q.as_deref());
+impl TryFrom<DividendSearchQueryParams> for DividendFilter {
+    type Error = ApiError;
+
+    fn try_from(params: DividendSearchQueryParams) -> Result<Self, ApiError> {
+        let date_axis = DateAxisFilter::from_search_params(&params.search)?;
+        let tokens = tokens_from_query(params.search.q.as_deref());
 
         Ok(Self {
             date_axis,
             tokens,
-            product: params.product.clone(),
-            account: params.account.clone(),
-            security_code: params.security_code.clone(),
-            security_name: params.security_name.clone(),
+            product: params.product,
+            account: params.account,
+            security_code: params.security_code,
+            security_name: params.security_name,
         })
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DividendFilter) {
-    push_search_filters(
-        qb,
-        user_id,
-        Some(("settlement_date", &filter.date_axis)),
-        &[
-            ("product", &filter.product),
-            ("account", &filter.account),
-            ("security_code", &filter.security_code),
-            ("security_name", &filter.security_name),
-        ],
-        &filter.tokens,
-        &["product", "account", "security_code", "security_name"],
-    );
-}
+impl Search for DividendDomain {
+    type Data = Dividend;
+    type Params = DividendSearchQueryParams;
+    type Filter = DividendFilter;
+    type Summary = DividendSummary;
 
-pub async fn search(
-    pool: &PgPool,
-    user_id: UserId,
-    params: &DividendSearchQueryParams,
-) -> Result<PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>, ApiError> {
-    info!("[dividend.search] リクエスト受信");
-    let filter = DividendFilter::from_params(params)?;
+    const COLUMNS: &'static str = "id, user_id, settlement_date, product, account, security_code, \
+        security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, \
+        created_at, updated_at";
+    const ORDER_BY: &'static str = " ORDER BY settlement_date DESC, id DESC";
 
-    let summary_fut = fetch_if_included(
-        params.should_include_summary(),
-        fetch_summary(pool, user_id, &filter),
-    );
+    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DividendFilter) {
+        push_search_filters(
+            qb,
+            user_id,
+            Some(("settlement_date", &filter.date_axis)),
+            &[
+                ("product", &filter.product),
+                ("account", &filter.account),
+                ("security_code", &filter.security_code),
+                ("security_name", &filter.security_name),
+            ],
+            &filter.tokens,
+            &["product", "account", "security_code", "security_name"],
+        );
+    }
 
-    let facets_fut = fetch_if_included(
-        params.should_include_facets(),
-        fetch_facets(pool, user_id, &filter),
-    );
+    async fn fetch_summary(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &DividendFilter,
+    ) -> Result<DividendSummary, ApiError> {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+            "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
+             COALESCE(SUM(taxes), 0) AS total_taxes, \
+             COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
+             FROM dividends",
+        );
+        Self::push_filters(&mut qb, user_id, filter);
+        Ok(qb
+            .build_query_as::<DividendSummary>()
+            .fetch_one(pool)
+            .await?)
+    }
 
-    run_paginated_search(
-        pool,
-        "SELECT COUNT(*) FROM dividends",
-        "SELECT id, user_id, settlement_date, product, account, security_code, security_name, \
-         unit_price, shares, dividends_before_tax, taxes, net_amount_received, created_at, updated_at \
-         FROM dividends",
-        " ORDER BY settlement_date DESC, id DESC",
-        |qb| push_filters(qb, user_id, &filter),
-        params.page(),
-        params.per_page(),
-        params.offset(),
-        summary_fut,
-        facets_fut,
-    )
-    .await
-}
+    async fn fetch_facets(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &DividendFilter,
+    ) -> Result<SearchFacets, ApiError> {
+        let products_fut =
+            fetch_group_facets(pool, user_id, filter, GroupField::Product, FacetOrder::Asc);
+        let accounts_fut =
+            fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+        let securities_fut = fetch_security_facets(pool, user_id, filter);
+        let years_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::SettlementDateYear,
+            FacetOrder::Desc,
+        );
+        let year_months_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::SettlementDateYearMonth,
+            FacetOrder::Desc,
+        );
 
-async fn fetch_summary(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &DividendFilter,
-) -> Result<DividendSummary, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
-         COALESCE(SUM(taxes), 0) AS total_taxes, \
-         COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
-         FROM dividends",
-    );
-    push_filters(&mut qb, user_id, filter);
-    Ok(qb
-        .build_query_as::<DividendSummary>()
-        .fetch_one(pool)
-        .await?)
-}
+        let (products, accounts, securities, years, year_months) = tokio::try_join!(
+            products_fut,
+            accounts_fut,
+            securities_fut,
+            years_fut,
+            year_months_fut
+        )?;
 
-async fn fetch_facets(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &DividendFilter,
-) -> Result<SearchFacets, ApiError> {
-    let products_fut =
-        fetch_group_facets(pool, user_id, filter, GroupField::Product, FacetOrder::Asc);
-    let accounts_fut =
-        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
-    let securities_fut = fetch_security_facets(pool, user_id, filter);
-    let years_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::SettlementDateYear,
-        FacetOrder::Desc,
-    );
-    let year_months_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::SettlementDateYearMonth,
-        FacetOrder::Desc,
-    );
-
-    let (products, accounts, securities, years, year_months) = tokio::try_join!(
-        products_fut,
-        accounts_fut,
-        securities_fut,
-        years_fut,
-        year_months_fut
-    )?;
-
-    Ok(SearchFacets {
-        products: Some(products),
-        accounts: Some(accounts),
-        securities: Some(securities),
-        funds: None,
-        years: Some(years),
-        year_months: Some(year_months),
-    })
+        Ok(SearchFacets {
+            products: Some(products),
+            accounts: Some(accounts),
+            securities: Some(securities),
+            funds: None,
+            years: Some(years),
+            year_months: Some(year_months),
+        })
+    }
 }
 
 async fn fetch_group_facets(
@@ -225,9 +200,13 @@ async fn fetch_group_facets(
     group_field: GroupField,
     order: FacetOrder,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_group_facets(pool, "dividends", group_field.as_sql_expr(), order, |qb| {
-        push_filters(qb, user_id, filter)
-    })
+    facets::fetch_group_facets(
+        pool,
+        DividendDomain::TABLE,
+        group_field.as_sql_expr(),
+        order,
+        |qb| DividendDomain::push_filters(qb, user_id, filter),
+    )
     .await
 }
 
@@ -237,9 +216,12 @@ async fn fetch_security_facets(
     user_id: UserId,
     filter: &DividendFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_security_facets(pool, "dividends", "settlement_date DESC, id DESC", |qb| {
-        push_filters(qb, user_id, filter);
-    })
+    facets::fetch_security_facets(
+        pool,
+        DividendDomain::TABLE,
+        "settlement_date DESC, id DESC",
+        |qb| DividendDomain::push_filters(qb, user_id, filter),
+    )
     .await
 }
 
@@ -348,12 +330,10 @@ fn transform_dividend_row(
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    bulk::delete_all::<DividendDomain>(pool, user_id).await
-}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::common::SearchParamsAccessor;
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvDomain;
     use chrono::NaiveDate;
@@ -443,7 +423,7 @@ mod tests {
         params.search.year_month = Some("2026-06".to_string());
 
         let filter =
-            DividendFilter::from_params(&params).expect("正しい日付フォーマットは検証を通過する");
+            DividendFilter::try_from(params).expect("正しい日付フォーマットは検証を通過する");
 
         assert_eq!(
             filter.date_axis.date_eq,
@@ -490,7 +470,7 @@ mod tests {
         for (field, apply) in cases {
             let mut params = DividendSearchQueryParams::default();
             apply(&mut params);
-            let err = DividendFilter::from_params(&params)
+            let err = DividendFilter::try_from(params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
                 matches!(err, ApiError::Validation(_)),
@@ -503,10 +483,10 @@ mod tests {
     fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = DividendSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
-        let filter = DividendFilter::from_params(&params).expect("q のみなら検証を通過する");
+        let filter = DividendFilter::try_from(params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
-        push_filters(&mut qb, UserId::default(), &filter);
+        DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -524,10 +504,10 @@ mod tests {
             security_name: Some("テスト株式会社".to_string()),
             ..Default::default()
         };
-        let filter = DividendFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
+        let filter = DividendFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
-        push_filters(&mut qb, UserId::default(), &filter);
+        DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 

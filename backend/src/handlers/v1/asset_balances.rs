@@ -45,8 +45,12 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<AssetBalanceSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = asset_balance_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::common::handle_search::<AssetBalanceDomain>(
+        &state.pool,
+        auth_user.id(),
+        params,
+    )
+    .await
 }
 
 /// 保有銘柄を全置換（v1）
@@ -94,8 +98,9 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::csv_import::handle_delete_all(
-        asset_balance_service::delete_all(&state.pool, auth_user.id()),
+    crate::handlers::v1::csv_import::handle_delete_all::<AssetBalanceDomain>(
+        &state.pool,
+        auth_user.id(),
         "全ての保有銘柄データを削除しました",
     )
     .await

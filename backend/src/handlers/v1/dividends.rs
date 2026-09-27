@@ -7,13 +7,12 @@ use crate::{
         dividend::{Dividend, DividendSearchQueryParams, DividendSummary},
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     },
-    services::{dividend as dividend_service, dividend::DividendDomain},
+    services::dividend::DividendDomain,
     state::AppState,
 };
 use axum::{
     extract::{Multipart, Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Json},
+    response::IntoResponse,
 };
 
 /// 配当金一覧を取得（v1）
@@ -50,8 +49,8 @@ pub async fn list(
     auth_user: AuthenticatedUser,
     Query(params): Query<DividendSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = dividend_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::common::handle_search::<DividendDomain>(&state.pool, auth_user.id(), params)
+        .await
 }
 
 /// 配当金を全削除（v1）
@@ -70,8 +69,9 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::csv_import::handle_delete_all(
-        dividend_service::delete_all(&state.pool, auth_user.id()),
+    crate::handlers::v1::csv_import::handle_delete_all::<DividendDomain>(
+        &state.pool,
+        auth_user.id(),
         "全ての配当金データを削除しました",
     )
     .await

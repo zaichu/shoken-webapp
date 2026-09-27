@@ -1,5 +1,6 @@
 pub mod bulk;
 pub mod facets;
+pub mod search;
 pub mod search_filters;
 
 use shared::value::UserId;

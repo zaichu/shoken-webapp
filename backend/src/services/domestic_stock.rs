@@ -1,7 +1,5 @@
 use crate::errors::ApiError;
-use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
-};
+use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
@@ -13,12 +11,12 @@ use crate::services::csv::util::{
     parse_required_security_code, parse_required_string, RowNumber,
 };
 use crate::services::domain::bulk::{
-    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
-    RowLimit,
+    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
+    push_search_filters, tokens_from_query, DateAxisFilter,
 };
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
@@ -27,7 +25,6 @@ use shared::tax::{compute_taxes, SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE};
 use shared::value::UserId;
 use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracing::info;
 
 /// 国内株式ドメイン
 pub struct DomesticStockDomain;
@@ -84,7 +81,7 @@ const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
 
 /// 国内株式検索条件を SQL 条件へ変換した中間表現
 #[derive(Debug)]
-struct DomesticStockFilter {
+pub struct DomesticStockFilter {
     date_axis: DateAxisFilter,
     tokens: Vec<String>,
     account: Option<String>,
@@ -92,143 +89,125 @@ struct DomesticStockFilter {
     security_name: Option<String>,
 }
 
-impl DomesticStockFilter {
-    fn from_params(params: &DomesticStockSearchQueryParams) -> Result<Self, ApiError> {
-        let search = &params.search;
-        let date_axis = DateAxisFilter::from_search_params(search)?;
-        let tokens = tokens_from_query(search.q.as_deref());
+impl TryFrom<DomesticStockSearchQueryParams> for DomesticStockFilter {
+    type Error = ApiError;
+
+    fn try_from(params: DomesticStockSearchQueryParams) -> Result<Self, ApiError> {
+        let date_axis = DateAxisFilter::from_search_params(&params.search)?;
+        let tokens = tokens_from_query(params.search.q.as_deref());
 
         Ok(Self {
             date_axis,
             tokens,
-            account: params.account.clone(),
-            security_code: params.security_code.clone(),
-            security_name: params.security_name.clone(),
+            account: params.account,
+            security_code: params.security_code,
+            security_name: params.security_name,
         })
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DomesticStockFilter) {
-    push_search_filters(
-        qb,
-        user_id,
-        Some(("trade_date", &filter.date_axis)),
-        &[
-            ("account", &filter.account),
-            ("security_code", &filter.security_code),
-            ("security_name", &filter.security_name),
-        ],
-        &filter.tokens,
-        &["account", "security_code", "security_name"],
-    );
-}
+impl Search for DomesticStockDomain {
+    type Data = DomesticStock;
+    type Params = DomesticStockSearchQueryParams;
+    type Filter = DomesticStockFilter;
+    type Summary = DomesticStockSummary;
 
-pub async fn search(
-    pool: &PgPool,
-    user_id: UserId,
-    params: &DomesticStockSearchQueryParams,
-) -> Result<PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>, ApiError> {
-    info!("[domestic_stock.search] リクエスト受信");
-    let filter = DomesticStockFilter::from_params(params)?;
+    const COLUMNS: &'static str = "id, user_id, trade_date, settlement_date, security_code, \
+        security_name, account, shares, asked_price, proceeds, purchase_price, \
+        realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax, created_at, \
+        updated_at";
+    const ORDER_BY: &'static str = " ORDER BY trade_date DESC, id DESC";
 
-    let summary_fut = fetch_if_included(
-        params.should_include_summary(),
-        fetch_summary(pool, user_id, &filter),
-    );
-
-    let facets_fut = fetch_if_included(
-        params.should_include_facets(),
-        fetch_facets(pool, user_id, &filter),
-    );
-
-    run_paginated_search(
-        pool,
-        "SELECT COUNT(*) FROM domestic_stocks",
-        "SELECT id, user_id, trade_date, settlement_date, security_code, security_name, \
-         account, shares, asked_price, proceeds, purchase_price, realized_profit_and_loss, \
-         taxes, realized_profit_and_loss_after_tax, created_at, updated_at \
-         FROM domestic_stocks",
-        " ORDER BY trade_date DESC, id DESC",
-        |qb| push_filters(qb, user_id, &filter),
-        params.page(),
-        params.per_page(),
-        params.offset(),
-        summary_fut,
-        facets_fut,
-    )
-    .await
-}
-
-/// 検索条件全体の summary を算出する。
-///
-/// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
-/// 特定口座合計がプラスの時だけ `floor(合計 * 税率)` を日次税額として計算したうえで、
-/// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
-async fn fetch_summary(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &DomesticStockFilter,
-) -> Result<DomesticStockSummary, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "WITH filtered AS (SELECT trade_date, account, realized_profit_and_loss FROM domestic_stocks",
-    );
-    push_filters(&mut qb, user_id, filter);
-    qb.push("), daily AS (SELECT trade_date, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
-        .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
-        .push(" IN account) > 0), 0) AS specific_total, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
-        .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
-        .push(
-            " IN account) = 0), 0) AS nisa_total FROM filtered GROUP BY trade_date), daily_tax AS (SELECT specific_total, nisa_total, FLOOR(GREATEST(specific_total, 0) * ",
-        )
-        .push_bind(TAX_RATE)
-        .push(
-            ") AS tax FROM daily) \
-             SELECT \
-                 COALESCE(SUM(specific_total + nisa_total), 0) AS total_realized_profit_and_loss, \
-                 COALESCE(SUM(tax), 0) AS total_taxes, \
-                 COALESCE(SUM(specific_total - tax + nisa_total), 0) AS total_realized_profit_and_loss_after_tax \
-             FROM daily_tax",
+    fn push_filters(
+        qb: &mut QueryBuilder<Postgres>,
+        user_id: UserId,
+        filter: &DomesticStockFilter,
+    ) {
+        push_search_filters(
+            qb,
+            user_id,
+            Some(("trade_date", &filter.date_axis)),
+            &[
+                ("account", &filter.account),
+                ("security_code", &filter.security_code),
+                ("security_name", &filter.security_name),
+            ],
+            &filter.tokens,
+            &["account", "security_code", "security_name"],
         );
-    Ok(qb
-        .build_query_as::<DomesticStockSummary>()
-        .fetch_one(pool)
-        .await?)
-}
+    }
 
-async fn fetch_facets(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &DomesticStockFilter,
-) -> Result<SearchFacets, ApiError> {
-    let accounts_fut =
-        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
-    let securities_fut = fetch_security_facets(pool, user_id, filter);
-    let years_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::TradeDateYear,
-        FacetOrder::Desc,
-    );
-    let year_months_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::TradeDateYearMonth,
-        FacetOrder::Desc,
-    );
+    /// 検索条件全体の summary を算出する。
+    ///
+    /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
+    /// 特定口座合計がプラスの時だけ `floor(合計 * 税率)` を日次税額として計算したうえで、
+    /// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
+    async fn fetch_summary(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &DomesticStockFilter,
+    ) -> Result<DomesticStockSummary, ApiError> {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+            "WITH filtered AS (SELECT trade_date, account, realized_profit_and_loss FROM domestic_stocks",
+        );
+        Self::push_filters(&mut qb, user_id, filter);
+        qb.push("), daily AS (SELECT trade_date, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
+            .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
+            .push(" IN account) > 0), 0) AS specific_total, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
+            .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
+            .push(
+                " IN account) = 0), 0) AS nisa_total FROM filtered GROUP BY trade_date), daily_tax AS (SELECT specific_total, nisa_total, FLOOR(GREATEST(specific_total, 0) * ",
+            )
+            .push_bind(TAX_RATE)
+            .push(
+                ") AS tax FROM daily) \
+                 SELECT \
+                     COALESCE(SUM(specific_total + nisa_total), 0) AS total_realized_profit_and_loss, \
+                     COALESCE(SUM(tax), 0) AS total_taxes, \
+                     COALESCE(SUM(specific_total - tax + nisa_total), 0) AS total_realized_profit_and_loss_after_tax \
+                 FROM daily_tax",
+            );
+        Ok(qb
+            .build_query_as::<DomesticStockSummary>()
+            .fetch_one(pool)
+            .await?)
+    }
 
-    let (accounts, securities, years, year_months) =
-        tokio::try_join!(accounts_fut, securities_fut, years_fut, year_months_fut)?;
+    async fn fetch_facets(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &DomesticStockFilter,
+    ) -> Result<SearchFacets, ApiError> {
+        let accounts_fut =
+            fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+        let securities_fut = fetch_security_facets(pool, user_id, filter);
+        let years_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::TradeDateYear,
+            FacetOrder::Desc,
+        );
+        let year_months_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::TradeDateYearMonth,
+            FacetOrder::Desc,
+        );
 
-    Ok(SearchFacets {
-        products: None,
-        accounts: Some(accounts),
-        securities: Some(securities),
-        funds: None,
-        years: Some(years),
-        year_months: Some(year_months),
-    })
+        let (accounts, securities, years, year_months) =
+            tokio::try_join!(accounts_fut, securities_fut, years_fut, year_months_fut)?;
+
+        Ok(SearchFacets {
+            products: None,
+            accounts: Some(accounts),
+            securities: Some(securities),
+            funds: None,
+            years: Some(years),
+            year_months: Some(year_months),
+        })
+    }
 }
 
 async fn fetch_group_facets(
@@ -240,10 +219,10 @@ async fn fetch_group_facets(
 ) -> Result<Vec<FacetOption>, ApiError> {
     facets::fetch_group_facets(
         pool,
-        "domestic_stocks",
+        DomesticStockDomain::TABLE,
         group_field.as_sql_expr(),
         order,
-        |qb| push_filters(qb, user_id, filter),
+        |qb| DomesticStockDomain::push_filters(qb, user_id, filter),
     )
     .await
 }
@@ -254,9 +233,12 @@ async fn fetch_security_facets(
     user_id: UserId,
     filter: &DomesticStockFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_security_facets(pool, "domestic_stocks", "trade_date DESC, id DESC", |qb| {
-        push_filters(qb, user_id, filter);
-    })
+    facets::fetch_security_facets(
+        pool,
+        DomesticStockDomain::TABLE,
+        "trade_date DESC, id DESC",
+        |qb| DomesticStockDomain::push_filters(qb, user_id, filter),
+    )
     .await
 }
 
@@ -424,14 +406,13 @@ fn transform_domestic_stock_row(
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    bulk::delete_all::<DomesticStockDomain>(pool, user_id).await
-}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::common::SearchParamsAccessor;
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvDomain;
+    use crate::services::domain::search::search;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
     use uuid::Uuid;
@@ -591,8 +572,8 @@ mod tests {
         params.search.year = Some(2026);
         params.search.year_month = Some("2026-06".to_string());
 
-        let filter = DomesticStockFilter::from_params(&params)
-            .expect("正しい日付フォーマットは検証を通過する");
+        let filter =
+            DomesticStockFilter::try_from(params).expect("正しい日付フォーマットは検証を通過する");
 
         assert_eq!(
             filter.date_axis.date_eq,
@@ -639,7 +620,7 @@ mod tests {
         for (field, apply) in cases {
             let mut params = DomesticStockSearchQueryParams::default();
             apply(&mut params);
-            let err = DomesticStockFilter::from_params(&params)
+            let err = DomesticStockFilter::try_from(params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
                 matches!(err, ApiError::Validation(_)),
@@ -652,10 +633,10 @@ mod tests {
     fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = DomesticStockSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
-        let filter = DomesticStockFilter::from_params(&params).expect("q のみなら検証を通過する");
+        let filter = DomesticStockFilter::try_from(params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        push_filters(&mut qb, UserId::default(), &filter);
+        DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -671,11 +652,10 @@ mod tests {
             security_name: Some("テスト株式会社".to_string()),
             ..Default::default()
         };
-        let filter =
-            DomesticStockFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
+        let filter = DomesticStockFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        push_filters(&mut qb, UserId::default(), &filter);
+        DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -748,7 +728,9 @@ mod tests {
         let mut params = DomesticStockSearchQueryParams::default();
         params.search.include_summary = Some(true);
 
-        let result = search(&pool, user_id, &params).await.unwrap();
+        let result = search::<DomesticStockDomain>(&pool, user_id, params)
+            .await
+            .unwrap();
         let summary = result
             .summary
             .expect("include_summary=true で summary を返す");

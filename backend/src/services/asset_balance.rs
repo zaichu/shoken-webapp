@@ -2,9 +2,7 @@ use crate::errors::ApiError;
 use crate::models::asset_balance::{
     AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
 };
-use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
-};
+use crate::models::common::{BulkCreateResponse, SearchFacets};
 use crate::models::csv_import::CsvRowError;
 use crate::services::csv::import::{validate_csv_rows, CsvImport};
 #[cfg(test)]
@@ -14,20 +12,17 @@ use crate::services::csv::util::{
     check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
 };
 use crate::services::domain::bulk::{
-    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
-    RowLimit,
+    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
 };
 use crate::services::domain::facets;
-use crate::services::domain::search_filters::{
-    fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
-};
+use crate::services::domain::search::Search;
+use crate::services::domain::search_filters::{push_search_filters, tokens_from_query};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::{SecurityCode, UserId};
 use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracing::info;
 
 /// 資産残高（保有銘柄）ドメイン
 pub struct AssetBalanceDomain;
@@ -86,121 +81,88 @@ const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
 ///
 /// asset_balances には snapshot 日付がないため、date 系の条件は扱わない。
 #[derive(Debug)]
-struct AssetBalanceFilter {
+pub struct AssetBalanceFilter {
     tokens: Vec<String>,
     security_code: Option<String>,
     security_name: Option<String>,
 }
 
-impl AssetBalanceFilter {
-    fn from_params(params: &AssetBalanceSearchQueryParams) -> Self {
-        let tokens = tokens_from_query(params.search.q.as_deref());
+impl TryFrom<AssetBalanceSearchQueryParams> for AssetBalanceFilter {
+    type Error = ApiError;
 
-        Self {
-            tokens,
-            security_code: params.security_code.clone(),
-            security_name: params.security_name.clone(),
-        }
+    fn try_from(params: AssetBalanceSearchQueryParams) -> Result<Self, ApiError> {
+        Ok(Self {
+            tokens: tokens_from_query(params.search.q.as_deref()),
+            security_code: params.security_code,
+            security_name: params.security_name,
+        })
     }
 }
 
-/// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &AssetBalanceFilter) {
-    push_search_filters(
-        qb,
-        user_id,
-        None,
-        &[
-            ("security_code", &filter.security_code),
-            ("security_name", &filter.security_name),
-        ],
-        &filter.tokens,
-        &["security_code", "security_name"],
-    );
-}
+impl Search for AssetBalanceDomain {
+    type Data = AssetBalance;
+    type Params = AssetBalanceSearchQueryParams;
+    type Filter = AssetBalanceFilter;
+    type Summary = AssetBalanceSummary;
 
-pub async fn search(
-    pool: &PgPool,
-    user_id: UserId,
-    params: &AssetBalanceSearchQueryParams,
-) -> Result<PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>, ApiError> {
-    info!("[asset_balance.search] リクエスト受信");
-    let filter = AssetBalanceFilter::from_params(params);
+    const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
+        executing_shares, average_purchase_price, total_purchase_amount, current_price, \
+        daily_change, market_value, profit_loss_rate, created_at, updated_at";
+    const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
 
-    let summary_fut = fetch_if_included(
-        params.should_include_summary(),
-        fetch_summary(pool, user_id, &filter),
-    );
+    /// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
+    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &AssetBalanceFilter) {
+        push_search_filters(
+            qb,
+            user_id,
+            None,
+            &[
+                ("security_code", &filter.security_code),
+                ("security_name", &filter.security_name),
+            ],
+            &filter.tokens,
+            &["security_code", "security_name"],
+        );
+    }
 
-    let facets_fut = fetch_if_included(
-        params.should_include_facets(),
-        fetch_facets(pool, user_id, &filter),
-    );
+    /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
+    async fn fetch_summary(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &AssetBalanceFilter,
+    ) -> Result<AssetBalanceSummary, ApiError> {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+            "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
+             COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
+             COALESCE(SUM(daily_change), 0) AS total_daily_change \
+             FROM asset_balances",
+        );
+        Self::push_filters(&mut qb, user_id, filter);
+        Ok(qb
+            .build_query_as::<AssetBalanceSummary>()
+            .fetch_one(pool)
+            .await?)
+    }
 
-    // summary/facets は include_* が true の場合だけ実クエリを発行する。
-    run_paginated_search(
-        pool,
-        "SELECT COUNT(*) FROM asset_balances",
-        "SELECT id, user_id, security_code, security_name, shares, executing_shares, \
-         average_purchase_price, total_purchase_amount, current_price, daily_change, \
-         market_value, profit_loss_rate, created_at, updated_at \
-         FROM asset_balances",
-        " ORDER BY security_code ASC, id ASC",
-        |qb| push_filters(qb, user_id, &filter),
-        params.page(),
-        params.per_page(),
-        params.offset(),
-        summary_fut,
-        facets_fut,
-    )
-    .await
-}
+    async fn fetch_facets(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &AssetBalanceFilter,
+    ) -> Result<SearchFacets, ApiError> {
+        let securities = facets::fetch_security_facets(pool, Self::TABLE, "id", |qb| {
+            Self::push_filters(qb, user_id, filter);
+        })
+        .await?;
 
-/// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
-async fn fetch_summary(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &AssetBalanceFilter,
-) -> Result<AssetBalanceSummary, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
-         COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
-         COALESCE(SUM(daily_change), 0) AS total_daily_change \
-         FROM asset_balances",
-    );
-    push_filters(&mut qb, user_id, filter);
-    Ok(qb
-        .build_query_as::<AssetBalanceSummary>()
-        .fetch_one(pool)
-        .await?)
-}
-
-async fn fetch_facets(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &AssetBalanceFilter,
-) -> Result<SearchFacets, ApiError> {
-    let securities = fetch_security_facets(pool, user_id, filter).await?;
-
-    Ok(SearchFacets {
-        products: None,
-        accounts: None,
-        securities: Some(securities),
-        funds: None,
-        years: None,
-        year_months: None,
-    })
-}
-
-async fn fetch_security_facets(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &AssetBalanceFilter,
-) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_security_facets(pool, "asset_balances", "id", |qb| {
-        push_filters(qb, user_id, filter);
-    })
-    .await
+        Ok(SearchFacets {
+            products: None,
+            accounts: None,
+            securities: Some(securities),
+            funds: None,
+            years: None,
+            year_months: None,
+        })
+    }
 }
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
@@ -268,10 +230,6 @@ pub async fn bulk_create(
     tx.commit().await?;
 
     Ok(timer.finish(total))
-}
-
-pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    bulk::delete_all::<AssetBalanceDomain>(pool, user_id).await
 }
 
 fn transform_asset_balance_rows(
@@ -358,6 +316,7 @@ fn transform_asset_balance_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::common::SearchParamsAccessor;
     use crate::services::csv::import::CsvDomain;
     use rust_decimal_macros::dec;
 
@@ -563,10 +522,10 @@ mod tests {
     fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = AssetBalanceSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
-        let filter = AssetBalanceFilter::from_params(&params);
+        let filter = AssetBalanceFilter::try_from(params).unwrap();
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
-        push_filters(&mut qb, UserId::default(), &filter);
+        AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -580,10 +539,10 @@ mod tests {
             security_name: Some("テスト株式会社".to_string()),
             ..Default::default()
         };
-        let filter = AssetBalanceFilter::from_params(&params);
+        let filter = AssetBalanceFilter::try_from(params).unwrap();
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
-        push_filters(&mut qb, UserId::default(), &filter);
+        AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 

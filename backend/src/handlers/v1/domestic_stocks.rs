@@ -6,13 +6,12 @@ use crate::{
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         domestic_stock::{DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary},
     },
-    services::{domestic_stock as domestic_stock_service, domestic_stock::DomesticStockDomain},
+    services::domestic_stock::DomesticStockDomain,
     state::AppState,
 };
 use axum::{
     extract::{Multipart, Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Json},
+    response::IntoResponse,
 };
 
 /// 国内株式取引一覧を取得（v1）
@@ -48,8 +47,12 @@ pub async fn list_transactions(
     auth_user: AuthenticatedUser,
     Query(params): Query<DomesticStockSearchQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let result = domestic_stock_service::search(&state.pool, auth_user.id(), &params).await?;
-    Ok((StatusCode::OK, Json(result)))
+    crate::handlers::common::handle_search::<DomesticStockDomain>(
+        &state.pool,
+        auth_user.id(),
+        params,
+    )
+    .await
 }
 
 /// 国内株式取引を全削除（v1）
@@ -68,8 +71,9 @@ pub async fn delete_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::csv_import::handle_delete_all(
-        domestic_stock_service::delete_all(&state.pool, auth_user.id()),
+    crate::handlers::v1::csv_import::handle_delete_all::<DomesticStockDomain>(
+        &state.pool,
+        auth_user.id(),
         "全ての国内株式取引データを削除しました",
     )
     .await
