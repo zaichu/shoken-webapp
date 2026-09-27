@@ -710,12 +710,7 @@ proptest::proptest! {
     }
 }
 
-fn daily(
-    date: &str,
-    profit: Decimal,
-    taxes: Decimal,
-    after_tax: Decimal,
-) -> DomesticDailySummary {
+fn daily(date: &str, profit: Decimal, taxes: Decimal, after_tax: Decimal) -> DomesticDailySummary {
     DomesticDailySummary {
         filter: date.into(),
         total_realized_profit_and_loss: profit,

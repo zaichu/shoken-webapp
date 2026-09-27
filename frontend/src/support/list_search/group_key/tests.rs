@@ -163,12 +163,7 @@ fn derive_security_code_exact_code_match() {
 #[test]
 fn derive_security_code_exact_name_match() {
     assert_eq!(
-        derive_security_code_from_query(
-            "トヨタ自動車",
-            &security_data(),
-            code_getter,
-            name_getter
-        ),
+        derive_security_code_from_query("トヨタ自動車", &security_data(), code_getter, name_getter),
         "7203"
     );
 }
@@ -216,12 +211,7 @@ fn derive_security_code_case_insensitive() {
         date: String::new(),
     }];
     assert_eq!(
-        derive_security_code_from_query(
-            "abc1: テスト銘柄",
-            &mixed_case,
-            code_getter,
-            name_getter
-        ),
+        derive_security_code_from_query("abc1: テスト銘柄", &mixed_case, code_getter, name_getter),
         "ABC1"
     );
 }

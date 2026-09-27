@@ -58,9 +58,7 @@ fn resolve<'a>(
 fn sample_primitive(schema: &serde_json::Value) -> serde_json::Value {
     let format = schema.get("format").and_then(serde_json::Value::as_str);
     match schema.get("type").and_then(serde_json::Value::as_str) {
-        Some("string") if format == Some("date") => {
-            serde_json::Value::String("2024-01-15".into())
-        }
+        Some("string") if format == Some("date") => serde_json::Value::String("2024-01-15".into()),
         Some("string") if format == Some("date-time") => {
             serde_json::Value::String("2024-01-15T01:23:45Z".into())
         }
@@ -432,9 +430,8 @@ fn other_endpoints_deserialize_numbers() {
 #[test]
 fn session_user_accepts_numeric_id() {
     // 共有E2E（a11y spec）のモックは id を数値で返す
-    let user: SessionUser = serde_json::from_str(
-        r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#,
-    )
-    .expect("numeric id");
+    let user: SessionUser =
+        serde_json::from_str(r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#)
+            .expect("numeric id");
     assert_eq!(user.id, "1");
 }

@@ -170,8 +170,7 @@ fn shared_composition_cases_match() {
             "{}",
             case.name
         );
-        for (index, (actual, expected)) in
-            actual.iter().zip(&case.expected_percentages).enumerate()
+        for (index, (actual, expected)) in actual.iter().zip(&case.expected_percentages).enumerate()
         {
             assert_optional_rate(
                 Some(*actual),
@@ -396,8 +395,7 @@ fn kpi_summary_override_matches_component_cases() {
     assert_eq!(without_summary.total_annual_dividends, Some(17000.0));
     assert_optional_rate(without_summary.dividend_yield, &json!(2.0), "kpi", "yield");
 
-    let with_summary =
-        calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), Some(1234567.0));
+    let with_summary = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), Some(1234567.0));
     assert_eq!(with_summary.total_purchase_amount, 1234567.0);
     assert_eq!(with_summary.total_annual_dividends, Some(17000.0));
     assert_optional_rate(
@@ -463,8 +461,7 @@ fn safe_add_matches_react_rounding() {
 #[test]
 fn huge_values_do_not_panic() {
     assert_eq!(to_finite_amount(&json!(1e30)), Some(1e30));
-    let precision =
-        calculate_valuation(&json!(9007199254740993u64), &json!(9007199254740992u64));
+    let precision = calculate_valuation(&json!(9007199254740993u64), &json!(9007199254740992u64));
     assert_eq!(precision.amount, Some(0.0));
     let overflow = safe_add(1e308, 1e308);
     assert!(overflow.is_infinite());

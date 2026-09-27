@@ -47,10 +47,9 @@ fn fail_preview_clears_busy_and_keeps_file() {
 
 #[test]
 fn upload_response_deserializes() {
-    let response: CsvUploadResponse = serde_json::from_str(
-        r#"{"inserted":2,"skipped":1,"errors":[{"row":5,"message":"重複"}]}"#,
-    )
-    .expect("deserialize");
+    let response: CsvUploadResponse =
+        serde_json::from_str(r#"{"inserted":2,"skipped":1,"errors":[{"row":5,"message":"重複"}]}"#)
+            .expect("deserialize");
     assert_eq!(
         (response.inserted, response.skipped, response.errors.len()),
         (2, 1, 1)
