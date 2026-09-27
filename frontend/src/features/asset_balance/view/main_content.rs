@@ -35,13 +35,13 @@ pub(crate) fn AssetBalanceMainContent(
             if rows.is_empty() && query.is_empty() {
                 show_all.set(false);
                 return view! {
-                    <div class="mb-3 overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)]">
+                    <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-2">
                         <div>
                             <div class="empty-state">
-                                <h3 class="text-base font-black text-slate-950">
+                                <h3 class="text-base font-black text-ink">
                                     "資産管理データがありません"
                                 </h3>
-                                <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                                <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
                                     "CSVファイルをインポートするか、データを登録してください。"
                                 </p>
                             </div>
@@ -81,7 +81,7 @@ pub(crate) fn AssetBalanceMainContent(
 pub(crate) fn CsvStatusMessage(text: &'static str) -> impl IntoView {
     view! {
         <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
-            <div class="flex items-center gap-2 text-slate-600">
+            <div class="flex items-center gap-2 text-text-muted">
                 <svg
                     class="animate-spin h-4 w-4"
                     xmlns="http://www.w3.org/2000/svg"

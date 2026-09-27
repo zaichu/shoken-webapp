@@ -34,8 +34,8 @@ fn nav_active_matches_path_or_prefix() {
 
 #[test]
 fn alert_variant_classes() {
-    assert!(AlertVariant::Warning.class().contains("amber"));
-    assert!(AlertVariant::Danger.class().contains("red"));
+    assert!(AlertVariant::Warning.class().contains("accent"));
+    assert!(AlertVariant::Danger.class().contains("negative"));
 }
 
 #[test]

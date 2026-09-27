@@ -67,20 +67,20 @@ pub(crate) fn PortfolioSummary(
     if views.is_empty() {
         show_all.set(false);
         return view! {
-            <div class="mb-3 overflow-hidden rounded-xl border border-slate-950/10 bg-white/90 shadow-[0_14px_38px_-32px_rgba(15,23,42,0.85)]">
+            <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-2">
                 <div>
                     <div class="empty-state">
-                        <h3 class="text-base font-black text-slate-950">
+                        <h3 class="text-base font-black text-ink">
                             "該当する銘柄がありません"
                         </h3>
-                        <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                        <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
                             "検索条件を変更するか、絞り込みを解除してください。"
                         </p>
                     </div>
                     <div class="mt-3 text-center">
                         <button
                             type="button"
-                            class="text-sm text-primary hover:underline"
+                            class="text-sm text-text-deep hover:underline"
                             on:click=move |_| on_clear_filter()
                         >
                             "絞り込みを解除"
@@ -132,17 +132,17 @@ pub(crate) fn PortfolioSummary(
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
             <section
-                class="rounded-xl border border-slate-950/10 bg-white/95 px-5 py-5 shadow-[0_16px_44px_-38px_rgba(15,23,42,0.9)]"
+                class="rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-elevation-2"
                 data-testid="portfolio-kpi-strip"
             >
-                <div class="flex flex-col gap-3 border-b border-slate-950/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div class="flex flex-col gap-3 border-b border-ink/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h2 class="text-sm font-black text-slate-950">"資産サマリー"</h2>
+                        <h2 class="text-sm font-black text-ink">"資産サマリー"</h2>
                     </div>
                     {is_filtered.then(move || {
                         view! {
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                                <span class="inline-flex items-center rounded-md border border-info-border bg-info-soft px-3 py-1 text-sm font-bold text-info">
                                     {format!("絞り込み中: {display_count}/{total_count}件")}
                                 </span>
                                 <button
@@ -157,8 +157,8 @@ pub(crate) fn PortfolioSummary(
                     })}
                 </div>
                 <div class="mt-4" data-testid="portfolio-valuation-summary">
-                    <p class="text-sm font-medium text-slate-600">"保有資産の評価額"</p>
-                    <p class="mt-1 text-3xl font-black tabular-nums text-slate-950">
+                    <p class="text-sm font-medium text-text-muted">"保有資産の評価額"</p>
+                    <p class="mt-1 text-3xl font-black tabular-nums text-ink">
                         {market_value.map_or("—".to_string(), format_currency)}
                     </p>
                     <p
@@ -187,12 +187,12 @@ pub(crate) fn PortfolioSummary(
                             }
                         }}
                     </p>
-                    <p class="mt-1 text-xs text-slate-500">"取込データ時点"</p>
+                    <p class="mt-1 text-xs text-text-subtle">"取込データ時点"</p>
                     {valuation
                         .incomplete
                         .then(|| {
                             view! {
-                                <p class="mt-1 text-xs text-amber-700">
+                                <p class="mt-1 text-xs text-accent-deep">
                                     "一部の銘柄の評価額が不足しているため、合計を算出できません"
                                 </p>
                             }
@@ -202,18 +202,18 @@ pub(crate) fn PortfolioSummary(
                     class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
                     data-testid="portfolio-kpi-grid"
                 >
-                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
-                        <p class="mb-1 text-xs font-medium text-slate-600">"合計取得総額"</p>
+                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                        <p class="mb-1 text-xs font-medium text-text-muted">"合計取得総額"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-primary tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep tabular-nums"
                         >
                             {format_currency(total_purchase_amount)}
                         </p>
                     </div>
-                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
-                        <p class="mb-1 text-xs font-medium text-slate-600">"年間配当金額"</p>
+                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                        <p class="mb-1 text-xs font-medium text-text-muted">"年間配当金額"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-950 tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink tabular-nums"
                             data-testid="portfolio-annual-dividends"
                         >
                             {move || {
@@ -224,10 +224,10 @@ pub(crate) fn PortfolioSummary(
                             }}
                         </p>
                     </div>
-                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
-                        <p class="mb-1 text-xs font-medium text-slate-600">"配当利回り"</p>
+                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                        <p class="mb-1 text-xs font-medium text-text-muted">"配当利回り"</p>
                         <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-950 tabular-nums"
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink tabular-nums"
                             data-testid="portfolio-dividend-yield"
                         >
                             {move || {
@@ -238,15 +238,15 @@ pub(crate) fn PortfolioSummary(
                             }}
                         </p>
                     </div>
-                    <div class="rounded-lg border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
-                        <p class="mb-1 text-xs font-medium text-slate-600">"保有銘柄数"</p>
-                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-slate-700 tabular-nums">
+                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                        <p class="mb-1 text-xs font-medium text-text-muted">"保有銘柄数"</p>
+                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-muted tabular-nums">
                             {if is_filtered {
                                 format!("{display_count} / {total_count}")
                             } else {
                                 display_count.to_string()
                             }}
-                            <span class="ml-1 text-sm font-normal text-slate-500">"銘柄"</span>
+                            <span class="ml-1 text-sm font-normal text-text-subtle">"銘柄"</span>
                         </p>
                     </div>
                 </div>
@@ -255,9 +255,9 @@ pub(crate) fn PortfolioSummary(
             <div data-testid="portfolio-pie-chart">
                 <div class="summary-section-header">
                     <div>
-                        <h3 class="text-sm font-black text-slate-900">
+                        <h3 class="text-sm font-black text-ink">
                             "保有内訳"
-                            <span class="ml-1 font-medium text-slate-500 sm:hidden">
+                            <span class="ml-1 font-medium text-text-subtle sm:hidden">
                                 {format!("（保有{display_count}銘柄）")}
                             </span>
                         </h3>

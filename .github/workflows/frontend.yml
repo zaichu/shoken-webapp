@@ -84,6 +84,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Check CSS tokens
+        run: bash scripts/check-css-tokens.sh
+
       - name: Run Clippy (wasm32)
         run: cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 

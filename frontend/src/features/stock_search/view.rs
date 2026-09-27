@@ -151,7 +151,7 @@ fn SearchForm(
 fn EmptySearch() -> impl IntoView {
     view! {
         <div class="empty-state py-10">
-            <div class="mb-3 text-slate-400" aria-hidden="true">
+            <div class="mb-3 text-text-faint" aria-hidden="true">
                 <svg
                     class="h-10 w-10"
                     fill="none"
@@ -166,8 +166,8 @@ fn EmptySearch() -> impl IntoView {
                     />
                 </svg>
             </div>
-            <h3 class="text-base font-black text-slate-950">"銘柄を検索"</h3>
-            <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+            <h3 class="text-base font-black text-ink">"銘柄を検索"</h3>
+            <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
                 "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
             </p>
         </div>
@@ -177,9 +177,9 @@ fn EmptySearch() -> impl IntoView {
 #[component]
 fn SearchHints() -> impl IntoView {
     view! {
-        <div class="mt-6 rounded-xl border border-slate-950/10 bg-slate-50/80 p-4">
-            <h3 class="mb-2 text-sm font-black text-slate-800">"検索のヒント"</h3>
-            <ul class="space-y-1 text-sm font-medium text-slate-600">
+        <div class="mt-6 rounded-xl border border-ink/10 bg-surface-sunken/80 p-4">
+            <h3 class="mb-2 text-sm font-black text-text">"検索のヒント"</h3>
+            <ul class="space-y-1 text-sm font-medium text-text-muted">
                 <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
                 <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
                 <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
@@ -207,10 +207,10 @@ fn StockInfo(stock: Stock) -> impl IntoView {
     view! {
         <div>
             <div class="panel-card mb-4 overflow-hidden">
-                <div class="border-b border-slate-950/10 bg-slate-950 px-5 py-4 text-white">
+                <div class="border-b border-ink/10 bg-ink px-5 py-4 text-text-inverse">
                     <div class="flex flex-wrap items-end justify-between gap-3">
                         <div>
-                            <p class="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
+                            <p class="text-eyebrow font-black uppercase tracking-eyebrow text-accent-on-dark">
                                 "Security"
                             </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
@@ -221,7 +221,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                     </div>
                 </div>
                 <div>
-                    <dl class="grid grid-cols-1 gap-px bg-slate-200 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <dl class="grid grid-cols-1 gap-px bg-fill text-sm sm:grid-cols-2 lg:grid-cols-4">
                         {meta
                             .into_iter()
                             .map(|(label, value)| {
@@ -231,11 +231,11 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                                     value
                                 };
                                 view! {
-                                    <div class="bg-white px-4 py-3">
-                                        <dt class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                    <div class="bg-surface px-4 py-3">
+                                        <dt class="text-eyebrow font-black uppercase tracking-badge text-text-subtle">
                                             {label}
                                         </dt>
-                                        <dd class="mt-1 font-bold text-dark">{display}</dd>
+                                        <dd class="mt-1 font-bold text-text-deep">{display}</dd>
                                     </div>
                                 }
                             })
@@ -253,7 +253,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
 #[component]
 fn StockInfoLinks(code: String) -> impl IntoView {
     view! {
-        <div class="grid grid-cols-1 min-[375px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {STOCK_LINKS
                 .iter()
                 .map(|(name, template)| {
@@ -268,7 +268,7 @@ fn StockInfoLinks(code: String) -> impl IntoView {
                         >
                             {*name}
                             <svg
-                                class="h-3.5 w-3.5 shrink-0 text-slate-400"
+                                class="h-3.5 w-3.5 shrink-0 text-text-faint"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"

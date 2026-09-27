@@ -184,7 +184,7 @@ impl DividendInfoStore {
 #[component]
 fn AssetBadge() -> impl IntoView {
     view! {
-        <span class="ml-1 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+        <span class="ml-1 inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive">
             "保有銘柄"
         </span>
     }
@@ -215,60 +215,60 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">
                         "平均取得価格"
                         {move || asset().is_some().then(AssetBadge)}
                     </p>
                     <p
-                        class="text-2xl font-bold tabular-nums text-primary"
+                        class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
                     >
                         {average_price_text}
                     </p>
                     {move || {
                         asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-500">{ASSET_BALANCE_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
                 </div>
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">
                         "保有数量(株)"
                         {move || asset().is_some().then(AssetBadge)}
                     </p>
                     <p
-                        class="text-2xl font-bold tabular-nums text-primary"
+                        class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
                     >
                         {shares_text}
                     </p>
                     {move || {
                         asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-500">{ASSET_BALANCE_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
                 </div>
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">"一株配当"</p>
-                    <p class="text-2xl font-bold tabular-nums text-primary">{per_share_text}</p>
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">"一株配当"</p>
+                    <p class="text-2xl font-bold tabular-nums text-text-deep">{per_share_text}</p>
                     {move || {
                         (!loading() && per_share().is_none()).then(|| {
-                            view! { <p class="mt-0.5 text-xs text-slate-500">{JQUANTS_HINT}</p> }
+                            view! { <p class="mt-0.5 text-xs text-text-subtle">{JQUANTS_HINT}</p> }
                         })
                     }}
                 </div>
             </div>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-slate-200">
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">"配当金額 (配当利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-slate-950">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">"配当金額 (配当利回り)"</p>
+                    <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
                             (rate > 0.0).then(|| {
                                 view! {
-                                    <span class="text-sm font-normal text-slate-500 ml-1">
+                                    <span class="text-sm font-normal text-text-subtle ml-1">
                                         {format!("({})", format_percentage_value(rate))}
                                     </span>
                                 }
@@ -276,21 +276,21 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                         }}
                     </p>
                 </div>
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">"税額"</p>
-                    <p class="text-2xl font-bold tabular-nums text-slate-950">
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">"税額"</p>
+                    <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_taxes)}
                     </p>
                 </div>
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                    <p class="text-xs font-medium text-slate-600 mb-1">"受取金額 (累積利回り)"</p>
-                    <p class="text-2xl font-bold tabular-nums text-slate-950">
+                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                    <p class="text-xs font-medium text-text-muted mb-1">"受取金額 (累積利回り)"</p>
+                    <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();
                             (rate > 0.0).then(|| {
                                 view! {
-                                    <span class="text-sm font-normal text-slate-500 ml-1">
+                                    <span class="text-sm font-normal text-text-subtle ml-1">
                                         {format!("({})", format_percentage_value(rate))}
                                     </span>
                                 }
@@ -344,14 +344,14 @@ pub(crate) fn DividendSummarySection(
                         {preview
                             .then(|| {
                                 view! {
-                                    <span class="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                                    <span class="shrink-0 rounded bg-accent-softer px-1.5 py-0.5 text-xs font-bold text-accent-text">
                                         "プレビュー"
                                     </span>
                                 }
                             })}
-                        <span class="text-sm font-black text-slate-950">"集計情報"</span>
+                        <span class="text-sm font-black text-ink">"集計情報"</span>
                     </span>
-                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                    <span class="flex shrink-0 items-center gap-1 text-text-muted">
                         <span class="text-xs font-semibold">
                             {move || open_label(mobile_expanded.get())}
                         </span>
@@ -359,9 +359,9 @@ pub(crate) fn DividendSummarySection(
                             aria-hidden="true"
                             class=move || {
                                 if mobile_expanded.get() {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
                                 } else {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
                                 }
                             }
                             fill="none"
@@ -383,7 +383,7 @@ pub(crate) fn DividendSummarySection(
                             <div
                                 id="receipt-summary-mobile-body"
                                 role="region"
-                                class="border-t border-slate-950/10 py-3"
+                                class="border-t border-ink/10 py-3"
                             >
                                 <DividendInfo store=store totals=totals_mobile.clone() />
                             </div>
@@ -394,7 +394,7 @@ pub(crate) fn DividendSummarySection(
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
                 <button
                     type="button"
-                    class="flex w-full items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5 text-left"
+                    class="flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left"
                     aria-expanded=move || {
                         if expanded.get() {
                             "true"
@@ -407,19 +407,19 @@ pub(crate) fn DividendSummarySection(
                     on:click=move |_| expanded.update(|open| *open = !*open)
                 >
                     <div>
-                        <h2 class="text-sm font-black text-slate-950">{title}</h2>
+                        <h2 class="text-sm font-black text-ink">{title}</h2>
                     </div>
                     <span
-                        class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700"
+                        class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-muted"
                         aria-hidden="true"
                     >
                         <span class="text-xs font-semibold">{move || open_label(expanded.get())}</span>
                         <svg
                             class=move || {
                                 if expanded.get() {
-                                    "w-4 h-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                    "w-4 h-4 text-text-subtle transition-transform duration-200 rotate-180"
                                 } else {
-                                    "w-4 h-4 text-slate-500 transition-transform duration-200"
+                                    "w-4 h-4 text-text-subtle transition-transform duration-200"
                                 }
                             }
                             fill="none"

@@ -21,7 +21,7 @@ pub(crate) fn AssetBalanceRailExtras(
             view! {
                 <div class="px-5 py-4" role="status" aria-live="polite">
                     <div
-                        class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm"
+                        class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text shadow-sm"
                         role="alert"
                     >
                         {text}
@@ -73,7 +73,7 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     };
     view! {
         <div class="px-5 py-4" data-testid="asset-review-prompt-card">
-            <p class="mb-2 text-xs font-medium text-secondary">"AI総評プロンプト"</p>
+            <p class="mb-2 text-xs font-medium text-text-subtle">"AI総評プロンプト"</p>
             <button
                 type="button"
                 class="review-prompt-button no-print"

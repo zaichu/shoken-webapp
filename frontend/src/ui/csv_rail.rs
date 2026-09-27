@@ -2,11 +2,11 @@ use crate::api::dto::CsvUploadResponse;
 use crate::support::csv_flow::{row_error_text, CsvUploadResponseExt};
 use leptos::prelude::*;
 
-const PRIMARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-slate-950 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-slate-800 active:bg-slate-950 px-3 py-1.5 text-sm max-sm:min-h-[44px] h-11 w-full rounded-md text-sm font-bold";
-const DELETE_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-danger text-danger hover:bg-danger hover:text-white px-3 py-1.5 text-sm max-sm:min-h-[44px] h-11 w-full rounded-md text-sm font-bold";
-const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700";
-const BADGE_MUTED_CLASS: &str = "inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600";
-const BADGE_WARN_CLASS: &str = "inline-flex items-center rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-amber-700";
+const PRIMARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-ink bg-ink text-text-inverse shadow-edge-lit hover:bg-ink-hover active:bg-ink px-3 text-sm max-sm:min-h-11 h-11 w-full";
+const DELETE_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-negative text-negative hover:bg-negative hover:text-text-inverse px-3 text-sm max-sm:min-h-11 h-11 w-full";
+const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-muted";
+const BADGE_MUTED_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-medium text-text-muted";
+const BADGE_WARN_CLASS: &str = "inline-flex items-center rounded-full border border-accent-border bg-surface px-2.5 py-1 text-xs font-medium text-accent-deep";
 
 #[component]
 pub fn CsvActionRail(
@@ -31,10 +31,10 @@ pub fn CsvActionRail(
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
     let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
     let csv_body_id = body_id;
-    let section_class = format!("space-y-3 bg-slate-50/60 px-5 py-5 {section_class}");
+    let section_class = format!("space-y-3 bg-surface-sunken/60 px-5 py-5 {section_class}");
     let body_class = move || {
         if csv_expanded.get() {
-            "max-sm:border-t max-sm:border-slate-950/10"
+            "max-sm:border-t max-sm:border-ink/10"
         } else {
             "max-sm:hidden"
         }
@@ -42,7 +42,7 @@ pub fn CsvActionRail(
 
     view! {
         <div>
-            <div class="bg-slate-50/60 px-5 sm:hidden">
+            <div class="bg-surface-sunken/60 px-5 sm:hidden">
                 <button
                     type="button"
                     class="rail-toggle"
@@ -51,8 +51,8 @@ pub fn CsvActionRail(
                     aria-controls=csv_body_id.clone()
                     data-testid=toggle_testid
                 >
-                    <span class="text-sm font-bold text-slate-800">"CSV取り込み・削除"</span>
-                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                    <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
+                    <span class="flex shrink-0 items-center gap-1 text-text-muted">
                         <span class="text-xs font-semibold">
                             {move || if csv_expanded.get() { "閉じる" } else { "開く" }}
                         </span>
@@ -60,9 +60,9 @@ pub fn CsvActionRail(
                             aria-hidden="true"
                             class=move || {
                                 if csv_expanded.get() {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
                                 } else {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
                                 }
                             }
                             fill="none"
@@ -126,7 +126,7 @@ pub fn CsvActionRail(
                         let on_delete_request = on_delete_request.clone();
                         view! {
                             // 保存後にボタンがカーソルの下へせり上がらないよう、区切り線の下の最後に置く
-                            <div class="border-t border-slate-200 pt-3">
+                            <div class="border-t border-border-subtle pt-3">
                                 <button
                                     type="button"
                                     class=DELETE_BUTTON_CLASS
@@ -170,9 +170,9 @@ fn CsvFileInput(
     };
     let label_class = move || {
         if disabled.get() {
-            "flex min-h-20 items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors pointer-events-none opacity-65"
+            "flex min-h-20 items-center justify-between gap-3 rounded-note border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
         } else {
-            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-[1.35rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition-colors hover:border-slate-400 hover:bg-slate-100 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-slate-950"
+            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-note border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
         }
     };
     view! {
@@ -190,7 +190,7 @@ fn CsvFileInput(
                     aria-label="CSVファイルを選択"
                 />
                 <div class="flex min-w-0 items-center gap-3">
-                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
+                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface text-text-muted shadow-sm">
                         <svg
                             class="h-5 w-5"
                             fill="none"
@@ -207,7 +207,7 @@ fn CsvFileInput(
                         </svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="whitespace-nowrap text-sm font-semibold text-slate-800">"CSVファイルを選択"</p>
+                        <p class="whitespace-nowrap text-sm font-semibold text-text">"CSVファイルを選択"</p>
                     </div>
                 </div>
                 <span class="file-chip">
@@ -231,14 +231,14 @@ fn CsvFileInput(
 fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> impl IntoView {
     let has_errors = !result.errors.is_empty();
     let section_class = if has_errors {
-        "rounded-[1.35rem] border px-4 py-3.5 border-amber-200/80 bg-amber-50/80"
+        "rounded-note border px-4 py-3.5 border-accent-border/80 bg-accent-soft/80"
     } else {
-        "rounded-[1.35rem] border px-4 py-3.5 border-emerald-200/80 bg-emerald-50/80"
+        "rounded-note border px-4 py-3.5 border-positive-border/80 bg-positive-soft/80"
     };
     let icon_class = if has_errors {
-        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-white border-amber-200 text-amber-600"
+        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-accent-border text-accent-strong"
     } else {
-        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-white border-emerald-200 text-emerald-600"
+        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong"
     };
     view! {
         <section
@@ -259,7 +259,7 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     </svg>
                 </span>
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-slate-800">"保存しました"</p>
+                    <p class="text-sm font-semibold text-text">"保存しました"</p>
                     <div class="mt-2 flex flex-wrap gap-2">
                         <span class=BADGE_CLASS>{result.inserted_text()}</span>
                         <span class=BADGE_MUTED_CLASS>{mode_label}</span>
@@ -272,11 +272,11 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     </div>
                     {has_errors.then(|| {
                         view! {
-                            <details class="mt-3 rounded-[1rem] border border-amber-200/80 bg-white/80 px-3 py-2">
-                                <summary class="cursor-pointer text-sm font-medium text-slate-700">
+                            <details class="mt-3 rounded-2xl border border-accent-border/80 bg-surface/80 px-3 py-2">
+                                <summary class="cursor-pointer text-sm font-medium text-text-muted">
                                     "エラー詳細を表示"
                                 </summary>
-                                <ul class="mt-2 space-y-1 text-sm text-slate-600">
+                                <ul class="mt-2 space-y-1 text-sm text-text-muted">
                                     {result
                                         .errors
                                         .iter()

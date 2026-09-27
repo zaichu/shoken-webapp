@@ -14,7 +14,7 @@ pub fn LoginPage() -> impl IntoView {
                 if !session.loaded.get() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Spinner size=SpinnerSize::Lg class="text-primary" />
+                            <Spinner size=SpinnerSize::Lg class="text-text-deep" />
                         </div>
                     }
                         .into_any();
@@ -22,7 +22,7 @@ pub fn LoginPage() -> impl IntoView {
                 if session.user.get().is_some() {
                     return view! {
                         <div class="flex items-center justify-center py-12">
-                            <Spinner size=SpinnerSize::Lg class="text-primary" />
+                            <Spinner size=SpinnerSize::Lg class="text-text-deep" />
                         </div>
                     }
                         .into_any();
@@ -31,7 +31,7 @@ pub fn LoginPage() -> impl IntoView {
                     <div class="login-card">
                         <div class="space-y-6 p-6 text-center">
                             <h2 class="text-xl font-semibold">"ログイン"</h2>
-                            <p class="text-sm text-secondary">
+                            <p class="text-sm text-text-subtle">
                                 "Googleアカウントでログインしてください"
                             </p>
                             <button

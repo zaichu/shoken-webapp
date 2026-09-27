@@ -5,15 +5,14 @@ use crate::ui::elements::{ListSkeleton, Loading};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const TAB_BUTTON_BASE: &str = "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-[44px] max-sm:shrink-0 max-sm:px-3";
-const TAB_BUTTON_ACTIVE: &str =
-    "border-slate-950 bg-slate-950 text-white shadow-[inset_0_-2px_0_#f59e0b]";
+const TAB_BUTTON_BASE: &str = "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-11 max-sm:shrink-0 max-sm:px-3";
+const TAB_BUTTON_ACTIVE: &str = "border-ink bg-ink text-text-inverse shadow-edge-accent";
 const TAB_BUTTON_INACTIVE: &str =
-    "border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-white hover:text-slate-950";
+    "border-border-strong bg-surface text-text hover:border-border-xstrong hover:bg-surface hover:text-ink";
 const TAB_COUNT_BASE: &str =
     "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold";
-const TAB_COUNT_ACTIVE: &str = "border border-white/20 bg-white text-slate-950";
-const TAB_COUNT_INACTIVE: &str = "border border-slate-200 bg-white text-slate-700";
+const TAB_COUNT_ACTIVE: &str = "border border-text-inverse/20 bg-surface text-ink";
+const TAB_COUNT_INACTIVE: &str = "border border-border-subtle bg-surface text-text-muted";
 
 pub(crate) fn next_tab_index(current: usize, key: &str) -> Option<usize> {
     let count = TAB_IDS.len();

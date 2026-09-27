@@ -519,8 +519,8 @@ fn negative_valuation_is_decided_by_rounded_amount() {
     assert!(is_negative_valuation(Some(-1.0)));
     assert_eq!(format_valuation_amount(Some(-0.4)), "¥0");
     assert_eq!(format_valuation_amount(Some(-0.5)), "-¥1");
-    assert_eq!(valuation_tone(Some(-0.5)), ("text-red-700", Some("true")));
-    assert_eq!(valuation_tone(Some(-0.4)), ("text-slate-800", None));
+    assert_eq!(valuation_tone(Some(-0.5)), ("text-negative", Some("true")));
+    assert_eq!(valuation_tone(Some(-0.4)), ("text-text", None));
 }
 
 #[test]

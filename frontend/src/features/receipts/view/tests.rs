@@ -529,12 +529,15 @@ fn security_code_acceptance_matches_react_regex() {
 
 #[test]
 fn kpi_styles_match_tone() {
-    assert_eq!(kpi_card_bg("emerald"), "border-teal-200 bg-teal-50");
-    assert_eq!(kpi_card_bg("red"), "border-rose-100 bg-rose-50");
-    assert_eq!(kpi_card_bg("other"), "border-slate-200 bg-white");
-    assert_eq!(kpi_value_color("emerald"), "text-teal-700");
-    assert_eq!(kpi_value_color("red"), "text-red-700");
-    assert_eq!(kpi_value_color("other"), "text-slate-800");
+    assert_eq!(kpi_card_bg("emerald"), "border-gain-border bg-gain-soft");
+    assert_eq!(
+        kpi_card_bg("red"),
+        "border-negative-tint-border bg-negative-tint"
+    );
+    assert_eq!(kpi_card_bg("other"), "border-border-subtle bg-surface");
+    assert_eq!(kpi_value_color("emerald"), "text-gain");
+    assert_eq!(kpi_value_color("red"), "text-negative");
+    assert_eq!(kpi_value_color("other"), "text-text");
 }
 
 #[test]
