@@ -14,7 +14,7 @@ pub use shared::summary::{
     domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
 };
 
-#[allow(dead_code)]
+#[cfg(test)]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DividendGroupSummary {
     pub filter: String,
@@ -23,7 +23,7 @@ pub struct DividendGroupSummary {
     pub total_net_amount_received: Decimal,
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MutualFundGroupSummary {
     pub filter: String,
@@ -51,7 +51,7 @@ pub fn sort_mutual_funds(rows: &[Mutualfund]) -> Vec<Mutualfund> {
     sorted
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn group_dividends_by_month(rows: &[Dividend]) -> Vec<DividendGroupSummary> {
     let mut groups: BTreeMap<String, DividendGroupSummary> = BTreeMap::new();
     for row in rows {
@@ -69,7 +69,7 @@ pub fn group_dividends_by_month(rows: &[Dividend]) -> Vec<DividendGroupSummary> 
     groups.into_values().rev().collect()
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn group_mutual_funds_by_month(rows: &[Mutualfund]) -> Vec<MutualFundGroupSummary> {
     let mut groups: BTreeMap<String, MutualFundGroupSummary> = BTreeMap::new();
     for row in rows {
