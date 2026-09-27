@@ -7,7 +7,7 @@ use crate::{
         dividend::{Dividend, DividendSearchQueryParams, DividendSummary},
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     },
-    services::{csv_domain::DividendDomain, dividend as dividend_service},
+    services::{csv::domain::DividendDomain, dividend as dividend_service},
     state::AppState,
 };
 use axum::{
@@ -70,7 +70,7 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_delete_all(
+    crate::handlers::v1::csv_import::handle_delete_all(
         dividend_service::delete_all(&state.pool, auth_user.id()),
         "全ての配当金データを削除しました",
     )
@@ -95,7 +95,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<DividendDomain>(multipart).await
+    crate::handlers::v1::csv_import::handle_preview_csv::<DividendDomain>(multipart).await
 }
 
 /// 配当金 CSV をインポート（v1）
@@ -116,7 +116,7 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_import_csv::<DividendDomain>(
+    crate::handlers::v1::csv_import::handle_import_csv::<DividendDomain>(
         &state.pool,
         auth_user.id(),
         multipart,
@@ -144,5 +144,6 @@ pub async fn estimate_per_share(
     auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<DividendPerShareBatchRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::dividend_per_share::batch(State(state), auth_user, ValidatedJson(data)).await
+    crate::handlers::v1::dividend_per_share::batch(State(state), auth_user, ValidatedJson(data))
+        .await
 }

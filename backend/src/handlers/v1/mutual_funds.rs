@@ -6,7 +6,7 @@ use crate::{
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         mutualfund::{Mutualfund, MutualfundSearchQueryParams, MutualfundSummary},
     },
-    services::{csv_domain::MutualfundDomain, mutualfund as mutualfund_service},
+    services::{csv::domain::MutualfundDomain, mutualfund as mutualfund_service},
     state::AppState,
 };
 use axum::{
@@ -68,7 +68,7 @@ pub async fn delete_transactions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_delete_all(
+    crate::handlers::v1::csv_import::handle_delete_all(
         mutualfund_service::delete_all(&state.pool, auth_user.id()),
         "全ての投資信託データを削除しました",
     )
@@ -93,7 +93,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<MutualfundDomain>(multipart).await
+    crate::handlers::v1::csv_import::handle_preview_csv::<MutualfundDomain>(multipart).await
 }
 
 /// 投資信託 CSV をインポート（v1）
@@ -114,7 +114,7 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_import_csv::<MutualfundDomain>(
+    crate::handlers::v1::csv_import::handle_import_csv::<MutualfundDomain>(
         &state.pool,
         auth_user.id(),
         multipart,

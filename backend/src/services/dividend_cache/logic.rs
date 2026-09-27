@@ -1,4 +1,4 @@
-use crate::models::market_data::providers::jquants::FinSummaryData;
+use crate::services::market_data::providers::jquants::FinSummaryData;
 use chrono::{DateTime, Utc};
 use shared::dividend_per_share::DividendCacheStatus;
 
@@ -57,7 +57,7 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, DividendCacheS
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::market_data::providers::jquants::FinSummaryData;
+    use crate::services::market_data::providers::jquants::FinSummaryData;
 
     fn make_summary(
         disc_date: &str,
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_extract_dividend_from_upstream_response() {
-        use crate::models::market_data::providers::jquants::FinSummaryResponse;
+        use crate::services::market_data::providers::jquants::FinSummaryResponse;
         use serde_json::json;
 
         // HTTP と同じデシリアライズ経路で、欠損値と優先順位を固定する。

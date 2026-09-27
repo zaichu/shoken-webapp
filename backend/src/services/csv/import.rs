@@ -1,8 +1,8 @@
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv_pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
-use crate::services::csv_util::RowNumber;
+use crate::services::csv::pipeline::{parse_csv_with_config, CsvParserConfig, CsvRow};
+use crate::services::csv::util::RowNumber;
 use std::future::Future;
 
 pub fn validate_csv_rows<T, F>(rows: &[CsvRow], transform_row: F) -> (Vec<T>, Vec<CsvRowError>)

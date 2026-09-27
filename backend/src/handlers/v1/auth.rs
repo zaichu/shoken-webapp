@@ -1,7 +1,9 @@
+pub mod oauth;
+
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    handlers::auth::same_site,
+    handlers::v1::auth::oauth::same_site,
     models::{common::MessageResponse, user::UserResponse},
     services::auth as auth_service,
     state::AppState,
@@ -96,7 +98,7 @@ pub async fn get_session(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<UserResponse>, ApiError> {
-    crate::handlers::auth::get_current_user(State(state), jar).await
+    crate::handlers::v1::auth::oauth::get_current_user(State(state), jar).await
 }
 
 /// セッションを削除してログアウト（v1）
@@ -110,7 +112,7 @@ pub async fn get_session(
     security(("cookieAuth" = []))
 )]
 pub async fn delete_session(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    crate::handlers::auth::logout(State(state), jar).await
+    crate::handlers::v1::auth::oauth::logout(State(state), jar).await
 }
 
 /// アカウントを削除（v1）
@@ -130,7 +132,7 @@ pub async fn delete_account(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    let session_id = crate::handlers::auth::get_session_id_from_jar(&jar)?;
+    let session_id = crate::handlers::v1::auth::oauth::get_session_id_from_jar(&jar)?;
 
     let confirmation = jar
         .get(ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME)
@@ -153,7 +155,9 @@ pub async fn delete_account(
 
     let is_secure = state.config.secure_cookie;
     let jar = jar
-        .remove(crate::handlers::auth::clear_session_cookie(is_secure))
+        .remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
+            is_secure,
+        ))
         .remove(clear_account_delete_confirmation_cookie(is_secure));
 
     Ok((
@@ -180,7 +184,7 @@ pub async fn create_account_deletion_confirmation(
     _auth_user: AuthenticatedUser,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    let session_id = crate::handlers::auth::get_session_id_from_jar(&jar)?;
+    let session_id = crate::handlers::v1::auth::oauth::get_session_id_from_jar(&jar)?;
     let confirmation =
         issue_account_delete_confirmation(&session_id.to_string(), chrono::Utc::now().timestamp())?;
     let is_secure = state.config.secure_cookie;
@@ -214,7 +218,7 @@ pub async fn google_authorize(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::auth::google_auth(State(state), jar).await
+    crate::handlers::v1::auth::oauth::google_auth(State(state), jar).await
 }
 
 /// Google OAuth コールバックを処理（v1）
@@ -234,10 +238,10 @@ pub async fn google_authorize(
 )]
 pub async fn google_callback(
     State(state): State<AppState>,
-    Query(query): Query<crate::handlers::auth::AuthCallbackQuery>,
+    Query(query): Query<crate::handlers::v1::auth::oauth::AuthCallbackQuery>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::auth::google_callback(State(state), Query(query), jar).await
+    crate::handlers::v1::auth::oauth::google_callback(State(state), Query(query), jar).await
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 use crate::errors::{ApiError, CsvError};
-use crate::services::csv_util::decode_bytes;
+use crate::services::csv::util::decode_bytes;
 use std::collections::HashMap;
 
 pub type CsvRow = HashMap<String, String>;

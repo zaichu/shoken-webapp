@@ -6,19 +6,19 @@ use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::bulk_helpers::{
+use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+#[cfg(test)]
+use crate::services::csv::pipeline::parse_csv_with_config;
+use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::util::{
+    check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
+};
+use crate::services::domain::bulk::{
     delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
     DeleteTarget, RowLimit, UserDataDomain,
 };
-use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
-#[cfg(test)]
-use crate::services::csv_pipeline::parse_csv_with_config;
-use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{
-    check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
-};
-use crate::services::facets;
-use crate::services::search_filters::{
+use crate::services::domain::facets;
+use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
 };
 use rust_decimal::Decimal;

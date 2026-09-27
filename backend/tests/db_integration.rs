@@ -14,9 +14,9 @@ use backend::{
     routes::app_router,
     services::asset_balance as asset_balance_svc,
     services::auth::{self as auth_svc, SessionToken},
-    services::bulk_helpers::RowLimit,
     services::dividend as dividend_svc,
     services::dividend_cache,
+    services::domain::bulk::RowLimit,
     services::domestic_stock as domestic_stock_svc,
     services::mutualfund as mutualfund_svc,
     state::{AppState, Secrets},
@@ -1540,7 +1540,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn user_row_limit_rejects_over_limit_inserts() {
-    use backend::services::bulk_helpers::{ensure_user_row_limit_with, UserDataDomain};
+    use backend::services::domain::bulk::{ensure_user_row_limit_with, UserDataDomain};
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     const LIMIT: RowLimit = RowLimit::new(3);
