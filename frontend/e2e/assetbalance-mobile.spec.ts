@@ -116,27 +116,47 @@ test.beforeEach(async ({ page }) => {
   await setupAssetBalanceMocks(page);
 });
 
-test('390px では一覧が検索レールより上に並びCSV操作は折り畳まれる', async ({ page }) => {
+test('390px ではCSV・検索レールが保有内訳より上に並びCSV操作は折り畳まれる', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
 
+  // 取引明細と同じ並び: レール(CSV → 検索 → プロンプト)が一覧より上
   const rail = page.getByTestId('assetbalance-utility-rail');
   const main = page.getByTestId('assetbalance-main-stage');
   const railBox = await rail.boundingBox();
   const mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
-  expect(mainBox!.y).toBeLessThan(railBox!.y);
-
-  await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
-  await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
-  await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
+  expect(railBox!.y).toBeLessThan(mainBox!.y);
 
   const railInner = rail.locator('> div').first();
   const railSections = railInner.locator('> *');
   expect(await railSections.count()).toBeGreaterThanOrEqual(3);
-  await expect(railInner.locator('[data-testid="search-card"]')).toHaveCount(1);
+  await expect(
+    railSections.first().getByTestId('assetbalance-csv-toggle'),
+  ).toBeVisible();
+  const railOrder = await railInner.evaluate((el) =>
+    Array.from(el.children)
+      .map((child) => (child as HTMLElement).dataset?.testid ?? '')
+      .filter((id) => id.length > 0),
+  );
+  expect(railOrder).toEqual(['search-card', 'asset-review-prompt-card']);
+
+  // main 内は資産サマリー → 保有内訳
+  const summary = page.getByTestId('portfolio-valuation-summary');
+  const firstCard = page.getByTestId('portfolio-valuation-card').first();
+  const summaryBox = await summary.boundingBox();
+  const cardBox = await firstCard.boundingBox();
+  expect(summaryBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(summaryBox!.y).toBeLessThan(cardBox!.y);
+
+  await expect(summary).toBeVisible();
+  await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
+  await expect(firstCard).toBeVisible();
+  await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
   await expect(page.locator('#securities-search')).toBeVisible();
 
   const toggle = page.getByTestId('assetbalance-csv-toggle');
