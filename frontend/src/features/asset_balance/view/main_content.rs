@@ -35,7 +35,7 @@ pub(crate) fn AssetBalanceMainContent(
             if rows.is_empty() && query.is_empty() {
                 show_all.set(false);
                 return view! {
-                    <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-2">
+                    <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card">
                         <div>
                             <div class="empty-state">
                                 <h3 class="text-base font-black text-ink">

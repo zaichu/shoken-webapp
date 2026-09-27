@@ -1,0 +1,1 @@
+<div class="bg-white text-slate-500 shadow-[0_1px_2px_#000] text-primary [min-height:44px] print:border-black"></div>

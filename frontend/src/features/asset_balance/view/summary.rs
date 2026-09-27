@@ -67,7 +67,7 @@ pub(crate) fn PortfolioSummary(
     if views.is_empty() {
         show_all.set(false);
         return view! {
-            <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-2">
+            <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card">
                 <div>
                     <div class="empty-state">
                         <h3 class="text-base font-black text-ink">
@@ -132,7 +132,7 @@ pub(crate) fn PortfolioSummary(
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
             <section
-                class="rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-elevation-2"
+                class="rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-summary-card"
                 data-testid="portfolio-kpi-strip"
             >
                 <div class="flex flex-col gap-3 border-b border-ink/10 pb-4 sm:flex-row sm:items-end sm:justify-between">

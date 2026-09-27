@@ -1,109 +1,97 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
 @source "../src/**/*.rs";
 
 @theme {
-  /* ページ背景とカードの面 */
   --color-page: #f6f7f4;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #f8fafc;
-  --color-surface-raised: #f1f5f9;
-  --color-fill: #e2e8f0;
-  --color-fill-strong: #94a3b8;
+  --color-surface: var(--color-white);
+  --color-surface-sunken: var(--color-slate-50);
+  --color-surface-raised: var(--color-slate-100);
+  --color-fill: var(--color-slate-200);
+  --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
 
-  /* 暗い面(ヘッダー・モーダル幕) */
   --color-night: #111827;
-  --color-night-soft: #334155;
-  --color-scrim: #000000;
+  --color-night-soft: var(--color-slate-700);
+  --color-scrim: var(--color-black);
 
-  /* 文字 */
-  --color-ink: #020617;
-  --color-ink-hover: #1e293b;
-  --color-text: #1e293b;
+  --color-ink: var(--color-slate-950);
+  --color-ink-hover: var(--color-slate-800);
+  --color-text: var(--color-slate-800);
   --color-text-deep: #111827;
-  --color-text-strong: #0f172a;
-  --color-text-soft: #334155;
-  --color-text-muted: #475569;
-  --color-text-subtle: #64748b;
-  --color-text-faint: #94a3b8;
-  --color-text-inverse: #ffffff;
-  --color-text-inverse-muted: #cbd5e1;
+  --color-text-strong: var(--color-slate-900);
+  --color-text-soft: var(--color-slate-700);
+  --color-text-muted: var(--color-slate-600);
+  --color-text-subtle: var(--color-slate-500);
+  --color-text-faint: var(--color-slate-400);
+  --color-text-inverse: var(--color-white);
+  --color-text-inverse-muted: var(--color-slate-300);
 
-  /* 閉じるボタン・コピーアイコン(ニュートラルのグレー) */
-  --color-close: #6b7280;
-  --color-close-hover: #374151;
-  --color-icon: #9ca3af;
-  --color-icon-hover: #4b5563;
+  --color-close: var(--color-gray-500);
+  --color-close-hover: var(--color-gray-700);
+  --color-icon: var(--color-gray-400);
+  --color-icon-hover: var(--color-gray-600);
 
-  /* 境界線 */
   --color-border: rgba(15, 23, 42, 0.12);
-  --color-border-faint: #f1f5f9;
-  --color-border-subtle: #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-border-xstrong: #94a3b8;
-  --color-border-bold: #64748b;
+  --color-border-faint: var(--color-slate-100);
+  --color-border-subtle: var(--color-slate-200);
+  --color-border-strong: var(--color-slate-300);
+  --color-border-xstrong: var(--color-slate-400);
+  --color-border-bold: var(--color-slate-500);
 
-  /* マイナス・危険 */
-  --color-negative: #b91c1c;
-  --color-negative-strong: #991b1b;
-  --color-negative-soft: #fef2f2;
-  --color-negative-border: #fecaca;
-  --color-negative-tint: #fff1f2;
-  --color-negative-tint-border: #ffe4e6;
+  --color-negative: var(--color-red-700);
+  --color-negative-strong: var(--color-red-800);
+  --color-negative-soft: var(--color-red-50);
+  --color-negative-border: var(--color-red-200);
+  --color-negative-tint: var(--color-rose-50);
+  --color-negative-tint-border: var(--color-rose-100);
 
-  /* 成功通知 */
-  --color-positive: #047857;
-  --color-positive-strong: #059669;
-  --color-positive-soft: #ecfdf5;
-  --color-positive-softer: #d1fae5;
-  --color-positive-border: #a7f3d0;
+  --color-positive: var(--color-emerald-700);
+  --color-positive-strong: var(--color-emerald-600);
+  --color-positive-soft: var(--color-emerald-50);
+  --color-positive-softer: var(--color-emerald-100);
+  --color-positive-border: var(--color-emerald-200);
 
-  /* 集計のプラス箱 */
-  --color-gain: #0f766e;
-  --color-gain-soft: #f0fdfa;
-  --color-gain-border: #99f6e4;
+  --color-gain: var(--color-teal-700);
+  --color-gain-soft: var(--color-teal-50);
+  --color-gain-border: var(--color-teal-200);
 
-  /* 注意・ブランドのアクセント */
   --color-accent: #c08403;
-  --color-accent-bright: #f59e0b;
-  --color-accent-ring: #fbbf24;
-  --color-accent-strong: #d97706;
-  --color-accent-deep: #b45309;
-  --color-accent-text: #78350f;
-  --color-accent-text-soft: #92400e;
-  --color-accent-soft: #fffbeb;
-  --color-accent-softer: #fef3c7;
-  --color-accent-border: #fde68a;
-  --color-accent-border-strong: #fcd34d;
-  --color-accent-on-dark: #fcd34d;
+  --color-accent-bright: var(--color-amber-500);
+  --color-accent-ring: var(--color-amber-400);
+  --color-accent-strong: var(--color-amber-600);
+  --color-accent-deep: var(--color-amber-700);
+  --color-accent-text: var(--color-amber-900);
+  --color-accent-text-soft: var(--color-amber-800);
+  --color-accent-soft: var(--color-amber-50);
+  --color-accent-softer: var(--color-amber-100);
+  --color-accent-border: var(--color-amber-200);
+  --color-accent-border-strong: var(--color-amber-300);
+  --color-accent-on-dark: var(--color-amber-300);
 
-  /* リンク・情報 */
-  --color-info: #1d4ed8;
-  --color-info-strong: #1e3a8a;
-  --color-info-deep: #1e40af;
-  --color-info-soft: #eff6ff;
-  --color-info-border: #bfdbfe;
-  --color-info-focus: #3b82f6;
+  --color-info: var(--color-blue-700);
+  --color-info-strong: var(--color-blue-900);
+  --color-info-deep: var(--color-blue-800);
+  --color-info-soft: var(--color-blue-50);
+  --color-info-border: var(--color-blue-200);
+  --color-info-focus: var(--color-blue-500);
 
-  /* 影 */
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
   --shadow-elevation-3: 0 18px 58px -42px rgba(15, 23, 42, 0.9);
   --shadow-page: 0 18px 60px -48px rgba(15, 23, 42, 0.85);
   --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
+  --shadow-summary-card: 0 16px 44px -38px rgba(15, 23, 42, 0.9);
   --shadow-card-hover: 0 18px 40px -32px rgba(15, 23, 42, 0.85);
   --shadow-header: 0 18px 44px -34px rgba(15, 23, 42, 0.95);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --shadow-edge-accent: inset 0 -2px 0 #f59e0b;
   --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
 
-  /* 角丸 */
   --radius-panel: 1.25rem;
   --radius-note: 1.35rem;
   --radius-field: 1.15rem;
 
-  /* 英字の飾りラベル */
   --text-micro: 0.625rem;
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
@@ -113,7 +101,6 @@
   --tracking-eyebrow: 0.22em;
   --tracking-display: 0.28em;
 
-  /* 幅・ブレークポイント */
   --container-wide: 1680px;
   --container-form: 25rem;
   --breakpoint-xs: 23.4375rem;

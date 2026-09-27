@@ -27,7 +27,7 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
     ),
 ];
 
-const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-11 max-sm:min-w-11 max-sm:shrink-0 max-sm:items-center max-sm:justify-center max-sm:whitespace-nowrap max-sm:px-2 max-sm:text-xs";
+const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-11 max-sm:min-w-11 max-sm:shrink-0 max-sm:items-center max-sm:justify-center max-sm:whitespace-nowrap max-sm:px-2 max-sm:text-xs max-sm:leading-5";
 const NAV_LINK_ACTIVE: &str = "bg-surface text-ink shadow-edge-accent";
 const NAV_LINK_INACTIVE: &str =
     "text-text-inverse-muted hover:bg-surface/10 hover:text-text-inverse";

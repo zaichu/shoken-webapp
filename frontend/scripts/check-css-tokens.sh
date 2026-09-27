@@ -5,14 +5,16 @@
 set -euo pipefail
 shopt -s globstar nullglob
 
-cd "$(dirname "$0")/.."
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+SCRIPT_PATH="$SCRIPT_DIR/$(basename "$0")"
+cd "$SCRIPT_DIR/.."
 
-PALETTE='-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}'
+PALETTE='(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}'
 OLD_TOKEN='(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset)-(primary|primary-hover|primary-dark|secondary|secondary-hover|success|success-hover|info-hover|warning|warning-hover|danger|danger-hover|light|dark|negative-dark|bg-body|bg-dark|bg-card-dark|border-dark)\b'
 # 白・黒の直書き(bg-white など)。`bg-surface` / `text-text-inverse` / `bg-scrim` などのトークンを使う
-MONO='(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
-# `-[...]` 形式の任意値。`]` 以外は許すので content-["..."] など引用符を含むものも拾う
-ARBITRARY='[a-z][a-z-]*-\[[^]]*\]'
+MONO='([^[:space:]"]+:)*(text|bg|border|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
+# `-[...]` 形式の任意値と `[property:value]` 形式の任意プロパティ
+ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\])'
 
 # 許可リスト: 追加するときは理由を添える。形式は grep -E の正規表現(一致する行を除外)。
 ALLOWED_SRC=(
@@ -23,6 +25,7 @@ ALLOWED_SRC=(
 # input.css の @layer components 内ではレイアウトの任意値を許す(レール付き 2 カラムの grid template 等)。
 # src 側の要素直書きは許可しない
 ALLOWED_CSS=("${ALLOWED_SRC[@]}" 'grid-cols-\[')
+ALLOWED_MONO_CSS='print:(\[[^]]+\]:)?border-black$'
 
 fail=0
 RS_FILES=(src/**/*.rs)
@@ -43,6 +46,19 @@ check() {
   fail=1
 }
 
+check_allowed() {
+  local label="$1" pattern="$2" allowed="$3"
+  shift 3
+  local hits deny
+  hits=$(grep -HnoE -e "$pattern" "$@" 2>/dev/null || true)
+  [ -z "$hits" ] && { echo "  OK: $label"; return 0; }
+  deny=$(printf '%s\n' "$hits" | grep -vE "$allowed" || true)
+  [ -z "$deny" ] && { echo "  OK: $label"; return 0; }
+  echo "ERROR: $label" >&2
+  printf '%s\n' "$deny" >&2
+  fail=1
+}
+
 check_arbitrary() {
   local label="$1" allowed="$2"
   shift 2
@@ -56,13 +72,50 @@ check_arbitrary() {
   fail=1
 }
 
+if [ "$#" -gt 0 ]; then
+  check "生パレット(自己テスト)" "$PALETTE" "$@"
+  check "旧トークン(自己テスト)" "$OLD_TOKEN" "$@"
+  check_allowed "白・黒の直書き(自己テスト)" "$MONO" "$ALLOWED_MONO_CSS" "$@"
+  check_arbitrary "自己テスト" '^$' "$@"
+  [ "$fail" -ne 0 ] && exit 1
+  exit 0
+fi
+
 check "生パレット(src/**/*.rs)" "$PALETTE" "${RS_FILES[@]}"
 check "旧トークン(src/**/*.rs)" "$OLD_TOKEN" "${RS_FILES[@]}"
 check "白・黒の直書き(src/**/*.rs)" "$MONO" "${RS_FILES[@]}"
 check_arbitrary "src/**/*.rs" "$(join_or "${ALLOWED_SRC[@]}")" "${RS_FILES[@]}"
 check "生パレット(style/input.css)" "$PALETTE" style/input.css
 check "旧トークン(style/input.css)" "$OLD_TOKEN" style/input.css
+check_allowed "白・黒の直書き(style/input.css)" "$MONO" "$ALLOWED_MONO_CSS" style/input.css
 check_arbitrary "style/input.css" "$(join_or "${ALLOWED_CSS[@]}")" style/input.css
 
 [ "$fail" -ne 0 ] && exit 1
+
+self_test_output=""
+self_test_status=0
+if self_test_output=$(bash "$SCRIPT_PATH" scripts/fixtures/css-tokens-invalid.txt 2>&1); then
+  self_test_status=0
+else
+  self_test_status=$?
+fi
+
+if [ "$self_test_status" -ne 1 ]; then
+  echo "ERROR: CSS トークン検査の自己テストがexit 1になりません" >&2
+  exit 1
+fi
+
+for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]'; do
+  if ! grep -Fq "$expected" <<<"$self_test_output"; then
+    echo "ERROR: CSS トークン検査の自己テストが $expected を検出しません" >&2
+    exit 1
+  fi
+done
+
+if grep -Fq 'print:border-black' <<<"$self_test_output"; then
+  echo "ERROR: CSS トークン検査が print:border-black を違反として扱いました" >&2
+  exit 1
+fi
+
+echo "  OK: 違反fixtureの自己テスト"
 echo "OK: 違反はありません"
