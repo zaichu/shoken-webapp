@@ -1,0 +1,8 @@
+// 違反fixture: 以下のすべてが検出対象
+view! { <button type="button" class="x" on:click=move |_| {}>"押す"</button> }
+view! { <select class="x"><option value="">"全て表示"</option></select> }
+class="panel-card p-4"
+class="empty-state py-10"
+class="collapsible-trigger"
+class="search-submit no-print"
+class="code-badge"
