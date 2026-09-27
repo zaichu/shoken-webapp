@@ -197,7 +197,7 @@ backend/
 
 ### 層の役割と依存の向き
 
-依存は handlers → services → models の一方向にする。
+本番コードの依存は handlers → services → models の一方向にする(テストは除く)。
 
 - handlers: リクエストの取り出しと応答の組み立てだけを行い、処理は services に渡す
 - services: 業務ロジックと DB・外部 API へのアクセス。handlers には依存しない

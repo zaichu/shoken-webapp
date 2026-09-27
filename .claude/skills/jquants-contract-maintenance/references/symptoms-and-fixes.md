@@ -2,11 +2,11 @@
 
 ## Deserialize エラー
 
-`backend/src/models/market_data/providers/jquants.rs` と `backend/src/services/market_data/providers/jquants.rs` で、field 名と optional / required の扱いを実応答と比較する。
+`backend/src/services/market_data/providers/jquants/response.rs` と `backend/src/services/market_data/providers/jquants.rs` で、field 名と optional / required の扱いを実応答と比較する。
 
 ## API は成功するが表示が崩れる
 
-`frontend/src/dto.rs`、`dividend_per_share.rs`、`dividend_info.rs` を確認する。API shape を変更した場合は OpenAPI と DTO 契約テストも更新する。
+`frontend/src/api/dto.rs`、`features/dividend_per_share.rs`、`features/receipts/dividend_info.rs` を確認する。API shape を変更した場合は OpenAPI と DTO 契約テストも更新する。
 
 ## 確認順
 

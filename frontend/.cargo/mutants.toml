@@ -8,11 +8,11 @@
 exclude_re = [
     # ブラウザ API(localStorage / BroadcastChannel / navigator.locks)前提で
     # ユニットテストから状態を観測できない
-    "src/cross_tab\\.rs",
-    "src/pending_logout\\.rs",
+    "src/session/cross_tab\\.rs",
+    "src/session/pending_logout\\.rs",
     # DOM フォーカス/キーボード操作のみ
-    "src/confirm_modal\\.rs",
-    "src/collapsible_search_card\\.rs",
+    "src/ui/confirm_modal\\.rs",
+    "src/ui/collapsible_search_card\\.rs",
     "current_path",
     "replace_location",
     "redirect_to",
@@ -82,12 +82,12 @@ exclude_re = [
     "delete match arm Value::Null in to_finite_amount",
     # start 側の `!` 削除は `start.is_empty() && start > end` を作るが、
     # 空文字列はどの日付よりも小さいため条件は常に false で同じ結果
-    "src/receipts_search\\.rs:201:8: delete ! in matches_date_range",
+    "src/support/list_search\\.rs:\\d+:\\d+: delete ! in matches_date_range",
     # 外側ループ(92行目)は index==len で内側の空白スキップが即 break するため同じ結果
-    "src/receipts_search\\.rs:92:17: replace < with <= in parse_search_tokens",
+    "src/support/list_search\\.rs:\\d+:\\d+: replace < with <= in parse_search_tokens",
     # index==len では query[index..] が空で chars().next() が None → `?` で None 返却し
     # ループ脱出の None と同じ結果
-    "src/receipts_search\\.rs:43:17: replace < with <= in parse_quoted_token",
+    "src/support/list_search\\.rs:\\d+:\\d+: replace < with <= in parse_quoted_token",
     # code_end==0 のとき label_match=Some(\"\") でも空コードはどの item にも一致せず
     # 名前一致探索へ進み、空コード item があっても返り値は同じ \"\"
     "replace > with >= in derive_security_code_from_query",
@@ -96,12 +96,12 @@ exclude_re = [
     # ビルド時の環境変数で決まり、ユニット mutation では検証できない領域
     "replace ApiClient::base_url -> String with String::new()",
     # 70行目はサブノーマル入力専用で仮数の取り方に関わらず丸め結果が ±0.0 で同じ
-    "src/asset_balance_domain\\.rs:70:15: replace & with \\| in to_fixed",
-    "src/asset_balance_domain\\.rs:70:15: replace & with \\^ in to_fixed",
+    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace & with \\| in to_fixed",
+    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace & with \\^ in to_fixed",
     # bits & mask は bit52 を含まないため暗黙ビットの合成は | と ^ で同じ結果
-    "src/asset_balance_domain\\.rs:73:36: replace \\| with \\^ in to_fixed",
+    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace \\| with \\^ in to_fixed",
     # 66行目は total==TOP_ITEMS で skip(visible) が空になり visible_count/others/toggle/grid が同じ
-    "src/asset_balance_portfolio\\.rs:66:40: replace > with >= in chart_display",
+    "src/features/asset_balance/portfolio\\.rs:\\d+:\\d+: replace > with >= in chart_display",
     # amount==0 のとき amount/investment*100 は 0.0 で else 分岐と同じ結果
     "replace > with >= in dividend_rate",
 ]
