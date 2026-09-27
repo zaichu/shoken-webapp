@@ -26,20 +26,44 @@ fn sum_rows<T, S: Default>(rows: &[T], mut add: impl FnMut(&mut S, &T)) -> S {
     })
 }
 
+/// 国内株式の日次集計が行に求める最小の読み出し面。
+/// DTO 以外の行型（CSV プレビューなど）にも同じ仕様で集計できるようにする。
+pub trait DomesticDailyRow {
+    /// 日次グループのキー兼 `DomesticDailySummary::filter` に入る約定日文字列。
+    fn daily_key(&self) -> String;
+    /// 特定口座（account に「特定」を含む）かどうか。
+    fn is_specific_account(&self) -> bool;
+    fn realized_profit_and_loss(&self) -> Decimal;
+}
+
+impl DomesticDailyRow for DomesticStock {
+    fn daily_key(&self) -> String {
+        self.trade_date.to_string()
+    }
+
+    fn is_specific_account(&self) -> bool {
+        self.account.is_specific()
+    }
+
+    fn realized_profit_and_loss(&self) -> Decimal {
+        self.realized_profit_and_loss
+    }
+}
+
 /// 国内株式の日次集計（新しい日付順）。
 ///
 /// trade_date ごとに特定口座（account に「特定」を含む）と NISA 等口座の実現損益を分離し、
 /// 特定口座合計がプラスの日だけ `floor(合計 * 税率)` を日次税額とする。
 /// backend の検索 summary SQL と同一の仕様。
 #[must_use]
-pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
-    let mut groups: BTreeMap<_, (Decimal, Decimal)> = BTreeMap::new();
+pub fn domestic_daily<R: DomesticDailyRow>(rows: &[R]) -> Vec<DomesticDailySummary> {
+    let mut groups: BTreeMap<String, (Decimal, Decimal)> = BTreeMap::new();
     for row in rows {
-        let totals = groups.entry(&row.trade_date).or_default();
-        if row.account.is_specific() {
-            totals.0 += row.realized_profit_and_loss;
+        let totals = groups.entry(row.daily_key()).or_default();
+        if row.is_specific_account() {
+            totals.0 += row.realized_profit_and_loss();
         } else {
-            totals.1 += row.realized_profit_and_loss;
+            totals.1 += row.realized_profit_and_loss();
         }
     }
     groups
@@ -49,7 +73,7 @@ pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
             let profit = specific + tax_exempt;
             let taxes = tax_amount(specific);
             DomesticDailySummary {
-                filter: date.to_string(),
+                filter: date,
                 total_realized_profit_and_loss: profit,
                 total_taxes: taxes,
                 total_realized_profit_and_loss_after_tax: profit - taxes,
@@ -60,7 +84,7 @@ pub fn domestic_daily(rows: &[DomesticStock]) -> Vec<DomesticDailySummary> {
 
 /// 国内株式の検索条件全体の合計（日次集計の合算）。
 #[must_use]
-pub fn domestic_total(rows: &[DomesticStock]) -> DomesticStockSummary {
+pub fn domestic_total<R: DomesticDailyRow>(rows: &[R]) -> DomesticStockSummary {
     domestic_daily(rows)
         .into_iter()
         .fold(DomesticStockSummary::default(), |mut total, day| {

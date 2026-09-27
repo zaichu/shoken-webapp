@@ -1,5 +1,3 @@
-#[cfg(test)]
-pub(crate) use crate::features::receipts::kind::group_label;
 pub(crate) use crate::features::receipts::kind::TableGroup;
 
 use crate::features::receipts::{ReceiptRow, ReceiptsTab};

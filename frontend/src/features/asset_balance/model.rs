@@ -152,29 +152,6 @@ pub struct ValuationResult {
     pub rate: Option<f64>,
 }
 
-#[cfg(test)]
-pub fn calculate_valuation(
-    market_value: Option<f64>,
-    purchase_amount: Option<f64>,
-) -> ValuationResult {
-    let (Some(market), Some(purchase)) = (market_value, purchase_amount) else {
-        return ValuationResult {
-            amount: None,
-            rate: None,
-        };
-    };
-    let (amount, rate) = valuation_parts(
-        f64_to_decimal_exact(market),
-        f64_to_decimal_exact(purchase),
-        market,
-        purchase,
-    );
-    ValuationResult {
-        amount: Some(amount),
-        rate,
-    }
-}
-
 pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> ValuationResult {
     let (amount, rate) = valuation_parts(
         Some(market),
@@ -316,29 +293,6 @@ pub fn summarize_valuation_with_summary(
         rate,
         incomplete: false,
     }
-}
-
-/// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
-/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
-#[cfg(test)]
-pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
-    if total == 0.0 {
-        0.0
-    } else {
-        to_fixed(value / total * 100.0, 2)
-    }
-}
-
-/// 構成比の一覧。合計を分母に各要素の割合を求める。
-/// 分母の合計は素朴な加算で求める。
-/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
-#[cfg(test)]
-pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
-    let total: f64 = values.iter().sum();
-    values
-        .iter()
-        .map(|value| calculate_composition_percentage(*value, total))
-        .collect()
 }
 
 /// チャート表示の除外条件。取得総額が正の銘柄は残し、そうでなければ

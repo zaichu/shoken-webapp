@@ -1,5 +1,12 @@
 use super::*;
 
+// 本番では `Default` + `next()` でしか世代を作らない。任意値の生成はテスト専用
+impl Generation {
+    pub(crate) fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
+
 #[test]
 fn oauth_url_appends_authorize_path() {
     assert_eq!(

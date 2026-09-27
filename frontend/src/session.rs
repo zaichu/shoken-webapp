@@ -52,11 +52,6 @@ async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
 pub struct Generation(u64);
 
 impl Generation {
-    #[cfg(test)]
-    pub fn new(value: u64) -> Self {
-        Self(value)
-    }
-
     pub fn next(self) -> Self {
         Self(self.0 + 1)
     }

@@ -4,6 +4,7 @@ use crate::features::receipts::dividend_info::{
     search_security_code, DividendInfoStore, DividendSummarySection,
 };
 use crate::features::receipts::filter::filter_receipts;
+use crate::features::receipts::kind::{DividendKind, ReceiptKind};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::session::use_session;
 use crate::support::row::Row;
@@ -94,7 +95,7 @@ pub(crate) fn ReceiptsMainContent(
             // DividendInfo（embedded）を折り畳み式で出す
             if let Some(info) = dividend_info {
                 if !search_security_code(&rows, &query).is_empty() {
-                    let totals = tab.dividend_totals(&rows);
+                    let totals = DividendKind::totals(&rows);
                     return view! {
                         {preview_active.get().then(|| view! { <PreviewBanner /> })}
                         <DividendSummarySection

@@ -11,6 +11,7 @@ use crate::features::receipts::filter::{
     tests::{dividends, domestic, funds},
     DateSegment, ReceiptSearch,
 };
+use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };

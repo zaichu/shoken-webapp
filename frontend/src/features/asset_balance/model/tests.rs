@@ -31,6 +31,46 @@ fn to_finite_amount(value: &Value) -> Option<f64> {
     }
 }
 
+fn calculate_valuation(market_value: Option<f64>, purchase_amount: Option<f64>) -> ValuationResult {
+    let (Some(market), Some(purchase)) = (market_value, purchase_amount) else {
+        return ValuationResult {
+            amount: None,
+            rate: None,
+        };
+    };
+    let (amount, rate) = valuation_parts(
+        f64_to_decimal_exact(market),
+        f64_to_decimal_exact(purchase),
+        market,
+        purchase,
+    );
+    ValuationResult {
+        amount: Some(amount),
+        rate,
+    }
+}
+
+/// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
+/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の `chart_percentages` を使う。
+fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
+    if total == 0.0 {
+        0.0
+    } else {
+        to_fixed(value / total * 100.0, 2)
+    }
+}
+
+/// 構成比の一覧。合計を分母に各要素の割合を求める。
+/// 分母の合計は素朴な加算で求める。
+/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の `chart_percentages` を使う。
+fn composition_percentages(values: &[f64]) -> Vec<f64> {
+    let total: f64 = values.iter().sum();
+    values
+        .iter()
+        .map(|value| calculate_composition_percentage(*value, total))
+        .collect()
+}
+
 #[derive(Deserialize)]
 struct FixtureDocument {
     valuation_cases: Vec<ValuationCase>,

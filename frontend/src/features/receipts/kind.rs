@@ -1,8 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use rust_decimal::Decimal;
 use serde::de::DeserializeOwned;
-use shared::tax::{tax_amount, SPECIFIC_ACCOUNT_KEYWORD};
+use shared::summary::{domestic_daily, domestic_total, DomesticDailyRow};
+use shared::tax::SPECIFIC_ACCOUNT_KEYWORD;
 
 use crate::api::dto::{
     Dividend, DividendSummary, DomesticStock, DomesticStockSummary, Mutualfund, MutualfundSummary,
@@ -891,19 +892,19 @@ fn totals_from_amounts<S>(
     build(sum)
 }
 
-/// 国内株式の日次集計(特定口座と NISA 等を分けて、特定分にだけ日単位で課税)。
-/// shared::summary::domestic_daily と同じ仕様を行アクセサ上で再現する。
-fn daily_tax_groups(rows: &[ReceiptRow]) -> BTreeMap<&str, (Decimal, Decimal)> {
-    let mut groups: BTreeMap<&str, (Decimal, Decimal)> = BTreeMap::new();
-    for row in rows {
-        let totals = groups.entry(row.date()).or_default();
-        if row.is_specific() {
-            totals.0 += row.realized_pnl();
-        } else {
-            totals.1 += row.realized_pnl();
-        }
+/// 保存済み行・CSV プレビュー行どちらも `shared::summary` の日次集計にそのまま渡せるようにする。
+impl DomesticDailyRow for Row<ReceiptItem, CsvPreviewRow> {
+    fn daily_key(&self) -> String {
+        self.date().to_string()
     }
-    groups
+
+    fn is_specific_account(&self) -> bool {
+        self.is_specific()
+    }
+
+    fn realized_profit_and_loss(&self) -> Decimal {
+        self.realized_pnl()
+    }
 }
 
 pub(crate) struct DividendKind;
@@ -1147,14 +1148,7 @@ impl ReceiptKind for DomesticStockKind {
     }
 
     fn totals(rows: &[ReceiptRow]) -> Self::Summary {
-        let mut summary = DomesticStockSummary::default();
-        for (_, (specific, tax_exempt)) in daily_tax_groups(rows) {
-            let profit = specific + tax_exempt;
-            summary.total_realized_profit_and_loss += profit;
-            summary.total_taxes += tax_amount(specific);
-            summary.total_realized_profit_and_loss_after_tax += profit - tax_amount(specific);
-        }
-        summary
+        domestic_total(rows)
     }
 
     fn summary_triple(summary: &Self::Summary) -> [Decimal; 3] {
@@ -1171,19 +1165,17 @@ impl ReceiptKind for DomesticStockKind {
         _query: &str,
     ) -> Vec<TableGroup> {
         let sorted = sorted_rows(rows);
-        daily_tax_groups(&sorted)
+        domestic_daily(&sorted)
             .into_iter()
-            .rev()
-            .map(|(date, (specific, tax_exempt))| {
-                let profit = specific + tax_exempt;
-                let taxes = tax_amount(specific);
+            .map(|day| {
+                let date = day.filter;
                 TableGroup {
-                    key: date.to_string(),
-                    label: group_label(date),
+                    key: date.clone(),
+                    label: group_label(&date),
                     summary: vec![
-                        format_currency(profit),
-                        format_currency(taxes),
-                        format_currency(profit - taxes),
+                        format_currency(day.total_realized_profit_and_loss),
+                        format_currency(day.total_taxes),
+                        format_currency(day.total_realized_profit_and_loss_after_tax),
                     ],
                     rows: sorted
                         .iter()
@@ -1421,11 +1413,6 @@ impl ReceiptsTab {
                 MutualFundKind::summary_triple(&MutualFundKind::totals(rows))
             }
         }
-    }
-
-    /// 配当タブの銘柄カードに渡す DividendSummary を出す(配当以外では呼ばない)。
-    pub(crate) fn dividend_totals(self, rows: &[ReceiptRow]) -> DividendSummary {
-        DividendKind::totals(rows)
     }
 
     pub(crate) fn parse_csv_row(self, value: serde_json::Value) -> CsvPreviewRow {

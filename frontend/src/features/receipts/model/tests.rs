@@ -1,10 +1,138 @@
 use super::*;
 use crate::api::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund};
+use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use shared::domain::MutualfundSummary;
+use shared::format::format_percentage_value;
 use shared::normalize::normalize_display_name;
+use shared::summary::{
+    dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
+    domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
+    DomesticDailySummary,
+};
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+struct DividendGroupSummary {
+    filter: String,
+    total_dividends_before_tax: Decimal,
+    total_taxes: Decimal,
+    total_net_amount_received: Decimal,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+struct MutualFundGroupSummary {
+    filter: String,
+    cancellation_amount_yen: Decimal,
+    realized_profit_and_loss: Decimal,
+    taxes: Decimal,
+    realized_profit_and_loss_after_tax: Decimal,
+}
+
+fn sort_dividends(rows: &[Dividend]) -> Vec<Dividend> {
+    let mut sorted = rows.to_vec();
+    sorted.sort_by(|a, b| b.settlement_date.cmp(&a.settlement_date));
+    sorted
+}
+
+fn sort_domestic_stocks(rows: &[DomesticStock]) -> Vec<DomesticStock> {
+    let mut sorted = rows.to_vec();
+    sorted.sort_by(|a, b| b.trade_date.cmp(&a.trade_date));
+    sorted
+}
+
+fn sort_mutual_funds(rows: &[Mutualfund]) -> Vec<Mutualfund> {
+    let mut sorted = rows.to_vec();
+    sorted.sort_by(|a, b| b.trade_date.cmp(&a.trade_date));
+    sorted
+}
+
+fn group_dividends_by_month(rows: &[Dividend]) -> Vec<DividendGroupSummary> {
+    let mut groups: BTreeMap<String, DividendGroupSummary> = BTreeMap::new();
+    for row in rows {
+        let key = create_year_month_key(&row.settlement_date);
+        let group = groups
+            .entry(key.clone())
+            .or_insert_with(|| DividendGroupSummary {
+                filter: key,
+                ..DividendGroupSummary::default()
+            });
+        group.total_dividends_before_tax += row.dividends_before_tax;
+        group.total_taxes += row.taxes;
+        group.total_net_amount_received += row.net_amount_received;
+    }
+    groups.into_values().rev().collect()
+}
+
+fn group_mutual_funds_by_month(rows: &[Mutualfund]) -> Vec<MutualFundGroupSummary> {
+    let mut groups: BTreeMap<String, MutualFundGroupSummary> = BTreeMap::new();
+    for row in rows {
+        let key = create_year_month_key(&row.trade_date);
+        let group = groups
+            .entry(key.clone())
+            .or_insert_with(|| MutualFundGroupSummary {
+                filter: key,
+                ..MutualFundGroupSummary::default()
+            });
+        group.cancellation_amount_yen += row.cancellation_amount_yen;
+        group.realized_profit_and_loss += row.realized_profit_and_loss;
+        group.taxes += row.taxes;
+        group.realized_profit_and_loss_after_tax += row.realized_profit_and_loss_after_tax;
+    }
+    groups.into_values().rev().collect()
+}
+
+fn create_iso_date_key(value: &str) -> String {
+    if super::valid_iso_date(value) {
+        value.to_string()
+    } else {
+        String::new()
+    }
+}
+
+fn parse_number(value: &str) -> Decimal {
+    value.replace(',', "").parse().unwrap_or(Decimal::ZERO)
+}
+
+fn safe_add(a: Decimal, b: Decimal) -> Decimal {
+    a + b
+}
+
+fn safe_subtract(a: Decimal, b: Decimal) -> Decimal {
+    a - b
+}
+
+fn safe_multiply(a: Decimal, b: Decimal) -> Decimal {
+    a * b
+}
+
+fn safe_divide(a: Decimal, b: Decimal) -> Decimal {
+    if b.is_zero() {
+        Decimal::ZERO
+    } else {
+        (a / b).round_dp(10).normalize()
+    }
+}
+
+fn calculate_percentage(value: Decimal, total: Decimal, decimals: u32) -> Decimal {
+    if total.is_zero() {
+        Decimal::ZERO
+    } else {
+        ((value / total) * Decimal::ONE_HUNDRED)
+            .round_dp(decimals)
+            .normalize()
+    }
+}
+
+fn format_percentage(value: Decimal, total: Decimal, decimals: u32) -> String {
+    if total.is_zero() {
+        "0%".to_string()
+    } else {
+        format_percentage_value(calculate_percentage(value, total, decimals), decimals)
+    }
+}
 
 #[derive(Deserialize)]
 struct FixtureDocument<T> {
@@ -269,7 +397,7 @@ fn domestic_daily_returns_separate_dates_descending() {
 #[test]
 fn domestic_total_returns_zero_for_empty_input() {
     assert_eq!(
-        calculate_domestic_total(&[]),
+        calculate_domestic_total::<DomesticStock>(&[]),
         stock_totals(dec!(0), dec!(0), dec!(0))
     );
 }

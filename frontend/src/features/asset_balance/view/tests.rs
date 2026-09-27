@@ -5,7 +5,7 @@ use super::summary::{
 };
 use crate::api::dto::AssetBalanceSummary;
 use crate::api::ApiError;
-use crate::features::asset_balance::csv::AssetBalanceRow;
+use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
@@ -350,6 +350,41 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             format_currency(decimal_valuation.market_value.unwrap()),
             "¥3,300.3"
         );
+    });
+}
+
+#[test]
+fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // lookup に同じ銘柄コード・別金額の保存済み行を置く。
+        // Row::Saved なら lookup で置き換わるが、Preview は CSV の値をそのまま見せる
+        let mut saved = balance_row(7203);
+        saved.security_name = "保存済みトヨタ".to_string();
+        saved.total_purchase_amount = rust_decimal_macros::dec!(999999);
+        saved.market_value = rust_decimal_macros::dec!(888888);
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&saved)));
+
+        let preview = AssetBalanceCsvRow {
+            security_code: "7203".to_string(),
+            security_name: "CSVトヨタ".to_string(),
+            total_purchase_amount: rust_decimal_macros::dec!(100),
+            market_value: rust_decimal_macros::dec!(200),
+            ..AssetBalanceCsvRow::default()
+        };
+        let rows = vec![AssetBalanceRow::Preview(preview)];
+
+        // has_csv_file=false(= lookup 置き換えが有効な条件)でも Preview の値が保たれる
+        let filtered = filtered_portfolio(&rows, None, "", lookup, Generation::new(1), false);
+        assert_eq!(filtered.views.len(), 1);
+        assert_eq!(filtered.views[0].code, "7203");
+        assert_eq!(filtered.views[0].name, "CSVトヨタ");
+        assert_eq!(
+            filtered.views[0].purchase_dec,
+            rust_decimal_macros::dec!(100)
+        );
+        assert_eq!(filtered.views[0].market_dec, rust_decimal_macros::dec!(200));
     });
 }
 
