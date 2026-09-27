@@ -487,6 +487,20 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn test_preview_csv_security_code_whitespace_and_symbols() {
+        // 前後の空白は trim してから検証する
+        let preview = assert_preview_ok(&BASIC_ROW.replace("\"5020\"", "\" 7203 \""));
+        assert_eq!(preview.rows[0]["security_code"], "7203");
+
+        // 記号入りの銘柄コードは行エラー(newtype 化後の仕様)
+        assert_preview_error(
+            HEADER,
+            &BASIC_ROW.replace("\"5020\"", "\"7203-1\""),
+            "銘柄コード",
+        );
+    }
+
     fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),

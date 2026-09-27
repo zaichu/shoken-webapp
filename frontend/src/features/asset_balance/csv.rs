@@ -38,10 +38,8 @@ impl From<AssetBalanceCsvRow> for AssetBalance {
     fn from(row: AssetBalanceCsvRow) -> AssetBalance {
         AssetBalance {
             id: RecordId::default(),
-            security_code: row
-                .security_code
-                .parse()
-                .unwrap_or_else(|_| SecurityCode::try_from("0").unwrap()),
+            // 検証に通らない値も差し替えず、そのまま表示する
+            security_code: SecurityCode::from_raw(row.security_code),
             security_name: row.security_name,
             shares: row.shares,
             executing_shares: row.executing_shares,

@@ -5,14 +5,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::{Account, RecordId, SecurityCode};
 
-// プレビュー行は lenient に受け取るため、パース不能な値は表示用の代替値に畳む
-fn preview_account(value: String) -> Account {
-    value.parse().unwrap_or_else(|_| "-".parse().unwrap())
-}
-
-fn preview_security_code(value: String) -> SecurityCode {
-    value.parse().unwrap_or_else(|_| "0".parse().unwrap())
-}
+// プレビュー行は lenient に受け取るため、銘柄コード・口座は検証せず元の文字列を表示する
 
 // プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -111,7 +104,7 @@ impl From<CsvPreviewRow> for ReceiptItem {
                 id: RecordId::default(),
                 settlement_date: row.settlement_date,
                 product: row.product,
-                account: preview_account(row.account),
+                account: Account::from_raw(row.account),
                 security_code: row.security_code,
                 security_name: row.security_name,
                 unit_price: row.unit_price,
@@ -127,9 +120,9 @@ impl From<CsvPreviewRow> for ReceiptItem {
                     id: RecordId::default(),
                     trade_date: row.trade_date,
                     settlement_date: row.settlement_date,
-                    security_code: preview_security_code(row.security_code),
+                    security_code: SecurityCode::from_raw(row.security_code),
                     security_name: row.security_name,
-                    account: preview_account(row.account),
+                    account: Account::from_raw(row.account),
                     shares: row.shares,
                     asked_price: row.asked_price,
                     proceeds: row.proceeds,
@@ -147,7 +140,7 @@ impl From<CsvPreviewRow> for ReceiptItem {
                     trade_date: row.trade_date,
                     settlement_date: row.settlement_date,
                     fund_name: row.fund_name,
-                    account: preview_account(row.account),
+                    account: Account::from_raw(row.account),
                     shares: row.shares,
                     exchange_rate: row.exchange_rate,
                     cancellation_unit_price_yen: row.cancellation_unit_price_yen,

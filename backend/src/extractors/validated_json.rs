@@ -25,7 +25,7 @@ where
         let result: Result<Json<T>, JsonRejection> = Json::<T>::from_request(req, state).await;
         let Json(value) = result.map_err(|e| {
             error!("[ValidatedJson] JSONパースエラー: {}", e);
-            ApiError::JsonParse
+            ApiError::JsonParse(e.to_string())
         })?;
 
         value.validate().map_err(|rejection| {
@@ -106,7 +106,17 @@ mod tests {
             )
             .await
             .unwrap_err(),
-            ApiError::JsonParse
+            ApiError::JsonParse(_)
+        ));
+        // newtype などの serde 変換失敗でも、どのフィールドか分かるよう path をメッセージに含める
+        assert!(matches!(
+            ValidatedJson::<TestData>::from_request(
+                json_request(r#"{"name": "テストユーザー", "age": "abc"}"#),
+                &()
+            )
+            .await
+            .unwrap_err(),
+            ApiError::JsonParse(message) if message.contains("age")
         ));
         assert!(matches!(
             ValidatedJson::<TestData>::from_request(

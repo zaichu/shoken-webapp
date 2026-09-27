@@ -140,6 +140,21 @@ fn preview_rows_convert_to_receipt_items_like_react_transform() {
     assert_eq!(item.dividends.as_deref(), Some(""));
 }
 
+#[test]
+fn preview_rows_show_unparseable_code_and_account_verbatim() {
+    // newtype の検証に通らない値も、"0" や "-" へ差し替えず元の文字列を表示する
+    let domestic = CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
+        security_code: "7203-1".to_string(),
+        account: String::new(),
+        ..Default::default()
+    });
+    let ReceiptItem::DomesticStock(item) = ReceiptItem::from(domestic) else {
+        panic!("domestic stock item expected")
+    };
+    assert_eq!(item.security_code.as_str(), "7203-1");
+    assert_eq!(item.account.as_str(), "");
+}
+
 fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
     use proptest::strategy::Strategy;
     (-9_999_999_999_999i64..9_999_999_999_999i64).prop_map(|mantissa| Decimal::new(mantissa, 2))

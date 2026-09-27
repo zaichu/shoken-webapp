@@ -78,6 +78,17 @@ fn csv_row_converts_to_asset_balance_with_empty_identity() {
 }
 
 #[test]
+fn csv_row_shows_unparseable_security_code_verbatim() {
+    // 検証に通らない銘柄コードも "0" へ差し替えず元の文字列を表示する
+    let row = AssetBalanceCsvRow {
+        security_code: "7203-1".to_string(),
+        ..Default::default()
+    };
+    let balance = AssetBalance::from(row);
+    assert_eq!(balance.security_code.as_str(), "7203-1");
+}
+
+#[test]
 fn api_paths_match_backend_routes() {
     assert_eq!(LIST_PATH, "/api/v1/asset-balances");
     assert_eq!(PREVIEW_PATH, "/api/v1/asset-balance-import-validations");
