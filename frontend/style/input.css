@@ -10,6 +10,7 @@
   --color-surface-raised: #f1f5f9;
   --color-fill: #e2e8f0;
   --color-fill-strong: #94a3b8;
+  --color-scrollbar-track: #e5e7eb;
 
   /* 暗い面(ヘッダー・モーダル幕) */
   --color-night: #111827;
@@ -21,11 +22,19 @@
   --color-ink-hover: #1e293b;
   --color-text: #1e293b;
   --color-text-deep: #111827;
+  --color-text-strong: #0f172a;
+  --color-text-soft: #334155;
   --color-text-muted: #475569;
   --color-text-subtle: #64748b;
   --color-text-faint: #94a3b8;
   --color-text-inverse: #ffffff;
   --color-text-inverse-muted: #cbd5e1;
+
+  /* 閉じるボタン・コピーアイコン(ニュートラルのグレー) */
+  --color-close: #6b7280;
+  --color-close-hover: #374151;
+  --color-icon: #9ca3af;
+  --color-icon-hover: #4b5563;
 
   /* 境界線 */
   --color-border: rgba(15, 23, 42, 0.12);
@@ -62,6 +71,7 @@
   --color-accent-strong: #d97706;
   --color-accent-deep: #b45309;
   --color-accent-text: #78350f;
+  --color-accent-text-soft: #92400e;
   --color-accent-soft: #fffbeb;
   --color-accent-softer: #fef3c7;
   --color-accent-border: #fde68a;
@@ -80,6 +90,10 @@
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
   --shadow-elevation-3: 0 18px 58px -42px rgba(15, 23, 42, 0.9);
+  --shadow-page: 0 18px 60px -48px rgba(15, 23, 42, 0.85);
+  --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
+  --shadow-card-hover: 0 18px 40px -32px rgba(15, 23, 42, 0.85);
+  --shadow-header: 0 18px 44px -34px rgba(15, 23, 42, 0.95);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --shadow-edge-accent: inset 0 -2px 0 #f59e0b;
   --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
@@ -90,6 +104,7 @@
   --radius-field: 1.15rem;
 
   /* 英字の飾りラベル */
+  --text-micro: 0.625rem;
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
   --text-cell-md: 0.8125rem;
@@ -139,7 +154,7 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--color-fill);
+    background: var(--color-scrollbar-track);
     border-radius: 4px;
   }
 
@@ -169,7 +184,7 @@
   }
 
   .page-surface {
-    @apply relative flex-1 overflow-hidden rounded-panel border border-ink/10 bg-surface/90 p-6 shadow-elevation-3 backdrop-blur-sm;
+    @apply relative flex-1 overflow-hidden rounded-panel border border-ink/10 bg-surface/90 p-6 shadow-page backdrop-blur-sm;
   }
 
   .page-surface::before {
@@ -198,7 +213,7 @@
   }
 
   .panel-card {
-    @apply rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-2 print:border-black print:shadow-none;
+    @apply rounded-xl border border-ink/10 bg-surface/90 shadow-card print:border-black print:shadow-none;
   }
 
   .login-card {
@@ -238,7 +253,7 @@
   }
 
   .review-prompt-button {
-    @apply inline-flex w-full items-center justify-center truncate rounded-md border border-border-strong px-3 py-1.5 text-sm font-bold text-text-muted transition-[background-color,border-color,color,box-shadow,transform] hover:border-border-bold hover:bg-surface-sunken focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11;
+    @apply inline-flex w-full items-center justify-center truncate rounded-md border border-border-strong px-3 py-1.5 text-sm font-bold text-text-soft transition-[background-color,border-color,color,box-shadow,transform] hover:border-border-bold hover:bg-surface-sunken focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11;
   }
 
   .chart-toggle-button {
@@ -258,7 +273,7 @@
   }
 
   .modal-close-button {
-    @apply rounded text-text-subtle hover:text-text-muted focus:outline-none focus:ring-2 focus:ring-text-deep/50 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply rounded text-close hover:text-close-hover focus:outline-none focus:ring-2 focus:ring-text-deep/50 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .search-submit {
@@ -270,7 +285,7 @@
   }
 
   .feature-card {
-    @apply rounded-xl border border-ink/10 bg-surface/80 px-4 py-4 shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-accent-bright hover:shadow-elevation-3;
+    @apply rounded-xl border border-ink/10 bg-surface/80 px-4 py-4 shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-accent-bright hover:shadow-card-hover;
   }
 
   .code-badge {
@@ -282,11 +297,11 @@
   }
 
   .file-chip {
-    @apply inline-flex shrink-0 items-center rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-sm font-semibold text-text-muted shadow-sm;
+    @apply inline-flex shrink-0 items-center rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-sm font-semibold text-text-soft shadow-sm;
   }
 
   .filter-badge {
-    @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-accent-border bg-accent-soft px-2 py-0.5 text-eyebrow font-bold text-accent-text;
+    @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-accent-border bg-accent-soft px-2 py-0.5 text-eyebrow font-bold text-accent-text-soft;
   }
 
   .security-code-link {
@@ -294,7 +309,7 @@
   }
 
   .site-header {
-    @apply sticky top-0 z-40 border-b border-ink/10 bg-night/95 text-text-inverse shadow-elevation-3 backdrop-blur;
+    @apply sticky top-0 z-40 border-b border-ink/10 bg-night/95 text-text-inverse shadow-header backdrop-blur;
   }
 
   .header-logo {
@@ -322,7 +337,7 @@
   }
 
   .copy-icon {
-    @apply rounded p-0.5 text-text-faint opacity-100 group-hover:text-text-muted group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
+    @apply rounded p-0.5 text-icon opacity-100 group-hover:text-icon-hover group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
   }
 
   .search-input-frame {

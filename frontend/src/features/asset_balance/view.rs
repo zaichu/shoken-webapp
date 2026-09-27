@@ -108,7 +108,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             }
         >
             <div
-                class="workspace-grid gap-4"
+                class="workspace-grid gap-4 xl:gap-5"
                 data-testid="assetbalance-workspace"
             >
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、見た目は order で main 先にする

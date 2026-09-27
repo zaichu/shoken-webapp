@@ -240,7 +240,7 @@ pub(crate) fn PortfolioSummary(
                     </div>
                     <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
                         <p class="mb-1 text-xs font-medium text-text-muted">"保有銘柄数"</p>
-                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-muted tabular-nums">
+                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-soft tabular-nums">
                             {if is_filtered {
                                 format!("{display_count} / {total_count}")
                             } else {
@@ -255,7 +255,7 @@ pub(crate) fn PortfolioSummary(
             <div data-testid="portfolio-pie-chart">
                 <div class="summary-section-header">
                     <div>
-                        <h3 class="text-sm font-black text-ink">
+                        <h3 class="text-sm font-black text-text-strong">
                             "保有内訳"
                             <span class="ml-1 font-medium text-text-subtle sm:hidden">
                                 {format!("（保有{display_count}銘柄）")}

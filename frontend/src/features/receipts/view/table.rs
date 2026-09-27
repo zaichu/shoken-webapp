@@ -243,7 +243,7 @@ pub(crate) fn ReceiptTable(
                                                             <td
                                                                 colspan=*span
                                                                 class=format!(
-                                                                    "whitespace-normal bg-surface-raised text-text-muted font-semibold border-l-2 border-border-xstrong{top}{class}"
+                                                                    "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-2 border-border-xstrong{top}{class}"
                                                                 )
                                                             >
                                                                 <span class="text-sm font-medium">{group.label.clone()}</span>

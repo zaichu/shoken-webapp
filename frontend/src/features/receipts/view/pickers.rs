@@ -88,7 +88,7 @@ pub(crate) fn ToggleCategory(
                                     class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
                                         "rounded border border-accent-bright bg-accent-soft px-3 py-1.5 text-sm font-bold text-accent-text"
                                     } else {
-                                        "rounded border border-border-strong bg-surface px-3 py-1.5 text-sm text-text-muted"
+                                        "rounded border border-border-strong bg-surface px-3 py-1.5 text-sm text-text-soft"
                                     }
                                     aria-pressed=move || if search.with(|state| state.selected_queries.get(search_key) == aria_value) { "true" } else { "false" }
                                     aria-label=move || search.with(|state| {
@@ -333,7 +333,7 @@ fn YearPicker(
                                             class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
                                                 "rounded bg-accent-soft px-1 py-1.5 text-center text-sm font-semibold text-accent-text ring-1 ring-inset ring-accent-ring"
                                             } else {
-                                                "rounded px-1 py-1.5 text-center text-sm text-text-muted hover:bg-surface-raised hover:text-ink"
+                                                "rounded px-1 py-1.5 text-center text-sm text-text-soft hover:bg-surface-raised hover:text-text-strong"
                                             }
                                             on:click=move |_| {
                                                 click_open.set(false);

@@ -70,7 +70,7 @@ pub fn CollapsibleSearchCard(
                         </svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-eyebrow font-black uppercase tracking-caption text-text-subtle">
+                        <p class="text-micro font-black uppercase tracking-caption text-text-subtle">
                             "Filter"
                         </p>
                         <h5 class="whitespace-nowrap text-sm font-black text-ink">
@@ -92,7 +92,7 @@ pub fn CollapsibleSearchCard(
                         type="button"
                         class=move || {
                             format!(
-                                "{BUTTON_BASE} border border-border-strong text-text-muted hover:border-border-bold hover:bg-surface-sunken whitespace-nowrap bg-surface px-2 py-1 text-xs transition-opacity max-sm:min-h-11{}",
+                                "{BUTTON_BASE} border border-border-strong text-text-soft hover:border-border-bold hover:bg-surface-sunken whitespace-nowrap bg-surface px-2 py-1 text-xs transition-opacity max-sm:min-h-11{}",
                                 if is_default_state.get() {
                                     " opacity-0 pointer-events-none"
                                 } else {
@@ -116,7 +116,7 @@ pub fn CollapsibleSearchCard(
                     </button>
                     <button
                         type="button"
-                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-muted max-sm:h-11 max-sm:w-11"
+                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
                         on:click=move |_| toggle()
                         aria-hidden="true"
                         tabindex="-1"

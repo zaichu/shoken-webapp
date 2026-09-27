@@ -4,7 +4,7 @@ use leptos::prelude::*;
 
 const PRIMARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-ink bg-ink text-text-inverse shadow-edge-lit hover:bg-ink-hover active:bg-ink px-3 text-sm max-sm:min-h-11 h-11 w-full";
 const DELETE_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-negative text-negative hover:bg-negative hover:text-text-inverse px-3 text-sm max-sm:min-h-11 h-11 w-full";
-const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-muted";
+const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-soft";
 const BADGE_MUTED_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-medium text-text-muted";
 const BADGE_WARN_CLASS: &str = "inline-flex items-center rounded-full border border-accent-border bg-surface px-2.5 py-1 text-xs font-medium text-accent-deep";
 
@@ -52,7 +52,7 @@ pub fn CsvActionRail(
                     data-testid=toggle_testid
                 >
                     <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
-                    <span class="flex shrink-0 items-center gap-1 text-text-muted">
+                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
                         <span class="text-xs font-semibold">
                             {move || if csv_expanded.get() { "閉じる" } else { "開く" }}
                         </span>
@@ -273,7 +273,7 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     {has_errors.then(|| {
                         view! {
                             <details class="mt-3 rounded-2xl border border-accent-border/80 bg-surface/80 px-3 py-2">
-                                <summary class="cursor-pointer text-sm font-medium text-text-muted">
+                                <summary class="cursor-pointer text-sm font-medium text-text-soft">
                                     "エラー詳細を表示"
                                 </summary>
                                 <ul class="mt-2 space-y-1 text-sm text-text-muted">

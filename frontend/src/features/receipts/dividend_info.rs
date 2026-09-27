@@ -351,7 +351,7 @@ pub(crate) fn DividendSummarySection(
                             })}
                         <span class="text-sm font-black text-ink">"集計情報"</span>
                     </span>
-                    <span class="flex shrink-0 items-center gap-1 text-text-muted">
+                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
                         <span class="text-xs font-semibold">
                             {move || open_label(mobile_expanded.get())}
                         </span>
@@ -410,7 +410,7 @@ pub(crate) fn DividendSummarySection(
                         <h2 class="text-sm font-black text-ink">{title}</h2>
                     </div>
                     <span
-                        class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-muted"
+                        class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-soft"
                         aria-hidden="true"
                     >
                         <span class="text-xs font-semibold">{move || open_label(expanded.get())}</span>

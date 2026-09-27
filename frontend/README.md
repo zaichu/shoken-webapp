@@ -76,10 +76,10 @@ src/
 ### 色・値はトークンとコンポーネントで再利用する
 
 - 色・影・角丸・幅は `style/input.css` の `@theme` に意味で名前を付けたトークンで使う: 面 `surface`・文字 `text`・プラス `positive`/`gain`・マイナス `negative`・アクセント `accent`・リンク `info`、影 `shadow-elevation-1..3`、角丸 `rounded-panel`/`rounded-note`/`rounded-field` など
-- 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.receipts-tab-list`・`.security-code-link` など)を使う
+- 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と白・黒の直書き(`bg-white`・`text-black` など)、任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.receipts-tab-list`・`.security-code-link` など)を使う
 - `@apply` は `@layer base` と、コンポーネント化できない最小限にとどめる
 - 1つのクラス内で同じプロパティを二度指定しない(打ち消し合う指定は効いている方だけ残す)
-- `bash scripts/check-css-tokens.sh` が違反を検出し、CI(`frontend.yml`)でも実行する。やむを得ない例外はスクリプトの `ALLOWED` に理由付きで列挙する
+- `bash scripts/check-css-tokens.sh` が違反を検出し、CI(`frontend.yml`)でも実行する。やむを得ない例外はスクリプトの許可リスト(`ALLOWED_SRC`・`ALLOWED_CSS`)に理由付きで列挙する
 
 ## デザインの決まり
 

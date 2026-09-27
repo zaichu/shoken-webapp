@@ -167,7 +167,7 @@ pub(crate) fn SummaryStrip(
                                 .into_any()
                         },
                     )}
-                    <span class="flex shrink-0 items-center gap-1 text-text-muted">
+                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
                         <span class="text-xs font-semibold">
                             {move || if mobile_expanded.get() { "閉じる" } else { "開く" }}
                         </span>

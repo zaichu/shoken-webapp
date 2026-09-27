@@ -12,7 +12,7 @@ const TAB_BUTTON_INACTIVE: &str =
 const TAB_COUNT_BASE: &str =
     "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold";
 const TAB_COUNT_ACTIVE: &str = "border border-text-inverse/20 bg-surface text-ink";
-const TAB_COUNT_INACTIVE: &str = "border border-border-subtle bg-surface text-text-muted";
+const TAB_COUNT_INACTIVE: &str = "border border-border-subtle bg-surface text-text-soft";
 
 pub(crate) fn next_tab_index(current: usize, key: &str) -> Option<usize> {
     let count = TAB_IDS.len();

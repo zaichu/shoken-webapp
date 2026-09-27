@@ -19,6 +19,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
+use crate::ui::csv_section::CsvSource;
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -531,5 +532,23 @@ fn asset_balance_result_applies_within_the_same_generation() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         assert!(should_apply_asset_balance_result(&session, generation));
+    });
+}
+
+#[test]
+fn csv_section_class_keeps_wide_layout_bottom_border() {
+    // sm 以上のレール区切り線。外すと資産管理のCSVセクションが上と溶けるため値を固定する
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let store = csv_store(
+            &session,
+            RwSignal::new(None),
+            RwSignal::new(DividendMaps::default()),
+        );
+        assert_eq!(
+            CsvSource::section_class(&store),
+            "sm:border-b sm:border-ink/10"
+        );
     });
 }

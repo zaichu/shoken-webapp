@@ -341,7 +341,7 @@ pub fn SiteFooter() -> impl IntoView {
                                 href={*href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="inline-flex min-h-6 items-center hover:text-text-muted hover:underline max-sm:min-h-11"
+                                class="inline-flex min-h-6 items-center hover:text-text-soft hover:underline max-sm:min-h-11"
                                 aria-label={format!("{label}（新しいタブで開く）")}
                             >
                                 {*label}

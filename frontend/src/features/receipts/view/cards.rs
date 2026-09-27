@@ -402,7 +402,7 @@ pub(crate) fn MobileCardGroup(
         return view! {
             <section data-testid="receipt-card-group">
                 <div class="flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2">
-                    <span class="text-sm font-semibold text-text-muted">{label}</span>
+                    <span class="text-sm font-semibold text-text-soft">{label}</span>
                     {(count >= 2)
                         .then(|| {
                             view! {
@@ -444,7 +444,7 @@ pub(crate) fn MobileCardGroup(
                     }
                     class="group-card-trigger"
                 >
-                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-muted">
+                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
                         {label}
                         {(count >= 2)
                             .then(|| {
