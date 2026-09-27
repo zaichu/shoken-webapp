@@ -190,11 +190,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
 
 #[component]
 fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let input_id = match tab {
-        ReceiptsTab::Dividend => "csv-file-input-dividend",
-        ReceiptsTab::DomesticStock => "csv-file-input-domesticstock",
-        ReceiptsTab::MutualFund => "csv-file-input-mutualfund",
-    };
+    let input_id = tab.csv_input_id();
     let selected = store;
     let selected_file_name =
         Memo::new(move |_| selected.csv_state(tab).file_name.unwrap_or_default());
@@ -250,9 +246,5 @@ fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
 }
 
 pub(crate) fn empty_hint(tab: ReceiptsTab) -> &'static str {
-    match tab {
-        ReceiptsTab::Dividend => "配当金明細をCSVで追加してください",
-        ReceiptsTab::DomesticStock => "国内株式明細をCSVで追加してください",
-        ReceiptsTab::MutualFund => "投資信託明細をCSVで追加してください",
-    }
+    tab.empty_hint()
 }

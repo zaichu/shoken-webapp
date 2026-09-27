@@ -1,3 +1,4 @@
+#[cfg(test)]
 use crate::api::dto::{Dividend, DomesticStock, Mutualfund};
 #[cfg(test)]
 use rust_decimal::Decimal;
@@ -11,6 +12,7 @@ pub use shared::format::{format_currency, format_number};
 pub use shared::normalize::normalize_security_code;
 #[cfg(test)]
 pub use shared::summary::DomesticDailySummary;
+#[cfg(test)]
 pub use shared::summary::{
     dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
     domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
@@ -35,18 +37,21 @@ pub struct MutualFundGroupSummary {
     pub realized_profit_and_loss_after_tax: Decimal,
 }
 
+#[cfg(test)]
 pub fn sort_dividends(rows: &[Dividend]) -> Vec<Dividend> {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.settlement_date.cmp(&a.settlement_date));
     sorted
 }
 
+#[cfg(test)]
 pub fn sort_domestic_stocks(rows: &[DomesticStock]) -> Vec<DomesticStock> {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.trade_date.cmp(&a.trade_date));
     sorted
 }
 
+#[cfg(test)]
 pub fn sort_mutual_funds(rows: &[Mutualfund]) -> Vec<Mutualfund> {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.trade_date.cmp(&a.trade_date));

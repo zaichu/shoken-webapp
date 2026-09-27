@@ -6,16 +6,37 @@ use super::table::*;
 use super::tabs::*;
 use super::workspace::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
+use crate::features::receipts::csv::{CsvPreviewRow, DividendCsvRow};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
     tests::{dividends, domestic, funds},
     DateSegment, ReceiptSearch,
 };
 use crate::features::receipts::{
-    ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
+    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
+use crate::support::row::Row::{Preview, Saved};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+
+// 保存済み行と同じ内容のプレビュー行を作る(id・タイムスタンプを持たない)
+fn preview_of(row: &ReceiptRow) -> ReceiptRow {
+    let Saved(ReceiptItem::Dividend(row)) = row else {
+        panic!("saved dividend row expected")
+    };
+    Preview(CsvPreviewRow::Dividend(DividendCsvRow {
+        settlement_date: row.settlement_date.clone(),
+        product: row.product.clone(),
+        account: row.account.to_string(),
+        security_code: row.security_code.clone(),
+        security_name: row.security_name.clone(),
+        unit_price: row.unit_price,
+        shares: row.shares,
+        dividends_before_tax: row.dividends_before_tax,
+        taxes: row.taxes,
+        net_amount_received: row.net_amount_received,
+    }))
+}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
@@ -215,7 +236,7 @@ fn card_fields_point_at_expected_columns() {
         ),
     ];
     for (tab, expected) in cases {
-        let fields = card_fields(tab);
+        let fields = tab.card_fields();
         let headers = table_headers(tab);
         assert_eq!(
             (
@@ -271,7 +292,7 @@ fn card_row_data_matches_react_card_fields() {
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
-        card_fields(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.card_fields(),
     );
     assert_eq!(card.key, "dividend:r:old");
     assert_eq!(card.name, "日本電信電話");
@@ -296,7 +317,7 @@ fn detail_negative(card: &CardRowData, label: &str) -> bool {
         .is_some_and(|detail| matches!(detail.value, CardDetailValue::Text { negative: true, .. }))
 }
 
-fn card_for(tab: ReceiptsTab, row: ReceiptItem) -> CardRowData {
+fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
@@ -305,14 +326,14 @@ fn card_for(tab: ReceiptsTab, row: ReceiptItem) -> CardRowData {
         &cells,
         table_headers(tab),
         &order,
-        card_fields(tab),
+        tab.card_fields(),
     )
 }
 
 #[test]
 fn negative_tax_and_dividend_stay_neutral() {
     let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
+        Saved(ReceiptItem::DomesticStock(row)) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
@@ -320,18 +341,21 @@ fn negative_tax_and_dividend_stay_neutral() {
     stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        ReceiptItem::DomesticStock(stock),
+        Saved(ReceiptItem::DomesticStock(stock)),
     );
     assert!(detail_negative(&card, "損益"));
     assert!(!detail_negative(&card, "税額"));
 
     let mut dividend = match dividends().remove(0) {
-        ReceiptItem::Dividend(row) => row,
+        Saved(ReceiptItem::Dividend(row)) => row,
         _ => unreachable!(),
     };
     dividend.taxes = rust_decimal::Decimal::from(-100);
     dividend.net_amount_received = rust_decimal::Decimal::from(-50);
-    let card = card_for(ReceiptsTab::Dividend, ReceiptItem::Dividend(dividend));
+    let card = card_for(
+        ReceiptsTab::Dividend,
+        Saved(ReceiptItem::Dividend(dividend)),
+    );
     assert!(!detail_negative(&card, "税額"));
     assert!(!detail_negative(&card, "受取額"));
     assert!(!card.amount_negative);
@@ -355,7 +379,7 @@ fn card_details_link_security_code_and_copy_name() {
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
-        card_fields(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.card_fields(),
     );
     assert!(card.details.iter().any(|detail| matches!(
         &detail.value,
@@ -375,7 +399,7 @@ fn card_details_link_security_code_and_copy_name() {
         &cells,
         table_headers(ReceiptsTab::MutualFund),
         &order,
-        card_fields(ReceiptsTab::MutualFund),
+        ReceiptsTab::MutualFund.card_fields(),
     );
     assert!(!card
         .details
@@ -393,79 +417,79 @@ fn table_groups_carry_group_key_and_row_ids() {
     let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "");
     assert_eq!(groups[0].key, "2026-06");
     assert_eq!(groups[0].label, "2026年6月");
-    let ids: Vec<&str> = groups
+    let ids: Vec<Option<&str>> = groups
         .iter()
-        .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_str()))
+        .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_deref()))
         .collect();
-    assert_eq!(ids, ["new", "other", "old"]);
+    assert_eq!(ids, [Some("new"), Some("other"), Some("old")]);
 }
 
 #[test]
-fn card_key_separates_idless_rows_by_position() {
+fn card_key_separates_preview_rows_by_position() {
     let raw_key = dividends()[0].raw_key();
-    let key = card_key("dividend", "", &raw_key, 0);
+    let key = card_key("dividend", None, &raw_key, 0);
     assert!(key.starts_with("dividend:p:"));
     assert!(key.contains("日本電信電話"));
-    assert_eq!(key, card_key("dividend", "", &raw_key, 0));
-    assert_ne!(key, card_key("dividend", "", &raw_key, 1));
-    assert_ne!(key, card_key("mutualfund", "", &raw_key, 0));
-    assert_eq!(card_key("dividend", "old", &raw_key, 0), "dividend:r:old");
-    assert_eq!(card_key("dividend", "old", &raw_key, 1), "dividend:r:old");
+    assert_eq!(key, card_key("dividend", None, &raw_key, 0));
+    assert_ne!(key, card_key("dividend", None, &raw_key, 1));
+    assert_ne!(key, card_key("mutualfund", None, &raw_key, 0));
+    assert_eq!(
+        card_key("dividend", Some("old"), &raw_key, 0),
+        "dividend:r:old"
+    );
+    assert_eq!(
+        card_key("dividend", Some("old"), &raw_key, 1),
+        "dividend:r:old"
+    );
 }
 
 #[test]
-fn idless_rows_keep_unfiltered_positions_as_card_ordinals() {
-    let mut first = dividends()[0].clone();
-    let mut second = dividends()[0].clone();
-    let mut removed = dividends()[2].clone();
+fn preview_rows_keep_unfiltered_positions_as_card_ordinals() {
+    let first = preview_of(&dividends()[0]);
+    let second = preview_of(&dividends()[0]);
+    let removed = preview_of(&dividends()[2]);
     let with_id = dividends()[1].clone();
-    for item in [&mut first, &mut second, &mut removed] {
-        if let ReceiptItem::Dividend(row) = item {
-            row.id = Default::default();
-        }
-    }
-    let ordinals = idless_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
+    let ordinals = preview_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
     assert_eq!(ordinals.len(), 2);
     // 先頭行を絞り込みで除いても残る行のカードキーは変わらない
     let positions: Vec<usize> = ordinals[&first.raw_key()].iter().copied().collect();
     assert_eq!(positions, [2, 3]);
     assert_ne!(
-        card_key("dividend", "", &first.raw_key(), positions[0]),
-        card_key("dividend", "", &first.raw_key(), positions[1]),
+        card_key("dividend", None, &first.raw_key(), positions[0]),
+        card_key("dividend", None, &first.raw_key(), positions[1]),
     );
 }
 
 #[test]
-fn idless_rows_with_rounding_identical_display_stay_separate() {
+fn preview_rows_with_rounding_identical_display_stay_separate() {
     // 表示上の数量は両方「1.00」に丸められるが、絞り込みは丸め前の値で行う
     let mut first = dividends()[0].clone();
     let mut second = dividends()[0].clone();
     for item in [&mut first, &mut second] {
-        if let ReceiptItem::Dividend(row) = item {
-            row.id = Default::default();
+        if let Saved(ReceiptItem::Dividend(row)) = item {
+            row.shares = dec!(1.001);
         }
     }
-    if let ReceiptItem::Dividend(row) = &mut first {
-        row.shares = dec!(1.001);
-    }
-    if let ReceiptItem::Dividend(row) = &mut second {
+    if let Saved(ReceiptItem::Dividend(row)) = &mut second {
         row.shares = dec!(1.002);
     }
+    let first = preview_of(&first);
+    let second = preview_of(&second);
     assert_eq!(first.cells(), second.cells());
     assert_ne!(first.raw_key(), second.raw_key());
 
     let all_rows = vec![first, second];
     let keys_for = |groups: &[TableGroup]| {
-        let mut ordinals = idless_row_ordinals(&all_rows);
+        let mut ordinals = preview_row_ordinals(&all_rows);
         groups
             .iter()
             .flat_map(|group| group.rows.iter())
             .map(|(id, raw_key, _)| {
                 card_key(
                     "dividend",
-                    id,
+                    id.as_deref(),
                     raw_key,
-                    card_ordinal(&mut ordinals, id, raw_key),
+                    card_ordinal(&mut ordinals, id.as_deref(), raw_key),
                 )
             })
             .collect::<Vec<_>>()
@@ -516,15 +540,15 @@ fn kpi_styles_match_tone() {
 #[test]
 fn summary_and_empty_hint_labels_match_tabs() {
     assert_eq!(
-        summary_labels(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.summary_labels(),
         ["配当金", "税額", "税引後"]
     );
     assert_eq!(
-        summary_labels(ReceiptsTab::DomesticStock),
+        ReceiptsTab::DomesticStock.summary_labels(),
         ["損益", "税額", "税引後"]
     );
     assert_eq!(
-        summary_labels(ReceiptsTab::MutualFund),
+        ReceiptsTab::MutualFund.summary_labels(),
         ["実現損益", "税額", "税引損益"]
     );
     assert_eq!(
@@ -580,11 +604,11 @@ fn group_label_formats_iso_keys_only() {
 fn latest_name_uses_newest_settlement_per_code() {
     let mut rows = dividends();
     let mut same_date = match &rows[1] {
-        ReceiptItem::Dividend(row) => row.clone(),
+        Saved(ReceiptItem::Dividend(row)) => row.clone(),
         _ => panic!("dividend row"),
     };
     same_date.security_name = "別名".into();
-    rows.push(ReceiptItem::Dividend(same_date));
+    rows.push(Saved(ReceiptItem::Dividend(same_date)));
     let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "9432");
     assert_eq!(groups[0].label, "ＮＴＴ");
 }
@@ -616,7 +640,7 @@ fn card_row_data_details_follow_column_reorder() {
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
-        card_fields(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.card_fields(),
     );
     assert_eq!(card.details[1].label, "口座");
     assert_eq!(card.name, "日本電信電話");

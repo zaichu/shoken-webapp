@@ -1,5 +1,7 @@
 use super::*;
 use crate::api::dto::CsvRowError;
+use crate::features::receipts::ReceiptRow;
+use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
 fn preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
@@ -99,60 +101,59 @@ fn preview_row_with_missing_fields_falls_back_like_react() {
 }
 
 #[test]
-fn preview_rows_convert_to_receipt_items_like_react_transform() {
-    let dividend = CsvPreviewRow::Dividend(DividendCsvRow {
-        settlement_date: "2024-03-01".to_string(),
-        product: "特定口座".to_string(),
-        security_name: "トヨタ自動車".to_string(),
-        net_amount_received: dec!(2391),
-        ..Default::default()
-    });
-    let ReceiptItem::Dividend(item) = ReceiptItem::from(dividend) else {
-        panic!("dividend item expected")
-    };
-    assert_eq!(item.security_name, "トヨタ自動車");
-    assert_eq!(item.net_amount_received, dec!(2391));
-    assert!(item.id.is_empty());
-    assert!(item.created_at.is_empty());
-    assert!(item.updated_at.is_empty());
-
-    let domestic = CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
-        trade_date: "2024-02-01".to_string(),
-        security_name: "任天堂".to_string(),
-        realized_profit_and_loss_after_tax: dec!(3985),
-        ..Default::default()
-    });
-    let ReceiptItem::DomesticStock(item) = ReceiptItem::from(domestic) else {
-        panic!("domestic stock item expected")
-    };
-    assert_eq!(item.security_name, "任天堂");
-    assert_eq!(item.realized_profit_and_loss_after_tax, dec!(3985));
-
-    let fund = CsvPreviewRow::MutualFund(MutualfundCsvRow {
-        fund_name: "eMAXIS Slim 全世界株式".to_string(),
-        dividends: None,
-        ..Default::default()
-    });
-    let ReceiptItem::MutualFund(item) = ReceiptItem::from(fund) else {
-        panic!("mutual fund item expected")
-    };
-    assert_eq!(item.fund_name, "eMAXIS Slim 全世界株式");
-    assert_eq!(item.dividends.as_deref(), Some(""));
+fn preview_rows_expose_row_accessors_without_saved_id() {
+    let cases: Vec<(ReceiptRow, &str, &str)> = vec![
+        (
+            Row::Preview(CsvPreviewRow::Dividend(DividendCsvRow {
+                settlement_date: "2024-03-01".to_string(),
+                product: "特定口座".to_string(),
+                security_name: "トヨタ自動車".to_string(),
+                net_amount_received: dec!(2391),
+                ..Default::default()
+            })),
+            "2024-03-01",
+            "トヨタ自動車",
+        ),
+        (
+            Row::Preview(CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
+                trade_date: "2024-02-01".to_string(),
+                security_name: "任天堂".to_string(),
+                realized_profit_and_loss_after_tax: dec!(3985),
+                ..Default::default()
+            })),
+            "2024-02-01",
+            "任天堂",
+        ),
+        (
+            Row::Preview(CsvPreviewRow::MutualFund(MutualfundCsvRow {
+                trade_date: "2024-02-03".to_string(),
+                fund_name: "eMAXIS Slim 全世界株式".to_string(),
+                dividends: None,
+                ..Default::default()
+            })),
+            "2024-02-03",
+            "eMAXIS Slim 全世界株式",
+        ),
+    ];
+    for (row, date, name) in cases {
+        // プレビュー行は保存済み id を持たない
+        assert_eq!(row.saved_id(), None);
+        assert!(row.is_preview());
+        assert_eq!(row.date(), date);
+        assert_eq!(row.name(), name);
+    }
 }
 
 #[test]
 fn preview_rows_show_unparseable_code_and_account_verbatim() {
     // newtype の検証に通らない値も、"0" や "-" へ差し替えず元の文字列を表示する
-    let domestic = CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
+    let row = Row::Preview(CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
         security_code: "7203-1".to_string(),
         account: String::new(),
         ..Default::default()
-    });
-    let ReceiptItem::DomesticStock(item) = ReceiptItem::from(domestic) else {
-        panic!("domestic stock item expected")
-    };
-    assert_eq!(item.security_code.as_str(), "7203-1");
-    assert_eq!(item.account.as_str(), "");
+    }));
+    assert_eq!(row.code(), "7203-1");
+    assert_eq!(row.account(), "");
 }
 
 fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
@@ -162,7 +163,7 @@ fn arb_decimal() -> impl proptest::strategy::Strategy<Value = Decimal> {
 
 proptest::proptest! {
     #[test]
-    fn prop_dividend_to_receipt_item_copies_fields(
+    fn prop_dividend_preview_row_accessors_copy_fields(
         date in "[ -~]{0,12}",
         product in ".*",
         account in ".{1,100}",
@@ -187,21 +188,19 @@ proptest::proptest! {
             net_amount_received: net,
         };
         let expected = row.clone();
-        let ReceiptItem::Dividend(item) =
-            ReceiptItem::from(CsvPreviewRow::Dividend(row))
-        else {
-            panic!("dividend item expected")
-        };
-        proptest::prop_assert_eq!(item.settlement_date, expected.settlement_date);
-        proptest::prop_assert_eq!(item.product, expected.product);
-        proptest::prop_assert_eq!(item.account.as_str(), expected.account);
-        proptest::prop_assert_eq!(item.security_code, expected.security_code);
-        proptest::prop_assert_eq!(item.security_name, expected.security_name);
-        proptest::prop_assert_eq!(item.unit_price, expected.unit_price);
-        proptest::prop_assert_eq!(item.shares, expected.shares);
-        proptest::prop_assert_eq!(item.dividends_before_tax, expected.dividends_before_tax);
-        proptest::prop_assert_eq!(item.taxes, expected.taxes);
-        proptest::prop_assert_eq!(item.net_amount_received, expected.net_amount_received);
+        let item = Row::Preview(CsvPreviewRow::Dividend(row));
+        proptest::prop_assert_eq!(item.date(), expected.settlement_date);
+        proptest::prop_assert_eq!(item.product(), expected.product);
+        proptest::prop_assert_eq!(item.account(), expected.account);
+        proptest::prop_assert_eq!(item.code(), expected.security_code);
+        proptest::prop_assert_eq!(item.name(), expected.security_name);
+        proptest::prop_assert_eq!(item.search_amount(0), expected.unit_price);
+        proptest::prop_assert_eq!(item.search_amount(1), expected.shares);
+        proptest::prop_assert_eq!(item.summary_amounts(), (
+            expected.dividends_before_tax,
+            expected.taxes,
+            expected.net_amount_received,
+        ));
     }
 
     #[test]

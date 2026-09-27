@@ -1,4 +1,5 @@
-use crate::api::dto::{AssetBalance, Dividend};
+use super::ReceiptRow;
+use crate::api::dto::AssetBalance;
 use crate::api::ApiClient;
 use crate::features::asset_balance::lookup::{fetch_single_asset_balance, find_by_code};
 use crate::features::asset_balance::model::{normalize_security_code, to_fixed};
@@ -17,13 +18,8 @@ use rust_decimal::Decimal;
 const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
 const JQUANTS_HINT: &str = "自動で取得されます";
 
-pub(crate) fn search_security_code(rows: &[Dividend], query: &str) -> String {
-    let code = derive_security_code_from_query(
-        query,
-        rows,
-        |row| row.security_code.as_str(),
-        |row| row.security_name.as_str(),
-    );
+pub(crate) fn search_security_code(rows: &[ReceiptRow], query: &str) -> String {
+    let code = derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
     if is_searchable_code(&code) {
         code
     } else {

@@ -242,7 +242,7 @@ fn delete_success_empties_cached_list_and_clears_result() {
             HashMap::from([(
                 (generation, tab),
                 TabState::Ready(ReceiptTabData {
-                    rows: vec![ReceiptItem::Dividend(
+                    rows: vec![crate::support::row::Row::Saved(ReceiptItem::Dividend(
                         serde_json::from_value(serde_json::json!({
                             "id": "550e8400-e29b-41d4-a716-446655440000",
                             "settlement_date": "2024-03-01",
@@ -259,7 +259,7 @@ fn delete_success_empties_cached_list_and_clears_result() {
                             "updated_at": "2024-03-01T00:00:00Z"
                         }))
                         .expect("dividend"),
-                    )],
+                    ))],
                     summary: None,
                     truncated: false,
                 }),

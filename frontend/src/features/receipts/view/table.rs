@@ -1,11 +1,12 @@
 use super::cards::{
-    card_fields, card_key, card_ordinal, card_row_data, idless_row_ordinals, is_negative_text,
-    is_profit_label, summary_is_profit, summary_labels, CardRowData, MobileCardGroup,
+    card_key, card_ordinal, card_row_data, is_negative_text, is_profit_label, preview_row_ordinals,
+    summary_is_profit, CardRowData, MobileCardGroup,
 };
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
-use crate::features::receipts::{ReceiptCell, ReceiptItem, ReceiptsTab};
+use crate::features::receipts::kind::ColumnTier;
+use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use leptos::ev;
 use leptos::prelude::*;
@@ -15,89 +16,16 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
 pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
-    match tab {
-        ReceiptsTab::Dividend => &[
-            "入金日",
-            "商品",
-            "口座",
-            "銘柄コード",
-            "銘柄名",
-            "単価",
-            "数量",
-            "配当金",
-            "税額",
-            "受取額",
-        ],
-        ReceiptsTab::DomesticStock => &[
-            "約定日",
-            "銘柄コード",
-            "銘柄名",
-            "口座",
-            "数量",
-            "売却単価",
-            "売却額",
-            "取得価額",
-            "損益",
-            "税額",
-            "税引後",
-        ],
-        ReceiptsTab::MutualFund => &[
-            "約定日",
-            "ファンド名",
-            "口座",
-            "数量",
-            "解約単価",
-            "解約額",
-            "取得価額",
-            "実現損益",
-            "税額",
-            "税引損益",
-        ],
-    }
+    tab.headers()
 }
 
 // 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする。空は残り幅を使う列
 pub(crate) fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
-    match tab {
-        ReceiptsTab::Dividend => &[
-            "96px", "76px", "76px", "88px", "", "80px", "72px", "104px", "88px", "104px",
-        ],
-        ReceiptsTab::DomesticStock => &[
-            "96px", "88px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
-        ],
-        ReceiptsTab::MutualFund => &[
-            "96px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
-        ],
-    }
-}
-
-// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は xl と 2xl に置く
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub(crate) enum ColumnTier {
-    Core,
-    Wide,
-    Wider,
-}
-
-impl ColumnTier {
-    fn class(self) -> &'static str {
-        match self {
-            ColumnTier::Core => "",
-            ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
-            ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
-        }
-    }
+    tab.column_widths()
 }
 
 pub(crate) fn table_column_tiers(tab: ReceiptsTab) -> &'static [ColumnTier] {
-    use ColumnTier::{Core, Wide, Wider};
-    match tab {
-        ReceiptsTab::Dividend => &[Core, Wider, Wide, Core, Core, Wide, Wide, Core, Core, Core],
-        ReceiptsTab::DomesticStock => &[
-            Core, Core, Core, Wider, Wider, Wide, Wide, Wider, Core, Core, Core,
-        ],
-        ReceiptsTab::MutualFund => &[Core, Core, Wider, Wider, Wide, Core, Wide, Core, Core, Core],
-    }
+    tab.column_tiers()
 }
 
 // 検索で前に出した列は、狭い画面でも隠さない
@@ -115,18 +43,7 @@ fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -
 }
 
 fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
-    match tab {
-        ReceiptsTab::Dividend => &[
-            "left", "left", "left", "center", "left", "right", "right", "right", "right", "right",
-        ],
-        ReceiptsTab::DomesticStock => &[
-            "left", "center", "left", "left", "right", "right", "right", "right", "right", "right",
-            "right",
-        ],
-        ReceiptsTab::MutualFund => &[
-            "left", "left", "left", "right", "right", "right", "right", "right", "right", "right",
-        ],
-    }
+    tab.column_aligns()
 }
 
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
@@ -152,8 +69,8 @@ fn site_header() -> Option<web_sys::Element> {
 #[component]
 pub(crate) fn ReceiptTable(
     tab: ReceiptsTab,
-    rows: Vec<ReceiptItem>,
-    all_rows: Vec<ReceiptItem>,
+    rows: Vec<ReceiptRow>,
+    all_rows: Vec<ReceiptRow>,
     query: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
@@ -161,10 +78,10 @@ pub(crate) fn ReceiptTable(
     let groups: Vec<TableGroup> = table_groups(tab, &rows, &all_rows, &query);
     let order = column_order(tab, &rows, &query);
     let promoted = promoted_column(tab, &rows, &query);
-    let fields = card_fields(tab);
-    let labels = summary_labels(tab);
+    let fields = tab.card_fields();
+    let labels = tab.summary_labels();
     let slug = TAB_IDS[tab as usize];
-    let mut card_ordinals: HashMap<String, VecDeque<usize>> = idless_row_ordinals(&all_rows);
+    let mut card_ordinals: HashMap<String, VecDeque<usize>> = preview_row_ordinals(&all_rows);
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -178,9 +95,9 @@ pub(crate) fn ReceiptTable(
                 .rows
                 .iter()
                 .map(|(id, raw_key, cells)| {
-                    let ordinal = card_ordinal(&mut card_ordinals, id, raw_key);
+                    let ordinal = card_ordinal(&mut card_ordinals, id.as_deref(), raw_key);
                     card_row_data(
-                        card_key(slug, id, raw_key, ordinal),
+                        card_key(slug, id.as_deref(), raw_key, ordinal),
                         cells,
                         headers,
                         &order,

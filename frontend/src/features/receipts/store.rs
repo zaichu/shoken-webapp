@@ -1,100 +1,14 @@
-use super::{ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab, TabState};
-use crate::api::dto::{
-    CsvPreviewResponse, CsvUploadResponse, DividendListResponse, DomesticStockListResponse,
-    MutualfundListResponse,
-};
-use crate::api::{ApiClient, ApiError};
+use super::{ReceiptRow, ReceiptTabData, ReceiptsTab, TabState};
+use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
+use crate::api::ApiError;
 use crate::features::receipts::csv::{to_preview, CsvPreviewRow};
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
-use crate::support::pagination::PageCollector;
 use leptos::prelude::*;
-use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-
-pub(crate) const RECEIPT_LIST_PER_PAGE: usize = 1000;
-// API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
-pub(crate) const RECEIPT_LIST_MAX_PAGES: usize = 100;
-
-async fn fetch_receipt_page<R: DeserializeOwned>(
-    client: &ApiClient,
-    path: &str,
-    page_no: usize,
-) -> Result<R, ApiError> {
-    let per_page = RECEIPT_LIST_PER_PAGE.to_string();
-    let page = page_no.to_string();
-    let query = [
-        ("per_page", per_page.as_str()),
-        ("page", page.as_str()),
-        (
-            "include_summary",
-            if page_no == 1 { "true" } else { "false" },
-        ),
-    ];
-    client.get_json::<R>(path, &query).await
-}
-
-pub(crate) async fn fetch_pages<R, T, S, Fut>(
-    fetch_page: impl Fn(usize) -> Fut,
-    into_parts: impl Fn(R) -> (Vec<T>, i64, Option<S>),
-) -> Result<(Vec<T>, Option<S>, bool), ApiError>
-where
-    Fut: std::future::Future<Output = Result<R, ApiError>>,
-{
-    let mut pages = PageCollector::new(RECEIPT_LIST_PER_PAGE, RECEIPT_LIST_MAX_PAGES);
-    let mut summary = None;
-    loop {
-        let page_no = pages.next_page();
-        let (data, total, page_summary) = into_parts(fetch_page(page_no).await?);
-        if page_no == 1 {
-            summary = page_summary;
-        }
-        if !pages.push(data, total) {
-            break;
-        }
-    }
-    let truncated = pages.truncated();
-    Ok((pages.into_rows(), summary, truncated))
-}
-
-async fn fetch_list(tab: ReceiptsTab) -> Result<ReceiptTabData, ApiError> {
-    let client = ApiClient::read_client();
-    match tab {
-        ReceiptsTab::Dividend => fetch_pages(
-            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
-            |r: DividendListResponse| (r.data, r.total, r.summary),
-        )
-        .await
-        .map(|(rows, summary, truncated)| ReceiptTabData {
-            rows: rows.into_iter().map(ReceiptItem::Dividend).collect(),
-            summary: summary.map(ReceiptSummary::Dividend),
-            truncated,
-        }),
-        ReceiptsTab::DomesticStock => fetch_pages(
-            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
-            |r: DomesticStockListResponse| (r.data, r.total, r.summary),
-        )
-        .await
-        .map(|(rows, summary, truncated)| ReceiptTabData {
-            rows: rows.into_iter().map(ReceiptItem::DomesticStock).collect(),
-            summary: summary.map(ReceiptSummary::DomesticStock),
-            truncated,
-        }),
-        ReceiptsTab::MutualFund => fetch_pages(
-            |page_no| fetch_receipt_page(&client, tab.list_path(), page_no),
-            |r: MutualfundListResponse| (r.data, r.total, r.summary),
-        )
-        .await
-        .map(|(rows, summary, truncated)| ReceiptTabData {
-            rows: rows.into_iter().map(ReceiptItem::MutualFund).collect(),
-            summary: summary.map(ReceiptSummary::MutualFund),
-            truncated,
-        }),
-    }
-}
 
 #[derive(Clone, Copy)]
 pub struct ReceiptsStore {
@@ -115,7 +29,7 @@ pub struct ReceiptsStore {
 }
 
 impl ReceiptsStore {
-    pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptItem> {
+    pub fn rows(&self, tab: ReceiptsTab) -> Vec<ReceiptRow> {
         let generation = self.session.generation.get();
         self.cache.with(|map| match map.get(&(generation, tab)) {
             Some(TabState::Ready(data)) => data.rows.clone(),
@@ -494,7 +408,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         };
         let latest_fetch = Rc::clone(&latest_fetch);
         async move {
-            let rows = fetch_list(tab).await;
+            let rows = tab.fetch_list().await;
             if !should_apply_fetch_result(&session, generation)
                 || latest_fetch.borrow().get(&(generation, tab)) != Some(&rev)
             {

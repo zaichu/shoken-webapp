@@ -1,12 +1,8 @@
-use crate::features::receipts::{ReceiptItem, ReceiptsTab};
-use crate::support::list_search::support::{
-    create_search_options, reorder_columns_by_search, ColumnReorderRule,
-};
+use crate::features::receipts::{ReceiptRow, ReceiptsTab};
+use crate::support::list_search::support::{create_search_options, reorder_columns_by_search};
 use crate::support::list_search::{
-    create_year_options, filter_by_config, get_unique_values, is_js_whitespace, FilterConfig,
-    SearchOption,
+    create_year_options, filter_by_config, get_unique_values, is_js_whitespace, SearchOption,
 };
-use rust_decimal::Decimal;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SearchKey {
@@ -230,123 +226,14 @@ pub struct SearchCategories {
     pub dates: bool,
 }
 
-impl ReceiptItem {
-    pub fn date(&self) -> &str {
-        match self {
-            Self::Dividend(r) => &r.settlement_date,
-            Self::DomesticStock(r) => &r.trade_date,
-            Self::MutualFund(r) => &r.trade_date,
-        }
-    }
-    pub fn code(&self) -> &str {
-        match self {
-            Self::Dividend(r) => &r.security_code,
-            Self::DomesticStock(r) => r.security_code.as_str(),
-            Self::MutualFund(_) => "",
-        }
-    }
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Dividend(r) => &r.security_name,
-            Self::DomesticStock(r) => &r.security_name,
-            Self::MutualFund(r) => &r.fund_name,
-        }
-    }
-    pub fn account(&self) -> &str {
-        match self {
-            Self::Dividend(r) => r.account.as_str(),
-            Self::DomesticStock(r) => r.account.as_str(),
-            Self::MutualFund(r) => r.account.as_str(),
-        }
-    }
-    pub fn product(&self) -> &str {
-        match self {
-            Self::Dividend(r) => &r.product,
-            _ => "",
-        }
-    }
-}
-
-pub fn filter_receipts(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Vec<ReceiptItem> {
-    let mut config = FilterConfig {
-        string_fields: Some(vec![
-            ReceiptItem::code,
-            ReceiptItem::name,
-            ReceiptItem::account,
-        ]),
-        partial_string_fields: None,
-        date_field: Some(ReceiptItem::date),
-        year_search: true,
-        year_month_search: true,
-        date_search: true,
-        date_range_search: true,
-        amount_fields: None,
-    };
-    match tab {
-        ReceiptsTab::Dividend => {
-            config
-                .string_fields
-                .as_mut()
-                .unwrap()
-                .push(ReceiptItem::product);
-            config.amount_fields = Some(vec![
-                |r| match r {
-                    ReceiptItem::Dividend(r) => r.unit_price,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::Dividend(r) => r.shares,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::Dividend(r) => r.dividends_before_tax,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::Dividend(r) => r.taxes,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::Dividend(r) => r.net_amount_received,
-                    _ => Decimal::ZERO,
-                },
-            ]);
-        }
-        ReceiptsTab::DomesticStock => {
-            config.amount_fields = Some(vec![
-                |r| match r {
-                    ReceiptItem::DomesticStock(r) => r.shares,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::DomesticStock(r) => r.asked_price,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::DomesticStock(r) => r.proceeds,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::DomesticStock(r) => r.purchase_price,
-                    _ => Decimal::ZERO,
-                },
-                |r| match r {
-                    ReceiptItem::DomesticStock(r) => r.realized_profit_and_loss,
-                    _ => Decimal::ZERO,
-                },
-            ]);
-        }
-        ReceiptsTab::MutualFund => {
-            config.string_fields = Some(vec![ReceiptItem::name, ReceiptItem::account]);
-        }
-    }
-    filter_by_config(rows, query, &config)
+pub fn filter_receipts(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<ReceiptRow> {
+    filter_by_config(rows, query, &tab.filter_config())
         .into_iter()
         .cloned()
         .collect()
 }
 
-pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptItem]) -> SearchCategories {
+pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategories {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.date().cmp(a.date()));
     let to_options = |values: Vec<String>| {
@@ -361,77 +248,38 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptItem]) -> SearchCatego
     SearchCategories {
         securities: create_search_options(
             &sorted,
-            ReceiptItem::code,
-            ReceiptItem::name,
+            ReceiptRow::code,
+            ReceiptRow::name,
             true,
-            Some(ReceiptItem::date),
+            Some(ReceiptRow::date),
         ),
-        products: if tab == ReceiptsTab::Dividend {
-            to_options(get_unique_values(&sorted, ReceiptItem::product))
+        products: if tab.product_category() {
+            to_options(get_unique_values(&sorted, ReceiptRow::product))
         } else {
             vec![]
         },
-        accounts: if tab != ReceiptsTab::MutualFund {
-            to_options(get_unique_values(&sorted, ReceiptItem::account))
+        accounts: if tab.account_category() {
+            to_options(get_unique_values(&sorted, ReceiptRow::account))
         } else {
             vec![]
         },
-        years: create_year_options(&sorted, ReceiptItem::date),
+        years: create_year_options(&sorted, ReceiptRow::date),
         dates: true,
     }
 }
 
-fn product_matches(row: &ReceiptItem, query: &str) -> bool {
-    row.product().to_lowercase().contains(query)
-}
-
-fn account_matches(row: &ReceiptItem, query: &str) -> bool {
-    row.account().to_lowercase().contains(query)
-}
-
-const DIVIDEND_REORDER_RULES: &[ColumnReorderRule<ReceiptItem>] = &[
-    ColumnReorderRule {
-        column_key: 1,
-        matches: product_matches,
-    },
-    ColumnReorderRule {
-        column_key: 2,
-        matches: account_matches,
-    },
-];
-
-const DOMESTIC_REORDER_RULES: &[ColumnReorderRule<ReceiptItem>] = &[ColumnReorderRule {
-    column_key: 3,
-    matches: account_matches,
-}];
-
-fn reorder_rules(tab: ReceiptsTab) -> (&'static [ColumnReorderRule<ReceiptItem>], usize) {
-    match tab {
-        ReceiptsTab::Dividend => (DIVIDEND_REORDER_RULES, 1),
-        ReceiptsTab::DomesticStock => (DOMESTIC_REORDER_RULES, 2),
-        ReceiptsTab::MutualFund => (&[], 0),
-    }
-}
-
-pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Vec<usize> {
-    let base: Vec<_> = (0..if tab == ReceiptsTab::DomesticStock {
-        11
-    } else {
-        10
-    })
-        .collect();
-    let (rules, fixed) = reorder_rules(tab);
-    reorder_columns_by_search(&base, rows, query, rules, fixed)
+pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<usize> {
+    let base: Vec<_> = (0..tab.headers().len()).collect();
+    reorder_columns_by_search(&base, rows, query, tab.reorder_rules(), tab.reorder_fixed())
 }
 
 /// 検索に一致して前に出す列。column_order と同じ規則で最初に一致したもの
-pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptItem], query: &str) -> Option<usize> {
+pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Option<usize> {
     if query.is_empty() {
         return None;
     }
     let query = query.to_lowercase();
-    reorder_rules(tab)
-        .0
+    tab.reorder_rules()
         .iter()
         .find(|rule| rows.iter().any(|row| (rule.matches)(row, &query)))
         .map(|rule| rule.column_key)

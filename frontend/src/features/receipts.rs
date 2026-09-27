@@ -1,13 +1,15 @@
 pub(crate) mod csv;
 pub(crate) mod dividend_info;
 pub(crate) mod filter;
+pub(crate) mod kind;
 pub(crate) mod model;
 mod store;
 pub(crate) mod view;
 
-use crate::features::receipts::model::{format_currency, format_date, format_number};
+use crate::features::receipts::model::format_number;
 use rust_decimal::Decimal;
 
+pub use kind::ReceiptRow;
 pub use store::{use_receipts_data, ReceiptsStore};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -23,38 +25,6 @@ impl ReceiptsTab {
         ReceiptsTab::DomesticStock,
         ReceiptsTab::MutualFund,
     ];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            ReceiptsTab::Dividend => "配当金",
-            ReceiptsTab::DomesticStock => "国内株式",
-            ReceiptsTab::MutualFund => "投資信託",
-        }
-    }
-
-    pub(crate) fn list_path(self) -> &'static str {
-        match self {
-            ReceiptsTab::Dividend => "/api/v1/dividends",
-            ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-transactions",
-            ReceiptsTab::MutualFund => "/api/v1/mutual-fund-transactions",
-        }
-    }
-
-    pub(crate) fn preview_path(self) -> &'static str {
-        match self {
-            ReceiptsTab::Dividend => "/api/v1/dividend-import-validations",
-            ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-import-validations",
-            ReceiptsTab::MutualFund => "/api/v1/mutual-fund-import-validations",
-        }
-    }
-
-    pub(crate) fn import_path(self) -> &'static str {
-        match self {
-            ReceiptsTab::Dividend => "/api/v1/dividend-imports",
-            ReceiptsTab::DomesticStock => "/api/v1/domestic-stock-imports",
-            ReceiptsTab::MutualFund => "/api/v1/mutual-fund-imports",
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -84,109 +54,13 @@ impl ReceiptCell {
 }
 
 impl ReceiptItem {
+    /// 保存済み行の DB id。行単位の DOM キーに使う。
     pub fn id(&self) -> &str {
         match self {
             ReceiptItem::Dividend(row) => row.id.as_str(),
             ReceiptItem::DomesticStock(row) => row.id.as_str(),
             ReceiptItem::MutualFund(row) => row.id.as_str(),
         }
-    }
-
-    pub fn cells(&self) -> Vec<ReceiptCell> {
-        match self {
-            ReceiptItem::Dividend(row) => vec![
-                ReceiptCell::Text(format_date(&row.settlement_date)),
-                ReceiptCell::Text(row.product.clone()),
-                ReceiptCell::Text(row.account.to_string()),
-                ReceiptCell::SecurityCode(row.security_code.clone()),
-                ReceiptCell::InstrumentName {
-                    name: row.security_name.clone(),
-                    code: Some(row.security_code.clone()),
-                },
-                ReceiptCell::Text(format_currency(row.unit_price)),
-                ReceiptCell::Text(format_number(row.shares, 2)),
-                ReceiptCell::Text(format_currency(row.dividends_before_tax)),
-                ReceiptCell::Text(format_currency(row.taxes)),
-                ReceiptCell::Text(format_currency(row.net_amount_received)),
-            ],
-            ReceiptItem::DomesticStock(row) => vec![
-                ReceiptCell::Text(format_date(&row.trade_date)),
-                ReceiptCell::SecurityCode(row.security_code.to_string()),
-                ReceiptCell::InstrumentName {
-                    name: row.security_name.clone(),
-                    code: Some(row.security_code.to_string()),
-                },
-                ReceiptCell::Text(row.account.to_string()),
-                ReceiptCell::Text(format_number(row.shares, 2)),
-                ReceiptCell::Text(format_currency(row.asked_price)),
-                ReceiptCell::Text(format_currency(row.proceeds)),
-                ReceiptCell::Text(format_currency(row.purchase_price)),
-                ReceiptCell::Text(format_currency(row.realized_profit_and_loss)),
-                ReceiptCell::Text(format_currency(row.taxes)),
-                ReceiptCell::Text(format_currency(row.realized_profit_and_loss_after_tax)),
-            ],
-            ReceiptItem::MutualFund(row) => vec![
-                ReceiptCell::Text(format_date(&row.trade_date)),
-                ReceiptCell::InstrumentName {
-                    name: row.fund_name.clone(),
-                    code: None,
-                },
-                ReceiptCell::Text(row.account.to_string()),
-                ReceiptCell::Text(format_number(row.shares, 2)),
-                ReceiptCell::Text(format_currency(row.cancellation_unit_price_yen)),
-                ReceiptCell::Text(format_currency(row.cancellation_amount_yen)),
-                ReceiptCell::Text(format_currency(row.average_acquisition_price_yen)),
-                ReceiptCell::Text(format_currency(row.realized_profit_and_loss)),
-                ReceiptCell::Text(format_currency(row.taxes)),
-                ReceiptCell::Text(format_currency(row.realized_profit_and_loss_after_tax)),
-            ],
-        }
-    }
-
-    // カードの開閉状態を引き継ぐ照合は表示丸め前の値で行う。
-    // 数量 1.001 と 1.002 はともに「1.00」と出るが別行として区別する。
-    pub fn raw_key(&self) -> String {
-        let fields: Vec<String> = match self {
-            ReceiptItem::Dividend(row) => vec![
-                row.settlement_date.clone(),
-                row.product.clone(),
-                row.account.to_string(),
-                row.security_code.clone(),
-                row.security_name.clone(),
-                row.unit_price.to_string(),
-                row.shares.to_string(),
-                row.dividends_before_tax.to_string(),
-                row.taxes.to_string(),
-                row.net_amount_received.to_string(),
-            ],
-            ReceiptItem::DomesticStock(row) => vec![
-                row.trade_date.clone(),
-                row.security_code.to_string(),
-                row.security_name.clone(),
-                row.account.to_string(),
-                row.shares.to_string(),
-                row.asked_price.to_string(),
-                row.proceeds.to_string(),
-                row.purchase_price.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
-                row.realized_profit_and_loss_after_tax.to_string(),
-            ],
-            ReceiptItem::MutualFund(row) => vec![
-                row.trade_date.clone(),
-                row.fund_name.clone(),
-                row.account.to_string(),
-                row.shares.to_string(),
-                row.exchange_rate.to_string(),
-                row.cancellation_unit_price_yen.to_string(),
-                row.cancellation_amount_yen.to_string(),
-                row.average_acquisition_price_yen.to_string(),
-                row.realized_profit_and_loss.to_string(),
-                row.taxes.to_string(),
-                row.realized_profit_and_loss_after_tax.to_string(),
-            ],
-        };
-        fields.join("\u{1f}")
     }
 }
 
@@ -199,7 +73,7 @@ pub enum ReceiptSummary {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReceiptTabData {
-    pub rows: Vec<ReceiptItem>,
+    pub rows: Vec<ReceiptRow>,
     pub summary: Option<ReceiptSummary>,
     pub truncated: bool,
 }
@@ -221,7 +95,10 @@ pub fn truncated_list_warning() -> String {
     format!(
         "一覧は最大{}件まで表示しています。検索条件を絞り込んでください。",
         format_number(
-            Decimal::from(store::RECEIPT_LIST_PER_PAGE * store::RECEIPT_LIST_MAX_PAGES),
+            Decimal::from(
+                crate::support::pagination::LIST_PER_PAGE
+                    * crate::support::pagination::LIST_MAX_PAGES
+            ),
             0
         )
     )
