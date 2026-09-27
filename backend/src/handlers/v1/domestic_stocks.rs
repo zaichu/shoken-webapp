@@ -6,7 +6,7 @@ use crate::{
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         domestic_stock::{DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary},
     },
-    services::{csv::domain::DomesticStockDomain, domestic_stock as domestic_stock_service},
+    services::{domestic_stock as domestic_stock_service, domestic_stock::DomesticStockDomain},
     state::AppState,
 };
 use axum::{

@@ -9,7 +9,7 @@ use crate::{
         common::{BulkCreateResponse, MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     },
-    services::{asset_balance as asset_balance_service, csv::domain::AssetBalanceDomain},
+    services::{asset_balance as asset_balance_service, asset_balance::AssetBalanceDomain},
     state::AppState,
 };
 use axum::{

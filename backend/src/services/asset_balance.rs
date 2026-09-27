@@ -5,8 +5,8 @@ use crate::models::asset_balance::{
 use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
-use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::models::csv_import::CsvRowError;
+use crate::services::csv::import::{validate_csv_rows, CsvImport};
 #[cfg(test)]
 use crate::services::csv::pipeline::parse_csv_with_config;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
@@ -44,6 +44,24 @@ impl Domain for AssetBalanceDomain {
         )
         .execute(pool)
         .await
+    }
+}
+
+impl CsvImport for AssetBalanceDomain {
+    type Row = CreateAssetBalanceRequest;
+    const CSV_CONFIG: CsvParserConfig = ASSET_BALANCE_CSV_CONFIG;
+
+    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_asset_balance_rows(rows)
+    }
+
+    async fn bulk_create(
+        pool: &PgPool,
+        user_id: UserId,
+        items: &[Self::Row],
+        limit: RowLimit,
+    ) -> Result<BulkCreateResponse, ApiError> {
+        bulk_create(pool, user_id, items, limit).await
     }
 }
 
@@ -252,31 +270,6 @@ pub async fn bulk_create(
     Ok(timer.finish(total))
 }
 
-/// CSV bytes をパースしてプレビュー情報を返す（DB 書き込みなし）
-/// 現在の取込対象形式では、先頭6行はメタデータのためスキップ
-pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    build_csv_preview(
-        bytes,
-        &ASSET_BALANCE_CSV_CONFIG,
-        transform_asset_balance_rows,
-    )
-}
-
-pub async fn upload_csv(
-    pool: &PgPool,
-    user_id: UserId,
-    bytes: &[u8],
-    user_row_limit: RowLimit,
-) -> Result<CsvUploadResponse, ApiError> {
-    run_csv_upload(
-        bytes,
-        &ASSET_BALANCE_CSV_CONFIG,
-        transform_asset_balance_rows,
-        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
-    )
-    .await
-}
-
 pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
     bulk::delete_all::<AssetBalanceDomain>(pool, user_id).await
 }
@@ -365,6 +358,7 @@ fn transform_asset_balance_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::csv::import::CsvDomain;
     use rust_decimal_macros::dec;
 
     type ExpectedRow<'a> = (
@@ -485,7 +479,7 @@ mod tests {
             assert_row_error(row, expected_message);
         }
 
-        let preview = preview_csv(
+        let preview = AssetBalanceDomain::preview_csv(
             make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]).as_bytes(),
         )
         .unwrap();
@@ -501,7 +495,10 @@ mod tests {
             preview.errors
         );
 
-        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
+        assert!(matches!(
+            AssetBalanceDomain::preview_csv(b""),
+            Err(ApiError::Csv(_))
+        ));
 
         for (rows, expected_codes) in [
             (

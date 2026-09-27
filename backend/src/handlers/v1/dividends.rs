@@ -7,7 +7,7 @@ use crate::{
         dividend::{Dividend, DividendSearchQueryParams, DividendSummary},
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     },
-    services::{csv::domain::DividendDomain, dividend as dividend_service},
+    services::{dividend as dividend_service, dividend::DividendDomain},
     state::AppState,
 };
 use axum::{

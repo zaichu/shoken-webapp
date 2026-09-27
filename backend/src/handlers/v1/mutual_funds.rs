@@ -6,7 +6,7 @@ use crate::{
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         mutualfund::{Mutualfund, MutualfundSearchQueryParams, MutualfundSummary},
     },
-    services::{csv::domain::MutualfundDomain, mutualfund as mutualfund_service},
+    services::{mutualfund as mutualfund_service, mutualfund::MutualfundDomain},
     state::AppState,
 };
 use axum::{

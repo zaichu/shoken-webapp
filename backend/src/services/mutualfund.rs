@@ -2,11 +2,11 @@ use crate::errors::ApiError;
 use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
-use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::CsvRowError;
 use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
-use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv::import::{validate_csv_rows, CsvImport};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
@@ -40,6 +40,24 @@ impl Domain for MutualfundDomain {
         sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
             .execute(pool)
             .await
+    }
+}
+
+impl CsvImport for MutualfundDomain {
+    type Row = CreateMutualfundRequest;
+    const CSV_CONFIG: CsvParserConfig = MUTUALFUND_CSV_CONFIG;
+
+    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_mutualfund_rows(rows)
+    }
+
+    async fn bulk_create(
+        pool: &PgPool,
+        user_id: UserId,
+        items: &[Self::Row],
+        limit: RowLimit,
+    ) -> Result<BulkCreateResponse, ApiError> {
+        bulk_create(pool, user_id, items, limit).await
     }
 }
 
@@ -293,26 +311,6 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-/// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
-pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    build_csv_preview(bytes, &MUTUALFUND_CSV_CONFIG, transform_mutualfund_rows)
-}
-
-pub async fn upload_csv(
-    pool: &PgPool,
-    user_id: UserId,
-    bytes: &[u8],
-    user_row_limit: RowLimit,
-) -> Result<CsvUploadResponse, ApiError> {
-    run_csv_upload(
-        bytes,
-        &MUTUALFUND_CSV_CONFIG,
-        transform_mutualfund_rows,
-        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
-    )
-    .await
-}
-
 fn transform_mutualfund_rows(rows: &[CsvRow]) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
     validate_csv_rows(rows, transform_mutualfund_row)
 }
@@ -360,23 +358,24 @@ pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::csv::import::CsvDomain;
     use chrono::NaiveDate;
     #[test]
     fn test_preview_csv_basic() {
         let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"");
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+        let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (
                 preview.total_rows,
                 preview.valid_rows,
                 preview.rows.len(),
                 preview.errors.is_empty(),
-                matches!(preview_csv(b""), Err(ApiError::Csv(_)))
+                matches!(MutualfundDomain::preview_csv(b""), Err(ApiError::Csv(_)))
             ),
             (1, 1, 1, true, true)
         );
         let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"");
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+        let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (preview.valid_rows, preview.rows[0]["dividends"].is_null()),
             (1, true)

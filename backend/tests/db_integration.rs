@@ -2,6 +2,7 @@ use axum::{
     body::{to_bytes, Body},
     http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
 };
+use backend::services::csv::import::CsvDomain;
 use backend::{
     config::Config,
     db::{connect_pool_lazy, run_migrations, wait_for_pool_with_retry},
@@ -345,7 +346,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(mutualfund_created.inserted, 2);
     assert_eq!(mutualfund_created.skipped, 0);
 
-    let mutualfund_uploaded = mutualfund_svc::upload_csv(
+    let mutualfund_uploaded = mutualfund_svc::MutualfundDomain::upload_csv(
         &pool,
         user_id,
         make_mutualfund_csv().as_bytes(),
@@ -400,7 +401,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(dividend_created.inserted, 2);
     assert_eq!(dividend_created.skipped, 0);
 
-    let dividend_uploaded = dividend_svc::upload_csv(
+    let dividend_uploaded = dividend_svc::DividendDomain::upload_csv(
         &pool,
         user_id,
         make_dividend_csv().as_bytes(),
@@ -463,7 +464,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(domestic_stock_created.inserted, 2);
     assert_eq!(domestic_stock_created.skipped, 0);
 
-    let domestic_stock_uploaded = domestic_stock_svc::upload_csv(
+    let domestic_stock_uploaded = domestic_stock_svc::DomesticStockDomain::upload_csv(
         &pool,
         user_id,
         make_domestic_stock_csv().as_bytes(),
@@ -531,7 +532,7 @@ async fn service_coverage_all_domains() {
         2
     );
 
-    let asset_balance_uploaded = asset_balance_svc::upload_csv(
+    let asset_balance_uploaded = asset_balance_svc::AssetBalanceDomain::upload_csv(
         &pool,
         user_id,
         make_asset_balance_csv().as_bytes(),

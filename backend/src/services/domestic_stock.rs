@@ -2,11 +2,11 @@ use crate::errors::ApiError;
 use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
-use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
-use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv::import::{validate_csv_rows, CsvImport};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
@@ -44,6 +44,24 @@ impl Domain for DomesticStockDomain {
         )
         .execute(pool)
         .await
+    }
+}
+
+impl CsvImport for DomesticStockDomain {
+    type Row = CreateDomesticStockRequest;
+    const CSV_CONFIG: CsvParserConfig = DOMESTIC_STOCK_CSV_CONFIG;
+
+    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_domestic_stock_rows(rows)
+    }
+
+    async fn bulk_create(
+        pool: &PgPool,
+        user_id: UserId,
+        items: &[Self::Row],
+        limit: RowLimit,
+    ) -> Result<BulkCreateResponse, ApiError> {
+        bulk_create(pool, user_id, items, limit).await
     }
 }
 
@@ -370,30 +388,6 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-/// CSV バイト列から国内株式取引をパースしてプレビュー情報を返す（DB 書き込みなし）
-pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    build_csv_preview(
-        bytes,
-        &DOMESTIC_STOCK_CSV_CONFIG,
-        transform_domestic_stock_rows,
-    )
-}
-
-pub async fn upload_csv(
-    pool: &PgPool,
-    user_id: UserId,
-    bytes: &[u8],
-    user_row_limit: RowLimit,
-) -> Result<CsvUploadResponse, ApiError> {
-    run_csv_upload(
-        bytes,
-        &DOMESTIC_STOCK_CSV_CONFIG,
-        transform_domestic_stock_rows,
-        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
-    )
-    .await
-}
-
 fn transform_domestic_stock_rows(
     rows: &[CsvRow],
 ) -> (Vec<CreateDomesticStockRequest>, Vec<CsvRowError>) {
@@ -436,6 +430,8 @@ pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::csv_import::CsvPreviewResponse;
+    use crate::services::csv::import::CsvDomain;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
     use uuid::Uuid;
@@ -454,7 +450,7 @@ mod tests {
         "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
 
     fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse {
-        preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
+        DomesticStockDomain::preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
     }
 
     fn assert_preview_ok(row: &str) -> CsvPreviewResponse {
@@ -516,7 +512,10 @@ mod tests {
             assert_preview_error(header, row, expected_message);
         }
 
-        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
+        assert!(matches!(
+            DomesticStockDomain::preview_csv(b""),
+            Err(ApiError::Csv(_))
+        ));
     }
 
     fn make_test_item() -> CreateDomesticStockRequest {

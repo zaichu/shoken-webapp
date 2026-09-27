@@ -2,11 +2,11 @@ use crate::errors::ApiError;
 use crate::models::common::{
     BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
 };
-use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
-use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv::import::{validate_csv_rows, CsvImport};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
 use crate::services::csv::util::{
     check_max_chars, parse_optional_string, parse_required_account, parse_required_date,
@@ -40,6 +40,24 @@ impl Domain for DividendDomain {
         sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id.get())
             .execute(pool)
             .await
+    }
+}
+
+impl CsvImport for DividendDomain {
+    type Row = CreateDividendRequest;
+    const CSV_CONFIG: CsvParserConfig = DIVIDEND_CSV_CONFIG;
+
+    fn transform_rows(rows: &[CsvRow]) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_dividend_rows(rows)
+    }
+
+    async fn bulk_create(
+        pool: &PgPool,
+        user_id: UserId,
+        items: &[Self::Row],
+        limit: RowLimit,
+    ) -> Result<BulkCreateResponse, ApiError> {
+        bulk_create(pool, user_id, items, limit).await
     }
 }
 
@@ -289,26 +307,6 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-/// CSV バイト列から配当金をパースしてプレビュー情報を返す（DB 書き込みなし）
-pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    build_csv_preview(bytes, &DIVIDEND_CSV_CONFIG, transform_dividend_rows)
-}
-
-pub async fn upload_csv(
-    pool: &PgPool,
-    user_id: UserId,
-    bytes: &[u8],
-    user_row_limit: RowLimit,
-) -> Result<CsvUploadResponse, ApiError> {
-    run_csv_upload(
-        bytes,
-        &DIVIDEND_CSV_CONFIG,
-        transform_dividend_rows,
-        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
-    )
-    .await
-}
-
 fn transform_dividend_rows(rows: &[CsvRow]) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
     validate_csv_rows(rows, transform_dividend_row)
 }
@@ -356,13 +354,15 @@ pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::csv_import::CsvPreviewResponse;
+    use crate::services::csv::import::CsvDomain;
     use chrono::NaiveDate;
 
     const HEADER: &str =
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 
     fn preview_from_lines(lines: &[&str]) -> CsvPreviewResponse {
-        preview_csv(lines.join("\n").as_bytes()).unwrap()
+        DividendDomain::preview_csv(lines.join("\n").as_bytes()).unwrap()
     }
 
     #[test]
@@ -382,7 +382,10 @@ mod tests {
             (2, 2, true, 2)
         );
 
-        assert!(matches!(preview_csv(b""), Err(ApiError::Csv(_))));
+        assert!(matches!(
+            DividendDomain::preview_csv(b""),
+            Err(ApiError::Csv(_))
+        ));
 
         let preview = preview_from_lines(&[
             HEADER,
