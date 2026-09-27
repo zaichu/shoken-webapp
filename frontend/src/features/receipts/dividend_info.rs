@@ -1,8 +1,7 @@
 use super::ReceiptRow;
 use crate::api::dto::AssetBalance;
 use crate::api::ApiClient;
-use crate::features::asset_balance::lookup::{fetch_single_asset_balance, find_by_code};
-use crate::features::asset_balance::model::{normalize_security_code, to_fixed};
+use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code, to_fixed};
 use crate::features::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
     post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
@@ -14,6 +13,7 @@ use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use shared::normalize::normalize_security_code;
 
 const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
 const JQUANTS_HINT: &str = "自動で取得されます";

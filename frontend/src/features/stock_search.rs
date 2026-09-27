@@ -1,4 +1,6 @@
-pub(crate) mod view;
+mod view;
+
+pub(crate) use view::SearchPage;
 
 use crate::api::{fetch_stock, Stock};
 use crate::session::{use_session, Generation};

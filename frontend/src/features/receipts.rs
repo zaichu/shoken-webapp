@@ -1,10 +1,12 @@
-pub(crate) mod csv;
-pub(crate) mod dividend_info;
-pub(crate) mod filter;
-pub(crate) mod kind;
-pub(crate) mod model;
+mod csv;
+mod dividend_info;
+mod filter;
+mod kind;
+mod model;
 mod store;
-pub(crate) mod view;
+mod view;
+
+pub use view::ReceiptsPage;
 
 use crate::features::receipts::model::format_number;
 use rust_decimal::Decimal;

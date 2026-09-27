@@ -2,10 +2,10 @@ use crate::api::dto::{
     AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
 };
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::format::{
-    format_valuation_amount, format_valuation_rate, valuation_tone,
+use crate::features::asset_balance::{
+    calculate_valuation_from_decimal, format_valuation_amount, format_valuation_rate,
+    valuation_tone,
 };
-use crate::features::asset_balance::model::calculate_valuation_from_decimal;
 use crate::session::{use_session, Generation, SessionStore};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
