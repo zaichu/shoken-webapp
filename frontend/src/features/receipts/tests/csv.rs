@@ -5,7 +5,7 @@ use crate::features::receipts::store::{
     has_stale_generation, mark_tab_for_refresh, prune_stale_generation, tab_settled,
 };
 use crate::features::receipts::*;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvPreview;
 use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
@@ -22,8 +22,8 @@ fn user(id: &str) -> crate::api::dto::SessionUser {
 
 fn test_store(
     session: &SessionStore,
-    cache: HashMap<(u64, ReceiptsTab), TabState>,
-    csv: HashMap<(u64, ReceiptsTab), CsvTabState<CsvPreviewRow>>,
+    cache: HashMap<(Generation, ReceiptsTab), TabState>,
+    csv: HashMap<(Generation, ReceiptsTab), CsvTabState<CsvPreviewRow>>,
 ) -> ReceiptsStore {
     ReceiptsStore {
         session: *session,
@@ -34,7 +34,7 @@ fn test_store(
         expanded_epoch: RwSignal::new(None),
         visited: RwSignal::new(HashSet::new()),
         cache: RwSignal::new(cache),
-        fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+        fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
         csv: RwSignal::new(csv),
         csv_files: RwSignal::new(HashMap::new()),
     }
@@ -452,23 +452,39 @@ fn refresh_tab_list_marks_cached_tab_loading_only() {
 #[test]
 fn mark_tab_for_refresh_marks_only_existing_entry() {
     let mut map = HashMap::new();
-    assert!(!mark_tab_for_refresh(&mut map, 0, ReceiptsTab::Dividend));
+    assert!(!mark_tab_for_refresh(
+        &mut map,
+        Generation::new(0),
+        ReceiptsTab::Dividend
+    ));
 
     map.insert(
-        (0, ReceiptsTab::Dividend),
+        (Generation::new(0), ReceiptsTab::Dividend),
         TabState::Ready(ReceiptTabData {
             rows: Vec::new(),
             summary: None,
             truncated: false,
         }),
     );
-    assert!(mark_tab_for_refresh(&mut map, 0, ReceiptsTab::Dividend));
+    assert!(mark_tab_for_refresh(
+        &mut map,
+        Generation::new(0),
+        ReceiptsTab::Dividend
+    ));
     assert!(matches!(
-        map.get(&(0, ReceiptsTab::Dividend)),
+        map.get(&(Generation::new(0), ReceiptsTab::Dividend)),
         Some(TabState::Loading)
     ));
-    assert!(!mark_tab_for_refresh(&mut map, 1, ReceiptsTab::Dividend));
-    assert!(!mark_tab_for_refresh(&mut map, 0, ReceiptsTab::MutualFund));
+    assert!(!mark_tab_for_refresh(
+        &mut map,
+        Generation::new(1),
+        ReceiptsTab::Dividend
+    ));
+    assert!(!mark_tab_for_refresh(
+        &mut map,
+        Generation::new(0),
+        ReceiptsTab::MutualFund
+    ));
 }
 
 #[test]
@@ -625,18 +641,18 @@ fn tab_settled_only_for_ready_or_failed() {
         let session = SessionStore::new();
         let store = test_store(&session, HashMap::new(), HashMap::new());
         let tab = ReceiptsTab::Dividend;
-        assert!(!tab_settled(&store, 0, tab));
+        assert!(!tab_settled(&store, Generation::new(0), tab));
         store.cache.update(|map| {
-            map.insert((0, tab), TabState::Loading);
+            map.insert((Generation::new(0), tab), TabState::Loading);
         });
-        assert!(!tab_settled(&store, 0, tab));
+        assert!(!tab_settled(&store, Generation::new(0), tab));
         store.cache.update(|map| {
-            map.insert((0, tab), TabState::Failed("x".to_string()));
+            map.insert((Generation::new(0), tab), TabState::Failed("x".to_string()));
         });
-        assert!(tab_settled(&store, 0, tab));
+        assert!(tab_settled(&store, Generation::new(0), tab));
         store.cache.update(|map| {
             map.insert(
-                (0, tab),
+                (Generation::new(0), tab),
                 TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
                     summary: None,
@@ -644,7 +660,7 @@ fn tab_settled_only_for_ready_or_failed() {
                 }),
             );
         });
-        assert!(tab_settled(&store, 0, tab));
+        assert!(tab_settled(&store, Generation::new(0), tab));
     });
 }
 
@@ -656,7 +672,7 @@ fn ensure_prunes_only_stale_generation_entries() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let stale = generation + 1;
+        let stale = generation.next();
         let tab = ReceiptsTab::Dividend;
         let store = test_store(
             &session,
@@ -696,7 +712,7 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let stale = generation + 1;
+        let stale = generation.next();
         let tab = ReceiptsTab::Dividend;
         let store = test_store(
             &session,
@@ -734,22 +750,22 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
 #[test]
 fn stale_generation_helpers_detect_and_remove_foreign_generations() {
     let mut map = HashMap::from([
-        ((0u64, ReceiptsTab::Dividend), 1),
-        ((1, ReceiptsTab::Dividend), 2),
-        ((1, ReceiptsTab::DomesticStock), 3),
+        ((Generation::new(0), ReceiptsTab::Dividend), 1),
+        ((Generation::new(1), ReceiptsTab::Dividend), 2),
+        ((Generation::new(1), ReceiptsTab::DomesticStock), 3),
     ]);
-    assert!(has_stale_generation(&map, 1));
-    assert!(has_stale_generation(&map, 0));
-    prune_stale_generation(&mut map, 1);
+    assert!(has_stale_generation(&map, Generation::new(1)));
+    assert!(has_stale_generation(&map, Generation::new(0)));
+    prune_stale_generation(&mut map, Generation::new(1));
     assert_eq!(map.len(), 2);
-    assert!(map.contains_key(&(1, ReceiptsTab::Dividend)));
-    assert!(map.contains_key(&(1, ReceiptsTab::DomesticStock)));
-    assert!(!has_stale_generation(&map, 1));
-    assert!(has_stale_generation(&map, 0));
+    assert!(map.contains_key(&(Generation::new(1), ReceiptsTab::Dividend)));
+    assert!(map.contains_key(&(Generation::new(1), ReceiptsTab::DomesticStock)));
+    assert!(!has_stale_generation(&map, Generation::new(1)));
+    assert!(has_stale_generation(&map, Generation::new(0)));
 
-    let mut current_only = HashMap::from([((1u64, ReceiptsTab::MutualFund), 4)]);
-    assert!(!has_stale_generation(&current_only, 1));
-    prune_stale_generation(&mut current_only, 1);
+    let mut current_only = HashMap::from([((Generation::new(1), ReceiptsTab::MutualFund), 4)]);
+    assert!(!has_stale_generation(&current_only, Generation::new(1)));
+    prune_stale_generation(&mut current_only, Generation::new(1));
     assert_eq!(current_only.len(), 1);
 }
 

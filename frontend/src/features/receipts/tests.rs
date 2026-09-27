@@ -123,7 +123,7 @@ fn expanded_state_is_cleared_on_generation_change() {
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
         };
@@ -160,7 +160,7 @@ fn expanded_state_survives_ensure_in_same_generation() {
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
         };

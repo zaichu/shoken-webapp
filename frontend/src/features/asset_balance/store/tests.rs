@@ -2,7 +2,7 @@ use super::*;
 use crate::api::dto::SearchFacets;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::testing::asset_balance::*;
 use std::collections::HashMap;
 
@@ -116,7 +116,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
 fn apply_loaded_replaces_same_generation_lookup_values() {
     let owner = Owner::new();
     owner.with(|| {
-        let generation = 1;
+        let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -158,7 +158,7 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
 fn apply_loaded_keeps_dividends_while_preview_active() {
     let owner = Owner::new();
     owner.with(|| {
-        let generation = 1;
+        let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("7203".to_string(), 50.0)]),
@@ -197,7 +197,7 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
 fn list_error_keeps_cached_rows_and_reports_refresh_error() {
     let owner = Owner::new();
     owner.with(|| {
-        let generation = 1;
+        let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
             generation,
             Ok(LoadedAssetBalances {
@@ -241,7 +241,7 @@ fn list_error_keeps_cached_rows_and_reports_refresh_error() {
 fn list_error_without_cache_sets_error_slot() {
     let owner = Owner::new();
     owner.with(|| {
-        let generation = 1;
+        let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
         data_ops.update(DataOps::begin_list_fetch);
@@ -268,7 +268,7 @@ fn list_error_without_cache_sets_error_slot() {
 fn list_error_from_stale_fetch_is_dropped() {
     let owner = Owner::new();
     owner.with(|| {
-        let generation = 1;
+        let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
         data_ops.update(DataOps::begin_list_fetch);

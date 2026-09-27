@@ -2,7 +2,7 @@ use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::filter::tests::dividends;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::*;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -22,14 +22,14 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             cache: RwSignal::new(HashMap::from([(
-                (0, ReceiptsTab::Dividend),
+                (Generation::new(0), ReceiptsTab::Dividend),
                 TabState::Ready(ReceiptTabData {
                     rows: dividends(),
                     summary: None,
                     truncated: false,
                 }),
             )])),
-            fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
         };

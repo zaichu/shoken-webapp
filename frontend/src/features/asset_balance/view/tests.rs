@@ -15,7 +15,7 @@ use crate::features::asset_balance::model::{
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::testing::asset_balance::*;
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
@@ -225,14 +225,14 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             truncated: false,
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(1, &loaded.rows));
+        lookup.update(|store| store.seed(Generation::new(1), &loaded.rows));
 
         let filtered = filtered_portfolio(
             &loaded.rows,
             loaded.summary.clone(),
             "7203",
             lookup,
-            1,
+            Generation::new(1),
             false,
         );
         assert_eq!(filtered.views.len(), 1);
@@ -287,8 +287,14 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             assert_eq!(kpi.holdings_count, 1);
         });
 
-        let unfiltered =
-            filtered_portfolio(&loaded.rows, loaded.summary.clone(), "", lookup, 1, false);
+        let unfiltered = filtered_portfolio(
+            &loaded.rows,
+            loaded.summary.clone(),
+            "",
+            lookup,
+            Generation::new(1),
+            false,
+        );
         assert_eq!(unfiltered.views.len(), 2);
         assert_eq!(
             unfiltered
@@ -306,9 +312,15 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         second.total_purchase_amount = rust_decimal_macros::dec!(2000.15);
         second.market_value = rust_decimal_macros::dec!(2200.20);
         let decimal_rows = vec![first, second];
-        lookup.update(|store| store.seed(2, &decimal_rows));
-        let decimal_filtered =
-            filtered_portfolio(&decimal_rows, loaded.summary, "検証対象", lookup, 2, false);
+        lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
+        let decimal_filtered = filtered_portfolio(
+            &decimal_rows,
+            loaded.summary,
+            "検証対象",
+            lookup,
+            Generation::new(2),
+            false,
+        );
         assert_eq!(decimal_filtered.views.len(), 2);
         assert!(decimal_filtered.summary.is_none());
         let decimal_override =
@@ -390,11 +402,11 @@ fn dividend_maps_apply_only_to_current_generation() {
             per_share: HashMap::from([("7203".to_string(), 50.0)]),
             status: HashMap::new(),
         };
-        apply_dividend_maps(&balances, &dividends, 7, fresh.clone());
+        apply_dividend_maps(&balances, &dividends, Generation::new(7), fresh.clone());
         assert!(balances.get_untracked().is_none());
         assert!(dividends.get_untracked().per_share.is_empty());
         balances.set(Some((
-            7,
+            Generation::new(7),
             Ok(LoadedAssetBalances {
                 rows: vec![],
                 total: 0,
@@ -403,9 +415,9 @@ fn dividend_maps_apply_only_to_current_generation() {
                 truncated: false,
             }),
         )));
-        apply_dividend_maps(&balances, &dividends, 8, fresh.clone());
+        apply_dividend_maps(&balances, &dividends, Generation::new(8), fresh.clone());
         assert!(dividends.get_untracked().per_share.is_empty());
-        apply_dividend_maps(&balances, &dividends, 7, fresh);
+        apply_dividend_maps(&balances, &dividends, Generation::new(7), fresh);
         assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
     });
 }
@@ -417,7 +429,7 @@ fn dividend_update_does_not_notify_balance_view() {
     let owner = Owner::new();
     owner.with(|| {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
-            7,
+            Generation::new(7),
             Ok(LoadedAssetBalances {
                 rows: vec![],
                 total: 0,
@@ -437,7 +449,7 @@ fn dividend_update_does_not_notify_balance_view() {
         apply_dividend_maps(
             &balances,
             &dividends,
-            7,
+            Generation::new(7),
             DividendMaps {
                 per_share: HashMap::from([("7203".to_string(), 50.0)]),
                 status: HashMap::new(),
