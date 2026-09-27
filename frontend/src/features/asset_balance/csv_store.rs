@@ -2,15 +2,14 @@ use super::store::{
     load_asset_balances, poll_dividend_maps, truncated_list_warning, AssetCsvFileSlot,
     AssetCsvSlot, BalanceSlot, DataOps, LoadedAssetBalances,
 };
-use crate::api::dto::{
-    AssetBalance, AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets,
-};
+use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets};
 use crate::api::ApiError;
-use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow};
+use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{unique_sorted_codes, DividendMaps};
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
+use crate::support::row::Row;
 use leptos::prelude::*;
 
 pub(crate) fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
@@ -21,7 +20,7 @@ pub(crate) fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
 }
 
 // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceCsvStore {
     session: SessionStore,
     pub(crate) balances: RwSignal<BalanceSlot>,
@@ -87,7 +86,7 @@ impl AssetBalanceCsvStore {
 
     pub(crate) fn update_csv(
         &self,
-        generation: u64,
+        generation: Generation,
         update: impl FnOnce(&mut CsvTabState<AssetBalanceCsvRow>),
     ) {
         self.csv.update(|slot| {
@@ -109,7 +108,7 @@ impl AssetBalanceCsvStore {
             return;
         }
         self.csv_file.set(Some((generation, file.clone())));
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::preview_csv(csv::PREVIEW_PATH, &file).await;
             if let Some(codes) = store.apply_preview_result(generation, result) {
@@ -131,7 +130,7 @@ impl AssetBalanceCsvStore {
     }
 
     // 別CSVを選び直した場合、旧銘柄向けのポーリング結果と配当マップが残らないよう無効化する
-    pub(crate) fn begin_file_preview(&self, generation: u64, file_name: String) -> bool {
+    pub(crate) fn begin_file_preview(&self, generation: Generation, file_name: String) -> bool {
         let mut started = false;
         self.update_csv(generation, |state| {
             started = state.begin_preview(file_name);
@@ -147,7 +146,7 @@ impl AssetBalanceCsvStore {
         let Some((generation, file)) = self.try_begin_save() else {
             return;
         };
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::upload_csv(csv::IMPORT_PATH, &file).await;
             if store.apply_upload_result(generation, result) {
@@ -164,7 +163,7 @@ impl AssetBalanceCsvStore {
         });
     }
 
-    fn try_begin_save(&self) -> Option<(u64, web_sys::File)> {
+    fn try_begin_save(&self) -> Option<(Generation, web_sys::File)> {
         self.session.user.get_untracked()?;
         let generation = self.session.generation.get_untracked();
         let file = self.csv_file.with_untracked(|slot| match slot {
@@ -198,14 +197,14 @@ impl AssetBalanceCsvStore {
         let Some(generation) = self.try_begin_delete() else {
             return;
         };
-        let store = self.clone();
+        let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::delete_all(csv::LIST_PATH).await;
             store.apply_delete_result(generation, result);
         });
     }
 
-    pub(crate) fn try_begin_delete(&self) -> Option<u64> {
+    pub(crate) fn try_begin_delete(&self) -> Option<Generation> {
         self.session.user.get_untracked()?;
         let generation = self.session.generation.get_untracked();
         let mut started = false;
@@ -222,7 +221,7 @@ impl AssetBalanceCsvStore {
     // 失敗は取引明細と違って画面に出す
     pub(crate) fn apply_preview_result(
         &self,
-        generation: u64,
+        generation: Generation,
         result: Result<CsvPreviewResponse, ApiError>,
     ) -> Option<Vec<String>> {
         if !self.session.is_current(generation) {
@@ -253,7 +252,7 @@ impl AssetBalanceCsvStore {
 
     pub(crate) fn apply_upload_result(
         &self,
-        generation: u64,
+        generation: Generation,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
         if !self.session.is_current(generation) {
@@ -273,7 +272,7 @@ impl AssetBalanceCsvStore {
         }
     }
 
-    pub(crate) fn apply_delete_result(&self, generation: u64, result: Result<(), ApiError>) {
+    pub(crate) fn apply_delete_result(&self, generation: Generation, result: Result<(), ApiError>) {
         if !self.session.is_current(generation) {
             return;
         }
@@ -304,18 +303,11 @@ impl AssetBalanceCsvStore {
     }
 }
 
-pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalance> {
+pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalanceRow> {
     state
         .preview
         .as_ref()
-        .map(|preview| {
-            preview
-                .rows
-                .iter()
-                .cloned()
-                .map(AssetBalance::from)
-                .collect()
-        })
+        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
         .unwrap_or_default()
 }
 
@@ -332,7 +324,7 @@ pub(crate) fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option
 }
 
 pub(crate) struct ResolvedAssetBalance {
-    pub(crate) rows: Vec<AssetBalance>,
+    pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) facets: Option<SearchFacets>,
     pub(crate) warning: Option<String>,
@@ -340,7 +332,7 @@ pub(crate) struct ResolvedAssetBalance {
 }
 
 pub(crate) fn resolve_asset_balance(
-    generation: u64,
+    generation: Generation,
     slot: &BalanceSlot,
     state: &CsvTabState<AssetBalanceCsvRow>,
 ) -> Option<ResolvedAssetBalance> {
@@ -358,7 +350,7 @@ pub(crate) fn resolve_asset_balance(
             rows: if has_csv_file {
                 csv_preview_rows(state)
             } else {
-                loaded.rows.clone()
+                loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
             summary: loaded.summary.clone(),
             facets: loaded.facets.clone(),

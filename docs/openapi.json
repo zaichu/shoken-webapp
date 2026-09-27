@@ -4,7 +4,8 @@
     "title": "Shoken WebApp API",
     "description": "証券管理Webアプリ APIドキュメント",
     "license": {
-      "name": ""
+      "name": "MIT",
+      "identifier": "MIT"
     },
     "version": "0.1.0"
   },

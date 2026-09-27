@@ -1,14 +1,13 @@
 use super::summary::{header_summary, SummaryStrip};
 use super::table::ReceiptTable;
-use super::workspace::empty_hint;
-use crate::api::dto::Dividend;
 use crate::features::receipts::dividend_info::{
     search_security_code, DividendInfoStore, DividendSummarySection,
 };
 use crate::features::receipts::filter::filter_receipts;
-use crate::features::receipts::model::calculate_dividends;
-use crate::features::receipts::{ReceiptItem, ReceiptTabData, ReceiptsStore, ReceiptsTab};
+use crate::features::receipts::kind::{DividendKind, ReceiptKind};
+use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::session::use_session;
+use crate::support::row::Row;
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -20,14 +19,14 @@ pub(crate) fn ReceiptsMainContent(
 ) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
-    let display_store = store.clone();
+    let display_store = store;
     let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
         Some(preview) if !preview.rows.is_empty() => {
-            preview.rows.into_iter().map(ReceiptItem::from).collect()
+            preview.rows.into_iter().map(Row::Preview).collect()
         }
         _ => data.rows.clone(),
     });
-    let preview_store = store.clone();
+    let preview_store = store;
     let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
@@ -44,14 +43,7 @@ pub(crate) fn ReceiptsMainContent(
             let generation = session.generation.get();
             let query = search_query.with(|state| state.query.clone());
             let rows = filtered_rows.get();
-            let dividends: Vec<Dividend> = rows
-                .iter()
-                .filter_map(|item| match item {
-                    ReceiptItem::Dividend(row) => Some(row.clone()),
-                    _ => None,
-                })
-                .collect();
-            let code = search_security_code(&dividends, &query);
+            let code = search_security_code(&rows, &query);
             info.set_code(generation, authenticated, &code);
         });
 
@@ -89,7 +81,7 @@ pub(crate) fn ReceiptsMainContent(
                                     "データがありません"
                                 </h3>
                                 <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
-                                    {empty_hint(tab)}
+                                    {tab.empty_hint()}
                                 </p>
                             </div>
                         </div>
@@ -102,15 +94,8 @@ pub(crate) fn ReceiptsMainContent(
             // 銘柄コード検索時は上段の集計カードの代わりに
             // DividendInfo（embedded）を折り畳み式で出す
             if let Some(info) = dividend_info {
-                let dividends: Vec<Dividend> = rows
-                    .iter()
-                    .filter_map(|item| match item {
-                        ReceiptItem::Dividend(row) => Some(row.clone()),
-                        _ => None,
-                    })
-                    .collect();
-                if !search_security_code(&dividends, &query).is_empty() {
-                    let totals = calculate_dividends(&dividends);
+                if !search_security_code(&rows, &query).is_empty() {
+                    let totals = DividendKind::totals(&rows);
                     return view! {
                         {preview_active.get().then(|| view! { <PreviewBanner /> })}
                         <DividendSummarySection

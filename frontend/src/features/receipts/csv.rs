@@ -1,9 +1,8 @@
 use crate::api::dto::CsvPreviewResponse;
-use crate::features::receipts::{ReceiptItem, ReceiptsTab};
+use crate::features::receipts::ReceiptsTab;
 use crate::support::csv_flow::CsvPreview;
 use rust_decimal::Decimal;
 use serde::Deserialize;
-use shared::value::{Account, RecordId, SecurityCode};
 
 // プレビュー行は lenient に受け取るため、銘柄コード・口座は検証せず元の文字列を表示する
 
@@ -97,79 +96,8 @@ pub enum CsvPreviewRow {
     MutualFund(MutualfundCsvRow),
 }
 
-impl From<CsvPreviewRow> for ReceiptItem {
-    fn from(row: CsvPreviewRow) -> ReceiptItem {
-        match row {
-            CsvPreviewRow::Dividend(row) => ReceiptItem::Dividend(crate::api::dto::Dividend {
-                id: RecordId::default(),
-                settlement_date: row.settlement_date,
-                product: row.product,
-                account: Account::from_raw(row.account),
-                security_code: row.security_code,
-                security_name: row.security_name,
-                unit_price: row.unit_price,
-                shares: row.shares,
-                dividends_before_tax: row.dividends_before_tax,
-                taxes: row.taxes,
-                net_amount_received: row.net_amount_received,
-                created_at: String::new(),
-                updated_at: String::new(),
-            }),
-            CsvPreviewRow::DomesticStock(row) => {
-                ReceiptItem::DomesticStock(crate::api::dto::DomesticStock {
-                    id: RecordId::default(),
-                    trade_date: row.trade_date,
-                    settlement_date: row.settlement_date,
-                    security_code: SecurityCode::from_raw(row.security_code),
-                    security_name: row.security_name,
-                    account: Account::from_raw(row.account),
-                    shares: row.shares,
-                    asked_price: row.asked_price,
-                    proceeds: row.proceeds,
-                    purchase_price: row.purchase_price,
-                    realized_profit_and_loss: row.realized_profit_and_loss,
-                    taxes: row.taxes,
-                    realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
-                    created_at: String::new(),
-                    updated_at: String::new(),
-                })
-            }
-            CsvPreviewRow::MutualFund(row) => {
-                ReceiptItem::MutualFund(crate::api::dto::Mutualfund {
-                    id: RecordId::default(),
-                    trade_date: row.trade_date,
-                    settlement_date: row.settlement_date,
-                    fund_name: row.fund_name,
-                    account: Account::from_raw(row.account),
-                    shares: row.shares,
-                    exchange_rate: row.exchange_rate,
-                    cancellation_unit_price_yen: row.cancellation_unit_price_yen,
-                    cancellation_amount_yen: row.cancellation_amount_yen,
-                    average_acquisition_price_yen: row.average_acquisition_price_yen,
-                    realized_profit_and_loss: row.realized_profit_and_loss,
-                    taxes: row.taxes,
-                    realized_profit_and_loss_after_tax: row.realized_profit_and_loss_after_tax,
-                    dividends: Some(row.dividends.unwrap_or_default()),
-                    created_at: String::new(),
-                    updated_at: String::new(),
-                })
-            }
-        }
-    }
-}
-
 pub fn to_preview(tab: ReceiptsTab, response: CsvPreviewResponse) -> CsvPreview<CsvPreviewRow> {
-    CsvPreview::from_response(response, |row| match tab {
-        ReceiptsTab::Dividend => {
-            CsvPreviewRow::Dividend(serde_json::from_value(row).unwrap_or_default())
-        }
-        ReceiptsTab::DomesticStock => {
-            CsvPreviewRow::DomesticStock(serde_json::from_value(row).unwrap_or_default())
-        }
-        ReceiptsTab::MutualFund => {
-            CsvPreviewRow::MutualFund(serde_json::from_value(row).unwrap_or_default())
-        }
-    })
+    CsvPreview::from_response(response, |row| tab.parse_csv_row(row))
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
-use crate::features::asset_balance::model::normalize_security_code;
 use leptos::prelude::*;
+use shared::normalize::normalize_security_code;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 

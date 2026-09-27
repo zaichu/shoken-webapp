@@ -2,11 +2,11 @@ use crate::api::dto::{
     AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
 };
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::format::{
-    format_valuation_amount, format_valuation_rate, valuation_tone,
+use crate::features::asset_balance::{
+    calculate_valuation_from_decimal, format_valuation_amount, format_valuation_rate,
+    valuation_tone,
 };
-use crate::features::asset_balance::model::calculate_valuation_from_decimal;
-use crate::session::{use_session, SessionStore};
+use crate::session::{use_session, Generation, SessionStore};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::future::Future;
@@ -144,7 +144,7 @@ pub fn HomePage() -> impl IntoView {
 }
 
 // 外側の None は取得中、内側の None は取得失敗
-type SummarySlot<T> = RwSignal<Option<(u64, Option<T>)>>;
+type SummarySlot<T> = RwSignal<Option<(Generation, Option<T>)>>;
 
 async fn fetch_asset_summary() -> Result<Option<AssetBalanceSummary>, ApiError> {
     ApiClient::read_client()
@@ -173,7 +173,7 @@ async fn fetch_dividend_summary(year: u32) -> Result<Option<DividendSummary>, Ap
 
 fn load_summary<T: Send + Sync + 'static>(
     session: SessionStore,
-    generation: u64,
+    generation: Generation,
     slot: SummarySlot<T>,
     fetch: impl Future<Output = Result<Option<T>, ApiError>> + 'static,
 ) {
@@ -192,7 +192,7 @@ fn load_summary<T: Send + Sync + 'static>(
 
 fn current_summary<T: Clone + Send + Sync + 'static>(
     slot: SummarySlot<T>,
-    generation: u64,
+    generation: Generation,
 ) -> Option<Option<T>> {
     slot.get()
         .filter(|(cached, _)| *cached == generation)

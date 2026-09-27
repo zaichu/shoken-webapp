@@ -1,8 +1,11 @@
 use super::*;
+use crate::api::dto::Dividend;
+use crate::features::receipts::ReceiptItem;
+use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
-fn dividend(code: &str, name: &str) -> Dividend {
-    Dividend {
+fn dividend(code: &str, name: &str) -> ReceiptRow {
+    Row::Saved(ReceiptItem::Dividend(Dividend {
         id: "id".to_string().into(),
         settlement_date: "2024-03-01".to_string(),
         product: "特定口座".to_string(),
@@ -16,7 +19,7 @@ fn dividend(code: &str, name: &str) -> Dividend {
         net_amount_received: dec!(2391),
         created_at: String::new(),
         updated_at: String::new(),
-    }
+    }))
 }
 
 fn authenticated_session() -> SessionStore {
@@ -160,7 +163,7 @@ fn is_current_code_requires_matching_session_generation_and_code() {
         store.current.set(Some((generation, "7203".to_string())));
         assert!(store.is_current_code(generation, "7203"));
         assert!(!store.is_current_code(generation, "6758"));
-        assert!(!store.is_current_code(generation + 1, "7203"));
+        assert!(!store.is_current_code(generation.next(), "7203"));
         session.mark_unauthenticated();
         assert!(!store.is_current_code(generation, "7203"));
     });

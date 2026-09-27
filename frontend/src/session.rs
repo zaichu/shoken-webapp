@@ -48,11 +48,24 @@ async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Generation(u64);
+
+impl Generation {
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+
+    fn advance(&mut self) {
+        *self = self.next();
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
     pub loaded: RwSignal<bool>,
-    pub generation: RwSignal<u64>,
+    pub generation: RwSignal<Generation>,
     logout_epoch: RwSignal<u64>,
 }
 
@@ -61,12 +74,12 @@ impl SessionStore {
         SessionStore {
             user: RwSignal::new(None),
             loaded: RwSignal::new(false),
-            generation: RwSignal::new(0),
+            generation: RwSignal::new(Generation::default()),
             logout_epoch: RwSignal::new(0),
         }
     }
 
-    pub fn is_current(&self, generation: u64) -> bool {
+    pub fn is_current(&self, generation: Generation) -> bool {
         self.generation.get_untracked() == generation
     }
 
@@ -81,7 +94,7 @@ impl SessionStore {
     fn set_user(&self, user: Option<SessionUser>) {
         let previous = self.user.get_untracked();
         if previous.is_some() && !Self::same_identity(previous.as_ref(), user.as_ref()) {
-            self.generation.update(|generation| *generation += 1);
+            self.generation.update(Generation::advance);
         }
         self.user.set(user);
     }

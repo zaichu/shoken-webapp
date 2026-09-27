@@ -1,9 +1,5 @@
-use crate::features::receipts::model::{
-    calculate_dividends, calculate_domestic_total, calculate_mutual_funds, format_currency,
-};
-use crate::features::receipts::{
-    select_header_summary, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
-};
+use crate::features::receipts::model::format_currency;
+use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -21,110 +17,28 @@ pub(crate) fn header_summary(
     query: &str,
     has_preview: bool,
 ) -> Vec<(&'static str, Decimal, &'static str)> {
-    match tab {
-        ReceiptsTab::Dividend => {
-            let rows: Vec<_> = data
-                .rows
-                .iter()
-                .filter_map(|item| match item {
-                    ReceiptItem::Dividend(row) => Some(row.clone()),
-                    _ => None,
-                })
-                .collect();
-            let client = calculate_dividends(&rows);
-            let api = match &data.summary {
-                Some(ReceiptSummary::Dividend(summary)) => Some([
-                    summary.total_dividends_before_tax,
-                    summary.total_taxes,
-                    summary.total_net_amount_received,
-                ]),
-                _ => None,
+    let api = data
+        .summary
+        .as_ref()
+        .and_then(|s| tab.api_summary_triple(s));
+    let values = select_header_summary(
+        api.as_ref(),
+        has_preview,
+        query,
+        tab.client_summary_triple(&data.rows),
+    );
+    tab.header_items()
+        .into_iter()
+        .enumerate()
+        .map(|(index, (label, marks_profit))| {
+            let tone = if marks_profit {
+                profit_tone(values[index])
+            } else {
+                ""
             };
-            let values = select_header_summary(
-                api.as_ref(),
-                has_preview,
-                query,
-                [
-                    client.total_dividends_before_tax,
-                    client.total_taxes,
-                    client.total_net_amount_received,
-                ],
-            );
-            vec![
-                ("配当金", values[0], ""),
-                ("税額", values[1], ""),
-                ("配当金(税引)", values[2], ""),
-            ]
-        }
-        ReceiptsTab::DomesticStock => {
-            let rows: Vec<_> = data
-                .rows
-                .iter()
-                .filter_map(|item| match item {
-                    ReceiptItem::DomesticStock(row) => Some(row.clone()),
-                    _ => None,
-                })
-                .collect();
-            let client = calculate_domestic_total(&rows);
-            let api = match &data.summary {
-                Some(ReceiptSummary::DomesticStock(summary)) => Some([
-                    summary.total_realized_profit_and_loss,
-                    summary.total_taxes,
-                    summary.total_realized_profit_and_loss_after_tax,
-                ]),
-                _ => None,
-            };
-            let values = select_header_summary(
-                api.as_ref(),
-                has_preview,
-                query,
-                [
-                    client.total_realized_profit_and_loss,
-                    client.total_taxes,
-                    client.total_realized_profit_and_loss_after_tax,
-                ],
-            );
-            vec![
-                ("実現損益", values[0], profit_tone(values[0])),
-                ("税額", values[1], ""),
-                ("実現損益(税引)", values[2], profit_tone(values[2])),
-            ]
-        }
-        ReceiptsTab::MutualFund => {
-            let rows: Vec<_> = data
-                .rows
-                .iter()
-                .filter_map(|item| match item {
-                    ReceiptItem::MutualFund(row) => Some(row.clone()),
-                    _ => None,
-                })
-                .collect();
-            let client = calculate_mutual_funds(&rows);
-            let api = match &data.summary {
-                Some(ReceiptSummary::MutualFund(summary)) => Some([
-                    summary.total_realized_profit_and_loss,
-                    summary.total_taxes,
-                    summary.total_realized_profit_and_loss_after_tax,
-                ]),
-                _ => None,
-            };
-            let values = select_header_summary(
-                api.as_ref(),
-                has_preview,
-                query,
-                [
-                    client.total_realized_profit_and_loss,
-                    client.total_taxes,
-                    client.total_realized_profit_and_loss_after_tax,
-                ],
-            );
-            vec![
-                ("実現損益", values[0], profit_tone(values[0])),
-                ("税額", values[1], ""),
-                ("実現損益(税引)", values[2], profit_tone(values[2])),
-            ]
-        }
-    }
+            (label, values[index], tone)
+        })
+        .collect()
 }
 
 pub(crate) fn kpi_card_bg(tone: &str) -> &'static str {

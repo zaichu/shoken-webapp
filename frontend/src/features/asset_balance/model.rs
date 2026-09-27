@@ -2,34 +2,7 @@
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
-use serde_json::Value;
 use std::collections::HashMap;
-
-/// 欠損値として扱う文字列の集合（比較は小文字化後）。
-const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "undefined"];
-
-/// 任意の値を有限数に正規化する。欠損は `None` を返す。
-/// 数値文字列（カンマ区切り可）は数値として扱う。
-pub fn to_finite_amount(value: &Value) -> Option<f64> {
-    match value {
-        Value::Null => None,
-        Value::Number(number) => number.as_f64(),
-        Value::String(raw) => {
-            let trimmed = raw.replace(',', "").trim().to_string();
-            if trimmed.is_empty() {
-                return None;
-            }
-            if MISSING_MARKERS.contains(&trimmed.to_lowercase().as_str()) {
-                return None;
-            }
-            match trimmed.parse::<f64>() {
-                Ok(parsed) if parsed.is_finite() => Some(parsed),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
 
 fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
     Decimal::from_str_exact(&value.to_string()).ok()
@@ -179,29 +152,6 @@ pub struct ValuationResult {
     pub rate: Option<f64>,
 }
 
-#[allow(dead_code)]
-pub fn calculate_valuation(market_value: &Value, purchase_amount: &Value) -> ValuationResult {
-    let (Some(market), Some(purchase)) = (
-        to_finite_amount(market_value),
-        to_finite_amount(purchase_amount),
-    ) else {
-        return ValuationResult {
-            amount: None,
-            rate: None,
-        };
-    };
-    let (amount, rate) = valuation_parts(
-        f64_to_decimal_exact(market),
-        f64_to_decimal_exact(purchase),
-        market,
-        purchase,
-    );
-    ValuationResult {
-        amount: Some(amount),
-        rate,
-    }
-}
-
 pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> ValuationResult {
     let (amount, rate) = valuation_parts(
         Some(market),
@@ -218,8 +168,8 @@ pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> V
 /// `summarizeValuation` への入力1件。
 #[derive(Clone, Debug)]
 pub struct ValuationItem {
-    pub market_value: Value,
-    pub total_purchase_amount: Value,
+    pub market_value: Option<f64>,
+    pub total_purchase_amount: Option<f64>,
 }
 
 /// 複数銘柄の合計。`valuation.ts` の `summarizeValuation` に対応する。
@@ -239,10 +189,7 @@ pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
     let mut purchase_f64 = 0.0;
     let mut exact = true;
     for item in items {
-        let (Some(market), Some(purchase)) = (
-            to_finite_amount(&item.market_value),
-            to_finite_amount(&item.total_purchase_amount),
-        ) else {
+        let (Some(market), Some(purchase)) = (item.market_value, item.total_purchase_amount) else {
             return ValuationSummary {
                 market_value: None,
                 amount: None,
@@ -346,29 +293,6 @@ pub fn summarize_valuation_with_summary(
         rate,
         incomplete: false,
     }
-}
-
-/// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
-/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
-#[allow(dead_code)]
-pub fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
-    if total == 0.0 {
-        0.0
-    } else {
-        to_fixed(value / total * 100.0, 2)
-    }
-}
-
-/// 構成比の一覧。合計を分母に各要素の割合を求める。
-/// 分母の合計は素朴な加算で求める。
-/// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の [`chart_percentages`] を使う。
-#[allow(dead_code)]
-pub fn composition_percentages(values: &[f64]) -> Vec<f64> {
-    let total: f64 = values.iter().sum();
-    values
-        .iter()
-        .map(|value| calculate_composition_percentage(*value, total))
-        .collect()
 }
 
 /// チャート表示の除外条件。取得総額が正の銘柄は残し、そうでなければ

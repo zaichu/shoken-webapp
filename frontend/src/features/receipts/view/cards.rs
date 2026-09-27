@@ -1,46 +1,8 @@
-use crate::features::receipts::{ReceiptCell, ReceiptItem, ReceiptsTab};
+use crate::features::receipts::kind::CardFields;
+use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::security_link::copy_to_clipboard;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
-
-#[derive(Clone, Copy)]
-pub(crate) struct CardFields {
-    pub(crate) name: usize,
-    pub(crate) primary: usize,
-    pub(crate) date: usize,
-    pub(crate) account: usize,
-}
-
-pub(crate) fn card_fields(tab: ReceiptsTab) -> CardFields {
-    match tab {
-        ReceiptsTab::Dividend => CardFields {
-            name: 4,
-            primary: 9,
-            date: 0,
-            account: 2,
-        },
-        ReceiptsTab::DomesticStock => CardFields {
-            name: 2,
-            primary: 10,
-            date: 0,
-            account: 3,
-        },
-        ReceiptsTab::MutualFund => CardFields {
-            name: 1,
-            primary: 9,
-            date: 0,
-            account: 2,
-        },
-    }
-}
-
-pub(crate) fn summary_labels(tab: ReceiptsTab) -> [&'static str; 3] {
-    match tab {
-        ReceiptsTab::Dividend => ["配当金", "税額", "税引後"],
-        ReceiptsTab::DomesticStock => ["損益", "税額", "税引後"],
-        ReceiptsTab::MutualFund => ["実現損益", "税額", "税引損益"],
-    }
-}
 
 pub(crate) fn is_profit_label(label: &str) -> bool {
     matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
@@ -145,38 +107,37 @@ pub(crate) fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
-// id を持たない行(CSVプレビュー等)は、同一内容の行と区別するため一覧内の位置も含めて識別する。
+// プレビュー行は保存済み id を持たないため、同一内容の行と区別するため一覧内の位置も含めて識別する。
 // 表示は数量等を丸めるため、行の同一性は丸め前の raw_key で判定する
-pub(crate) fn card_key(slug: &str, id: &str, raw_key: &str, ordinal: usize) -> String {
-    if id.is_empty() {
-        format!("{slug}:p:{ordinal}:{raw_key}")
-    } else {
-        format!("{slug}:r:{id}")
+pub(crate) fn card_key(slug: &str, id: Option<&str>, raw_key: &str, ordinal: usize) -> String {
+    match id {
+        Some(id) => format!("{slug}:r:{id}"),
+        None => format!("{slug}:p:{ordinal}:{raw_key}"),
     }
 }
 
 pub(crate) fn card_ordinal(
     ordinals: &mut HashMap<String, VecDeque<usize>>,
-    id: &str,
+    id: Option<&str>,
     raw_key: &str,
 ) -> usize {
-    if id.is_empty() {
+    if id.is_some() {
+        0
+    } else {
         ordinals
             .get_mut(raw_key)
             .and_then(|queue| queue.pop_front())
             .unwrap_or_default()
-    } else {
-        0
     }
 }
 
 // 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
-// id を持たない行の通し番号は絞り込み前の全行内での位置から引く。
-pub(crate) fn idless_row_ordinals(all_rows: &[ReceiptItem]) -> HashMap<String, VecDeque<usize>> {
+// プレビュー行の通し番号は絞り込み前の全行内での位置から引く。
+pub(crate) fn preview_row_ordinals(all_rows: &[ReceiptRow]) -> HashMap<String, VecDeque<usize>> {
     let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
-    for (index, item) in all_rows.iter().enumerate() {
-        if item.id().is_empty() {
-            ordinals.entry(item.raw_key()).or_default().push_back(index);
+    for (index, row) in all_rows.iter().enumerate() {
+        if row.is_preview() {
+            ordinals.entry(row.raw_key()).or_default().push_back(index);
         }
     }
     ordinals

@@ -365,7 +365,7 @@ fn db_count_ignores_stale_generation_balances() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        let stale = session.generation.get_untracked() + 1;
+        let stale = session.generation.get_untracked().next();
         let loaded = LoadedAssetBalances {
             total: 5,
             rows: vec![],

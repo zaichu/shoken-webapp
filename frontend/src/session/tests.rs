@@ -1,5 +1,12 @@
 use super::*;
 
+// 本番では `Default` + `next()` でしか世代を作らない。任意値の生成はテスト専用
+impl Generation {
+    pub(crate) fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
+
 #[test]
 fn oauth_url_appends_authorize_path() {
     assert_eq!(
@@ -53,20 +60,26 @@ fn generation_advances_on_identity_loss() {
     let owner = leptos::prelude::Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        assert_eq!(session.generation.get_untracked(), 0);
+        assert_eq!(session.generation.get_untracked(), Generation::default());
         session.set_user(None);
-        assert_eq!(session.generation.get_untracked(), 0);
+        assert_eq!(session.generation.get_untracked(), Generation::default());
         session.set_user(alice());
-        assert_eq!(session.generation.get_untracked(), 0);
+        assert_eq!(session.generation.get_untracked(), Generation::default());
         session.set_user(alice());
-        assert_eq!(session.generation.get_untracked(), 0);
+        assert_eq!(session.generation.get_untracked(), Generation::default());
         session.set_user(None);
-        assert_eq!(session.generation.get_untracked(), 1);
+        assert_eq!(
+            session.generation.get_untracked(),
+            Generation::default().next()
+        );
         // ログアウト時の世代進行で、再ログイン後の同一ユーザー応答と
         // ログアウト前の古い応答は区別できる
         session.set_user(alice());
-        assert_eq!(session.generation.get_untracked(), 1);
-        assert!(session.is_current(1));
-        assert!(!session.is_current(0));
+        assert_eq!(
+            session.generation.get_untracked(),
+            Generation::default().next()
+        );
+        assert!(session.is_current(Generation::default().next()));
+        assert!(!session.is_current(Generation::default()));
     });
 }

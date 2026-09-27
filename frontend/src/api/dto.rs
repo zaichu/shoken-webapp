@@ -13,9 +13,11 @@ pub use shared::domain::{
 // wire 形が DomesticStockSummary と同一なので、serde の実装を wasm に増やさないよう使い回す
 pub type MutualfundSummary = DomesticStockSummary;
 
+#[cfg(test)]
 pub type DomesticStockListResponse =
     PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>;
 pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>;
+#[cfg(test)]
 pub type MutualfundListResponse =
     PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>;
 pub type AssetBalanceListResponse =

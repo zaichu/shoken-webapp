@@ -6,7 +6,8 @@ use super::store::should_apply_fetch_result;
 use super::*;
 use crate::api::ApiError;
 use crate::features::receipts::filter::ReceiptSearch;
-use crate::session::SessionStore;
+use crate::session::{Generation, SessionStore};
+use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -73,7 +74,7 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let fetch = Action::new_unsync(|_: &(u64, ReceiptsTab)| async {});
+        let fetch = Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {});
 
         for tab in ReceiptsTab::ALL {
             let cache = RwSignal::new(HashMap::from([(
@@ -123,7 +124,7 @@ fn expanded_state_is_cleared_on_generation_change() {
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
         };
@@ -160,7 +161,7 @@ fn expanded_state_survives_ensure_in_same_generation() {
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(u64, ReceiptsTab)| async {}),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
         };
@@ -195,7 +196,7 @@ fn dividend_cells_match_react_columns_and_formatting() {
         "updated_at": "2024-03-01T00:00:00Z"
     }))
     .expect("deserialize");
-    let cells = ReceiptItem::Dividend(row).cells();
+    let cells = Row::Saved(ReceiptItem::Dividend(row)).cells();
     assert_eq!(
         cells.iter().map(ReceiptCell::text).collect::<Vec<_>>(),
         vec![

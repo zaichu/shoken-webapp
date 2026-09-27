@@ -1,25 +1,26 @@
 use super::summary::PortfolioSummary;
-use crate::api::dto::{AssetBalance, AssetBalanceSummary};
-use crate::features::asset_balance::csv::AssetBalanceCsvRow;
+use crate::api::dto::AssetBalanceSummary;
+use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::csv_store::csv_status_text;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfolio};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
 
 #[component]
 pub(crate) fn AssetBalanceMainContent(
     state: CsvTabState<AssetBalanceCsvRow>,
-    rows: Vec<AssetBalance>,
+    rows: Vec<AssetBalanceRow>,
     summary: Option<AssetBalanceSummary>,
     has_csv_file: bool,
     search_query: RwSignal<String>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    generation: u64,
+    generation: Generation,
 ) -> impl IntoView {
     if state.previewing {
         show_all.set(false);

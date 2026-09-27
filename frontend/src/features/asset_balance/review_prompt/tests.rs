@@ -1,4 +1,6 @@
 use super::*;
+use crate::api::dto::AssetBalance;
+use crate::support::row::Row;
 use rust_decimal::Decimal;
 
 fn make_asset(
@@ -6,8 +8,8 @@ fn make_asset(
     security_name: &str,
     shares: i64,
     average_purchase_price: i64,
-) -> AssetBalance {
-    AssetBalance {
+) -> AssetBalanceRow {
+    Row::Saved(AssetBalance {
         id: format!("id-{security_code}").into(),
         security_code: security_code.parse().unwrap(),
         security_name: security_name.to_string(),
@@ -21,14 +23,14 @@ fn make_asset(
         profit_loss_rate: Decimal::ZERO,
         created_at: "2026-01-01T00:00:00Z".to_string(),
         updated_at: "2026-01-01T00:00:00Z".to_string(),
-    }
+    })
 }
 
-fn toyota() -> AssetBalance {
+fn toyota() -> AssetBalanceRow {
     make_asset("7203", "トヨタ自動車", 100, 2500)
 }
 
-fn sony() -> AssetBalance {
+fn sony() -> AssetBalanceRow {
     make_asset("6758", "ソニーグループ", 50, 12000)
 }
 
@@ -80,10 +82,12 @@ fn generate_asset_review_prompt_keeps_input_order() {
 
 #[test]
 fn generate_asset_review_prompt_formats_fractional_numbers() {
-    let mut asset = toyota();
+    let Row::Saved(mut asset) = toyota() else {
+        unreachable!()
+    };
     asset.shares = Decimal::new(1005, 1);
     asset.average_purchase_price = Decimal::new(1234567, 2);
-    let prompt = generate_asset_review_prompt(&[asset]);
+    let prompt = generate_asset_review_prompt(&[Row::Saved(asset)]);
     assert!(prompt.contains("7203 | トヨタ自動車 | 100.5 | ¥12,345.67"));
 }
 

@@ -1,11 +1,12 @@
 use super::main_content::ReceiptsMainContent;
 use super::search_card::ReceiptsSearchCard;
+use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::support::csv_flow::row_error_text;
-use crate::ui::csv_rail::CsvActionRail;
-use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner};
+use crate::support::csv_flow::{row_error_text, CsvTabState};
+use crate::ui::csv_section::{CsvSection, CsvSource};
+use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
@@ -18,12 +19,12 @@ pub(crate) fn empty_tab_data() -> ReceiptTabData {
 
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let csv_store = store.clone();
-    let preview_store = store.clone();
-    let loading_store = store.clone();
-    let rail_store = store.clone();
-    let main_store = store.clone();
-    let alert_store = store.clone();
+    let csv_store = store;
+    let preview_store = store;
+    let loading_store = store;
+    let rail_store = store;
+    let main_store = store;
+    let alert_store = store;
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
@@ -38,7 +39,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 // 年ピッカーのドロップダウンを切らないよう overflow は掛けない。
                 // backdrop-blur が作る stack context に listbox が閉じ込められるため、1カラム幅でも表より前面に出す
                 <div class="workspace-rail">
-                    <ReceiptsCsvSection store=csv_store.clone() tab=tab />
+                    <ReceiptsCsvSection store=csv_store tab=tab />
                     {move || {
                         let Some(message) = alert_store.csv_state(tab).error else {
                             return ().into_any();
@@ -126,7 +127,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                             <div aria-live="polite" aria-atomic="true">
                                 <section class="px-5 py-4" role="status">
                                     <div class="flex items-center gap-2 text-slate-600">
-                                        <Spinner size="sm" class="" />
+                                        <Spinner size=SpinnerSize::Sm class="" />
                                         <p class="text-sm">
                                             {auth_loading.then_some("認証状態を確認しています...")}
                                             {fetching.then_some("データを読み込んでいます...")}
@@ -139,13 +140,13 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                     }}
                     {move || match panel_state.get() {
                         TabState::Ready(data) => {
-                            view! { <ReceiptsSearchCard store=rail_store.clone() tab=tab data=data /> }
+                            view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
                                 .into_any()
                         }
                         TabState::Failed(_) => {
                             view! {
                                 <ReceiptsSearchCard
-                                    store=rail_store.clone()
+                                    store=rail_store
                                     tab=tab
                                     data=empty_tab_data()
                                 />
@@ -160,16 +161,16 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 {move || match panel_state.get() {
                     TabState::Loading => view! { <ListSkeleton /> }.into_any(),
                     TabState::Ready(data) => {
-                        view! { <ReceiptsMainContent store=main_store.clone() tab=tab data=data /> }
+                        view! { <ReceiptsMainContent store=main_store tab=tab data=data /> }
                             .into_any()
                     }
                     TabState::Failed(message) => {
-                        let retry_store = main_store.clone();
+                        let retry_store = main_store;
                         let preview = main_store.has_csv_preview(tab).then(|| {
                             view! {
                                 <div class="mt-4">
                                     <ReceiptsMainContent
-                                        store=main_store.clone()
+                                        store=main_store
                                         tab=tab
                                         data=empty_tab_data()
                                     />
@@ -188,71 +189,69 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     }
 }
 
-#[component]
-fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let input_id = match tab {
-        ReceiptsTab::Dividend => "csv-file-input-dividend",
-        ReceiptsTab::DomesticStock => "csv-file-input-domesticstock",
-        ReceiptsTab::MutualFund => "csv-file-input-mutualfund",
-    };
-    let selected = store.clone();
-    let selected_file_name =
-        Memo::new(move |_| selected.csv_state(tab).file_name.unwrap_or_default());
-    let disabled_store = store.clone();
-    let file_input_disabled = Memo::new(move |_| {
-        disabled_store.auth_loading()
-            || !disabled_store.is_authenticated()
-            || disabled_store.csv_busy(tab)
-            || disabled_store.any_tab_fetching()
-    });
-    let has_file = store.clone();
-    let has_csv_file = Memo::new(move |_| {
-        has_file.is_authenticated() && has_file.csv_state(tab).file_name.is_some()
-    });
-    let label_store = store.clone();
-    let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label("追加で保存"));
-    let save_dis = store.clone();
-    let save_disabled = Memo::new(move |_| save_dis.csv_busy(tab));
-    let has_db = store.clone();
-    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.count(tab) > 0);
-    let del_label = store.clone();
-    let delete_label =
-        Memo::new(move |_| del_label.csv_state(tab).delete_label(del_label.count(tab)));
-    let del_dis = store.clone();
-    let delete_disabled = Memo::new(move |_| {
-        let state = del_dis.csv_state(tab);
-        state.saving || state.deleting || del_dis.any_tab_fetching()
-    });
-    let result_store = store.clone();
-    let save_result = Memo::new(move |_| result_store.csv_state(tab).import_result);
-    let file_select = store.clone();
-    let save = store.clone();
-    let delete_request = store.clone();
-    view! {
-        <CsvActionRail
-            input_id=input_id
-            on_file_select=move |file| file_select.select_file(tab, file)
-            selected_file_name=selected_file_name
-            file_input_disabled=file_input_disabled
-            has_csv_file=has_csv_file
-            save_label=save_label
-            on_save=move || save.save_csv(tab)
-            save_disabled=save_disabled
-            has_db_data=has_db_data
-            delete_label=delete_label
-            on_delete_request=move || delete_request.open_delete_confirm(tab)
-            delete_disabled=delete_disabled
-            save_result=save_result
-            mode_label="追加保存"
-            section_class="sm:rounded-t-xl"
-        />
+#[derive(Clone, Copy)]
+struct ReceiptCsvSource {
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+}
+
+impl CsvSource for ReceiptCsvSource {
+    type Row = CsvPreviewRow;
+
+    fn input_id(&self) -> &'static str {
+        self.tab.csv_input_id()
+    }
+
+    fn save_action(&self) -> &'static str {
+        "追加で保存"
+    }
+
+    fn mode_label(&self) -> &'static str {
+        "追加保存"
+    }
+
+    fn toggle_testid(&self) -> &'static str {
+        "receipt-csv-toggle"
+    }
+
+    fn section_class(&self) -> &'static str {
+        "sm:rounded-t-xl"
+    }
+
+    fn csv_state(&self) -> CsvTabState<CsvPreviewRow> {
+        self.store.csv_state(self.tab)
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.store.is_authenticated()
+    }
+
+    fn input_disabled(&self) -> bool {
+        self.store.auth_loading() || self.store.csv_busy(self.tab) || self.store.any_tab_fetching()
+    }
+
+    fn db_count(&self) -> usize {
+        self.store.count(self.tab)
+    }
+
+    fn delete_disabled(&self, state: &CsvTabState<CsvPreviewRow>) -> bool {
+        state.saving || state.deleting || self.store.any_tab_fetching()
+    }
+
+    fn select_file(&self, file: web_sys::File) {
+        self.store.select_file(self.tab, file)
+    }
+
+    fn save_csv(&self) {
+        self.store.save_csv(self.tab)
+    }
+
+    fn open_delete_confirm(&self) {
+        self.store.open_delete_confirm(self.tab)
     }
 }
 
-pub(crate) fn empty_hint(tab: ReceiptsTab) -> &'static str {
-    match tab {
-        ReceiptsTab::Dividend => "配当金明細をCSVで追加してください",
-        ReceiptsTab::DomesticStock => "国内株式明細をCSVで追加してください",
-        ReceiptsTab::MutualFund => "投資信託明細をCSVで追加してください",
-    }
+#[component]
+fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    view! { <CsvSection source=ReceiptCsvSource { store, tab } /> }
 }

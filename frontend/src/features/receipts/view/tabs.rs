@@ -55,11 +55,11 @@ pub(crate) fn scroll_tab_into_view(tab: ReceiptsTab) {
 pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
-    let selected = store.clone();
-    let keyed = store.clone();
-    let clicked = store.clone();
-    let counted = store.clone();
-    let counted_store = store.clone();
+    let selected = store;
+    let keyed = store;
+    let clicked = store;
+    let counted = store;
+    let counted_store = store;
     view! {
         <button
             id={format!("tab-{slug}")}
@@ -127,8 +127,8 @@ pub(crate) fn TabPanel(
     #[prop(optional)] loading: bool,
 ) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
-    let hidden = store.clone();
-    let rendered = store.clone();
+    let hidden = store;
+    let rendered = store;
     view! {
         <div
             id={format!("tabpanel-{slug}")}
@@ -137,7 +137,7 @@ pub(crate) fn TabPanel(
             hidden=move || hidden.active_tab.get() != tab
         >
             {move || {
-                let store = rendered.clone();
+                let store = rendered;
                 if store.active_tab.get() != tab {
                     return ().into_any();
                 }

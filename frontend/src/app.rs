@@ -1,9 +1,9 @@
-use crate::features::asset_balance::view::AssetBalancePage;
+use crate::features::asset_balance::AssetBalancePage;
 use crate::features::home::HomePage;
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
-use crate::features::receipts::view::ReceiptsPage;
-use crate::features::stock_search::view::SearchPage;
+use crate::features::receipts::ReceiptsPage;
+use crate::features::stock_search::SearchPage;
 use crate::session::{provide_session, SessionStore};
 use crate::ui::elements::{current_path, Loading, SiteFooter, SiteHeader};
 use leptos::prelude::*;
