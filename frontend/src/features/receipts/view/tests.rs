@@ -4,7 +4,6 @@ use super::pickers::*;
 use super::summary::*;
 use super::table::*;
 use super::tabs::*;
-use super::workspace::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::csv::{CsvPreviewRow, DividendCsvRow};
 use crate::features::receipts::filter::{
@@ -552,15 +551,15 @@ fn summary_and_empty_hint_labels_match_tabs() {
         ["実現損益", "税額", "税引損益"]
     );
     assert_eq!(
-        empty_hint(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.empty_hint(),
         "配当金明細をCSVで追加してください"
     );
     assert_eq!(
-        empty_hint(ReceiptsTab::DomesticStock),
+        ReceiptsTab::DomesticStock.empty_hint(),
         "国内株式明細をCSVで追加してください"
     );
     assert_eq!(
-        empty_hint(ReceiptsTab::MutualFund),
+        ReceiptsTab::MutualFund.empty_hint(),
         "投資信託明細をCSVで追加してください"
     );
 }

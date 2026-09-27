@@ -1,6 +1,5 @@
 use super::summary::{header_summary, SummaryStrip};
 use super::table::ReceiptTable;
-use super::workspace::empty_hint;
 use crate::features::receipts::dividend_info::{
     search_security_code, DividendInfoStore, DividendSummarySection,
 };
@@ -81,7 +80,7 @@ pub(crate) fn ReceiptsMainContent(
                                     "データがありません"
                                 </h3>
                                 <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
-                                    {empty_hint(tab)}
+                                    {tab.empty_hint()}
                                 </p>
                             </div>
                         </div>

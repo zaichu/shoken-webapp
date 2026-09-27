@@ -1,61 +1,79 @@
+use crate::features::asset_balance::csv::AssetBalanceCsvRow;
 use crate::features::asset_balance::csv_store::{can_save_csv, AssetBalanceCsvStore};
-use crate::ui::csv_rail::CsvActionRail;
+use crate::support::csv_flow::CsvTabState;
+use crate::ui::csv_section::{CsvSection, CsvSource};
 use leptos::prelude::*;
+
+impl CsvSource for AssetBalanceCsvStore {
+    type Row = AssetBalanceCsvRow;
+
+    fn input_id(&self) -> &'static str {
+        "csv-file-input-assetbalance"
+    }
+
+    fn save_action(&self) -> &'static str {
+        "全件置換で保存"
+    }
+
+    fn mode_label(&self) -> &'static str {
+        "全件置換"
+    }
+
+    fn toggle_testid(&self) -> &'static str {
+        "assetbalance-csv-toggle"
+    }
+
+    fn body_id(&self) -> String {
+        "assetbalance-csv-body".to_string()
+    }
+
+    fn section_class(&self) -> &'static str {
+        "sm:border-b sm:border-slate-950/10"
+    }
+
+    fn csv_state(&self) -> CsvTabState<AssetBalanceCsvRow> {
+        AssetBalanceCsvStore::csv_state(self)
+    }
+
+    fn is_authenticated(&self) -> bool {
+        AssetBalanceCsvStore::is_authenticated(self)
+    }
+
+    fn input_disabled(&self) -> bool {
+        self.csv_busy() || self.list_loading()
+    }
+
+    fn save_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
+        state.busy() || !can_save_csv(state)
+    }
+
+    fn db_count(&self) -> usize {
+        AssetBalanceCsvStore::db_count(self)
+    }
+
+    fn delete_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
+        state.saving || state.deleting || self.list_loading()
+    }
+
+    fn select_file(&self, file: web_sys::File) {
+        AssetBalanceCsvStore::select_file(self, file)
+    }
+
+    fn save_csv(&self) {
+        AssetBalanceCsvStore::save_csv(self)
+    }
+
+    fn open_delete_confirm(&self) {
+        AssetBalanceCsvStore::open_delete_confirm(self)
+    }
+}
 
 #[component]
 pub(crate) fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
-    let selected = store;
-    let selected_file_name = Memo::new(move |_| selected.csv_state().file_name.unwrap_or_default());
-    let disabled_store = store;
-    let file_input_disabled = Memo::new(move |_| {
-        !disabled_store.is_authenticated()
-            || disabled_store.csv_busy()
-            || disabled_store.list_loading()
-    });
-    let has_file = store;
-    let has_csv_file =
-        Memo::new(move |_| has_file.is_authenticated() && has_file.csv_state().file_name.is_some());
-    let label_store = store;
-    let save_label = Memo::new(move |_| label_store.csv_state().save_label("全件置換で保存"));
-    let save_dis = store;
-    let save_disabled =
-        Memo::new(move |_| save_dis.csv_state().busy() || !can_save_csv(&save_dis.csv_state()));
-    let has_db = store;
-    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.db_count() > 0);
-    let del_label = store;
-    let delete_label = Memo::new(move |_| del_label.csv_state().delete_label(del_label.db_count()));
-    let del_dis = store;
-    let delete_disabled = Memo::new(move |_| {
-        let state = del_dis.csv_state();
-        state.saving || state.deleting || del_dis.list_loading()
-    });
-    let result_store = store;
-    let save_result = Memo::new(move |_| result_store.csv_state().import_result);
-    let file_select = store;
-    let save = store;
-    let delete_request = store;
     view! {
         // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
         <div class="sm:border-b-0">
-            <CsvActionRail
-                input_id="csv-file-input-assetbalance"
-                toggle_testid="assetbalance-csv-toggle"
-                body_id="assetbalance-csv-body"
-                section_class="sm:border-b sm:border-slate-950/10"
-                on_file_select=move |file| file_select.select_file(file)
-                selected_file_name=selected_file_name
-                file_input_disabled=file_input_disabled
-                has_csv_file=has_csv_file
-                save_label=save_label
-                on_save=move || save.save_csv()
-                save_disabled=save_disabled
-                has_db_data=has_db_data
-                delete_label=delete_label
-                on_delete_request=move || delete_request.open_delete_confirm()
-                delete_disabled=delete_disabled
-                save_result=save_result
-                mode_label="全件置換"
-            />
+            <CsvSection source=store />
         </div>
     }
 }

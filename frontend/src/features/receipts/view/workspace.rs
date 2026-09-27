@@ -1,10 +1,11 @@
 use super::main_content::ReceiptsMainContent;
 use super::search_card::ReceiptsSearchCard;
+use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::support::csv_flow::row_error_text;
-use crate::ui::csv_rail::CsvActionRail;
+use crate::support::csv_flow::{row_error_text, CsvTabState};
+use crate::ui::csv_section::{CsvSection, CsvSource};
 use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner, SpinnerSize};
 use leptos::prelude::*;
 
@@ -188,63 +189,69 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     }
 }
 
-#[component]
-fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let input_id = tab.csv_input_id();
-    let selected = store;
-    let selected_file_name =
-        Memo::new(move |_| selected.csv_state(tab).file_name.unwrap_or_default());
-    let disabled_store = store;
-    let file_input_disabled = Memo::new(move |_| {
-        disabled_store.auth_loading()
-            || !disabled_store.is_authenticated()
-            || disabled_store.csv_busy(tab)
-            || disabled_store.any_tab_fetching()
-    });
-    let has_file = store;
-    let has_csv_file = Memo::new(move |_| {
-        has_file.is_authenticated() && has_file.csv_state(tab).file_name.is_some()
-    });
-    let label_store = store;
-    let save_label = Memo::new(move |_| label_store.csv_state(tab).save_label("追加で保存"));
-    let save_dis = store;
-    let save_disabled = Memo::new(move |_| save_dis.csv_busy(tab));
-    let has_db = store;
-    let has_db_data = Memo::new(move |_| has_db.is_authenticated() && has_db.count(tab) > 0);
-    let del_label = store;
-    let delete_label =
-        Memo::new(move |_| del_label.csv_state(tab).delete_label(del_label.count(tab)));
-    let del_dis = store;
-    let delete_disabled = Memo::new(move |_| {
-        let state = del_dis.csv_state(tab);
-        state.saving || state.deleting || del_dis.any_tab_fetching()
-    });
-    let result_store = store;
-    let save_result = Memo::new(move |_| result_store.csv_state(tab).import_result);
-    let file_select = store;
-    let save = store;
-    let delete_request = store;
-    view! {
-        <CsvActionRail
-            input_id=input_id
-            on_file_select=move |file| file_select.select_file(tab, file)
-            selected_file_name=selected_file_name
-            file_input_disabled=file_input_disabled
-            has_csv_file=has_csv_file
-            save_label=save_label
-            on_save=move || save.save_csv(tab)
-            save_disabled=save_disabled
-            has_db_data=has_db_data
-            delete_label=delete_label
-            on_delete_request=move || delete_request.open_delete_confirm(tab)
-            delete_disabled=delete_disabled
-            save_result=save_result
-            mode_label="追加保存"
-            section_class="sm:rounded-t-xl"
-        />
+#[derive(Clone, Copy)]
+struct ReceiptCsvSource {
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+}
+
+impl CsvSource for ReceiptCsvSource {
+    type Row = CsvPreviewRow;
+
+    fn input_id(&self) -> &'static str {
+        self.tab.csv_input_id()
+    }
+
+    fn save_action(&self) -> &'static str {
+        "追加で保存"
+    }
+
+    fn mode_label(&self) -> &'static str {
+        "追加保存"
+    }
+
+    fn toggle_testid(&self) -> &'static str {
+        "receipt-csv-toggle"
+    }
+
+    fn section_class(&self) -> &'static str {
+        "sm:rounded-t-xl"
+    }
+
+    fn csv_state(&self) -> CsvTabState<CsvPreviewRow> {
+        self.store.csv_state(self.tab)
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.store.is_authenticated()
+    }
+
+    fn input_disabled(&self) -> bool {
+        self.store.auth_loading() || self.store.csv_busy(self.tab) || self.store.any_tab_fetching()
+    }
+
+    fn db_count(&self) -> usize {
+        self.store.count(self.tab)
+    }
+
+    fn delete_disabled(&self, state: &CsvTabState<CsvPreviewRow>) -> bool {
+        state.saving || state.deleting || self.store.any_tab_fetching()
+    }
+
+    fn select_file(&self, file: web_sys::File) {
+        self.store.select_file(self.tab, file)
+    }
+
+    fn save_csv(&self) {
+        self.store.save_csv(self.tab)
+    }
+
+    fn open_delete_confirm(&self) {
+        self.store.open_delete_confirm(self.tab)
     }
 }
 
-pub(crate) fn empty_hint(tab: ReceiptsTab) -> &'static str {
-    tab.empty_hint()
+#[component]
+fn ReceiptsCsvSection(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    view! { <CsvSection source=ReceiptCsvSource { store, tab } /> }
 }

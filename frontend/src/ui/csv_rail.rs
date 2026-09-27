@@ -24,20 +24,14 @@ pub fn CsvActionRail(
     delete_disabled: Memo<bool>,
     save_result: Memo<Option<CsvUploadResponse>>,
     mode_label: &'static str,
-    #[prop(optional)] toggle_testid: Option<&'static str>,
-    #[prop(optional)] body_id: Option<&'static str>,
-    #[prop(optional)] section_class: Option<&'static str>,
+    toggle_testid: &'static str,
+    body_id: String,
+    section_class: &'static str,
 ) -> impl IntoView {
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
     let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
-    let toggle_testid = toggle_testid.unwrap_or("receipt-csv-toggle");
-    let csv_body_id = body_id.map_or_else(|| format!("{input_id}-body"), str::to_string);
-    let section_class = format!(
-        "space-y-3 bg-slate-50/60 px-5 py-5{}",
-        section_class
-            .map(|class| format!(" {class}"))
-            .unwrap_or_default()
-    );
+    let csv_body_id = body_id;
+    let section_class = format!("space-y-3 bg-slate-50/60 px-5 py-5 {section_class}");
     let body_class = move || {
         if csv_expanded.get() {
             "max-sm:border-t max-sm:border-slate-950/10"
