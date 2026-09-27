@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.96"
 publish = false
+license = "MIT"
 
 # backend/frontend 両方から使う wire 型のみを置く。既定では serde 系だけに留め、
 # backend 専用の derive は feature で有効化する（wasm32 に sqlx/axum 系を混入させない）。
