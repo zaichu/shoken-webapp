@@ -39,6 +39,11 @@ impl SecurityCode {
                 .all(|b| b.is_ascii_alphanumeric() || b == b'.')
     }
 
+    /// 検証なしで包む。CSV プレビューなど、受け取った値をそのまま表示する用途専用
+    pub fn from_raw(value: String) -> Self {
+        Self(value)
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -134,6 +139,11 @@ impl Account {
     /// 特定口座（源泉徴収ありの課税対象口座）か
     pub fn is_specific(&self) -> bool {
         self.0.contains(SPECIFIC_ACCOUNT_KEYWORD)
+    }
+
+    /// 検証なしで包む。CSV プレビューなど、受け取った値をそのまま表示する用途専用
+    pub fn from_raw(value: String) -> Self {
+        Self(value)
     }
 
     pub fn as_str(&self) -> &str {

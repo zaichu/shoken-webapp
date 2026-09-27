@@ -75,8 +75,9 @@ pub enum ConfigError {
 pub enum ApiError {
     #[error("Validation error: {0}")]
     Validation(String),
-    #[error("JSON parse error")]
-    JsonParse,
+    /// serde の失敗位置(フィールドの path)を含むメッセージ
+    #[error("JSON parse error: {0}")]
+    JsonParse(String),
     #[error("{0}")]
     Csv(#[from] CsvError),
     #[error("Not found")]
@@ -98,7 +99,7 @@ pub enum ApiError {
 impl ApiError {
     pub fn status(&self) -> StatusCode {
         match self {
-            Self::Validation(_) | Self::JsonParse | Self::Csv(_) => StatusCode::BAD_REQUEST,
+            Self::Validation(_) | Self::JsonParse(_) | Self::Csv(_) => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Self::OAuth(_) | Self::Config(_) | Self::Internal(_) => {
@@ -122,7 +123,7 @@ impl ApiError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Validation(_) => "VALIDATION_ERROR",
-            Self::JsonParse => "JSON_PARSE_ERROR",
+            Self::JsonParse(_) => "JSON_PARSE_ERROR",
             Self::Csv(_) => "CSV_ERROR",
             Self::NotFound => "NOT_FOUND",
             Self::Unauthorized(_) => "UNAUTHORIZED",
@@ -145,7 +146,7 @@ impl ApiError {
     fn response_message(&self) -> String {
         match self {
             Self::Validation(msg) => msg.clone(),
-            Self::JsonParse | Self::NotFound | Self::Unauthorized(_) => self.to_string(),
+            Self::JsonParse(_) | Self::NotFound | Self::Unauthorized(_) => self.to_string(),
             Self::Csv(e) => e.to_string(),
             Self::OAuth(_) => "Authentication error".to_string(),
             Self::Upstream(e) => match e {
@@ -279,7 +280,7 @@ mod tests {
                 "VALIDATION_ERROR",
             ),
             (
-                ApiError::JsonParse,
+                ApiError::JsonParse("invalid json".to_string()),
                 StatusCode::BAD_REQUEST,
                 "JSON_PARSE_ERROR",
             ),
