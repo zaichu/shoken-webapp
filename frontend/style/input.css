@@ -283,7 +283,6 @@
 
 @media print {
   @page {
-    size: A4;
     margin: 10mm;
   }
 
@@ -291,19 +290,11 @@
     display: none !important;
   }
 
-  [data-testid="receipt-workspace"] {
-    display: block;
-  }
-
-  [data-testid="receipt-utility-rail"] {
-    display: none;
-  }
-
   .receipt-table {
     width: 100%;
     max-width: 100%;
     table-layout: auto;
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1.25;
   }
 
@@ -314,11 +305,15 @@
 
   .receipt-table th,
   .receipt-table td {
-    padding: 2px 3px !important;
+    padding: 2px !important;
   }
 
   .receipt-table td.text-right {
     white-space: nowrap;
+  }
+
+  .receipt-table td:not(.text-right) {
+    overflow-wrap: anywhere;
   }
 
   .print-border {

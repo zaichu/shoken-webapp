@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { domesticStocksFixture, mutualFundsFixture } from './__fixtures__/receipts-print';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -40,48 +41,9 @@ const DIVIDENDS = Array.from({ length: 39 }, (_, i) => {
   };
 });
 
-const DOMESTIC_STOCKS = [
-  {
-    id: 'domestic-print',
-    user_id: MOCK_USER.id,
-    trade_date: '2024-03-01',
-    settlement_date: '2024-03-04',
-    security_code: '8306',
-    security_name: '三菱UFJフィナンシャル・グループ',
-    account: '特定口座',
-    shares: 123456,
-    asked_price: 12345,
-    proceeds: 123456789,
-    purchase_price: 22345,
-    realized_profit_and_loss: -123456789,
-    taxes: 0,
-    realized_profit_and_loss_after_tax: -123456789,
-    created_at: '2024-03-01T00:00:00Z',
-    updated_at: '2024-03-01T00:00:00Z',
-  },
-];
+const DOMESTIC_STOCKS = domesticStocksFixture(MOCK_USER.id);
 
-const MUTUAL_FUNDS = [
-  {
-    id: 'mutual-fund-print',
-    user_id: MOCK_USER.id,
-    trade_date: '2024-03-01',
-    settlement_date: '2024-03-04',
-    fund_name: 'eMAXIS Slim 全世界株式（オール・カントリー）',
-    account: '特定口座',
-    shares: '123456',
-    exchange_rate: '1',
-    cancellation_unit_price_yen: '12345',
-    cancellation_amount_yen: '123456789',
-    average_acquisition_price_yen: '22345',
-    dividends: '0',
-    realized_profit_and_loss: '-123456789',
-    taxes: '0',
-    realized_profit_and_loss_after_tax: '-123456789',
-    created_at: '2024-03-01T00:00:00Z',
-    updated_at: '2024-03-01T00:00:00Z',
-  },
-];
+const MUTUAL_FUNDS = mutualFundsFixture(MOCK_USER.id);
 
 const PRINTABLE_A4_VIEWPORTS = [
   { name: 'portrait', width: 718, height: 1047 },
@@ -304,15 +266,15 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
       if (found) return found;
     }
   });
-  expect(pageRule).toContain('size: a4');
   expect(pageRule).toContain('margin: 10mm');
+  expect(pageRule).not.toContain('size');
 
   for (const paper of PRINTABLE_A4_VIEWPORTS) {
     await page.setViewportSize(paper);
     for (const tab of [
       { label: '配当金', slug: 'dividend', count: String(DIVIDENDS.length) },
-      { label: '国内株式', slug: 'domesticstock', count: '1' },
-      { label: '投資信託', slug: 'mutualfund', count: '1' },
+      { label: '国内株式', slug: 'domesticstock', count: String(DOMESTIC_STOCKS.length) },
+      { label: '投資信託', slug: 'mutualfund', count: String(MUTUAL_FUNDS.length) },
     ]) {
       await page.emulateMedia({ media: 'screen' });
       await page.getByRole('tab', { name: tab.label }).click();
@@ -362,10 +324,24 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
               lineCount: new Set(lineTops).size,
             };
           });
-        expect(negativeMetrics.text).toBe('-¥123,456,789');
+        expect(negativeMetrics.text).toBe('-¥876,543,210,987');
         expect(negativeMetrics.whiteSpace).toBe('nowrap');
         expect(negativeMetrics.lineCount).toBe(1);
         await shootPrintPreview(page, paper.name);
+      }
+
+      // 長い金額が複数並んでも金額セルは1行を保つ
+      const amountLines = await table.locator('td.text-right').evaluateAll((cells) =>
+        cells.map((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+          return { text: cell.textContent?.trim(), lineCount: new Set(lineTops).size };
+        }),
+      );
+      expect(amountLines.length).toBeGreaterThan(0);
+      for (const amount of amountLines) {
+        expect(amount.lineCount).toBe(1);
       }
     }
   }

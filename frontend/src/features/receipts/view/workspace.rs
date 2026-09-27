@@ -30,10 +30,10 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
-            class="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
+            class="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] print:block"
             data-testid="receipt-workspace"
         >
-            <aside class="order-1 lg:order-2" data-testid="receipt-utility-rail">
+            <aside class="order-1 lg:order-2 print:hidden" data-testid="receipt-utility-rail">
                 // スマホでは帯と別カードの積み上げを維持するため枠は sm 以上だけにする
                 // 年ピッカーのドロップダウンを切らないよう overflow は掛けない。
                 // backdrop-blur が作る stack context に listbox が閉じ込められるため、1カラム幅でも表より前面に出す
