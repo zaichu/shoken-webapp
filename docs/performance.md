@@ -11,7 +11,7 @@ CSV import 系処理のボトルネックを把握するための計測手順を
 
 ### 1. BulkTimer（本番ログ計測）
 
-`backend/src/services/bulk_helpers.rs` の `BulkTimer` が全 import 経路に組み込まれており、
+`backend/src/services/domain/bulk.rs` の `BulkTimer` が全 import 経路に組み込まれており、
 実際のリクエストで以下のログが出力される。
 
 ```
@@ -28,7 +28,7 @@ CSV import 系処理のボトルネックを把握するための計測手順を
 
 ### 2. CSV パース単体タイミングテスト
 
-`csv_util.rs` に `#[ignore]` タグ付きのタイミングテストを追加済み。
+`services/csv/util.rs` に `#[ignore]` タグ付きのタイミングテストを追加済み。
 `--nocapture` で elapsed time を標準出力に出力する。
 
 ```bash
