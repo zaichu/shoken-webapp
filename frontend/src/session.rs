@@ -2,8 +2,8 @@ mod cross_tab;
 mod idle;
 mod pending_logout;
 
+use crate::api::dto::{MessageResponse, SessionUser};
 use crate::api::{ApiClient, ApiError};
-use crate::dto::{MessageResponse, SessionUser};
 use leptos::prelude::*;
 
 fn oauth_authorize_url() -> String {

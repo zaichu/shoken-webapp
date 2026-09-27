@@ -1,21 +1,13 @@
 mod api;
-mod asset_balance;
-mod asset_balance_domain;
-mod components;
-mod csv_flow;
-mod dividend_info;
-mod dividend_per_share;
-mod dto;
-mod list_search;
-mod pages;
-mod pagination;
-mod receipts;
-mod receipts_domain;
+mod app;
+mod features;
 mod session;
+mod support;
 #[cfg(test)]
-mod test_support;
+mod testing;
+mod ui;
 
-use pages::App;
+use app::App;
 
 fn main() {
     console_error_panic_hook::set_once();
