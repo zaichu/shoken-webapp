@@ -1,8 +1,9 @@
+use super::{Domain, WriteMode};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use shared::value::UserId;
 use sqlx::postgres::PgQueryResult;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::fmt;
 use std::time::Instant;
 use tracing::info;
@@ -85,95 +86,48 @@ pub fn user_ids_for_bulk_insert(user_id: UserId, total: usize) -> Vec<UserId> {
     vec![user_id; total]
 }
 
-/// 行数上限を適用するユーザー紐付き書き込みドメイン
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum UserDataDomain {
-    AssetBalances,
-    Dividends,
-    DomesticStocks,
-    MutualFunds,
-}
-
-impl UserDataDomain {
-    /// asset_balances は bulk_create が DELETE→INSERT の全置換のため累積しない。
-    /// 置換型は追加分のみ、追記型は既存行数+追加分で上限を判定する
-    fn replaces_existing(self) -> bool {
-        matches!(self, Self::AssetBalances)
-    }
-
-    fn domain(self) -> &'static str {
-        match self {
-            Self::AssetBalances => "asset_balance",
-            Self::Dividends => "dividend",
-            Self::DomesticStocks => "domestic_stock",
-            Self::MutualFunds => "mutualfund",
-        }
-    }
-}
-
 /// 上限判定の純粋ロジック(DB 非依存)。existing は追記型のみ使用する
 fn exceeds_user_row_limit(
-    domain: UserDataDomain,
+    mode: WriteMode,
     existing: Option<i64>,
     additional: usize,
     limit: RowLimit,
 ) -> bool {
     // usize→i64 は飽和扱い（usize::MAX 級は上限超過とみなしてよい）
     let additional = i64::try_from(additional).unwrap_or(i64::MAX);
-    if domain.replaces_existing() {
-        additional > limit.get()
-    } else {
-        existing.unwrap_or(0) + additional > limit.get()
+    match mode {
+        WriteMode::Replace => additional > limit.get(),
+        WriteMode::Append => existing.unwrap_or(0) + additional > limit.get(),
     }
 }
 
 /// 書き込み前に、利用者ごとの保存行数が上限を超えないことを確認する。
-/// 追記型(dividends/domestic_stocks/mutualfunds)は既存行数との合算、
-/// 置換型(asset_balances)は追加分のみで上限を判定する。
+/// 追記型は既存行数との合算、置換型は追加分のみで上限を判定する。
 /// `executor` には `&PgPool` または `&mut Transaction`(同一 tx 内で直列化する場合)を渡す。
 /// 上限値は引数で渡す(プロセス全体の環境変数に依存させない)
-pub async fn ensure_user_row_limit_with<'e, E>(
+pub async fn ensure_user_row_limit_with<'e, D, E>(
     executor: E,
     user_id: UserId,
-    domain: UserDataDomain,
     additional: usize,
     limit: RowLimit,
 ) -> Result<(), ApiError>
 where
+    D: Domain,
     E: sqlx::Executor<'e, Database = sqlx::Postgres>,
 {
-    let existing = if domain.replaces_existing() {
-        None
-    } else {
-        match domain {
-            UserDataDomain::Dividends => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
-                )
-                .bind(user_id)
+    let existing = match D::WRITE_MODE {
+        WriteMode::Replace => None,
+        WriteMode::Append => {
+            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM ");
+            qb.push(D::TABLE)
+                .push(" WHERE user_id = ")
+                .push_bind(user_id);
+            qb.build_query_scalar::<Option<i64>>()
                 .fetch_one(executor)
                 .await?
-            }
-            UserDataDomain::DomesticStocks => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM domestic_stocks WHERE user_id = $1",
-                )
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?
-            }
-            UserDataDomain::MutualFunds => {
-                sqlx::query_scalar::<_, Option<i64>>(
-                    "SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1",
-                )
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?
-            }
-            UserDataDomain::AssetBalances => unreachable!(),
         }
     };
-    if exceeds_user_row_limit(domain, existing, additional, limit) {
+    if exceeds_user_row_limit(D::WRITE_MODE, existing, additional, limit) {
         return Err(ApiError::Validation(format!(
             "1アカウントあたりの保存件数の上限({limit}件)を超えています。既存データを整理してから取り込んでください"
         )));
@@ -181,69 +135,39 @@ where
     Ok(())
 }
 
-pub type DeleteTarget = UserDataDomain;
-
-/// ユーザーに紐づく全レコードを削除する共通実装。
-///
-/// `sqlx::query!` はマクロ呼び出し箇所にSQLリテラルが必要なため、
-/// `DeleteTarget` ごとに固定SQLを個別に呼び出す。
-pub async fn delete_all_for_user(
-    pool: &PgPool,
+/// 利用者とドメインの単位で advisory lock を取り、同じ利用者の並行した一括登録を直列化する
+/// (行数上限の同時突破と、置換型での A∪B の混入を防ぐ)
+pub async fn lock_user_domain<D: Domain>(
+    tx: &mut Transaction<'_, Postgres>,
     user_id: UserId,
-    target: DeleteTarget,
-) -> Result<u64, ApiError> {
-    let domain = target.domain();
-    info!("[{}.delete_all] リクエスト受信", domain);
-    let result = match target {
-        DeleteTarget::AssetBalances => {
-            sqlx::query!(
-                "DELETE FROM asset_balances WHERE user_id = $1",
-                user_id.get()
-            )
-            .execute(pool)
-            .await?
-        }
-        DeleteTarget::Dividends => {
-            sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id.get())
-                .execute(pool)
-                .await?
-        }
-        DeleteTarget::DomesticStocks => {
-            sqlx::query!(
-                "DELETE FROM domestic_stocks WHERE user_id = $1",
-                user_id.get()
-            )
-            .execute(pool)
-            .await?
-        }
-        DeleteTarget::MutualFunds => {
-            sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
-                .execute(pool)
-                .await?
-        }
-    };
-    let deleted = result.rows_affected();
-    info!("[{}.delete_all] 完了: {}件削除", domain, deleted);
+) -> Result<(), ApiError> {
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
+        .bind(format!("{user_id}:{}", D::TABLE))
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+/// ユーザーに紐づく全レコードを削除する共通実装
+pub async fn delete_all<D: Domain>(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
+    info!("[{}.delete_all] リクエスト受信", D::NAME);
+    let deleted = D::delete_rows(pool, user_id).await?.rows_affected();
+    info!("[{}.delete_all] 完了: {}件削除", D::NAME, deleted);
     Ok(deleted)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        exceeds_user_row_limit, user_ids_for_bulk_insert, BulkTimer, DeleteTarget, RowLimit,
-        UserDataDomain,
-    };
+    use super::{exceeds_user_row_limit, user_ids_for_bulk_insert, BulkTimer, RowLimit};
+    use crate::services::domain::WriteMode;
     use shared::value::UserId;
     use uuid::Uuid;
 
     #[test]
     fn test_exceeds_user_row_limit() {
         // 追記型: existing + additional が limit を超えると true
-        for domain in [
-            UserDataDomain::Dividends,
-            UserDataDomain::DomesticStocks,
-            UserDataDomain::MutualFunds,
-        ] {
+        {
+            let domain = WriteMode::Append;
             assert!(!exceeds_user_row_limit(
                 domain,
                 Some(0),
@@ -283,19 +207,19 @@ mod tests {
         }
         // 置換型(asset_balances): 既存行数を見ず追加分のみで判定
         assert!(!exceeds_user_row_limit(
-            UserDataDomain::AssetBalances,
+            WriteMode::Replace,
             None,
             100,
             RowLimit::new(100)
         ));
         assert!(exceeds_user_row_limit(
-            UserDataDomain::AssetBalances,
+            WriteMode::Replace,
             None,
             101,
             RowLimit::new(100)
         ));
         assert!(!exceeds_user_row_limit(
-            UserDataDomain::AssetBalances,
+            WriteMode::Replace,
             Some(1_000_000),
             1,
             RowLimit::new(100)
@@ -303,13 +227,18 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_target_domain_names() {
+    fn test_domain_names() {
+        use crate::services::asset_balance::AssetBalanceDomain;
+        use crate::services::dividend::DividendDomain;
+        use crate::services::domain::Domain;
+        use crate::services::domestic_stock::DomesticStockDomain;
+        use crate::services::mutualfund::MutualfundDomain;
         assert_eq!(
             [
-                DeleteTarget::AssetBalances.domain(),
-                DeleteTarget::Dividends.domain(),
-                DeleteTarget::DomesticStocks.domain(),
-                DeleteTarget::MutualFunds.domain(),
+                AssetBalanceDomain::NAME,
+                DividendDomain::NAME,
+                DomesticStockDomain::NAME,
+                MutualfundDomain::NAME,
             ],
             ["asset_balance", "dividend", "domestic_stock", "mutualfund"]
         );

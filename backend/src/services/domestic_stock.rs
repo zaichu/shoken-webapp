@@ -13,19 +13,39 @@ use crate::services::csv::util::{
     parse_required_security_code, parse_required_string, RowNumber,
 };
 use crate::services::domain::bulk::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
+    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
+    RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
+use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::tax::{compute_taxes, SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE};
 use shared::value::UserId;
+use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
+
+/// 国内株式ドメイン
+pub struct DomesticStockDomain;
+
+impl Domain for DomesticStockDomain {
+    const NAME: &'static str = "domestic_stock";
+    const TABLE: &'static str = "domestic_stocks";
+    const WRITE_MODE: WriteMode = WriteMode::Append;
+
+    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
+        sqlx::query!(
+            "DELETE FROM domestic_stocks WHERE user_id = $1",
+            user_id.get()
+        )
+        .execute(pool)
+        .await
+    }
+}
 
 const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -240,7 +260,7 @@ pub async fn bulk_create(
     items: &[CreateDomesticStockRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard("domestic_stock", items) {
+    let timer = match BulkTimer::new_with_guard(DomesticStockDomain::NAME, items) {
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
@@ -265,20 +285,10 @@ pub async fn bulk_create(
 
     let mut tx = pool.begin().await?;
 
-    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(format!("{user_id}:domestic_stocks"))
-        .execute(&mut *tx)
-        .await?;
+    lock_user_domain::<DomesticStockDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with(
-        &mut *tx,
-        user_id,
-        UserDataDomain::DomesticStocks,
-        items.len(),
-        limit,
-    )
-    .await?;
+    ensure_user_row_limit_with::<DomesticStockDomain, _>(&mut *tx, user_id, items.len(), limit)
+        .await?;
 
     // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
@@ -421,7 +431,7 @@ fn transform_domestic_stock_row(
 }
 
 pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    delete_all_for_user(pool, user_id, DeleteTarget::DomesticStocks).await
+    bulk::delete_all::<DomesticStockDomain>(pool, user_id).await
 }
 #[cfg(test)]
 mod tests {

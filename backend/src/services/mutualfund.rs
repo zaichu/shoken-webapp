@@ -13,18 +13,35 @@ use crate::services::csv::util::{
     parse_required_string, CsvCells, RowNumber,
 };
 use crate::services::domain::bulk::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
+    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
+    RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
+use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::tax::compute_taxes;
 use shared::value::UserId;
+use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
+
+/// 投資信託ドメイン
+pub struct MutualfundDomain;
+
+impl Domain for MutualfundDomain {
+    const NAME: &'static str = "mutualfund";
+    const TABLE: &'static str = "mutualfunds";
+    const WRITE_MODE: WriteMode = WriteMode::Append;
+
+    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
+        sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
+            .execute(pool)
+            .await
+    }
+}
 
 const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -202,7 +219,7 @@ pub async fn bulk_create(
     items: &[CreateMutualfundRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard("mutualfund", items) {
+    let timer = match BulkTimer::new_with_guard(MutualfundDomain::NAME, items) {
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
@@ -235,20 +252,10 @@ pub async fn bulk_create(
 
     let mut tx = pool.begin().await?;
 
-    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(format!("{user_id}:mutualfunds"))
-        .execute(&mut *tx)
-        .await?;
+    lock_user_domain::<MutualfundDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with(
-        &mut *tx,
-        user_id,
-        UserDataDomain::MutualFunds,
-        items.len(),
-        limit,
-    )
-    .await?;
+    ensure_user_row_limit_with::<MutualfundDomain, _>(&mut *tx, user_id, items.len(), limit)
+        .await?;
 
     let result = sqlx::query(
         r#"
@@ -348,7 +355,7 @@ fn transform_mutualfund_row(
 }
 
 pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    delete_all_for_user(pool, user_id, DeleteTarget::MutualFunds).await
+    bulk::delete_all::<MutualfundDomain>(pool, user_id).await
 }
 #[cfg(test)]
 mod tests {

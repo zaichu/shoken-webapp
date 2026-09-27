@@ -14,18 +14,38 @@ use crate::services::csv::util::{
     check_max_chars, parse_number, parse_optional_string, CsvCells, RowNumber,
 };
 use crate::services::domain::bulk::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
+    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
+    RowLimit,
 };
 use crate::services::domain::facets;
 use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query,
 };
+use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::{SecurityCode, UserId};
+use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
+
+/// 資産残高（保有銘柄）ドメイン
+pub struct AssetBalanceDomain;
+
+impl Domain for AssetBalanceDomain {
+    const NAME: &'static str = "asset_balance";
+    const TABLE: &'static str = "asset_balances";
+    const WRITE_MODE: WriteMode = WriteMode::Replace;
+
+    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
+        sqlx::query!(
+            "DELETE FROM asset_balances WHERE user_id = $1",
+            user_id.get()
+        )
+        .execute(pool)
+        .await
+    }
+}
 
 const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 6,
@@ -173,7 +193,7 @@ pub async fn bulk_create(
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let total = items.len();
-    let timer = BulkTimer::new("asset_balance", total);
+    let timer = BulkTimer::new(AssetBalanceDomain::NAME, total);
 
     let user_ids = user_ids_for_bulk_insert(user_id, total);
     let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
@@ -191,20 +211,9 @@ pub async fn bulk_create(
 
     let mut tx = pool.begin().await?;
 
-    // ユーザー単位のadvisory lockで並行bulk_createを直列化（READ COMMITTEDでのA∪B混入を防止）
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(user_id.to_string())
-        .execute(&mut *tx)
-        .await?;
+    lock_user_domain::<AssetBalanceDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with(
-        &mut *tx,
-        user_id,
-        UserDataDomain::AssetBalances,
-        total,
-        limit,
-    )
-    .await?;
+    ensure_user_row_limit_with::<AssetBalanceDomain, _>(&mut *tx, user_id, total, limit).await?;
 
     sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
         .bind(user_id)
@@ -269,7 +278,7 @@ pub async fn upload_csv(
 }
 
 pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    delete_all_for_user(pool, user_id, DeleteTarget::AssetBalances).await
+    bulk::delete_all::<AssetBalanceDomain>(pool, user_id).await
 }
 
 fn transform_asset_balance_rows(

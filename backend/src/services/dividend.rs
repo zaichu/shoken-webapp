@@ -13,18 +13,35 @@ use crate::services::csv::util::{
     parse_required_number, parse_required_string, RowNumber,
 };
 use crate::services::domain::bulk::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
+    self, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer,
+    RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
+use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::UserId;
+use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::info;
+
+/// 配当金ドメイン
+pub struct DividendDomain;
+
+impl Domain for DividendDomain {
+    const NAME: &'static str = "dividend";
+    const TABLE: &'static str = "dividends";
+    const WRITE_MODE: WriteMode = WriteMode::Append;
+
+    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
+        sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id.get())
+            .execute(pool)
+            .await
+    }
+}
 
 const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
@@ -215,7 +232,7 @@ pub async fn bulk_create(
     items: &[CreateDividendRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard("dividend", items) {
+    let timer = match BulkTimer::new_with_guard(DividendDomain::NAME, items) {
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
@@ -236,20 +253,9 @@ pub async fn bulk_create(
 
     let mut tx = pool.begin().await?;
 
-    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(format!("{user_id}:dividends"))
-        .execute(&mut *tx)
-        .await?;
+    lock_user_domain::<DividendDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with(
-        &mut *tx,
-        user_id,
-        UserDataDomain::Dividends,
-        items.len(),
-        limit,
-    )
-    .await?;
+    ensure_user_row_limit_with::<DividendDomain, _>(&mut *tx, user_id, items.len(), limit).await?;
 
     let result = sqlx::query(
         r#"
@@ -345,7 +351,7 @@ fn transform_dividend_row(
 }
 
 pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    delete_all_for_user(pool, user_id, DeleteTarget::Dividends).await
+    bulk::delete_all::<DividendDomain>(pool, user_id).await
 }
 #[cfg(test)]
 mod tests {

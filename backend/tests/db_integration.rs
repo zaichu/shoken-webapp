@@ -1540,7 +1540,11 @@ async fn dividend_cache_persistence_and_rate_slot() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn user_row_limit_rejects_over_limit_inserts() {
-    use backend::services::domain::bulk::{ensure_user_row_limit_with, UserDataDomain};
+    use backend::services::asset_balance::AssetBalanceDomain;
+    use backend::services::dividend::DividendDomain;
+    use backend::services::domain::bulk::ensure_user_row_limit_with;
+    use backend::services::domestic_stock::DomesticStockDomain;
+    use backend::services::mutualfund::MutualfundDomain;
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     const LIMIT: RowLimit = RowLimit::new(3);
@@ -1553,11 +1557,11 @@ async fn user_row_limit_rejects_over_limit_inserts() {
 
     // 上限ちょうど(既存2+追加1=3)は許可、超過(既存2+追加2=4)は拒否
     assert!(
-        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::Dividends, 1, LIMIT)
+        ensure_user_row_limit_with::<DividendDomain, _>(&pool, user_id, 1, LIMIT)
             .await
             .is_ok()
     );
-    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::Dividends, 2, LIMIT)
+    let err = ensure_user_row_limit_with::<DividendDomain, _>(&pool, user_id, 2, LIMIT)
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
@@ -1573,11 +1577,11 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect("初回 bulk_create は成功");
     assert!(
-        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::DomesticStocks, 1, LIMIT)
+        ensure_user_row_limit_with::<DomesticStockDomain, _>(&pool, user_id, 1, LIMIT)
             .await
             .is_ok()
     );
-    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::DomesticStocks, 2, LIMIT)
+    let err = ensure_user_row_limit_with::<DomesticStockDomain, _>(&pool, user_id, 2, LIMIT)
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
@@ -1593,11 +1597,11 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect("初回 bulk_create は成功");
     assert!(
-        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::MutualFunds, 1, LIMIT)
+        ensure_user_row_limit_with::<MutualfundDomain, _>(&pool, user_id, 1, LIMIT)
             .await
             .is_ok()
     );
-    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::MutualFunds, 2, LIMIT)
+    let err = ensure_user_row_limit_with::<MutualfundDomain, _>(&pool, user_id, 2, LIMIT)
         .await
         .expect_err("既存2+追加2=4 > 3 で拒否");
     assert!(
@@ -1611,7 +1615,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         .await
         .expect("asset_balances は置換のため上限内");
     // 既存2件あっても追加分4件 > 上限3 で拒否(既存行数を見ない)
-    let err = ensure_user_row_limit_with(&pool, user_id, UserDataDomain::AssetBalances, 4, LIMIT)
+    let err = ensure_user_row_limit_with::<AssetBalanceDomain, _>(&pool, user_id, 4, LIMIT)
         .await
         .expect_err("追加4件 > 上限3 で拒否");
     assert!(
@@ -1619,7 +1623,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
         "期待しないエラー: {err:?}"
     );
     assert!(
-        ensure_user_row_limit_with(&pool, user_id, UserDataDomain::AssetBalances, 3, LIMIT)
+        ensure_user_row_limit_with::<AssetBalanceDomain, _>(&pool, user_id, 3, LIMIT)
             .await
             .is_ok()
     );
