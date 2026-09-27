@@ -1,7 +1,7 @@
 use super::holdings::{holding_view, HoldingView};
-use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
+use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::csv::AssetBalanceCsvRow;
+use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::search::filter_asset_balances;
@@ -12,7 +12,8 @@ use crate::features::dividend_per_share::{
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::PageCollector;
+use crate::support::pagination::{fetch_all_pages, ListEndpoint};
+use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
@@ -30,80 +31,28 @@ pub(crate) struct LoadedAssetBalances {
     pub(crate) truncated: bool,
 }
 
-async fn fetch_asset_balance_page(page_no: usize) -> Result<AssetBalanceListResponse, ApiError> {
-    let page = page_no.to_string();
-    let per_page = ASSET_BALANCE_LIST_PER_PAGE.to_string();
-    // summary・facets はどのページも同じ全体集計を返すため、取引明細と同じく1ページ目だけ取る
-    let include_aggregates = if page_no == 1 { "true" } else { "false" };
-    ApiClient::read_client()
-        .get_json::<AssetBalanceListResponse>(
-            "/api/v1/asset-balances",
-            &[
-                ("page", page.as_str()),
-                ("per_page", per_page.as_str()),
-                ("include_summary", include_aggregates),
-                ("include_facets", include_aggregates),
-            ],
-        )
-        .await
-}
+/// 資産残高一覧のエンドポイント。検索候補に使う facets も取るため INCLUDE_FACETS を立てる。
+struct AssetBalanceList;
 
-/// 一覧 API の全ページ結合。取引明細(`receipts/store.rs`)と同じく
-/// `PageCollector` で末尾ページまで逐次取得し、summary は1ページ目のものを採用する。
-pub(crate) struct AssetBalancePages {
-    pub(crate) collector: PageCollector<AssetBalance>,
-    pub(crate) summary: Option<AssetBalanceSummary>,
-    pub(crate) facets: Option<SearchFacets>,
-}
+impl ListEndpoint for AssetBalanceList {
+    type Row = AssetBalance;
+    type Summary = AssetBalanceSummary;
 
-impl AssetBalancePages {
-    pub(crate) fn new() -> Self {
-        Self::with_limits(ASSET_BALANCE_LIST_PER_PAGE, ASSET_BALANCE_LIST_MAX_PAGES)
-    }
-
-    pub(crate) fn with_limits(per_page: usize, max_pages: usize) -> Self {
-        Self {
-            collector: PageCollector::new(per_page, max_pages),
-            summary: None,
-            facets: None,
-        }
-    }
-
-    pub(crate) fn next_page(&self) -> usize {
-        self.collector.next_page()
-    }
-
-    pub(crate) fn push(&mut self, page: AssetBalanceListResponse) -> bool {
-        if self.collector.next_page() == 1 {
-            self.summary = page.summary;
-            self.facets = page.facets;
-        }
-        self.collector.push(page.data, page.total)
-    }
-
-    pub(crate) fn finish(self) -> LoadedAssetBalances {
-        let total = self.collector.total();
-        let truncated = self.collector.truncated();
-        let rows = self.collector.into_rows();
-        LoadedAssetBalances {
-            total: total.unwrap_or(rows.len()),
-            rows,
-            summary: self.summary,
-            facets: self.facets,
-            truncated,
-        }
-    }
+    const PATH: &'static str = csv::LIST_PATH;
+    const PER_PAGE: usize = ASSET_BALANCE_LIST_PER_PAGE;
+    const MAX_PAGES: usize = ASSET_BALANCE_LIST_MAX_PAGES;
+    const INCLUDE_FACETS: bool = true;
 }
 
 async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
-    let mut pages = AssetBalancePages::new();
-    loop {
-        let response = fetch_asset_balance_page(pages.next_page()).await?;
-        if !pages.push(response) {
-            break;
-        }
-    }
-    Ok(pages.finish())
+    let page = fetch_all_pages::<AssetBalanceList>().await?;
+    Ok(LoadedAssetBalances {
+        total: page.total.unwrap_or(page.rows.len()),
+        rows: page.rows,
+        summary: page.summary,
+        facets: page.facets,
+        truncated: page.truncated,
+    })
 }
 
 pub(crate) fn truncated_list_warning() -> String {
@@ -194,7 +143,7 @@ pub(crate) struct FilteredPortfolio {
 }
 
 pub(crate) fn filtered_portfolio(
-    rows: &[AssetBalance],
+    rows: &[AssetBalanceRow],
     summary: Option<AssetBalanceSummary>,
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
@@ -205,14 +154,21 @@ pub(crate) fn filtered_portfolio(
         .into_iter()
         .map(|row| {
             // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
-            let resolved = if has_csv_file {
-                row.clone()
-            } else {
-                lookup
-                    .with(|store| store.get(generation, row.security_code.as_str()).cloned())
-                    .unwrap_or_else(|| row.clone())
-            };
-            holding_view(&resolved)
+            match row {
+                Row::Preview(_) => holding_view(row),
+                Row::Saved(saved) => {
+                    let resolved = if has_csv_file {
+                        saved.clone()
+                    } else {
+                        lookup
+                            .with(|store| {
+                                store.get(generation, saved.security_code.as_str()).cloned()
+                            })
+                            .unwrap_or_else(|| saved.clone())
+                    };
+                    holding_view(&resolved)
+                }
+            }
         })
         .collect();
     FilteredPortfolio {

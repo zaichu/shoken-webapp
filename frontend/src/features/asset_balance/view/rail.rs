@@ -1,5 +1,6 @@
 use super::search_card::AssetBalanceSearchCard;
-use crate::api::dto::{AssetBalance, SearchFacets};
+use crate::api::dto::SearchFacets;
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
 use crate::ui::security_link::try_copy_to_clipboard;
@@ -7,7 +8,7 @@ use leptos::prelude::*;
 
 #[component]
 pub(crate) fn AssetBalanceRailExtras(
-    rows: Vec<AssetBalance>,
+    rows: Vec<AssetBalanceRow>,
     facets: Option<SearchFacets>,
     has_csv_file: bool,
     warning: Option<String>,
@@ -41,7 +42,7 @@ enum ReviewCopyStatus {
 }
 
 #[component]
-fn AssetReviewPromptCard(rows: Vec<AssetBalance>) -> impl IntoView {
+fn AssetReviewPromptCard(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     let status = RwSignal::new(ReviewCopyStatus::Idle);
     let click_generation = RwSignal::new(0u64);
     let disabled = rows.is_empty();

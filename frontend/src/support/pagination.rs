@@ -22,10 +22,13 @@ pub trait ListEndpoint {
     const INCLUDE_FACETS: bool = false;
 }
 
-/// `fetch_all_pages` の返却。summary は先頭ページのものを採用する。
+/// `fetch_all_pages` の返却。summary・facets は先頭ページのものを採用する。
 pub struct ListPage<T, S> {
     pub rows: Vec<T>,
+    /// API の total。実際に取得できた行数(rows.len)とは一致しないことがある
+    pub total: Option<usize>,
     pub summary: Option<S>,
+    pub facets: Option<SearchFacets>,
     pub truncated: bool,
 }
 
@@ -69,20 +72,24 @@ where
 {
     let mut pages = PageCollector::new(per_page, max_pages);
     let mut summary = None;
+    let mut facets = None;
     loop {
         let page_no = pages.next_page();
         let page = fetch_page(page_no).await?;
         if page_no == 1 {
             summary = page.summary;
+            facets = page.facets;
         }
         if !pages.push(page.data, page.total) {
             break;
         }
     }
     Ok(ListPage {
+        total: pages.total(),
         truncated: pages.truncated(),
         rows: pages.into_rows(),
         summary,
+        facets,
     })
 }
 

@@ -1,5 +1,5 @@
 use super::format::{dec_to_f64, format_currency, format_percentage_value};
-use crate::api::dto::AssetBalance;
+use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::normalize_display_name;
 use crate::features::dividend_per_share::DividendMaps;
 use rust_decimal::Decimal;
@@ -17,22 +17,22 @@ pub(crate) struct HoldingView {
     pub(crate) current_price: f64,
 }
 
-pub(crate) fn holding_view(row: &AssetBalance) -> HoldingView {
-    let name_source = if row.security_name.is_empty() {
-        row.security_code.as_str()
+pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
+    let name_source = if row.security_name().is_empty() {
+        row.security_code()
     } else {
-        row.security_name.as_str()
+        row.security_name()
     };
     HoldingView {
-        code: row.security_code.to_string(),
+        code: row.security_code().to_string(),
         name: normalize_display_name(name_source),
-        shares: dec_to_f64(&row.shares),
-        average_price: dec_to_f64(&row.average_purchase_price),
-        purchase: dec_to_f64(&row.total_purchase_amount),
-        market: dec_to_f64(&row.market_value),
-        purchase_dec: row.total_purchase_amount,
-        market_dec: row.market_value,
-        current_price: dec_to_f64(&row.current_price),
+        shares: dec_to_f64(&row.shares()),
+        average_price: dec_to_f64(&row.average_purchase_price()),
+        purchase: dec_to_f64(&row.total_purchase_amount()),
+        market: dec_to_f64(&row.market_value()),
+        purchase_dec: row.total_purchase_amount(),
+        market_dec: row.market_value(),
+        current_price: dec_to_f64(&row.current_price()),
     }
 }
 

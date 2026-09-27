@@ -2,15 +2,14 @@ use super::store::{
     load_asset_balances, poll_dividend_maps, truncated_list_warning, AssetCsvFileSlot,
     AssetCsvSlot, BalanceSlot, DataOps, LoadedAssetBalances,
 };
-use crate::api::dto::{
-    AssetBalance, AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets,
-};
+use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets};
 use crate::api::ApiError;
-use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow};
+use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{unique_sorted_codes, DividendMaps};
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
+use crate::support::row::Row;
 use leptos::prelude::*;
 
 pub(crate) fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
@@ -304,18 +303,11 @@ impl AssetBalanceCsvStore {
     }
 }
 
-pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalance> {
+pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalanceRow> {
     state
         .preview
         .as_ref()
-        .map(|preview| {
-            preview
-                .rows
-                .iter()
-                .cloned()
-                .map(AssetBalance::from)
-                .collect()
-        })
+        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
         .unwrap_or_default()
 }
 
@@ -332,7 +324,7 @@ pub(crate) fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option
 }
 
 pub(crate) struct ResolvedAssetBalance {
-    pub(crate) rows: Vec<AssetBalance>,
+    pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) facets: Option<SearchFacets>,
     pub(crate) warning: Option<String>,
@@ -358,7 +350,7 @@ pub(crate) fn resolve_asset_balance(
             rows: if has_csv_file {
                 csv_preview_rows(state)
             } else {
-                loaded.rows.clone()
+                loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
             summary: loaded.summary.clone(),
             facets: loaded.facets.clone(),

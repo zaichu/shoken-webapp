@@ -440,30 +440,27 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         csv_files,
     };
 
-    Effect::new({
-        let store = store;
-        move |_| {
-            let user = session.user.get();
-            let active = active_tab.get();
-            if user.is_none() {
-                return;
-            }
-            let generation = session.generation.get();
-            store.ensure(active);
-            if tab_settled(&store, generation, active) {
-                let mut background: Vec<ReceiptsTab> = ReceiptsTab::ALL
-                    .iter()
-                    .copied()
-                    .filter(|tab| *tab != active)
-                    .collect();
-                background.sort_by_key(|tab| {
-                    !store
-                        .visited
-                        .with_untracked(|visited| visited.contains(tab))
-                });
-                for tab in background {
-                    store.ensure(tab);
-                }
+    Effect::new(move |_| {
+        let user = session.user.get();
+        let active = active_tab.get();
+        if user.is_none() {
+            return;
+        }
+        let generation = session.generation.get();
+        store.ensure(active);
+        if tab_settled(&store, generation, active) {
+            let mut background: Vec<ReceiptsTab> = ReceiptsTab::ALL
+                .iter()
+                .copied()
+                .filter(|tab| *tab != active)
+                .collect();
+            background.sort_by_key(|tab| {
+                !store
+                    .visited
+                    .with_untracked(|visited| visited.contains(tab))
+            });
+            for tab in background {
+                store.ensure(tab);
             }
         }
     });

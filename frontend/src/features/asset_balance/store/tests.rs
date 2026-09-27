@@ -1,15 +1,16 @@
 use super::*;
-use crate::api::dto::SearchFacets;
+use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
+use crate::api::ApiError;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
+use crate::support::pagination::collect_list_pages;
 use crate::testing::asset_balance::*;
+use crate::testing::block_on;
 use std::collections::HashMap;
+use std::future::{ready, Ready};
 
-#[test]
-fn asset_balance_pages_join_all_pages_in_order() {
-    let mut pages = AssetBalancePages::new();
-    assert_eq!(pages.next_page(), 1);
+fn first_page_with_facets() -> AssetBalanceListResponse {
     let mut first = balance_page(0..1000, 2300, Some(rust_decimal_macros::dec!(10)));
     first.facets = Some(SearchFacets {
         securities: Some(vec![crate::api::dto::FacetOption {
@@ -19,27 +20,40 @@ fn asset_balance_pages_join_all_pages_in_order() {
         }]),
         ..SearchFacets::default()
     });
-    assert!(pages.push(first));
-    assert_eq!(pages.next_page(), 2);
+    first
+}
+
+#[test]
+fn list_pages_join_all_pages_in_order() {
     let mut second = balance_page(1000..2000, 2300, Some(rust_decimal_macros::dec!(20)));
     second.facets = Some(SearchFacets::default());
-    assert!(pages.push(second));
-    assert_eq!(pages.next_page(), 3);
-    assert!(!pages.push(balance_page(2000..2300, 2300, None)));
+    let third = balance_page(2000..2300, 2300, None);
+    let fetch = move |page_no: usize| -> Ready<Result<AssetBalanceListResponse, ApiError>> {
+        ready(Ok(match page_no {
+            1 => first_page_with_facets(),
+            2 => second.clone(),
+            _ => third.clone(),
+        }))
+    };
 
-    let loaded = pages.finish();
-    assert_eq!(loaded.rows.len(), 2300);
-    assert_eq!(loaded.total, 2300);
-    assert_eq!(loaded.rows[0].id.as_str(), "id-0");
-    assert_eq!(loaded.rows[2299].id.as_str(), "id-2299");
+    let page = block_on(collect_list_pages(
+        ASSET_BALANCE_LIST_PER_PAGE,
+        ASSET_BALANCE_LIST_MAX_PAGES,
+        fetch,
+    ))
+    .expect("fetch");
+
+    assert_eq!(page.rows.len(), 2300);
+    assert_eq!(page.total, Some(2300));
+    assert_eq!(page.rows[0].id.as_str(), "id-0");
+    assert_eq!(page.rows[2299].id.as_str(), "id-2299");
     // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
     assert_eq!(
-        loaded.summary.map(|summary| summary.total_purchase_amount),
+        page.summary.map(|summary| summary.total_purchase_amount),
         Some(rust_decimal_macros::dec!(10))
     );
     assert_eq!(
-        loaded
-            .facets
+        page.facets
             .and_then(|facets| facets.securities)
             .map(|securities| securities.len()),
         Some(1)
@@ -47,13 +61,23 @@ fn asset_balance_pages_join_all_pages_in_order() {
 }
 
 #[test]
-fn asset_balance_pages_stop_when_first_page_is_short() {
-    let mut pages = AssetBalancePages::new();
-    assert!(!pages.push(balance_page(0..3, 3, Some(rust_decimal_macros::dec!(10)))));
-    let loaded = pages.finish();
-    assert_eq!(loaded.rows.len(), 3);
-    assert_eq!(loaded.total, 3);
-    assert!(loaded.summary.is_some());
+fn list_pages_stop_when_first_page_is_short() {
+    let fetch = |_: usize| {
+        ready(Ok::<_, ApiError>(balance_page(
+            0..3,
+            3,
+            Some(rust_decimal_macros::dec!(10)),
+        )))
+    };
+    let page = block_on(collect_list_pages(
+        ASSET_BALANCE_LIST_PER_PAGE,
+        ASSET_BALANCE_LIST_MAX_PAGES,
+        fetch,
+    ))
+    .expect("fetch");
+    assert_eq!(page.rows.len(), 3);
+    assert_eq!(page.total, Some(3));
+    assert!(page.summary.is_some());
 }
 
 #[test]

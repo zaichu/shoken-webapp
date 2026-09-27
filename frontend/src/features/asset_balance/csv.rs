@@ -1,8 +1,8 @@
 use crate::api::dto::{AssetBalance, CsvPreviewResponse};
 use crate::support::csv_flow::CsvPreview;
+use crate::support::row::Row;
 use rust_decimal::Decimal;
 use serde::Deserialize;
-use shared::value::{RecordId, SecurityCode};
 
 pub const LIST_PATH: &str = "/api/v1/asset-balances";
 pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
@@ -33,24 +33,111 @@ pub struct AssetBalanceCsvRow {
     pub profit_loss_rate: Decimal,
 }
 
-// 一覧表示に載せるため AssetBalance に揃える。id・タイムスタンプは未確定なので空
-impl From<AssetBalanceCsvRow> for AssetBalance {
-    fn from(row: AssetBalanceCsvRow) -> AssetBalance {
-        AssetBalance {
-            id: RecordId::default(),
-            // 検証に通らない値も差し替えず、そのまま表示する
-            security_code: SecurityCode::from_raw(row.security_code),
-            security_name: row.security_name,
-            shares: row.shares,
-            executing_shares: row.executing_shares,
-            average_purchase_price: row.average_purchase_price,
-            total_purchase_amount: row.total_purchase_amount,
-            current_price: row.current_price,
-            daily_change: row.daily_change,
-            market_value: row.market_value,
-            profit_loss_rate: row.profit_loss_rate,
-            created_at: String::new(),
-            updated_at: String::new(),
+/// 一覧行と CSV プレビュー行を束ねる。プレビュー行は id・タイムスタンプを持たないため
+/// `AssetBalance` に寄せず `Row::Preview` のまま扱う。
+pub(crate) type AssetBalanceRow = Row<AssetBalance, AssetBalanceCsvRow>;
+
+/// `AssetBalance`(保存済み) と `AssetBalanceCsvRow`(CSV プレビュー) の共通読み出し面。
+/// 検証に通らない値も差し替えず画面に出すため、文字列は生値を返す。
+pub(crate) trait AssetBalanceRowData {
+    fn security_code(&self) -> &str;
+    fn security_name(&self) -> &str;
+    fn shares(&self) -> Decimal;
+    fn average_purchase_price(&self) -> Decimal;
+    fn total_purchase_amount(&self) -> Decimal;
+    fn current_price(&self) -> Decimal;
+    fn market_value(&self) -> Decimal;
+}
+
+impl AssetBalanceRowData for AssetBalance {
+    fn security_code(&self) -> &str {
+        self.security_code.as_str()
+    }
+    fn security_name(&self) -> &str {
+        &self.security_name
+    }
+    fn shares(&self) -> Decimal {
+        self.shares
+    }
+    fn average_purchase_price(&self) -> Decimal {
+        self.average_purchase_price
+    }
+    fn total_purchase_amount(&self) -> Decimal {
+        self.total_purchase_amount
+    }
+    fn current_price(&self) -> Decimal {
+        self.current_price
+    }
+    fn market_value(&self) -> Decimal {
+        self.market_value
+    }
+}
+
+impl AssetBalanceRowData for AssetBalanceCsvRow {
+    fn security_code(&self) -> &str {
+        &self.security_code
+    }
+    fn security_name(&self) -> &str {
+        &self.security_name
+    }
+    fn shares(&self) -> Decimal {
+        self.shares
+    }
+    fn average_purchase_price(&self) -> Decimal {
+        self.average_purchase_price
+    }
+    fn total_purchase_amount(&self) -> Decimal {
+        self.total_purchase_amount
+    }
+    fn current_price(&self) -> Decimal {
+        self.current_price
+    }
+    fn market_value(&self) -> Decimal {
+        self.market_value
+    }
+}
+
+impl AssetBalanceRowData for AssetBalanceRow {
+    fn security_code(&self) -> &str {
+        match self {
+            Self::Saved(row) => row.security_code(),
+            Self::Preview(row) => row.security_code(),
+        }
+    }
+    fn security_name(&self) -> &str {
+        match self {
+            Self::Saved(row) => row.security_name(),
+            Self::Preview(row) => row.security_name(),
+        }
+    }
+    fn shares(&self) -> Decimal {
+        match self {
+            Self::Saved(row) => row.shares(),
+            Self::Preview(row) => row.shares(),
+        }
+    }
+    fn average_purchase_price(&self) -> Decimal {
+        match self {
+            Self::Saved(row) => row.average_purchase_price(),
+            Self::Preview(row) => row.average_purchase_price(),
+        }
+    }
+    fn total_purchase_amount(&self) -> Decimal {
+        match self {
+            Self::Saved(row) => row.total_purchase_amount(),
+            Self::Preview(row) => row.total_purchase_amount(),
+        }
+    }
+    fn current_price(&self) -> Decimal {
+        match self {
+            Self::Saved(row) => row.current_price(),
+            Self::Preview(row) => row.current_price(),
+        }
+    }
+    fn market_value(&self) -> Decimal {
+        match self {
+            Self::Saved(row) => row.market_value(),
+            Self::Preview(row) => row.market_value(),
         }
     }
 }

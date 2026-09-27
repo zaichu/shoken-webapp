@@ -1,13 +1,12 @@
-use crate::api::dto::{AssetBalance, SearchFacets};
+use crate::api::dto::SearchFacets;
+use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::support::list_search::support::create_search_options;
 use crate::support::list_search::{filter_by_config, FilterConfig, SearchOption};
 
-pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
+pub fn asset_balance_filter_config() -> FilterConfig<AssetBalanceRow> {
     FilterConfig {
         string_fields: None,
-        partial_string_fields: Some(vec![|row| row.security_code.as_str(), |row| {
-            &row.security_name
-        }]),
+        partial_string_fields: Some(vec![|row| row.security_code(), |row| row.security_name()]),
         date_field: None,
         year_search: false,
         year_month_search: false,
@@ -17,12 +16,15 @@ pub fn asset_balance_filter_config() -> FilterConfig<AssetBalance> {
     }
 }
 
-pub fn filter_asset_balances<'a>(data: &'a [AssetBalance], query: &str) -> Vec<&'a AssetBalance> {
+pub fn filter_asset_balances<'a>(
+    data: &'a [AssetBalanceRow],
+    query: &str,
+) -> Vec<&'a AssetBalanceRow> {
     filter_by_config(data, query, &asset_balance_filter_config())
 }
 
 pub fn asset_balance_search_options(
-    data: &[AssetBalance],
+    data: &[AssetBalanceRow],
     facets: Option<&SearchFacets>,
     has_csv_file: bool,
 ) -> Vec<SearchOption> {
@@ -39,8 +41,8 @@ pub fn asset_balance_search_options(
     }
     create_search_options(
         data,
-        |row| row.security_code.as_str(),
-        |row| row.security_name.as_str(),
+        |row| row.security_code(),
+        |row| row.security_name(),
         true,
         None,
     )

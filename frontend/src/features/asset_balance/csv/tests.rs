@@ -1,5 +1,6 @@
 use super::*;
 use crate::api::dto::{CsvPreviewResponse, CsvRowError};
+use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
 fn preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
@@ -59,33 +60,30 @@ fn preview_row_with_missing_fields_falls_back() {
 }
 
 #[test]
-fn csv_row_converts_to_asset_balance_with_empty_identity() {
-    let row = AssetBalanceCsvRow {
+fn preview_row_exposes_csv_fields_without_saved_identity() {
+    let row = Row::Preview(AssetBalanceCsvRow {
         security_code: "7203".to_string(),
         security_name: "トヨタ自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         ..Default::default()
-    };
-    let balance = AssetBalance::from(row);
-    assert!(balance.id.is_empty());
-    assert!(balance.created_at.is_empty());
-    assert!(balance.updated_at.is_empty());
-    assert_eq!(balance.security_code.as_str(), "7203");
-    assert_eq!(balance.security_name, "トヨタ自動車");
-    assert_eq!(balance.shares, dec!(100));
-    assert_eq!(balance.average_purchase_price, dec!(2500));
+    });
+    assert!(row.is_preview());
+    assert!(row.saved().is_none());
+    assert_eq!(row.security_code(), "7203");
+    assert_eq!(row.security_name(), "トヨタ自動車");
+    assert_eq!(row.shares(), dec!(100));
+    assert_eq!(row.average_purchase_price(), dec!(2500));
 }
 
 #[test]
 fn csv_row_shows_unparseable_security_code_verbatim() {
     // 検証に通らない銘柄コードも "0" へ差し替えず元の文字列を表示する
-    let row = AssetBalanceCsvRow {
+    let row = Row::Preview(AssetBalanceCsvRow {
         security_code: "7203-1".to_string(),
         ..Default::default()
-    };
-    let balance = AssetBalance::from(row);
-    assert_eq!(balance.security_code.as_str(), "7203-1");
+    });
+    assert_eq!(row.security_code(), "7203-1");
 }
 
 #[test]

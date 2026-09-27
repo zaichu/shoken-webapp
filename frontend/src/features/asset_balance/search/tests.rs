@@ -1,5 +1,7 @@
 use super::{asset_balance_search_options, clear_search_query, filter_asset_balances};
 use crate::api::dto::{AssetBalance, SearchFacets};
+use crate::features::asset_balance::csv::AssetBalanceRow;
+use crate::support::row::Row as ListRow;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
@@ -65,8 +67,14 @@ fn balance(row: &Row) -> AssetBalance {
     }
 }
 
-fn balances(rows: &[Row]) -> Vec<AssetBalance> {
-    rows.iter().map(balance).collect()
+fn balances(rows: &[Row]) -> Vec<AssetBalanceRow> {
+    rows.iter()
+        .map(|row| ListRow::Saved(balance(row)))
+        .collect()
+}
+
+fn row_id(row: &AssetBalanceRow) -> String {
+    row.saved().map(|saved| saved.id.to_string()).unwrap()
 }
 
 impl FilterCase {
@@ -83,7 +91,7 @@ fn shared_filter_cases_match() {
         let data = balances(&case.data);
         let actual: Vec<_> = filter_asset_balances(&data, &case.query)
             .iter()
-            .map(|row| row.id.to_string())
+            .map(|row| row_id(row))
             .collect();
         assert_eq!(actual, case.expected_ids, "{}", case.name);
     }
@@ -116,7 +124,7 @@ fn cleared_query_restores_all_rows() {
     assert_eq!(clear_search_query(), String::new());
     let actual: Vec<_> = filter_asset_balances(&data, &clear_search_query())
         .iter()
-        .map(|row| row.id.to_string())
+        .map(|row| row_id(row))
         .collect();
     assert_eq!(actual, case.expected_ids_all());
 }

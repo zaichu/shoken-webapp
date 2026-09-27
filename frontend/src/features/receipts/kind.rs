@@ -893,7 +893,7 @@ fn totals_from_amounts<S>(
 
 /// 国内株式の日次集計(特定口座と NISA 等を分けて、特定分にだけ日単位で課税)。
 /// shared::summary::domestic_daily と同じ仕様を行アクセサ上で再現する。
-fn daily_tax_groups<'a>(rows: &'a [ReceiptRow]) -> BTreeMap<&'a str, (Decimal, Decimal)> {
+fn daily_tax_groups(rows: &[ReceiptRow]) -> BTreeMap<&str, (Decimal, Decimal)> {
     let mut groups: BTreeMap<&str, (Decimal, Decimal)> = BTreeMap::new();
     for row in rows {
         let totals = groups.entry(row.date()).or_default();

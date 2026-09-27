@@ -1,12 +1,15 @@
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
-use crate::features::asset_balance::csv::AssetBalanceCsvRow;
+use crate::api::ApiError;
+use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::csv_store::resolve_asset_balance;
 use crate::features::asset_balance::store::{
-    truncated_list_warning, AssetBalancePages, BalanceSlot, LoadedAssetBalances,
-    ASSET_BALANCE_LIST_PER_PAGE,
+    truncated_list_warning, BalanceSlot, LoadedAssetBalances, ASSET_BALANCE_LIST_PER_PAGE,
 };
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
+use crate::support::pagination::collect_list_pages;
+use crate::testing::block_on;
+use std::future::{ready, Ready};
 
 fn balance(id: usize) -> AssetBalance {
     AssetBalance {
@@ -39,11 +42,13 @@ fn page(range: std::ops::Range<usize>, total: i64) -> AssetBalanceListResponse {
 
 #[test]
 fn page_cap_marks_loaded_balances_truncated() {
-    let mut pages = AssetBalancePages::with_limits(3, 2);
-    assert!(pages.push(page(0..3, 100)));
-    assert!(!pages.push(page(3..6, 100)));
-
-    let loaded = pages.finish();
+    let fetch = |page_no: usize| -> Ready<Result<AssetBalanceListResponse, ApiError>> {
+        ready(Ok(match page_no {
+            1 => page(0..3, 100),
+            _ => page(3..6, 100),
+        }))
+    };
+    let loaded = block_on(collect_list_pages(3, 2, fetch)).expect("fetch");
     assert!(loaded.truncated);
     assert_eq!(loaded.rows.len(), 6);
 }
@@ -138,7 +143,9 @@ fn resolve_csv_preview_replaces_rows_and_drops_warning() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 1);
-    assert_eq!(resolved.rows[0].security_code.as_str(), "9999");
+    assert!(resolved.rows[0].is_preview());
+    assert!(resolved.rows[0].saved().is_none());
+    assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.warning.is_none());
     assert!(resolved.has_csv_file);
     assert!(resolved.summary.is_some());
@@ -152,7 +159,8 @@ fn resolve_list_error_falls_back_to_preview_rows() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 1);
-    assert_eq!(resolved.rows[0].security_code.as_str(), "9999");
+    assert!(resolved.rows[0].is_preview());
+    assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.summary.is_none());
     assert!(resolved.facets.is_none());
     assert!(resolved.warning.is_none());

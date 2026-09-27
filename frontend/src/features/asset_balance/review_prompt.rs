@@ -1,4 +1,4 @@
-use crate::api::dto::AssetBalance;
+use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::model::format_number_value;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -25,17 +25,17 @@ const PROMPT_BODY: &str = "あなたは日本株の公開情報を整理する�
 
 const TABLE_HEADER: &str = "銘柄コード | 銘柄名 | 保有株数 | 平均取得単価";
 
-pub(crate) fn generate_asset_review_prompt(rows: &[AssetBalance]) -> String {
+pub(crate) fn generate_asset_review_prompt(rows: &[AssetBalanceRow]) -> String {
     let table_rows = rows
         .iter()
         .map(|row| {
             [
-                row.security_code.to_string(),
-                row.security_name.clone(),
-                format_number_value(row.shares.to_f64().unwrap_or(0.0)),
+                row.security_code().to_string(),
+                row.security_name().to_string(),
+                format_number_value(row.shares().to_f64().unwrap_or(0.0)),
                 format!(
                     "¥{}",
-                    format_number_value(row.average_purchase_price.to_f64().unwrap_or(0.0))
+                    format_number_value(row.average_purchase_price().to_f64().unwrap_or(0.0))
                 ),
             ]
             .join(" | ")

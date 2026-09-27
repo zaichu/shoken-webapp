@@ -5,6 +5,7 @@ use super::summary::{
 };
 use crate::api::dto::AssetBalanceSummary;
 use crate::api::ApiError;
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
@@ -16,6 +17,7 @@ use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
+use crate::support::row::Row;
 use crate::testing::asset_balance::*;
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
@@ -226,9 +228,11 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(Generation::new(1), &loaded.rows));
+        let saved_rows: Vec<AssetBalanceRow> =
+            loaded.rows.iter().cloned().map(Row::Saved).collect();
 
         let filtered = filtered_portfolio(
-            &loaded.rows,
+            &saved_rows,
             loaded.summary.clone(),
             "7203",
             lookup,
@@ -288,7 +292,7 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         });
 
         let unfiltered = filtered_portfolio(
-            &loaded.rows,
+            &saved_rows,
             loaded.summary.clone(),
             "",
             lookup,
@@ -313,8 +317,10 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         second.market_value = rust_decimal_macros::dec!(2200.20);
         let decimal_rows = vec![first, second];
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
+        let decimal_saved: Vec<AssetBalanceRow> =
+            decimal_rows.iter().cloned().map(Row::Saved).collect();
         let decimal_filtered = filtered_portfolio(
-            &decimal_rows,
+            &decimal_saved,
             loaded.summary,
             "検証対象",
             lookup,
