@@ -51,7 +51,7 @@ src/
 ```
 
 - 依存の向きは view → store → model。model は Leptos に依存しない
-- 機能どうしは `features/<機能>` の公開部分だけを使い、view の中身には触れない
+- 機能どうしは `features/<機能>` の公開部分だけを使い、view の中身には触れない(今はサブモジュールがすべて `pub(crate)` で、可視性では守られていない。絞るのは #1060 で行う)
 - テストは各モジュールの `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。1つのモジュールに複数ある場合は `tests.rs` から `tests/<名前>.rs` を宣言する
 - テストの fixture は `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
 
