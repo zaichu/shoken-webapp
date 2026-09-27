@@ -282,8 +282,38 @@
 }
 
 @media print {
+  @page {
+    margin: 10mm;
+  }
+
   .no-print {
     display: none !important;
+  }
+
+  .receipt-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .receipt-table th {
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .receipt-table th,
+  .receipt-table td {
+    padding: 2px !important;
+  }
+
+  .receipt-table td.text-right {
+    white-space: nowrap;
+  }
+
+  .receipt-table td:not(.text-right) {
+    overflow-wrap: anywhere;
   }
 
   .print-border {

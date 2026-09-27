@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { domesticStocksFixture, mutualFundsFixture } from './__fixtures__/receipts-print';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -40,6 +41,15 @@ const DIVIDENDS = Array.from({ length: 39 }, (_, i) => {
   };
 });
 
+const DOMESTIC_STOCKS = domesticStocksFixture(MOCK_USER.id);
+
+const MUTUAL_FUNDS = mutualFundsFixture(MOCK_USER.id);
+
+const PRINTABLE_A4_VIEWPORTS = [
+  { name: 'portrait', width: 718, height: 1047 },
+  { name: 'landscape', width: 1047, height: 718 },
+] as const;
+
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
 }
@@ -54,6 +64,12 @@ async function mockApi(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
+  );
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(DOMESTIC_STOCKS))),
+  );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(MUTUAL_FUNDS))),
   );
   await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
     route.fulfill(json({ data: [] })),
@@ -70,6 +86,15 @@ async function shoot(page: Page, name: string) {
   await fs.promises.mkdir(dir, { recursive: true });
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
+}
+
+async function shootPrintPreview(page: Page, orientation: string) {
+  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp/pr1088');
+  await fs.promises.mkdir(dir, { recursive: true });
+  await page.screenshot({
+    path: path.join(dir, `receipts-a4-${orientation}.png`),
+    fullPage: true,
+  });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -220,6 +245,106 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(1);
 
   await shoot(page, 'leptos-962-1920');
+});
+
+test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
+  await page.goto('/receipts');
+  await expect(page.getByRole('table')).toBeVisible();
+
+  const pageRule = await page.evaluate(() => {
+    const findPageRule = (rules: CSSRuleList): string | undefined => {
+      for (const rule of rules) {
+        if (rule.cssText.startsWith('@page')) return rule.cssText;
+        if ('cssRules' in rule) {
+          const nested = findPageRule((rule as CSSGroupingRule).cssRules);
+          if (nested) return nested;
+        }
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      const found = findPageRule(sheet.cssRules);
+      if (found) return found;
+    }
+  });
+  expect(pageRule).toContain('margin: 10mm');
+  expect(pageRule).not.toContain('size');
+
+  for (const paper of PRINTABLE_A4_VIEWPORTS) {
+    await page.setViewportSize(paper);
+    for (const tab of [
+      { label: '配当金', slug: 'dividend', count: String(DIVIDENDS.length) },
+      { label: '国内株式', slug: 'domesticstock', count: String(DOMESTIC_STOCKS.length) },
+      { label: '投資信託', slug: 'mutualfund', count: String(MUTUAL_FUNDS.length) },
+    ]) {
+      await page.emulateMedia({ media: 'screen' });
+      await page.getByRole('tab', { name: tab.label }).click();
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(tab.count);
+      await page.emulateMedia({ media: 'print' });
+
+      const table = page.getByRole('table');
+      await expect(table).toBeVisible();
+      await expect(page.getByTestId('receipt-utility-rail')).toBeHidden();
+      const metrics = await table.evaluate((element) => {
+        const main = document.querySelector('main');
+        const mainRect = main?.getBoundingClientRect();
+        const mainStyle = main ? getComputedStyle(main) : undefined;
+        const tableRect = element.getBoundingClientRect();
+        const cardRect = element.closest('.table-card')?.getBoundingClientRect();
+        const lastCellRect = element
+          .querySelector('tbody tr:last-child td:last-child')
+          ?.getBoundingClientRect();
+        return {
+          tableLeft: tableRect.left,
+          tableRight: tableRect.right,
+          cardRight: cardRect?.right ?? 0,
+          lastCellRight: lastCellRect?.right ?? 0,
+          mainContentLeft:
+            (mainRect?.left ?? 0) + Number.parseFloat(mainStyle?.paddingLeft ?? '0'),
+          mainContentRight:
+            (mainRect?.right ?? 0) - Number.parseFloat(mainStyle?.paddingRight ?? '0'),
+        };
+      });
+
+      expect(metrics.tableLeft).toBeGreaterThanOrEqual(metrics.mainContentLeft - 1);
+      expect(metrics.tableRight).toBeLessThanOrEqual(metrics.cardRight + 1);
+      expect(metrics.cardRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
+      expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
+
+      if (tab.slug === 'domesticstock') {
+        const negativeMetrics = await table
+          .locator('tbody tr:last-child td[data-negative="true"]')
+          .first()
+          .evaluate((cell) => {
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+            return {
+              text: cell.textContent?.trim(),
+              whiteSpace: getComputedStyle(cell).whiteSpace,
+              lineCount: new Set(lineTops).size,
+            };
+          });
+        expect(negativeMetrics.text).toBe('-¥876,543,210,987');
+        expect(negativeMetrics.whiteSpace).toBe('nowrap');
+        expect(negativeMetrics.lineCount).toBe(1);
+        await shootPrintPreview(page, paper.name);
+      }
+
+      // 長い金額が複数並んでも金額セルは1行を保つ
+      const amountLines = await table.locator('td.text-right').evaluateAll((cells) =>
+        cells.map((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+          return { text: cell.textContent?.trim(), lineCount: new Set(lineTops).size };
+        }),
+      );
+      expect(amountLines.length).toBeGreaterThan(0);
+      for (const amount of amountLines) {
+        expect(amount.lineCount).toBe(1);
+      }
+    }
+  }
 });
 
 test('640px 以上で年ピッカーの選択肢がレール下端を超えても末尾の年を選べる', async ({ page }) => {
