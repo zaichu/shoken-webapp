@@ -286,6 +286,36 @@
     display: none !important;
   }
 
+  [data-testid="receipt-workspace"] {
+    display: block;
+  }
+
+  [data-testid="receipt-utility-rail"] {
+    display: none;
+  }
+
+  .receipt-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .receipt-table th {
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .receipt-table th,
+  .receipt-table td {
+    padding: 2px 3px !important;
+  }
+
+  .receipt-table td.text-right {
+    white-space: nowrap;
+  }
+
   .print-border {
     border: 1px solid #000 !important;
     box-shadow: none !important;
