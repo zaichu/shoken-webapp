@@ -358,8 +358,6 @@ pub fn SiteFooter() -> impl IntoView {
 pub enum AlertVariant {
     Warning,
     Danger,
-    Success,
-    Info,
 }
 
 impl AlertVariant {
@@ -367,8 +365,6 @@ impl AlertVariant {
         match self {
             Self::Warning => "border-amber-200 bg-amber-50 text-amber-900",
             Self::Danger => "border-red-200 bg-red-50 text-red-700",
-            Self::Success => "border-teal-200 bg-teal-50 text-teal-800",
-            Self::Info => "border-blue-200 bg-blue-50 text-blue-800",
         }
     }
 }
@@ -415,7 +411,6 @@ pub fn PageHeader(
 pub enum SpinnerSize {
     Sm,
     Lg,
-    Md,
 }
 
 impl SpinnerSize {
@@ -423,7 +418,6 @@ impl SpinnerSize {
         match self {
             Self::Sm => "h-4 w-4",
             Self::Lg => "h-8 w-8",
-            Self::Md => "h-6 w-6",
         }
     }
 }

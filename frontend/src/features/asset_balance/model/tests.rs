@@ -1,9 +1,35 @@
 use super::*;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 const RATE_TOLERANCE: f64 = 1e-9;
+
+/// 欠損値として扱う文字列の集合（比較は小文字化後）。
+const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "undefined"];
+
+/// 任意の値を有限数に正規化する。欠損は `None` を返す。
+/// 数値文字列（カンマ区切り可）は数値として扱う。
+fn to_finite_amount(value: &Value) -> Option<f64> {
+    match value {
+        Value::Null => None,
+        Value::Number(number) => number.as_f64(),
+        Value::String(raw) => {
+            let trimmed = raw.replace(',', "").trim().to_string();
+            if trimmed.is_empty() {
+                return None;
+            }
+            if MISSING_MARKERS.contains(&trimmed.to_lowercase().as_str()) {
+                return None;
+            }
+            match trimmed.parse::<f64>() {
+                Ok(parsed) if parsed.is_finite() => Some(parsed),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
 
 #[derive(Deserialize)]
 struct FixtureDocument {
@@ -621,8 +647,6 @@ proptest::proptest! {
         market in proptest::option::of(-1e15f64..1e15f64),
         purchase in proptest::option::of(-1e15f64..1e15f64),
     ) {
-        let market_json = market.map_or_else(|| json!("-"), |v| json!(v));
-        let purchase_json = purchase.map_or_else(|| json!("-"), |v| json!(v));
         let result = calculate_valuation(market, purchase);
         match (market, purchase) {
             (Some(m), Some(p)) => {

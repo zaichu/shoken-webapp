@@ -1,5 +1,7 @@
 use crate::api::dto::{Dividend, DomesticStock, Mutualfund};
+#[cfg(test)]
 use rust_decimal::Decimal;
+#[cfg(test)]
 use std::collections::BTreeMap;
 
 pub use shared::domain::DividendSummary as DividendTotals;

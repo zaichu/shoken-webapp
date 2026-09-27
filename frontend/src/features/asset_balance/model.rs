@@ -2,35 +2,7 @@
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
-use serde_json::Value;
 use std::collections::HashMap;
-
-/// 欠損値として扱う文字列の集合（比較は小文字化後）。
-const MISSING_MARKERS: &[&str] = &["", "-", "—", "ー", "--", "n/a", "null", "undefined"];
-
-/// 任意の値を有限数に正規化する。欠損は `None` を返す。
-/// 数値文字列（カンマ区切り可）は数値として扱う。
-#[cfg(test)]
-pub fn to_finite_amount(value: &Value) -> Option<f64> {
-    match value {
-        Value::Null => None,
-        Value::Number(number) => number.as_f64(),
-        Value::String(raw) => {
-            let trimmed = raw.replace(',', "").trim().to_string();
-            if trimmed.is_empty() {
-                return None;
-            }
-            if MISSING_MARKERS.contains(&trimmed.to_lowercase().as_str()) {
-                return None;
-            }
-            match trimmed.parse::<f64>() {
-                Ok(parsed) if parsed.is_finite() => Some(parsed),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
 
 fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
     Decimal::from_str_exact(&value.to_string()).ok()
@@ -180,6 +152,7 @@ pub struct ValuationResult {
     pub rate: Option<f64>,
 }
 
+#[cfg(test)]
 pub fn calculate_valuation(
     market_value: Option<f64>,
     purchase_amount: Option<f64>,
