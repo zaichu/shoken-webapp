@@ -10,7 +10,7 @@
 
 ## Frontend
 
-- `frontend/src/dto.rs`: DTO と OpenAPI 契約テスト
-- `frontend/src/dividend_per_share.rs`: 1株配当 API の利用
-- `frontend/src/dividend_info.rs`: 配当の表示
-- `frontend/src/pages/asset_balance.rs`: 保有銘柄画面での利用
+- `frontend/src/api/dto.rs`: DTO と OpenAPI 契約テスト
+- `frontend/src/features/dividend_per_share.rs`: 1株配当 API の利用
+- `frontend/src/features/receipts/dividend_info.rs`: 配当の表示
+- `frontend/src/features/asset_balance/view.rs`: 保有銘柄画面での利用

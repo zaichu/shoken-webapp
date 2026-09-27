@@ -1,0 +1,458 @@
+use super::cards::{
+    card_fields, card_key, card_ordinal, card_row_data, idless_row_ordinals, is_negative_text,
+    is_profit_label, summary_is_profit, summary_labels, CardRowData, MobileCardGroup,
+};
+use super::groups::{table_groups, TableGroup};
+use super::TAB_IDS;
+use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::{ReceiptCell, ReceiptItem, ReceiptsTab};
+use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
+use leptos::ev;
+use leptos::prelude::*;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet, VecDeque};
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
+
+pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
+        ReceiptsTab::Dividend => &[
+            "入金日",
+            "商品",
+            "口座",
+            "銘柄コード",
+            "銘柄名",
+            "単価",
+            "数量",
+            "配当金",
+            "税額",
+            "受取額",
+        ],
+        ReceiptsTab::DomesticStock => &[
+            "約定日",
+            "銘柄コード",
+            "銘柄名",
+            "口座",
+            "数量",
+            "売却単価",
+            "売却額",
+            "取得価額",
+            "損益",
+            "税額",
+            "税引後",
+        ],
+        ReceiptsTab::MutualFund => &[
+            "約定日",
+            "ファンド名",
+            "口座",
+            "数量",
+            "解約単価",
+            "解約額",
+            "取得価額",
+            "実現損益",
+            "税額",
+            "税引損益",
+        ],
+    }
+}
+
+// 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする。空は残り幅を使う列
+pub(crate) fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
+        ReceiptsTab::Dividend => &[
+            "96px", "76px", "76px", "88px", "", "80px", "72px", "104px", "88px", "104px",
+        ],
+        ReceiptsTab::DomesticStock => &[
+            "96px", "88px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
+        ],
+        ReceiptsTab::MutualFund => &[
+            "96px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
+        ],
+    }
+}
+
+// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は xl と 2xl に置く
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub(crate) enum ColumnTier {
+    Core,
+    Wide,
+    Wider,
+}
+
+impl ColumnTier {
+    fn class(self) -> &'static str {
+        match self {
+            ColumnTier::Core => "",
+            ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
+            ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
+        }
+    }
+}
+
+pub(crate) fn table_column_tiers(tab: ReceiptsTab) -> &'static [ColumnTier] {
+    use ColumnTier::{Core, Wide, Wider};
+    match tab {
+        ReceiptsTab::Dividend => &[Core, Wider, Wide, Core, Core, Wide, Wide, Core, Core, Core],
+        ReceiptsTab::DomesticStock => &[
+            Core, Core, Core, Wider, Wider, Wide, Wide, Wider, Core, Core, Core,
+        ],
+        ReceiptsTab::MutualFund => &[Core, Core, Wider, Wider, Wide, Core, Wide, Core, Core, Core],
+    }
+}
+
+// 検索で前に出した列は、狭い画面でも隠さない
+fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -> Vec<ColumnTier> {
+    order
+        .iter()
+        .map(|&column| {
+            if promoted == Some(column) {
+                ColumnTier::Core
+            } else {
+                table_column_tiers(tab)[column]
+            }
+        })
+        .collect()
+}
+
+fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
+    match tab {
+        ReceiptsTab::Dividend => &[
+            "left", "left", "left", "center", "left", "right", "right", "right", "right", "right",
+        ],
+        ReceiptsTab::DomesticStock => &[
+            "left", "center", "left", "left", "right", "right", "right", "right", "right", "right",
+            "right",
+        ],
+        ReceiptsTab::MutualFund => &[
+            "left", "left", "left", "right", "right", "right", "right", "right", "right", "right",
+        ],
+    }
+}
+
+// Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
+// マウント中だけ生存させたいので thread_local で管理する
+type HeaderHeightObserver = (
+    web_sys::ResizeObserver,
+    Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
+);
+thread_local! {
+    static HEADER_HEIGHT_OBSERVERS: RefCell<HashMap<usize, HeaderHeightObserver>> =
+        RefCell::new(HashMap::new());
+    static HEADER_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
+}
+
+fn site_header() -> Option<web_sys::Element> {
+    web_sys::window()?
+        .document()?
+        .query_selector(".site-header")
+        .ok()
+        .flatten()
+}
+
+#[component]
+pub(crate) fn ReceiptTable(
+    tab: ReceiptsTab,
+    rows: Vec<ReceiptItem>,
+    all_rows: Vec<ReceiptItem>,
+    query: String,
+    expanded_ids: RwSignal<HashSet<String>>,
+) -> impl IntoView {
+    let headers: &[&'static str] = table_headers(tab);
+    let groups: Vec<TableGroup> = table_groups(tab, &rows, &all_rows, &query);
+    let order = column_order(tab, &rows, &query);
+    let promoted = promoted_column(tab, &rows, &query);
+    let fields = card_fields(tab);
+    let labels = summary_labels(tab);
+    let slug = TAB_IDS[tab as usize];
+    let mut card_ordinals: HashMap<String, VecDeque<usize>> = idless_row_ordinals(&all_rows);
+    let card_groups: Vec<_> = groups
+        .iter()
+        .enumerate()
+        .map(|(group_index, group)| {
+            let summary: Vec<(&'static str, String)> = labels
+                .iter()
+                .copied()
+                .zip(group.summary.iter().cloned())
+                .collect();
+            let cards: Vec<CardRowData> = group
+                .rows
+                .iter()
+                .map(|(id, raw_key, cells)| {
+                    let ordinal = card_ordinal(&mut card_ordinals, id, raw_key);
+                    card_row_data(
+                        card_key(slug, id, raw_key, ordinal),
+                        cells,
+                        headers,
+                        &order,
+                        fields,
+                    )
+                })
+                .collect();
+            (
+                group_index,
+                group.key.clone(),
+                group.label.clone(),
+                group.rows.len(),
+                summary,
+                cards,
+            )
+        })
+        .collect();
+    let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
+    let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
+    let cell_classes: Vec<String> = order
+        .iter()
+        .zip(displayed_tiers(tab, &order, promoted))
+        .map(|(i, tier)| {
+            let align = match table_column_aligns(tab)[*i] {
+                "center" => "text-center",
+                "right" => "text-right tabular-nums",
+                _ => "text-left",
+            };
+            format!("{align}{}", tier.class())
+        })
+        .collect();
+    let tiers = displayed_tiers(tab, &order, promoted);
+    let group_label_spans: Vec<(&'static str, usize)> = [
+        (" xl:hidden print:hidden", ColumnTier::Core),
+        (
+            " hidden xl:table-cell 2xl:hidden print:hidden",
+            ColumnTier::Wide,
+        ),
+        (" hidden 2xl:table-cell print:table-cell", ColumnTier::Wider),
+    ]
+    .into_iter()
+    .map(|(class, level)| {
+        let visible = tiers.iter().filter(|tier| **tier <= level).count();
+        (class, visible.saturating_sub(labels.len()))
+    })
+    .collect();
+    // サイトのヘッダーも sticky なので、表の見出し行はその直下で止める
+    let header_offset = RwSignal::new(Option::<f64>::None);
+    let measure_header = move || {
+        let height = site_header().map_or(0.0, |header| header.get_bounding_client_rect().height());
+        header_offset.set(Some(height));
+    };
+    let on_window_resize = window_event_listener(ev::resize, move |_| measure_header());
+    let observer_key = site_header().and_then(|header| {
+        let callback = Closure::<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>::new(move |_| {
+            measure_header();
+        });
+        web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref())
+            .ok()
+            .map(|observer| {
+                observer.observe(&header);
+                let key = HEADER_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
+                    let key = next.get();
+                    next.set(key + 1);
+                    key
+                });
+                HEADER_HEIGHT_OBSERVERS.with(|observers| {
+                    observers.borrow_mut().insert(key, (observer, callback));
+                });
+                key
+            })
+    });
+    measure_header();
+    on_cleanup(move || {
+        on_window_resize.remove();
+        if let Some(key) = observer_key {
+            HEADER_HEIGHT_OBSERVERS.with(|observers| {
+                if let Some((observer, _callback)) = observers.borrow_mut().remove(&key) {
+                    observer.disconnect();
+                }
+            });
+        }
+    });
+    view! {
+        <div
+            class="table-card"
+            data-testid="receipt-card"
+        >
+            <div class="p-0" data-testid="receipt-card-body">
+                <div class="hidden sm:block">
+                    <div class="table-frame">
+                        <table class="receipt-table">
+                            <thead
+                                class="sticky z-10 bg-slate-100 text-slate-800 print:static"
+                                style:top=move || {
+                                    header_offset
+                                        .get()
+                                        .map(|height| format!("{height}px"))
+                                        .unwrap_or_default()
+                                }
+                            >
+                                <tr class="bg-slate-50">
+                                    {headers
+                                        .iter()
+                                        .zip(widths.iter())
+                                        .zip(tiers.iter())
+                                        .map(|((header, width), tier)| {
+                                            let width = (!width.is_empty()).then_some(*width);
+                                            view! {
+                                                <th
+                                                    class=format!(
+                                                        "text-center font-black text-slate-800{}",
+                                                        tier.class(),
+                                                    )
+                                                    scope="col"
+                                                    style:width=width
+                                                    style:max-width=width
+                                                >
+                                                    {*header}
+                                                </th>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {groups
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(group_index, group)| {
+                                        let count = group.rows.len();
+                                        let top = if group_index > 0 {
+                                            " border-t-2 border-slate-300"
+                                        } else {
+                                            ""
+                                        };
+                                        view! {
+                                            <tr>
+                                                {group_label_spans
+                                                    .iter()
+                                                    .map(|(class, span)| {
+                                                        view! {
+                                                            <td
+                                                                colspan=*span
+                                                                class=format!(
+                                                                    "whitespace-normal bg-slate-100 text-slate-700 font-semibold border-l-2 border-slate-400{top}{class}"
+                                                                )
+                                                            >
+                                                                <span class="text-sm font-medium">{group.label.clone()}</span>
+                                                                {(count >= 2)
+                                                                    .then(|| {
+                                                                        view! {
+                                                                            <span class="ml-2 text-xs font-medium text-slate-600">
+                                                                                {format!("{count}件")}
+                                                                            </span>
+                                                                        }
+                                                                    })}
+                                                            </td>
+                                                        }
+                                                    })
+                                                    .collect_view()}
+                                                {group
+                                                    .summary
+                                                    .iter()
+                                                    .zip(labels.iter())
+                                                    .map(|(value, label)| {
+                                                        let negative = summary_is_profit(tab, label)
+                                                            && is_negative_text(value);
+                                                        view! {
+                                                            <td
+                                                                class=format!(
+                                                                    "bg-slate-100 text-slate-800 text-right font-semibold{top}"
+                                                                )
+                                                                data-negative=negative.then_some("true")
+                                                            >
+                                                                {value.clone()}
+                                                            </td>
+                                                        }
+                                                    })
+                                                    .collect_view()}
+                                            </tr>
+                                            {group
+                                                .rows
+                                                .iter()
+                                                .map(|(_, _, cells)| {
+                                                    let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
+                                                    view! {
+                                                        <tr>
+                                                            {cells
+                                                                .into_iter()
+                                                                .enumerate()
+                                                                .map(|(col_index, cell)| {
+                                                                    let align = cell_classes[col_index].clone();
+                                                                    match cell {
+                                                                        ReceiptCell::SecurityCode(code) if code.trim().is_empty() => view! {
+                                                                            <td class=align>
+                                                                                <SecurityCodeLink value=code />
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
+                                                                        ReceiptCell::SecurityCode(code) => view! {
+                                                                            <td class=align>
+                                                                                <span class="code-badge py-0">
+                                                                                    <SecurityCodeLink value=code class="font-semibold".to_string() />
+                                                                                </span>
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
+                                                                        ReceiptCell::InstrumentName { name, code } => view! {
+                                                                            <td class=align>
+                                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                                            </td>
+                                                                        }
+                                                                        .into_any(),
+                                                                        ReceiptCell::Text(value) => {
+                                                                            let negative =
+                                                                                is_profit_label(
+                                                                                    table_headers(
+                                                                                        tab,
+                                                                                    )
+                                                                                    [order[col_index]],
+                                                                                ) && is_negative_text(
+                                                                                &value,
+                                                                            );
+                                                                            let title = value.clone();
+                                                                            view! {
+                                                                                <td
+                                                                                    class=align
+                                                                                    title=title
+                                                                                    data-negative=negative.then_some("true")
+                                                                                >
+                                                                                    {value}
+                                                                                </td>
+                                                                            }
+                                                                            .into_any()
+                                                                        }
+                                                                    }
+                                                                })
+                                                                .collect_view()}
+                                                    </tr>
+                                                }
+                                            })
+                                            .collect_view()}
+                                    }
+                                })
+                                .collect_view()}
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+                <div class="sm:hidden" data-testid="receipt-card-list">
+                    <div class="space-y-4">
+                        {card_groups
+                            .into_iter()
+                            .map(|(group_index, key, label, count, summary, cards)| {
+                                view! {
+                                    <MobileCardGroup
+                                        tab=tab
+                                        label=label
+                                        count=count
+                                        summary=summary
+                                        cards=cards
+                                        id_prefix=format!("receipt-{slug}-group-{group_index}")
+                                        expanded_key=format!("{slug}:g:{key}")
+                                        expanded_ids=expanded_ids
+                                    />
+                                }
+                            })
+                            .collect_view()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
