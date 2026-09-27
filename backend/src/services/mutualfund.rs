@@ -1,52 +1,71 @@
 use crate::errors::ApiError;
-use crate::models::common::{
-    BulkCreateResponse, FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
-};
-use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
+use crate::models::csv_import::CsvRowError;
 use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
-use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
-use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::import::{validate_csv_rows, CsvImport};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_string, CsvCells, RowNumber,
+    parse_required_string, CsvCells, CsvRowView, RowNumber,
 };
 use crate::services::domain::bulk::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
+    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
+    push_search_filters, tokens_from_query, DateAxisFilter,
 };
+use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::tax::compute_taxes;
 use shared::value::UserId;
+use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracing::info;
+
+/// 投資信託ドメイン
+pub struct MutualfundDomain;
+
+impl Domain for MutualfundDomain {
+    const NAME: &'static str = "mutualfund";
+    const TABLE: &'static str = "mutualfunds";
+    const WRITE_MODE: WriteMode = WriteMode::Append;
+
+    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
+        sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
+            .execute(pool)
+            .await
+    }
+}
+
+impl CsvImport for MutualfundDomain {
+    type Row = CreateMutualfundRequest;
+    const CSV_CONFIG: CsvParserConfig = MUTUALFUND_CSV_CONFIG;
+
+    fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+        transform_mutualfund_rows(table)
+    }
+
+    async fn bulk_create(
+        pool: &PgPool,
+        user_id: UserId,
+        items: &[Self::Row],
+        limit: RowLimit,
+    ) -> Result<BulkCreateResponse, ApiError> {
+        bulk_create(pool, user_id, items, limit).await
+    }
+}
 
 const MUTUALFUND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
     skip_header_rows: 0,
     exclude_row_fn: None,
-    required_columns: &[
-        "約定日",
-        "受渡日",
-        "ファンド名",
-        "分配金",
-        "口座",
-        "数量[口]",
-        "為替レート［円］",
-        "解約単価［円］",
-        "解約額［円］",
-        "平均取得価額［円］",
-        "実現損益［円］",
-    ],
 };
 
 /// 投資信託検索条件を SQL 条件へ変換した中間表現
 #[derive(Debug)]
-struct MutualfundFilter {
+pub struct MutualfundFilter {
     date_axis: DateAxisFilter,
     tokens: Vec<String>,
     account: Option<String>,
@@ -54,128 +73,106 @@ struct MutualfundFilter {
     dividends: Option<String>,
 }
 
-impl MutualfundFilter {
-    fn from_params(params: &MutualfundSearchQueryParams) -> Result<Self, ApiError> {
-        let search = &params.search;
-        let date_axis = DateAxisFilter::from_search_params(search)?;
-        let tokens = tokens_from_query(search.q.as_deref());
+impl TryFrom<MutualfundSearchQueryParams> for MutualfundFilter {
+    type Error = ApiError;
+
+    fn try_from(params: MutualfundSearchQueryParams) -> Result<Self, ApiError> {
+        let date_axis = DateAxisFilter::from_search_params(&params.search)?;
+        let tokens = tokens_from_query(params.search.q.as_deref());
 
         Ok(Self {
             date_axis,
             tokens,
-            account: params.account.clone(),
-            fund_name: params.fund_name.clone(),
-            dividends: params.dividends.clone(),
+            account: params.account,
+            fund_name: params.fund_name,
+            dividends: params.dividends,
         })
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &MutualfundFilter) {
-    push_search_filters(
-        qb,
-        user_id,
-        Some(("trade_date", &filter.date_axis)),
-        &[
-            ("account", &filter.account),
-            ("fund_name", &filter.fund_name),
-            ("dividends", &filter.dividends),
-        ],
-        &filter.tokens,
-        &["account", "fund_name", "dividends"],
-    );
-}
+impl Search for MutualfundDomain {
+    type Data = Mutualfund;
+    type Params = MutualfundSearchQueryParams;
+    type Filter = MutualfundFilter;
+    type Summary = MutualfundSummary;
 
-pub async fn search(
-    pool: &PgPool,
-    user_id: UserId,
-    params: &MutualfundSearchQueryParams,
-) -> Result<PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>, ApiError> {
-    info!("[mutualfund.search] リクエスト受信");
-    let filter = MutualfundFilter::from_params(params)?;
+    const COLUMNS: &'static str =
+        "id, user_id, trade_date, settlement_date, fund_name, dividends, \
+        account, shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+        average_acquisition_price_yen, realized_profit_and_loss, taxes, \
+        realized_profit_and_loss_after_tax, created_at, updated_at";
+    const ORDER_BY: &'static str = " ORDER BY trade_date DESC, id DESC";
 
-    let summary_fut = fetch_if_included(
-        params.should_include_summary(),
-        fetch_summary(pool, user_id, &filter),
-    );
+    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &MutualfundFilter) {
+        push_search_filters(
+            qb,
+            user_id,
+            Some(("trade_date", &filter.date_axis)),
+            &[
+                ("account", &filter.account),
+                ("fund_name", &filter.fund_name),
+                ("dividends", &filter.dividends),
+            ],
+            &filter.tokens,
+            &["account", "fund_name", "dividends"],
+        );
+    }
 
-    let facets_fut = fetch_if_included(
-        params.should_include_facets(),
-        fetch_facets(pool, user_id, &filter),
-    );
+    /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
+    async fn fetch_summary(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &MutualfundFilter,
+    ) -> Result<MutualfundSummary, ApiError> {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+            "SELECT COALESCE(SUM(realized_profit_and_loss), 0) AS total_realized_profit_and_loss, \
+             COALESCE(SUM(taxes), 0) AS total_taxes, \
+             COALESCE(SUM(realized_profit_and_loss_after_tax), 0) AS total_realized_profit_and_loss_after_tax \
+             FROM mutualfunds",
+        );
+        Self::push_filters(&mut qb, user_id, filter);
+        Ok(qb
+            .build_query_as::<MutualfundSummary>()
+            .fetch_one(pool)
+            .await?)
+    }
 
-    run_paginated_search(
-        pool,
-        "SELECT COUNT(*) FROM mutualfunds",
-        "SELECT id, user_id, trade_date, settlement_date, fund_name, dividends, account, \
-         shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
-         average_acquisition_price_yen, realized_profit_and_loss, taxes, \
-         realized_profit_and_loss_after_tax, created_at, updated_at \
-         FROM mutualfunds",
-        " ORDER BY trade_date DESC, id DESC",
-        |qb| push_filters(qb, user_id, &filter),
-        params.page(),
-        params.per_page(),
-        params.offset(),
-        summary_fut,
-        facets_fut,
-    )
-    .await
-}
+    async fn fetch_facets(
+        pool: &PgPool,
+        user_id: UserId,
+        filter: &MutualfundFilter,
+    ) -> Result<SearchFacets, ApiError> {
+        let accounts_fut =
+            fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
+        let funds_fut =
+            fetch_group_facets(pool, user_id, filter, GroupField::FundName, FacetOrder::Asc);
+        let years_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::TradeDateYear,
+            FacetOrder::Desc,
+        );
+        let year_months_fut = fetch_group_facets(
+            pool,
+            user_id,
+            filter,
+            GroupField::TradeDateYearMonth,
+            FacetOrder::Desc,
+        );
 
-/// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
-async fn fetch_summary(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &MutualfundFilter,
-) -> Result<MutualfundSummary, ApiError> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT COALESCE(SUM(realized_profit_and_loss), 0) AS total_realized_profit_and_loss, \
-         COALESCE(SUM(taxes), 0) AS total_taxes, \
-         COALESCE(SUM(realized_profit_and_loss_after_tax), 0) AS total_realized_profit_and_loss_after_tax \
-         FROM mutualfunds",
-    );
-    push_filters(&mut qb, user_id, filter);
-    Ok(qb
-        .build_query_as::<MutualfundSummary>()
-        .fetch_one(pool)
-        .await?)
-}
+        let (accounts, funds, years, year_months) =
+            tokio::try_join!(accounts_fut, funds_fut, years_fut, year_months_fut)?;
 
-async fn fetch_facets(
-    pool: &PgPool,
-    user_id: UserId,
-    filter: &MutualfundFilter,
-) -> Result<SearchFacets, ApiError> {
-    let accounts_fut =
-        fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
-    let funds_fut =
-        fetch_group_facets(pool, user_id, filter, GroupField::FundName, FacetOrder::Asc);
-    let years_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::TradeDateYear,
-        FacetOrder::Desc,
-    );
-    let year_months_fut = fetch_group_facets(
-        pool,
-        user_id,
-        filter,
-        GroupField::TradeDateYearMonth,
-        FacetOrder::Desc,
-    );
-
-    let (accounts, funds, years, year_months) =
-        tokio::try_join!(accounts_fut, funds_fut, years_fut, year_months_fut)?;
-
-    Ok(SearchFacets {
-        products: None,
-        accounts: Some(accounts),
-        securities: None,
-        funds: Some(funds),
-        years: Some(years),
-        year_months: Some(year_months),
-    })
+        Ok(SearchFacets {
+            products: None,
+            accounts: Some(accounts),
+            securities: None,
+            funds: Some(funds),
+            years: Some(years),
+            year_months: Some(year_months),
+        })
+    }
 }
 
 async fn fetch_group_facets(
@@ -187,10 +184,10 @@ async fn fetch_group_facets(
 ) -> Result<Vec<FacetOption>, ApiError> {
     facets::fetch_group_facets(
         pool,
-        "mutualfunds",
+        MutualfundDomain::TABLE,
         group_field.as_sql_expr(),
         order,
-        |qb| push_filters(qb, user_id, filter),
+        |qb| MutualfundDomain::push_filters(qb, user_id, filter),
     )
     .await
 }
@@ -202,7 +199,7 @@ pub async fn bulk_create(
     items: &[CreateMutualfundRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard("mutualfund", items) {
+    let timer = match BulkTimer::new_with_guard(MutualfundDomain::NAME, items) {
         Ok(t) => t,
         Err(empty) => return Ok(empty),
     };
@@ -235,20 +232,10 @@ pub async fn bulk_create(
 
     let mut tx = pool.begin().await?;
 
-    // ユーザー単位のadvisory lockで並行bulk_createを直列化(行数上限の同時突破を防止)
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(format!("{user_id}:mutualfunds"))
-        .execute(&mut *tx)
-        .await?;
+    lock_user_domain::<MutualfundDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with(
-        &mut *tx,
-        user_id,
-        UserDataDomain::MutualFunds,
-        items.len(),
-        limit,
-    )
-    .await?;
+    ensure_user_row_limit_with::<MutualfundDomain, _>(&mut *tx, user_id, items.len(), limit)
+        .await?;
 
     let result = sqlx::query(
         r#"
@@ -286,32 +273,12 @@ pub async fn bulk_create(
     timer.finish_from_result(&result)
 }
 
-/// CSV バイト列から投資信託をパースしてプレビュー情報を返す（DB 書き込みなし）
-pub fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-    build_csv_preview(bytes, &MUTUALFUND_CSV_CONFIG, transform_mutualfund_rows)
-}
-
-pub async fn upload_csv(
-    pool: &PgPool,
-    user_id: UserId,
-    bytes: &[u8],
-    user_row_limit: RowLimit,
-) -> Result<CsvUploadResponse, ApiError> {
-    run_csv_upload(
-        bytes,
-        &MUTUALFUND_CSV_CONFIG,
-        transform_mutualfund_rows,
-        |items| async move { bulk_create(pool, user_id, &items, user_row_limit).await },
-    )
-    .await
-}
-
-fn transform_mutualfund_rows(rows: &[CsvRow]) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(rows, transform_mutualfund_row)
+fn transform_mutualfund_rows(table: &CsvTable) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
+    validate_csv_rows(table, transform_mutualfund_row)
 }
 
 fn transform_mutualfund_row(
-    row: &CsvRow,
+    row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
     let trade_date = parse_required_date(row, "約定日", row_num)?;
@@ -347,29 +314,28 @@ fn transform_mutualfund_row(
     })
 }
 
-pub async fn delete_all(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
-    delete_all_for_user(pool, user_id, DeleteTarget::MutualFunds).await
-}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::common::SearchParamsAccessor;
+    use crate::services::csv::import::CsvDomain;
     use chrono::NaiveDate;
     #[test]
     fn test_preview_csv_basic() {
         let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"");
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+        let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (
                 preview.total_rows,
                 preview.valid_rows,
                 preview.rows.len(),
                 preview.errors.is_empty(),
-                matches!(preview_csv(b""), Err(ApiError::Csv(_)))
+                matches!(MutualfundDomain::preview_csv(b""), Err(ApiError::Csv(_)))
             ),
             (1, 1, 1, true, true)
         );
         let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"");
-        let preview = preview_csv(csv.as_bytes()).unwrap();
+        let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (preview.valid_rows, preview.rows[0]["dividends"].is_null()),
             (1, true)
@@ -395,7 +361,7 @@ mod tests {
         params.search.year_month = Some("2026-06".to_string());
 
         let filter =
-            MutualfundFilter::from_params(&params).expect("正しい日付フォーマットは検証を通過する");
+            MutualfundFilter::try_from(params).expect("正しい日付フォーマットは検証を通過する");
 
         assert_eq!(
             filter.date_axis.date_eq,
@@ -442,7 +408,7 @@ mod tests {
         for (field, apply) in cases {
             let mut params = MutualfundSearchQueryParams::default();
             apply(&mut params);
-            let err = MutualfundFilter::from_params(&params)
+            let err = MutualfundFilter::try_from(params)
                 .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
             assert!(
                 matches!(err, ApiError::Validation(_)),
@@ -455,10 +421,10 @@ mod tests {
     fn test_push_filters_combines_q_tokens_and_domain_fields() {
         let mut params = MutualfundSearchQueryParams::default();
         params.search.q = Some("AA BB".to_string());
-        let filter = MutualfundFilter::from_params(&params).expect("q のみなら検証を通過する");
+        let filter = MutualfundFilter::try_from(params).expect("q のみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
-        push_filters(&mut qb, UserId::default(), &filter);
+        MutualfundDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 
@@ -474,11 +440,10 @@ mod tests {
             dividends: Some("再投資型".to_string()),
             ..Default::default()
         };
-        let filter =
-            MutualfundFilter::from_params(&params).expect("フィルタのみなら検証を通過する");
+        let filter = MutualfundFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
-        push_filters(&mut qb, UserId::default(), &filter);
+        MutualfundDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
         let sql = sql.as_str();
 

@@ -2,8 +2,9 @@ use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
-use crate::services::csv::domain::CsvDomain;
-use crate::services::domain::bulk::RowLimit;
+use crate::services::csv::import::CsvDomain;
+use crate::services::domain::bulk::{self, RowLimit};
+use crate::services::domain::Domain;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
 use shared::value::UserId;
 
@@ -59,13 +60,14 @@ pub async fn handle_upload_csv<D: CsvDomain>(
 /// 全削除の定型処理（削除実行 + 完了メッセージ）
 ///
 /// 各ドメインの `delete_all` ハンドラーから
-/// `handle_delete_all(service::delete_all(&state.pool, auth_user.id()), "メッセージ").await`
-/// のように呼ぶ。戻り値を具体型にすることで、呼び出し元の借用が戻り値に漏れ出さないようにする。
-pub async fn handle_delete_all(
-    delete: impl std::future::Future<Output = Result<u64, ApiError>>,
+/// `handle_delete_all::<DividendDomain>(&state.pool, auth_user.id(), "メッセージ").await`
+/// のように呼ぶ。
+pub async fn handle_delete_all<D: Domain>(
+    pool: &sqlx::PgPool,
+    user_id: UserId,
     message: &str,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
-    delete.await?;
+    bulk::delete_all::<D>(pool, user_id).await?;
     Ok(ok_message(message))
 }
 
