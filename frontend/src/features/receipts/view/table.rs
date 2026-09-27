@@ -191,7 +191,7 @@ pub(crate) fn ReceiptTable(
                     <div class="table-frame">
                         <table class="receipt-table">
                             <thead
-                                class="sticky z-10 bg-slate-100 text-slate-800 print:static"
+                                class="sticky z-10 bg-surface-raised text-text print:static"
                                 style:top=move || {
                                     header_offset
                                         .get()
@@ -199,7 +199,7 @@ pub(crate) fn ReceiptTable(
                                         .unwrap_or_default()
                                 }
                             >
-                                <tr class="bg-slate-50">
+                                <tr class="bg-surface-sunken">
                                     {headers
                                         .iter()
                                         .zip(widths.iter())
@@ -209,7 +209,7 @@ pub(crate) fn ReceiptTable(
                                             view! {
                                                 <th
                                                     class=format!(
-                                                        "text-center font-black text-slate-800{}",
+                                                        "text-center font-black text-text{}",
                                                         tier.class(),
                                                     )
                                                     scope="col"
@@ -230,7 +230,7 @@ pub(crate) fn ReceiptTable(
                                     .map(|(group_index, group)| {
                                         let count = group.rows.len();
                                         let top = if group_index > 0 {
-                                            " border-t-2 border-slate-300"
+                                            " border-t-2 border-border-strong"
                                         } else {
                                             ""
                                         };
@@ -243,14 +243,14 @@ pub(crate) fn ReceiptTable(
                                                             <td
                                                                 colspan=*span
                                                                 class=format!(
-                                                                    "whitespace-normal bg-slate-100 text-slate-700 font-semibold border-l-2 border-slate-400{top}{class}"
+                                                                    "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-2 border-border-xstrong{top}{class}"
                                                                 )
                                                             >
                                                                 <span class="text-sm font-medium">{group.label.clone()}</span>
                                                                 {(count >= 2)
                                                                     .then(|| {
                                                                         view! {
-                                                                            <span class="ml-2 text-xs font-medium text-slate-600">
+                                                                            <span class="ml-2 text-xs font-medium text-text-muted">
                                                                                 {format!("{count}件")}
                                                                             </span>
                                                                         }
@@ -269,7 +269,7 @@ pub(crate) fn ReceiptTable(
                                                         view! {
                                                             <td
                                                                 class=format!(
-                                                                    "bg-slate-100 text-slate-800 text-right font-semibold{top}"
+                                                                    "bg-surface-raised text-text text-right font-semibold{top}"
                                                                 )
                                                                 data-negative=negative.then_some("true")
                                                             >

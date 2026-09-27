@@ -17,28 +17,28 @@ const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
         "検索",
         Some("/search"),
         "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-        "h-5 w-5 text-slate-950",
+        "h-5 w-5 text-ink",
     ),
     (
         "資産管理",
         "一覧確認",
         Some("/assetbalance"),
         "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-        "h-5 w-5 text-slate-950",
+        "h-5 w-5 text-ink",
     ),
     (
         "取引明細",
         "明細確認",
         Some("/receipts"),
         "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        "h-5 w-5 text-slate-950",
+        "h-5 w-5 text-ink",
     ),
     (
         "CSV取込",
         "CSV反映",
         None,
         "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
-        "h-5 w-5 text-slate-500",
+        "h-5 w-5 text-text-subtle",
     ),
 ];
 
@@ -53,13 +53,13 @@ pub fn HomePage() -> impl IntoView {
     view! {
         <div class="page-surface space-y-7">
             <div>
-                <p class="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-amber-700">
+                <p class="mb-2 text-eyebrow font-black uppercase tracking-display text-accent-deep">
                     "Portfolio Desk"
                 </p>
-                <h1 class="text-3xl font-black leading-tight tracking-normal text-slate-950 sm:text-4xl">
+                <h1 class="text-3xl font-black leading-tight tracking-normal text-ink sm:text-4xl">
                     "証券Web"
                 </h1>
-                <p class="mt-2 max-w-2xl text-sm font-medium text-slate-600">
+                <p class="mt-2 max-w-2xl text-sm font-medium text-text-muted">
                     "資産、配当、取引明細をひとつの作業面で確認します。"
                 </p>
             </div>
@@ -72,7 +72,7 @@ pub fn HomePage() -> impl IntoView {
                     .map(|(label, sub, to, icon_d, icon_class)| {
                         let inner = view! {
                             <div class="flex items-start justify-between gap-3">
-                                <span class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-950/10 bg-white shadow-sm">
+                                <span class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-ink/10 bg-surface shadow-sm">
                                     <svg
                                         class={*icon_class}
                                         fill="none"
@@ -89,11 +89,11 @@ pub fn HomePage() -> impl IntoView {
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                <span class="text-eyebrow font-black uppercase tracking-caption text-text-subtle">
                                     {*sub}
                                 </span>
                             </div>
-                            <p class="mt-4 text-base font-black text-slate-950">{*label}</p>
+                            <p class="mt-4 text-base font-black text-ink">{*label}</p>
                         };
                         match to {
                             Some(to) => {
@@ -109,9 +109,9 @@ pub fn HomePage() -> impl IntoView {
                             }
                             None => {
                                 view! {
-                                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-100/70 px-4 py-4">
+                                    <div class="rounded-xl border border-dashed border-border-strong bg-surface-raised/70 px-4 py-4">
                                         {inner}
-                                        <p class="mt-2 text-xs font-medium text-slate-500">"各ページから取込可能"</p>
+                                        <p class="mt-2 text-xs font-medium text-text-subtle">"各ページから取込可能"</p>
                                     </div>
                                 }
                                     .into_any()
@@ -121,18 +121,18 @@ pub fn HomePage() -> impl IntoView {
                     .collect_view()}
             </div>
 
-            <section class="border-t border-slate-950/10 pt-5">
-                <h2 class="text-sm font-black text-slate-950">"データ確認フロー"</h2>
+            <section class="border-t border-ink/10 pt-5">
+                <h2 class="text-sm font-black text-ink">"データ確認フロー"</h2>
                 <div class="mt-3 grid gap-2 sm:grid-cols-3">
                     {FLOW_STEPS
                         .iter()
                         .map(|(step, text)| {
                             view! {
-                                <div class="rounded-lg border border-slate-950/10 bg-white/75 px-3 py-3">
-                                    <span class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">
+                                <div class="rounded-lg border border-ink/10 bg-surface/75 px-3 py-3">
+                                    <span class="text-eyebrow font-black uppercase tracking-caption text-accent-deep">
                                         {*step}
                                     </span>
-                                    <p class="mt-1 text-sm font-bold text-slate-800">{*text}</p>
+                                    <p class="mt-1 text-sm font-bold text-text">{*text}</p>
                                 </div>
                             }
                         })
@@ -240,7 +240,7 @@ fn HomeOverview() -> impl IntoView {
                     let (asset, dividend) = snapshot();
                     view! { <OverviewTiles asset=asset dividend=dividend /> }
                 }}
-                <p class="text-xs font-medium text-slate-600" role="status" aria-live="polite">
+                <p class="text-xs font-medium text-text-muted" role="status" aria-live="polite">
                     {move || {
                         let (asset, dividend) = snapshot();
                         matches!((asset, dividend), (Some(None), _) | (_, Some(None)))
@@ -309,17 +309,17 @@ fn OverviewTile(
     label: &'static str,
     value: Option<String>,
     busy: bool,
-    #[prop(default = "text-slate-950")] value_class: &'static str,
+    #[prop(default = "text-ink")] value_class: &'static str,
     #[prop(default = None)] negative: Option<&'static str>,
     #[prop(default = None)] note: Option<String>,
 ) -> impl IntoView {
     view! {
-        <div class="rounded-xl border border-slate-950/10 bg-white px-4 py-4 shadow-sm">
-            <p class="text-sm font-medium text-slate-600">{label}</p>
+        <div class="rounded-xl border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+            <p class="text-sm font-medium text-text-muted">{label}</p>
             {if busy {
                 view! {
                     <div
-                        class="mt-2 h-7 w-32 animate-pulse rounded bg-slate-200"
+                        class="mt-2 h-7 w-32 animate-pulse rounded bg-fill"
                         aria-hidden="true"
                     ></div>
                 }

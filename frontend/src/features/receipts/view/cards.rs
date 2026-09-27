@@ -263,12 +263,12 @@ fn ReceiptItemCard(
     } = card;
     let aria_label = format!("{name} {amount}");
     let amount_class = if amount_negative {
-        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-red-700"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-negative-vivid"
     } else {
-        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-slate-950"
+        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-ink"
     };
     view! {
-        <div data-testid="receipt-card" class="rounded-lg border border-slate-300 bg-white">
+        <div data-testid="receipt-card" class="rounded-lg border border-border-strong bg-surface">
             <button
                 id=button_id.clone()
                 type="button"
@@ -285,13 +285,13 @@ fn ReceiptItemCard(
                 class="receipt-card-trigger"
             >
                 <span class="flex w-full items-baseline gap-2">
-                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-slate-950">
+                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-ink">
                         {name}
                     </span>
                     <span class=amount_class>{amount}</span>
                 </span>
                 <span
-                    class="flex w-full items-center gap-2 text-xs text-slate-600"
+                    class="flex w-full items-center gap-2 text-xs text-text-muted"
                     aria-hidden="true"
                 >
                     <span class="shrink-0">{date}</span>
@@ -323,7 +323,7 @@ fn ReceiptItemCard(
                 role="region"
                 aria-labelledby=button_id
                 hidden=move || !expanded.get()
-                class="border-t border-slate-300 px-3 py-2"
+                class="border-t border-border-strong px-3 py-2"
             >
                 {move || {
                     expanded
@@ -339,14 +339,14 @@ fn ReceiptItemCard(
                                                 CardDetailValue::Text { negative: true, .. }
                                             );
                                             let value_class = if negative {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative-vivid"
                                             } else {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
+                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-text"
                                             };
                                             let (content, title) = card_detail_view(&detail.value);
                                             view! {
-                                                <div class="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
-                                                    <dt class="shrink-0 pt-0.5 text-xs text-slate-600">
+                                                <div class="flex items-start justify-between gap-3 border-b border-border-faint py-1.5 last:border-b-0">
+                                                    <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
                                                         {detail.label.clone()}
                                                     </dt>
                                                     <dd class=value_class title=title>
@@ -401,12 +401,12 @@ pub(crate) fn MobileCardGroup(
     if summary.is_empty() {
         return view! {
             <section data-testid="receipt-card-group">
-                <div class="flex min-h-[44px] items-center rounded-lg bg-slate-100 px-3 py-2">
-                    <span class="text-sm font-semibold text-slate-700">{label}</span>
+                <div class="flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2">
+                    <span class="text-sm font-semibold text-text-soft">{label}</span>
                     {(count >= 2)
                         .then(|| {
                             view! {
-                                <span class="ml-2 text-xs font-medium text-slate-600">
+                                <span class="ml-2 text-xs font-medium text-text-muted">
                                     {format!("{count}件")}
                                 </span>
                             }
@@ -421,14 +421,14 @@ pub(crate) fn MobileCardGroup(
     let primary_negative =
         summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
     let primary_value_class = if primary_negative {
-        "text-sm font-semibold tabular-nums text-red-700"
+        "text-sm font-semibold tabular-nums text-negative-vivid"
     } else {
-        "text-sm font-semibold tabular-nums text-slate-800"
+        "text-sm font-semibold tabular-nums text-text"
     };
     let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
     view! {
         <section data-testid="receipt-card-group">
-            <div class="overflow-hidden rounded-lg border border-slate-200">
+            <div class="overflow-hidden rounded-lg border border-border-subtle">
                 <button
                     id=button_id.clone()
                     type="button"
@@ -444,12 +444,12 @@ pub(crate) fn MobileCardGroup(
                     }
                     class="group-card-trigger"
                 >
-                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700">
+                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
                         {label}
                         {(count >= 2)
                             .then(|| {
                                 view! {
-                                    <span class="ml-2 text-xs font-medium text-slate-600">
+                                    <span class="ml-2 text-xs font-medium text-text-muted">
                                         {format!("{count}件")}
                                     </span>
                                 }
@@ -459,16 +459,16 @@ pub(crate) fn MobileCardGroup(
                         class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"
                         aria-hidden="true"
                     >
-                        <span class="text-xs text-slate-600">{primary_label}</span>
+                        <span class="text-xs text-text-muted">{primary_label}</span>
                         <span class=primary_value_class>
                             {primary_value}
                         </span>
                         <svg
                             class=move || {
                                 if expanded.get() {
-                                    "h-4 w-4 shrink-0 self-center text-slate-600 rotate-180"
+                                    "h-4 w-4 shrink-0 self-center text-text-muted rotate-180"
                                 } else {
-                                    "h-4 w-4 shrink-0 self-center text-slate-600"
+                                    "h-4 w-4 shrink-0 self-center text-text-muted"
                                 }
                             }
                             viewBox="0 0 24 24"
@@ -490,7 +490,7 @@ pub(crate) fn MobileCardGroup(
                     role="region"
                     aria-labelledby=button_id
                     hidden=move || !expanded.get()
-                    class="border-t border-slate-200 bg-white px-3 py-1"
+                    class="border-t border-border-subtle bg-surface px-3 py-1"
                 >
                     {move || {
                         expanded
@@ -504,13 +504,13 @@ pub(crate) fn MobileCardGroup(
                                                 let negative = summary_is_profit(tab, label)
                                                     && is_negative_text(value);
                                                 let value_class = if negative {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-red-700"
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative"
                                                 } else {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-slate-800"
+                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-text"
                                                 };
                                                 view! {
-                                                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-b-0">
-                                                        <dt class="shrink-0 pt-0.5 text-xs text-slate-600">
+                                                    <div class="flex items-start justify-between gap-3 border-b border-border-faint py-1.5 last:border-b-0">
+                                                        <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
                                                             {*label}
                                                         </dt>
                                                         <dd

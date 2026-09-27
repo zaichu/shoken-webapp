@@ -19,14 +19,14 @@ pub(crate) fn AssetBalanceSearchCard(
                 <div class="grid grid-cols-1 gap-3">
                     <div>
                         <label
-                            class="mb-1 block text-sm font-bold text-slate-800"
+                            class="mb-1 block text-sm font-bold text-text"
                             for="securities-search"
                         >
                             "銘柄"
                         </label>
                         <select
                             id="securities-search"
-                            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
+                            class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
                             prop:value=move || query.get()
                             on:change=move |event| query.set(event_target_value(&event))
                         >

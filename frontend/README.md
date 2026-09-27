@@ -59,7 +59,7 @@ src/
 
 `e2e/migrated/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・CSV プレビュー・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
 
-- タップ領域: PC 幅は 24px 以上、スマホの操作要素は 44px 以上(`max-sm:min-h-[44px]`)
+- タップ領域: PC 幅は 24px 以上、スマホの操作要素は 44px 以上(`max-sm:min-h-11`)
 - 主要な操作は Tab だけで到達でき、Enter/Space で操作できること(`.focus()` での到達は検証にならない)
 - フォーカスは見えること。ファイル選択は入力(`sr-only`)を表示ラベル内に入れ、ラベルの `focus-within` で枠を出す
 - `aria-*` の真偽値は `"true"`/`"false"` 文字列で出す(bool のまま置かない)
@@ -73,10 +73,18 @@ src/
 
 `style/input.css` を Trunk の pre_build フックで `style/output.css` に生成し、`index.html` から読み込みます。生成物は Git 管理外です。
 
+### 色・値はトークンとコンポーネントで再利用する
+
+- 色・影・角丸・幅は `style/input.css` の `@theme` に意味で名前を付けたトークンで使う: 面 `surface`・文字 `text`・プラス `positive`/`gain`・マイナス `negative`・アクセント `accent`・リンク `info`、影 `shadow-elevation-1..3`、角丸 `rounded-panel`/`rounded-note`/`rounded-field` など
+- 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と白・黒の直書き(`bg-white`・`text-black` など)、任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.receipts-tab-list`・`.security-code-link` など)を使う
+- `@apply` は `@layer base` と、コンポーネント化できない最小限にとどめる
+- 1つのクラス内で同じプロパティを二度指定しない(打ち消し合う指定は効いている方だけ残す)
+- `bash scripts/check-css-tokens.sh` が違反を検出し、CI(`frontend.yml`)でも実行する。やむを得ない例外はスクリプトの許可リスト(`ALLOWED_SRC`・`ALLOWED_CSS`)に理由付きで列挙する
+
 ## デザインの決まり
 
 - 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
-- 色はマイナスの損益のみ `text-red-700`(暗背景は `red-300`)。税額・配当・利回りは色なし
+- 色はマイナスの損益と危険な操作のみ赤系。`data-negative="true"` を付ける値と削除系 UI は `text-negative`(`#b91c1c`)、属性を持たず赤字だけにする箇所(明細の金額・集計値など)は `text-negative-vivid`(Tailwind の赤パレット相当)。税額・配当・利回りは色なし
 - 書式は `shared::format` に集約。`features/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと、Decimal に収まらない金額・率の表示のみ
 - 税引後の見出しは、配当が集計 `配当金(税引)`・月の見出し `税引後`・列 `受取額`、国内株式が `実現損益(税引)`・`税引後`、投資信託が `実現損益(税引)`・`税引損益`
 

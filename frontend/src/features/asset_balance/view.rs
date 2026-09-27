@@ -108,7 +108,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             }
         >
             <div
-                class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
+                class="workspace-grid gap-4 xl:gap-5"
                 data-testid="assetbalance-workspace"
             >
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、見た目は order で main 先にする
@@ -123,7 +123,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     view! {
                                         <div class="px-5 py-4">
                                             <div
-                                                class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
                                                 role="alert"
                                                 aria-live="assertive"
                                             >

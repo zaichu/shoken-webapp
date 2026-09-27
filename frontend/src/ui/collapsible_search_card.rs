@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-const BUTTON_BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print";
+const BUTTON_BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print";
 
 const FUNNEL_ICON_PATH: &str = "M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z";
 const CHEVRON_ICON_PATH: &str = "M19 9l-7 7-7-7";
@@ -38,7 +38,7 @@ pub fn CollapsibleSearchCard(
             <div class="flex items-center justify-between gap-2">
                 <button
                     type="button"
-                    class="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-[44px]"
+                    class="flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11"
                     on:click=move |_| toggle()
                     aria-expanded=move || if expanded.get() { "true" } else { "false" }
                     aria-controls="search-options-body"
@@ -53,7 +53,7 @@ pub fn CollapsibleSearchCard(
                     }
                     data-testid="search-card-header"
                 >
-                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
+                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink text-text-inverse">
                         <svg
                             class="h-4 w-4"
                             fill="none"
@@ -70,10 +70,10 @@ pub fn CollapsibleSearchCard(
                         </svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        <p class="text-micro font-black uppercase tracking-caption text-text-subtle">
                             "Filter"
                         </p>
-                        <h5 class="whitespace-nowrap text-sm font-black text-slate-950">
+                        <h5 class="whitespace-nowrap text-sm font-black text-ink">
                             "検索オプション"
                         </h5>
                         {move || {
@@ -92,7 +92,7 @@ pub fn CollapsibleSearchCard(
                         type="button"
                         class=move || {
                             format!(
-                                "{BUTTON_BASE} border border-slate-300 text-slate-700 hover:border-slate-500 hover:bg-slate-50 whitespace-nowrap bg-white px-2 py-1 text-xs transition-opacity max-sm:min-h-[44px]{}",
+                                "{BUTTON_BASE} border border-border-strong text-text-soft hover:border-border-bold hover:bg-surface-sunken whitespace-nowrap bg-surface px-2 py-1 text-xs transition-opacity max-sm:min-h-11{}",
                                 if is_default_state.get() {
                                     " opacity-0 pointer-events-none"
                                 } else {
@@ -116,7 +116,7 @@ pub fn CollapsibleSearchCard(
                     </button>
                     <button
                         type="button"
-                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 max-sm:h-11 max-sm:w-11"
+                        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
                         on:click=move |_| toggle()
                         aria-hidden="true"
                         tabindex="-1"
@@ -125,7 +125,7 @@ pub fn CollapsibleSearchCard(
                         <svg
                             class=move || {
                                 format!(
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200{}",
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200{}",
                                     if expanded.get() { " rotate-180" } else { "" },
                                 )
                             }

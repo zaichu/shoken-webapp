@@ -72,15 +72,15 @@ pub(crate) fn ReceiptsMainContent(
             if display.is_empty() {
                 return view! {
                     <div
-                        class="overflow-hidden rounded-xl border border-slate-950/10 bg-white/95 shadow-[0_16px_44px_-36px_rgba(15,23,42,0.9)]"
+                        class="overflow-hidden rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2"
                         data-testid="receipt-card"
                     >
                         <div class="p-0" data-testid="receipt-card-body">
                             <div class="empty-state">
-                                <h3 class="text-base font-black text-slate-950">
+                                <h3 class="text-base font-black text-ink">
                                     "データがありません"
                                 </h3>
-                                <p class="mt-1.5 max-w-md text-sm font-medium text-slate-600">
+                                <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
                                     {tab.empty_hint()}
                                 </p>
                             </div>
@@ -148,7 +148,7 @@ fn PreviewBanner() -> impl IntoView {
         // 読み上げは既存のプレビュー通知(role="status")が担うので、帯は見た目だけにする
         <div
             data-testid="receipt-preview-banner"
-            class="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+            class="mb-3 rounded-lg border border-accent-border-strong bg-accent-soft px-4 py-2.5 text-sm text-accent-text"
         >
             <span class="font-bold">"プレビュー中(未保存)"</span>
             <span class="ml-2">"表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"</span>

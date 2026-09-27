@@ -27,11 +27,12 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
     ),
 ];
 
-const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-[44px] max-sm:min-w-[44px] max-sm:shrink-0 max-sm:items-center max-sm:justify-center max-sm:whitespace-nowrap max-sm:px-2 max-sm:text-[12px]";
-const NAV_LINK_ACTIVE: &str = "bg-white text-slate-950 shadow-[inset_0_-2px_0_#f59e0b]";
-const NAV_LINK_INACTIVE: &str = "text-slate-300 hover:bg-white/10 hover:text-white";
+const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-11 max-sm:min-w-11 max-sm:shrink-0 max-sm:items-center max-sm:justify-center max-sm:whitespace-nowrap max-sm:px-2 max-sm:text-xs max-sm:leading-5";
+const NAV_LINK_ACTIVE: &str = "bg-surface text-ink shadow-edge-accent";
+const NAV_LINK_INACTIVE: &str =
+    "text-text-inverse-muted hover:bg-surface/10 hover:text-text-inverse";
 
-const HEADER_BUTTON: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-white/70 text-white hover:bg-white hover:text-slate-950 px-3 py-1.5 text-sm max-sm:min-h-[44px]";
+const HEADER_BUTTON: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-text-inverse/70 text-text-inverse hover:bg-surface hover:text-ink px-3 py-1.5 text-sm max-sm:min-h-11";
 
 pub(crate) fn current_path() -> String {
     web_sys::window()
@@ -74,19 +75,19 @@ pub fn SiteHeader() -> impl IntoView {
     });
     view! {
         <header class="site-header no-print">
-            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 py-3">
+            <div class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 py-3">
                 <div class="flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3">
                     <div class="flex items-center justify-between gap-4">
                         <a
                             href="/"
-                            class="group inline-flex items-center gap-3 text-white transition-colors hover:text-amber-100 max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center"
+                            class="group inline-flex items-center gap-3 text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center"
                         >
                             <span class="header-logo">
                                 "証"
                             </span>
                             // スマホでは副題とサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
                             <span class="max-sm:hidden">
-                                <span class="block text-[11px] font-bold uppercase tracking-[0.28em] text-amber-300/90">
+                                <span class="block text-eyebrow font-bold uppercase tracking-display text-accent-on-dark/90">
                                     "Portfolio Desk"
                                 </span>
                                 <span class="block text-xl font-black leading-tight tracking-normal">
@@ -119,7 +120,7 @@ pub fn SiteHeader() -> impl IntoView {
                         {move || {
                             if !session.loaded.get() {
                                 view! {
-                                    <span class="text-sm font-semibold text-white/70">
+                                    <span class="text-sm font-semibold text-text-inverse/70">
                                         "読み込み中..."
                                     </span>
                                 }
@@ -240,7 +241,7 @@ fn UserMenu(
                         <img
                             src=url
                             alt=alt
-                            class="h-9 w-9 rounded-md border border-white/20 bg-slate-700 object-cover max-sm:hidden"
+                            class="h-9 w-9 rounded-md border border-text-inverse/20 bg-night-soft object-cover max-sm:hidden"
                             on:error=move |_| image_error.set(true)
                         />
                     }
@@ -260,7 +261,7 @@ fn UserMenu(
                         .into_any()
                 }
             }}
-            <span class="max-w-[16rem] truncate text-sm font-semibold text-white/85 max-sm:hidden">
+            <span class="max-w-64 truncate text-sm font-semibold text-text-inverse/85 max-sm:hidden">
                 {display_name}
             </span>
             <div class="relative" node_ref=menu_container>
@@ -277,14 +278,14 @@ fn UserMenu(
                 <Show when=move || menu_open.get()>
                     <ul
                         id="user-menu"
-                        class="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-slate-950/10 bg-white text-dark shadow-2xl"
+                        class="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
                         role="menu"
                         aria-label="ユーザーメニュー"
                     >
                         <li role="none">
                             <button
                                 type="button"
-                                class="w-full px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100"
+                                class="w-full px-3 py-2 text-left text-sm font-semibold hover:bg-surface-raised"
                                 role="menuitem"
                                 data-testid="logout"
                                 on:click=move |_| {
@@ -302,14 +303,14 @@ fn UserMenu(
                         </li>
                         <li
                             role="none"
-                            class="px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-secondary"
+                            class="px-3 py-2 text-xs font-bold uppercase tracking-badge text-text-quiet"
                         >
                             "危険な操作"
                         </li>
                         <li role="none">
                             <button
                                 type="button"
-                                class="w-full px-3 py-2 text-left text-sm font-bold text-danger hover:bg-danger/10"
+                                class="w-full px-3 py-2 text-left text-sm font-bold text-negative hover:bg-negative/10"
                                 role="menuitem"
                                 aria-describedby="delete-warning"
                                 on:click=move |_| delete_confirm_open.set(true)
@@ -330,8 +331,8 @@ fn UserMenu(
 #[component]
 pub fn SiteFooter() -> impl IntoView {
     view! {
-        <footer class="mt-auto border-t border-slate-200 bg-white py-4">
-            <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
+        <footer class="mt-auto border-t border-border-subtle bg-surface py-4">
+            <div class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-text-subtle">
                 {FOOTER_LINKS
                     .iter()
                     .map(|(label, href)| {
@@ -340,7 +341,7 @@ pub fn SiteFooter() -> impl IntoView {
                                 href={*href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="inline-flex min-h-6 items-center hover:text-slate-700 hover:underline max-sm:min-h-11"
+                                class="inline-flex min-h-6 items-center hover:text-text-soft hover:underline max-sm:min-h-11"
                                 aria-label={format!("{label}（新しいタブで開く）")}
                             >
                                 {*label}
@@ -363,8 +364,8 @@ pub enum AlertVariant {
 impl AlertVariant {
     fn class(self) -> &'static str {
         match self {
-            Self::Warning => "border-amber-200 bg-amber-50 text-amber-900",
-            Self::Danger => "border-red-200 bg-red-50 text-red-700",
+            Self::Warning => "border-accent-border bg-accent-soft text-accent-text",
+            Self::Danger => "border-negative-border bg-negative-soft text-negative-vivid",
         }
     }
 }
@@ -392,15 +393,15 @@ pub fn PageHeader(
 ) -> impl IntoView {
     view! {
         <div class="mb-5 max-sm:mb-2">
-            <div class="flex flex-col gap-3 border-l-4 border-amber-500 pl-4 sm:flex-row sm:items-end sm:justify-between">
+            <div class="flex flex-col gap-3 border-l-4 border-accent-bright pl-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 max-sm:hidden">
+                    <p class="mb-1 text-eyebrow font-bold uppercase tracking-eyebrow text-text-subtle max-sm:hidden">
                         {eyebrow}
                     </p>
-                    <h1 class="text-2xl font-black leading-tight tracking-normal text-slate-950 max-sm:text-lg">
+                    <h1 class="text-2xl font-black leading-tight tracking-normal text-ink max-sm:text-lg">
                         {title}
                     </h1>
-                    <p class="mt-1 text-sm font-medium text-slate-600 max-sm:hidden">{description}</p>
+                    <p class="mt-1 text-sm font-medium text-text-muted max-sm:hidden">{description}</p>
                 </div>
             </div>
         </div>
@@ -458,14 +459,14 @@ pub fn Loading() -> impl IntoView {
     view! { <p role="status">"読み込み中..."</p> }
 }
 
-const RETRY_BUTTON: &str = "inline-flex min-h-11 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2";
+const RETRY_BUTTON: &str = "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-text-inverse transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2";
 
 #[component]
 pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl IntoView {
     view! {
         <div class="panel-card p-4" data-testid="list-load-error">
             <div
-                class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
                 role="alert"
             >
                 <strong>"エラー:"</strong>
@@ -490,10 +491,10 @@ pub fn ListSkeleton() -> impl IntoView {
                 {(0..3)
                     .map(|_| {
                         view! {
-                            <div class="grid gap-2 rounded-lg border border-slate-200 p-4">
-                                <div class="h-4 w-1/3 rounded bg-slate-200"></div>
-                                <div class="h-6 w-1/2 rounded bg-slate-200"></div>
-                                <div class="h-4 w-2/3 rounded bg-slate-200"></div>
+                            <div class="grid gap-2 rounded-lg border border-border-subtle p-4">
+                                <div class="h-4 w-1/3 rounded bg-fill"></div>
+                                <div class="h-6 w-1/2 rounded bg-fill"></div>
+                                <div class="h-4 w-2/3 rounded bg-fill"></div>
                             </div>
                         }
                     })

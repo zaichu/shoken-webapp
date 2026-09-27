@@ -28,7 +28,7 @@ impl CsvSource for AssetBalanceCsvStore {
     }
 
     fn section_class(&self) -> &'static str {
-        "sm:border-b sm:border-slate-950/10"
+        "sm:border-b sm:border-ink/10"
     }
 
     fn csv_state(&self) -> CsvTabState<AssetBalanceCsvRow> {

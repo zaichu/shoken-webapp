@@ -31,7 +31,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
-            class="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] print:block"
+            class="workspace-grid print:block"
             data-testid="receipt-workspace"
         >
             <aside class="order-1 lg:order-2 print:hidden" data-testid="receipt-utility-rail">
@@ -47,7 +47,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         view! {
                             <section class="px-5 py-4">
                                 <div
-                                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                                    class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
                                     role="alert"
                                     aria-live="assertive"
                                 >
@@ -64,7 +64,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                             TabState::Ready(data) if data.truncated => {
                                 view! {
                                     <section class="px-5 py-4" role="status" aria-live="polite">
-                                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                                        <div class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text">
                                             {truncated_list_warning()}
                                         </div>
                                     </section>
@@ -87,9 +87,9 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         };
                         let has_errors = !preview.errors.is_empty();
                         let alert_class = if has_errors {
-                            "border-amber-200 bg-amber-50 text-amber-900"
+                            "border-accent-border bg-accent-soft text-accent-text"
                         } else {
-                            "border-blue-200 bg-blue-50 text-blue-800"
+                            "border-info-border bg-info-soft text-info-deep"
                         };
                         view! {
                             <section class="px-5 py-4" role="status" aria-live="polite">
@@ -126,7 +126,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         view! {
                             <div aria-live="polite" aria-atomic="true">
                                 <section class="px-5 py-4" role="status">
-                                    <div class="flex items-center gap-2 text-slate-600">
+                                    <div class="flex items-center gap-2 text-text-muted">
                                         <Spinner size=SpinnerSize::Sm class="" />
                                         <p class="text-sm">
                                             {auth_loading.then_some("認証状態を確認しています...")}

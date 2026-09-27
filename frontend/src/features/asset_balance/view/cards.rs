@@ -68,13 +68,13 @@ pub(crate) fn HoldingCard(
     });
     let dividend_class = move |present: bool| {
         if present {
-            "mt-0.5 truncate text-xs font-semibold text-slate-800"
+            "mt-0.5 truncate text-xs font-semibold text-text"
         } else {
-            "mt-0.5 truncate text-xs font-semibold text-slate-500"
+            "mt-0.5 truncate text-xs font-semibold text-text-subtle"
         }
     };
     view! {
-        <div class="rounded-lg border border-slate-950/10 bg-white px-3.5 py-3 shadow-sm max-sm:hidden">
+        <div class="rounded-lg border border-ink/10 bg-surface px-3.5 py-3 shadow-sm max-sm:hidden">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2.5 min-w-0">
@@ -86,7 +86,7 @@ pub(crate) fn HoldingCard(
                                     class="font-semibold no-underline hover:underline".to_string()
                                 />
                             </span>
-                            <p class="line-clamp-2 text-base font-semibold text-slate-800" title=item.view.name.clone()>
+                            <p class="line-clamp-2 text-base font-semibold text-text" title=item.view.name.clone()>
                                 {item.view.name.clone()}
                             </p>
                         </div>
@@ -96,13 +96,13 @@ pub(crate) fn HoldingCard(
 
             <div class="mt-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1" data-testid="portfolio-card-valuation">
                 <div>
-                    <p class="text-xs font-medium text-slate-500">"評価額"</p>
-                    <p class="whitespace-nowrap text-lg font-bold tabular-nums text-slate-950">
+                    <p class="text-xs font-medium text-text-subtle">"評価額"</p>
+                    <p class="whitespace-nowrap text-lg font-bold tabular-nums text-ink">
                         {valuation.market}
                     </p>
                 </div>
                 <div class="ml-auto text-right">
-                    <p class="text-xs font-medium text-slate-500">"評価損益"</p>
+                    <p class="text-xs font-medium text-text-subtle">"評価損益"</p>
                     <p
                         class=format!("whitespace-nowrap text-sm font-bold tabular-nums {}", valuation.class)
                         data-negative=valuation.negative
@@ -113,44 +113,44 @@ pub(crate) fn HoldingCard(
             </div>
 
             <div class="mt-2.5 flex items-center gap-2">
-                <div class="h-2 flex-1 rounded-full bg-slate-100">
+                <div class="h-2 flex-1 rounded-full bg-surface-raised">
                     <div
                         class="h-full rounded-full transition-all duration-300"
                         style=format!("width: {bar_width}; background-color: {color}")
                     />
                 </div>
-                <span class="shrink-0 text-xs font-medium tabular-nums text-slate-500">
+                <span class="shrink-0 text-xs font-medium tabular-nums text-text-subtle">
                     "構成比 "
                     {percentage_text}
                 </span>
             </div>
 
             <div
-                class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50"
+                class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-surface-sunken"
                 data-testid="portfolio-card-acquisition-stats"
             >
                 <div class="min-w-0 px-2 py-2">
-                    <p class="truncate text-xs font-medium text-slate-500">"取得総額"</p>
+                    <p class="truncate text-xs font-medium text-text-subtle">"取得総額"</p>
                     <p
-                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-text"
                         title=format_currency(item.view.purchase)
                     >
                         {format_currency(item.view.purchase)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-slate-200/80 px-2 py-2">
-                    <p class="truncate text-xs font-medium text-slate-500">"取得単価"</p>
+                <div class="min-w-0 border-l border-border-subtle/80 px-2 py-2">
+                    <p class="truncate text-xs font-medium text-text-subtle">"取得単価"</p>
                     <p
-                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-text"
                         title=format_currency(item.view.average_price)
                     >
                         {format_currency(item.view.average_price)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-slate-200/80 px-2 py-2">
-                    <p class="truncate text-xs font-medium text-slate-500">"数量"</p>
+                <div class="min-w-0 border-l border-border-subtle/80 px-2 py-2">
+                    <p class="truncate text-xs font-medium text-text-subtle">"数量"</p>
                     <p
-                        class="mt-0.5 truncate text-xs font-semibold text-slate-800"
+                        class="mt-0.5 truncate text-xs font-semibold text-text"
                         title=format!("{}株", format_number_value(item.view.shares))
                     >
                         {format!("{}株", format_number_value(item.view.shares))}
@@ -158,9 +158,9 @@ pub(crate) fn HoldingCard(
                 </div>
             </div>
 
-            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-slate-50">
-                <div class="min-w-0 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-xs font-medium text-slate-500">"1株配当"</p>
+            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-surface-sunken">
+                <div class="min-w-0 px-2 py-2 text-xs text-text-muted">
+                    <p class="truncate text-xs font-medium text-text-subtle">"1株配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.per_share.is_some()))
                         title=move || dividend.with(format_dividend_per_share)
@@ -168,8 +168,8 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_per_share)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-xs font-medium text-slate-500">"年間配当"</p>
+                <div class="min-w-0 border-l border-border-subtle px-2 py-2 text-xs text-text-muted">
+                    <p class="truncate text-xs font-medium text-text-subtle">"年間配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.annual.is_some()))
                         title=move || dividend.with(format_dividend_annual)
@@ -177,8 +177,8 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_annual)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-slate-200 px-2 py-2 text-xs text-slate-600">
-                    <p class="truncate text-xs font-medium text-slate-500">"配当利回り"</p>
+                <div class="min-w-0 border-l border-border-subtle px-2 py-2 text-xs text-text-muted">
+                    <p class="truncate text-xs font-medium text-text-subtle">"配当利回り"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
                         title=move || dividend.with(format_dividend_yield)
@@ -209,16 +209,16 @@ pub(crate) fn HoldingValuationCard(
         format_fixed_percent(percentage, 1)
     });
     view! {
-        <div class="rounded-lg border border-slate-950/10 bg-white shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
+        <div class="rounded-lg border border-ink/10 bg-surface shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
             <button
                 type="button"
                 aria-expanded=move || if open.get() { "true" } else { "false" }
                 aria-controls=detail_id.clone()
                 on:click=move |_| open.update(|value| *value = !*value)
-                class="block min-h-[44px] w-full px-3.5 py-4 text-left"
+                class="block min-h-11 w-full px-3.5 py-4 text-left"
             >
                 <span class="flex min-w-0 items-center gap-2">
-                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-slate-800">
+                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-text">
                         {item.view.name.clone()}
                     </span>
                     <span
@@ -229,13 +229,13 @@ pub(crate) fn HoldingValuationCard(
                     </span>
                 </span>
                 <span class="mt-2 flex items-baseline justify-between gap-2">
-                    <span class="shrink-0 text-xs font-medium text-slate-500">"評価額"</span>
-                    <span class="truncate text-base font-bold tabular-nums text-slate-800">
+                    <span class="shrink-0 text-xs font-medium text-text-subtle">"評価額"</span>
+                    <span class="truncate text-base font-bold tabular-nums text-text">
                         {market_display}
                     </span>
                 </span>
                 <span class="mt-2 flex items-center justify-between gap-2">
-                    <span class="shrink-0 text-xs font-medium text-slate-500">"評価損益"</span>
+                    <span class="shrink-0 text-xs font-medium text-text-subtle">"評価損益"</span>
                     <span class="flex min-w-0 items-center gap-1">
                         <span
                             class=format!("truncate text-sm font-bold tabular-nums {valuation_class}")
@@ -243,7 +243,7 @@ pub(crate) fn HoldingValuationCard(
                         >
                             {profit_loss}
                         </span>
-                        <span aria-hidden="true" class="shrink-0 text-xs text-slate-400">
+                        <span aria-hidden="true" class="shrink-0 text-xs text-text-faint">
                             {move || if open.get() { "▴" } else { "▾" }}
                         </span>
                     </span>
@@ -259,69 +259,69 @@ pub(crate) fn HoldingValuationCard(
                 open.get()
                     .then(|| {
                         view! {
-                            <div id=detail_id.clone() class="border-t border-slate-950/10 px-3.5 py-3">
-                                <dl class="space-y-1.5 text-xs text-slate-600">
+                            <div id=detail_id.clone() class="border-t border-ink/10 px-3.5 py-3">
+                                <dl class="space-y-1.5 text-xs text-text-muted">
                                     <div class="flex items-start justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"銘柄名"</dt>
-                                        <dd class="min-w-0 break-words text-right font-semibold text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"銘柄名"</dt>
+                                        <dd class="min-w-0 break-words text-right font-semibold text-text">
                                             {item.view.name.clone()}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"取得総額"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"取得総額"</dt>
+                                        <dd class="truncate font-semibold tabular-nums text-text">
                                             {format_currency(item.view.purchase)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"取得単価"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"取得単価"</dt>
+                                        <dd class="truncate font-semibold tabular-nums text-text">
                                             {format_currency(item.view.average_price)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"数量"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"数量"</dt>
+                                        <dd class="truncate font-semibold tabular-nums text-text">
                                             {format!("{}株", format_number_value(item.view.shares))}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"現在値"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"現在値"</dt>
+                                        <dd class="truncate font-semibold tabular-nums text-text">
                                             {current_price_display.clone()}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"取得額構成比"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"取得額構成比"</dt>
+                                        <dd class="truncate font-semibold tabular-nums text-text">
                                             {composition.clone()}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"予想年間配当"</dt>
-                                        <dd class="truncate font-semibold text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"予想年間配当"</dt>
+                                        <dd class="truncate font-semibold text-text">
                                             {format_dividend_annual(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"1株配当"</dt>
-                                        <dd class="truncate font-semibold text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"1株配当"</dt>
+                                        <dd class="truncate font-semibold text-text">
                                             {format_dividend_per_share(&dividend)}
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-slate-500">"取得額基準利回り"</dt>
-                                        <dd class="truncate font-semibold text-slate-800">
+                                        <dt class="shrink-0 font-medium text-text-subtle">"取得額基準利回り"</dt>
+                                        <dd class="truncate font-semibold text-text">
                                             {format_dividend_yield(&dividend)}
                                         </dd>
                                     </div>
                                 </dl>
-                                <p class="mt-2.5 border-t border-slate-100 pt-2.5 text-xs">
+                                <p class="mt-2.5 border-t border-border-faint pt-2.5 text-xs">
                                     <SecurityCodeLink
                                         value=item.view.code.clone()
                                         class="text-xs".to_string()
                                     />
-                                    <span class="ml-1 text-slate-500">"の銘柄情報を見る"</span>
+                                    <span class="ml-1 text-text-subtle">"の銘柄情報を見る"</span>
                                 </p>
                             </div>
                         }

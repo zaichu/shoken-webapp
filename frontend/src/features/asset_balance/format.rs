@@ -70,9 +70,9 @@ pub(crate) fn is_negative_valuation(amount: Option<f64>) -> bool {
 
 pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'static str>) {
     if is_negative_valuation(amount) {
-        ("text-red-700", Some("true"))
+        ("text-negative", Some("true"))
     } else {
-        ("text-slate-800", None)
+        ("text-text", None)
     }
 }
 

@@ -44,18 +44,18 @@ pub(crate) fn ChartList(
                     .with(|d| d.others.clone())
                     .map(|others| {
                         view! {
-                            <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+                            <div class="rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3">
                                 <div class="flex items-center justify-between gap-2 mb-2">
-                                    <span class="text-sm text-slate-500">
+                                    <span class="text-sm text-text-subtle">
                                         {format!("その他 {}銘柄", others.count)}
                                     </span>
-                                    <span class="text-lg font-bold text-slate-500">
+                                    <span class="text-lg font-bold text-text-subtle">
                                         {format_fixed_percent(others.percentage, 1)}
                                     </span>
                                 </div>
-                                <div class="h-2.5 w-full rounded-full bg-slate-200">
+                                <div class="h-2.5 w-full rounded-full bg-fill">
                                     <div
-                                        class="h-full rounded-full bg-slate-400 transition-all duration-300"
+                                        class="h-full rounded-full bg-fill-strong transition-all duration-300"
                                         style=format!("width: {}%", others.percentage.min(100.0))
                                     />
                                 </div>

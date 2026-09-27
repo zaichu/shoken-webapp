@@ -43,17 +43,17 @@ pub(crate) fn header_summary(
 
 pub(crate) fn kpi_card_bg(tone: &str) -> &'static str {
     match tone {
-        "emerald" => "border-teal-200 bg-teal-50",
-        "red" => "border-rose-100 bg-rose-50",
-        _ => "border-slate-200 bg-white",
+        "emerald" => "border-gain-border bg-gain-soft",
+        "red" => "border-negative-tint-border bg-negative-tint",
+        _ => "border-border-subtle bg-surface",
     }
 }
 
 pub(crate) fn kpi_value_color(tone: &str) -> &'static str {
     match tone {
-        "emerald" => "text-teal-700",
-        "red" => "text-red-700",
-        _ => "text-slate-800",
+        "emerald" => "text-gain",
+        "red" => "text-negative",
+        _ => "text-text",
     }
 }
 
@@ -72,7 +72,7 @@ fn KpiGrid(
                             "rounded-lg border px-3.5 py-3 {}",
                             kpi_card_bg(tone)
                         )>
-                            <p class="mb-1 text-xs font-medium text-slate-600">{label}</p>
+                            <p class="mb-1 text-xs font-medium text-text-muted">{label}</p>
                             <p
                                 class=format!(
                                     "text-2xl font-bold tabular-nums {}",
@@ -135,7 +135,7 @@ pub(crate) fn SummaryStrip(
                     {primary.map_or_else(
                         || {
                             view! {
-                                <span class="text-sm font-black text-slate-950">{title}</span>
+                                <span class="text-sm font-black text-ink">{title}</span>
                             }
                                 .into_any()
                         },
@@ -145,12 +145,12 @@ pub(crate) fn SummaryStrip(
                                     {preview
                                         .then(|| {
                                             view! {
-                                                <span class="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                                                <span class="shrink-0 rounded bg-accent-softer px-1.5 py-0.5 text-xs font-bold text-accent-text">
                                                     "プレビュー"
                                                 </span>
                                             }
                                         })}
-                                    <span class="shrink-0 text-xs font-medium text-slate-600">
+                                    <span class="shrink-0 text-xs font-medium text-text-muted">
                                         {label}
                                     </span>
                                     <span
@@ -167,7 +167,7 @@ pub(crate) fn SummaryStrip(
                                 .into_any()
                         },
                     )}
-                    <span class="flex shrink-0 items-center gap-1 text-slate-700">
+                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
                         <span class="text-xs font-semibold">
                             {move || if mobile_expanded.get() { "閉じる" } else { "開く" }}
                         </span>
@@ -175,9 +175,9 @@ pub(crate) fn SummaryStrip(
                             aria-hidden="true"
                             class=move || {
                                 if mobile_expanded.get() {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200 rotate-180"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
                                 } else {
-                                    "h-4 w-4 text-slate-500 transition-transform duration-200"
+                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
                                 }
                             }
                             fill="none"
@@ -198,7 +198,7 @@ pub(crate) fn SummaryStrip(
                     role="region"
                     aria-label=title
                     hidden=move || !mobile_expanded.get()
-                    class="border-t border-slate-950/10 py-3"
+                    class="border-t border-ink/10 py-3"
                 >
                     {move || {
                         mobile_expanded
@@ -216,11 +216,11 @@ pub(crate) fn SummaryStrip(
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
                 <div
-                    class="flex items-start justify-between gap-3 border-b border-slate-950/10 pb-2.5"
+                    class="flex items-start justify-between gap-3 border-b border-ink/10 pb-2.5"
                     data-testid="receipt-header"
                 >
                     <div>
-                        <h2 class="text-sm font-black text-slate-950">{title}</h2>
+                        <h2 class="text-sm font-black text-ink">{title}</h2>
                     </div>
                 </div>
                 <div class="pt-3">

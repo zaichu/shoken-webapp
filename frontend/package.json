@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build:vercel": "env -u NO_COLOR VERCEL_DIST_DIR=dist-vercel SHOKEN_WEBAPI_URL=$(node scripts/backend-origin.cjs) bash scripts/vercel-build.sh",
+    "check:css": "bash scripts/check-css-tokens.sh",
     "e2e:vercel": "env -u NO_COLOR playwright test --config playwright.vercel.config.ts"
   },
   "devDependencies": {

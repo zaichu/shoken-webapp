@@ -16,8 +16,8 @@ pub(crate) fn SecurityDropdown(
             }
             view! {
                 <div>
-                    <label class="mb-1 block text-sm font-bold text-slate-800" for="securities-search">"銘柄"</label>
-                    <select id="securities-search" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
+                    <label class="mb-1 block text-sm font-bold text-text" for="securities-search">"銘柄"</label>
+                    <select id="securities-search" class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.securities.clone())
                         on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
                         <option value="">"全て表示"</option>
@@ -42,10 +42,10 @@ pub(crate) fn YearDropdown(
             }
             view! {
                 <div>
-                    <label class="mb-1 block text-sm font-bold text-slate-800" for="years-search">"西暦"</label>
+                    <label class="mb-1 block text-sm font-bold text-text" for="years-search">"西暦"</label>
                     <select
                         id="years-search"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm max-sm:min-h-11"
+                        class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
                         prop:value=move || search.with(|state| state.selected_queries.years.clone())
                         on:change=move |event| search.update(|state| {
                             state.select_quick(SearchKey::Years, event_target_value(&event))
@@ -76,7 +76,7 @@ pub(crate) fn ToggleCategory(
             }
             view! {
                 <div>
-                    <div class="mb-1 text-sm font-bold text-slate-800">{label}</div>
+                    <div class="mb-1 text-sm font-bold text-text">{label}</div>
                     <div class="flex flex-wrap gap-1">
                         {options.into_iter().map(|option| {
                             let selected_value = option.value.clone();
@@ -86,9 +86,9 @@ pub(crate) fn ToggleCategory(
                                 <button
                                     type="button"
                                     class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
-                                        "rounded border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-900"
+                                        "rounded border border-accent-bright bg-accent-soft px-3 py-1.5 text-sm font-bold text-accent-text"
                                     } else {
-                                        "rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                                        "rounded border border-border-strong bg-surface px-3 py-1.5 text-sm text-text-soft"
                                     }
                                     aria-pressed=move || if search.with(|state| state.selected_queries.get(search_key) == aria_value) { "true" } else { "false" }
                                     aria-label=move || search.with(|state| {
@@ -166,9 +166,9 @@ fn CalendarDateButton(
             .with(|state| date_input_value(state, field))
             .is_empty()
         {
-            "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:border-slate-400"
+            "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-left text-sm text-text-subtle transition-colors hover:border-border-xstrong"
         } else {
-            "w-full rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-amber-900 transition-colors"
+            "w-full rounded-md border border-accent-bright bg-accent-soft px-3 py-2 text-left text-sm font-semibold text-accent-text transition-colors"
         }
     };
     let display_value = move || {
@@ -278,9 +278,9 @@ fn YearPicker(
                 aria-haspopup="listbox"
                 aria-expanded=move || if is_open.get() { "true" } else { "false" }
                 class=move || if search.with(|state| state.date_inputs.year_value.is_empty()) {
-                    "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:border-slate-400"
+                    "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-left text-sm text-text-subtle transition-colors hover:border-border-xstrong"
                 } else {
-                    "w-full rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-amber-900 transition-colors"
+                    "w-full rounded-md border border-accent-bright bg-accent-soft px-3 py-2 text-left text-sm font-semibold text-accent-text transition-colors"
                 }
                 on:click=move |_| toggle_open.update(|open| *open = !*open)
                 on:keydown=move |event| {
@@ -331,9 +331,9 @@ fn YearPicker(
                                             role="option"
                                             aria-selected=move || if click_search.with(|state| state.date_inputs.year_value == selected_value) { "true" } else { "false" }
                                             class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
-                                                "rounded bg-amber-50 px-1 py-1.5 text-center text-sm font-semibold text-amber-900 ring-1 ring-inset ring-amber-400"
+                                                "rounded bg-accent-soft px-1 py-1.5 text-center text-sm font-semibold text-accent-text ring-1 ring-inset ring-accent-ring"
                                             } else {
-                                                "rounded px-1 py-1.5 text-center text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                                "rounded px-1 py-1.5 text-center text-sm text-text-muted hover:bg-surface-raised hover:text-text-strong"
                                             }
                                             on:click=move |_| {
                                                 click_open.set(false);
@@ -386,7 +386,7 @@ pub(crate) fn DatePeriod(
     ];
     view! {
         <div class="space-y-2">
-            <div class="text-sm font-bold text-slate-800">"期間"</div>
+            <div class="text-sm font-bold text-text">"期間"</div>
             <div class="flex gap-1">
                 {move || {
                     segments
@@ -399,9 +399,9 @@ pub(crate) fn DatePeriod(
                                 <button
                                     type="button"
                                     class=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) {
-                                        "flex-1 rounded bg-slate-950 px-2 py-1 text-xs font-semibold text-white"
+                                        "flex-1 rounded bg-ink px-2 py-1 text-xs font-semibold text-text-inverse"
                                     } else {
-                                        "flex-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                                        "flex-1 rounded bg-surface-raised px-2 py-1 text-xs font-semibold text-text-muted"
                                     }
                                     aria-pressed=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) { "true" } else { "false" }
                                     on:click=move |_| {

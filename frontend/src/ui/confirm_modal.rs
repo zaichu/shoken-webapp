@@ -5,8 +5,8 @@ use wasm_bindgen::JsCast;
 const FOCUSABLE_SELECTOR: &str =
     "button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])";
 
-const SECONDARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-slate-300 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-50 px-4 py-2 text-sm max-sm:min-h-[44px]";
-const CONFIRM_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-danger text-danger hover:bg-danger hover:text-white px-3 py-1.5 text-sm max-sm:min-h-[44px]";
+const SECONDARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-border-strong bg-surface text-text hover:border-border-bold hover:bg-surface-sunken px-4 py-2 text-sm max-sm:min-h-11";
+const CONFIRM_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-negative text-negative hover:bg-negative hover:text-text-inverse px-3 py-1.5 text-sm max-sm:min-h-11";
 
 fn same_element(a: &web_sys::HtmlElement, b: &web_sys::HtmlElement) -> bool {
     a.unchecked_ref::<web_sys::Node>()
@@ -82,7 +82,7 @@ pub fn ConfirmDeleteModal(
     view! {
         <div
             node_ref=dialog_ref
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4"
             on:click=move |_| overlay_cancel()
             on:keydown=move |event| {
                 if event.key() == "Escape" {
@@ -104,9 +104,9 @@ pub fn ConfirmDeleteModal(
                 role="presentation"
                 on:click=move |event| event.stop_propagation()
             >
-                <div class="rounded-lg bg-white shadow-lg">
+                <div class="rounded-lg bg-surface shadow-lg">
                     <div class="flex items-center justify-between border-b border-border px-4 py-3">
-                        <h5 id="confirm-delete-title" class="text-danger font-semibold">
+                        <h5 id="confirm-delete-title" class="text-negative font-semibold">
                             {title}
                         </h5>
                         <button
@@ -119,14 +119,14 @@ pub fn ConfirmDeleteModal(
                             <span aria-hidden="true">"✕"</span>
                         </button>
                     </div>
-                    <div id="confirm-delete-desc" class="px-4 py-4 text-base text-dark">
+                    <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
-                        <p class="mt-2 text-sm text-secondary">
+                        <p class="mt-2 text-sm text-text-quiet">
                             "対象: "
-                            <strong class="text-danger">{item_count}"件"</strong>
+                            <strong class="text-negative">{item_count}"件"</strong>
                             "のデータ"
                         </p>
-                        <p class="mt-3 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+                        <p class="mt-3 rounded-md bg-negative/10 px-3 py-2 text-sm text-negative">
                             <strong>"⚠ この操作は取り消せません。"</strong>
                             "削除されたデータは復元できません。"
                         </p>
@@ -136,7 +136,7 @@ pub fn ConfirmDeleteModal(
                                 .map(|message| {
                                     view! {
                                         <p
-                                            class="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                                            class="mt-3 rounded-md border border-negative-border bg-negative-soft px-3 py-2 text-sm text-negative-vivid"
                                             role="alert"
                                         >
                                             {message}

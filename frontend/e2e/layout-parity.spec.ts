@@ -566,14 +566,14 @@ test('資産管理の負の評価損益は赤字としてマークされる', as
     .getByTestId('portfolio-valuation-summary')
     .locator('[data-negative="true"]');
   await expect(summaryLoss).toHaveText('評価損益 -¥10,000（-3.7%）');
-  await expect(summaryLoss).toHaveClass(/text-red-700/);
+  await expect(summaryLoss).toHaveClass(/(^|\s)text-negative(\s|$)/);
 
   const cardLoss = page
     .getByTestId('portfolio-valuation-card')
     .first()
     .locator('[data-negative="true"]');
   await expect(cardLoss).toHaveText('-¥10,000（-3.7%）');
-  await expect(cardLoss).toHaveClass(/text-red-700/);
+  await expect(cardLoss).toHaveClass(/(^|\s)text-negative(\s|$)/);
 });
 
 for (const width of [1440, 390]) {

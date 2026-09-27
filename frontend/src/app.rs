@@ -83,7 +83,7 @@ pub fn App() -> impl IntoView {
         }
     });
     view! {
-        <div class="min-h-screen flex flex-col bg-slate-50 text-slate-950">
+        <div class="min-h-screen flex flex-col bg-surface-sunken text-ink">
             <a
                 href="#main-content"
                 class="skip-link"
@@ -91,7 +91,7 @@ pub fn App() -> impl IntoView {
                 "メインコンテンツへスキップ"
             </a>
             <SiteHeader />
-            <main id="main-content" class="mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8 print:px-2 flex flex-1 flex-col py-5">
+            <main id="main-content" class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 print:px-2 flex flex-1 flex-col py-5">
                 {move || {
                     if !session.loaded.get() {
                         return view! { <Loading /> }.into_any();
