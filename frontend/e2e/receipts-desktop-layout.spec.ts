@@ -61,6 +61,33 @@ const DOMESTIC_STOCKS = [
   },
 ];
 
+const MUTUAL_FUNDS = [
+  {
+    id: 'mutual-fund-print',
+    user_id: MOCK_USER.id,
+    trade_date: '2024-03-01',
+    settlement_date: '2024-03-04',
+    fund_name: 'eMAXIS Slim 全世界株式（オール・カントリー）',
+    account: '特定口座',
+    shares: '123456',
+    exchange_rate: '1',
+    cancellation_unit_price_yen: '12345',
+    cancellation_amount_yen: '123456789',
+    average_acquisition_price_yen: '22345',
+    dividends: '0',
+    realized_profit_and_loss: '-123456789',
+    taxes: '0',
+    realized_profit_and_loss_after_tax: '-123456789',
+    created_at: '2024-03-01T00:00:00Z',
+    updated_at: '2024-03-01T00:00:00Z',
+  },
+];
+
+const PRINTABLE_A4_VIEWPORTS = [
+  { name: 'portrait', width: 718, height: 1047 },
+  { name: 'landscape', width: 1047, height: 718 },
+] as const;
+
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
 }
@@ -79,6 +106,9 @@ async function mockApi(page: Page) {
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DOMESTIC_STOCKS))),
   );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(MUTUAL_FUNDS))),
+  );
   await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
     route.fulfill(json({ data: [] })),
   );
@@ -94,6 +124,15 @@ async function shoot(page: Page, name: string) {
   await fs.promises.mkdir(dir, { recursive: true });
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
+}
+
+async function shootPrintPreview(page: Page, orientation: string) {
+  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp/pr1088');
+  await fs.promises.mkdir(dir, { recursive: true });
+  await page.screenshot({
+    path: path.join(dir, `receipts-a4-${orientation}.png`),
+    fullPage: true,
+  });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -246,52 +285,89 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await shoot(page, 'leptos-962-1920');
 });
 
-test('A4縦横で右端の列と負の金額を切らずに印刷できる', async ({ page }) => {
+test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
   await page.goto('/receipts');
-  await page.getByRole('tab', { name: '国内株式' }).click();
-  await expect(page.getByTestId('tab-count-domesticstock')).toHaveText('1');
   await expect(page.getByRole('table')).toBeVisible();
-  await page.emulateMedia({ media: 'print' });
 
-  for (const paper of [
-    { width: 794, height: 1123 },
-    { width: 1123, height: 794 },
-  ]) {
+  const pageRule = await page.evaluate(() => {
+    const findPageRule = (rules: CSSRuleList): string | undefined => {
+      for (const rule of rules) {
+        if (rule.cssText.startsWith('@page')) return rule.cssText;
+        if ('cssRules' in rule) {
+          const nested = findPageRule((rule as CSSGroupingRule).cssRules);
+          if (nested) return nested;
+        }
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      const found = findPageRule(sheet.cssRules);
+      if (found) return found;
+    }
+  });
+  expect(pageRule).toContain('size: a4');
+  expect(pageRule).toContain('margin: 10mm');
+
+  for (const paper of PRINTABLE_A4_VIEWPORTS) {
     await page.setViewportSize(paper);
-    const table = page.getByRole('table');
-    await expect(page.getByTestId('receipt-utility-rail')).toBeHidden();
-    const metrics = await table.evaluate((element) => {
-      const tableRect = element.getBoundingClientRect();
-      const cardRect = element.closest('.table-card')?.getBoundingClientRect();
-      const lastCellRect = element
-        .querySelector('tbody tr:last-child td:last-child')
-        ?.getBoundingClientRect();
-      return {
-        tableRight: tableRect.right,
-        cardRight: cardRect?.right ?? 0,
-        lastCellRight: lastCellRect?.right ?? 0,
-        viewportWidth: document.documentElement.clientWidth,
-      };
-    });
-    const negativeMetrics = await table
-      .locator('tbody tr:last-child td[data-negative="true"]')
-      .first()
-      .evaluate((cell) => {
-        const range = document.createRange();
-        range.selectNodeContents(cell);
-        const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+    for (const tab of [
+      { label: '配当金', slug: 'dividend', count: String(DIVIDENDS.length) },
+      { label: '国内株式', slug: 'domesticstock', count: '1' },
+      { label: '投資信託', slug: 'mutualfund', count: '1' },
+    ]) {
+      await page.emulateMedia({ media: 'screen' });
+      await page.getByRole('tab', { name: tab.label }).click();
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(tab.count);
+      await page.emulateMedia({ media: 'print' });
+
+      const table = page.getByRole('table');
+      await expect(table).toBeVisible();
+      await expect(page.getByTestId('receipt-utility-rail')).toBeHidden();
+      const metrics = await table.evaluate((element) => {
+        const main = document.querySelector('main');
+        const mainRect = main?.getBoundingClientRect();
+        const mainStyle = main ? getComputedStyle(main) : undefined;
+        const tableRect = element.getBoundingClientRect();
+        const cardRect = element.closest('.table-card')?.getBoundingClientRect();
+        const lastCellRect = element
+          .querySelector('tbody tr:last-child td:last-child')
+          ?.getBoundingClientRect();
         return {
-          text: cell.textContent?.trim(),
-          whiteSpace: getComputedStyle(cell).whiteSpace,
-          lineCount: new Set(lineTops).size,
+          tableLeft: tableRect.left,
+          tableRight: tableRect.right,
+          cardRight: cardRect?.right ?? 0,
+          lastCellRight: lastCellRect?.right ?? 0,
+          mainContentLeft:
+            (mainRect?.left ?? 0) + Number.parseFloat(mainStyle?.paddingLeft ?? '0'),
+          mainContentRight:
+            (mainRect?.right ?? 0) - Number.parseFloat(mainStyle?.paddingRight ?? '0'),
         };
       });
 
-    expect(metrics.tableRight).toBeLessThanOrEqual(metrics.cardRight + 1);
-    expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
-    expect(negativeMetrics.text).toBe('-¥123,456,789');
-    expect(negativeMetrics.whiteSpace).toBe('nowrap');
-    expect(negativeMetrics.lineCount).toBe(1);
+      expect(metrics.tableLeft).toBeGreaterThanOrEqual(metrics.mainContentLeft - 1);
+      expect(metrics.tableRight).toBeLessThanOrEqual(metrics.cardRight + 1);
+      expect(metrics.cardRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
+      expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
+
+      if (tab.slug === 'domesticstock') {
+        const negativeMetrics = await table
+          .locator('tbody tr:last-child td[data-negative="true"]')
+          .first()
+          .evaluate((cell) => {
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+            return {
+              text: cell.textContent?.trim(),
+              whiteSpace: getComputedStyle(cell).whiteSpace,
+              lineCount: new Set(lineTops).size,
+            };
+          });
+        expect(negativeMetrics.text).toBe('-¥123,456,789');
+        expect(negativeMetrics.whiteSpace).toBe('nowrap');
+        expect(negativeMetrics.lineCount).toBe(1);
+        await shootPrintPreview(page, paper.name);
+      }
+    }
   }
 });
 
