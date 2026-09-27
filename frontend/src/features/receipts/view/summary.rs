@@ -1,5 +1,9 @@
 use crate::features::receipts::model::format_currency;
 use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
+use crate::ui::amount::Amount;
+use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -67,22 +71,18 @@ fn KpiGrid(
             {items
                 .into_iter()
                 .map(|(label, value, tone)| {
+                    let negative = tone == "red";
+                    let value = format_currency(value);
                     view! {
-                        <div class=format!(
-                            "rounded-lg border px-3.5 py-3 {}",
-                            kpi_card_bg(tone)
-                        )>
+                        <Card variant=CardVariant::StatSmall class=kpi_card_bg(tone)>
                             <p class="mb-1 text-xs font-medium text-text-muted">{label}</p>
-                            <p
-                                class=format!(
-                                    "text-2xl font-bold tabular-nums {}",
-                                    kpi_value_color(tone)
-                                )
-                                data-negative=(tone == "red").then_some("true")
-                            >
-                                {format_currency(value)}
-                            </p>
-                        </div>
+                            <Amount
+                                block=true
+                                text=value
+                                class=format!("text-2xl font-bold {}", kpi_value_color(tone))
+                                negative=negative
+                            />
+                        </Card>
                     }
                 })
                 .collect_view()}
@@ -106,31 +106,22 @@ pub(crate) fn SummaryStrip(
     let primary = items.last().copied();
     let mobile_items = items.clone();
     view! {
-        <section
-            class="collapsible-card"
-            data-testid="receipt-summary-strip"
-        >
+        <Card variant=CardVariant::Collapsible testid="receipt-summary-strip">
             <div class="sm:hidden" data-testid="receipt-summary-compact">
-                <button
-                    type="button"
-                    class="collapsible-trigger"
-                    on:click=move |_| mobile_expanded.update(|expanded| *expanded = !*expanded)
-                    aria-expanded=move || {
-                        if mobile_expanded.get() {
-                            "true"
-                        } else {
-                            "false"
-                        }
-                    }
-                    aria-controls=mobile_body_id
-                    aria-label=primary.map_or_else(
+                <DisclosureToggle
+                    style=DisclosureStyle::Collapsible
+                    expanded=Signal::derive(move || mobile_expanded.get())
+                    controls=mobile_body_id
+                    aria_label=primary.map_or_else(
                         || title.to_string(),
                         |(label, value, _)| {
                             let prefix = if preview { "プレビュー " } else { "" };
                             format!("{prefix}{label} {}", format_currency(value))
                         },
                     )
-                    data-testid="receipt-summary-compact-toggle"
+                    testid="receipt-summary-compact-toggle"
+                    hint=true
+                    on_toggle=move || mobile_expanded.update(|expanded| *expanded = !*expanded)
                 >
                     {primary.map_or_else(
                         || {
@@ -145,54 +136,28 @@ pub(crate) fn SummaryStrip(
                                     {preview
                                         .then(|| {
                                             view! {
-                                                <span class="shrink-0 rounded bg-accent-softer px-1.5 py-0.5 text-xs font-bold text-accent-text">
+                                                <Badge variant=BadgeVariant::AccentFlat>
                                                     "プレビュー"
-                                                </span>
+                                                </Badge>
                                             }
                                         })}
                                     <span class="shrink-0 text-xs font-medium text-text-muted">
                                         {label}
                                     </span>
-                                    <span
+                                    <Amount
+                                        text=format_currency(value)
                                         class=format!(
-                                            "truncate text-base font-bold tabular-nums {}",
+                                            "truncate text-base font-bold {}",
                                             kpi_value_color(tone)
                                         )
-                                        data-negative=(tone == "red").then_some("true")
-                                    >
-                                        {format_currency(value)}
-                                    </span>
+                                        negative=tone == "red"
+                                    />
                                 </span>
                             }
                                 .into_any()
                         },
                     )}
-                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
-                        <span class="text-xs font-semibold">
-                            {move || if mobile_expanded.get() { "閉じる" } else { "開く" }}
-                        </span>
-                        <svg
-                            aria-hidden="true"
-                            class=move || {
-                                if mobile_expanded.get() {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
-                                } else {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
-                                }
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                            />
-                        </svg>
-                    </span>
-                </button>
+                </DisclosureToggle>
                 <div
                     id=mobile_body_id
                     role="region"
@@ -215,14 +180,9 @@ pub(crate) fn SummaryStrip(
                 </div>
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
-                <div
-                    class="flex items-start justify-between gap-3 border-b border-ink/10 pb-2.5"
-                    data-testid="receipt-header"
-                >
-                    <div>
-                        <h2 class="text-sm font-black text-ink">{title}</h2>
-                    </div>
-                </div>
+                <SectionHeader variant=SectionHeaderVariant::Divider testid="receipt-header">
+                    {title}
+                </SectionHeader>
                 <div class="pt-3">
                     <KpiGrid
                         items=items
@@ -230,6 +190,6 @@ pub(crate) fn SummaryStrip(
                     />
                 </div>
             </div>
-        </section>
+        </Card>
     }
 }

@@ -1,4 +1,6 @@
 use crate::session::use_session;
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::elements::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
@@ -28,22 +30,18 @@ pub fn LoginPage() -> impl IntoView {
                         .into_any();
                 }
                 view! {
-                    <div class="login-card">
+                    <Card variant=CardVariant::Login>
                         <div class="space-y-6 p-6 text-center">
                             <h2 class="text-xl font-semibold">"ログイン"</h2>
                             <p class="text-sm text-text-quiet">
                                 "Googleアカウントでログインしてください"
                             </p>
-                            <button
-                                type="button"
-                                class="login-button"
-                                on:click=login
-                            >
+                            <Button variant=ButtonVariant::Login on_click=login>
                                 <GoogleLogo />
                                 "Googleでログイン"
-                            </button>
+                            </Button>
                         </div>
-                    </div>
+                    </Card>
                 }
                     .into_any()
             }}

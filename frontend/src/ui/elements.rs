@@ -1,6 +1,7 @@
 use crate::api::dto::SessionUser;
 use crate::session::{use_session, SessionStore};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use leptos::ev;
 use leptos::html;
@@ -457,9 +458,12 @@ pub fn Loading() -> impl IntoView {
 }
 
 #[component]
-pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl IntoView {
+pub fn ListLoadError(
+    message: String,
+    on_retry: impl Fn() + Send + Sync + 'static,
+) -> impl IntoView {
     view! {
-        <div class="panel-card p-4" data-testid="list-load-error">
+        <Card variant=CardVariant::Panel class="p-4" testid="list-load-error">
             <div
                 class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
                 role="alert"
@@ -473,14 +477,14 @@ pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl Int
                     "再読み込み"
                 </Button>
             </div>
-        </div>
+        </Card>
     }
 }
 
 #[component]
 pub fn ListSkeleton() -> impl IntoView {
     view! {
-        <div class="panel-card p-4" role="status" data-testid="list-skeleton">
+        <Card variant=CardVariant::Panel class="p-4" role="status" testid="list-skeleton">
             <span class="sr-only">"データを読み込んでいます..."</span>
             <div class="grid animate-pulse gap-4" aria-hidden="true">
                 {(0..3)
@@ -495,7 +499,7 @@ pub fn ListSkeleton() -> impl IntoView {
                     })
                     .collect_view()}
             </div>
-        </div>
+        </Card>
     }
 }
 

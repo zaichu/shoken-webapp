@@ -46,7 +46,7 @@ pub fn Chip(
     #[prop(into, optional)] aria_label: Option<Signal<String>>,
     #[prop(optional)] testid: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     let classes = move || {
         selected.map_or_else(
@@ -114,7 +114,7 @@ pub fn FieldTrigger(
     #[prop(optional)] node_ref: Option<NodeRef<leptos::html::Button>>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     #[prop(optional)] on_keydown: Option<Box<dyn Fn(ev::KeyboardEvent)>>,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     view! {
         <button
@@ -149,7 +149,7 @@ pub fn OptionButton(
     #[prop(into)] selected: Signal<bool>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     on_keydown: impl Fn(ev::KeyboardEvent) + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     view! {
         <button

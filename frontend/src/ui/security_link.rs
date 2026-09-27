@@ -1,3 +1,4 @@
+use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 use shared::normalize::normalize_security_code;
 use wasm_bindgen::{JsCast, JsValue};
@@ -130,11 +131,11 @@ pub(crate) fn CopyableInstrumentName(
     let copy_text = instrument_copy_text(&name, code.as_deref());
     let aria_label = format!("{copy_text} をコピー");
     view! {
-        <button
-            type="button"
-            aria-label=aria_label
-            on:click=move |_| copy_to_clipboard(copy_text.clone())
-            class="copyable-name group"
+        <Button
+            variant=ButtonVariant::CopyName
+            class="group"
+            aria_label=aria_label
+            on_click=move |_| copy_to_clipboard(copy_text.clone())
         >
             <span>{display}</span>
             <svg
@@ -153,7 +154,7 @@ pub(crate) fn CopyableInstrumentName(
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
             </svg>
-        </button>
+        </Button>
     }
 }
 

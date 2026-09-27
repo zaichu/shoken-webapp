@@ -15,7 +15,7 @@ pub fn TabButton(
     #[prop(into)] selected: Signal<bool>,
     on_select: impl Fn() + 'static,
     on_keydown: impl Fn(ev::KeyboardEvent) + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     view! {
         <button

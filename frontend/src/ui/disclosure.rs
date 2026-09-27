@@ -83,14 +83,6 @@ impl DisclosureStyle {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DisclosureIndicator {
-    /// 子要素だけ。山形は children に ChevronIcon で配置する
-    None,
-    /// 末尾に「開く/閉じる」+山形を付ける
-    Hint,
-}
-
 /// aria-expanded / aria-controls を持つ開閉トリガー
 #[component]
 pub fn DisclosureToggle(
@@ -100,10 +92,12 @@ pub fn DisclosureToggle(
     #[prop(into, optional)] id: Option<String>,
     #[prop(into, optional)] aria_label: Option<Signal<String>>,
     #[prop(optional)] testid: Option<&'static str>,
-    #[prop(optional)] indicator: Option<DisclosureIndicator>,
+    /// 末尾に「開く/閉じる」+山形を付ける(付けない側は children に ChevronIcon を置く)
+    #[prop(optional)]
+    hint: bool,
     #[prop(into, optional)] class: Signal<String>,
     on_toggle: impl Fn() + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     let style_class = style.class();
     let classes = move || {
@@ -126,9 +120,7 @@ pub fn DisclosureToggle(
             on:click=move |_| on_toggle()
         >
             {children()}
-            {indicator
-                .is_some_and(|i| i == DisclosureIndicator::Hint)
-                .then(|| view! { <DisclosureHint expanded=expanded /> })}
+            {hint.then(|| view! { <DisclosureHint expanded=expanded /> })}
         </button>
     }
 }

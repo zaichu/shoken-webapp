@@ -9,7 +9,7 @@ pub fn EmptyState(
     #[prop(optional)] icon: Option<AnyView>,
     #[prop(optional)] as_h1: bool,
     #[prop(into, optional)] class: Signal<String>,
-    #[prop(optional)] children: Option<ChildrenFn>,
+    #[prop(optional)] children: Option<Children>,
 ) -> impl IntoView {
     view! {
         <div class=move || {

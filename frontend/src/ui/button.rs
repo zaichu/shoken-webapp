@@ -42,12 +42,8 @@ pub enum ButtonSize {
     Sm,
     /// px-4 py-2 text-sm
     Md,
-    /// h-11 px-5(検索フォームの送信など)
-    Lg,
     /// h-11 w-full px-3(レールに縦積み)
     Fill,
-    /// min-h-11 px-4(インラインの再読み込みなど)
-    Block,
 }
 
 const BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
@@ -101,11 +97,21 @@ impl ButtonSize {
             Self::Xs => "px-2 py-1 text-xs max-sm:min-h-11",
             Self::Sm => "px-3 py-1.5 text-sm max-sm:min-h-11",
             Self::Md => "px-4 py-2 text-sm max-sm:min-h-11",
-            Self::Lg => "h-11 px-5 text-sm",
             Self::Fill => "h-11 w-full px-3 text-sm max-sm:min-h-11",
-            Self::Block => "min-h-11 px-4 text-sm",
         }
     }
+}
+
+fn button_classes(variant: ButtonVariant, size: ButtonSize, extra: &str) -> String {
+    let mut classes = variant.class().to_string();
+    if variant.composed() {
+        classes = format!("{BASE} {classes} {}", size.class());
+    }
+    if !extra.is_empty() {
+        classes.push(' ');
+        classes.push_str(extra);
+    }
+    classes
 }
 
 #[component]
@@ -127,20 +133,9 @@ pub fn Button(
     #[prop(into, optional)] aria_expanded: Option<Signal<bool>>,
     #[prop(optional)] aria_describedby: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
-    let classes = move || {
-        let mut classes = variant.class().to_string();
-        if variant.composed() {
-            classes = format!("{BASE} {classes} {}", size.class());
-        }
-        let extra = class.get();
-        if !extra.is_empty() {
-            classes.push(' ');
-            classes.push_str(&extra);
-        }
-        classes
-    };
+    let classes = move || button_classes(variant, size, &class.get());
     view! {
         <button
             type=if submit { "submit" } else { "button" }
@@ -162,6 +157,19 @@ pub fn Button(
             {children()}
         </button>
     }
+}
+
+/// 遷移だがボタンの見た目が必要なリンク(404 の「ホームに戻る」など)
+#[component]
+pub fn LinkButton(
+    variant: ButtonVariant,
+    #[prop(default = ButtonSize::Md)] size: ButtonSize,
+    #[prop(into, optional)] class: Signal<String>,
+    href: &'static str,
+    children: Children,
+) -> impl IntoView {
+    let classes = move || button_classes(variant, size, &class.get());
+    view! { <a href=href class=classes>{children()}</a> }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,7 +202,7 @@ pub fn IconButton(
     #[prop(into, optional)] disabled: Option<Signal<bool>>,
     #[prop(optional)] testid: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     let classes = move || {
         let mut classes = variant.class().to_string();

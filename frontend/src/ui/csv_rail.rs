@@ -2,7 +2,7 @@ use crate::api::dto::CsvUploadResponse;
 use crate::support::csv_flow::{row_error_text, CsvUploadResponseExt};
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::disclosure::{DisclosureIndicator, DisclosureStyle, DisclosureToggle};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
 #[component]
@@ -45,7 +45,7 @@ pub fn CsvActionRail(
                     expanded=Signal::derive(move || csv_expanded.get())
                     controls=csv_body_id.clone()
                     testid=toggle_testid
-                    indicator=DisclosureIndicator::Hint
+                    hint=true
                     on_toggle=move || csv_expanded.update(|v| *v = !*v)
                 >
                     <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>

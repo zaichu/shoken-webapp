@@ -1,5 +1,9 @@
 use crate::features::receipts::kind::CardFields;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
+use crate::ui::amount::Amount;
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::copy_to_clipboard;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -207,15 +211,17 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
         }
         CardDetailValue::CopyName { display, copy } => {
             let copy_text = copy.clone();
+            let aria_label = format!("{copy} をコピー");
+            let display = display.clone();
             (
                 view! {
-                    <button
-                        type="button"
-                        aria-label=format!("{copy} をコピー")
-                        on:click=move |_| copy_to_clipboard(copy_text.clone())
-                        class="copyable-name group"
+                    <Button
+                        variant=ButtonVariant::CopyName
+                        class="group"
+                        aria_label=aria_label
+                        on_click=move |_| copy_to_clipboard(copy_text.clone())
                     >
-                        <span>{display.clone()}</span>
+                        <span>{move || display.clone()}</span>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="12"
@@ -232,7 +238,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                         </svg>
-                    </button>
+                    </Button>
                 }
                 .into_any(),
                 None,
@@ -268,21 +274,20 @@ fn ReceiptItemCard(
         "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-ink"
     };
     view! {
-        <div data-testid="receipt-card" class="rounded-lg border border-border-strong bg-surface">
-            <button
+        <Card variant=CardVariant::Item testid="receipt-card">
+            <DisclosureToggle
                 id=button_id.clone()
-                type="button"
-                aria-label=aria_label
-                aria-expanded=move || if expanded.get() { "true" } else { "false" }
-                aria-controls=details_id.clone()
-                on:click=move |_| {
+                style=DisclosureStyle::ReceiptCard
+                expanded=Signal::derive(move || expanded.get())
+                controls=details_id.clone()
+                aria_label=aria_label
+                on_toggle=move || {
                     expanded_ids.update(|set| {
                         if !set.remove(&toggle_id) {
                             set.insert(toggle_id.clone());
                         }
                     })
                 }
-                class="receipt-card-trigger"
             >
                 <span class="flex w-full items-baseline gap-2">
                     <span class="min-w-0 flex-1 truncate text-base font-semibold text-ink">
@@ -296,28 +301,13 @@ fn ReceiptItemCard(
                 >
                     <span class="shrink-0">{date}</span>
                     <span class="min-w-0 flex-1 truncate">{account}</span>
-                    <svg
-                        class=move || {
-                            if expanded.get() {
-                                "h-4 w-4 shrink-0 rotate-180"
-                            } else {
-                                "h-4 w-4 shrink-0"
-                            }
-                        }
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                    >
-                        <path
-                            d="m6 9 6 6 6-6"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        />
-                    </svg>
+                    <ChevronIcon
+                        expanded=Signal::derive(move || expanded.get())
+                        class="h-4 w-4 shrink-0"
+                        path="m6 9 6 6 6-6"
+                    />
                 </span>
-            </button>
+            </DisclosureToggle>
             <div
                 id=details_id
                 role="region"
@@ -361,7 +351,7 @@ fn ReceiptItemCard(
                         })
                 }}
             </div>
-        </div>
+        </Card>
     }
 }
 
@@ -401,7 +391,7 @@ pub(crate) fn MobileCardGroup(
     if summary.is_empty() {
         return view! {
             <section data-testid="receipt-card-group">
-                <div class="flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2">
+                <Card variant=CardVariant::GroupLabel>
                     <span class="text-sm font-semibold text-text-soft">{label}</span>
                     {(count >= 2)
                         .then(|| {
@@ -411,7 +401,7 @@ pub(crate) fn MobileCardGroup(
                                 </span>
                             }
                         })}
-                </div>
+                </Card>
                 {card_list}
             </section>
         }
@@ -428,21 +418,20 @@ pub(crate) fn MobileCardGroup(
     let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
     view! {
         <section data-testid="receipt-card-group">
-            <div class="overflow-hidden rounded-lg border border-border-subtle">
-                <button
+            <Card variant=CardVariant::Group>
+                <DisclosureToggle
                     id=button_id.clone()
-                    type="button"
-                    aria-label=aria_label
-                    aria-expanded=move || if expanded.get() { "true" } else { "false" }
-                    aria-controls=details_id.clone()
-                    on:click=move |_| {
+                    style=DisclosureStyle::GroupCard
+                    expanded=Signal::derive(move || expanded.get())
+                    controls=details_id.clone()
+                    aria_label=aria_label
+                    on_toggle=move || {
                         expanded_ids.update(|set| {
                             if !set.remove(&toggle_id) {
                                 set.insert(toggle_id.clone());
                             }
                         })
                     }
-                    class="group-card-trigger"
                 >
                     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
                         {label}
@@ -463,28 +452,13 @@ pub(crate) fn MobileCardGroup(
                         <span class=primary_value_class>
                             {primary_value}
                         </span>
-                        <svg
-                            class=move || {
-                                if expanded.get() {
-                                    "h-4 w-4 shrink-0 self-center text-text-muted rotate-180"
-                                } else {
-                                    "h-4 w-4 shrink-0 self-center text-text-muted"
-                                }
-                            }
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="m6 9 6 6 6-6"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
+                        <ChevronIcon
+                            expanded=Signal::derive(move || expanded.get())
+                            class="h-4 w-4 shrink-0 self-center text-text-muted"
+                            path="m6 9 6 6 6-6"
+                        />
                     </span>
-                </button>
+                </DisclosureToggle>
                 <div
                     id=details_id
                     role="region"
@@ -513,11 +487,11 @@ pub(crate) fn MobileCardGroup(
                                                         <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
                                                             {*label}
                                                         </dt>
-                                                        <dd
-                                                            class=value_class
-                                                            data-negative=negative.then_some("true")
-                                                        >
-                                                            {value.clone()}
+                                                        <dd class=value_class>
+                                                            <Amount
+                                                                text=value.clone()
+                                                                negative=negative
+                                                            />
                                                         </dd>
                                                     </div>
                                                 }
@@ -528,7 +502,7 @@ pub(crate) fn MobileCardGroup(
                             })
                     }}
                 </div>
-            </div>
+            </Card>
             {card_list}
         </section>
     }

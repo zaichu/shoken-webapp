@@ -102,7 +102,8 @@ pub fn Card(
     #[prop(optional)] testid: Option<&'static str>,
     #[prop(optional)] id: Option<String>,
     #[prop(optional)] aria_label: Option<&'static str>,
-    children: ChildrenFn,
+    #[prop(optional)] role: Option<&'static str>,
+    children: Children,
 ) -> impl IntoView {
     let classes = move || {
         let extra = class.get();
@@ -129,7 +130,7 @@ pub fn Card(
         .into_any();
     }
     view! {
-        <div class=classes data-testid=testid id=id aria-label=aria_label>
+        <div class=classes data-testid=testid id=id aria-label=aria_label role=role>
             {children()}
         </div>
     }
@@ -171,7 +172,7 @@ pub fn SectionHeader(
     variant: SectionHeaderVariant,
     #[prop(optional)] testid: Option<&'static str>,
     #[prop(optional)] trailing: Option<AnyView>,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     let frame = variant.frame();
     let heading = variant.heading();

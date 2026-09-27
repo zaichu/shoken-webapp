@@ -11,6 +11,12 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::amount::Amount;
+use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
+use crate::ui::choice::{Chip, ChipVariant};
+use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -59,7 +65,7 @@ pub(crate) fn PortfolioSummary(
     views: Vec<HoldingView>,
     total_count: usize,
     is_filtered: bool,
-    on_clear_filter: impl Fn() + 'static,
+    on_clear_filter: impl Fn() + Send + Sync + 'static,
     summary: Option<AssetBalanceSummary>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
@@ -67,27 +73,19 @@ pub(crate) fn PortfolioSummary(
     if views.is_empty() {
         show_all.set(false);
         return view! {
-            <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card">
+            <Card variant=CardVariant::Soft class="mb-3">
                 <div>
-                    <div class="empty-state">
-                        <h3 class="text-base font-black text-ink">
-                            "該当する銘柄がありません"
-                        </h3>
-                        <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
-                            "検索条件を変更するか、絞り込みを解除してください。"
-                        </p>
-                    </div>
+                    <EmptyState
+                        title="該当する銘柄がありません"
+                        description="検索条件を変更するか、絞り込みを解除してください。"
+                    />
                     <div class="mt-3 text-center">
-                        <button
-                            type="button"
-                            class="text-sm text-text-deep hover:underline"
-                            on:click=move |_| on_clear_filter()
-                        >
+                        <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear_filter()>
                             "絞り込みを解除"
-                        </button>
+                        </Button>
                     </div>
                 </div>
-            </div>
+            </Card>
         }
         .into_any();
     }
@@ -131,61 +129,64 @@ pub(crate) fn PortfolioSummary(
 
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
-            <section
-                class="rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-summary-card"
-                data-testid="portfolio-kpi-strip"
-            >
-                <div class="flex flex-col gap-3 border-b border-ink/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h2 class="text-sm font-black text-ink">"資産サマリー"</h2>
-                    </div>
-                    {is_filtered.then(move || {
-                        view! {
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex items-center rounded-md border border-info-border bg-info-soft px-3 py-1 text-sm font-bold text-info">
-                                    {format!("絞り込み中: {display_count}/{total_count}件")}
-                                </span>
-                                <button
-                                    type="button"
-                                    class="filter-chip"
-                                    on:click=move |_| on_clear_filter()
-                                >
-                                    "解除"
-                                </button>
-                            </div>
-                        }
-                    })}
-                </div>
+            <Card variant=CardVariant::Summary testid="portfolio-kpi-strip">
+                <SectionHeader
+                    variant=SectionHeaderVariant::Card
+                    trailing=view! {
+                        {is_filtered.then(|| {
+                            view! {
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Badge variant=BadgeVariant::Info>
+                                        {format!("絞り込み中: {display_count}/{total_count}件")}
+                                    </Badge>
+                                    <Chip
+                                        variant=ChipVariant::Pill
+                                        on_click=move |_| on_clear_filter()
+                                    >
+                                        "解除"
+                                    </Chip>
+                                </div>
+                            }
+                        })}
+                    }
+                    .into_any()
+                >
+                    "資産サマリー"
+                </SectionHeader>
                 <div class="mt-4" data-testid="portfolio-valuation-summary">
                     <p class="text-sm font-medium text-text-muted">"保有資産の評価額"</p>
-                    <p class="mt-1 text-3xl font-black tabular-nums text-ink">
-                        {market_value.map_or("—".to_string(), format_currency)}
-                    </p>
+                    <Amount
+                        block=true
+                        text=market_value.map_or("—".to_string(), format_currency)
+                        class="mt-1 text-3xl font-black text-ink"
+                    />
                     <p
-                        class=format!("mt-2 text-sm font-bold tabular-nums {valuation_class}")
+                        class=format!("mt-2 text-sm font-bold {valuation_class}")
                         data-negative=valuation_negative
                     >
                         "評価損益 "
-                        {match valuation.amount {
-                            None => "—".to_string(),
-                            Some(amount) => {
-                                match valuation.rate {
-                                    None => {
-                                        format!(
-                                            "{}（算出不可）",
-                                            format_valuation_amount(Some(amount)),
-                                        )
-                                    }
-                                    Some(rate) => {
-                                        format!(
-                                            "{}（{}）",
-                                            format_valuation_amount(Some(amount)),
-                                            format_valuation_rate(Some(rate), 1),
-                                        )
+                        <Amount
+                            text=match valuation.amount {
+                                None => "—".to_string(),
+                                Some(amount) => {
+                                    match valuation.rate {
+                                        None => {
+                                            format!(
+                                                "{}（算出不可）",
+                                                format_valuation_amount(Some(amount)),
+                                            )
+                                        }
+                                        Some(rate) => {
+                                            format!(
+                                                "{}（{}）",
+                                                format_valuation_amount(Some(amount)),
+                                                format_valuation_rate(Some(rate), 1),
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }}
+                        />
                     </p>
                     <p class="mt-1 text-xs text-text-subtle">"取込データ時点"</p>
                     {valuation
@@ -202,43 +203,43 @@ pub(crate) fn PortfolioSummary(
                     class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
                     data-testid="portfolio-kpi-grid"
                 >
-                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                    <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"合計取得総額"</p>
-                        <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep tabular-nums"
-                        >
-                            {format_currency(total_purchase_amount)}
-                        </p>
-                    </div>
-                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                        <Amount
+                            block=true
+                            text=format_currency(total_purchase_amount)
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep"
+                        />
+                    </Card>
+                    <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"年間配当金額"</p>
-                        <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink tabular-nums"
-                            data-testid="portfolio-annual-dividends"
-                        >
-                            {move || {
+                        <Amount
+                            block=true
+                            text=Signal::derive(move || {
                                 kpi.with(|kpi| {
                                     kpi.total_annual_dividends
                                         .map_or("—".to_string(), format_currency)
                                 })
-                            }}
-                        </p>
-                    </div>
-                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                            })
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink"
+                            testid="portfolio-annual-dividends"
+                        />
+                    </Card>
+                    <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"配当利回り"</p>
-                        <p
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink tabular-nums"
-                            data-testid="portfolio-dividend-yield"
-                        >
-                            {move || {
+                        <Amount
+                            block=true
+                            text=Signal::derive(move || {
                                 kpi.with(|kpi| {
                                     kpi.dividend_yield
                                         .map_or("—".to_string(), format_percentage_value)
                                 })
-                            }}
-                        </p>
-                    </div>
-                    <div class="rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+                            })
+                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink"
+                            testid="portfolio-dividend-yield"
+                        />
+                    </Card>
+                    <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"保有銘柄数"</p>
                         <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-soft tabular-nums">
                             {if is_filtered {
@@ -248,21 +249,17 @@ pub(crate) fn PortfolioSummary(
                             }}
                             <span class="ml-1 text-sm font-normal text-text-subtle">"銘柄"</span>
                         </p>
-                    </div>
+                    </Card>
                 </div>
-            </section>
+            </Card>
 
             <div data-testid="portfolio-pie-chart">
-                <div class="summary-section-header">
-                    <div>
-                        <h3 class="text-sm font-black text-text-strong">
-                            "保有内訳"
-                            <span class="ml-1 font-medium text-text-subtle sm:hidden">
-                                {format!("（保有{display_count}銘柄）")}
-                            </span>
-                        </h3>
-                    </div>
-                </div>
+                <SectionHeader variant=SectionHeaderVariant::Band>
+                    "保有内訳"
+                    <span class="ml-1 font-medium text-text-subtle sm:hidden">
+                        {format!("（保有{display_count}銘柄）")}
+                    </span>
+                </SectionHeader>
                 <div class="p-4">
                     <ChartList items=chart_items dividends=dividends show_all=show_all />
                 </div>

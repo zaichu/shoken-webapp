@@ -10,6 +10,10 @@ use crate::features::asset_balance::model::{
     calculate_valuation_from_decimal, format_number_value,
 };
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::amount::Amount;
+use crate::ui::badge::CodeBadge;
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::SecurityCodeLink;
 use leptos::prelude::*;
 
@@ -74,18 +78,18 @@ pub(crate) fn HoldingCard(
         }
     };
     view! {
-        <div class="rounded-lg border border-ink/10 bg-surface px-3.5 py-3 shadow-sm max-sm:hidden">
+        <Card variant=CardVariant::Holding class="px-3.5 py-3 max-sm:hidden">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2.5 min-w-0">
                         <span class="h-3 w-3 shrink-0 rounded-sm" style=format!("background-color: {color}") />
                         <div class="flex min-w-0 items-center gap-2" data-testid="portfolio-card-identity">
-                            <span class="code-badge" data-testid="portfolio-card-code">
+                            <CodeBadge testid="portfolio-card-code">
                                 <SecurityCodeLink
                                     value=item.view.code.clone()
                                     class="font-semibold no-underline hover:underline".to_string()
                                 />
-                            </span>
+                            </CodeBadge>
                             <p class="line-clamp-2 text-base font-semibold text-text" title=item.view.name.clone()>
                                 {item.view.name.clone()}
                             </p>
@@ -97,18 +101,20 @@ pub(crate) fn HoldingCard(
             <div class="mt-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1" data-testid="portfolio-card-valuation">
                 <div>
                     <p class="text-xs font-medium text-text-subtle">"評価額"</p>
-                    <p class="whitespace-nowrap text-lg font-bold tabular-nums text-ink">
-                        {valuation.market}
-                    </p>
+                    <Amount
+                        block=true
+                        text=valuation.market
+                        class="whitespace-nowrap text-lg font-bold text-ink"
+                    />
                 </div>
                 <div class="ml-auto text-right">
                     <p class="text-xs font-medium text-text-subtle">"評価損益"</p>
-                    <p
-                        class=format!("whitespace-nowrap text-sm font-bold tabular-nums {}", valuation.class)
-                        data-negative=valuation.negative
-                    >
-                        {valuation.profit_loss}
-                    </p>
+                    <Amount
+                        block=true
+                        text=valuation.profit_loss
+                        class=format!("whitespace-nowrap text-sm font-bold {}", valuation.class)
+                        negative=valuation.negative.is_some()
+                    />
                 </div>
             </div>
 
@@ -125,9 +131,10 @@ pub(crate) fn HoldingCard(
                 </span>
             </div>
 
-            <div
-                class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-surface-sunken"
-                data-testid="portfolio-card-acquisition-stats"
+            <Card
+                variant=CardVariant::Strip
+                class="mt-2 grid grid-cols-3"
+                testid="portfolio-card-acquisition-stats"
             >
                 <div class="min-w-0 px-2 py-2">
                     <p class="truncate text-xs font-medium text-text-subtle">"取得総額"</p>
@@ -156,9 +163,9 @@ pub(crate) fn HoldingCard(
                         {format!("{}株", format_number_value(item.view.shares))}
                     </p>
                 </div>
-            </div>
+            </Card>
 
-            <div class="mt-2 grid grid-cols-3 overflow-hidden rounded-md bg-surface-sunken">
+            <Card variant=CardVariant::Strip class="mt-2 grid grid-cols-3">
                 <div class="min-w-0 px-2 py-2 text-xs text-text-muted">
                     <p class="truncate text-xs font-medium text-text-subtle">"1株配当"</p>
                     <p
@@ -186,8 +193,8 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_yield)}
                     </p>
                 </div>
-            </div>
-        </div>
+            </Card>
+        </Card>
     }
 }
 
@@ -208,47 +215,49 @@ pub(crate) fn HoldingValuationCard(
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });
+    let name_text = item.view.name.clone();
+    let code_text = item.view.code.clone();
     view! {
-        <div class="rounded-lg border border-ink/10 bg-surface shadow-sm sm:hidden" data-testid="portfolio-valuation-card">
-            <button
-                type="button"
-                aria-expanded=move || if open.get() { "true" } else { "false" }
-                aria-controls=detail_id.clone()
-                on:click=move |_| open.update(|value| *value = !*value)
-                class="block min-h-11 w-full px-3.5 py-4 text-left"
+        <Card
+            variant=CardVariant::Holding
+            class="sm:hidden"
+            testid="portfolio-valuation-card"
+        >
+            <DisclosureToggle
+                style=DisclosureStyle::AssetCard
+                expanded=Signal::derive(move || open.get())
+                controls=detail_id.clone()
+                on_toggle=move || open.update(|value| *value = !*value)
             >
                 <span class="flex min-w-0 items-center gap-2">
                     <span class="min-w-0 flex-1 truncate text-base font-semibold text-text">
-                        {item.view.name.clone()}
+                        {name_text}
                     </span>
-                    <span
-                        class="code-badge"
-                        data-testid="portfolio-valuation-card-code"
-                    >
-                        {item.view.code.clone()}
-                    </span>
+                    <CodeBadge testid="portfolio-valuation-card-code">
+                        {code_text}
+                    </CodeBadge>
                 </span>
                 <span class="mt-2 flex items-baseline justify-between gap-2">
                     <span class="shrink-0 text-xs font-medium text-text-subtle">"評価額"</span>
-                    <span class="truncate text-base font-bold tabular-nums text-text">
-                        {market_display}
-                    </span>
+                    <Amount
+                        class="truncate text-base font-bold text-text"
+                        text=market_display
+                    />
                 </span>
                 <span class="mt-2 flex items-center justify-between gap-2">
                     <span class="shrink-0 text-xs font-medium text-text-subtle">"評価損益"</span>
                     <span class="flex min-w-0 items-center gap-1">
-                        <span
-                            class=format!("truncate text-sm font-bold tabular-nums {valuation_class}")
-                            data-negative=valuation_negative
-                        >
-                            {profit_loss}
-                        </span>
+                        <Amount
+                            class=format!("truncate text-sm font-bold {valuation_class}")
+                            negative=valuation_negative.is_some()
+                            text=profit_loss
+                        />
                         <span aria-hidden="true" class="shrink-0 text-xs text-text-faint">
                             {move || if open.get() { "▴" } else { "▾" }}
                         </span>
                     </span>
                 </span>
-            </button>
+            </DisclosureToggle>
             {move || {
                 let dividend = holding_dividend(
                     &item.view.code,
@@ -327,6 +336,6 @@ pub(crate) fn HoldingValuationCard(
                         }
                     })
             }}
-        </div>
+        </Card>
     }
 }

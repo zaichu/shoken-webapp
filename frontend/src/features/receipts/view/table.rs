@@ -7,6 +7,9 @@ use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
+use crate::ui::amount::Amount;
+use crate::ui::badge::CodeBadge;
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use leptos::ev;
 use leptos::prelude::*;
@@ -182,10 +185,7 @@ pub(crate) fn ReceiptTable(
         }
     });
     view! {
-        <div
-            class="table-card"
-            data-testid="receipt-card"
-        >
+        <Card variant=CardVariant::Table testid="receipt-card">
             <div class="p-0" data-testid="receipt-card-body">
                 <div class="hidden sm:block">
                     <div class="table-frame">
@@ -271,9 +271,11 @@ pub(crate) fn ReceiptTable(
                                                                 class=format!(
                                                                     "bg-surface-raised text-text text-right font-semibold{top}"
                                                                 )
-                                                                data-negative=negative.then_some("true")
                                                             >
-                                                                {value.clone()}
+                                                                <Amount
+                                                                    text=value.clone()
+                                                                    negative=negative
+                                                                />
                                                             </td>
                                                         }
                                                     })
@@ -300,9 +302,9 @@ pub(crate) fn ReceiptTable(
                                                                         .into_any(),
                                                                         ReceiptCell::SecurityCode(code) => view! {
                                                                             <td class=align>
-                                                                                <span class="code-badge py-0">
+                                                                                <CodeBadge class="py-0">
                                                                                     <SecurityCodeLink value=code class="font-semibold".to_string() />
-                                                                                </span>
+                                                                                </CodeBadge>
                                                                             </td>
                                                                         }
                                                                         .into_any(),
@@ -327,9 +329,11 @@ pub(crate) fn ReceiptTable(
                                                                                 <td
                                                                                     class=align
                                                                                     title=title
-                                                                                    data-negative=negative.then_some("true")
                                                                                 >
-                                                                                    {value}
+                                                                                    <Amount
+                                                                                        text=value
+                                                                                        negative=negative
+                                                                                    />
                                                                                 </td>
                                                                             }
                                                                             .into_any()
@@ -370,6 +374,6 @@ pub(crate) fn ReceiptTable(
                     </div>
                 </div>
             </div>
-        </div>
+        </Card>
     }
 }

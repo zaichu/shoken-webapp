@@ -53,7 +53,7 @@ pub fn Badge(
     variant: BadgeVariant,
     #[prop(into, optional)] class: Signal<String>,
     #[prop(optional)] testid: Option<&'static str>,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     view! {
         <span
@@ -77,7 +77,7 @@ pub fn Badge(
 pub fn CodeBadge(
     #[prop(into, optional)] class: Signal<String>,
     #[prop(optional)] testid: Option<&'static str>,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     view! {
         <span

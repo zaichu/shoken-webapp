@@ -9,6 +9,9 @@ use crate::features::dividend_per_share::{
 use crate::features::receipts::model::{format_currency, format_number, DividendTotals};
 use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
+use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
@@ -183,11 +186,7 @@ impl DividendInfoStore {
 
 #[component]
 fn AssetBadge() -> impl IntoView {
-    view! {
-        <span class="ml-1 inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive">
-            "保有銘柄"
-        </span>
-    }
+    view! { <Badge variant=BadgeVariant::Positive class="ml-1">"保有銘柄"</Badge> }
 }
 
 #[component]
@@ -215,7 +214,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">
                         "平均取得価格"
                         {move || asset().is_some().then(AssetBadge)}
@@ -231,8 +230,8 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
-                </div>
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                </Card>
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">
                         "保有数量(株)"
                         {move || asset().is_some().then(AssetBadge)}
@@ -248,8 +247,8 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
                         })
                     }}
-                </div>
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                </Card>
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"一株配当"</p>
                     <p class="text-2xl font-bold tabular-nums text-text-deep">{per_share_text}</p>
                     {move || {
@@ -257,10 +256,10 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             view! { <p class="mt-0.5 text-xs text-text-subtle">{JQUANTS_HINT}</p> }
                         })
                     }}
-                </div>
+                </Card>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"配当金額 (配当利回り)"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_dividends_before_tax)}
@@ -275,14 +274,14 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             })
                         }}
                     </p>
-                </div>
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                </Card>
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"税額"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_taxes)}
                     </p>
-                </div>
-                <div class="rounded-lg bg-surface-sunken px-4 py-3">
+                </Card>
+                <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"受取金額 (累積利回り)"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_net_amount_received)}
@@ -297,7 +296,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             })
                         }}
                     </p>
-                </div>
+                </Card>
             </div>
         </div>
     }
@@ -320,63 +319,27 @@ pub(crate) fn DividendSummarySection(
     let open_label = |open: bool| if open { "閉じる" } else { "開く" };
     let totals_mobile = totals.clone();
     view! {
-        <section
-            class="collapsible-card"
-            data-testid="receipt-summary-strip"
-        >
+        <Card variant=CardVariant::Collapsible testid="receipt-summary-strip">
             <div class="sm:hidden" data-testid="receipt-summary-compact">
-                <button
-                    type="button"
-                    class="collapsible-trigger"
-                    aria-expanded=move || {
-                        if mobile_expanded.get() {
-                            "true"
-                        } else {
-                            "false"
-                        }
-                    }
-                    aria-controls="receipt-summary-mobile-body"
-                    aria-label=title
-                    data-testid="receipt-summary-compact-toggle"
-                    on:click=move |_| mobile_expanded.update(|open| *open = !*open)
+                <DisclosureToggle
+                    style=DisclosureStyle::Collapsible
+                    expanded=Signal::derive(move || mobile_expanded.get())
+                    controls="receipt-summary-mobile-body".to_string()
+                    aria_label=title.to_string()
+                    testid="receipt-summary-compact-toggle"
+                    hint=true
+                    on_toggle=move || mobile_expanded.update(|open| *open = !*open)
                 >
                     <span class="flex min-w-0 items-center gap-2">
                         {preview
                             .then(|| {
                                 view! {
-                                    <span class="shrink-0 rounded bg-accent-softer px-1.5 py-0.5 text-xs font-bold text-accent-text">
-                                        "プレビュー"
-                                    </span>
+                                    <Badge variant=BadgeVariant::AccentFlat>"プレビュー"</Badge>
                                 }
                             })}
                         <span class="text-sm font-black text-ink">"集計情報"</span>
                     </span>
-                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
-                        <span class="text-xs font-semibold">
-                            {move || open_label(mobile_expanded.get())}
-                        </span>
-                        <svg
-                            aria-hidden="true"
-                            class=move || {
-                                if mobile_expanded.get() {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
-                                } else {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
-                                }
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                            />
-                        </svg>
-                    </span>
-                </button>
+                </DisclosureToggle>
                 {move || {
                     mobile_expanded.get().then(|| {
                         view! {
@@ -392,19 +355,12 @@ pub(crate) fn DividendSummarySection(
                 }}
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
-                <button
-                    type="button"
-                    class="flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left"
-                    aria-expanded=move || {
-                        if expanded.get() {
-                            "true"
-                        } else {
-                            "false"
-                        }
-                    }
-                    aria-controls="receipt-summary-body"
-                    data-testid="receipt-header"
-                    on:click=move |_| expanded.update(|open| *open = !*open)
+                <DisclosureToggle
+                    style=DisclosureStyle::HeaderFlat
+                    expanded=Signal::derive(move || expanded.get())
+                    controls="receipt-summary-body".to_string()
+                    testid="receipt-header"
+                    on_toggle=move || expanded.update(|open| *open = !*open)
                 >
                     <div>
                         <h2 class="text-sm font-black text-ink">{title}</h2>
@@ -414,32 +370,17 @@ pub(crate) fn DividendSummarySection(
                         aria-hidden="true"
                     >
                         <span class="text-xs font-semibold">{move || open_label(expanded.get())}</span>
-                        <svg
-                            class=move || {
-                                if expanded.get() {
-                                    "w-4 h-4 text-text-subtle transition-transform duration-200 rotate-180"
-                                } else {
-                                    "w-4 h-4 text-text-subtle transition-transform duration-200"
-                                }
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                            />
-                        </svg>
+                        <ChevronIcon
+                            expanded=Signal::derive(move || expanded.get())
+                            class="w-4 h-4 text-text-subtle transition-transform duration-200"
+                        />
                     </span>
-                </button>
+                </DisclosureToggle>
                 <div id="receipt-summary-body" hidden=move || !expanded.get() class="pt-3">
                     <DividendInfo store=store totals=totals.clone() />
                 </div>
             </div>
-        </section>
+        </Card>
     }
 }
 

@@ -3,6 +3,7 @@ use crate::api::dto::SearchFacets;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
+use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::security_link::try_copy_to_clipboard;
 use leptos::prelude::*;
 
@@ -74,15 +75,15 @@ fn AssetReviewPromptCard(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     view! {
         <div class="px-5 py-4" data-testid="asset-review-prompt-card">
             <p class="mb-2 text-xs font-medium text-text-quiet">"AI総評プロンプト"</p>
-            <button
-                type="button"
-                class="review-prompt-button no-print"
-                aria-label=label
+            <Button
+                variant=ButtonVariant::Prompt
+                class="no-print"
+                aria_label=move || label().to_string()
                 disabled=disabled
-                on:click=on_click
+                on_click=on_click
             >
                 {label}
-            </button>
+            </Button>
         </div>
     }
 }
