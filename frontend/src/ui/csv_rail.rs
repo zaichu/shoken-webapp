@@ -1,12 +1,9 @@
 use crate::api::dto::CsvUploadResponse;
 use crate::support::csv_flow::{row_error_text, CsvUploadResponseExt};
+use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::disclosure::{DisclosureIndicator, DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
-
-const PRIMARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-ink bg-ink text-text-inverse shadow-edge-lit hover:bg-ink-hover active:bg-ink px-3 text-sm max-sm:min-h-11 h-11 w-full";
-const DELETE_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-negative text-negative hover:bg-negative hover:text-text-inverse px-3 text-sm max-sm:min-h-11 h-11 w-full";
-const BADGE_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-soft";
-const BADGE_MUTED_CLASS: &str = "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-medium text-text-muted";
-const BADGE_WARN_CLASS: &str = "inline-flex items-center rounded-full border border-accent-border bg-surface px-2.5 py-1 text-xs font-medium text-accent-deep";
 
 #[component]
 pub fn CsvActionRail(
@@ -43,41 +40,16 @@ pub fn CsvActionRail(
     view! {
         <div>
             <div class="bg-surface-sunken/60 px-5 sm:hidden">
-                <button
-                    type="button"
-                    class="rail-toggle"
-                    on:click=move |_| csv_expanded.update(|v| *v = !*v)
-                    aria-expanded=move || csv_expanded.get().to_string()
-                    aria-controls=csv_body_id.clone()
-                    data-testid=toggle_testid
+                <DisclosureToggle
+                    style=DisclosureStyle::Rail
+                    expanded=Signal::derive(move || csv_expanded.get())
+                    controls=csv_body_id.clone()
+                    testid=toggle_testid
+                    indicator=DisclosureIndicator::Hint
+                    on_toggle=move || csv_expanded.update(|v| *v = !*v)
                 >
                     <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
-                    <span class="flex shrink-0 items-center gap-1 text-text-soft">
-                        <span class="text-xs font-semibold">
-                            {move || if csv_expanded.get() { "閉じる" } else { "開く" }}
-                        </span>
-                        <svg
-                            aria-hidden="true"
-                            class=move || {
-                                if csv_expanded.get() {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200 rotate-180"
-                                } else {
-                                    "h-4 w-4 text-text-subtle transition-transform duration-200"
-                                }
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 9l-7 7-7-7"
-                            />
-                        </svg>
-                    </span>
-                </button>
+                </DisclosureToggle>
             </div>
             <div
                 id=csv_body_id
@@ -101,15 +73,16 @@ pub fn CsvActionRail(
                     if has_csv_file.get() {
                         let on_save = on_save.clone();
                         view! {
-                            <button
-                                type="button"
-                                class=PRIMARY_BUTTON_CLASS
+                            <Button
+                                variant=ButtonVariant::Primary
+                                size=ButtonSize::Fill
+                                class="no-print"
                                 disabled=move || save_disabled.get()
-                                aria-disabled=move || save_disabled.get().to_string()
-                                on:click=move |_| on_save()
+                                aria_disabled=move || save_disabled.get()
+                                on_click=move |_| on_save()
                             >
                                 {move || save_label.get()}
-                            </button>
+                            </Button>
                         }
                             .into_any()
                     } else {
@@ -127,15 +100,16 @@ pub fn CsvActionRail(
                         view! {
                             // 保存後にボタンがカーソルの下へせり上がらないよう、区切り線の下の最後に置く
                             <div class="border-t border-border-subtle pt-3">
-                                <button
-                                    type="button"
-                                    class=DELETE_BUTTON_CLASS
+                                <Button
+                                    variant=ButtonVariant::Danger
+                                    size=ButtonSize::Fill
+                                    class="no-print"
                                     disabled=move || delete_disabled.get()
-                                    aria-disabled=move || delete_disabled.get().to_string()
-                                    on:click=move |_| on_delete_request()
+                                    aria_disabled=move || delete_disabled.get()
+                                    on_click=move |_| on_delete_request()
                                 >
                                     {move || delete_label.get()}
-                                </button>
+                                </Button>
                             </div>
                         }
                             .into_any()
@@ -210,9 +184,9 @@ fn CsvFileInput(
                         <p class="whitespace-nowrap text-sm font-semibold text-text">"CSVファイルを選択"</p>
                     </div>
                 </div>
-                <span class="file-chip">
+                <Badge variant=BadgeVariant::File>
                     "参照"
-                </span>
+                </Badge>
             </label>
             <input
                 type="text"
@@ -240,6 +214,9 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
     } else {
         "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong"
     };
+    let inserted_text = Signal::stored(result.inserted_text());
+    let skipped_text = result.skipped_text();
+    let error_count_text = result.error_count_text();
     view! {
         <section
             class=section_class
@@ -261,14 +238,16 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-text">"保存しました"</p>
                     <div class="mt-2 flex flex-wrap gap-2">
-                        <span class=BADGE_CLASS>{result.inserted_text()}</span>
-                        <span class=BADGE_MUTED_CLASS>{mode_label}</span>
-                        {result
-                            .skipped_text()
-                            .map(|text| view! { <span class=BADGE_MUTED_CLASS>{text}</span> })}
-                        {result
-                            .error_count_text()
-                            .map(|text| view! { <span class=BADGE_WARN_CLASS>{text}</span> })}
+                        <Badge variant=BadgeVariant::Neutral>{inserted_text}</Badge>
+                        <Badge variant=BadgeVariant::Muted>{mode_label}</Badge>
+                        {skipped_text.map(|text| {
+                            let text = Signal::stored(text);
+                            view! { <Badge variant=BadgeVariant::Muted>{text}</Badge> }
+                        })}
+                        {error_count_text.map(|text| {
+                            let text = Signal::stored(text);
+                            view! { <Badge variant=BadgeVariant::Warn>{text}</Badge> }
+                        })}
                     </div>
                     {has_errors.then(|| {
                         view! {
