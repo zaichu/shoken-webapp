@@ -2,8 +2,8 @@ use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
-use crate::services::bulk_helpers::RowLimit;
-use crate::services::csv_domain::CsvDomain;
+use crate::services::csv::domain::CsvDomain;
+use crate::services::domain::bulk::RowLimit;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
 use shared::value::UserId;
 

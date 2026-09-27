@@ -1,6 +1,6 @@
 use std::env;
 
-use crate::services::bulk_helpers::RowLimit;
+use crate::services::domain::bulk::RowLimit;
 
 pub mod cors;
 pub mod environment;

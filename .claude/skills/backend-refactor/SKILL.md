@@ -79,7 +79,7 @@ description: |
 ### Auth / Cookies
 
 - Cookie 名は `session_token`（`backend/src/services/auth.rs`）
-- クロスオリジン運用では `SameSite=None` + `Secure` が必要になり得る（`services/auth.rs` / `handlers/auth.rs`）
+- クロスオリジン運用では `SameSite=None` + `Secure` が必要になり得る（`services/auth.rs` / `handlers/v1/auth/oauth.rs`）
 - 認証済みチェックは `AuthenticatedUser` エクストラクターに寄せる（`backend/src/extractors/auth.rs`）
 
 ### Module Registries

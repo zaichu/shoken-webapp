@@ -2,7 +2,7 @@
 
 ## Deserialize エラー
 
-`backend/src/models/market_data/providers/jquants.rs` と `backend/src/services/market_data/providers/jquants.rs` で、field 名と optional / required の扱いを実応答と比較する。
+`backend/src/services/market_data/providers/jquants/response.rs` と `backend/src/services/market_data/providers/jquants.rs` で、field 名と optional / required の扱いを実応答と比較する。
 
 ## API は成功するが表示が崩れる
 

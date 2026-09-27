@@ -1,6 +1,11 @@
+#[cfg(test)]
+mod query;
+mod response;
+
+pub use response::{FinSummaryData, FinSummaryResponse};
+
 use crate::errors::{ApiError, UpstreamError};
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
-use crate::models::market_data::providers::jquants::FinSummaryResponse;
 use reqwest::Client;
 
 const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";

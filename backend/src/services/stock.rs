@@ -1,7 +1,7 @@
 use crate::errors::ApiError;
 use crate::extractors::char_width_converter::halfwidth_to_fullwidth;
 use crate::models::stock::Stock;
-use crate::services::search_filters::escape_like_pattern;
+use crate::services::domain::search_filters::escape_like_pattern;
 use sqlx::PgPool;
 
 pub async fn search(pool: &PgPool, query: &str) -> Result<Stock, ApiError> {

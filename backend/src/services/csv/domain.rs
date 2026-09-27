@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use crate::{
     errors::ApiError,
     models::csv_import::{CsvPreviewResponse, CsvUploadResponse},
-    services::bulk_helpers::RowLimit,
+    services::domain::bulk::RowLimit,
 };
 
 /// CSV アップロードをサポートするドメインのトレイト

@@ -9,7 +9,7 @@ use crate::{
         common::{BulkCreateResponse, MessageResponse, PaginatedSearchResponse, SearchFacets},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     },
-    services::{asset_balance as asset_balance_service, csv_domain::AssetBalanceDomain},
+    services::{asset_balance as asset_balance_service, csv::domain::AssetBalanceDomain},
     state::AppState,
 };
 use axum::{
@@ -94,7 +94,7 @@ pub async fn delete_all(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_delete_all(
+    crate::handlers::v1::csv_import::handle_delete_all(
         asset_balance_service::delete_all(&state.pool, auth_user.id()),
         "全ての保有銘柄データを削除しました",
     )
@@ -119,7 +119,7 @@ pub async fn validate_import(
     _auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_preview_csv::<AssetBalanceDomain>(multipart).await
+    crate::handlers::v1::csv_import::handle_preview_csv::<AssetBalanceDomain>(multipart).await
 }
 
 /// 保有銘柄 CSV をインポート（v1）
@@ -140,7 +140,7 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::csv_import::handle_import_csv::<AssetBalanceDomain>(
+    crate::handlers::v1::csv_import::handle_import_csv::<AssetBalanceDomain>(
         &state.pool,
         auth_user.id(),
         multipart,

@@ -6,18 +6,18 @@ use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadRespon
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
-use crate::services::bulk_helpers::{
-    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
-    DeleteTarget, RowLimit, UserDataDomain,
-};
-use crate::services::csv_import::{build_csv_preview, run_csv_upload, validate_csv_rows};
-use crate::services::csv_pipeline::{CsvParserConfig, CsvRow};
-use crate::services::csv_util::{
+use crate::services::csv::import::{build_csv_preview, run_csv_upload, validate_csv_rows};
+use crate::services::csv::pipeline::{CsvParserConfig, CsvRow};
+use crate::services::csv::util::{
     check_max_chars, parse_required_account, parse_required_date, parse_required_number,
     parse_required_security_code, parse_required_string, RowNumber,
 };
-use crate::services::facets::{self, FacetOrder, GroupField};
-use crate::services::search_filters::{
+use crate::services::domain::bulk::{
+    delete_all_for_user, ensure_user_row_limit_with, user_ids_for_bulk_insert, BulkTimer,
+    DeleteTarget, RowLimit, UserDataDomain,
+};
+use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::search_filters::{
     fetch_if_included, push_search_filters, run_paginated_search, tokens_from_query, DateAxisFilter,
 };
 use rust_decimal::Decimal;

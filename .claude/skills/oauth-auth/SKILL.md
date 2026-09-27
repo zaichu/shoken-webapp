@@ -193,6 +193,6 @@ Authorized redirect URI は API バージョン付きのコールバックを登
 
 ## 参考ファイル
 
-- `backend/src/handlers/auth.rs` - 認証ハンドラー
+- `backend/src/handlers/v1/auth/oauth.rs` - 認証ハンドラー
 - `backend/src/extractors/auth.rs` - AuthenticatedUser エクストラクター
 - `backend/src/config/environment.rs` - `is_production_env` / `is_secure_cookie`（fail-safe 本番判定）

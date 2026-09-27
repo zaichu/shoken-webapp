@@ -699,7 +699,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             ),
         };
         let (jar, redirect) =
-            crate::handlers::auth::google_auth(State(app_state), CookieJar::new())
+            crate::handlers::v1::auth::oauth::google_auth(State(app_state), CookieJar::new())
                 .await
                 .expect("認可リダイレクト発行失敗");
         let response = redirect.into_response();
