@@ -110,6 +110,34 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         assert_eq!(header_summary(tab, &data, "", false)[0].1, dec!(9999));
     }
 }
+
+#[test]
+fn header_tones_mark_negative_profit_only() {
+    let tones = |profit: Decimal, taxes: Decimal, after_tax: Decimal| {
+        let data = ReceiptTabData {
+            rows: vec![],
+            summary: Some(ReceiptSummary::DomesticStock(DomesticStockSummary {
+                total_realized_profit_and_loss: profit,
+                total_taxes: taxes,
+                total_realized_profit_and_loss_after_tax: after_tax,
+            })),
+            truncated: false,
+        };
+        header_summary(ReceiptsTab::DomesticStock, &data, "", false)
+            .iter()
+            .map(|v| v.2)
+            .collect::<Vec<_>>()
+    };
+    // 損益を持つ項目(前・税引)が負のときだけ Loss、0・正は Neutral
+    assert_eq!(
+        tones(dec!(-100), dec!(0), dec!(100)),
+        [StatTone::Loss, StatTone::Neutral, StatTone::Neutral]
+    );
+    assert_eq!(
+        tones(dec!(0), dec!(0), dec!(-50)),
+        [StatTone::Neutral, StatTone::Neutral, StatTone::Loss]
+    );
+}
 #[test]
 fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let rows = dividends();

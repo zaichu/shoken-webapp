@@ -72,7 +72,6 @@ pub fn Badge(
     }
 }
 
-/// 銘柄コードのバッジ
 #[component]
 pub fn CodeBadge(
     #[prop(into, optional)] class: Signal<String>,

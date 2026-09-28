@@ -37,10 +37,23 @@ emit_check() {
 }
 
 check() {
-  local label="$1" pattern="$2" hits
-  shift 2
-  hits=$(grep -HnoE -e "$pattern" "$@" 2>/dev/null || true)
-  emit_check "$label" "$hits"
+  # 第3引数 strip のときは文字列リテラル内の一致も違反にしない
+  # (class="..." の値自体を検査する部品クラス検査には使えない)
+  local label="$1" pattern="$2" strip="${3:-}" hits line text filtered=""
+  shift 3
+  hits=$(grep -HnE -e "$pattern" "$@" 2>/dev/null || true)
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    text=${line#*:*:}
+    # コメント行(// /* * で始まる行)は違反ではない
+    grep -Eq '^[[:space:]]*(//|/\*|\*)' <<<"$text" && continue
+    if [ -n "$strip" ] \
+      && ! grep -qE "$pattern" <<<"$(sed -E 's/"[^"]*"//g' <<<"$text")"; then
+      continue
+    fi
+    filtered+="$line"$'\n'
+  done <<<"$hits"
+  emit_check "$label" "${filtered%$'\n'}"
 }
 
 # カードに相当するユーティリティの組み合わせ(角丸・枠・面の直書きは Card の variant にする)。
@@ -56,24 +69,24 @@ check_card_like() {
         && grep -q 'bg-surface' <<<"$tag"; then
         hits+="${file}: $(printf '%.120s' "$tag")"$'\n'
       fi
-    done < <(tr '\n' ' ' <"$file" | grep -oE '<[^>]*class[^>]*>' || true)
+    done < <(grep -vE '^[[:space:]]*(//|/\*|\*)' "$file" | tr '\n' ' ' | grep -oE '<[^>]*class[^>]*>' || true)
   done
   emit_check "$label" "${hits%$'\n'}"
 }
 
 if [ "$#" -gt 0 ]; then
-  check "要素の直書き(自己テスト)" "$RAW_ELEMENT" "$@"
-  check "部品クラスの直書き(自己テスト)" "$PRIMITIVE_CLASS" "$@"
+  check "要素の直書き(自己テスト)" "$RAW_ELEMENT" strip "$@"
+  check "部品クラスの直書き(自己テスト)" "$PRIMITIVE_CLASS" "" "$@"
   check_card_like "カード相当のクラス組み合わせ(自己テスト)" "$@"
-  check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" "$@"
+  check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" strip "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
 
-check "要素の直書き(src/features/**/*.rs)" "$RAW_ELEMENT" "${FEATURE_FILES[@]}"
-check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "${FEATURE_FILES[@]}"
+check "要素の直書き(src/features/**/*.rs)" "$RAW_ELEMENT" strip "${FEATURE_FILES[@]}"
+check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "" "${FEATURE_FILES[@]}"
 check_card_like "カード相当のクラス組み合わせ(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
-check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" "${FEATURE_FILES[@]}"
+check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" strip "${FEATURE_FILES[@]}"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -98,4 +111,12 @@ for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-s
 done
 
 echo "  OK: 違反fixtureの自己テスト"
+
+valid_output=""
+if ! valid_output=$(bash "$SCRIPT_PATH" scripts/fixtures/ui-primitives-valid.txt 2>&1); then
+  echo "ERROR: 基本部品検査がコメント・文字列リテラルを誤検知しました" >&2
+  printf '%s\n' "$valid_output" >&2
+  exit 1
+fi
+echo "  OK: 正常fixtureの自己テスト"
 echo "OK: 直書きはありません"
