@@ -276,9 +276,9 @@ fn table_column_widths_match_headers_and_follow_column_order() {
     let headers = table_headers(ReceiptsTab::DomesticStock);
     let widths = table_column_widths(ReceiptsTab::DomesticStock);
     let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
-    assert_eq!(displayed[0], ("約定日", "96px"));
-    assert_eq!(displayed[1], ("銘柄コード", "88px"));
-    assert_eq!(displayed[2], ("口座", "76px"));
+    assert_eq!(displayed[0], ("約定日", "12ch"));
+    assert_eq!(displayed[1], ("銘柄コード", "10ch"));
+    assert_eq!(displayed[2], ("口座", "11ch"));
     assert_eq!(displayed[3], ("銘柄名", ""));
 }
 

@@ -215,6 +215,7 @@ pub(crate) fn ReceiptTable(
                                                     scope="col"
                                                     style:width=width
                                                     style:max-width=width
+                                                    title=*header
                                                 >
                                                     {*header}
                                                 </th>
@@ -271,6 +272,7 @@ pub(crate) fn ReceiptTable(
                                                                 class=format!(
                                                                     "bg-surface-raised text-text text-right font-semibold{top}"
                                                                 )
+                                                                title=value.clone()
                                                                 data-negative=negative.then_some("true")
                                                             >
                                                                 {value.clone()}
@@ -306,12 +308,18 @@ pub(crate) fn ReceiptTable(
                                                                             </td>
                                                                         }
                                                                         .into_any(),
-                                                                        ReceiptCell::InstrumentName { name, code } => view! {
-                                                                            <td class=align>
-                                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
-                                                                            </td>
+                                                                        ReceiptCell::InstrumentName { name, code } => {
+                                                                            let title = name.clone();
+                                                                            view! {
+                                                                                <td
+                                                                                    class=format!("{align} receipt-instrument-cell")
+                                                                                    title=title
+                                                                                >
+                                                                                    <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                                                </td>
+                                                                            }
+                                                                            .into_any()
                                                                         }
-                                                                        .into_any(),
                                                                         ReceiptCell::Text(value) => {
                                                                             let negative =
                                                                                 is_profit_label(
