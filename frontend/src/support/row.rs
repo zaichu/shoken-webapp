@@ -14,6 +14,7 @@ impl<S, P> Row<S, P> {
         }
     }
 
+    #[cfg(test)]
     pub fn is_preview(&self) -> bool {
         matches!(self, Self::Preview(_))
     }
