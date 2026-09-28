@@ -67,7 +67,7 @@ async function setupAssetBalanceMocks(page: Page) {
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({

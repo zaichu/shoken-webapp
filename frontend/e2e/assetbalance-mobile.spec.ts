@@ -79,7 +79,7 @@ async function setupAssetBalanceMocks(page: Page) {
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     const data = [TOYOTA, SONY, NTT];
     return route.fulfill(
@@ -187,7 +187,7 @@ test('一覧に無い銘柄を選ぶとフィルタ済み空状態と解除ボ�
   await page.unroute(/\/api\/v1\/asset-balances(?:\?.*)?$/);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({

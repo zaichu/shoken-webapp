@@ -7,6 +7,8 @@ const outputBase = process.env.LEPTOS_E2E_OUTPUT_DIR || 'test-results';
 const outputDir = `${outputBase}/leptos`;
 // 並行して serve を立てたとき既定の dist/ を共有すると成果物が混ざるので、実行ごとに分ける
 const distDir = `${outputBase}/dist-leptos`;
+// CI ではビルド済み dist を静的配信し、wasm のビルドを1回にする。未指定なら trunk serve でソースから配信する
+const prebuiltDist = process.env.LEPTOS_E2E_DIST_DIR;
 
 export default defineConfig({
   testDir: './e2e/migrated',
@@ -46,10 +48,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // テスト成果物や spec の変更で再ビルドが走ると dist 差し替えでページ読み込みが落ちるので、watch はアプリの入力だけに絞る
-    command: `trunk serve --port ${port} --dist ${distDir} --no-autoreload --enable-cooldown --watch src --watch index.html --watch style/input.css --watch Trunk.toml --watch Cargo.toml --watch Cargo.lock`,
+    command: prebuiltDist
+      ? `node scripts/prepare-vercel-dist.mjs ${prebuiltDist} && node scripts/serve-dist.mjs ${prebuiltDist} ${port}`
+      // テスト成果物や spec の変更で再ビルドが走ると dist 差し替えでページ読み込みが落ちるので、watch はアプリの入力だけに絞る
+      : `trunk serve --port ${port} --dist ${distDir} --no-autoreload --enable-cooldown --watch src --watch index.html --watch style/input.css --watch Trunk.toml --watch Cargo.toml --watch Cargo.lock`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 300_000,
+    timeout: prebuiltDist ? 60_000 : 300_000,
   },
 });

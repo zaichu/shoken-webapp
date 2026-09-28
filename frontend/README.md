@@ -29,7 +29,7 @@ npx playwright test --config playwright.leptos.config.ts
 npx playwright test --config playwright.vercel.config.ts
 ```
 
-`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。
+`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す `SHOKEN_WEBAPI_URL` 埋め込み済みリリース bundle)を `serve-dist.mjs` で配信します。
 
 ## ソースの構成
 

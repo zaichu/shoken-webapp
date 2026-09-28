@@ -159,7 +159,7 @@ async function setupAssetBalanceMocks(
       );
     }
 
-    return route.fallback();
+    return route.abort();
   });
 
   return {
