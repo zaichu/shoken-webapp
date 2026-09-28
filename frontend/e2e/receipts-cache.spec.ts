@@ -308,8 +308,10 @@ test('ログアウト後に旧データが残らない', async ({ page }) => {
     session,
   );
 
+  // セッション確認がプローブで早く済むようになったため、goto 前に監視を張る
+  const dividendsRequest = page.waitForRequest(/\/api\/v1\/dividends/);
   await page.goto('/receipts');
-  await page.waitForRequest(/\/api\/v1\/dividends/);
+  await dividendsRequest;
 
   session.responder = unauthorizedSession();
   await logoutViaUserMenu(page);

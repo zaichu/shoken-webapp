@@ -18,15 +18,13 @@ const indexPath = join(dist, 'index.html');
 let html = readFileSync(indexPath, 'utf8');
 
 const apiOrigin = process.env.SHOKEN_WEBAPI_URL || loadBackendOrigin();
-const originReplaced = html.replace(
-  /(<meta\s+name="shoken-api-origin"\s+content=")[^"]*("\s*\/?\s*>)/,
-  `$1${apiOrigin}$2`,
-);
-if (originReplaced === html) {
+const metaRe = /<meta\s+name="shoken-api-origin"\s+content="[^"]*"\s*\/?\s*>/;
+if (!metaRe.test(html)) {
   console.error('shoken-api-origin meta not found in index.html');
   process.exit(1);
 }
-html = originReplaced;
+// 再実行(serve-dist 前の2度目)でも同じ値に置き直すだけで通る
+html = html.replace(metaRe, `<meta name="shoken-api-origin" content="${apiOrigin}" />`);
 writeFileSync(indexPath, html);
 
 if (html.includes('<script type="module" src="/init-')) {

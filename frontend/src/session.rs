@@ -210,9 +210,12 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
-    // 前回の表示名などを先に出し、裏で本物のセッションを確かめる
-    if let Some(cached) = cache::load() {
-        session.set_user(Some(cached));
+    // 前回の表示名などを先に出し、裏で本物のセッションを確かめる。
+    // ログアウト保留中は消えるセッションなので復元しない(完了時にスナップショットも消える)
+    if !pending_logout::is_pending() {
+        if let Some(cached) = cache::load() {
+            session.set_user(Some(cached));
+        }
     }
     idle::watch_idle_logout(session);
     cross_tab::watch_logout_notifications(session);

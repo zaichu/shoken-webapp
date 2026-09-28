@@ -2,6 +2,13 @@
 // Wasm 側は window.__shokenSessionProbe の結果を受け取り、同じリクエストを撃ち直さない。
 // CSP の script-src 'self' を守るためインラインでは書かず、外部ファイルで配る。
 (function () {
+  // ログアウトが未送信で保留中なら、消えるはずのセッションを読みに行かない
+  // (Wasm 側が先にログアウトを再送する。pending_logout.rs のキーと同一にすること)
+  try {
+    if (localStorage.getItem('pending_logout')) return;
+  } catch (_) {
+    // localStorage が使えない環境では判定を飛ばしてプローブする
+  }
   var meta = document.querySelector('meta[name="shoken-api-origin"]');
   // ローカル開発では content が空 = 同一オリジン /api(trunk のプロキシが受ける)
   var base = meta && meta.content ? meta.content : '';
