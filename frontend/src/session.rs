@@ -1,4 +1,3 @@
-mod cache;
 mod cross_tab;
 mod idle;
 mod pending_logout;
@@ -118,13 +117,8 @@ impl SessionStore {
         let user = fetched.filter(|user| !user.id.is_empty());
         batch(|| {
             if self.check_result_applies(epoch, pending_logout::is_pending()) {
-                match &user {
-                    Some(user) => cache::save(user),
-                    None => cache::clear(),
-                }
                 self.set_user(user);
             } else {
-                cache::clear();
                 self.set_user(None);
             }
             self.loaded.set(true);
@@ -137,7 +131,6 @@ impl SessionStore {
 
     pub fn mark_unauthenticated(&self) {
         self.logout_epoch.update(|epoch| *epoch += 1);
-        cache::clear();
         self.set_user(None);
     }
 
@@ -210,13 +203,6 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
-    // 前回の表示名などを先に出し、裏で本物のセッションを確かめる。
-    // ログアウト保留中は消えるセッションなので復元しない(完了時にスナップショットも消える)
-    if !pending_logout::is_pending() {
-        if let Some(cached) = cache::load() {
-            session.set_user(Some(cached));
-        }
-    }
     idle::watch_idle_logout(session);
     cross_tab::watch_logout_notifications(session);
     let startup = session;

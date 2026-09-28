@@ -1,152 +1,110 @@
-import { expect, test, type Page } from '@playwright/test';
-
-// 起動時のセッション確認(index.html のプローブ + 前回表示のスナップショット)の E2E。
+import { expect, test } from '@playwright/test';
 
 const ALICE = {
   id: '00000000-0000-0000-0000-0000000000a1',
   email: 'alice@example.com',
   name: 'アリス',
 };
-const BOB = {
-  id: '00000000-0000-0000-0000-0000000000b2',
-  email: 'bob@example.com',
-  // アバターの頭文字と表示名が一致しないよう、長い表示名にしておく
-  name: 'ボブ山 太郎',
-};
 
-const SNAPSHOT_KEY = 'session_snapshot';
-const ALICE_SNAPSHOT = JSON.stringify({ id: ALICE.id, name: ALICE.name });
-
-function seedSnapshot(page: Page, snapshot = ALICE_SNAPSHOT) {
-  return page.addInitScript(
-    ([key, value]) => localStorage.setItem(key, value),
-    [SNAPSHOT_KEY, snapshot],
-  );
+function fulfillSession(user: object | null) {
+  return {
+    status: user ? 200 : 401,
+    contentType: 'application/json',
+    body: user ? JSON.stringify(user) : '{}',
+  };
 }
 
-function mockSession(page: Page, user: object | null) {
-  return page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: user ? 200 : 401,
-      contentType: 'application/json',
-      body: user ? JSON.stringify(user) : '{}',
-    }),
-  );
-}
+test('プローブが出したセッション確認を Wasm 側は撃ち直さない', async ({
+  page,
+}) => {
+  let sessionAt = -1;
+  let wasmFinishedAt = -1;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/v1/session')) {
+      sessionAt = Date.now();
+    }
+  });
+  page.on('requestfinished', (request) => {
+    if (request.url().endsWith('.wasm')) {
+      wasmFinishedAt = Date.now();
+    }
+  });
+  let sessionCount = 0;
+  await page.route(/\/api\/v1\/session$/, (route) => {
+    sessionCount += 1;
+    return route.fulfill(fulfillSession(ALICE));
+  });
 
-test('セッション確認が遅くても前回の表示名が先に出る', async ({ page }) => {
-  await seedSnapshot(page);
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route(/\/api\/v1\/session$/, async (route) => {
-    await gate;
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(ALICE),
-    });
-  });
   await page.goto('/');
-
-  // セッション応答を止めたままでも、ヘッダーに前回の表示名が出る
   await expect(page.getByText(ALICE.name)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
 
-  // 応答を解放しても同じユーザーなら表示はそのまま
-  release();
-  await expect(page.getByText(ALICE.name)).toBeVisible();
+  expect(sessionCount).toBe(1);
+  // Wasm 側の発射は .wasm のダウンロード完了を待つため、プローブ由来なら
+  // 要求発行が wasm 完了より前になる。index.html からプローブを外すとここで検知できる
+  expect(sessionAt).toBeGreaterThan(0);
+  expect(wasmFinishedAt).toBeGreaterThan(0);
+  expect(sessionAt).toBeLessThan(wasmFinishedAt);
 });
 
-test('スナップショットが無ければ確認中は読み込み表示になる', async ({ page }) => {
+test('プローブが通信失敗したときだけ Wasm 側が撃ち直す', async ({ page }) => {
+  let sessionCount = 0;
+  await page.route(/\/api\/v1\/session$/, (route) => {
+    sessionCount += 1;
+    if (sessionCount === 1) {
+      return route.abort('failed');
+    }
+    return route.fulfill(fulfillSession(ALICE));
+  });
+
+  await page.goto('/');
+  await expect(page.getByText(ALICE.name)).toBeVisible();
+  expect(sessionCount).toBe(2);
+});
+
+test('匿名セッション(401)ならログインボタンを出す', async ({ page }) => {
+  await page.route(/\/api\/v1\/session$/, (route) =>
+    route.fulfill(fulfillSession(null)),
+  );
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+});
+
+test('セッション確認が遅いときは読み込み表示のまま待つ', async ({ page }) => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
   await page.route(/\/api\/v1\/session$/, async (route) => {
     await gate;
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(ALICE),
-    });
+    return route.fulfill(fulfillSession(ALICE));
   });
-  await page.goto('/');
 
+  await page.goto('/');
   await expect(
     page.getByRole('banner').getByText('読み込み中...'),
   ).toBeVisible();
   release();
   await expect(page.getByText(ALICE.name)).toBeVisible();
-  // 確認できたユーザーは次回起動用に保存される(個人情報のメールアドレスは入らない)
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-        SNAPSHOT_KEY,
-      ),
-    )
-    .toMatchObject({ id: ALICE.id, name: ALICE.name });
-  const stored = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-    SNAPSHOT_KEY,
-  );
-  expect(stored).not.toHaveProperty('email');
 });
 
-test('セッションが切れていれば表示名を消してログインを出す', async ({ page }) => {
-  await seedSnapshot(page);
-  await mockSession(page, null);
-  await page.goto('/');
-
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect(page.getByText(ALICE.name)).toHaveCount(0);
-  // 期限切れのスナップショットは残さない
-  await expect
-    .poll(() => page.evaluate((key) => localStorage.getItem(key), SNAPSHOT_KEY))
-    .toBeNull();
-});
-
-test('別のユーザーに変わっていれば表示名とスナップショットを入れ替える', async ({
+test('ログアウト保留中はプローブを出さず DELETE が先に出る', async ({
   page,
 }) => {
-  await seedSnapshot(page);
-  await mockSession(page, BOB);
-  await page.goto('/');
-
-  await expect(page.getByText(BOB.name)).toBeVisible();
-  await expect(page.getByText(ALICE.name)).toHaveCount(0);
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-        SNAPSHOT_KEY,
-      ),
-    )
-    .toMatchObject({ id: BOB.id, name: BOB.name });
-});
-
-test('ログアウトするとスナップショットも消える', async ({ page }) => {
-  await seedSnapshot(page);
-  await page.route(/\/api\/v1\/session$/, async (route) => {
-    if (route.request().method() === 'DELETE') {
-      return route.fulfill({ status: 200, body: '' });
-    }
+  await page.addInitScript(() =>
+    window.localStorage.setItem('pending_logout', '1'),
+  );
+  const sessionMethods: string[] = [];
+  await page.route(/\/api\/v1\/session$/, (route) => {
+    sessionMethods.push(route.request().method());
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(ALICE),
+      body: '{"message":"ok"}',
     });
   });
+
   await page.goto('/');
-  await expect(page.getByText(ALICE.name)).toBeVisible();
-
-  await page.getByRole('button', { name: 'メニュー' }).click();
-  await page.getByRole('menuitem', { name: 'ログアウト' }).click();
-
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect
-    .poll(() => page.evaluate((key) => localStorage.getItem(key), SNAPSHOT_KEY))
-    .toBeNull();
+  await expect.poll(() => sessionMethods.length).toBe(1);
+  expect(sessionMethods).toEqual(['DELETE']);
 });

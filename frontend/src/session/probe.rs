@@ -6,7 +6,7 @@ use wasm_bindgen_futures::JsFuture;
 const GLOBAL_KEY: &str = "__shokenSessionProbe";
 
 pub enum Probe {
-    /// プローブ未起動(古い index.html・テスト環境など)。通常経路で確認する
+    /// プローブ未起動・または消費済み(起動時の1回しか使わない)。通常経路で確認する
     Missing,
     Authenticated(SessionUser),
     /// 401 が確定したものだけここに入る。ネットワーク失敗は Failed で通常経路へ逃がす
@@ -22,11 +22,14 @@ struct ProbeResult {
     user: Option<SessionUser>,
 }
 
+// 取り出しと同時に窓から消す。応答済みの Promise は値を保持するため、
+// 消さないと2回目以降の check() が古い結果を再利用してしまう
 fn probe_promise() -> Option<js_sys::Promise> {
     let window = web_sys::window()?;
-    js_sys::Reflect::get(&window, &JsValue::from_str(GLOBAL_KEY))
-        .ok()
-        .and_then(|value| value.dyn_into::<js_sys::Promise>().ok())
+    let key = JsValue::from_str(GLOBAL_KEY);
+    let value = js_sys::Reflect::get(&window, &key).ok();
+    let _ = js_sys::Reflect::delete_property(&window, &key);
+    value.and_then(|value| value.dyn_into::<js_sys::Promise>().ok())
 }
 
 fn parse_result(value: JsValue) -> Probe {
