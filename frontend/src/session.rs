@@ -1,6 +1,8 @@
+mod cache;
 mod cross_tab;
 mod idle;
 mod pending_logout;
+mod probe;
 
 use crate::api::dto::{MessageResponse, SessionUser};
 use crate::api::{ApiClient, ApiError};
@@ -103,15 +105,26 @@ impl SessionStore {
         // 送信前に採った時点からログアウトが起きていれば、遅れて届いた応答で復活させない
         let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
-        let user = client
-            .get_json::<SessionUser>("/api/v1/session", &[])
-            .await
-            .ok()
-            .filter(|user| !user.id.is_empty());
+        // index.html のプローブが Wasm 読み込みと並行で出した応答を使う。
+        // 未起動・通信系の失敗時だけリトライ付きの通常経路で撃ち直す
+        let fetched = match probe::take().await {
+            probe::Probe::Authenticated(user) => Some(user),
+            probe::Probe::Anonymous => None,
+            probe::Probe::Missing | probe::Probe::Failed => client
+                .get_json::<SessionUser>("/api/v1/session", &[])
+                .await
+                .ok(),
+        };
+        let user = fetched.filter(|user| !user.id.is_empty());
         batch(|| {
             if self.check_result_applies(epoch, pending_logout::is_pending()) {
+                match &user {
+                    Some(user) => cache::save(user),
+                    None => cache::clear(),
+                }
                 self.set_user(user);
             } else {
+                cache::clear();
                 self.set_user(None);
             }
             self.loaded.set(true);
@@ -124,6 +137,7 @@ impl SessionStore {
 
     pub fn mark_unauthenticated(&self) {
         self.logout_epoch.update(|epoch| *epoch += 1);
+        cache::clear();
         self.set_user(None);
     }
 
@@ -196,6 +210,10 @@ impl Default for SessionStore {
 pub fn provide_session() -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
+    // 前回の表示名などを先に出し、裏で本物のセッションを確かめる
+    if let Some(cached) = cache::load() {
+        session.set_user(Some(cached));
+    }
     idle::watch_idle_logout(session);
     cross_tab::watch_logout_notifications(session);
     let startup = session;

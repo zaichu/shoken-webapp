@@ -2,14 +2,32 @@
 // trunk が生成する nonce 付きインライン init script を外部ファイル化する。
 // 静的配信ではレスポンスごとの nonce を発行できないため、
 // 外部化して script-src 'self' で通せる形にする。
+// あわせて shoken-api-origin の meta に本番 backend の URL を埋める
+// (session-probe.js が読む。ローカル開発では空のまま = 同一オリジン)。
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { loadBackendOrigin } = require('./backend-origin.cjs');
 
 const dist = process.argv[2] ?? 'dist';
 const indexPath = join(dist, 'index.html');
-const html = readFileSync(indexPath, 'utf8');
+let html = readFileSync(indexPath, 'utf8');
+
+const apiOrigin = process.env.SHOKEN_WEBAPI_URL || loadBackendOrigin();
+const originReplaced = html.replace(
+  /(<meta\s+name="shoken-api-origin"\s+content=")[^"]*("\s*\/?\s*>)/,
+  `$1${apiOrigin}$2`,
+);
+if (originReplaced === html) {
+  console.error('shoken-api-origin meta not found in index.html');
+  process.exit(1);
+}
+html = originReplaced;
+writeFileSync(indexPath, html);
 
 if (html.includes('<script type="module" src="/init-')) {
   console.log('init script is already externalized');

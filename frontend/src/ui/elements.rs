@@ -118,20 +118,21 @@ pub fn SiteHeader() -> impl IntoView {
                     </nav>
                     <div class="ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5">
                         {move || {
-                            if !session.loaded.get() {
-                                view! {
-                                    <span class="text-sm font-semibold text-text-inverse/70">
-                                        "読み込み中..."
-                                    </span>
-                                }
-                                    .into_any()
-                            } else if let Some(user) = session.user.get() {
+                            // 確認待ちでも前回の表示名を先に出す(裏で本物のセッションを確かめ、違えば消える)
+                            if let Some(user) = session.user.get() {
                                 view! {
                                     <UserMenu
                                         user=user
                                         session=session
                                         delete_confirm_open=delete_confirm_open
                                     />
+                                }
+                                    .into_any()
+                            } else if !session.loaded.get() {
+                                view! {
+                                    <span class="text-sm font-semibold text-text-inverse/70">
+                                        "読み込み中..."
+                                    </span>
                                 }
                                     .into_any()
                             } else {
