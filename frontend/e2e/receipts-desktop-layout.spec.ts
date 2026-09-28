@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
-import { domesticStocksFixture, mutualFundsFixture } from './__fixtures__/receipts-print';
+import {
+  domesticStocksFixture,
+  LONG_FUND_NAME,
+  mutualFundsFixture,
+} from './__fixtures__/receipts-print';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -50,19 +54,33 @@ const PRINTABLE_A4_VIEWPORTS = [
   { name: 'landscape', width: 1047, height: 718 },
 ] as const;
 
+// narrow は lg(1024px)で出す列、wide は xl(1280px)で追加される列。
+// 配当金の数量は lg から出す。国内株式・投資信託は列が多く銘柄名も長いため、
+// xl で数量まで出すと名前が2行に収まらず、2xl からにとどめる
 const RECEIPT_TABS = [
-  { label: '配当金', slug: 'dividend', count: DIVIDENDS.length, nameHeader: '銘柄名' },
+  {
+    label: '配当金',
+    slug: 'dividend',
+    count: DIVIDENDS.length,
+    nameHeader: '銘柄名',
+    narrow: ['入金日', '銘柄コード', '銘柄名', '数量', '配当金', '税額', '受取額'],
+    wide: ['口座', '単価'],
+  },
   {
     label: '国内株式',
     slug: 'domesticstock',
     count: DOMESTIC_STOCKS.length,
     nameHeader: '銘柄名',
+    narrow: ['約定日', '銘柄コード', '銘柄名', '損益', '税額', '税引後'],
+    wide: ['売却単価', '売却額'],
   },
   {
     label: '投資信託',
     slug: 'mutualfund',
     count: MUTUAL_FUNDS.length,
     nameHeader: 'ファンド名',
+    narrow: ['約定日', 'ファンド名', '解約額', '実現損益', '税額', '税引損益'],
+    wide: ['解約単価', '取得価額'],
   },
 ] as const;
 
@@ -295,6 +313,24 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
           return [header.textContent?.trim()];
         });
         const nameCells = rows.map((row) => row.cells[nameIndex]);
+        // 1行に収まる短い名前では、コピーボタンは文字幅だけを占める(セル全幅ではない)
+        const copyWidths = nameCells.flatMap((cell) => {
+          const button = cell.querySelector('.copyable-name');
+          const span = button?.querySelector('span');
+          if (!button || !span) return [];
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          const lines = new Set(
+            [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+          ).size;
+          if (lines > 1) return [];
+          return [
+            {
+              cellWidth: cell.clientWidth,
+              buttonWidth: (button as HTMLElement).offsetWidth,
+            },
+          ];
+        });
         const firstNameCell = nameCells[0];
         const nameText = firstNameCell
           .querySelector('.copyable-name > span')
@@ -316,6 +352,12 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
         return {
           overflows,
           headerClips,
+          visibleHeaders: headers
+            .filter((header) => getComputedStyle(header).display !== 'none')
+            .map((header) => header.textContent?.trim()),
+          copyDeltas: copyWidths.map(({ cellWidth, buttonWidth }) =>
+            Math.round(cellWidth - buttonWidth),
+          ),
           nameText,
           nameTitle: firstNameCell.getAttribute('title'),
           nameClientWidth: firstNameCell.clientWidth,
@@ -332,6 +374,20 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
 
       expect(metrics.overflows, `${width}px ${tab.label}`).toEqual([]);
       expect(metrics.headerClips, `${width}px ${tab.label}`).toEqual([]);
+      const expectedHeaders = [
+        ...tab.narrow,
+        ...(width >= 1280 ? tab.wide : []),
+      ].sort();
+      expect(
+        [...metrics.visibleHeaders].sort(),
+        `${width}px ${tab.label} の表示列`,
+      ).toEqual(expectedHeaders);
+      if (metrics.copyDeltas.length > 0) {
+        expect(
+          Math.min(...metrics.copyDeltas),
+          `${width}px ${tab.label} のコピー範囲は文字幅のみ`,
+        ).toBeGreaterThan(4);
+      }
       expect(metrics.nameTitle).toBe(metrics.nameText);
       expect(metrics.nameClientWidth, `${width}px ${tab.label}`).toBeGreaterThanOrEqual(80);
       expect(metrics.nameOverflow).toBe('hidden');
@@ -345,6 +401,7 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
         metrics.tableClientWidth,
       );
       expect(metrics.pageOverflows).toBe(false);
+      await shoot(page, `receipts-after-${tab.slug}-${width}`);
     }
   }
 });
@@ -424,6 +481,18 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
 });
 
 test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
+  // 長いファンド名は印刷で行数制限を外して全文を出すことを確かめるため、投資信託にだけ差し込む
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          MUTUAL_FUNDS.map((row, index) =>
+            index === 1 ? { ...row, fund_name: LONG_FUND_NAME } : row,
+          ),
+        ),
+      ),
+    ),
+  );
   await page.goto('/receipts');
   await expect(page.getByRole('table')).toBeVisible();
 
@@ -518,6 +587,40 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
       expect(amountLines.length).toBeGreaterThan(0);
       for (const amount of amountLines) {
         expect(amount.lineCount).toBe(1);
+      }
+
+      // 印刷では銘柄名の2行クランプを外し、長い名前も全文を折り返して出す
+      const nameMetrics = await table.evaluate((element) =>
+        Array.from(
+          element.querySelectorAll('.receipt-instrument-cell .copyable-name > span'),
+        ).map((span) => {
+          const style = getComputedStyle(span);
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          const lineTops = [
+            ...range.getClientRects(),
+          ].map((rect) => Math.round(rect.top));
+          return {
+            text: span.textContent?.trim(),
+            clamp: style.webkitLineClamp,
+            display: style.display,
+            overflow: style.overflow,
+            clipped: span.scrollHeight > span.clientHeight + 1,
+            lineCount: new Set(lineTops).size,
+          };
+        }),
+      );
+      for (const name of nameMetrics) {
+        expect(name.clamp, `${tab.label} ${name.text}`).toBe('none');
+        expect(name.display, `${tab.label} ${name.text}`).not.toBe('-webkit-box');
+        expect(name.overflow, `${tab.label} ${name.text}`).toBe('visible');
+        expect(name.clipped, `${tab.label} ${name.text}`).toBe(false);
+      }
+      if (tab.slug === 'mutualfund') {
+        // クランプ解除が効いていれば、2行を超える名前も省略されず全行が描画される
+        const longFund = nameMetrics.find((name) => name.text === LONG_FUND_NAME);
+        expect(longFund, '長いファンド名が印刷 DOM にある').toBeTruthy();
+        expect(longFund?.lineCount).toBeGreaterThanOrEqual(2);
       }
     }
   }

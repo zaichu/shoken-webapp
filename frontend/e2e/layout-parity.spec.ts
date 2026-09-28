@@ -119,7 +119,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: ['11ch', '10ch', '10ch', '10ch', '', '9ch', '7ch', '10ch', '9ch', '10ch'],
+    widths: ['11ch', '10ch', '9ch', '9ch', '', '9ch', '7ch', '9.5ch', '9ch', '9.5ch'],
     aligns: [
       'left',
       'left',

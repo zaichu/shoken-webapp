@@ -364,7 +364,7 @@
 }
 
 .receipt-instrument-cell .copyable-name {
-  @apply flex w-full min-w-0 items-start;
+  @apply flex w-fit max-w-full min-w-0 items-start;
 }
 
 .receipt-instrument-cell .copyable-name > span {
@@ -404,6 +404,13 @@
 
   .receipt-table td.text-right {
     white-space: nowrap;
+  }
+
+  /* 印刷では銘柄名の2行クランプを外して全文を折り返す */
+  .receipt-instrument-cell .copyable-name > span {
+    display: inline;
+    overflow: visible;
+    -webkit-line-clamp: unset;
   }
 
   .receipt-table td:not(.text-right) {

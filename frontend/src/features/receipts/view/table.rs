@@ -131,7 +131,11 @@ pub(crate) fn ReceiptTable(
         .collect();
     let tiers = displayed_tiers(tab, &order, promoted);
     let group_label_spans: Vec<(&'static str, usize)> = [
-        (" xl:hidden print:hidden", ColumnTier::Core),
+        (" lg:hidden print:hidden", ColumnTier::Core),
+        (
+            " hidden lg:table-cell xl:hidden print:hidden",
+            ColumnTier::Md,
+        ),
         (
             " hidden xl:table-cell 2xl:hidden print:hidden",
             ColumnTier::Wide,

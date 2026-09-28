@@ -42,6 +42,10 @@ export function domesticStocksFixture(userId: string) {
   ];
 }
 
+// 印刷で2行を超える長さのファンド名。印字時にクランプされないことを確かめる
+export const LONG_FUND_NAME =
+  'eMAXIS Slim 全世界株式（オール・カントリー）・楽天・バンガード・ファンド（全世界株式）長期積立専用アクティブ運用特別受益権（為替ヘッジなし）＜子ファンド組込型＞';
+
 export function mutualFundsFixture(userId: string) {
   const created_at = '2024-03-01T00:00:00Z';
   const updated_at = '2024-03-01T00:00:00Z';

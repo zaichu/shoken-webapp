@@ -713,10 +713,12 @@ impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
     }
 }
 
-/// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は xl と 2xl に置く
+/// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は lg・xl・2xl に置く
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub(crate) enum ColumnTier {
     Core,
+    /// sm の1カラムでは隠し、右レールと並ぶ lg から出す
+    Md,
     Wide,
     Wider,
 }
@@ -725,6 +727,7 @@ impl ColumnTier {
     pub(crate) fn class(self) -> &'static str {
         match self {
             ColumnTier::Core => "",
+            ColumnTier::Md => " hidden lg:table-cell print:table-cell",
             ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
             ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
         }
@@ -936,7 +939,7 @@ impl ReceiptKind for DividendKind {
         "受取額",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "11ch", "10ch", "10ch", "10ch", "", "9ch", "7ch", "10ch", "9ch", "10ch",
+        "11ch", "10ch", "9ch", "9ch", "", "9ch", "7ch", "9.5ch", "9ch", "9.5ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
@@ -945,7 +948,7 @@ impl ReceiptKind for DividendKind {
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Wide,
-        ColumnTier::Wider,
+        ColumnTier::Md,
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,

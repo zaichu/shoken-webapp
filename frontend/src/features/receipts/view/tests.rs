@@ -11,7 +11,7 @@ use crate::features::receipts::filter::{
     tests::{dividends, domestic, funds},
     DateSegment, ReceiptSearch,
 };
-use crate::features::receipts::kind::group_label;
+use crate::features::receipts::kind::{group_label, ColumnTier};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
@@ -280,6 +280,26 @@ fn table_column_widths_match_headers_and_follow_column_order() {
     assert_eq!(displayed[1], ("銘柄コード", "10ch"));
     assert_eq!(displayed[2], ("口座", "11ch"));
     assert_eq!(displayed[3], ("銘柄名", ""));
+}
+
+// 「表示項目は極力削らない」方針: 配当金の数量は lg(1024px)から出す。
+// 国内株式・投資信託は金額列が多く銘柄名も長いため、xl で数量まで出すと
+// 名前が2行に収まらなくなり、2xl からにとどめる
+#[test]
+fn quantity_column_tiers_match_width_budget() {
+    let index_of = |tab: ReceiptsTab| {
+        table_headers(tab)
+            .iter()
+            .position(|header| *header == "数量")
+            .expect("数量列がある")
+    };
+    assert_eq!(
+        table_column_tiers(ReceiptsTab::Dividend)[index_of(ReceiptsTab::Dividend)],
+        ColumnTier::Md
+    );
+    for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
+        assert_eq!(table_column_tiers(tab)[index_of(tab)], ColumnTier::Wider);
+    }
 }
 
 #[test]
