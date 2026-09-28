@@ -50,6 +50,22 @@ const PRINTABLE_A4_VIEWPORTS = [
   { name: 'landscape', width: 1047, height: 718 },
 ] as const;
 
+const RECEIPT_TABS = [
+  { label: '配当金', slug: 'dividend', count: DIVIDENDS.length, nameHeader: '銘柄名' },
+  {
+    label: '国内株式',
+    slug: 'domesticstock',
+    count: DOMESTIC_STOCKS.length,
+    nameHeader: '銘柄名',
+  },
+  {
+    label: '投資信託',
+    slug: 'mutualfund',
+    count: MUTUAL_FUNDS.length,
+    nameHeader: 'ファンド名',
+  },
+] as const;
+
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
 }
@@ -171,6 +187,166 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
   expect(railBox).not.toBeNull();
   expect(railBox!.width).toBeGreaterThanOrEqual(310);
   expect(railBox!.width).toBeLessThanOrEqual(330);
+});
+
+test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2行まで表示する', async ({ page }) => {
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          DIVIDENDS.map((row) => ({
+            ...row,
+            account: '特定・一般',
+            unit_price: '27400',
+            shares: '1950',
+            dividends_before_tax: '294460',
+            taxes: '28590',
+            net_amount_received: '265870',
+          })),
+        ),
+      ),
+    ),
+  );
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          DOMESTIC_STOCKS.map((row) => ({
+            ...row,
+            account: '特定・一般',
+            shares: 1950,
+            asked_price: 27400,
+            proceeds: 294460,
+            purchase_price: 22800,
+            realized_profit_and_loss: -180000,
+            taxes: 18000,
+            realized_profit_and_loss_after_tax: -198000,
+          })),
+        ),
+      ),
+    ),
+  );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          MUTUAL_FUNDS.map((row) => ({
+            ...row,
+            account: '特定・一般',
+            shares: '1950',
+            cancellation_unit_price_yen: '27400',
+            cancellation_amount_yen: '306000',
+            average_acquisition_price_yen: '22800',
+            realized_profit_and_loss: '-10000',
+            taxes: '0',
+            realized_profit_and_loss_after_tax: '-10000',
+          })),
+        ),
+      ),
+    ),
+  );
+
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/receipts');
+
+    for (const tab of RECEIPT_TABS) {
+      await page.getByRole('tab', { name: tab.label }).click();
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+
+      const metrics = await page.getByRole('table').evaluate((table, { nameHeader, width }) => {
+        const headers = Array.from(table.tHead?.rows[0]?.cells ?? []);
+        const rows = Array.from(table.tBodies[0]?.rows ?? []).filter(
+          (candidate) =>
+            candidate.cells.length === headers.length && candidate.querySelector('.copyable-name'),
+        );
+        if (rows.length === 0) throw new Error('取引明細のデータ行がありません');
+
+        const nameIndex = headers.findIndex((header) => header.textContent?.trim() === nameHeader);
+        const overflows = rows.flatMap((row) =>
+          headers.flatMap((header, index) => {
+            const cell = row.cells[index];
+            if (
+              index === nameIndex ||
+              getComputedStyle(header).display === 'none' ||
+              getComputedStyle(cell).display === 'none' ||
+              cell.scrollWidth <= cell.clientWidth
+            ) {
+              return [];
+            }
+            return [
+              {
+                header: header.textContent?.trim(),
+                text: cell.textContent?.trim(),
+                title: cell.getAttribute('title'),
+                clientWidth: cell.clientWidth,
+                scrollWidth: cell.scrollWidth,
+              },
+            ];
+          }),
+        );
+        const headerClips = headers.flatMap((header) => {
+          if (
+            getComputedStyle(header).display === 'none' ||
+            header.scrollWidth <= header.clientWidth
+          ) {
+            return [];
+          }
+          return [header.textContent?.trim()];
+        });
+        const nameCells = rows.map((row) => row.cells[nameIndex]);
+        const firstNameCell = nameCells[0];
+        const nameText = firstNameCell
+          .querySelector('.copyable-name > span')
+          ?.textContent?.trim();
+        const nameStyle = getComputedStyle(
+          firstNameCell.querySelector('.copyable-name > span') as HTMLElement,
+        );
+        // 2行クランプで切り捨てられた行(2行に収まらない極端に長い名前)を拾う。
+        // 幅の狭い 1024px では長いファンド名が 2 行に収まらず省略されることがあるが、
+        // その場合でも td の title に全文が残る必要がある
+        const clampedNames = nameCells.flatMap((cell) => {
+          const span = cell.querySelector('.copyable-name > span');
+          if (!span || span.scrollHeight <= span.clientHeight) return [];
+          return [{ text: span.textContent?.trim(), title: cell.getAttribute('title') }];
+        });
+        const namelessClips = clampedNames.filter((cell) => cell.title !== cell.text);
+        const wrapper = table.parentElement;
+
+        return {
+          overflows,
+          headerClips,
+          nameText,
+          nameTitle: firstNameCell.getAttribute('title'),
+          nameClientWidth: firstNameCell.clientWidth,
+          nameOverflow: nameStyle.overflow,
+          nameLineClamp: nameStyle.webkitLineClamp,
+          nameWhiteSpace: nameStyle.whiteSpace,
+          clampedNames,
+          namelessClips,
+          tableClientWidth: wrapper?.clientWidth ?? 0,
+          tableScrollWidth: wrapper?.scrollWidth ?? Number.POSITIVE_INFINITY,
+          pageOverflows: document.documentElement.scrollWidth > width,
+        };
+      }, { nameHeader: tab.nameHeader, width });
+
+      expect(metrics.overflows, `${width}px ${tab.label}`).toEqual([]);
+      expect(metrics.headerClips, `${width}px ${tab.label}`).toEqual([]);
+      expect(metrics.nameTitle).toBe(metrics.nameText);
+      expect(metrics.nameClientWidth, `${width}px ${tab.label}`).toBeGreaterThanOrEqual(80);
+      expect(metrics.nameOverflow).toBe('hidden');
+      expect(metrics.nameLineClamp).toBe('2');
+      expect(metrics.nameWhiteSpace).toBe('normal');
+      expect(metrics.namelessClips, `${width}px ${tab.label}`).toEqual([]);
+      if (width >= 1280) {
+        expect(metrics.clampedNames, `${width}px ${tab.label}`).toEqual([]);
+      }
+      expect(metrics.tableScrollWidth, `${width}px ${tab.label}`).toBeLessThanOrEqual(
+        metrics.tableClientWidth,
+      );
+      expect(metrics.pageOverflows).toBe(false);
+    }
+  }
 });
 
 test('1920px では集計+表の左列と CSV+検索の右レールになる', async ({ page }) => {

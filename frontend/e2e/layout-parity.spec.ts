@@ -119,7 +119,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: [96, 76, 76, 88, 0, 80, 72, 104, 88, 104],
+    widths: ['11ch', '10ch', '10ch', '10ch', '', '9ch', '7ch', '10ch', '9ch', '10ch'],
     aligns: [
       'left',
       'left',
@@ -135,7 +135,7 @@ const TABLE_SPEC = {
   },
   domesticstock: {
     tabName: '国内株式',
-    widths: [96, 88, 0, 76, 72, 80, 104, 104, 104, 88, 104],
+    widths: ['12ch', '10ch', '', '11ch', '9ch', '9ch', '10ch', '10ch', '10ch', '9ch', '10ch'],
     aligns: [
       'left',
       'center',
@@ -152,7 +152,7 @@ const TABLE_SPEC = {
   },
   mutualfund: {
     tabName: '投資信託',
-    widths: [96, 0, 76, 72, 80, 104, 104, 104, 88, 104],
+    widths: ['11ch', '', '11ch', '9ch', '9ch', '10ch', '10ch', '10ch', '8ch', '10ch'],
     aligns: [
       'left',
       'left',
@@ -276,7 +276,7 @@ function expectTableFit(metrics: TableMetrics) {
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
 }
 
-async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number[]) {
+async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly string[]) {
   const headerStyles = await page
     .getByRole('table')
     .locator('thead th')
@@ -297,8 +297,8 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number
   expect(headerStyles).toHaveLength(widths.length);
   headerStyles.forEach((style, i) => {
     expect(style.scope).toBe('col');
-    // 0 は残り幅を使う列
-    const expected = widths[i] === 0 ? '' : `${widths[i]}px`;
+    // 空文字は残り幅を使う列
+    const expected = widths[i];
     expect(style.width, `th[${i}] の固定幅`).toBe(expected);
     expect(style.maxWidth, `th[${i}] の最大幅`).toBe(expected);
     expect(style.overflow).toBe('hidden');
@@ -539,7 +539,19 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     .getByTestId('search-card')
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
-  const reordered = [96, 88, 76, 0, 72, 80, 104, 104, 104, 88, 104];
+  const reordered = [
+    '12ch',
+    '10ch',
+    '11ch',
+    '',
+    '9ch',
+    '9ch',
+    '10ch',
+    '10ch',
+    '10ch',
+    '9ch',
+    '10ch',
+  ];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');
   await expect(ths.nth(3)).toHaveText('銘柄名');
