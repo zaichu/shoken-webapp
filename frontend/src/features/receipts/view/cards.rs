@@ -140,7 +140,10 @@ pub(crate) fn card_row_data(
 pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<String>) {
     match value {
         CardDetailValue::Text { text, negative } => (
-            view! { <Amount text=text.clone() negative=*negative /> }.into_any(),
+            view! {
+                <Amount text=text.clone() negative=*negative class="font-semibold" />
+            }
+            .into_any(),
             Some(text.clone()),
         ),
         CardDetailValue::SecurityCode(raw) => {

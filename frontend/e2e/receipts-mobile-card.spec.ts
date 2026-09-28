@@ -247,3 +247,50 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
 
   await shoot(page, 'fund-name-390');
 });
+
+test('マイナスの損益は data-negative で赤字、太さは正の値と同じ font-semibold', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginatedResponse([
+          {
+            ...DOMESTIC,
+            realized_profit_and_loss: -5000,
+            realized_profit_and_loss_after_tax: -3985,
+          },
+        ]),
+      ),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: '国内株式' }).click();
+
+  const card = page.getByTestId('receipt-card').first();
+  await expect(card).toBeVisible();
+  const ddFor = (label: string) =>
+    card
+      .locator('dl > div')
+      .filter({ has: page.getByText(label, { exact: true }) })
+      .locator('dd');
+
+  for (const [label, value] of [
+    ['損益', '-¥5,000'],
+    ['税引後', '-¥3,985'],
+  ] as const) {
+    const amount = ddFor(label).locator('span[data-negative="true"]');
+    await expect(amount).toHaveCount(1);
+    await expect(amount).toHaveText(value);
+    await expect(amount).toHaveCSS('color', 'rgb(185, 28, 28)');
+    await expect(amount).toHaveCSS('font-weight', '600');
+  }
+
+  // 損益系以外の金額は data-negative を付けず、太さも揃う
+  const proceeds = ddFor('売却額').locator('span:not([data-negative])');
+  await expect(proceeds).toHaveText('¥55,000');
+  await expect(proceeds).toHaveCSS('font-weight', '600');
+});
