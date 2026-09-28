@@ -194,6 +194,13 @@ impl ApiClient {
         }
     }
 
+    pub fn with_timeout_ms(&self, timeout_ms: u64) -> Self {
+        ApiClient {
+            timeout_ms,
+            ..self.clone()
+        }
+    }
+
     fn url(&self, path: &str, query: &[(&str, &str)]) -> String {
         let mut url = format!("{}{}", self.base_url, path);
         if !query.is_empty() {

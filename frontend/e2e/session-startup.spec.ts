@@ -74,21 +74,42 @@ test('匿名セッション(401)ならログインボタンを出し、撃ち直
   expect(sessionCount).toBe(1);
 });
 
-test('セッション確認が 5xx を返しても撃ち直さず未ログイン表示になる', async ({
+test('セッション確認の1回目が 5xx でも撃ち直して表示名が出る', async ({
   page,
 }) => {
   let sessionCount = 0;
   await page.route(/\/api\/v1\/session$/, (route) => {
     sessionCount += 1;
-    return route.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: '{}',
-    });
+    if (sessionCount === 1) {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: '{}',
+      });
+    }
+    return route.fulfill(fulfillSession(ALICE));
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  expect(sessionCount).toBe(1);
+  await expect(page.getByText(ALICE.name)).toBeVisible();
+  // プローブ + 撃ち直し
+  expect(sessionCount).toBe(2);
+});
+
+test('セッション応答が遅くても待ち時間内なら未ログインにしない', async ({
+  page,
+}) => {
+  let sessionCount = 0;
+  await page.route(/\/api\/v1\/session$/, async (route) => {
+    sessionCount += 1;
+    // プローブの時間切れ(3s)より遅いが、撃ち直しの残り予算(7s)には間に合う
+    await new Promise((resolve) => setTimeout(resolve, 6_000));
+    return route.fulfill(fulfillSession(ALICE));
+  });
+
+  await page.goto('/');
+  await expect(page.getByText(ALICE.name)).toBeVisible({ timeout: 15_000 });
+  // プローブ + 撃ち直し
+  expect(sessionCount).toBe(2);
 });
 
 test('無応答でも従来の合計時間内で未ログイン表示になる', async ({ page }) => {
@@ -102,13 +123,13 @@ test('無応答でも従来の合計時間内で未ログイン表示になる',
   });
 
   await page.goto('/');
-  // プローブ 5s + 撃ち直し1回 5s で従来経路(約10.5s)を超えないことを固定
+  // プローブ 3s + 撃ち直し1回 7s で従来経路(約10.5s)を超えないことを固定
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible({
     timeout: 20_000,
   });
   expect(firstSessionAt).toBeGreaterThan(0);
   expect(Date.now() - firstSessionAt).toBeLessThan(11_500);
-  // プローブ + リトライなしの撃ち直し1回
+  // プローブ + 撃ち直し1回
   expect(sessionCount).toBe(2);
 });
 
