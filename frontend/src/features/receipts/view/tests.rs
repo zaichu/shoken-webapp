@@ -16,6 +16,7 @@ use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
 use crate::support::row::Row::{Preview, Saved};
+use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -529,15 +530,8 @@ fn security_code_acceptance_matches_react_regex() {
 
 #[test]
 fn kpi_styles_match_tone() {
-    assert_eq!(kpi_card_bg("emerald"), "border-gain-border bg-gain-soft");
-    assert_eq!(
-        kpi_card_bg("red"),
-        "border-negative-tint-border bg-negative-tint"
-    );
-    assert_eq!(kpi_card_bg("other"), "border-border-subtle bg-surface");
-    assert_eq!(kpi_value_color("emerald"), "text-gain");
-    assert_eq!(kpi_value_color("red"), "text-negative");
-    assert_eq!(kpi_value_color("other"), "text-text");
+    assert_eq!(kpi_value_color(StatTone::Loss), "text-negative");
+    assert_eq!(kpi_value_color(StatTone::Neutral), "text-text");
 }
 
 #[test]

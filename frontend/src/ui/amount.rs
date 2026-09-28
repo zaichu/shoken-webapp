@@ -2,7 +2,8 @@ use leptos::prelude::*;
 
 /// 金額・率などの数値の表示。書式は呼び出し側の format 関数で作った文字列を
 /// 受け取り、この部品が tabular-nums とマイナスの色([data-negative])をまとめる。
-/// 周囲の要素(p/dd/td)はそのまま残し、この部品は値だけを出す。
+/// block=true のときこの部品が p を出すので、呼び出し側で p で包まない。
+/// block=false(既定)はインラインの span を出し、周囲の要素(dd/td 等)はそのまま残す。
 #[component]
 pub fn Amount(
     #[prop(into)] text: Signal<String>,

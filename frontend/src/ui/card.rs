@@ -31,8 +31,8 @@ pub enum CardVariant {
     Holding,
     /// KPI のマス
     Stat,
-    /// 取引明細 KPI の小さいマス(色は class で付ける)
-    StatSmall,
+    /// 取引明細 KPI の小さいマス(色は StatTone で決める)
+    StatSmall(StatTone),
     /// 内側のくぼんだ箱(配当情報の小枠)
     Sunken,
     /// カード内の集計ストリップ(grid 等は class で)
@@ -52,8 +52,8 @@ pub enum CardVariant {
 }
 
 impl CardVariant {
-    fn class(self) -> &'static str {
-        match self {
+    fn class(self) -> String {
+        let class = match self {
             Self::Panel => "panel-card",
             Self::Login => "login-card",
             Self::Table => "table-card",
@@ -71,7 +71,9 @@ impl CardVariant {
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",
             Self::Holding => "rounded-lg border border-ink/10 bg-surface shadow-sm",
             Self::Stat => "rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm",
-            Self::StatSmall => "rounded-lg border px-3.5 py-3",
+            Self::StatSmall(tone) => {
+                return format!("rounded-lg border px-3.5 py-3 {}", tone.class());
+            }
             Self::Sunken => "rounded-lg bg-surface-sunken px-4 py-3",
             Self::Strip => "overflow-hidden rounded-md bg-surface-sunken",
             Self::Hint => "rounded-xl border border-ink/10 bg-surface-sunken/80 p-4",
@@ -86,11 +88,30 @@ impl CardVariant {
             Self::GroupLabel => {
                 "flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2"
             }
-        }
+        };
+        class.to_string()
     }
 
     fn section_tag(self) -> bool {
         matches!(self, Self::Collapsible | Self::Summary)
+    }
+}
+
+/// StatSmall のマスの色
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StatTone {
+    /// 中立(既定の面)
+    Neutral,
+    /// マイナス(赤の面)
+    Loss,
+}
+
+impl StatTone {
+    fn class(self) -> &'static str {
+        match self {
+            Self::Neutral => "border-border-subtle bg-surface",
+            Self::Loss => "border-negative-tint-border bg-negative-tint",
+        }
     }
 }
 
@@ -108,7 +129,7 @@ pub fn Card(
     let classes = move || {
         let extra = class.get();
         if extra.is_empty() {
-            variant.class().to_string()
+            variant.class()
         } else {
             format!("{} {extra}", variant.class())
         }

@@ -2,16 +2,16 @@ use crate::features::receipts::model::format_currency;
 use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
 use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
-use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
+use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant, StatTone};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
-fn profit_tone(value: Decimal) -> &'static str {
+fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {
-        "red"
+        StatTone::Loss
     } else {
-        ""
+        StatTone::Neutral
     }
 }
 
@@ -20,7 +20,7 @@ pub(crate) fn header_summary(
     data: &ReceiptTabData,
     query: &str,
     has_preview: bool,
-) -> Vec<(&'static str, Decimal, &'static str)> {
+) -> Vec<(&'static str, Decimal, StatTone)> {
     let api = data
         .summary
         .as_ref()
@@ -38,32 +38,23 @@ pub(crate) fn header_summary(
             let tone = if marks_profit {
                 profit_tone(values[index])
             } else {
-                ""
+                StatTone::Neutral
             };
             (label, values[index], tone)
         })
         .collect()
 }
 
-pub(crate) fn kpi_card_bg(tone: &str) -> &'static str {
+pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
     match tone {
-        "emerald" => "border-gain-border bg-gain-soft",
-        "red" => "border-negative-tint-border bg-negative-tint",
-        _ => "border-border-subtle bg-surface",
-    }
-}
-
-pub(crate) fn kpi_value_color(tone: &str) -> &'static str {
-    match tone {
-        "emerald" => "text-gain",
-        "red" => "text-negative",
-        _ => "text-text",
+        StatTone::Loss => "text-negative",
+        StatTone::Neutral => "text-text",
     }
 }
 
 #[component]
 fn KpiGrid(
-    items: Vec<(&'static str, Decimal, &'static str)>,
+    items: Vec<(&'static str, Decimal, StatTone)>,
     grid_class: &'static str,
 ) -> impl IntoView {
     view! {
@@ -71,10 +62,10 @@ fn KpiGrid(
             {items
                 .into_iter()
                 .map(|(label, value, tone)| {
-                    let negative = tone == "red";
+                    let negative = matches!(tone, StatTone::Loss);
                     let value = format_currency(value);
                     view! {
-                        <Card variant=CardVariant::StatSmall class=kpi_card_bg(tone)>
+                        <Card variant=CardVariant::StatSmall(tone)>
                             <p class="mb-1 text-xs font-medium text-text-muted">{label}</p>
                             <Amount
                                 block=true
@@ -92,7 +83,7 @@ fn KpiGrid(
 
 #[component]
 pub(crate) fn SummaryStrip(
-    items: Vec<(&'static str, Decimal, &'static str)>,
+    items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
     #[prop(optional)] preview: bool,
 ) -> impl IntoView {
@@ -150,7 +141,7 @@ pub(crate) fn SummaryStrip(
                                             "truncate text-base font-bold {}",
                                             kpi_value_color(tone)
                                         )
-                                        negative=tone == "red"
+                                        negative=matches!(tone, StatTone::Loss)
                                     />
                                 </span>
                             }

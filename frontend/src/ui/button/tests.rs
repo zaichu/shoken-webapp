@@ -97,3 +97,19 @@ fn icon_button_variant_classes() {
     );
     assert_eq!(IconButtonVariant::Close.class(), "modal-close-button");
 }
+
+#[test]
+fn icon_button_classes_appends_extra_class() {
+    assert_eq!(
+        icon_button_classes(IconButtonVariant::Boxed, ""),
+        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
+    );
+    assert_eq!(
+        icon_button_classes(IconButtonVariant::Boxed, "no-print"),
+        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11 no-print"
+    );
+    assert_eq!(
+        icon_button_classes(IconButtonVariant::Close, "mt-1"),
+        "modal-close-button mt-1"
+    );
+}

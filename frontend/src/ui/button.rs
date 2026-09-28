@@ -193,6 +193,15 @@ impl IconButtonVariant {
     }
 }
 
+fn icon_button_classes(variant: IconButtonVariant, extra: &str) -> String {
+    let mut classes = variant.class().to_string();
+    if !extra.is_empty() {
+        classes.push(' ');
+        classes.push_str(extra);
+    }
+    classes
+}
+
 /// アイコンのみのボタン。aria-label か aria-hidden のどちらかを持たせる
 #[component]
 pub fn IconButton(
@@ -206,15 +215,7 @@ pub fn IconButton(
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
-    let classes = move || {
-        let mut classes = variant.class().to_string();
-        let extra = class.get();
-        if !extra.is_empty() {
-            classes.push(' ');
-            classes.push_str(&extra);
-        }
-        classes
-    };
+    let classes = move || icon_button_classes(variant, &class.get());
     view! {
         <button
             type="button"
