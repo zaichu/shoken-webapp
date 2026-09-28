@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { domesticStocksFixture, mutualFundsFixture } from './__fixtures__/receipts-print';

@@ -2,7 +2,8 @@
 // trunk が生成する nonce 付きインライン init script を外部ファイル化する。
 // 静的配信ではレスポンスごとの nonce を発行できないため、
 // 外部化して script-src 'self' で通せる形にする。
-// あわせて shoken-api-origin の meta に本番 backend の URL を埋め、
+// あわせて shoken-api-origin の meta に backend の URL を埋める(第2引数で差し替え可能。
+// E2E では '' を渡して同一オリジンに戻し、モック外の通信が本番に出ないようにする)。
 // session-probe.js は内容ハッシュ付きの名前に差し替える
 // (固定名のままだと vercel.json の immutable キャッシュでデプロイ後も古いプローブが使われる)。
 
@@ -18,7 +19,7 @@ const dist = process.argv[2] ?? 'dist';
 const indexPath = join(dist, 'index.html');
 let html = readFileSync(indexPath, 'utf8');
 
-const apiOrigin = loadBackendOrigin();
+const apiOrigin = process.argv[3] ?? loadBackendOrigin();
 const metaRe = /<meta\s+name="shoken-api-origin"\s+content="[^"]*"\s*\/?\s*>/;
 if (!metaRe.test(html)) {
   console.error('shoken-api-origin meta not found in index.html');

@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 

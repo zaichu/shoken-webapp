@@ -96,9 +96,8 @@ jobs:
       - name: Run Clippy (host)
         run: cargo clippy --all-targets -- -D warnings
 
-      # 1回のリリースビルドを leptos / vercel 両 suite で共有する
-      - name: Build release bundle
-        run: env -u NO_COLOR VERCEL_DIST_DIR=dist-release bash scripts/vercel-build.sh
+      - name: Build frontend bundle
+        run: env -u NO_COLOR trunk build --release --dist dist-e2e
 
       - name: Report compressed asset sizes
         run: |
@@ -107,18 +106,33 @@ jobs:
             echo
             echo "| Asset | Gzip size (bytes) |"
             echo "| --- | ---: |"
-            find dist-release -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.css' \) -print0 \
+            find dist-e2e -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.css' \) -print0 \
               | sort -z \
               | while IFS= read -r -d '' asset; do
                   size=$(gzip -c "$asset" | wc -c)
-                  printf '| `%s` | %s |\n' "${asset#dist-release/}" "$size"
+                  printf '| `%s` | %s |\n' "${asset#dist-e2e/}" "$size"
                 done
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # 本番 origin を埋めるのは vercel 配信検証用だけにする。E2E 用は API origin が
+      # 空のまま(trunk serve と同じ同一オリジン)の dist を渡し、モック外の通信を外に出さない
+      - name: Prepare Vercel delivery bundle
+        run: |
+          cp -r dist-e2e dist-release
+          node scripts/prepare-vercel-dist.mjs dist-release
 
       - name: Upload E2E dist artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
         with:
           name: e2e-dist
+          path: frontend/dist-e2e
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload Vercel dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: vercel-dist
           path: frontend/dist-release
           retention-days: 1
           if-no-files-found: error
@@ -136,7 +150,7 @@ jobs:
       run:
         working-directory: frontend
     env:
-      LEPTOS_E2E_DIST_DIR: dist-release
+      LEPTOS_E2E_DIST_DIR: dist-e2e
 
     steps:
       - name: Checkout repository
@@ -156,7 +170,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7 https://github.com/actions/download-artifact/releases/tag/v7
         with:
           name: e2e-dist
-          path: frontend/dist-release
+          path: frontend/dist-e2e
 
       - name: Restore Playwright browsers cache
         id: playwright-browsers
@@ -229,10 +243,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Download E2E dist artifact
+      - name: Download Vercel dist artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7 https://github.com/actions/download-artifact/releases/tag/v7
         with:
-          name: e2e-dist
+          name: vercel-dist
           path: frontend/dist-release
 
       - name: Restore Playwright browsers cache

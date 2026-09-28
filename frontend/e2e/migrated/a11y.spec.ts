@@ -1,4 +1,5 @@
-import { test, expect, type Locator, type Page, type Browser } from '@playwright/test';
+import type { Browser, Locator, Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -286,7 +287,7 @@ test('資産管理の取得失敗と読み込み中に moderate 以上の WCAG �
     () => expect(page.getByTestId('list-load-error')).toBeVisible({ timeout: 10000 }),
   );
   await page.unroute(ROUTES.assetBalances);
-  await page.route(ROUTES.assetBalances, (route) => route.abort());
+  await page.route(ROUTES.assetBalances, () => {});
   await scanBothViewports(
     page,
     '資産管理(読み込み中)',
@@ -341,7 +342,7 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
     () => expect(page.getByTestId('list-load-error')).toBeVisible({ timeout: 10000 }),
   );
   await page.unroute(ROUTES.dividends);
-  await page.route(ROUTES.dividends, (route) => route.abort());
+  await page.route(ROUTES.dividends, () => {});
   await scanBothViewports(
     page,
     '取引明細(読み込み中)',
@@ -457,8 +458,6 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
 
 test('ログインと404に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await page.unrouteAll({ behavior: 'wait' });
-  // モックの外れた API 呼び出しが本物の backend に届かないよう網を張る
-  await page.route(/\/api\//, (route) => route.abort());
   await page.route(ROUTES.authMe, (route) => route.fulfill(json({}, 401)));
   await scanBothViewports(page, 'ログイン', () => page.goto('/login'), true, () =>
     expect(page.getByRole('button', { name: /Googleでログイン/ })).toBeVisible({ timeout: 10000 }),
@@ -796,7 +795,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
 
 test('読み込み中が支援技術に伝わる', async ({ page }) => {
   await mockSession(page);
-  await page.route(ROUTES.dividends, (route) => route.abort());
+  await page.route(ROUTES.dividends, () => {});
   await page.route(ROUTES.domesticStocks, (route) => route.fulfill(json(EMPTY_PAGE)));
   await page.route(ROUTES.mutualfunds, (route) => route.fulfill(json(EMPTY_PAGE)));
   await page.setViewportSize(PC);
@@ -874,7 +873,7 @@ test('prefers-reduced-motion で動きを止める', async ({ browser }: { brows
   const page = await context.newPage();
   await mockSession(page);
   await mockEmptyLists(page);
-  await page.route(ROUTES.dividends, (route) => route.abort());
+  await page.route(ROUTES.dividends, () => {});
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForTimeout(800);
