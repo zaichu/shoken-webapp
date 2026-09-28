@@ -1,5 +1,7 @@
 use crate::api::dto::SessionUser;
 use crate::session::{use_session, SessionStore};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use leptos::ev;
 use leptos::html;
@@ -31,8 +33,6 @@ const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[b
 const NAV_LINK_ACTIVE: &str = "bg-surface text-ink shadow-edge-accent";
 const NAV_LINK_INACTIVE: &str =
     "text-text-inverse-muted hover:bg-surface/10 hover:text-text-inverse";
-
-const HEADER_BUTTON: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-text-inverse/70 text-text-inverse hover:bg-surface hover:text-ink px-3 py-1.5 text-sm max-sm:min-h-11";
 
 pub(crate) fn current_path() -> String {
     web_sys::window()
@@ -136,13 +136,12 @@ pub fn SiteHeader() -> impl IntoView {
                                     .into_any()
                             } else {
                                 view! {
-                                    <button
-                                        type="button"
-                                        class=HEADER_BUTTON
-                                        on:click=move |_| session.login()
+                                    <Button
+                                        variant=ButtonVariant::Header(ButtonSize::Sm)
+                                        on_click=move |_| session.login()
                                     >
                                         "ログイン"
-                                    </button>
+                                    </Button>
                                 }
                                     .into_any()
                             }
@@ -265,16 +264,15 @@ fn UserMenu(
                 {display_name}
             </span>
             <div class="relative" node_ref=menu_container>
-                <button
-                    type="button"
-                    class=HEADER_BUTTON
-                    aria-haspopup="menu"
-                    aria-expanded=move || if menu_open.get() { "true" } else { "false" }
-                    aria-controls="user-menu"
-                    on:click=move |_| menu_open.update(|open| *open = !*open)
+                <Button
+                    variant=ButtonVariant::Header(ButtonSize::Sm)
+                    aria_haspopup="menu"
+                    aria_expanded=move || menu_open.get()
+                    aria_controls="user-menu"
+                    on_click=move |_| menu_open.update(|open| *open = !*open)
                 >
                     "メニュー"
-                </button>
+                </Button>
                 <Show when=move || menu_open.get()>
                     <ul
                         id="user-menu"
@@ -283,12 +281,11 @@ fn UserMenu(
                         aria-label="ユーザーメニュー"
                     >
                         <li role="none">
-                            <button
-                                type="button"
-                                class="w-full px-3 py-2 text-left text-sm font-semibold hover:bg-surface-raised"
+                            <Button
+                                variant=ButtonVariant::MenuItem
                                 role="menuitem"
-                                data-testid="logout"
-                                on:click=move |_| {
+                                testid="logout"
+                                on_click=move |_| {
                                     menu_open.set(false);
                                     leptos::task::spawn_local(async move {
                                         session.logout().await;
@@ -296,7 +293,7 @@ fn UserMenu(
                                 }
                             >
                                 "ログアウト"
-                            </button>
+                            </Button>
                         </li>
                         <li role="none">
                             <hr class="border-border" />
@@ -308,18 +305,17 @@ fn UserMenu(
                             "危険な操作"
                         </li>
                         <li role="none">
-                            <button
-                                type="button"
-                                class="w-full px-3 py-2 text-left text-sm font-bold text-negative hover:bg-negative/10"
+                            <Button
+                                variant=ButtonVariant::MenuItemDanger
                                 role="menuitem"
-                                aria-describedby="delete-warning"
-                                on:click=move |_| delete_confirm_open.set(true)
+                                aria_describedby="delete-warning"
+                                on_click=move |_| delete_confirm_open.set(true)
                             >
                                 <span id="delete-warning" class="sr-only">
                                     "警告: この操作は取り消せません"
                                 </span>
                                 "アカウント削除"
-                            </button>
+                            </Button>
                         </li>
                     </ul>
                 </Show>
@@ -459,12 +455,13 @@ pub fn Loading() -> impl IntoView {
     view! { <p role="status">"読み込み中..."</p> }
 }
 
-const RETRY_BUTTON: &str = "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-text-inverse transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2";
-
 #[component]
-pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl IntoView {
+pub fn ListLoadError(
+    message: String,
+    on_retry: impl Fn() + Send + Sync + 'static,
+) -> impl IntoView {
     view! {
-        <div class="panel-card p-4" data-testid="list-load-error">
+        <Card variant=CardVariant::Panel class="p-4" testid="list-load-error">
             <div
                 class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
                 role="alert"
@@ -474,18 +471,18 @@ pub fn ListLoadError(message: String, on_retry: impl Fn() + 'static) -> impl Int
                 {message}
             </div>
             <div class="mt-4">
-                <button type="button" class=RETRY_BUTTON on:click=move |_| on_retry()>
+                <Button variant=ButtonVariant::Retry on_click=move |_| on_retry()>
                     "再読み込み"
-                </button>
+                </Button>
             </div>
-        </div>
+        </Card>
     }
 }
 
 #[component]
 pub fn ListSkeleton() -> impl IntoView {
     view! {
-        <div class="panel-card p-4" role="status" data-testid="list-skeleton">
+        <Card variant=CardVariant::Panel class="p-4" role="status" testid="list-skeleton">
             <span class="sr-only">"データを読み込んでいます..."</span>
             <div class="grid animate-pulse gap-4" aria-hidden="true">
                 {(0..3)
@@ -500,7 +497,7 @@ pub fn ListSkeleton() -> impl IntoView {
                     })
                     .collect_view()}
             </div>
-        </div>
+        </Card>
     }
 }
 

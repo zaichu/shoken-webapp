@@ -1,12 +1,10 @@
+use crate::ui::button::{Button, ButtonSize, ButtonVariant, IconButton, IconButtonVariant};
 use crate::ui::elements::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 const FOCUSABLE_SELECTOR: &str =
     "button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])";
-
-const SECONDARY_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-border-strong bg-surface text-text hover:border-border-bold hover:bg-surface-sunken px-4 py-2 text-sm max-sm:min-h-11";
-const CONFIRM_BUTTON_CLASS: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 no-print border border-negative text-negative hover:bg-negative hover:text-text-inverse px-3 py-1.5 text-sm max-sm:min-h-11";
 
 fn same_element(a: &web_sys::HtmlElement, b: &web_sys::HtmlElement) -> bool {
     a.unchecked_ref::<web_sys::Node>()
@@ -109,15 +107,14 @@ pub fn ConfirmDeleteModal(
                         <h5 id="confirm-delete-title" class="text-negative font-semibold">
                             {title}
                         </h5>
-                        <button
-                            type="button"
-                            class="modal-close-button"
-                            aria-label="閉じる"
+                        <IconButton
+                            variant=IconButtonVariant::Close
+                            aria_label="閉じる".to_string()
                             disabled=move || loading.get()
-                            on:click=move |_| close_cancel()
+                            on_click=move |_| close_cancel()
                         >
                             <span aria-hidden="true">"✕"</span>
-                        </button>
+                        </IconButton>
                     </div>
                     <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
@@ -146,19 +143,19 @@ pub fn ConfirmDeleteModal(
                         }}
                     </div>
                     <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
-                        <button
-                            type="button"
-                            class=SECONDARY_BUTTON_CLASS
+                        <Button
+                            variant=ButtonVariant::Secondary(ButtonSize::Md)
+                            class="no-print"
                             disabled=move || loading.get()
-                            on:click=move |_| cancel()
+                            on_click=move |_| cancel()
                         >
                             "キャンセル"
-                        </button>
-                        <button
-                            type="button"
-                            class=CONFIRM_BUTTON_CLASS
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Danger(ButtonSize::Sm)
+                            class="no-print"
                             disabled=move || loading.get()
-                            on:click=move |_| on_confirm()
+                            on_click=move |_| on_confirm()
                         >
                             {move || {
                                 loading
@@ -166,7 +163,7 @@ pub fn ConfirmDeleteModal(
                                     .then(|| view! { <Spinner size=SpinnerSize::Sm class="mr-2" /> })
                             }}
                             {confirm_label}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

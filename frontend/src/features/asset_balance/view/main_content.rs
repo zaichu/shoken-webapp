@@ -8,6 +8,8 @@ use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfoli
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
 #[component]
@@ -35,18 +37,14 @@ pub(crate) fn AssetBalanceMainContent(
             if rows.is_empty() && query.is_empty() {
                 show_all.set(false);
                 return view! {
-                    <div class="mb-3 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card">
+                    <Card variant=CardVariant::Soft class="mb-3">
                         <div>
-                            <div class="empty-state">
-                                <h3 class="text-base font-black text-ink">
-                                    "資産管理データがありません"
-                                </h3>
-                                <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
-                                    "CSVファイルをインポートするか、データを登録してください。"
-                                </p>
-                            </div>
+                            <EmptyState
+                                title="資産管理データがありません"
+                                description="CSVファイルをインポートするか、データを登録してください。"
+                            />
                         </div>
-                    </div>
+                    </Card>
                 }
                     .into_any();
             }

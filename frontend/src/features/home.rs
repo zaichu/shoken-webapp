@@ -7,6 +7,8 @@ use crate::features::asset_balance::{
     valuation_tone,
 };
 use crate::session::{use_session, Generation, SessionStore};
+use crate::ui::amount::Amount;
+use crate::ui::card::{Card, CardVariant};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::future::Future;
@@ -98,21 +100,18 @@ pub fn HomePage() -> impl IntoView {
                         match to {
                             Some(to) => {
                                 view! {
-                                    <a
-                                        href={*to}
-                                        class="feature-card group"
-                                    >
+                                    <Card variant=CardVariant::Feature class="group" href=(*to).to_string()>
                                         {inner}
-                                    </a>
+                                    </Card>
                                 }
                                     .into_any()
                             }
                             None => {
                                 view! {
-                                    <div class="rounded-xl border border-dashed border-border-strong bg-surface-raised/70 px-4 py-4">
+                                    <Card variant=CardVariant::Dashed>
                                         {inner}
                                         <p class="mt-2 text-xs font-medium text-text-subtle">"各ページから取込可能"</p>
-                                    </div>
+                                    </Card>
                                 }
                                     .into_any()
                             }
@@ -128,12 +127,12 @@ pub fn HomePage() -> impl IntoView {
                         .iter()
                         .map(|(step, text)| {
                             view! {
-                                <div class="rounded-lg border border-ink/10 bg-surface/75 px-3 py-3">
+                                <Card variant=CardVariant::Step>
                                     <span class="text-eyebrow font-black uppercase tracking-caption text-accent-deep">
                                         {*step}
                                     </span>
                                     <p class="mt-1 text-sm font-bold text-text">{*text}</p>
-                                </div>
+                                </Card>
                             }
                         })
                         .collect_view()}
@@ -314,7 +313,7 @@ fn OverviewTile(
     #[prop(default = None)] note: Option<String>,
 ) -> impl IntoView {
     view! {
-        <div class="rounded-xl border border-ink/10 bg-surface px-4 py-4 shadow-sm">
+        <Card variant=CardVariant::Tile>
             <p class="text-sm font-medium text-text-muted">{label}</p>
             {if busy {
                 view! {
@@ -332,7 +331,11 @@ fn OverviewTile(
                         )
                         data-negative=negative
                     >
-                        <span class="break-all">{value.unwrap_or_else(|| "—".to_string())}</span>
+                        <Amount
+                            class="break-all"
+                            text=value.unwrap_or_else(|| "—".to_string())
+                            negative=negative.is_some()
+                        />
                         {note
                             .map(|note| {
                                 view! {
@@ -343,6 +346,6 @@ fn OverviewTile(
                 }
                     .into_any()
             }}
-        </div>
+        </Card>
     }
 }

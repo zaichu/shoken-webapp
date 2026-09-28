@@ -34,8 +34,14 @@ fn nav_active_matches_path_or_prefix() {
 
 #[test]
 fn alert_variant_classes() {
-    assert!(AlertVariant::Warning.class().contains("accent"));
-    assert!(AlertVariant::Danger.class().contains("negative"));
+    assert_eq!(
+        AlertVariant::Warning.class(),
+        "border-accent-border bg-accent-soft text-accent-text"
+    );
+    assert_eq!(
+        AlertVariant::Danger.class(),
+        "border-negative-border bg-negative-soft text-negative-vivid"
+    );
 }
 
 #[test]

@@ -78,6 +78,14 @@ fn with_max_retries_overrides_only_retry_count() {
 }
 
 #[test]
+fn with_timeout_ms_overrides_only_timeout() {
+    let client = ApiClient::auth_client().with_timeout_ms(7_000);
+    assert_eq!(client.timeout_ms, 7_000);
+    assert_eq!(client.max_retries, AUTH_MAX_RETRIES);
+    assert_eq!(client.retry_delay_ms, AUTH_RETRY_DELAY_MS);
+}
+
+#[test]
 fn message_matches_react() {
     for (error, expected) in [
         (ApiError::Network, "ネットワークエラーが発生しました"),

@@ -252,10 +252,6 @@
     @apply mt-3 w-full rounded-md border border-border-strong bg-surface py-2 text-sm font-medium text-text-muted transition-colors hover:bg-surface-sunken;
   }
 
-  .receipt-card-trigger {
-    @apply flex min-h-22.5 w-full flex-col justify-center gap-2 rounded-lg px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info;
-  }
-
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }

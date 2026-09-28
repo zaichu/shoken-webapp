@@ -1,6 +1,10 @@
 use super::use_stock_search;
 use crate::api::dto::Stock;
+use crate::ui::badge::CodeBadge;
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::elements::{Alert, AlertVariant, PageHeader, Spinner, SpinnerSize};
+use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
@@ -95,10 +99,10 @@ pub(crate) fn SearchPage() -> impl IntoView {
 fn SearchForm(
     stock_code: RwSignal<String>,
     loading: Signal<bool>,
-    on_submit: impl Fn(web_sys::SubmitEvent) + 'static,
+    on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + 'static,
 ) -> impl IntoView {
     view! {
-        <div class="panel-card mb-5 overflow-hidden">
+        <Card variant=CardVariant::Panel class="mb-5 overflow-hidden">
             <div class="p-4 sm:p-5">
                 <form on:submit=on_submit>
                     <div class="search-input-frame">
@@ -119,14 +123,18 @@ fn SearchForm(
                                 />
                             </div>
                         </div>
-                        <button
-                            type="submit"
-                            class="search-submit no-print"
-                            disabled=move || loading.get() || stock_code.get().is_empty()
-                            data-loading=move || loading.get().then_some("true")
-                            aria-label=move || {
-                                if loading.get() { "検索中" } else { "銘柄を検索" }
-                            }
+                        <Button
+                            variant=ButtonVariant::SearchSubmit
+                            class="no-print"
+                            submit=true
+                            on_click=move |_| {}
+                            disabled=Signal::derive(move || {
+                                loading.get() || stock_code.get().is_empty()
+                            })
+                            data_loading=Signal::derive(move || loading.get())
+                            aria_label=Signal::derive(move || {
+                                if loading.get() { "検索中" } else { "銘柄を検索" }.to_string()
+                            })
                         >
                             {move || {
                                 if loading.get() {
@@ -139,52 +147,54 @@ fn SearchForm(
                                     "検索".into_any()
                                 }
                             }}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
-        </div>
+        </Card>
     }
 }
 
 #[component]
 fn EmptySearch() -> impl IntoView {
     view! {
-        <div class="empty-state py-10">
-            <div class="mb-3 text-text-faint" aria-hidden="true">
-                <svg
-                    class="h-10 w-10"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="1.5"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                </svg>
-            </div>
-            <h3 class="text-base font-black text-ink">"銘柄を検索"</h3>
-            <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
-                "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
-            </p>
-        </div>
+        <EmptyState
+            class="py-10"
+            title="銘柄を検索"
+            description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+            icon=view! {
+                <div class="mb-3 text-text-faint" aria-hidden="true">
+                    <svg
+                        class="h-10 w-10"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="1.5"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                    </svg>
+                </div>
+            }
+            .into_any()
+        />
     }
 }
 
 #[component]
 fn SearchHints() -> impl IntoView {
     view! {
-        <div class="mt-6 rounded-xl border border-ink/10 bg-surface-sunken/80 p-4">
+        <Card variant=CardVariant::Hint class="mt-6">
             <h3 class="mb-2 text-sm font-black text-text">"検索のヒント"</h3>
             <ul class="space-y-1 text-sm font-medium text-text-muted">
                 <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
                 <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
                 <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
             </ul>
-        </div>
+        </Card>
     }
 }
 
@@ -203,10 +213,11 @@ fn StockInfo(stock: Stock) -> impl IntoView {
         ("規模", stock.size_category.clone().unwrap_or_default()),
     ];
     let code = stock.code.clone();
+    let code_badge = code.clone();
     let name = stock.name.clone();
     view! {
         <div>
-            <div class="panel-card mb-4 overflow-hidden">
+            <Card variant=CardVariant::Panel class="mb-4 overflow-hidden">
                 <div class="border-b border-ink/10 bg-ink px-5 py-4 text-text-inverse">
                     <div class="flex flex-wrap items-end justify-between gap-3">
                         <div>
@@ -215,9 +226,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                             </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
                         </div>
-                        <span class="code-badge">
-                            {code.clone()}
-                        </span>
+                        <CodeBadge>{code_badge}</CodeBadge>
                     </div>
                 </div>
                 <div>
@@ -245,7 +254,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                         <StockInfoLinks code=code />
                     </div>
                 </div>
-            </div>
+            </Card>
         </div>
     }
 }

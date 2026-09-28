@@ -8,6 +8,8 @@ use crate::features::receipts::kind::{DividendKind, ReceiptKind};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::session::use_session;
 use crate::support::row::Row;
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::empty_state::EmptyState;
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -71,21 +73,14 @@ pub(crate) fn ReceiptsMainContent(
             let display = display_rows.get();
             if display.is_empty() {
                 return view! {
-                    <div
-                        class="overflow-hidden rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2"
-                        data-testid="receipt-card"
-                    >
+                    <Card variant=CardVariant::Shell testid="receipt-card">
                         <div class="p-0" data-testid="receipt-card-body">
-                            <div class="empty-state">
-                                <h3 class="text-base font-black text-ink">
-                                    "データがありません"
-                                </h3>
-                                <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">
-                                    {tab.empty_hint()}
-                                </p>
-                            </div>
+                            <EmptyState
+                                title="データがありません"
+                                description=tab.empty_hint().to_string()
+                            />
                         </div>
-                    </div>
+                    </Card>
                 }
                     .into_any();
             }

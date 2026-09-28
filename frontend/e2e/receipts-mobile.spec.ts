@@ -171,32 +171,66 @@ test('グループ見出しは主要集計を常時表示しタップで全集�
   await expect(region).toBeHidden();
 });
 
-test('カードはタップで全列の明細を開閉できる', async ({ page }) => {
+test('カードは開閉せず見出しと全項目の2列格子を最初から表示する', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  const cardButton = cardList.getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
-  await expect(cardButton).toHaveAttribute('aria-expanded', 'false');
-  await expect(cardList.getByText('入金日')).toHaveCount(0);
+  const card = cardList.getByTestId('receipt-card').first();
+  await expect(card).toBeVisible();
 
-  await cardButton.click();
-  const region = cardList.getByRole('region', { name: 'トヨタ自動車 ¥2,391' });
-  await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
-  await expect(region).toBeVisible();
-  for (const label of ['入金日', '商品', '口座', '銘柄コード', '銘柄名', '単価', '数量', '配当金', '税額', '受取額']) {
-    await expect(region.getByText(label, { exact: true })).toBeVisible();
-  }
-  await expect(region.getByText('2024/03/01', { exact: true })).toBeVisible();
-  const codeLink = region.getByRole('link', { name: '7203' });
-  await expect(codeLink).toHaveAttribute('href', '/search?code=7203');
+  // 開閉トリガーを持たない(コピー用のボタンのみ)
+  await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+  await expect(card.getByRole('button')).toHaveCount(1);
+
+  // 見出しは銘柄名・日付・口座(先頭は入金日順で日本電信電話)
   await expect(
-    region.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
+    card.getByRole('button', { name: '日本電信電話(9432) をコピー' }),
   ).toBeVisible();
+  await expect(card.getByText('03/15', { exact: true })).toBeVisible();
+  await expect(card.getByText('楽天証券', { exact: true })).toBeVisible();
 
-  await cardButton.click();
-  await expect(cardButton).toHaveAttribute('aria-expanded', 'false');
-  await expect(region).toBeHidden();
+  // 見出しと重複しない残り全項目を、表の列順で2列の格子に出す
+  const grid = card.locator('dl');
+  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '受取額'];
+  await expect(grid.locator('dt')).toHaveCount(labels.length);
+  for (const label of labels) {
+    await expect(grid.locator('dt', { hasText: label })).toBeVisible();
+  }
+  for (const label of ['入金日', '口座', '銘柄名']) {
+    await expect(grid.locator('dt', { hasText: label })).toHaveCount(0);
+  }
+
+  const columns = await grid.evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
+  );
+  expect(columns, '項目は2列の格子').toBe(2);
+
+  // 金額は右寄せ・tabular-nums、長い項目も隠れない
+  await expect(grid.getByText('¥1,594', { exact: true })).toBeVisible();
+  const ddStyle = await grid
+    .locator('dd')
+    .last()
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      const amount = element.querySelector('.tabular-nums');
+      return {
+        textAlign: style.textAlign,
+        fontVariantNumeric: amount
+          ? getComputedStyle(amount).fontVariantNumeric
+          : 'missing',
+      };
+    });
+  expect(ddStyle).toEqual({ textAlign: 'right', fontVariantNumeric: 'tabular-nums' });
+  const clipped = await grid
+    .locator('dd, dt')
+    .evaluateAll((cells) =>
+      cells.filter((cell) => cell.scrollWidth > cell.clientWidth + 1),
+    );
+  expect(clipped, '格子の項目が見切れない').toEqual([]);
+
+  const codeLink = card.getByRole('link', { name: '9432' });
+  await expect(codeLink).toHaveAttribute('href', '/search?code=9432');
 });
 
 test('タブは1行のまま横スクロール可能', async ({ page }) => {
@@ -267,69 +301,82 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   await expect(region).toBeHidden();
 });
 
-test('国内株式タブでもカードが開き銘柄リンクとコピーが使える', async ({ page }) => {
+test('国内株式タブでも全項目が見え、銘柄リンクとコピーが使える', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   await page.getByRole('tab', { name: '国内株式' }).click();
-  const cardList = page.getByTestId('receipt-card-list');
-  const cardButton = cardList.getByRole('button', { name: '任天堂 ¥3,985' });
-  await cardButton.click();
-  const region = cardList.getByRole('region', { name: '任天堂 ¥3,985' });
-  await expect(region).toBeVisible();
-  await expect(region.getByText('銘柄コード', { exact: true })).toBeVisible();
-  await expect(region.getByRole('link', { name: '7974' })).toHaveAttribute(
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
+  await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+
+  // 見出し(約定日・銘柄名・口座)以外の全項目を列順で出す
+  const grid = card.locator('dl');
+  await expect(grid.locator('dt')).toHaveCount(8);
+  for (const label of [
+    '銘柄コード',
+    '数量',
+    '売却単価',
+    '売却額',
+    '取得価額',
+    '損益',
+    '税額',
+    '税引後',
+  ]) {
+    await expect(grid.locator('dt', { hasText: label })).toBeVisible();
+  }
+
+  await expect(card.getByRole('link', { name: '7974' })).toHaveAttribute(
     'href',
     '/search?code=7974',
   );
   await expect(
-    region.getByRole('button', { name: '任天堂(7974) をコピー' }),
+    card.getByRole('button', { name: '任天堂(7974) をコピー' }),
   ).toBeVisible();
-  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
 });
 
-test('投資信託タブでもカードが開きファンド名をコピーできる', async ({ page }) => {
+test('投資信託タブでも全項目が見え、ファンド名をコピーできる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   await page.getByRole('tab', { name: '投資信託' }).click();
-  const cardList = page.getByTestId('receipt-card-list');
-  const cardButton = cardList.getByRole('button', {
-    name: /eMAXIS Slim 米国株式\(S&P500\)/,
-  });
-  await cardButton.click();
-  const region = cardList.getByRole('region', {
-    name: /eMAXIS Slim 米国株式\(S&P500\)/,
-  });
-  await expect(region).toBeVisible();
-  await expect(region.getByText('ファンド名', { exact: true })).toBeVisible();
-  await expect(region.getByText('銘柄コード', { exact: true })).toHaveCount(0);
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
+  await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+
+  // 見出し(約定日・ファンド名・口座)以外の全項目を列順で出す
+  const grid = card.locator('dl');
+  await expect(grid.locator('dt')).toHaveCount(7);
+  for (const label of [
+    '数量',
+    '解約単価',
+    '解約額',
+    '取得価額',
+    '実現損益',
+    '税額',
+    '税引損益',
+  ]) {
+    await expect(grid.locator('dt', { hasText: label })).toBeVisible();
+  }
+
   await expect(
-    region.getByRole('button', {
+    card.getByRole('button', {
       name: 'eMAXIS Slim 米国株式(S&P500) をコピー',
     }),
   ).toBeVisible();
-  await expect(region.getByText('税引損益', { exact: true })).toBeVisible();
 });
 
-test('検索条件を変えても同じカードと集計は閉じない', async ({ page }) => {
+test('検索条件を変えても集計カードの開閉状態は保たれ、残ったカードは全項目のまま', async ({
+  page,
+}) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  const firstCard = cardList.getByTestId('receipt-card').first();
-  await expect(firstCard.getByRole('button')).toHaveAttribute(
-    'aria-label',
-    '日本電信電話 ¥1,594',
-  );
-  const cardButton = cardList.getByRole('button', {
-    name: '日本電信電話 ¥1,594',
-  });
-  await cardButton.click();
-  await expect(
-    cardList.getByRole('region', { name: '日本電信電話 ¥1,594' }),
-  ).toBeVisible();
-
   const groupToggle = cardList.getByRole('button', {
     name: /2024年3月 2件 税引後/,
   });
@@ -341,33 +388,14 @@ test('検索条件を変えても同じカードと集計は閉じない', async
   await page.locator('#securities-search').selectOption('9432');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
 
-  await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
-  await expect(
-    cardList.getByRole('region', { name: '日本電信電話 ¥1,594' }),
-  ).toBeVisible();
+  // 行カードは開閉しないため絞り込み後も全項目が見えている
+  const card = cardList.getByTestId('receipt-card').first();
+  await expect(card.locator('dl')).toBeVisible();
+  await expect(card.locator('dt')).toHaveCount(7);
   await expect(
     cardList.getByRole('button', { name: /1件 税引後 ¥1,594/ }),
   ).toHaveAttribute('aria-expanded', 'false');
   await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
-});
-
-test('開いたカードは絞り込みで位置が変わっても開いたまま追従する', async ({ page }) => {
-  await mockApi(page);
-  await page.goto('/receipts');
-
-  const cardList = page.getByTestId('receipt-card-list');
-  const sony = cardList.getByRole('button', { name: 'ソニーグループ ¥797' });
-  await sony.click();
-  await expect(sony).toHaveAttribute('aria-expanded', 'true');
-
-  const searchCard = page.getByTestId('search-card');
-  await searchCard.getByTestId('search-card-header').click();
-  await searchCard.getByRole('button', { name: 'NISA口座' }).click();
-  await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
-  await expect(sony).toHaveAttribute('aria-expanded', 'true');
-  await expect(
-    cardList.getByRole('region', { name: 'ソニーグループ ¥797' }),
-  ).toBeVisible();
 });
 
 test('CSV操作レールはスマホ幅で折り畳み開閉できる', async ({ page }) => {

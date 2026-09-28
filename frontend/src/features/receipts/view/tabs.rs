@@ -2,13 +2,10 @@ use super::workspace::ReceiptWorkspace;
 use super::TAB_IDS;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::elements::{ListSkeleton, Loading};
+use crate::ui::tabs::TabButton;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const TAB_BUTTON_BASE: &str = "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-11 max-sm:shrink-0 max-sm:px-3";
-const TAB_BUTTON_ACTIVE: &str = "border-ink bg-ink text-text-inverse shadow-edge-accent";
-const TAB_BUTTON_INACTIVE: &str =
-    "border-border-strong bg-surface text-text hover:border-border-xstrong hover:bg-surface hover:text-ink";
 const TAB_COUNT_BASE: &str =
     "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold";
 const TAB_COUNT_ACTIVE: &str = "border border-text-inverse/20 bg-surface text-ink";
@@ -51,7 +48,7 @@ pub(crate) fn scroll_tab_into_view(tab: ReceiptsTab) {
 }
 
 #[component]
-pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub(crate) fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
     let selected = store;
@@ -60,31 +57,12 @@ pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView
     let counted = store;
     let counted_store = store;
     view! {
-        <button
-            id={format!("tab-{slug}")}
-            type="button"
-            role="tab"
-            class=move || {
-                format!(
-                    "{TAB_BUTTON_BASE} {}",
-                    if selected.active_tab.get() == tab {
-                        TAB_BUTTON_ACTIVE
-                    } else {
-                        TAB_BUTTON_INACTIVE
-                    }
-                )
-            }
-            aria-selected=move || {
-                if selected.active_tab.get() == tab {
-                    "true"
-                } else {
-                    "false"
-                }
-            }
-            aria-controls={format!("tabpanel-{slug}")}
-            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
-            on:click=move |_| clicked.select_tab(tab)
-            on:keydown=move |event| {
+        <TabButton
+            id=format!("tab-{slug}")
+            controls=format!("tabpanel-{slug}")
+            selected=Signal::derive(move || selected.active_tab.get() == tab)
+            on_select=move || clicked.select_tab(tab)
+            on_keydown=move |event| {
                 let current = ReceiptsTab::ALL
                     .iter()
                     .position(|item| *item == keyed.active_tab.get_untracked())
@@ -115,7 +93,7 @@ pub(crate) fn TabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView
                     TabState::Loading | TabState::Failed(_) => "—".to_string(),
                 }}
             </span>
-        </button>
+        </TabButton>
     }
 }
 
