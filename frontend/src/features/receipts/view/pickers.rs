@@ -1,5 +1,7 @@
 use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey};
 use crate::support::list_search::SearchOption;
+use crate::ui::choice::{Chip, ChipVariant, FieldTrigger, OptionButton, Select};
+use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -15,16 +17,19 @@ pub(crate) fn SecurityDropdown(
                 return ().into_any();
             }
             view! {
-                <div>
-                    <label class="mb-1 block text-sm font-bold text-text" for="securities-search">"銘柄"</label>
-                    <select id="securities-search" class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
-                        prop:value=move || search.with(|state| state.selected_queries.securities.clone())
-                        on:change=move |event| search.update(|state| state.select_quick(SearchKey::Securities, event_target_value(&event)))>
-                        <option value="">"全て表示"</option>
-                        {options.into_iter().map(|o| view! { <option value=o.value>{o.label}</option> }).collect_view()}
-                    </select>
-                </div>
-            }.into_any()
+                <Select
+                    id="securities-search"
+                    label="銘柄"
+                    value=Signal::derive(move || {
+                        search.with(|state| state.selected_queries.securities.clone())
+                    })
+                    options=options
+                    on_change=move |value| {
+                        search.update(|state| state.select_quick(SearchKey::Securities, value))
+                    }
+                />
+            }
+            .into_any()
         }}
     }
 }
@@ -41,22 +46,19 @@ pub(crate) fn YearDropdown(
                 return ().into_any();
             }
             view! {
-                <div>
-                    <label class="mb-1 block text-sm font-bold text-text" for="years-search">"西暦"</label>
-                    <select
-                        id="years-search"
-                        class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
-                        prop:value=move || search.with(|state| state.selected_queries.years.clone())
-                        on:change=move |event| search.update(|state| {
-                            state.select_quick(SearchKey::Years, event_target_value(&event))
-                        })
-                    >
-                        <option value="">"全て表示"</option>
-                        {options.into_iter().map(|option| view! { <option value=option.value>{option.label}</option> }).collect_view()}
-                    </select>
-                </div>
+                <Select
+                    id="years-search"
+                    label="西暦"
+                    value=Signal::derive(move || {
+                        search.with(|state| state.selected_queries.years.clone())
+                    })
+                    options=options
+                    on_change=move |value| {
+                        search.update(|state| state.select_quick(SearchKey::Years, value))
+                    }
+                />
             }
-                .into_any()
+            .into_any()
         }}
     }
 }
@@ -80,28 +82,25 @@ pub(crate) fn ToggleCategory(
                     <div class="flex flex-wrap gap-1">
                         {options.into_iter().map(|option| {
                             let selected_value = option.value.clone();
-                            let aria_value = option.value.clone();
                             let clicked_value = option.value.clone();
+                            let option_label = Signal::stored(option.label.clone());
                             view! {
-                                <button
-                                    type="button"
-                                    class=move || if search.with(|state| state.selected_queries.get(search_key) == selected_value) {
-                                        "rounded border border-accent-bright bg-accent-soft px-3 py-1.5 text-sm font-bold text-accent-text"
-                                    } else {
-                                        "rounded border border-border-strong bg-surface px-3 py-1.5 text-sm text-text-soft"
-                                    }
-                                    aria-pressed=move || if search.with(|state| state.selected_queries.get(search_key) == aria_value) { "true" } else { "false" }
-                                    aria-label=move || search.with(|state| {
+                                <Chip
+                                    variant=ChipVariant::Filter
+                                    selected=Signal::derive(move || {
+                                        search.with(|state| state.selected_queries.get(search_key) == selected_value)
+                                    })
+                                    aria_label=move || search.with(|state| {
                                         if state.selected_queries.get(search_key) == option.value {
                                             format!("{}（選択中）", option.value)
                                         } else {
                                             option.value.clone()
                                         }
                                     })
-                                    on:click=move |_| search.update(|state| state.select_quick(search_key, clicked_value.clone()))
+                                    on_click=move |_| search.update(|state| state.select_quick(search_key, clicked_value.clone()))
                                 >
-                                    {option.label}
-                                </button>
+                                    {option_label}
+                                </Chip>
                             }
                         }).collect_view()}
                     </div>
@@ -161,15 +160,10 @@ fn CalendarDateButton(
     let picker_ref = input_ref;
     let input_type = date_input_type(field);
     let value_prop = move || search.with(|state| date_input_value(state, field));
-    let button_class = move || {
-        if search
+    let active = move || {
+        !search
             .with(|state| date_input_value(state, field))
             .is_empty()
-        {
-            "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-left text-sm text-text-subtle transition-colors hover:border-border-xstrong"
-        } else {
-            "w-full rounded-md border border-accent-bright bg-accent-soft px-3 py-2 text-left text-sm font-semibold text-accent-text transition-colors"
-        }
     };
     let display_value = move || {
         let value = search.with(|state| date_input_value(state, field));
@@ -186,10 +180,9 @@ fn CalendarDateButton(
     };
     view! {
         <div class="relative">
-            <button
-                type="button"
-                class=button_class
-                on:click=move |_| {
+            <FieldTrigger
+                active=Signal::derive(active)
+                on_click=move |_| {
                     if let Some(input) = picker_ref.get() {
                         if input.show_picker().is_err() {
                             input.click();
@@ -198,7 +191,7 @@ fn CalendarDateButton(
                 }
             >
                 {display_value}
-            </button>
+            </FieldTrigger>
             <input
                 node_ref=input_ref
                 type=input_type
@@ -271,19 +264,16 @@ fn YearPicker(
     let toggle_open = is_open;
     view! {
         <div class="relative">
-            <button
+            <FieldTrigger
                 node_ref=trigger_ref
-                type="button"
-                aria-label="年を選択"
-                aria-haspopup="listbox"
-                aria-expanded=move || if is_open.get() { "true" } else { "false" }
-                class=move || if search.with(|state| state.date_inputs.year_value.is_empty()) {
-                    "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-left text-sm text-text-subtle transition-colors hover:border-border-xstrong"
-                } else {
-                    "w-full rounded-md border border-accent-bright bg-accent-soft px-3 py-2 text-left text-sm font-semibold text-accent-text transition-colors"
-                }
-                on:click=move |_| toggle_open.update(|open| *open = !*open)
-                on:keydown=move |event| {
+                active=Signal::derive(move || {
+                    !search.with(|state| state.date_inputs.year_value.is_empty())
+                })
+                aria_label="年を選択"
+                aria_haspopup="listbox"
+                aria_expanded=Signal::derive(move || is_open.get())
+                on_click=move |_| toggle_open.update(|open| *open = !*open)
+                on_keydown=Box::new(move |event: ev::KeyboardEvent| {
                     if !is_open.get() {
                         return;
                     }
@@ -301,10 +291,10 @@ fn YearPicker(
                         event.prevent_default();
                         focus_year_option(index);
                     }
-                }
+                })
             >
                 {selected_label}
-            </button>
+            </FieldTrigger>
             {move || {
                 if is_open.get() {
                     view! {
@@ -320,26 +310,21 @@ fn YearPicker(
                                 .map(|(index, year)| {
                                     let value = year.value.clone();
                                     let selected_value = year.value.clone();
-                                    let class_value = value.clone();
+                                    let year_label = Signal::stored(year.label.clone());
                                     let click_search = toggle_search;
                                     let click_open = toggle_open;
                                     let keydown_open = toggle_open;
                                     view! {
-                                        <button
-                                            id={format!("receipts-year-option-{index}")}
-                                            type="button"
-                                            role="option"
-                                            aria-selected=move || if click_search.with(|state| state.date_inputs.year_value == selected_value) { "true" } else { "false" }
-                                            class=move || if click_search.with(|state| state.date_inputs.year_value == class_value) {
-                                                "rounded bg-accent-soft px-1 py-1.5 text-center text-sm font-semibold text-accent-text ring-1 ring-inset ring-accent-ring"
-                                            } else {
-                                                "rounded px-1 py-1.5 text-center text-sm text-text-muted hover:bg-surface-raised hover:text-text-strong"
-                                            }
-                                            on:click=move |_| {
+                                        <OptionButton
+                                            id=format!("receipts-year-option-{index}")
+                                            selected=Signal::derive(move || {
+                                                click_search.with(|state| state.date_inputs.year_value == selected_value)
+                                            })
+                                            on_click=move |_| {
                                                 click_open.set(false);
                                                 click_search.update(|state| state.select_year(value.clone()));
                                             }
-                                            on:keydown=move |event| {
+                                            on_keydown=move |event| {
                                                 let key = event.key();
                                                 if key == "Escape" {
                                                     event.prevent_default();
@@ -355,8 +340,8 @@ fn YearPicker(
                                                 }
                                             }
                                         >
-                                            {year.label}
-                                        </button>
+                                            {year_label}
+                                        </OptionButton>
                                     }
                                 })
                                 .collect_view()}
@@ -396,21 +381,18 @@ pub(crate) fn DatePeriod(
                             let click_search = search;
                             let click_picker = year_picker_open;
                             view! {
-                                <button
-                                    type="button"
-                                    class=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) {
-                                        "flex-1 rounded bg-ink px-2 py-1 text-xs font-semibold text-text-inverse"
-                                    } else {
-                                        "flex-1 rounded bg-surface-raised px-2 py-1 text-xs font-semibold text-text-muted"
-                                    }
-                                    aria-pressed=move || if search.with(|state| visible_date_segment(state, has_years()) == segment) { "true" } else { "false" }
-                                    on:click=move |_| {
+                                <Chip
+                                    variant=ChipVariant::Segment
+                                    selected=Signal::derive(move || {
+                                        search.with(|state| visible_date_segment(state, has_years()) == segment)
+                                    })
+                                    on_click=move |_| {
                                         click_picker.set(false);
                                         click_search.update(|state| state.change_date_segment(segment));
                                     }
                                 >
                                     {segment.label()}
-                                </button>
+                                </Chip>
                             }
                         })
                         .collect_view()

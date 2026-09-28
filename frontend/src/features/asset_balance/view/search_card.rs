@@ -1,5 +1,6 @@
 use crate::features::asset_balance::search::clear_search_query;
 use crate::support::list_search::SearchOption;
+use crate::ui::choice::Select;
 use crate::ui::collapsible_search_card::CollapsibleSearchCard;
 use leptos::prelude::*;
 
@@ -17,29 +18,13 @@ pub(crate) fn AssetBalanceSearchCard(
                 on_clear=move || query.set(clear_search_query())
             >
                 <div class="grid grid-cols-1 gap-3">
-                    <div>
-                        <label
-                            class="mb-1 block text-sm font-bold text-text"
-                            for="securities-search"
-                        >
-                            "銘柄"
-                        </label>
-                        <select
-                            id="securities-search"
-                            class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11"
-                            prop:value=move || query.get()
-                            on:change=move |event| query.set(event_target_value(&event))
-                        >
-                            <option value="">"全て表示"</option>
-                            {options
-                                .iter()
-                                .map(|option| {
-                                    let option = option.clone();
-                                    view! { <option value=option.value>{option.label}</option> }
-                                })
-                                .collect_view()}
-                        </select>
-                    </div>
+                    <Select
+                        id="securities-search"
+                        label="銘柄"
+                        value=Signal::derive(move || query.get())
+                        options=options.as_ref().clone()
+                        on_change=move |value| query.set(value)
+                    />
                 </div>
             </CollapsibleSearchCard>
         </section>

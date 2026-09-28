@@ -1,0 +1,15 @@
+// 違反fixture: 以下のすべてが検出対象
+view! { <button type="button" class="x" on:click=move |_| {}>"押す"</button> }
+view! { <select class="x"><option value="">"全て表示"</option></select> }
+class="panel-card p-4"
+class="empty-state py-10"
+class="collapsible-trigger"
+class="search-submit no-print"
+class="code-badge"
+view! { <div class="rounded-xl border border-ink/10 bg-surface px-4 py-4 shadow-sm">"カード"</div> }
+view! { <div
+    class="rounded-lg border
+           border-ink/10 bg-surface mb-7"
+>"カード"</div> }
+view! { <div class="p-4" class:rounded-lg=cond class:border=cond class:bg-surface=cond>"カード"</div> }
+view! { <button type="button" aria-expanded="false" aria-controls="x" class="y">"開閉"</button> }

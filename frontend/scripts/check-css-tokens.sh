@@ -119,3 +119,6 @@ fi
 
 echo "  OK: 違反fixtureの自己テスト"
 echo "OK: 違反はありません"
+
+# 続けて features/ の直書きマークアップ検査を実行する
+bash "$SCRIPT_DIR/check-ui-primitives.sh"

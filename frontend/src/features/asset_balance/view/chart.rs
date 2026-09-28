@@ -3,6 +3,8 @@ use super::summary::ChartItem;
 use crate::features::asset_balance::format::format_fixed_percent;
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::card::{Card, CardVariant};
 use leptos::prelude::*;
 
 #[component]
@@ -44,7 +46,7 @@ pub(crate) fn ChartList(
                     .with(|d| d.others.clone())
                     .map(|others| {
                         view! {
-                            <div class="rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3">
+                            <Card variant=CardVariant::DashedCompact>
                                 <div class="flex items-center justify-between gap-2 mb-2">
                                     <span class="text-sm text-text-subtle">
                                         {format!("その他 {}銘柄", others.count)}
@@ -59,7 +61,7 @@ pub(crate) fn ChartList(
                                         style=format!("width: {}%", others.percentage.min(100.0))
                                     />
                                 </div>
-                            </div>
+                            </Card>
                         }
                     })
             }}
@@ -68,14 +70,14 @@ pub(crate) fn ChartList(
             display
                 .with(|d| d.toggle_label.clone())
                 .map(|label| {
+                    let label = Signal::stored(label);
                     view! {
-                        <button
-                            type="button"
-                            class="chart-toggle-button"
-                            on:click=move |_| show_all.update(|open| *open = !*open)
+                        <Button
+                            variant=ButtonVariant::Quiet
+                            on_click=move |_| show_all.update(|open| *open = !*open)
                         >
                             {label}
-                        </button>
+                        </Button>
                     }
                 })
         }}

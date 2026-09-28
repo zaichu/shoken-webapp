@@ -15,6 +15,7 @@ use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{load_asset_balances, BalanceSlot, DataOps};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
+use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::elements::{ListLoadError, ListSkeleton, PageHeader};
 use csv_section::AssetBalanceCsvSection;
@@ -113,7 +114,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             >
                 // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
                 <aside class="order-1 lg:order-2" data-testid="assetbalance-utility-rail">
-                    <div class="rail-panel">
+                    <Card variant=CardVariant::Rail>
                         <AssetBalanceCsvSection store=view_csv />
                         {move || {
                             alert_ops
@@ -156,7 +157,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 }
                             }
                         }}
-                    </div>
+                    </Card>
                 </aside>
                 <div class="min-w-0 order-2 lg:order-1" data-testid="assetbalance-main-stage">
                     {move || {

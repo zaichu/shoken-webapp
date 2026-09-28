@@ -13,7 +13,7 @@ use crate::session::use_session;
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::elements::PageHeader;
 use leptos::prelude::*;
-use tabs::{scroll_tab_into_view, TabButton, TabPanel};
+use tabs::{scroll_tab_into_view, ReceiptsTabButton, TabPanel};
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
@@ -52,7 +52,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     .iter()
                     .copied()
                     .map(|tab| {
-                        view! { <TabButton store=store tab=tab /> }
+                        view! { <ReceiptsTabButton store=store tab=tab /> }
                     })
                     .collect_view()}
             </div>
