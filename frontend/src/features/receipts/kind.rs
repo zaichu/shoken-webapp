@@ -746,16 +746,20 @@ pub(crate) struct TableGroup {
     pub(crate) rows: Vec<(Option<String>, String, Vec<ReceiptCell>)>,
 }
 
-pub(crate) fn group_label(key: &str) -> String {
-    let is_date = (key.len() == 7 || key.len() == 10)
+// 検索語が銘柄名・口座などに一致したグループはキーが日付形にならない
+pub(crate) fn is_date_group_key(key: &str) -> bool {
+    (key.len() == 7 || key.len() == 10)
         && key.bytes().enumerate().all(|(i, b)| {
             if i == 4 || i == 7 {
                 b == b'-'
             } else {
                 b.is_ascii_digit()
             }
-        });
-    if !is_date {
+        })
+}
+
+pub(crate) fn group_label(key: &str) -> String {
+    if !is_date_group_key(key) {
         return key.to_string();
     }
     let parts: Vec<_> = key.split('-').collect();

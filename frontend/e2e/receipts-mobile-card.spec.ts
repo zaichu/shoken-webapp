@@ -270,7 +270,10 @@ test('マイナスの損益は data-negative で赤字、太さは正の値と�
   await page.goto('/receipts');
   await page.getByRole('tab', { name: '国内株式' }).click();
 
-  const card = page.getByTestId('receipt-card').first();
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
   await expect(card).toBeVisible();
   const ddFor = (label: string) =>
     card
@@ -293,4 +296,63 @@ test('マイナスの損益は data-negative で赤字、太さは正の値と�
   const proceeds = ddFor('売却額').locator('span:not([data-negative])');
   await expect(proceeds).toHaveText('¥55,000');
   await expect(proceeds).toHaveCSS('font-weight', '600');
+});
+
+test('見出しが年月でないグループではカードの日付を年付きで出す', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const cardList = page.getByTestId('receipt-card-list');
+  const card = cardList.getByTestId('receipt-card').first();
+  await expect(card).toBeVisible();
+  // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
+  await expect(card.getByText('03/01', { exact: true })).toBeVisible();
+
+  await page.getByTestId('search-card-header').click();
+  await page.locator('#securities-search').selectOption('7203');
+  await expect(
+    cardList.getByRole('button', { name: /トヨタ自動車 1件 税引後 ¥2,391/ }),
+  ).toBeVisible();
+
+  // 見出しが銘柄名に変わると年が分からなくなるので YYYY/MM/DD で出す
+  await expect(card.getByText('2024/03/01', { exact: true })).toBeVisible();
+  await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+});
+
+test('長い口座名は省略せず折り返して全文を出す', async ({ page }) => {
+  const longAccount =
+    'SBI証券 東京本店第一営業部 特定口座(新NISA成長投資枠・つみたて投資枠・iDeCo・ジュニアNISA兼用) 管理番号1234567890';
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginatedResponse([{ ...DOMESTIC, account: longAccount }]),
+      ),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: '国内株式' }).click();
+
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
+  const account = card.locator('span.flex-1');
+  await expect(account).toHaveText(longAccount);
+
+  const metrics = await account.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const lines = new Set(
+      [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+    ).size;
+    return {
+      clipped: el.scrollWidth > el.clientWidth + 1,
+      lines,
+    };
+  });
+  expect(metrics.clipped, '口座名は省略しない').toBe(false);
+  expect(metrics.lines, '口座名は折り返して全文を出す').toBeGreaterThanOrEqual(2);
 });

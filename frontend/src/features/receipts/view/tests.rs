@@ -10,7 +10,7 @@ use crate::features::receipts::filter::{
     tests::{dividends, domestic, funds},
     DateSegment, ReceiptSearch,
 };
-use crate::features::receipts::kind::group_label;
+use crate::features::receipts::kind::{group_label, is_date_group_key};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
@@ -291,6 +291,7 @@ fn card_row_data_matches_react_card_fields() {
         table_headers(ReceiptsTab::Dividend),
         &order,
         ReceiptsTab::Dividend.card_fields(),
+        false,
     );
     assert!(matches!(
         &card.name,
@@ -313,6 +314,21 @@ fn card_row_data_matches_react_card_fields() {
     }));
 }
 
+#[test]
+fn card_date_keeps_year_when_group_is_not_year_month() {
+    let rows = dividends();
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        &cells,
+        table_headers(ReceiptsTab::Dividend),
+        &order,
+        ReceiptsTab::Dividend.card_fields(),
+        true,
+    );
+    assert_eq!(card.date, "2024/06/21");
+}
+
 fn detail_negative(card: &CardRowData, label: &str) -> bool {
     card.details
         .iter()
@@ -324,7 +340,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(&cells, table_headers(tab), &order, tab.card_fields())
+    card_row_data(&cells, table_headers(tab), &order, tab.card_fields(), false)
 }
 
 #[test]
@@ -375,6 +391,7 @@ fn card_details_link_security_code_and_copy_name() {
         table_headers(ReceiptsTab::Dividend),
         &order,
         ReceiptsTab::Dividend.card_fields(),
+        false,
     );
     assert!(card.details.iter().any(|detail| matches!(
         &detail.value,
@@ -399,6 +416,7 @@ fn card_details_link_security_code_and_copy_name() {
         table_headers(ReceiptsTab::MutualFund),
         &order,
         ReceiptsTab::MutualFund.card_fields(),
+        false,
     );
     assert!(!card
         .details
@@ -495,6 +513,11 @@ fn visible_date_segment_falls_back_to_month_without_years() {
 
 #[test]
 fn group_label_formats_iso_keys_only() {
+    assert!(is_date_group_key("2026-06"));
+    assert!(is_date_group_key("2024-03-05"));
+    assert!(!is_date_group_key("日本電信電話"));
+    assert!(!is_date_group_key("SBI証券"));
+    assert!(!is_date_group_key("2026-6"));
     assert_eq!(group_label("2026-06"), "2026年6月");
     assert_eq!(group_label("2024-03-05"), "2024年3月5日");
     assert_eq!(group_label("特定"), "特定");
@@ -541,6 +564,7 @@ fn card_row_data_details_follow_column_reorder() {
         table_headers(ReceiptsTab::Dividend),
         &order,
         ReceiptsTab::Dividend.card_fields(),
+        false,
     );
     // 口座は前に出ても見出し側の項目なので格子には入らない
     assert_eq!(card.details[0].label, "商品");

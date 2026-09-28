@@ -5,6 +5,7 @@ use super::cards::{
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::kind::is_date_group_key;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
@@ -92,10 +93,11 @@ pub(crate) fn ReceiptTable(
                 .copied()
                 .zip(group.summary.iter().cloned())
                 .collect();
+            let full_date = !is_date_group_key(&group.key);
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(_, _, cells)| card_row_data(cells, headers, &order, fields))
+                .map(|(_, _, cells)| card_row_data(cells, headers, &order, fields, full_date))
                 .collect();
             (
                 group_index,

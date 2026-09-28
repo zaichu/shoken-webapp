@@ -114,6 +114,8 @@ pub(crate) fn card_row_data(
     headers: &[&'static str],
     order: &[usize],
     fields: CardFields,
+    // 見出しが年月でない(銘柄名や口座で絞った)グループでは年を落とすと日付が分からなくなる
+    full_date: bool,
 ) -> CardRowData {
     let text = |index: usize| {
         cells
@@ -124,7 +126,14 @@ pub(crate) fn card_row_data(
     let header_fields = [fields.name, fields.date, fields.account];
     CardRowData {
         name: card_detail_value(headers[fields.name], fields.name, cells),
-        date: short_date(&text(fields.date)).to_string(),
+        date: {
+            let date = text(fields.date);
+            if full_date {
+                date
+            } else {
+                short_date(&date).to_string()
+            }
+        },
         account: text(fields.account),
         details: order
             .iter()
@@ -227,7 +236,7 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                 </div>
                 <div class="flex items-center gap-2 text-xs text-text-muted">
                     <span class="shrink-0">{date}</span>
-                    <span class="min-w-0 flex-1 truncate">{account}</span>
+                    <span class="min-w-0 flex-1 break-words">{account}</span>
                 </div>
             </div>
             <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-strong px-3 py-2.5">
