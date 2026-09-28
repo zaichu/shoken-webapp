@@ -1,6 +1,5 @@
 use crate::features::receipts::kind::CardFields;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
-use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
@@ -487,11 +486,11 @@ pub(crate) fn MobileCardGroup(
                                                         <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
                                                             {*label}
                                                         </dt>
-                                                        <dd class=value_class>
-                                                            <Amount
-                                                                text=value.clone()
-                                                                negative=negative
-                                                            />
+                                                        <dd
+                                                            class=value_class
+                                                            data-negative=negative.then_some("true")
+                                                        >
+                                                            {value.clone()}
                                                         </dd>
                                                     </div>
                                                 }

@@ -7,7 +7,6 @@ use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
-use crate::ui::amount::Amount;
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
@@ -271,11 +270,9 @@ pub(crate) fn ReceiptTable(
                                                                 class=format!(
                                                                     "bg-surface-raised text-text text-right font-semibold{top}"
                                                                 )
+                                                                data-negative=negative.then_some("true")
                                                             >
-                                                                <Amount
-                                                                    text=value.clone()
-                                                                    negative=negative
-                                                                />
+                                                                {value.clone()}
                                                             </td>
                                                         }
                                                     })
@@ -329,11 +326,9 @@ pub(crate) fn ReceiptTable(
                                                                                 <td
                                                                                     class=align
                                                                                     title=title
+                                                                                    data-negative=negative.then_some("true")
                                                                                 >
-                                                                                    <Amount
-                                                                                        text=value
-                                                                                        negative=negative
-                                                                                    />
+                                                                                    {value}
                                                                                 </td>
                                                                             }
                                                                             .into_any()
