@@ -36,7 +36,7 @@ pub fn TabButton(
             aria-controls=controls
             tabindex=move || if selected.get() { "0" } else { "-1" }
             on:click=move |_| on_select()
-            on:keydown=move |event| on_keydown(event)
+            on:keydown=on_keydown
         >
             {children()}
         </button>

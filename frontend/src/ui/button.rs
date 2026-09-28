@@ -152,7 +152,7 @@ pub fn Button(
             role=role
             data-testid=testid
             data-loading=data_loading.map(|loading| move || loading.get().then_some("true"))
-            on:click=move |event| on_click(event)
+            on:click=on_click
         >
             {children()}
         </button>
@@ -222,7 +222,7 @@ pub fn IconButton(
             tabindex=tabindex.map(|index| move || index.get())
             disabled=move || disabled.is_some_and(|disabled| disabled.get())
             data-testid=testid
-            on:click=move |event| on_click(event)
+            on:click=on_click
         >
             {children()}
         </button>

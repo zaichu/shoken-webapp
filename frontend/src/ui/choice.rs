@@ -67,7 +67,7 @@ pub fn Chip(
             aria-pressed=selected.map(|selected| move || selected.get().to_string())
             aria-label=move || aria_label.map(|label| label.get())
             data-testid=testid
-            on:click=move |event| on_click(event)
+            on:click=on_click
         >
             {children()}
         </button>
@@ -130,7 +130,7 @@ pub fn FieldTrigger(
                     "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-left text-sm text-text-subtle transition-colors hover:border-border-xstrong"
                 }
             }
-            on:click=move |event| on_click(event)
+            on:click=on_click
             on:keydown=move |event| {
                 if let Some(on_keydown) = on_keydown.as_ref() {
                     on_keydown(event)
@@ -164,8 +164,8 @@ pub fn OptionButton(
                     "rounded px-1 py-1.5 text-center text-sm text-text-muted hover:bg-surface-raised hover:text-text-strong"
                 }
             }
-            on:click=move |event| on_click(event)
-            on:keydown=move |event| on_keydown(event)
+            on:click=on_click
+            on:keydown=on_keydown
         >
             {children()}
         </button>
