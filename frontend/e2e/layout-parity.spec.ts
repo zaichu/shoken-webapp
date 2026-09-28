@@ -119,7 +119,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: ['11ch', '10ch', '9ch', '9ch', '', '9ch', '7ch', '9.5ch', '9ch', '9.5ch'],
+    widths: ['9.5ch', '10ch', '9ch', '7ch', '', '10ch', '4.5ch', '10ch', '10ch', '10ch'],
     aligns: [
       'left',
       'left',
@@ -135,7 +135,7 @@ const TABLE_SPEC = {
   },
   domesticstock: {
     tabName: '国内株式',
-    widths: ['12ch', '10ch', '', '11ch', '9ch', '9ch', '10ch', '10ch', '10ch', '9ch', '10ch'],
+    widths: ['9.5ch', '7ch', '', '11ch', '9ch', '10ch', '10ch', '10ch', '11ch', '10ch', '11ch'],
     aligns: [
       'left',
       'center',
@@ -152,7 +152,7 @@ const TABLE_SPEC = {
   },
   mutualfund: {
     tabName: '投資信託',
-    widths: ['11ch', '', '11ch', '9ch', '9ch', '10ch', '10ch', '10ch', '8ch', '10ch'],
+    widths: ['9.5ch', '', '11ch', '9ch', '10ch', '10ch', '10ch', '11ch', '10ch', '11ch'],
     aligns: [
       'left',
       'left',
@@ -540,17 +540,17 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
   const reordered = [
-    '12ch',
-    '10ch',
+    '9.5ch',
+    '7ch',
     '11ch',
     '',
     '9ch',
-    '9ch',
     '10ch',
     '10ch',
     '10ch',
-    '9ch',
+    '11ch',
     '10ch',
+    '11ch',
   ];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');

@@ -208,6 +208,7 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
 });
 
 test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2行まで表示する', async ({ page }) => {
+  // 金額は 8 桁(¥12,345,678)・損益は負の 8 桁まで切れないことを固定する
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
@@ -215,11 +216,11 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
           DIVIDENDS.map((row) => ({
             ...row,
             account: '特定・一般',
-            unit_price: '27400',
+            unit_price: '12345678',
             shares: '1950',
-            dividends_before_tax: '294460',
-            taxes: '28590',
-            net_amount_received: '265870',
+            dividends_before_tax: '12345678',
+            taxes: '12345678',
+            net_amount_received: '12345678',
           })),
         ),
       ),
@@ -233,12 +234,12 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
             ...row,
             account: '特定・一般',
             shares: 1950,
-            asked_price: 27400,
-            proceeds: 294460,
-            purchase_price: 22800,
-            realized_profit_and_loss: -180000,
-            taxes: 18000,
-            realized_profit_and_loss_after_tax: -198000,
+            asked_price: 12345678,
+            proceeds: 12345678,
+            purchase_price: 12345678,
+            realized_profit_and_loss: -12345678,
+            taxes: 12345678,
+            realized_profit_and_loss_after_tax: -12345678,
           })),
         ),
       ),
@@ -252,12 +253,12 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
             ...row,
             account: '特定・一般',
             shares: '1950',
-            cancellation_unit_price_yen: '27400',
-            cancellation_amount_yen: '306000',
-            average_acquisition_price_yen: '22800',
-            realized_profit_and_loss: '-10000',
-            taxes: '0',
-            realized_profit_and_loss_after_tax: '-10000',
+            cancellation_unit_price_yen: '12345678',
+            cancellation_amount_yen: '12345678',
+            average_acquisition_price_yen: '12345678',
+            realized_profit_and_loss: '-12345678',
+            taxes: '12345678',
+            realized_profit_and_loss_after_tax: '-12345678',
           })),
         ),
       ),

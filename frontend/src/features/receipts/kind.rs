@@ -939,7 +939,7 @@ impl ReceiptKind for DividendKind {
         "受取額",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "11ch", "10ch", "9ch", "9ch", "", "9ch", "7ch", "9.5ch", "9ch", "9.5ch",
+        "9.5ch", "10ch", "9ch", "7ch", "", "10ch", "4.5ch", "10ch", "10ch", "10ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
@@ -1089,7 +1089,7 @@ impl ReceiptKind for DomesticStockKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12ch", "10ch", "", "11ch", "9ch", "9ch", "10ch", "10ch", "10ch", "9ch", "10ch",
+        "9.5ch", "7ch", "", "11ch", "9ch", "10ch", "10ch", "10ch", "11ch", "10ch", "11ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
@@ -1216,7 +1216,7 @@ impl ReceiptKind for MutualFundKind {
         "税引損益",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "11ch", "", "11ch", "9ch", "9ch", "10ch", "10ch", "10ch", "8ch", "10ch",
+        "9.5ch", "", "11ch", "9ch", "10ch", "10ch", "10ch", "11ch", "10ch", "11ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,

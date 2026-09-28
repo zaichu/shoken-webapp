@@ -360,7 +360,7 @@
 /* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
    維持するため、@layer の外に置く(層なしは utilities 層より強い)。 */
 .receipt-table {
-  @apply w-full table-fixed print:table-auto print:[&_th]:whitespace-normal print:[&_td]:whitespace-normal border-collapse text-left text-cell leading-5 sm:text-cell-md [&_th]:border [&_th]:border-border-subtle [&_td]:border [&_td]:border-border-subtle print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_td]:py-2 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-border-faint [&_tbody_th]:border-b [&_tbody_th]:border-border-faint;
+  @apply w-full table-fixed print:table-auto print:[&_th]:whitespace-normal print:[&_td]:whitespace-normal border-collapse text-left text-cell leading-5 sm:text-cell-md [&_th]:border [&_th]:border-border-subtle [&_td]:border [&_td]:border-border-subtle print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-0 [&_td]:py-1.5 [&_td]:px-0 sm:[&_th]:py-2 sm:[&_td]:py-2 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-border-faint [&_tbody_th]:border-b [&_tbody_th]:border-border-faint;
 }
 
 .receipt-instrument-cell .copyable-name {
