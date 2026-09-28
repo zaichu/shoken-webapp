@@ -5,7 +5,6 @@ use super::summary::*;
 use super::table::*;
 use super::tabs::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
-use crate::features::receipts::csv::{CsvPreviewRow, DividendCsvRow};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
     tests::{dividends, domestic, funds},
@@ -15,29 +14,10 @@ use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
-use crate::support::row::Row::{Preview, Saved};
+use crate::support::row::Row::Saved;
 use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-
-// 保存済み行と同じ内容のプレビュー行を作る(id・タイムスタンプを持たない)
-fn preview_of(row: &ReceiptRow) -> ReceiptRow {
-    let Saved(ReceiptItem::Dividend(row)) = row else {
-        panic!("saved dividend row expected")
-    };
-    Preview(CsvPreviewRow::Dividend(DividendCsvRow {
-        settlement_date: row.settlement_date.clone(),
-        product: row.product.clone(),
-        account: row.account.to_string(),
-        security_code: row.security_code.clone(),
-        security_name: row.security_name.clone(),
-        unit_price: row.unit_price,
-        shares: row.shares,
-        dividends_before_tax: row.dividends_before_tax,
-        taxes: row.taxes,
-        net_amount_received: row.net_amount_received,
-    }))
-}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
@@ -251,18 +231,9 @@ fn short_date_strips_year_only_for_iso_formatted() {
 #[test]
 fn card_fields_point_at_expected_columns() {
     let cases = [
-        (
-            ReceiptsTab::Dividend,
-            ("銘柄名", "受取額", "入金日", "口座"),
-        ),
-        (
-            ReceiptsTab::DomesticStock,
-            ("銘柄名", "税引後", "約定日", "口座"),
-        ),
-        (
-            ReceiptsTab::MutualFund,
-            ("ファンド名", "税引損益", "約定日", "口座"),
-        ),
+        (ReceiptsTab::Dividend, ("銘柄名", "入金日", "口座")),
+        (ReceiptsTab::DomesticStock, ("銘柄名", "約定日", "口座")),
+        (ReceiptsTab::MutualFund, ("ファンド名", "約定日", "口座")),
     ];
     for (tab, expected) in cases {
         let fields = tab.card_fields();
@@ -270,7 +241,6 @@ fn card_fields_point_at_expected_columns() {
         assert_eq!(
             (
                 headers[fields.name],
-                headers[fields.primary],
                 headers[fields.date],
                 headers[fields.account]
             ),
@@ -317,20 +287,24 @@ fn card_row_data_matches_react_card_fields() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
-        "dividend:r:old".to_string(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
         ReceiptsTab::Dividend.card_fields(),
     );
-    assert_eq!(card.key, "dividend:r:old");
-    assert_eq!(card.name, "日本電信電話");
-    assert_eq!(card.amount, "¥400");
-    assert!(!card.amount_negative);
+    assert!(matches!(
+        &card.name,
+        CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
+    ));
     assert_eq!(card.date, "06/21");
     assert_eq!(card.account, "特定");
-    assert_eq!(card.details.len(), 10);
-    assert_eq!(card.details[0].label, "入金日");
+    // 見出し(銘柄名・入金日・口座)と重複させず、残り7列を表の列順で入れる
+    assert_eq!(card.details.len(), 7);
+    assert_eq!(card.details[0].label, "商品");
+    assert!(card
+        .details
+        .iter()
+        .all(|detail| !["入金日", "口座", "銘柄名"].contains(&detail.label.as_str())));
     assert!(card.details.iter().all(|detail| match &detail.value {
         CardDetailValue::Text { text, negative } => {
             *negative == (is_profit_label(&detail.label) && is_negative_text(text))
@@ -350,13 +324,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(
-        "k".to_string(),
-        &cells,
-        table_headers(tab),
-        &order,
-        tab.card_fields(),
-    )
+    card_row_data(&cells, table_headers(tab), &order, tab.card_fields())
 }
 
 #[test]
@@ -387,7 +355,6 @@ fn negative_tax_and_dividend_stay_neutral() {
     );
     assert!(!detail_negative(&card, "税額"));
     assert!(!detail_negative(&card, "受取額"));
-    assert!(!card.amount_negative);
 }
 
 #[test]
@@ -404,7 +371,6 @@ fn card_details_link_security_code_and_copy_name() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
-        String::new(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
@@ -414,17 +380,21 @@ fn card_details_link_security_code_and_copy_name() {
         &detail.value,
         CardDetailValue::SecurityCode(raw) if raw == "9432"
     )));
-    assert!(card.details.iter().any(|detail| matches!(
-        &detail.value,
+    // 銘柄名は見出し側でコピーできるため格子には入れない
+    assert!(matches!(
+        &card.name,
         CardDetailValue::CopyName { display, copy }
             if display == "日本電信電話" && copy == "日本電信電話(9432)"
-    )));
+    ));
+    assert!(!card
+        .details
+        .iter()
+        .any(|detail| matches!(&detail.value, CardDetailValue::CopyName { .. })));
 
     let rows = funds();
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
-        String::new(),
         &cells,
         table_headers(ReceiptsTab::MutualFund),
         &order,
@@ -434,10 +404,10 @@ fn card_details_link_security_code_and_copy_name() {
         .details
         .iter()
         .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_))));
-    assert!(card.details.iter().any(|detail| matches!(
-        &detail.value,
+    assert!(matches!(
+        &card.name,
         CardDetailValue::CopyName { display, copy } if display == copy
-    )));
+    ));
 }
 
 #[test]
@@ -451,100 +421,6 @@ fn table_groups_carry_group_key_and_row_ids() {
         .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_deref()))
         .collect();
     assert_eq!(ids, [Some("new"), Some("other"), Some("old")]);
-}
-
-#[test]
-fn card_key_separates_preview_rows_by_position() {
-    let raw_key = dividends()[0].raw_key();
-    let key = card_key("dividend", None, &raw_key, 0);
-    assert!(key.starts_with("dividend:p:"));
-    assert!(key.contains("日本電信電話"));
-    assert_eq!(key, card_key("dividend", None, &raw_key, 0));
-    assert_ne!(key, card_key("dividend", None, &raw_key, 1));
-    assert_ne!(key, card_key("mutualfund", None, &raw_key, 0));
-    assert_eq!(
-        card_key("dividend", Some("old"), &raw_key, 0),
-        "dividend:r:old"
-    );
-    assert_eq!(
-        card_key("dividend", Some("old"), &raw_key, 1),
-        "dividend:r:old"
-    );
-}
-
-#[test]
-fn preview_rows_keep_unfiltered_positions_as_card_ordinals() {
-    let first = preview_of(&dividends()[0]);
-    let second = preview_of(&dividends()[0]);
-    let removed = preview_of(&dividends()[2]);
-    let with_id = dividends()[1].clone();
-    let ordinals = preview_row_ordinals(&[removed, with_id, first.clone(), second.clone()]);
-    assert_eq!(ordinals.len(), 2);
-    // 先頭行を絞り込みで除いても残る行のカードキーは変わらない
-    let positions: Vec<usize> = ordinals[&first.raw_key()].iter().copied().collect();
-    assert_eq!(positions, [2, 3]);
-    assert_ne!(
-        card_key("dividend", None, &first.raw_key(), positions[0]),
-        card_key("dividend", None, &first.raw_key(), positions[1]),
-    );
-}
-
-#[test]
-fn preview_rows_with_rounding_identical_display_stay_separate() {
-    // 表示上の数量は両方「1.00」に丸められるが、絞り込みは丸め前の値で行う
-    let mut first = dividends()[0].clone();
-    let mut second = dividends()[0].clone();
-    for item in [&mut first, &mut second] {
-        if let Saved(ReceiptItem::Dividend(row)) = item {
-            row.shares = dec!(1.001);
-        }
-    }
-    if let Saved(ReceiptItem::Dividend(row)) = &mut second {
-        row.shares = dec!(1.002);
-    }
-    let first = preview_of(&first);
-    let second = preview_of(&second);
-    assert_eq!(first.cells(), second.cells());
-    assert_ne!(first.raw_key(), second.raw_key());
-
-    let all_rows = vec![first, second];
-    let keys_for = |groups: &[TableGroup]| {
-        let mut ordinals = preview_row_ordinals(&all_rows);
-        groups
-            .iter()
-            .flat_map(|group| group.rows.iter())
-            .map(|(id, raw_key, _)| {
-                card_key(
-                    "dividend",
-                    id.as_deref(),
-                    raw_key,
-                    card_ordinal(&mut ordinals, id.as_deref(), raw_key),
-                )
-            })
-            .collect::<Vec<_>>()
-    };
-
-    // カード生成と同じく table_groups -> キュー照合 -> card_key で通す
-    let groups = table_groups(ReceiptsTab::Dividend, &all_rows, &all_rows, "");
-    let group_keys: Vec<&str> = groups
-        .iter()
-        .flat_map(|group| group.rows.iter().map(|(_, raw_key, _)| raw_key.as_str()))
-        .collect();
-    assert_eq!(group_keys.len(), 2);
-    assert_ne!(group_keys[0], group_keys[1]);
-    let keys_before = keys_for(&groups);
-    let [key_first, key_second] = keys_before.as_slice() else {
-        panic!("2行分のカードキーがある");
-    };
-    assert_ne!(key_first, key_second);
-    let key_second = key_second.clone();
-
-    // 先の行だけが外れる絞り込みの後でも、残った行のカードキーは変わらない
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &all_rows, "1.002");
-    assert_eq!(filtered.len(), 1);
-    let groups = table_groups(ReceiptsTab::Dividend, &filtered, &all_rows, "1.002");
-    let keys_after = keys_for(&groups);
-    assert_eq!(keys_after, [key_second]);
 }
 
 #[test]
@@ -661,13 +537,17 @@ fn card_row_data_details_follow_column_reorder() {
     assert_eq!(order[1], 2);
     let cells = rows[0].cells();
     let card = card_row_data(
-        String::new(),
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
         ReceiptsTab::Dividend.card_fields(),
     );
-    assert_eq!(card.details[1].label, "口座");
-    assert_eq!(card.name, "日本電信電話");
+    // 口座は前に出ても見出し側の項目なので格子には入らない
+    assert_eq!(card.details[0].label, "商品");
+    assert!(card.details.iter().all(|detail| detail.label != "口座"));
+    assert!(matches!(
+        &card.name,
+        CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
+    ));
     assert_eq!(card.account, "特定");
 }

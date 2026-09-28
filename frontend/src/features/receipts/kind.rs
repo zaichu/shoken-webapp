@@ -734,7 +734,6 @@ impl ColumnTier {
 #[derive(Clone, Copy)]
 pub(crate) struct CardFields {
     pub(crate) name: usize,
-    pub(crate) primary: usize,
     pub(crate) date: usize,
     pub(crate) account: usize,
 }
@@ -955,7 +954,6 @@ impl ReceiptKind for DividendKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 4,
-        primary: 9,
         date: 0,
         account: 2,
     };
@@ -1107,7 +1105,6 @@ impl ReceiptKind for DomesticStockKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 2,
-        primary: 10,
         date: 0,
         account: 3,
     };
@@ -1232,7 +1229,6 @@ impl ReceiptKind for MutualFundKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 1,
-        primary: 9,
         date: 0,
         account: 2,
     };
