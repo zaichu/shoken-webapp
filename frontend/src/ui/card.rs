@@ -5,17 +5,17 @@ use leptos::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CardVariant {
-    /// .panel-card(フォーム・一覧の外枠)
+    /// フォーム・一覧の外枠
     Panel,
-    /// .login-card
+    /// ログイン画面のカード
     Login,
-    /// .table-card(明細表の外枠)
+    /// 明細表の外枠
     Table,
-    /// .collapsible-card(開閉つきの帯。section 要素で出す)
+    /// 開閉つきの帯(section 要素で出す)
     Collapsible,
-    /// .feature-card(ホームのリンクカード。a 要素で出す)
+    /// ホームのリンクカード(a 要素で出す)
     Feature,
-    /// .rail-panel(ユーティリティレールの外枠)
+    /// ユーティリティレールの外枠
     Rail,
     /// 白く浮いた外枠(空の状態の包み)
     Shell,
@@ -115,7 +115,7 @@ pub fn Card(
     };
     if let Some(href) = href {
         return view! {
-            <a href=href class=classes data-testid=testid>
+            <a href=href class=classes data-testid=testid id=id aria-label=aria_label role=role>
                 {children()}
             </a>
         }
@@ -123,7 +123,7 @@ pub fn Card(
     }
     if variant.section_tag() {
         return view! {
-            <section class=classes data-testid=testid id=id aria-label=aria_label>
+            <section class=classes data-testid=testid id=id aria-label=aria_label role=role>
                 {children()}
             </section>
         }
@@ -139,11 +139,11 @@ pub fn Card(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SectionHeaderVariant {
-    /// 帯の中の見出し(保有内訳)。h3
+    /// 帯の中の見出し(保有内訳)。h3 で出す
     Band,
-    /// カード内の上段見出し(資産サマリー)。h2
+    /// カード内の上段見出し(資産サマリー)。h2 で出す
     Card,
-    /// 下線だけの見出し(集計情報)。h2
+    /// 下線だけの見出し(集計情報)。h2 で出す
     Divider,
 }
 
@@ -189,3 +189,6 @@ pub fn SectionHeader(
         </div>
     }
 }
+
+#[cfg(test)]
+mod tests;

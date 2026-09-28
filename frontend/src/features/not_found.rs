@@ -1,4 +1,4 @@
-use crate::ui::button::{ButtonVariant, LinkButton};
+use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
@@ -38,7 +38,7 @@ pub fn NotFoundPage() -> impl IntoView {
             >
                 <div class="mt-4">
                     <div class="flex flex-col items-center gap-4">
-                        <LinkButton variant=ButtonVariant::Primary class="no-print" href="/">
+                        <LinkButton variant=ButtonVariant::Primary(ButtonSize::Md) class="no-print" href="/">
                             "ホームに戻る"
                         </LinkButton>
                         <div class="flex flex-wrap justify-center gap-3">

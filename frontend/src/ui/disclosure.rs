@@ -3,12 +3,11 @@ use leptos::prelude::*;
 // 開閉(ディスクロージャ)の基本部品。トリガーはすべてこの部品を通し、
 // 山形は ChevronIcon の1種類に統一する。
 
-/// 開閉で回転する山形アイコン。path は置き換え前と同じ字形を使い分ける
+/// 開閉で回転する山形アイコン
 #[component]
 pub fn ChevronIcon(
     #[prop(into)] expanded: Signal<bool>,
     #[prop(optional)] class: &'static str,
-    #[prop(default = "M19 9l-7 7-7-7")] path: &'static str,
 ) -> impl IntoView {
     view! {
         <svg
@@ -28,7 +27,7 @@ pub fn ChevronIcon(
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d=path
+                d="M19 9l-7 7-7-7"
             />
         </svg>
     }
@@ -49,13 +48,13 @@ pub fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisclosureStyle {
-    /// 帯の中の開閉(.collapsible-trigger)
+    /// 帯の中の開閉
     Collapsible,
-    /// レールの開閉(.rail-toggle)
+    /// レールの開閉
     Rail,
-    /// 明細の行カード(.receipt-card-trigger)
+    /// 明細の行カード
     ReceiptCard,
-    /// グループ見出し(.group-card-trigger)
+    /// グループ見出し
     GroupCard,
     /// 見出しの下線についた開閉(集計情報デスクトップ)
     HeaderFlat,
@@ -124,3 +123,6 @@ pub fn DisclosureToggle(
         </button>
     }
 }
+
+#[cfg(test)]
+mod tests;

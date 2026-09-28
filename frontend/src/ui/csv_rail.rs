@@ -74,8 +74,7 @@ pub fn CsvActionRail(
                         let on_save = on_save.clone();
                         view! {
                             <Button
-                                variant=ButtonVariant::Primary
-                                size=ButtonSize::Fill
+                                variant=ButtonVariant::Primary(ButtonSize::Fill)
                                 class="no-print"
                                 disabled=move || save_disabled.get()
                                 aria_disabled=move || save_disabled.get()
@@ -101,8 +100,7 @@ pub fn CsvActionRail(
                             // 保存後にボタンがカーソルの下へせり上がらないよう、区切り線の下の最後に置く
                             <div class="border-t border-border-subtle pt-3">
                                 <Button
-                                    variant=ButtonVariant::Danger
-                                    size=ButtonSize::Fill
+                                    variant=ButtonVariant::Danger(ButtonSize::Fill)
                                     class="no-print"
                                     disabled=move || delete_disabled.get()
                                     aria_disabled=move || delete_disabled.get()

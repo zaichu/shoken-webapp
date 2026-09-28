@@ -80,7 +80,7 @@ src/
 - `@apply` は `@layer base` と、コンポーネント化できない最小限にとどめる
 - 1つのクラス内で同じプロパティを二度指定しない(打ち消し合う指定は効いている方だけ残す)
 - `bash scripts/check-css-tokens.sh`(`npm run check:css`)が違反を検出し、CI(`frontend.yml`)でも実行する。やむを得ない例外はスクリプトの許可リスト(`ALLOWED_SRC`・`ALLOWED_CSS`)に理由付きで列挙する
-- 同じ検査で `scripts/check-ui-primitives.sh` も動き、`features/` での `<button>`/`<select>` の直書きとコンポーネントクラスの直書きを落とす。違反が出たら下の画面部品を使う
+- 同じ検査で `scripts/check-ui-primitives.sh` も動き、`features/` での `<button>`/`<select>` の直書き、コンポーネントクラスの直書き、カードに相当するユーティリティの組み合わせ(`rounded-*`+`border`+`bg-surface`)、`aria-expanded` を持つ独自の開閉要素を落とす。違反が出たら下の画面部品を使う
 
 ### 画面の基本部品(`src/ui/`)
 
@@ -88,15 +88,15 @@ src/
 
 | 部品 | 役割 | 主な variant |
 | --- | --- | --- |
-| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | Primary/Secondary/Danger(size 併用)・Ghost・Quiet・Prompt・Login・SearchSubmit・Header・Retry・MenuItem・CopyName など。IconButton は Boxed・Close |
+| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`Danger(ButtonSize)`・`Header(ButtonSize)`。それ以外は Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton は Boxed・Close |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
 | `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Table・Rail・Collapsible・Feature(href で `<a>`)・Summary・Item・Group・Holding・Stat・Sunken・Strip・Hint・Dashed・Step・Tile・GroupLabel など |
 | `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Collapsible・Rail・ReceiptCard・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
 | `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・Info・Positive・Neutral・Muted・Warn・File など |
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
-| `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | roving tabindex と矢印キー移動を部品側が持つ |
-| `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` でブロック表示 |
+| `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
+| `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
 
 ## デザインの決まり
 

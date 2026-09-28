@@ -88,11 +88,10 @@ pub fn CollapsibleSearchCard(
                 </DisclosureToggle>
                 <div class="flex shrink-0 items-center gap-1.5">
                     <Button
-                        variant=ButtonVariant::Secondary
-                        size=ButtonSize::Xs
+                        variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
                         class=Signal::derive(move || {
                             format!(
-                                "no-print whitespace-nowrap bg-surface transition-opacity{}",
+                                "no-print whitespace-nowrap transition-opacity{}",
                                 if is_default_state.get() {
                                     " opacity-0 pointer-events-none"
                                 } else {

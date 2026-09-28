@@ -303,7 +303,6 @@ fn ReceiptItemCard(
                     <ChevronIcon
                         expanded=Signal::derive(move || expanded.get())
                         class="h-4 w-4 shrink-0"
-                        path="m6 9 6 6 6-6"
                     />
                 </span>
             </DisclosureToggle>
@@ -454,7 +453,6 @@ pub(crate) fn MobileCardGroup(
                         <ChevronIcon
                             expanded=Signal::derive(move || expanded.get())
                             class="h-4 w-4 shrink-0 self-center text-text-muted"
-                            path="m6 9 6 6 6-6"
                         />
                     </span>
                 </DisclosureToggle>

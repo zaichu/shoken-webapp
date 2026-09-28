@@ -137,8 +137,7 @@ pub fn SiteHeader() -> impl IntoView {
                             } else {
                                 view! {
                                     <Button
-                                        variant=ButtonVariant::Header
-                                        size=ButtonSize::Sm
+                                        variant=ButtonVariant::Header(ButtonSize::Sm)
                                         on_click=move |_| session.login()
                                     >
                                         "ログイン"
@@ -266,8 +265,7 @@ fn UserMenu(
             </span>
             <div class="relative" node_ref=menu_container>
                 <Button
-                    variant=ButtonVariant::Header
-                    size=ButtonSize::Sm
+                    variant=ButtonVariant::Header(ButtonSize::Sm)
                     aria_haspopup="menu"
                     aria_expanded=move || menu_open.get()
                     aria_controls="user-menu"

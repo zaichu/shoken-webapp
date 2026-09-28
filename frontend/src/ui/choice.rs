@@ -10,7 +10,7 @@ pub enum ChipVariant {
     Filter,
     /// 期間の切り替えセグメント(aria-pressed)
     Segment,
-    /// 枠付きの解除チップ(.filter-chip)
+    /// 枠付きの解除チップ
     Pill,
 }
 
@@ -171,3 +171,6 @@ pub fn OptionButton(
         </button>
     }
 }
+
+#[cfg(test)]
+mod tests;

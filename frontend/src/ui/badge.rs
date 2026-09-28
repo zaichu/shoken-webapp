@@ -3,7 +3,7 @@ use leptos::prelude::*;
 /// 小さな状態バッジ(span)。押せるバッジは choice::Chip を使う。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BadgeVariant {
-    /// .filter-badge(絞り込み適用中)
+    /// 絞り込み適用中
     Accent,
     /// プレビュー中の表示
     AccentFlat,
@@ -17,7 +17,7 @@ pub enum BadgeVariant {
     Muted,
     /// 保存結果の注意バッジ
     Warn,
-    /// 参照チップ(ファイル選択)
+    /// ファイル選択の参照チップ
     File,
 }
 
@@ -72,7 +72,7 @@ pub fn Badge(
     }
 }
 
-/// 銘柄コードのバッジ(.code-badge)
+/// 銘柄コードのバッジ
 #[component]
 pub fn CodeBadge(
     #[prop(into, optional)] class: Signal<String>,
@@ -95,3 +95,6 @@ pub fn CodeBadge(
         </span>
     }
 }
+
+#[cfg(test)]
+mod tests;

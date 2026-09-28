@@ -144,8 +144,7 @@ pub fn ConfirmDeleteModal(
                     </div>
                     <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
                         <Button
-                            variant=ButtonVariant::Secondary
-                            size=ButtonSize::Md
+                            variant=ButtonVariant::Secondary(ButtonSize::Md)
                             class="no-print"
                             disabled=move || loading.get()
                             on_click=move |_| cancel()
@@ -153,8 +152,7 @@ pub fn ConfirmDeleteModal(
                             "キャンセル"
                         </Button>
                         <Button
-                            variant=ButtonVariant::Danger
-                            size=ButtonSize::Sm
+                            variant=ButtonVariant::Danger(ButtonSize::Sm)
                             class="no-print"
                             disabled=move || loading.get()
                             on_click=move |_| on_confirm()
