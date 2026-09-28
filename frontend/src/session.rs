@@ -23,7 +23,7 @@ async fn session_invalidated() -> bool {
 const DELETE_ACCOUNT_MAX_RETRIES: u32 = 3;
 const DELETE_ACCOUNT_RETRY_DELAY_MS: u32 = 1_000;
 
-// session-probe.js の待ち時間(3s)を従来経路の1回目として数えた残り予算(合計は約10.5s)
+// プローブ(3秒で打ち切り)に続く撃ち直しの時間予算
 const PROBE_FOLLOWUP_TIMEOUT_MS: u64 = 7_000;
 
 // 応答喪失はセッションの生死で再送可否を分ける(HTTP拒否は確定失敗)
@@ -107,11 +107,11 @@ impl SessionStore {
         // 送信前に採った時点からログアウトが起きていれば、遅れて届いた応答で復活させない
         let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
-        // プローブの結果を従来経路の1回目として扱う。確定した 401 だけは撃ち直さない
+        // プローブの結果は起動時の1回だけ使う。4xx の確定した拒否以外は撃ち直す
         let fetched = match probe::take().await {
             probe::Probe::Authenticated(user) => Some(user),
             probe::Probe::Anonymous => None,
-            probe::Probe::Timeout | probe::Probe::HttpError | probe::Probe::Failed => client
+            probe::Probe::Retry => client
                 .with_timeout_ms(PROBE_FOLLOWUP_TIMEOUT_MS)
                 .with_max_retries(0)
                 .get_json::<SessionUser>("/api/v1/session", &[])

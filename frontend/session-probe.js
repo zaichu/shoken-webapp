@@ -13,7 +13,7 @@
   // ローカル開発では content が空 = 同一オリジン /api(trunk のプロキシが受ける)
   var base = meta && meta.content ? meta.content : '';
   var controller = new AbortController();
-  // 従来経路の1回目分として待つ。時間切れなら Wasm 側が残り予算で撃ち直す(合計は約10.5秒)
+  // 3秒で打ち切る。時間切れ・失敗は Wasm 側が残り予算(7秒)で撃ち直す
   var timedOut = false;
   var timer = setTimeout(function () {
     timedOut = true;
@@ -24,8 +24,8 @@
     signal: controller.signal,
   })
     .then(function (res) {
+      // 4xx は確定した未ログインとして撃ち直さない。5xx は Wasm 側が撃ち直す
       if (res.status === 401) return { state: 'anonymous' };
-      // 5xx は Wasm 側が従来経路と同じく撃ち直す。それ以外の 4xx は確定失敗
       if (!res.ok) return { state: res.status >= 500 ? 'http_error' : 'anonymous' };
       return res.json().then(
         function (user) {

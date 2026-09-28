@@ -9,14 +9,10 @@ pub enum Probe {
     /// プローブ未起動・または消費済み(起動時の1回しか使わない)。通常経路で確認する
     Missing,
     Authenticated(SessionUser),
-    /// 401 など確定した拒否(リトライしても同じ 4xx)。撃ち直さず未認証として扱う
+    /// 4xx など確定した拒否。撃ち直さず未認証として扱う
     Anonymous,
-    /// 5xx など HTTP 応答での失敗。従来経路と同じく撃ち直す
-    HttpError,
-    /// プローブの時間切れ。従来経路の1回目として数え、残り予算で1回だけ撃ち直す
-    Timeout,
-    /// ネットワーク系の失敗。1回目の失敗として2回目を撃ち直す
-    Failed,
+    /// 5xx・時間切れ・通信失敗。残り予算で1回だけ撃ち直す
+    Retry,
 }
 
 // session-probe.js が Promise<{state, user?}> で解決する形に合わせる
@@ -39,20 +35,18 @@ fn probe_promise() -> Option<js_sys::Promise> {
 
 fn parse_result(value: JsValue) -> Probe {
     let Ok(text) = js_sys::JSON::stringify(&value) else {
-        return Probe::Failed;
+        return Probe::Retry;
     };
     let Some(text) = text.as_string() else {
-        return Probe::Failed;
+        return Probe::Retry;
     };
     let Ok(result) = serde_json::from_str::<ProbeResult>(&text) else {
-        return Probe::Failed;
+        return Probe::Retry;
     };
     match (result.state.as_str(), result.user) {
         ("authenticated", Some(user)) => Probe::Authenticated(user),
         ("anonymous", _) => Probe::Anonymous,
-        ("http_error", _) => Probe::HttpError,
-        ("timeout", _) => Probe::Timeout,
-        _ => Probe::Failed,
+        _ => Probe::Retry,
     }
 }
 
@@ -62,6 +56,6 @@ pub async fn take() -> Probe {
     };
     match JsFuture::from(promise).await {
         Ok(value) => parse_result(value),
-        Err(_) => Probe::Failed,
+        Err(_) => Probe::Retry,
     }
 }

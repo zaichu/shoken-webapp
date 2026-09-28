@@ -18,15 +18,9 @@ test('プローブが出したセッション確認を Wasm 側は撃ち直さ�
   page,
 }) => {
   let sessionAt = -1;
-  let wasmFinishedAt = -1;
   page.on('request', (request) => {
     if (request.url().endsWith('/api/v1/session')) {
       sessionAt = Date.now();
-    }
-  });
-  page.on('requestfinished', (request) => {
-    if (request.url().endsWith('.wasm')) {
-      wasmFinishedAt = Date.now();
     }
   });
   let sessionCount = 0;
@@ -34,16 +28,22 @@ test('プローブが出したセッション確認を Wasm 側は撃ち直さ�
     sessionCount += 1;
     return route.fulfill(fulfillSession(ALICE));
   });
+  // localhost では wasm 取得が速く、イベントの到着順だけではプローブ由来か区別できない。
+  // wasm の応答を遅らせ、遅延の間にセッション確認が出ていることで固定する
+  // (index.html からプローブを外すと、Wasm 側の確認は wasm 応答後になり落ちる)
+  let wasmReleasedAt = -1;
+  await page.route(/\.wasm$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    wasmReleasedAt = Date.now();
+    return route.continue();
+  });
 
   await page.goto('/');
   await expect(page.getByText(ALICE.name)).toBeVisible();
 
   expect(sessionCount).toBe(1);
-  // Wasm 側の発射は .wasm のダウンロード完了を待つため、プローブ由来なら
-  // 要求発行が wasm 完了より前になる。index.html からプローブを外すとここで検知できる
   expect(sessionAt).toBeGreaterThan(0);
-  expect(wasmFinishedAt).toBeGreaterThan(0);
-  expect(sessionAt).toBeLessThan(wasmFinishedAt);
+  expect(sessionAt).toBeLessThan(wasmReleasedAt);
 });
 
 test('プローブが通信失敗したときだけ Wasm 側が撃ち直す', async ({ page }) => {
