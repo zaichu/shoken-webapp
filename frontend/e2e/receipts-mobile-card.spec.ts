@@ -227,7 +227,7 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンド名ボタンの幅').not.toBeNull();
-  // カード内側の余白(px-3)を引いた全幅=332。開閉トリガー時代の全面幅ではなく文字領域の幅
+  // カード内側の余白(px-3)を引いた全幅=332
   expect(nameBox!.width).toBeGreaterThanOrEqual(328);
 
   // 全文が省略されず複数行に折り返して出る
@@ -246,29 +246,4 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
   expect(wrap.lines, 'ファンド名は折り返して全文を出す').toBeGreaterThanOrEqual(2);
 
   await shoot(page, 'fund-name-390');
-});
-
-// 3タブのカードを撮る(PR 本文の after 用)
-test('390px の3タブのカードを撮影する', async ({ page }) => {
-  await mockApi(page);
-  await page.goto('/receipts');
-  const cardList = page.getByTestId('receipt-card-list');
-
-  for (const [slug, tab] of [
-    ['dividend', '配当金'],
-    ['domesticstock', '国内株式'],
-    ['mutualfund', '投資信託'],
-  ] as const) {
-    await page.getByRole('tab', { name: tab }).click();
-    const first = cardList.getByTestId('receipt-card').first();
-    await expect(first.locator('dl')).toBeVisible();
-    await expect(first.locator('[aria-expanded]')).toHaveCount(0);
-    const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp/pr1112');
-    await fs.promises.mkdir(dir, { recursive: true });
-    await page.waitForTimeout(300);
-    await page.screenshot({
-      path: path.join(dir, `after-${slug}-390.png`),
-      fullPage: true,
-    });
-  }
 });

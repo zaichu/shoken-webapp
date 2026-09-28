@@ -204,7 +204,6 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
     }
 }
 
-// スマホの行カードは開閉せず、見出し(銘柄名・日付・口座)と残り全項目の2列格子を常時表示する
 #[component]
 fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
     let CardRowData {
