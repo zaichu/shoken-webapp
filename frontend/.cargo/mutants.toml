@@ -91,9 +91,9 @@ exclude_re = [
     # code_end==0 のとき label_match=Some(\"\") でも空コードはどの item にも一致せず
     # 名前一致探索へ進み、空コード item があっても返り値は同じ \"\"
     "replace > with >= in derive_security_code_from_query",
-    # テスト/CI ビルドは SHOKEN_WEBAPI_URL 未設定で base_url() は常に \"\" になるため、
-    # このビルド条件下では String::new() と等価。本番 bundle の接続先は
-    # ビルド時の環境変数で決まり、ユニット mutation では検証できない領域
+    # native テストでは DOM が無く base_url() は \"\" になるため、このビルド条件下では
+    # String::new() と等価。wasm 本番の接続先は index.html の meta で決まり、
+    # ユニット mutation では検証できない領域
     "replace ApiClient::base_url -> String with String::new()",
     # 70行目はサブノーマル入力専用で仮数の取り方に関わらず丸め結果が ±0.0 で同じ
     "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace & with \\| in to_fixed",

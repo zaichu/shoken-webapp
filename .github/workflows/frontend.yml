@@ -96,9 +96,9 @@ jobs:
       - name: Run Clippy (host)
         run: cargo clippy --all-targets -- -D warnings
 
-      # SHOKEN_WEBAPI_URL を埋め込む1回のビルドを leptos / vercel 両 suite で共有する
+      # 1回のリリースビルドを leptos / vercel 両 suite で共有する
       - name: Build release bundle
-        run: env -u NO_COLOR VERCEL_DIST_DIR=dist-release SHOKEN_WEBAPI_URL="$(node scripts/backend-origin.cjs)" bash scripts/vercel-build.sh
+        run: env -u NO_COLOR VERCEL_DIST_DIR=dist-release bash scripts/vercel-build.sh
 
       - name: Report compressed asset sizes
         run: |
