@@ -61,12 +61,55 @@ test('プローブが通信失敗したときだけ Wasm 側が撃ち直す', as
   expect(sessionCount).toBe(2);
 });
 
-test('匿名セッション(401)ならログインボタンを出す', async ({ page }) => {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(fulfillSession(null)),
-  );
+test('匿名セッション(401)ならログインボタンを出し、撃ち直さない', async ({
+  page,
+}) => {
+  let sessionCount = 0;
+  await page.route(/\/api\/v1\/session$/, (route) => {
+    sessionCount += 1;
+    return route.fulfill(fulfillSession(null));
+  });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  expect(sessionCount).toBe(1);
+});
+
+test('セッション確認が 5xx を返しても撃ち直さず未ログイン表示になる', async ({
+  page,
+}) => {
+  let sessionCount = 0;
+  await page.route(/\/api\/v1\/session$/, (route) => {
+    sessionCount += 1;
+    return route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: '{}',
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  expect(sessionCount).toBe(1);
+});
+
+test('無応答でも従来の合計時間内で未ログイン表示になる', async ({ page }) => {
+  let sessionCount = 0;
+  let firstSessionAt = -1;
+  await page.route(/\/api\/v1\/session$/, async () => {
+    sessionCount += 1;
+    if (firstSessionAt < 0) firstSessionAt = Date.now();
+    // 応答しないままぶら下げる
+    await new Promise(() => {});
+  });
+
+  await page.goto('/');
+  // プローブ 5s + 撃ち直し1回 5s で従来経路(約10.5s)を超えないことを固定
+  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible({
+    timeout: 20_000,
+  });
+  expect(firstSessionAt).toBeGreaterThan(0);
+  expect(Date.now() - firstSessionAt).toBeLessThan(11_500);
+  // プローブ + リトライなしの撃ち直し1回
+  expect(sessionCount).toBe(2);
 });
 
 test('セッション確認が遅いときは読み込み表示のまま待つ', async ({ page }) => {

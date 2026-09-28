@@ -13,17 +13,21 @@
   // ローカル開発では content が空 = 同一オリジン /api(trunk のプロキシが受ける)
   var base = meta && meta.content ? meta.content : '';
   var controller = new AbortController();
-  // Wasm 側の認証クライアントより先に出る分、DB の起動待ちを覆う長めの上限を取る
+  // 時間切れ時は Wasm 側がリトライなしで1回だけ撃ち直すので、ここは1回分(5秒)に抑える。
+  // 5s + 5s で従来経路の合計(AUTH_TIMEOUT 5s x 2回 + 間隔、約10.5秒)を超えない
+  var timedOut = false;
   var timer = setTimeout(function () {
+    timedOut = true;
     controller.abort();
-  }, 15000);
+  }, 5000);
   window.__shokenSessionProbe = fetch(base + '/api/v1/session', {
     credentials: 'include',
     signal: controller.signal,
   })
     .then(function (res) {
       if (res.status === 401) return { state: 'anonymous' };
-      if (!res.ok) return { state: 'error' };
+      // HTTP の拒否(5xx 等)は確定した応答なので撃ち直しの対象にしない
+      if (!res.ok) return { state: 'http_error' };
       return res.json().then(
         function (user) {
           return { state: 'authenticated', user: user };
@@ -34,8 +38,8 @@
       );
     })
     .catch(function () {
-      // ネットワーク系の失敗は Wasm 側でリトライ付きの通常経路に切り替える
-      return { state: 'error' };
+      // 通信失敗だけは Wasm 側のリトライ付き通常経路に切り替える
+      return { state: timedOut ? 'timeout' : 'error' };
     })
     .finally(function () {
       clearTimeout(timer);

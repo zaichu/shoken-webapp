@@ -11,6 +11,11 @@ pub enum Probe {
     Authenticated(SessionUser),
     /// 401 が確定したものだけここに入る。ネットワーク失敗は Failed で通常経路へ逃がす
     Anonymous,
+    /// 5xx など HTTP 応答での確定失敗。撃ち直さず未認証として扱う
+    HttpError,
+    /// プローブの時間切れ。5 秒使い切っているのでリトライなしの1回だけ撃ち直す
+    Timeout,
+    /// ネットワーク系の失敗。リトライ付きの通常経路に逃がす
     Failed,
 }
 
@@ -45,6 +50,8 @@ fn parse_result(value: JsValue) -> Probe {
     match (result.state.as_str(), result.user) {
         ("authenticated", Some(user)) => Probe::Authenticated(user),
         ("anonymous", _) => Probe::Anonymous,
+        ("http_error", _) => Probe::HttpError,
+        ("timeout", _) => Probe::Timeout,
         _ => Probe::Failed,
     }
 }

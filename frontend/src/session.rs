@@ -105,10 +105,16 @@ impl SessionStore {
         let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
         // index.html のプローブが Wasm 読み込みと並行で出した応答を使う。
-        // 未起動・通信系の失敗時だけリトライ付きの通常経路で撃ち直す
+        // HTTP の確定した応答(401・5xx)は撃ち直さず、時間切れは1回だけ、
+        // 通信失敗・未起動だけリトライ付きの通常経路で撃ち直す
         let fetched = match probe::take().await {
             probe::Probe::Authenticated(user) => Some(user),
-            probe::Probe::Anonymous => None,
+            probe::Probe::Anonymous | probe::Probe::HttpError => None,
+            probe::Probe::Timeout => client
+                .with_max_retries(0)
+                .get_json::<SessionUser>("/api/v1/session", &[])
+                .await
+                .ok(),
             probe::Probe::Missing | probe::Probe::Failed => client
                 .get_json::<SessionUser>("/api/v1/session", &[])
                 .await
