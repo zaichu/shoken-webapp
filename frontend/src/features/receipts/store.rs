@@ -8,7 +8,6 @@ use crate::support::csv_flow::{csv_error_message, CsvTabState};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 #[derive(Clone, Copy)]
 pub struct ReceiptsStore {
@@ -26,6 +25,10 @@ pub struct ReceiptsStore {
     // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
     pub(crate) csv: RwSignal<HashMap<(Generation, ReceiptsTab), CsvTabState<CsvPreviewRow>>>,
     pub(crate) csv_files: RwSignal<HashMap<(Generation, ReceiptsTab), web_sys::File>>,
+    // 裏再取得の失敗は表示済みの一覧とは別に持ち、行を消さない
+    pub(crate) refresh_error: RwSignal<HashMap<(Generation, ReceiptsTab), String>>,
+    // 裏再取得の遅れ応答が全件削除や CSV 保存の結果を上書きしないための世代内リビジョン
+    pub(crate) fetch_rev: RwSignal<HashMap<(Generation, ReceiptsTab), u64>>,
 }
 
 impl ReceiptsStore {
@@ -71,15 +74,44 @@ impl ReceiptsStore {
         self.ensure(tab);
     }
 
+    // 再訪時に、表示済みの一覧を消さず裏で取り直す(未取得・取得中は既存の経路が担う)
+    pub(crate) fn revisit(&self) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        // 前の裏再取得が残っている往復では要求を重ねない
+        if self.fetch.pending().get_untracked() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        for tab in ReceiptsTab::ALL {
+            if !self
+                .visited
+                .with_untracked(|visited| visited.contains(&tab))
+            {
+                continue;
+            }
+            if tab_settled(self, generation, tab) {
+                self.fetch.dispatch((generation, tab));
+            }
+        }
+    }
+
     pub(crate) fn ensure(&self, tab: ReceiptsTab) {
         if self.session.user.get_untracked().is_none() {
             return;
         }
         let generation = self.session.generation.get_untracked();
+        let mut tab = tab;
         if self.expanded_epoch.get_untracked() != Some(generation) {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
+            // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
+            self.search.set(ReceiptSearch::default());
+            self.active_tab.set(ReceiptsTab::Dividend);
+            self.visited.set(HashSet::new());
+            tab = ReceiptsTab::Dividend;
         }
         let needs_prune = self
             .cache
@@ -89,6 +121,9 @@ impl ReceiptsStore {
                 .with_untracked(|map| has_stale_generation(map, generation))
             || self
                 .csv_files
+                .with_untracked(|map| has_stale_generation(map, generation))
+            || self
+                .refresh_error
                 .with_untracked(|map| has_stale_generation(map, generation));
         if needs_prune {
             self.cache
@@ -97,6 +132,10 @@ impl ReceiptsStore {
                 .update(|map| prune_stale_generation(map, generation));
             self.csv_files
                 .update(|map| prune_stale_generation(map, generation));
+            self.refresh_error
+                .update(|map| prune_stale_generation(map, generation));
+            self.fetch_rev
+                .update(|map| map.retain(|key, _| key.0 == generation));
         }
         let already_requested = self.cache.with_untracked(|map| {
             matches!(
@@ -118,6 +157,13 @@ impl ReceiptsStore {
 }
 
 impl ReceiptsStore {
+    // 裏再取得が失敗したときだけ Some(表示済みの一覧は残る)
+    pub fn refresh_error(&self, tab: ReceiptsTab) -> Option<String> {
+        let generation = self.session.generation.get();
+        self.refresh_error
+            .with(|map| map.get(&(generation, tab)).cloned())
+    }
+
     pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState<CsvPreviewRow> {
         let generation = self.session.generation.get();
         self.csv
@@ -305,6 +351,13 @@ impl ReceiptsStore {
                         .or_default()
                         .finish_delete(Ok(()));
                 });
+                // 削除前に出た裏再取得の遅れ応答が消した行を復活させないよう取得を失効させる
+                self.fetch_rev
+                    .update(|map| bump_fetch_rev(map, generation, tab));
+                // 空になった一覧の上に直前の再取得エラーが残るのを防ぐ
+                self.refresh_error.update(|map| {
+                    map.remove(&(generation, tab));
+                });
                 // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
                 self.cache.update(|map| {
                     if let Some(entry) = map.get_mut(&(generation, tab)) {
@@ -374,6 +427,35 @@ pub(crate) fn should_apply_fetch_result(session: &SessionStore, generation: Gene
     session.is_current(generation)
 }
 
+pub(crate) fn bump_fetch_rev(
+    map: &mut HashMap<(Generation, ReceiptsTab), u64>,
+    generation: Generation,
+    tab: ReceiptsTab,
+) {
+    *map.entry((generation, tab)).or_default() += 1;
+}
+
+pub(crate) fn is_current_fetch(
+    map: &HashMap<(Generation, ReceiptsTab), u64>,
+    generation: Generation,
+    tab: ReceiptsTab,
+    rev: u64,
+) -> bool {
+    map.get(&(generation, tab)) == Some(&rev)
+}
+
+// 裏再取得の失敗は表示済みの Ready を残してエラーを返す。初回取得の失敗だけ Failed にする
+pub(crate) fn settle_tab_result(
+    current_ready: bool,
+    result: Result<ReceiptTabData, ApiError>,
+) -> Result<TabState, String> {
+    match result {
+        Ok(data) => Ok(TabState::Ready(data)),
+        Err(error) if current_ready => Err(error.message()),
+        Err(error) => Ok(TabState::Failed(error.message())),
+    }
+}
+
 pub(crate) fn mark_tab_for_refresh(
     map: &mut HashMap<(Generation, ReceiptsTab), TabState>,
     generation: Generation,
@@ -386,43 +468,82 @@ pub(crate) fn mark_tab_for_refresh(
     true
 }
 
+thread_local! {
+    // ページ遷移でビューを作り直しても取得済みデータを失わないよう、アプリ寿命のオーナーに作る。
+    // Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う。
+    // テストでは呼び出しごとに新しいストアを返して session ごとの独立性を保つ
+    static SHARED_STORE: RefCell<Option<(Owner, ReceiptsStore)>> = const { RefCell::new(None) };
+}
+
 pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
+    #[cfg(test)]
+    {
+        build_receipts_store(session, initial_tab)
+    }
+    #[cfg(not(test))]
+    {
+        let app_owner = use_context::<crate::app::AppOwner>()
+            .map(|app| app.0)
+            .unwrap_or_default();
+        SHARED_STORE.with(|cell| {
+            if let Some((_, store)) = cell.borrow().as_ref() {
+                return *store;
+            }
+            let owner = app_owner.child();
+            let store = owner.with(|| build_receipts_store(session, initial_tab));
+            *cell.borrow_mut() = Some((owner, store));
+            store
+        })
+    }
+}
+
+fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
     let active_tab = RwSignal::new(initial_tab);
     let visited = RwSignal::new(HashSet::from([initial_tab]));
     let cache = RwSignal::new(HashMap::new());
     let csv = RwSignal::new(HashMap::new());
     let csv_files = RwSignal::new(HashMap::new());
+    let refresh_error = RwSignal::new(HashMap::new());
+    let fetch_rev = RwSignal::new(HashMap::new());
 
     let fetch_session = session;
     let cache_signal = cache;
-    // 同じタブの取得が重なったとき、先に始めた取得の結果で新しい結果を上書きしないため
-    let latest_fetch: Rc<RefCell<HashMap<(Generation, ReceiptsTab), u64>>> = Rc::default();
+    let error_signal = refresh_error;
     let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
         let (generation, tab) = (*generation, *tab);
         let session = fetch_session;
-        let rev = {
-            let mut latest = latest_fetch.borrow_mut();
-            let rev = latest.entry((generation, tab)).or_default();
-            *rev += 1;
-            *rev
-        };
-        let latest_fetch = Rc::clone(&latest_fetch);
+        // 同じタブの取得が重なったとき、先に始めた取得の結果で新しい結果を上書きしないため
+        let rev = fetch_rev
+            .try_update(|map| {
+                bump_fetch_rev(map, generation, tab);
+                map[&(generation, tab)]
+            })
+            .unwrap_or_default();
         async move {
-            let rows = tab.fetch_list().await;
+            let result = tab.fetch_list().await;
             if !should_apply_fetch_result(&session, generation)
-                || latest_fetch.borrow().get(&(generation, tab)) != Some(&rev)
+                || !fetch_rev.with_untracked(|map| is_current_fetch(map, generation, tab, rev))
             {
                 return;
             }
-            cache_signal.update(|map| {
-                map.insert(
-                    (generation, tab),
-                    match rows {
-                        Ok(rows) => TabState::Ready(rows),
-                        Err(error) => TabState::Failed(error.message()),
-                    },
-                );
+            let current_ready = cache_signal.with_untracked(|map| {
+                matches!(map.get(&(generation, tab)), Some(TabState::Ready(_)))
             });
+            match settle_tab_result(current_ready, result) {
+                Ok(state) => {
+                    cache_signal.update(|map| {
+                        map.insert((generation, tab), state);
+                    });
+                    error_signal.update(|map| {
+                        map.remove(&(generation, tab));
+                    });
+                }
+                Err(message) => {
+                    error_signal.update(|map| {
+                        map.insert((generation, tab), message);
+                    });
+                }
+            }
         }
     });
 
@@ -438,6 +559,8 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         fetch,
         csv,
         csv_files,
+        refresh_error,
+        fetch_rev,
     };
 
     Effect::new(move |_| {

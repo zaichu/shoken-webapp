@@ -20,6 +20,8 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する
+    store.revisit();
     let busy = store;
     let panels_store = store;
     let modal_store = store;

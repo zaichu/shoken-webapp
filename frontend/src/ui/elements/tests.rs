@@ -28,6 +28,7 @@ fn initials_default_when_unset() {
 fn nav_active_matches_path_or_prefix() {
     assert!(is_nav_active("/receipts", "/receipts"));
     assert!(is_nav_active("/receipts/2024", "/receipts"));
+    assert!(is_nav_active("/receipts?tab=domesticstock", "/receipts"));
     assert!(!is_nav_active("/receipt", "/receipts"));
     assert!(!is_nav_active("/", "/receipts"));
 }
