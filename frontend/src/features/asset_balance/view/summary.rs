@@ -1,8 +1,9 @@
 use super::chart::ChartList;
+use super::palette::holding_bar_class;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_currency, format_percentage_value, format_valuation_amount,
-    format_valuation_rate, valuation_tone,
+    dec_to_f64, format_currency, format_fixed_percent, format_percentage_value,
+    format_valuation_amount, format_valuation_rate, valuation_tone,
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
@@ -120,6 +121,8 @@ pub(crate) fn PortfolioSummary(
             percentage,
         })
         .collect();
+    // 帯グラフは同じ並びのクローンを使う(view! のクロージャに move されるため)
+    let composition_items = chart_items.clone();
 
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
@@ -251,6 +254,60 @@ pub(crate) fn PortfolioSummary(
                         </p>
                     </Card>
                 </div>
+                {composition_items
+                    .iter()
+                    .any(|item| item.percentage.is_some())
+                    .then(|| {
+                        view! {
+                            <div
+                                class="mt-4 border-t border-ink/10 pt-4"
+                                data-testid="portfolio-composition"
+                            >
+                                <p class="mb-2 text-xs font-medium text-text-muted">"構成比"</p>
+                                <div
+                                    class="flex h-3 overflow-hidden rounded-full bg-fill"
+                                    aria-hidden="true"
+                                >
+                                    {composition_items
+                                        .iter()
+                                        .enumerate()
+                                        .filter_map(|(index, item)| {
+                                            item.percentage.map(|percentage| {
+                                                view! {
+                                                    <div
+                                                        class=format!("h-full {}", holding_bar_class(index))
+                                                        style=format!("width: {}%", percentage.min(100.0))
+                                                    />
+                                                }
+                                            })
+                                        })
+                                        .collect_view()}
+                                </div>
+                                <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                                    {composition_items
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(index, item)| {
+                                            view! {
+                                                <li class="flex min-w-0 items-center gap-1.5">
+                                                    <span
+                                                        class=format!("h-2.5 w-2.5 shrink-0 rounded-sm {}", holding_bar_class(index))
+                                                        aria-hidden="true"
+                                                    />
+                                                    <span class="text-text">{item.view.name.clone()}</span>
+                                                    <span class="shrink-0 tabular-nums text-text-subtle">
+                                                        {item.percentage.map_or("—".to_string(), |percentage| {
+                                                            format_fixed_percent(percentage, 1)
+                                                        })}
+                                                    </span>
+                                                </li>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </ul>
+                            </div>
+                        }
+                    })}
             </Card>
 
             <div data-testid="portfolio-pie-chart">

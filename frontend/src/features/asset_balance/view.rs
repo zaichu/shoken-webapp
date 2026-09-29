@@ -2,6 +2,7 @@ mod cards;
 mod chart;
 mod csv_section;
 mod main_content;
+mod palette;
 mod rail;
 mod search_card;
 mod summary;

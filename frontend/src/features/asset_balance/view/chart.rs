@@ -35,7 +35,7 @@ pub(crate) fn ChartList(
                                     index=index
                                     dividends=dividends
                                 />
-                                <HoldingValuationCard item=item dividends=dividends />
+                                <HoldingValuationCard item=item index=index dividends=dividends />
                             </div>
                         }
                     })

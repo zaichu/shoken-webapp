@@ -1,3 +1,4 @@
+use super::palette::{holding_band_class, holding_bar_class};
 use super::summary::ChartItem;
 use crate::features::asset_balance::format::{
     format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
@@ -16,11 +17,6 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::SecurityCodeLink;
 use leptos::prelude::*;
-
-const CHART_COLORS: [&str; 10] = [
-    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
-    "#84cc16", "#6366f1",
-];
 
 struct ValuationDisplay {
     market: String,
@@ -57,7 +53,8 @@ pub(crate) fn HoldingCard(
     index: usize,
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
-    let color = CHART_COLORS[index % CHART_COLORS.len()];
+    let band_class = holding_band_class(index);
+    let bar_class = holding_bar_class(index);
     let valuation = valuation_display(&item);
     let code = item.view.code.clone();
     let shares = item.view.shares;
@@ -78,22 +75,19 @@ pub(crate) fn HoldingCard(
         }
     };
     view! {
-        <Card variant=CardVariant::Holding class="px-3.5 py-3 max-sm:hidden">
+        <Card variant=CardVariant::Holding class=format!("border-l-4 {band_class} px-3.5 py-3 max-sm:hidden")>
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="h-3 w-3 shrink-0 rounded-sm" style=format!("background-color: {color}") />
-                        <div class="flex min-w-0 items-center gap-2" data-testid="portfolio-card-identity">
-                            <CodeBadge testid="portfolio-card-code">
-                                <SecurityCodeLink
-                                    value=item.view.code.clone()
-                                    class="font-semibold no-underline hover:underline".to_string()
-                                />
-                            </CodeBadge>
-                            <p class="line-clamp-2 text-base font-semibold text-text" title=item.view.name.clone()>
-                                {item.view.name.clone()}
-                            </p>
-                        </div>
+                    <div class="flex min-w-0 items-center gap-2" data-testid="portfolio-card-identity">
+                        <CodeBadge flush=true testid="portfolio-card-code">
+                            <SecurityCodeLink
+                                value=item.view.code.clone()
+                                class="font-semibold no-underline hover:underline".to_string()
+                            />
+                        </CodeBadge>
+                        <p class="line-clamp-2 text-base font-semibold text-text" title=item.view.name.clone()>
+                            {item.view.name.clone()}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -121,8 +115,8 @@ pub(crate) fn HoldingCard(
             <div class="mt-2.5 flex items-center gap-2">
                 <div class="h-2 flex-1 rounded-full bg-surface-raised">
                     <div
-                        class="h-full rounded-full transition-all duration-300"
-                        style=format!("width: {bar_width}; background-color: {color}")
+                        class=format!("h-full rounded-full transition-all duration-300 {bar_class}")
+                        style=format!("width: {bar_width}")
                     />
                 </div>
                 <span class="shrink-0 text-xs font-medium tabular-nums text-text-subtle">
@@ -201,6 +195,7 @@ pub(crate) fn HoldingCard(
 #[component]
 pub(crate) fn HoldingValuationCard(
     item: ChartItem,
+    index: usize,
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
     let open = RwSignal::new(false);
@@ -217,10 +212,11 @@ pub(crate) fn HoldingValuationCard(
     });
     let name_text = item.view.name.clone();
     let code_text = item.view.code.clone();
+    let band_class = holding_band_class(index);
     view! {
         <Card
             variant=CardVariant::Holding
-            class="sm:hidden"
+            class=format!("border-l-4 {band_class} sm:hidden")
             testid="portfolio-valuation-card"
         >
             <DisclosureToggle
@@ -233,7 +229,7 @@ pub(crate) fn HoldingValuationCard(
                     <span class="min-w-0 flex-1 truncate text-base font-semibold text-text">
                         {name_text}
                     </span>
-                    <CodeBadge testid="portfolio-valuation-card-code">
+                    <CodeBadge flush=true testid="portfolio-valuation-card-code">
                         {code_text}
                     </CodeBadge>
                 </span>
