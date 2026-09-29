@@ -79,3 +79,27 @@ fn strip_hash_keeps_query() {
     assert_eq!(strip_hash("/search?code=7203#x"), "/search?code=7203");
     assert_eq!(strip_hash("/receipts"), "/receipts");
 }
+
+#[test]
+fn spa_href_parts_rejects_download_target_and_external() {
+    // アプリ内遷移にするのは href がルート相対で download も target=_self 以外の target もないリンクだけ
+    assert_eq!(
+        spa_href_parts(Some("/receipts"), false, None).as_deref(),
+        Some("/receipts")
+    );
+    assert_eq!(
+        spa_href_parts(Some("/receipts"), false, Some("_self")).as_deref(),
+        Some("/receipts")
+    );
+    assert_eq!(spa_href_parts(Some("/receipts"), true, None), None);
+    assert_eq!(
+        spa_href_parts(Some("/receipts"), false, Some("_blank")),
+        None
+    );
+    assert_eq!(
+        spa_href_parts(Some("https://example.com/"), false, None),
+        None
+    );
+    assert_eq!(spa_href_parts(Some("#main-content"), false, None), None);
+    assert_eq!(spa_href_parts(None, false, None), None);
+}

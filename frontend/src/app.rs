@@ -65,17 +65,22 @@ fn spa_path(href: &str) -> Option<String> {
     Some(href.to_string())
 }
 
+fn spa_href_parts(href: Option<&str>, has_download: bool, target: Option<&str>) -> Option<String> {
+    if has_download {
+        return None;
+    }
+    if target.is_some_and(|target| target != "_self") {
+        return None;
+    }
+    spa_path(href?)
+}
+
 fn spa_href(anchor: &web_sys::Element) -> Option<String> {
-    if anchor.has_attribute("download") {
-        return None;
-    }
-    if anchor
-        .get_attribute("target")
-        .is_some_and(|target| target != "_self")
-    {
-        return None;
-    }
-    spa_path(&anchor.get_attribute("href")?)
+    spa_href_parts(
+        anchor.get_attribute("href").as_deref(),
+        anchor.has_attribute("download"),
+        anchor.get_attribute("target").as_deref(),
+    )
 }
 
 fn hash_only_change(from: &str, to: &str) -> bool {
@@ -174,6 +179,8 @@ pub fn App() -> impl IntoView {
         path.set(next);
         if let Some(window) = web_sys::window() {
             scroll_to_top(&window);
+            // 戻る/進むでも遷移元のフォーカスがアンマウントされて取り残されないようにする
+            focus_main(&window);
         }
     });
     on_cleanup(move || drop(on_popstate));

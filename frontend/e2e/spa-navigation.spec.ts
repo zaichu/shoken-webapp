@@ -191,6 +191,38 @@ test('再訪では表示済みデータを残したまま裏で取り直す', as
   await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
 });
 
+test('裏再取得が失敗しても表示済みの行を残してエラーを知らせる', async ({ page }) => {
+  const counts: ApiCounts = { session: 0, dividends: 0, assetBalances: 0 };
+  await setupApiMocks(page, counts);
+  // 再訪時の裏再取得だけを失敗させる
+  await page.unroute('**/api/v1/dividends**');
+  await page.route('**/api/v1/dividends**', (route) => {
+    if (route.request().url().includes('year=')) {
+      return route.fulfill(json(paginated([DIVIDEND])));
+    }
+    counts.dividends += 1;
+    return counts.dividends === 1
+      ? route.fulfill(json(paginated([DIVIDEND])))
+      : route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
+  });
+
+  await page.goto('/');
+  await nav(page, '取引明細').click();
+  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+
+  await nav(page, '資産管理').click();
+  await expect(
+    page.getByTestId('assetbalance-main-stage').getByText('トヨタ自動車').first(),
+  ).toBeVisible();
+
+  const refresh = page.waitForResponse(/\/api\/v1\/dividends/);
+  await nav(page, '取引明細').click();
+  await refresh;
+  // 失敗しても表示済みの行は消さず、エラーを alert で知らせる
+  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('サーバーエラーが発生しました');
+});
+
 test('ブラウザの戻る・進むでページが切り替わる', async ({ page }) => {
   const counts: ApiCounts = { session: 0, dividends: 0, assetBalances: 0 };
   await setupApiMocks(page, counts);

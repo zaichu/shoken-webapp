@@ -122,11 +122,13 @@ pub fn AssetBalancePage() -> impl IntoView {
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
+    // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
             session.generation.get_untracked(),
         )
+        && !data_ops.with_untracked(|ops| ops.list_fetch_in_flight())
     {
         load_asset_balances(
             session,
