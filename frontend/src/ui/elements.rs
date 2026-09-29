@@ -40,7 +40,23 @@ pub(crate) fn current_path() -> String {
         .unwrap_or_default()
 }
 
+pub(crate) fn current_location() -> String {
+    web_sys::window()
+        .and_then(|window| {
+            let location = window.location();
+            let pathname = location.pathname().ok()?;
+            let search = location.search().ok()?;
+            Some(format!("{pathname}{search}"))
+        })
+        .unwrap_or_default()
+}
+
+/// アプリ内遷移でナビのアクティブ表示を追随させるための現在パス(pathname + search)
+#[derive(Clone, Copy)]
+pub(crate) struct CurrentPath(pub RwSignal<String>);
+
 fn is_nav_active(path: &str, to: &str) -> bool {
+    let path = path.split(['?', '#']).next().unwrap_or(path);
     path == to || path.starts_with(&format!("{to}/"))
 }
 
@@ -63,7 +79,10 @@ pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
 #[component]
 pub fn SiteHeader() -> impl IntoView {
     let session = use_session();
-    let path = current_path();
+    // App 配下では SPA 遷移の path を使い、単独で描くテスト等では現在の URL にフォールバック
+    let path = use_context::<CurrentPath>()
+        .map(|current| current.0)
+        .unwrap_or_else(|| RwSignal::new(current_path()));
     let delete_confirm_open = RwSignal::new(false);
     let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
@@ -103,13 +122,18 @@ pub fn SiteHeader() -> impl IntoView {
                         {NAV_LINKS
                             .iter()
                             .map(|(to, label)| {
-                                let active = is_nav_active(&path, to);
-                                let class = format!(
-                                    "{NAV_LINK_BASE} {}",
-                                    if active { NAV_LINK_ACTIVE } else { NAV_LINK_INACTIVE }
-                                );
+                                let to = *to;
+                                let active = move || is_nav_active(&path.get(), to);
                                 view! {
-                                    <a href={*to} class=class aria-current=active.then_some("page")>
+                                    <a href=to
+                                        class=move || {
+                                            format!(
+                                                "{NAV_LINK_BASE} {}",
+                                                if active() { NAV_LINK_ACTIVE } else { NAV_LINK_INACTIVE }
+                                            )
+                                        }
+                                        aria-current=move || active().then_some("page")
+                                    >
                                         {*label}
                                     </a>
                                 }

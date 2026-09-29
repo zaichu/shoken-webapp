@@ -11,6 +11,7 @@ use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
+use std::cell::RefCell;
 use std::future::Future;
 
 const STATUS_ITEMS: &[(&str, &str, Option<&str>, &str, &str)] = &[
@@ -198,26 +199,79 @@ fn current_summary<T: Clone + Send + Sync + 'static>(
         .map(|(_, summary)| summary)
 }
 
-#[component]
-fn HomeOverview() -> impl IntoView {
-    let session = use_session();
-    let asset: SummarySlot<AssetBalanceSummary> = RwSignal::new(None);
-    let dividend: SummarySlot<DividendSummary> = RwSignal::new(None);
+fn has_current_summary<T>(slot: &Option<(Generation, Option<T>)>, generation: Generation) -> bool {
+    matches!(slot, Some((cached, _)) if *cached == generation)
+}
+
+#[derive(Clone, Copy)]
+struct HomeOverviewData {
+    asset: SummarySlot<AssetBalanceSummary>,
+    dividend: SummarySlot<DividendSummary>,
+}
+
+thread_local! {
+    // ページ遷移でビューを作り直しても取得済みの集計を失わないよう、アプリ寿命のオーナーに作る。
+    // Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う
+    static OVERVIEW: RefCell<Option<(Owner, HomeOverviewData)>> = const { RefCell::new(None) };
+}
+
+fn use_home_overview(session: SessionStore) -> HomeOverviewData {
+    let app_owner = use_context::<crate::app::AppOwner>()
+        .map(|app| app.0)
+        .unwrap_or_default();
+    OVERVIEW.with(|cell| {
+        if let Some((_, data)) = cell.borrow().as_ref() {
+            return *data;
+        }
+        let owner = app_owner.child();
+        let data = owner.with(|| build_home_overview(session));
+        *cell.borrow_mut() = Some((owner, data));
+        data
+    })
+}
+
+fn build_home_overview(session: SessionStore) -> HomeOverviewData {
+    let data = HomeOverviewData {
+        asset: RwSignal::new(None),
+        dividend: RwSignal::new(None),
+    };
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
-            asset.set(None);
-            dividend.set(None);
+            data.asset.set(None);
+            data.dividend.set(None);
             return;
         }
-        load_summary(session, generation, asset, fetch_asset_summary());
-        load_summary(
-            session,
-            generation,
-            dividend,
-            fetch_dividend_summary(js_sys::Date::new_0().get_full_year()),
-        );
+        load_home_summaries(session, generation, data);
     });
+    data
+}
+
+fn load_home_summaries(session: SessionStore, generation: Generation, data: HomeOverviewData) {
+    load_summary(session, generation, data.asset, fetch_asset_summary());
+    load_summary(
+        session,
+        generation,
+        data.dividend,
+        fetch_dividend_summary(js_sys::Date::new_0().get_full_year()),
+    );
+}
+
+#[component]
+fn HomeOverview() -> impl IntoView {
+    let session = use_session();
+    let data = use_home_overview(session);
+    let asset = data.asset;
+    let dividend = data.dividend;
+    // 再訪では表示済みの集計を消さず裏で取り直す(未取得は Effect が担う)
+    if session.user.get_untracked().is_some() {
+        let generation = session.generation.get_untracked();
+        if has_current_summary(&asset.get_untracked(), generation)
+            || has_current_summary(&dividend.get_untracked(), generation)
+        {
+            load_home_summaries(session, generation, data);
+        }
+    }
     let snapshot = move || {
         let generation = session.generation.get();
         (
@@ -347,5 +401,24 @@ fn OverviewTile(
                     .into_any()
             }}
         </Card>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_current_summary_only_matches_same_generation() {
+        let generation = Generation::new(1);
+        let other = Generation::new(2);
+        let slot: Option<(Generation, Option<u32>)> = Some((generation, Some(7)));
+        assert!(has_current_summary(&slot, generation));
+        assert!(!has_current_summary(&slot, other));
+        assert!(!has_current_summary::<u32>(
+            &Some((generation, None)),
+            other
+        ));
+        assert!(!has_current_summary::<u32>(&None, generation));
     }
 }

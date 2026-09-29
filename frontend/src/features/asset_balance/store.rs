@@ -229,6 +229,10 @@ impl DataOps {
 }
 
 // 取得成功時は lookup の seed と配当取得の開始までここでまとめて行う
+pub(crate) fn has_current_balances(slot: &BalanceSlot, generation: Generation) -> bool {
+    matches!(slot, Some((cached, _)) if *cached == generation)
+}
+
 pub(crate) fn load_asset_balances(
     session: SessionStore,
     generation: Generation,

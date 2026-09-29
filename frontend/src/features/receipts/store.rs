@@ -71,6 +71,25 @@ impl ReceiptsStore {
         self.ensure(tab);
     }
 
+    // 再訪時に、表示済みの一覧を消さず裏で取り直す(未取得・取得中は既存の経路が担う)
+    pub(crate) fn revisit(&self) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = self.session.generation.get_untracked();
+        for tab in ReceiptsTab::ALL {
+            if !self
+                .visited
+                .with_untracked(|visited| visited.contains(&tab))
+            {
+                continue;
+            }
+            if tab_settled(self, generation, tab) {
+                self.fetch.dispatch((generation, tab));
+            }
+        }
+    }
+
     pub(crate) fn ensure(&self, tab: ReceiptsTab) {
         if self.session.user.get_untracked().is_none() {
             return;
@@ -386,7 +405,36 @@ pub(crate) fn mark_tab_for_refresh(
     true
 }
 
+thread_local! {
+    // ページ遷移でビューを作り直しても取得済みデータを失わないよう、アプリ寿命のオーナーに作る。
+    // Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う。
+    // テストでは呼び出しごとに新しいストアを返して session ごとの独立性を保つ
+    static SHARED_STORE: RefCell<Option<(Owner, ReceiptsStore)>> = const { RefCell::new(None) };
+}
+
 pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
+    #[cfg(test)]
+    {
+        build_receipts_store(session, initial_tab)
+    }
+    #[cfg(not(test))]
+    {
+        let app_owner = use_context::<crate::app::AppOwner>()
+            .map(|app| app.0)
+            .unwrap_or_default();
+        SHARED_STORE.with(|cell| {
+            if let Some((_, store)) = cell.borrow().as_ref() {
+                return *store;
+            }
+            let owner = app_owner.child();
+            let store = owner.with(|| build_receipts_store(session, initial_tab));
+            *cell.borrow_mut() = Some((owner, store));
+            store
+        })
+    }
+}
+
+fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
     let active_tab = RwSignal::new(initial_tab);
     let visited = RwSignal::new(HashSet::from([initial_tab]));
     let cache = RwSignal::new(HashMap::new());
