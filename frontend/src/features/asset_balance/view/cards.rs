@@ -29,7 +29,7 @@ pub(crate) fn HoldingCard(
     let percentage_text = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });
-    let bar_width = item.percentage.map_or("NaN%".to_string(), |percentage| {
+    let bar_width = item.percentage.map_or("0%".to_string(), |percentage| {
         format!("{}%", percentage.min(100.0))
     });
     let dividend_class = move |present: bool| {

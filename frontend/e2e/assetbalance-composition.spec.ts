@@ -195,8 +195,10 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
     .filter({ hasText: '贈与銘柄' });
   await expect(giftedCard).toHaveCount(1);
 
-  // 0円銘柄のカードは構成比を算出不可として出す(有価額のカードは 100.0% 側)
+  // 0円銘柄のカードは構成比を算出不可として出し、バー幅は 0%(有価額のカードは 100.0% 側)
   await expect(page.getByText('構成比 —')).toHaveCount(1);
+  const giftedBar = page.getByTestId('portfolio-card-composition-bar').nth(1);
+  await expect(giftedBar).toHaveAttribute('style', 'width: 0%');
 
   // 帯グラフと凡例には取得額を持つ1銘柄だけが出る
   const composition = page.getByTestId('portfolio-composition');
@@ -207,4 +209,33 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
   await expect(legend).toHaveCount(1);
   await expect(legend.first()).toContainText('銘柄01');
   await expect(legend.first()).toContainText('100.0%');
+});
+
+test('0円銘柄を含む21+1件ではカード一覧と帯・凡例の「その他」件数が一致する', async ({
+  page,
+}) => {
+  const holdings = [
+    ...Array.from({ length: 21 }, (_, i) => holding(i + 1, 100_000)),
+    { ...holding(22, 0), security_name: '贈与銘柄' },
+  ];
+  await setupAssetBalanceMocks(page, holdings);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/assetbalance');
+
+  // 帯・凡例の「その他」は構成比のある折りたたみ分だけを数える
+  const composition = page.getByTestId('portfolio-composition');
+  const legend = composition.locator('ul > li');
+  await expect(legend).toHaveCount(21);
+  await expect(legend.nth(20)).toContainText('その他 1銘柄');
+
+  // カード一覧側の「その他」も同じ1銘柄。0円銘柄は折りたたまず常に出す
+  const grid = page.getByTestId('portfolio-items-grid');
+  await expect(grid.getByText('その他 1銘柄')).toHaveCount(1);
+  await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(21);
+  await expect(
+    page.getByTestId('portfolio-card-identity').filter({ hasText: '贈与銘柄' }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: '残り1銘柄を表示（全22）' }),
+  ).toBeVisible();
 });

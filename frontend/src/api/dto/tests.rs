@@ -392,9 +392,7 @@ fn other_endpoints_deserialize_numbers() {
     )
     .expect("asset-balances");
     let balance = balances.data.first().expect("one row");
-    // 一覧 API は market_value/profit_loss_rate を返さない(0 既定で補完される)
-    assert_eq!(balance.market_value, dec!(0));
-    assert_eq!(balance.profit_loss_rate, dec!(0));
+    assert_eq!(balance.security_name, "任天堂");
     assert_eq!(
         balances
             .summary

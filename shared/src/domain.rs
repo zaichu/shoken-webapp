@@ -209,13 +209,6 @@ pub struct AssetBalance {
     pub current_price: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub daily_change: Decimal,
-    // CSV 取込とホーム集計のために DB には残すが、一覧 API では返さない
-    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
-    #[serde(default, skip_serializing)]
-    pub market_value: Decimal,
-    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
-    #[serde(default, skip_serializing)]
-    pub profit_loss_rate: Decimal,
     #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
     #[cfg(not(feature = "typed"))]

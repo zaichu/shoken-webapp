@@ -58,7 +58,8 @@ pub struct OthersAggregate {
 /// 表示計画。
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChartDisplay {
-    /// 先頭から表示する件数(`order` の先頭 `visible_count` 件を出す)。
+    /// 先頭から表示する件数。これに加えて構成比 `None` の行(取得額0など)は
+    /// 折りたたみ対象外として常に表示する。
     pub visible_count: usize,
     /// 「その他」カード。`None` なら表示しない。
     pub others: Option<OthersAggregate>,
@@ -70,9 +71,12 @@ pub struct ChartDisplay {
 /// 折りたたみ・「その他」・全件表示トグルの表示計画を求める。
 /// `percentages` は [`chart_plan`] の並び済み構成比で、`total` と同じ長さ。
 /// 「その他」は構成比の合計が正のときだけ出す。
+/// 構成比 `None` の行は折りたたまず常に表示し、「その他」・「残りN銘柄」の
+/// 件数にも含めない(帯・凡例の「その他 N銘柄」と件数を揃えるため)。
 pub fn chart_display(total: usize, percentages: &[Option<f64>], show_all: bool) -> ChartDisplay {
     debug_assert_eq!(total, percentages.len());
-    let collapsed = !show_all && total > TOP_ITEMS;
+    let valued = percentages.iter().filter(|p| p.is_some()).count();
+    let collapsed = !show_all && valued > TOP_ITEMS;
     let visible_count = if collapsed { TOP_ITEMS } else { total };
     let others_sum: f64 = percentages
         .iter()
@@ -81,17 +85,17 @@ pub fn chart_display(total: usize, percentages: &[Option<f64>], show_all: bool) 
         .sum();
     let others = if collapsed && others_sum > 0.0 {
         Some(OthersAggregate {
-            count: total - TOP_ITEMS,
+            count: valued - TOP_ITEMS,
             percentage: others_sum,
         })
     } else {
         None
     };
-    let toggle_label = if total > TOP_ITEMS {
+    let toggle_label = if valued > TOP_ITEMS {
         Some(if show_all {
             format!("上位{TOP_ITEMS}件のみ表示")
         } else {
-            format!("残り{}銘柄を表示（全{total}）", total - TOP_ITEMS)
+            format!("残り{}銘柄を表示（全{total}）", valued - TOP_ITEMS)
         })
     } else {
         None

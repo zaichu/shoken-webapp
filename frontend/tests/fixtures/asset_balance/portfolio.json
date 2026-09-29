@@ -245,10 +245,11 @@
           "show_all": false,
           "visible_ids": [
             "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
-            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20"
+            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20",
+            "z21"
           ],
           "others": null,
-          "toggle_label": "残り1銘柄を表示（全21）",
+          "toggle_label": null,
           "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         },
         {
@@ -257,6 +258,57 @@
             "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
             "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20",
             "z21"
+          ],
+          "others": null,
+          "toggle_label": null,
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        }
+      ]
+    },
+    {
+      "name": "zero_purchase_not_folded_into_others",
+      "items": [
+        { "id": "v01", "purchase": 100000 },
+        { "id": "v02", "purchase": 100000 },
+        { "id": "v03", "purchase": 100000 },
+        { "id": "v04", "purchase": 100000 },
+        { "id": "v05", "purchase": 100000 },
+        { "id": "v06", "purchase": 100000 },
+        { "id": "v07", "purchase": 100000 },
+        { "id": "v08", "purchase": 100000 },
+        { "id": "v09", "purchase": 100000 },
+        { "id": "v10", "purchase": 100000 },
+        { "id": "v11", "purchase": 100000 },
+        { "id": "v12", "purchase": 100000 },
+        { "id": "v13", "purchase": 100000 },
+        { "id": "v14", "purchase": 100000 },
+        { "id": "v15", "purchase": 100000 },
+        { "id": "v16", "purchase": 100000 },
+        { "id": "v17", "purchase": 100000 },
+        { "id": "v18", "purchase": 100000 },
+        { "id": "v19", "purchase": 100000 },
+        { "id": "v20", "purchase": 100000 },
+        { "id": "v21", "purchase": 100000 },
+        { "id": "gift", "purchase": 0 }
+      ],
+      "expectations": [
+        {
+          "show_all": false,
+          "visible_ids": [
+            "v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10",
+            "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+            "gift"
+          ],
+          "others": { "count": 1, "percentage": 4.761904761904762 },
+          "toggle_label": "残り1銘柄を表示（全22）",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        },
+        {
+          "show_all": true,
+          "visible_ids": [
+            "v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10",
+            "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+            "v21", "gift"
           ],
           "others": null,
           "toggle_label": "上位20件のみ表示",

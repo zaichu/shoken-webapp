@@ -26,7 +26,10 @@ pub(crate) fn ChartList(
                     .clone()
                     .into_iter()
                     .enumerate()
-                    .filter(|(index, _)| *index < display.with(|d| d.visible_count))
+                    .filter(|(index, item)| {
+                        *index < display.with(|d| d.visible_count)
+                            || item.percentage.is_none()
+                    })
                     .map(|(index, item)| {
                         view! {
                             <div>

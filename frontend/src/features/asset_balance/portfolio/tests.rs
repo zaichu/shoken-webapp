@@ -113,7 +113,7 @@ fn shared_order_cases_match() {
 #[test]
 fn shared_display_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.display_cases.len(), 7);
+    assert_eq!(fixture.display_cases.len(), 8);
     for case in &fixture.display_cases {
         let plan = plan_for(&case.items);
         for expectation in &case.expectations {
@@ -122,8 +122,12 @@ fn shared_display_cases_match() {
             let visible: Vec<&str> = plan
                 .order
                 .iter()
-                .take(display.visible_count)
-                .map(|&index| case.items[index].id.as_str())
+                .zip(&plan.percentages)
+                .enumerate()
+                .filter(|(position, (_, percentage))| {
+                    *position < display.visible_count || percentage.is_none()
+                })
+                .map(|(_, (&index, _))| case.items[index].id.as_str())
                 .collect();
             assert_eq!(visible, expectation.visible_ids, "{label} visible_ids");
             match (&display.others, &expectation.others) {
