@@ -158,7 +158,7 @@ fn UtilityRailToggle(
     let search = store.search;
     let filtering = Signal::derive(move || !search.with(|state| state.is_default()));
     view! {
-        <div class="hidden lg:block">
+        <div class="hidden lg:block no-print">
             <Card variant=CardVariant::Collapsible testid="receipt-utility-toggle-bar">
                 <DisclosureToggle
                     style=DisclosureStyle::Rail

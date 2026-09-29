@@ -272,22 +272,28 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   );
   await gotoReceipts(page);
   const rail = page.getByTestId('receipt-utility-rail');
-  // データのある配当金タブでは畳まれた状態で始まる
+  // データのある配当金タブでは畳まれた状態で始まる。一度開いて畳み直し、
+  // ユーザーが開閉を決定済み(decided)の状態にしておく
+  await expect(rail).toBeHidden();
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await toggle.click();
+  await expect(rail).toBeVisible();
+  await toggle.click();
   await expect(rail).toBeHidden();
 
   // 取得失敗のタブには開閉トグルが描画されないので、畳んだままにすると
-  // CSV 取り込み・検索に届かない。開いた状態に寄せる
+  // CSV 取り込み・検索に届かない。ユーザーの開閉状態は変えず表示時だけ開く
   await page.getByRole('tab', { name: '国内株式' }).click();
   await expect(page.getByTestId('list-load-error')).toBeVisible();
   await expect(rail).toBeVisible();
   await expect(rail.getByTestId('csv-file-input')).toBeEnabled();
   await expect(rail.getByTestId('search-card')).toBeVisible();
 
-  // データのあるタブへ戻るとそのタブの初期状態(畳み)に戻り、トグルで開閉できる
+  // 戻るとユーザーの決定(畳み)が残り、トグルで開閉できる
   await page.getByRole('tab', { name: '配当金' }).click();
   await expect(page.getByRole('table')).toBeVisible();
-  const toggle = page.getByTestId('receipt-utility-toggle');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toBeHidden();
   await toggle.click();
   await expect(rail).toBeVisible();
   await toggle.click();
@@ -732,6 +738,8 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
       const table = page.getByRole('table');
       await expect(table).toBeVisible();
       await expect(page.getByTestId('receipt-utility-rail')).toBeHidden();
+      // 開閉バーも印刷には出さない(操作できないボタンが残らないよう no-print)
+      await expect(page.getByTestId('receipt-utility-toggle-bar')).toBeHidden();
       // 印刷は全列なので、集計見出しの結合セルは all だけが出る。
       // 畳んだレールの variant が残るとラベルセルが重複して金額がずれる
       const groupCheck = await table.evaluate((element) => {

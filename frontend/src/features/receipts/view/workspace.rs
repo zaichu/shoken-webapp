@@ -33,23 +33,22 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
-    // レールの初期状態はタブごとに最初のデータ到着で一度だけ決める
-    // (データあり→畳む、0件→開く)。初期化済み判定は store 側なので
-    // refetch などでこの workspace が作り直されても巻き戻らない
+    // refetch などで workspace が作り直されても、初期開閉は store 側の記憶が担う
     let rail_store = store;
-    Effect::new(move |_| match rail_store.tab_state(tab) {
-        TabState::Ready(data) => rail_store.init_utility_rail(tab, !data.rows.is_empty()),
-        // 取得失敗のタブには開閉トグルを出していない。
-        // 畳んだままだと CSV 取り込み・検索に届かなくなるので開いた状態に寄せる
-        TabState::Failed(_) => rail_store.utility_rail_open.set(true),
-        _ => {}
+    Effect::new(move |_| {
+        if let TabState::Ready(data) = rail_store.tab_state(tab) {
+            rail_store.init_utility_rail(tab, !data.rows.is_empty());
+        }
     });
-    let rail_open = store.utility_rail_open;
+    // 取得失敗のタブには開閉トグルを出していないので、畳んでいると
+    // CSV 取り込み・検索に届かなくなる。ユーザーの開閉状態自体は変えず、表示時だけ開く
+    let rail_visible =
+        move || store.utility_rail_open.get() || matches!(panel_state.get(), TabState::Failed(_));
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
             class=move || {
-                if rail_open.get() {
+                if rail_visible() {
                     "workspace-grid print:block"
                 } else {
                     "workspace-grid rail-collapsed print:block"
@@ -61,7 +60,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
             <aside
                 id=utility_rail_id(tab)
                 class=move || {
-                    if rail_open.get() {
+                    if rail_visible() {
                         "order-1 lg:order-2 print:hidden"
                     } else {
                         "order-1 lg:order-2 lg:hidden print:hidden"
