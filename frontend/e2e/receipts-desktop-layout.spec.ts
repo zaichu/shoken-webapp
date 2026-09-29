@@ -265,6 +265,33 @@ test('0 件のタブではレールは開いた状態で始まり、データの
   await expect(rail).toBeHidden();
 });
 
+test('取得失敗のタブではレールが開き、CSV 取り込みと検索に届く', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+  );
+  await gotoReceipts(page);
+  const rail = page.getByTestId('receipt-utility-rail');
+  // データのある配当金タブでは畳まれた状態で始まる
+  await expect(rail).toBeHidden();
+
+  // 取得失敗のタブには開閉トグルが描画されないので、畳んだままにすると
+  // CSV 取り込み・検索に届かない。開いた状態に寄せる
+  await page.getByRole('tab', { name: '国内株式' }).click();
+  await expect(page.getByTestId('list-load-error')).toBeVisible();
+  await expect(rail).toBeVisible();
+  await expect(rail.getByTestId('csv-file-input')).toBeEnabled();
+  await expect(rail.getByTestId('search-card')).toBeVisible();
+
+  // データのあるタブへ戻ってもレールの開閉は操作できる
+  await page.getByRole('tab', { name: '配当金' }).click();
+  await expect(page.getByRole('table')).toBeVisible();
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(rail).toBeHidden();
+});
+
 test('レールを畳んでいても絞り込み中は件数が表の上に出る', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await gotoReceipts(page);
@@ -334,20 +361,22 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
 test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄名は2行まで表示する', async ({
   page,
 }) => {
-  // 金額は 9 桁(¥111,111,102)・損益は負の 9 桁・コードは 10 文字まで切れないことを固定する
+  // 金額は 7 桁(¥1,234,567)・負の 7 桁(-¥1,234,567)と 9 桁(¥111,111,102)を交互に混ぜ、
+  // コードは 10 文字まで切れないことを固定する。同日の行は集計行で合算され、
+  // 単行より大きい金額(¥222,222,204 など)にもなる
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
         paginated(
-          DIVIDENDS.map((row) => ({
+          DIVIDENDS.map((row, i) => ({
             ...row,
             account: '特定・一般',
             security_code: '1234567890',
-            unit_price: '111111102',
+            unit_price: i % 2 === 0 ? '111111102' : '1234567',
             shares: '12345',
-            dividends_before_tax: '111111102',
-            taxes: '111111102',
-            net_amount_received: '111111102',
+            dividends_before_tax: i % 2 === 0 ? '111111102' : '1234567',
+            taxes: i % 2 === 0 ? '111111102' : '1234567',
+            net_amount_received: i % 2 === 0 ? '111111102' : '1234567',
           })),
         ),
       ),
@@ -357,17 +386,17 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
     route.fulfill(
       json(
         paginated(
-          DOMESTIC_STOCKS.map((row) => ({
+          DOMESTIC_STOCKS.map((row, i) => ({
             ...row,
             account: '特定・一般',
             security_code: '1234567890',
             shares: 12345,
-            asked_price: 111111102,
-            proceeds: 111111102,
-            purchase_price: 111111102,
-            realized_profit_and_loss: -111111102,
-            taxes: 111111102,
-            realized_profit_and_loss_after_tax: -111111102,
+            asked_price: i % 2 === 0 ? 111111102 : 1234567,
+            proceeds: i % 2 === 0 ? 111111102 : 1234567,
+            purchase_price: i % 2 === 0 ? 111111102 : 1234567,
+            realized_profit_and_loss: i % 2 === 0 ? -111111102 : -1234567,
+            taxes: i % 2 === 0 ? 111111102 : 1234567,
+            realized_profit_and_loss_after_tax: i % 2 === 0 ? -111111102 : -1234567,
           })),
         ),
       ),
@@ -377,16 +406,16 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
     route.fulfill(
       json(
         paginated(
-          MUTUAL_FUNDS.map((row) => ({
+          MUTUAL_FUNDS.map((row, i) => ({
             ...row,
             account: '特定・一般',
             shares: '12345',
-            cancellation_unit_price_yen: '111111102',
-            cancellation_amount_yen: '111111102',
-            average_acquisition_price_yen: '111111102',
-            realized_profit_and_loss: '-111111102',
-            taxes: '111111102',
-            realized_profit_and_loss_after_tax: '-111111102',
+            cancellation_unit_price_yen: i % 2 === 0 ? '111111102' : '1234567',
+            cancellation_amount_yen: i % 2 === 0 ? '111111102' : '1234567',
+            average_acquisition_price_yen: i % 2 === 0 ? '111111102' : '1234567',
+            realized_profit_and_loss: i % 2 === 0 ? '-111111102' : '-1234567',
+            taxes: i % 2 === 0 ? '111111102' : '1234567',
+            realized_profit_and_loss_after_tax: i % 2 === 0 ? '-111111102' : '-1234567',
           })),
         ),
       ),
@@ -408,19 +437,20 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 
       const metrics = await page.getByRole('table').evaluate((table, { nameHeader, width }) => {
         const headers = Array.from(table.tHead?.rows[0]?.cells ?? []);
-        const rows = Array.from(table.tBodies[0]?.rows ?? []).filter(
+        const bodyRows = Array.from(table.tBodies[0]?.rows ?? []);
+        const rows = bodyRows.filter(
           (candidate) =>
             candidate.cells.length === headers.length && candidate.querySelector('.copyable-name'),
         );
         if (rows.length === 0) throw new Error('取引明細のデータ行がありません');
 
         const nameIndex = headers.findIndex((header) => header.textContent?.trim() === nameHeader);
-        const overflows = rows.flatMap((row) =>
-          headers.flatMap((header, index) => {
-            const cell = row.cells[index];
+        // 集計行(見出しの colspan + 集計セル)も含めて、表示中の全セルをはみ出し検査する
+        const overflows = bodyRows.flatMap((row) => {
+          const isDataRow = row.cells.length === headers.length;
+          return Array.from(row.cells).flatMap((cell, index) => {
             if (
-              index === nameIndex ||
-              getComputedStyle(header).display === 'none' ||
+              cell.querySelector('.copyable-name') ||
               getComputedStyle(cell).display === 'none' ||
               cell.scrollWidth <= cell.clientWidth
             ) {
@@ -428,14 +458,43 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             }
             return [
               {
-                header: header.textContent?.trim(),
+                header: isDataRow ? headers[index]?.textContent?.trim() : `集計行の${index}列目`,
                 text: cell.textContent?.trim(),
                 title: cell.getAttribute('title'),
                 clientWidth: cell.clientWidth,
                 scrollWidth: cell.scrollWidth,
               },
             ];
-          }),
+          });
+        });
+        // 隣接する表示セルの内容同士の見た目の間隔。クリップされた内容は
+        // padding ボックスの端まで見えるので、はみ出しの最悪値もその端とする
+        const contentGap = (row: HTMLTableRowElement) => {
+          const cells = Array.from(row.cells).filter(
+            (cell) => getComputedStyle(cell).display !== 'none',
+          );
+          const range = document.createRange();
+          const gaps: number[] = [];
+          for (let index = 0; index + 1 < cells.length; index += 1) {
+            const a = cells[index];
+            const b = cells[index + 1];
+            range.selectNodeContents(a);
+            const aText = range.getBoundingClientRect();
+            range.selectNodeContents(b);
+            const bText = range.getBoundingClientRect();
+            const aBox = a.getBoundingClientRect();
+            const bBox = b.getBoundingClientRect();
+            const aBorder = Number.parseFloat(getComputedStyle(a).borderRightWidth) || 0;
+            const bBorder = Number.parseFloat(getComputedStyle(b).borderLeftWidth) || 0;
+            gaps.push(
+              Math.max(bText.left, bBox.left + bBorder) -
+                Math.min(aText.right, aBox.right - aBorder),
+            );
+          }
+          return gaps;
+        };
+        const minContentGap = Math.min(
+          ...Array.from(table.rows).flatMap((row) => contentGap(row)),
         );
         const headerClips = headers.flatMap((header) => {
           if (
@@ -485,6 +544,7 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 
         return {
           overflows,
+          minContentGap,
           headerClips,
           visibleHeaders: headers
             .filter((header) => getComputedStyle(header).display !== 'none')
@@ -508,6 +568,8 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 
       const state = `${width}px ${tab.label} ${collapsed ? '畳み' : '開き'}`;
       expect(metrics.overflows, state).toEqual([]);
+      // 隣の列の内容とくっつかないよう、セル間に 4px 以上の見た目の間隔があること
+      expect(metrics.minContentGap, `${state} の隣接セル間隔`).toBeGreaterThanOrEqual(4);
       expect(metrics.headerClips, state).toEqual([]);
       expect(
         [...metrics.visibleHeaders].sort(),

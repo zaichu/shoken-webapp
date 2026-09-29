@@ -37,10 +37,12 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     // (データあり→畳む、0件→開く)。初期化済み判定は store 側なので
     // refetch などでこの workspace が作り直されても巻き戻らない
     let rail_store = store;
-    Effect::new(move |_| {
-        if let TabState::Ready(data) = rail_store.tab_state(tab) {
-            rail_store.init_utility_rail(tab, !data.rows.is_empty());
-        }
+    Effect::new(move |_| match rail_store.tab_state(tab) {
+        TabState::Ready(data) => rail_store.init_utility_rail(tab, !data.rows.is_empty()),
+        // 取得失敗のタブには開閉トグルを出していない。
+        // 畳んだままだと CSV 取り込み・検索に届かなくなるので開いた状態に寄せる
+        TabState::Failed(_) => rail_store.utility_rail_open.set(true),
+        _ => {}
     });
     let rail_open = store.utility_rail_open;
     view! {
@@ -90,21 +92,6 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                             </section>
                         }
                             .into_any()
-                    }}
-                    {move || {
-                        match panel_state.get() {
-                            TabState::Ready(data) if data.truncated => {
-                                view! {
-                                    <section class="px-5 py-4" role="status" aria-live="polite">
-                                        <div class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text">
-                                            {truncated_list_warning()}
-                                        </div>
-                                    </section>
-                                }
-                                    .into_any()
-                            }
-                            _ => ().into_any(),
-                        }
                     }}
                     {move || {
                         let state = preview_store.csv_state(tab);
@@ -190,6 +177,20 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 </div>
             </aside>
             <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
+                // レールを畳んでも見えるよう、件数上限の警告は表の上(レールの外)に出す
+                {move || match panel_state.get() {
+                    TabState::Ready(data) if data.truncated => {
+                        view! {
+                            <div class="mb-4" role="status" aria-live="polite">
+                                <div class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text">
+                                    {truncated_list_warning()}
+                                </div>
+                            </div>
+                        }
+                            .into_any()
+                    }
+                    _ => ().into_any(),
+                }}
                 {move || match panel_state.get() {
                     TabState::Loading => view! { <ListSkeleton /> }.into_any(),
                     TabState::Ready(data) => {
