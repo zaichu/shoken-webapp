@@ -501,6 +501,20 @@
     -webkit-line-clamp: unset;
   }
 
+  /* 集計行の見出しは帯別の colspan を1つだけ出す設計。印刷は全列なので
+     all だけを出し、.rail-collapsed 指定の variant は必ず隠す */
+  .receipt-table .receipt-span-sm,
+  .receipt-table .receipt-span-mid,
+  .receipt-table .receipt-span-lg-open,
+  .receipt-table .receipt-span-lg-collapsed,
+  .receipt-table .receipt-span-xl-open {
+    display: none !important;
+  }
+
+  .receipt-table .receipt-span-all {
+    display: table-cell !important;
+  }
+
   .receipt-table td:not(.text-right) {
     overflow-wrap: anywhere;
   }

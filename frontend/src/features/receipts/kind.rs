@@ -718,11 +718,11 @@ impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub(crate) enum ColumnTier {
     Core,
-    /// md から出す。lg でレールを開いているときだけ隠し、畳むと lg から出る
+    /// lg でレールを開いている帯だけ隠す
     Md,
-    /// xl から出す。レールを畳むと lg から
+    /// 畳むと lg から出る
     Wide,
-    /// レールを開いたままでは全列が入らない帯があるため 1650px から。畳むと xl から
+    /// 開いたままでも全列が入る 1650px から出す
     Wider,
 }
 

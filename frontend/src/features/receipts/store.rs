@@ -19,10 +19,11 @@ pub struct ReceiptsStore {
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
     // Cookie ポリシーへの記載を避けるため localStorage には保存せず、
-    // セッション内だけの画面状態として持つ。初期値はデータ有無で一度だけ決める
+    // セッション内だけの画面状態として持つ。初期値はデータ有無でタブごとに決める
     pub utility_rail_open: RwSignal<bool>,
     pub(crate) utility_rail_decided: RwSignal<bool>,
-    pub(crate) utility_rail_initialized: RwSignal<HashSet<ReceiptsTab>>,
+    // タブごとの初期開閉。ユーザーがトグルするまでは切替・再取得のたびにこの値へ戻す
+    pub(crate) utility_rail_initials: RwSignal<HashMap<ReceiptsTab, bool>>,
     // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
     pub(crate) expanded_epoch: RwSignal<Option<Generation>>,
     pub(crate) visited: RwSignal<HashSet<ReceiptsTab>>,
@@ -69,23 +70,21 @@ impl ReceiptsStore {
         self.utility_rail_open.update(|open| *open = !*open);
     }
 
-    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で一度だけ決める。
-    /// 再取得で workspace が作り直されても状態を巻き戻さないため、
-    /// 初期化済みのタブとユーザーがトグル済みの場合は何もしない
+    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で決めて記憶し、
+    /// ユーザーがトグルするまではタブ表示のたびにその値へ戻す。
+    /// 戻ったタブが直前のタブの開閉状態を引き継がないようにするため
     pub(crate) fn init_utility_rail(&self, tab: ReceiptsTab, has_rows: bool) {
         if self.utility_rail_decided.get_untracked() {
             return;
         }
-        if self
-            .utility_rail_initialized
-            .with(|done| done.contains(&tab))
-        {
-            return;
-        }
-        self.utility_rail_initialized.update(|done| {
-            done.insert(tab);
+        let open = self
+            .utility_rail_initials
+            .with_untracked(|initials| initials.get(&tab).copied())
+            .unwrap_or(!has_rows);
+        self.utility_rail_initials.update(|initials| {
+            initials.insert(tab, open);
         });
-        self.utility_rail_open.set(!has_rows);
+        self.utility_rail_open.set(open);
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
@@ -110,7 +109,7 @@ impl ReceiptsStore {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
-            self.utility_rail_initialized.update(|set| set.clear());
+            self.utility_rail_initials.update(|map| map.clear());
             self.utility_rail_decided.set(false);
             self.utility_rail_open.set(true);
         }
@@ -467,7 +466,7 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
         mobile_summary_expanded: RwSignal::new(false),
         utility_rail_open: RwSignal::new(true),
         utility_rail_decided: RwSignal::new(false),
-        utility_rail_initialized: RwSignal::new(HashSet::new()),
+        utility_rail_initials: RwSignal::new(HashMap::new()),
         expanded_epoch: RwSignal::new(None),
         visited,
         cache,

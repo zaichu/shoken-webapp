@@ -283,11 +283,13 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   await expect(rail.getByTestId('csv-file-input')).toBeEnabled();
   await expect(rail.getByTestId('search-card')).toBeVisible();
 
-  // データのあるタブへ戻ってもレールの開閉は操作できる
+  // データのあるタブへ戻るとそのタブの初期状態(畳み)に戻り、トグルで開閉できる
   await page.getByRole('tab', { name: '配当金' }).click();
   await expect(page.getByRole('table')).toBeVisible();
   const toggle = page.getByTestId('receipt-utility-toggle');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(rail).toBeVisible();
   await toggle.click();
   await expect(rail).toBeHidden();
 });
@@ -730,6 +732,39 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
       const table = page.getByRole('table');
       await expect(table).toBeVisible();
       await expect(page.getByTestId('receipt-utility-rail')).toBeHidden();
+      // 印刷は全列なので、集計見出しの結合セルは all だけが出る。
+      // 畳んだレールの variant が残るとラベルセルが重複して金額がずれる
+      const groupCheck = await table.evaluate((element) => {
+        const headers = Array.from(element.tHead?.rows[0]?.cells ?? []).filter(
+          (cell) => getComputedStyle(cell).display !== 'none',
+        ).length;
+        const groups = Array.from(element.tBodies[0]?.rows ?? [])
+          .filter((row) => row.querySelector('td[colspan]'))
+          .map((row) => {
+            const visibleLabels = Array.from(
+              row.querySelectorAll('td[colspan]'),
+            ).filter((cell) => getComputedStyle(cell).display !== 'none');
+            return {
+              visibleCells: Array.from(row.cells).filter(
+                (cell) => getComputedStyle(cell).display !== 'none',
+              ).length,
+              visibleLabels: visibleLabels.length,
+              colspan: Number(visibleLabels[0]?.getAttribute('colspan')),
+            };
+          });
+        return { headers, groups };
+      });
+      expect(
+        groupCheck.groups.length,
+        `${tab.label} の集計行が検査対象にある`,
+      ).toBeGreaterThan(0);
+      for (const group of groupCheck.groups) {
+        expect(group.visibleLabels, `${tab.label} の集計見出しは1個だけ`).toBe(1);
+        expect(group.visibleCells, `${tab.label} の集計行セル数`).toBe(4);
+        expect(group.colspan, `${tab.label} の集計行 colspan`).toBe(
+          groupCheck.headers - 3,
+        );
+      }
       const metrics = await table.evaluate((element) => {
         const main = document.querySelector('main');
         const mainRect = main?.getBoundingClientRect();

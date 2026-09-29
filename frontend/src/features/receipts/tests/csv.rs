@@ -33,7 +33,7 @@ fn test_store(
         mobile_summary_expanded: RwSignal::new(false),
         utility_rail_open: RwSignal::new(true),
         utility_rail_decided: RwSignal::new(false),
-        utility_rail_initialized: RwSignal::new(HashSet::new()),
+        utility_rail_initials: RwSignal::new(HashMap::new()),
         expanded_epoch: RwSignal::new(None),
         visited: RwSignal::new(HashSet::new()),
         cache: RwSignal::new(cache),

@@ -89,7 +89,7 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 mobile_summary_expanded: RwSignal::new(false),
                 utility_rail_open: RwSignal::new(true),
                 utility_rail_decided: RwSignal::new(false),
-                utility_rail_initialized: RwSignal::new(HashSet::new()),
+                utility_rail_initials: RwSignal::new(HashMap::new()),
                 expanded_epoch: RwSignal::new(None),
                 visited: RwSignal::new(HashSet::from([tab])),
                 cache,
@@ -126,7 +126,7 @@ fn expanded_state_is_cleared_on_generation_change() {
             mobile_summary_expanded: RwSignal::new(false),
             utility_rail_open: RwSignal::new(true),
             utility_rail_decided: RwSignal::new(false),
-            utility_rail_initialized: RwSignal::new(HashSet::new()),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -140,6 +140,8 @@ fn expanded_state_is_cleared_on_generation_change() {
             set.insert("g0".to_string());
         });
         store.mobile_summary_expanded.set(true);
+        store.init_utility_rail(tab, false);
+        store.toggle_utility_rail();
 
         session.mark_unauthenticated();
         session.user.set(Some(user("bob")));
@@ -147,6 +149,11 @@ fn expanded_state_is_cleared_on_generation_change() {
 
         assert!(store.expanded.with_untracked(|set| set.is_empty()));
         assert!(!store.mobile_summary_expanded.get_untracked());
+        assert!(store
+            .utility_rail_initials
+            .with_untracked(|map| map.is_empty()));
+        assert!(!store.utility_rail_decided.get_untracked());
+        assert!(store.utility_rail_open.get_untracked());
     });
 }
 
@@ -166,7 +173,7 @@ fn expanded_state_survives_ensure_in_same_generation() {
             mobile_summary_expanded: RwSignal::new(false),
             utility_rail_open: RwSignal::new(true),
             utility_rail_decided: RwSignal::new(false),
-            utility_rail_initialized: RwSignal::new(HashSet::new()),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -188,7 +195,7 @@ fn expanded_state_survives_ensure_in_same_generation() {
 }
 
 #[test]
-fn utility_rail_init_runs_once_per_tab_and_toggle_wins() {
+fn utility_rail_init_restores_per_tab_state_until_toggle() {
     let _ = any_spawner::Executor::init_futures_executor();
     let owner = Owner::new();
     owner.with(|| {
@@ -203,7 +210,7 @@ fn utility_rail_init_runs_once_per_tab_and_toggle_wins() {
             mobile_summary_expanded: RwSignal::new(false),
             utility_rail_open: RwSignal::new(true),
             utility_rail_decided: RwSignal::new(false),
-            utility_rail_initialized: RwSignal::new(HashSet::new()),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -212,13 +219,15 @@ fn utility_rail_init_runs_once_per_tab_and_toggle_wins() {
             csv_files: RwSignal::new(HashMap::new()),
         };
 
-        // データあり→畳む、0件→開く。同じタブの再評価(refetch)では巻き戻らない
+        // データあり→畳む、0件→開く。タブごとの初回の値を記憶し、再訪ではその値へ戻す
         store.init_utility_rail(ReceiptsTab::Dividend, true);
-        assert!(!store.utility_rail_open.get_untracked());
-        store.init_utility_rail(ReceiptsTab::Dividend, false);
         assert!(!store.utility_rail_open.get_untracked());
         store.init_utility_rail(ReceiptsTab::DomesticStock, false);
         assert!(store.utility_rail_open.get_untracked());
+        // 空タブへ移ってからデータありのタブに戻っても、直前のタブの状態を引き継がない
+        store.init_utility_rail(ReceiptsTab::Dividend, true);
+        assert!(!store.utility_rail_open.get_untracked());
+        // 同じタブの再評価(refetch)でも初回に決めた値へ戻るだけで巻き戻らない
         store.init_utility_rail(ReceiptsTab::DomesticStock, true);
         assert!(store.utility_rail_open.get_untracked());
 
