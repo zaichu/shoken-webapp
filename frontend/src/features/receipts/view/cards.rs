@@ -1,11 +1,12 @@
 use crate::features::receipts::kind::CardFields;
-use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
+use crate::features::receipts::{ReceiptCell, ReceiptsTab};
+use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::copy_to_clipboard;
 use leptos::prelude::*;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 
 pub(crate) fn is_profit_label(label: &str) -> bool {
     matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
@@ -53,10 +54,7 @@ pub(crate) struct CardDetail {
 }
 
 pub(crate) struct CardRowData {
-    pub(crate) key: String,
-    pub(crate) name: String,
-    pub(crate) amount: String,
-    pub(crate) amount_negative: bool,
+    pub(crate) name: CardDetailValue,
     pub(crate) date: String,
     pub(crate) account: String,
     pub(crate) details: Vec<CardDetail>,
@@ -110,48 +108,14 @@ pub(crate) fn cell_text(cell: &ReceiptCell) -> &str {
     }
 }
 
-// プレビュー行は保存済み id を持たないため、同一内容の行と区別するため一覧内の位置も含めて識別する。
-// 表示は数量等を丸めるため、行の同一性は丸め前の raw_key で判定する
-pub(crate) fn card_key(slug: &str, id: Option<&str>, raw_key: &str, ordinal: usize) -> String {
-    match id {
-        Some(id) => format!("{slug}:r:{id}"),
-        None => format!("{slug}:p:{ordinal}:{raw_key}"),
-    }
-}
-
-pub(crate) fn card_ordinal(
-    ordinals: &mut HashMap<String, VecDeque<usize>>,
-    id: Option<&str>,
-    raw_key: &str,
-) -> usize {
-    if id.is_some() {
-        0
-    } else {
-        ordinals
-            .get_mut(raw_key)
-            .and_then(|queue| queue.pop_front())
-            .unwrap_or_default()
-    }
-}
-
-// 絞り込みや並べ替えで表示位置が変わっても同じ行を同じカードキーへ対応させるため、
-// プレビュー行の通し番号は絞り込み前の全行内での位置から引く。
-pub(crate) fn preview_row_ordinals(all_rows: &[ReceiptRow]) -> HashMap<String, VecDeque<usize>> {
-    let mut ordinals: HashMap<String, VecDeque<usize>> = HashMap::new();
-    for (index, row) in all_rows.iter().enumerate() {
-        if row.is_preview() {
-            ordinals.entry(row.raw_key()).or_default().push_back(index);
-        }
-    }
-    ordinals
-}
-
+// 見出しの銘柄名・日付・口座とは重複させず、残りの列を表の列順で全部出す
 pub(crate) fn card_row_data(
-    key: String,
     cells: &[ReceiptCell],
     headers: &[&'static str],
     order: &[usize],
     fields: CardFields,
+    // 見出しが年月でない(銘柄名や口座で絞った)グループでは年を落とすと日付が分からなくなる
+    full_date: bool,
 ) -> CardRowData {
     let text = |index: usize| {
         cells
@@ -159,19 +123,21 @@ pub(crate) fn card_row_data(
             .map(|cell| cell_text(cell).to_string())
             .unwrap_or_default()
     };
-    let amount = text(fields.primary);
-    let amount_profit = headers
-        .get(fields.primary)
-        .is_some_and(|label| is_profit_label(label));
+    let header_fields = [fields.name, fields.date, fields.account];
     CardRowData {
-        key,
-        name: text(fields.name),
-        amount_negative: amount_profit && is_negative_text(&amount),
-        amount,
-        date: short_date(&text(fields.date)).to_string(),
+        name: card_detail_value(headers[fields.name], fields.name, cells),
+        date: {
+            let date = text(fields.date);
+            if full_date {
+                date
+            } else {
+                short_date(&date).to_string()
+            }
+        },
         account: text(fields.account),
         details: order
             .iter()
+            .filter(|index| !header_fields.contains(index))
             .map(|&i| CardDetail {
                 label: headers[i].to_string(),
                 value: card_detail_value(headers[i], i, cells),
@@ -182,9 +148,13 @@ pub(crate) fn card_row_data(
 
 pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<String>) {
     match value {
-        CardDetailValue::Text { text, .. } => {
-            (view! { {text.clone()} }.into_any(), Some(text.clone()))
-        }
+        CardDetailValue::Text { text, negative } => (
+            view! {
+                <Amount text=text.clone() negative=*negative class="font-semibold" />
+            }
+            .into_any(),
+            Some(text.clone()),
+        ),
         CardDetailValue::SecurityCode(raw) => {
             let code = crate::features::receipts::model::normalize_security_code(raw);
             if code.is_empty() {
@@ -197,7 +167,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                     view! {
                         <a
                             href=href
-                            class="security-code-link font-bold"
+                            class="security-code-link inline-flex min-h-11 min-w-11 items-center justify-end font-bold"
                             data-search=code.clone()
                         >
                             {code.clone()}
@@ -216,11 +186,11 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                 view! {
                     <Button
                         variant=ButtonVariant::CopyName
-                        class="group"
+                        class="group min-h-11 min-w-11 items-center"
                         aria_label=aria_label
                         on_click=move |_| copy_to_clipboard(copy_text.clone())
                     >
-                        <span>{move || display.clone()}</span>
+                        <span class="min-w-0 break-words">{move || display.clone()}</span>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="12"
@@ -247,108 +217,47 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
 }
 
 #[component]
-fn ReceiptItemCard(
-    card: CardRowData,
-    id_prefix: String,
-    expanded_ids: RwSignal<HashSet<String>>,
-) -> impl IntoView {
-    let expanded_id = card.key.clone();
-    let toggle_id = expanded_id.clone();
-    let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&expanded_id)));
-    let button_id = format!("{id_prefix}-button");
-    let details_id = format!("{id_prefix}-details");
+fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
     let CardRowData {
         name,
-        amount,
-        amount_negative,
         date,
         account,
         details,
-        ..
     } = card;
-    let aria_label = format!("{name} {amount}");
-    let amount_class = if amount_negative {
-        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-negative-vivid"
-    } else {
-        "min-w-[8ch] shrink-0 whitespace-nowrap text-right text-base font-semibold tabular-nums text-ink"
-    };
+    let (name_view, name_title) = card_detail_view(&name);
     view! {
         <Card variant=CardVariant::Item testid="receipt-card">
-            <DisclosureToggle
-                id=button_id.clone()
-                style=DisclosureStyle::ReceiptCard
-                expanded=Signal::derive(move || expanded.get())
-                controls=details_id.clone()
-                aria_label=aria_label
-                on_toggle=move || {
-                    expanded_ids.update(|set| {
-                        if !set.remove(&toggle_id) {
-                            set.insert(toggle_id.clone());
+            <div class="flex min-w-0 flex-col gap-1.5 px-3 py-3">
+                <div
+                    class="min-w-0 break-words text-base font-semibold text-ink"
+                    title=name_title
+                >
+                    {name_view}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-text-muted">
+                    <span class="shrink-0">{date}</span>
+                    <span class="min-w-0 flex-1 break-words">{account}</span>
+                </div>
+            </div>
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-strong px-3 py-2.5">
+                {details
+                    .iter()
+                    .map(|detail| {
+                        let (content, title) = card_detail_view(&detail.value);
+                        view! {
+                            <div class="min-w-0">
+                                <dt class="text-xs text-text-muted">{detail.label.clone()}</dt>
+                                <dd
+                                    class="min-w-0 break-words text-right text-sm font-semibold text-text"
+                                    title=title
+                                >
+                                    {content}
+                                </dd>
+                            </div>
                         }
                     })
-                }
-            >
-                <span class="flex w-full items-baseline gap-2">
-                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-ink">
-                        {name}
-                    </span>
-                    <span class=amount_class>{amount}</span>
-                </span>
-                <span
-                    class="flex w-full items-center gap-2 text-xs text-text-muted"
-                    aria-hidden="true"
-                >
-                    <span class="shrink-0">{date}</span>
-                    <span class="min-w-0 flex-1 truncate">{account}</span>
-                    <ChevronIcon
-                        expanded=Signal::derive(move || expanded.get())
-                        class="h-4 w-4 shrink-0"
-                    />
-                </span>
-            </DisclosureToggle>
-            <div
-                id=details_id
-                role="region"
-                aria-labelledby=button_id
-                hidden=move || !expanded.get()
-                class="border-t border-border-strong px-3 py-2"
-            >
-                {move || {
-                    expanded
-                        .get()
-                        .then(|| {
-                            view! {
-                                <dl>
-                                    {details
-                                        .iter()
-                                        .map(|detail| {
-                                            let negative = matches!(
-                                                &detail.value,
-                                                CardDetailValue::Text { negative: true, .. }
-                                            );
-                                            let value_class = if negative {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative-vivid"
-                                            } else {
-                                                "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-text"
-                                            };
-                                            let (content, title) = card_detail_view(&detail.value);
-                                            view! {
-                                                <div class="flex items-start justify-between gap-3 border-b border-border-faint py-1.5 last:border-b-0">
-                                                    <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
-                                                        {detail.label.clone()}
-                                                    </dt>
-                                                    <dd class=value_class title=title>
-                                                        {content}
-                                                    </dd>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()}
-                                </dl>
-                            }
-                        })
-                }}
-            </div>
+                    .collect_view()}
+            </dl>
         </Card>
     }
 }
@@ -373,16 +282,7 @@ pub(crate) fn MobileCardGroup(
         <div class="mt-2 space-y-2">
             {cards
                 .into_iter()
-                .enumerate()
-                .map(|(index, card)| {
-                    view! {
-                        <ReceiptItemCard
-                            card=card
-                            id_prefix=format!("{id_prefix}-card-{index}")
-                            expanded_ids=expanded_ids
-                        />
-                    }
-                })
+                .map(|card| view! { <ReceiptItemCard card=card /> })
                 .collect_view()}
         </div>
     };

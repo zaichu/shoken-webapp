@@ -2,10 +2,9 @@ use super::*;
 
 #[test]
 fn disclosure_style_classes() {
-    let cases: [(DisclosureStyle, &str); 7] = [
+    let cases: [(DisclosureStyle, &str); 6] = [
         (DisclosureStyle::Collapsible, "collapsible-trigger"),
         (DisclosureStyle::Rail, "rail-toggle"),
-        (DisclosureStyle::ReceiptCard, "receipt-card-trigger"),
         (DisclosureStyle::GroupCard, "group-card-trigger"),
         (
             DisclosureStyle::HeaderFlat,

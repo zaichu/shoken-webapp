@@ -52,8 +52,6 @@ pub enum DisclosureStyle {
     Collapsible,
     /// レールの開閉
     Rail,
-    /// 明細の行カード
-    ReceiptCard,
     /// グループ見出し
     GroupCard,
     /// 見出しの下線についた開閉(集計情報デスクトップ)
@@ -69,7 +67,6 @@ impl DisclosureStyle {
         match self {
             Self::Collapsible => "collapsible-trigger",
             Self::Rail => "rail-toggle",
-            Self::ReceiptCard => "receipt-card-trigger",
             Self::GroupCard => "group-card-trigger",
             Self::HeaderFlat => {
                 "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left"

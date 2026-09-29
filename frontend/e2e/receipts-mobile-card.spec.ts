@@ -51,6 +51,24 @@ const FUND = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
+const DOMESTIC = {
+  id: '00000000-0000-0000-0000-000000000004',
+  trade_date: '2024-02-01',
+  settlement_date: '2024-02-03',
+  account: 'SBI証券',
+  security_code: '7974',
+  security_name: '任天堂',
+  shares: 10,
+  asked_price: 5000,
+  proceeds: 55000,
+  purchase_price: 5000,
+  realized_profit_and_loss: 5000,
+  taxes: 1015,
+  realized_profit_and_loss_after_tax: 3985,
+  created_at: '2024-02-01T00:00:00Z',
+  updated_at: '2024-02-01T00:00:00Z',
+};
+
 function paginatedResponse(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: data.length };
 }
@@ -77,6 +95,13 @@ async function mockApi(page: Page) {
       body: JSON.stringify(paginatedResponse([DIVIDEND])),
     }),
   );
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([DOMESTIC])),
+    }),
+  );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
@@ -86,7 +111,9 @@ async function mockApi(page: Page) {
   );
 }
 
-test('CSVプレビューで表示内容が同じ行でもカードは個別に開閉できる', async ({ page }) => {
+test('CSVプレビューで表示内容が同じ行でもカードは個別に全項目を表示する', async ({
+  page,
+}) => {
   await mockApi(page);
   await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
     route.fulfill({
@@ -116,82 +143,18 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
   const cards = cardList.getByTestId('receipt-card');
   await expect(cards).toHaveCount(2);
 
-  const first = cards
-    .nth(0)
-    .getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
-  const second = cards
-    .nth(1)
-    .getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
-  await first.click();
-  await expect(first).toHaveAttribute('aria-expanded', 'true');
-  await expect(second).toHaveAttribute('aria-expanded', 'false');
-  await expect(cards.nth(0).getByRole('region')).toBeVisible();
-  await expect(cards.nth(1).getByRole('region')).toBeHidden();
+  // プレビュー行も開閉なしで見出しと全項目を出す
+  for (const index of [0, 1]) {
+    const card = cards.nth(index);
+    await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+    await expect(
+      card.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
+    ).toBeVisible();
+    await expect(card.locator('dl').locator('dt')).toHaveCount(7);
+    await expect(card.locator('dl').getByText('¥2,391')).toBeVisible();
+  }
 
   await shoot(page, 'identical-cards');
-
-  await second.click();
-  await expect(second).toHaveAttribute('aria-expanded', 'true');
-  await expect(first).toHaveAttribute('aria-expanded', 'true');
-
-  await first.click();
-  await expect(first).toHaveAttribute('aria-expanded', 'false');
-  await expect(second).toHaveAttribute('aria-expanded', 'true');
-});
-
-test('CSVプレビューで前方の行を絞り込みで除外しても開閉状態は同じ行に残る', async ({
-  page,
-}) => {
-  await mockApi(page);
-  const other = {
-    ...DIVIDEND,
-    account: '大和証券',
-    security_code: '6301',
-    security_name: 'コマツ',
-  };
-  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        total_rows: 3,
-        valid_rows: 3,
-        errors: [],
-        rows: [{ ...other }, { ...DIVIDEND }, { ...DIVIDEND }],
-      }),
-    }),
-  );
-  await page.goto('/receipts');
-
-  await page.getByTestId('receipt-csv-toggle').click();
-  await page
-    .getByTestId('csv-file-input')
-    .setInputFiles(
-      path.resolve(
-        test.info().project.testDir,
-        '__fixtures__/csv/dividend-base.csv',
-      ),
-    );
-
-  const cards = page.getByTestId('receipt-card-list').getByTestId('receipt-card');
-  await expect(cards).toHaveCount(3);
-
-  const toyota = page.getByRole('button', { name: 'トヨタ自動車 ¥2,391' });
-  await toyota.nth(0).click();
-  await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
-  await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');
-
-  // 390px では検索カードは初期折り畳みのため開いてから口座「SBI証券」に絞り込み、
-  // 先頭のコマツ行を除く
-  await page.getByTestId('search-card-header').click();
-  await page
-    .getByRole('button', { name: 'SBI証券', exact: true })
-    .click();
-  await expect(cards).toHaveCount(2);
-
-  // 位置ベースのキーだと開閉状態が2番目のカードへ移ってしまう
-  await expect(toyota.nth(0)).toHaveAttribute('aria-expanded', 'true');
-  await expect(toyota.nth(1)).toHaveAttribute('aria-expanded', 'false');
 });
 
 async function expectTabInsideViewport(tab: Locator, viewportWidth: number) {
@@ -245,7 +208,7 @@ test('選択したタブは390pxでも320pxでも見切れない', async ({ page
   await expectTabInsideViewport(fund, 320);
 });
 
-test('カード一覧はスマホ幅でページ全幅を使いファンド名の省略位置がReactに近い', async ({
+test('カード一覧はスマホ幅でページ全幅を使い、長いファンド名は省略せず折り返す', async ({
   page,
 }) => {
   await mockApi(page);
@@ -260,45 +223,137 @@ test('カード一覧はスマホ幅でページ全幅を使いファンド名�
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
   const name = cardList.getByRole('button', {
-    name: /eMAXIS Slim 全世界株式\(オール・カントリー\)/,
+    name: 'eMAXIS Slim 全世界株式(オール・カントリー) をコピー',
   });
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();
-  expect(nameBox, 'ファンドカードの幅').not.toBeNull();
-  expect(nameBox!.width).toBeGreaterThanOrEqual(354);
+  expect(nameBox, 'ファンド名ボタンの幅').not.toBeNull();
+  // カード内側の余白(px-3)を引いた全幅=332
+  expect(nameBox!.width).toBeGreaterThanOrEqual(328);
 
-  // 実際に見えている接頭辞を canvas で計測し、
-  // 「eMAXIS Slim 全世界株式(」まで読めることを確認する
-  const nameText = name.locator('span.truncate').first();
-  const truncation = await nameText.evaluate((el) => {
-    const style = getComputedStyle(el);
-    const ctx = document.createElement('canvas').getContext('2d');
-    if (!ctx) {
-      return { visible: '', truncated: false };
-    }
-    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const full = el.textContent ?? '';
-    const ellipsis = ctx.measureText('…').width;
-    let lo = 0;
-    let hi = full.length;
-    while (lo < hi) {
-      const mid = Math.ceil((lo + hi) / 2);
-      if (ctx.measureText(full.slice(0, mid)).width + ellipsis <= el.clientWidth) {
-        lo = mid;
-      } else {
-        hi = mid - 1;
-      }
-    }
+  // 全文が省略されず複数行に折り返して出る
+  const wrap = await name.locator('span').first().evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const lines = new Set(
+      [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+    ).size;
     return {
-      visible: full.slice(0, lo),
-      truncated: el.scrollWidth > el.clientWidth,
+      truncated: el.scrollWidth > el.clientWidth + 1,
+      lines,
     };
   });
-  expect(truncation.truncated, 'ファンド名は省略表示される').toBe(true);
-  expect(
-    truncation.visible.startsWith('eMAXIS Slim 全世界株式('),
-    `ファンド名の省略位置が早すぎる: 「${truncation.visible}…」`,
-  ).toBe(true);
+  expect(wrap.truncated, 'ファンド名は省略しない').toBe(false);
+  expect(wrap.lines, 'ファンド名は折り返して全文を出す').toBeGreaterThanOrEqual(2);
 
   await shoot(page, 'fund-name-390');
+});
+
+test('マイナスの損益は data-negative で赤字、太さは正の値と同じ font-semibold', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginatedResponse([
+          {
+            ...DOMESTIC,
+            realized_profit_and_loss: -5000,
+            realized_profit_and_loss_after_tax: -3985,
+          },
+        ]),
+      ),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: '国内株式' }).click();
+
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
+  await expect(card).toBeVisible();
+  const ddFor = (label: string) =>
+    card
+      .locator('dl > div')
+      .filter({ has: page.getByText(label, { exact: true }) })
+      .locator('dd');
+
+  for (const [label, value] of [
+    ['損益', '-¥5,000'],
+    ['税引後', '-¥3,985'],
+  ] as const) {
+    const amount = ddFor(label).locator('span[data-negative="true"]');
+    await expect(amount).toHaveCount(1);
+    await expect(amount).toHaveText(value);
+    await expect(amount).toHaveCSS('color', 'rgb(185, 28, 28)');
+    await expect(amount).toHaveCSS('font-weight', '600');
+  }
+
+  // 損益系以外の金額は data-negative を付けず、太さも揃う
+  const proceeds = ddFor('売却額').locator('span:not([data-negative])');
+  await expect(proceeds).toHaveText('¥55,000');
+  await expect(proceeds).toHaveCSS('font-weight', '600');
+});
+
+test('見出しが年月でないグループではカードの日付を年付きで出す', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const cardList = page.getByTestId('receipt-card-list');
+  const card = cardList.getByTestId('receipt-card').first();
+  await expect(card).toBeVisible();
+  // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
+  await expect(card.getByText('03/01', { exact: true })).toBeVisible();
+
+  await page.getByTestId('search-card-header').click();
+  await page.locator('#securities-search').selectOption('7203');
+  await expect(
+    cardList.getByRole('button', { name: /トヨタ自動車 1件 税引後 ¥2,391/ }),
+  ).toBeVisible();
+
+  // 見出しが銘柄名に変わると年が分からなくなるので YYYY/MM/DD で出す
+  await expect(card.getByText('2024/03/01', { exact: true })).toBeVisible();
+  await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+});
+
+test('長い口座名は省略せず折り返して全文を出す', async ({ page }) => {
+  const longAccount =
+    'SBI証券 東京本店第一営業部 特定口座(新NISA成長投資枠・つみたて投資枠・iDeCo・ジュニアNISA兼用) 管理番号1234567890';
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginatedResponse([{ ...DOMESTIC, account: longAccount }]),
+      ),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: '国内株式' }).click();
+
+  const card = page
+    .getByTestId('receipt-card-list')
+    .getByTestId('receipt-card')
+    .first();
+  const account = card.locator('span.flex-1');
+  await expect(account).toHaveText(longAccount);
+
+  const metrics = await account.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const lines = new Set(
+      [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+    ).size;
+    return {
+      clipped: el.scrollWidth > el.clientWidth + 1,
+      lines,
+    };
+  });
+  expect(metrics.clipped, '口座名は省略しない').toBe(false);
+  expect(metrics.lines, '口座名は折り返して全文を出す').toBeGreaterThanOrEqual(2);
 });

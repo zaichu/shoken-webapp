@@ -734,7 +734,6 @@ impl ColumnTier {
 #[derive(Clone, Copy)]
 pub(crate) struct CardFields {
     pub(crate) name: usize,
-    pub(crate) primary: usize,
     pub(crate) date: usize,
     pub(crate) account: usize,
 }
@@ -747,16 +746,20 @@ pub(crate) struct TableGroup {
     pub(crate) rows: Vec<(Option<String>, String, Vec<ReceiptCell>)>,
 }
 
-pub(crate) fn group_label(key: &str) -> String {
-    let is_date = (key.len() == 7 || key.len() == 10)
+// 検索語が銘柄名・口座などに一致したグループはキーが日付形にならない
+pub(crate) fn is_date_group_key(key: &str) -> bool {
+    (key.len() == 7 || key.len() == 10)
         && key.bytes().enumerate().all(|(i, b)| {
             if i == 4 || i == 7 {
                 b == b'-'
             } else {
                 b.is_ascii_digit()
             }
-        });
-    if !is_date {
+        })
+}
+
+pub(crate) fn group_label(key: &str) -> String {
+    if !is_date_group_key(key) {
         return key.to_string();
     }
     let parts: Vec<_> = key.split('-').collect();
@@ -955,7 +958,6 @@ impl ReceiptKind for DividendKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 4,
-        primary: 9,
         date: 0,
         account: 2,
     };
@@ -1107,7 +1109,6 @@ impl ReceiptKind for DomesticStockKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 2,
-        primary: 10,
         date: 0,
         account: 3,
     };
@@ -1232,7 +1233,6 @@ impl ReceiptKind for MutualFundKind {
     ];
     const CARD_FIELDS: CardFields = CardFields {
         name: 1,
-        primary: 9,
         date: 0,
         account: 2,
     };

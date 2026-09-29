@@ -1,10 +1,11 @@
 use super::cards::{
-    card_key, card_ordinal, card_row_data, is_negative_text, is_profit_label, preview_row_ordinals,
-    summary_is_profit, CardRowData, MobileCardGroup,
+    card_row_data, is_negative_text, is_profit_label, summary_is_profit, CardRowData,
+    MobileCardGroup,
 };
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::kind::is_date_group_key;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
@@ -13,7 +14,7 @@ use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use leptos::ev;
 use leptos::prelude::*;
 use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
@@ -83,7 +84,6 @@ pub(crate) fn ReceiptTable(
     let fields = tab.card_fields();
     let labels = tab.summary_labels();
     let slug = TAB_IDS[tab as usize];
-    let mut card_ordinals: HashMap<String, VecDeque<usize>> = preview_row_ordinals(&all_rows);
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -93,19 +93,11 @@ pub(crate) fn ReceiptTable(
                 .copied()
                 .zip(group.summary.iter().cloned())
                 .collect();
+            let full_date = !is_date_group_key(&group.key);
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(id, raw_key, cells)| {
-                    let ordinal = card_ordinal(&mut card_ordinals, id.as_deref(), raw_key);
-                    card_row_data(
-                        card_key(slug, id.as_deref(), raw_key, ordinal),
-                        cells,
-                        headers,
-                        &order,
-                        fields,
-                    )
-                })
+                .map(|(_, _, cells)| card_row_data(cells, headers, &order, fields, full_date))
                 .collect();
             (
                 group_index,
