@@ -458,6 +458,25 @@ fn begin_file_preview_stops_old_poll_and_clears_dividends() {
 }
 
 #[test]
+fn has_current_balances_only_matches_same_generation() {
+    let generation = Generation::new(1);
+    let other = Generation::new(2);
+    let slot: BalanceSlot = Some((
+        generation,
+        Ok(LoadedAssetBalances {
+            rows: vec![balance_row(7203)],
+            total: 1,
+            summary: None,
+            facets: None,
+            truncated: false,
+        }),
+    ));
+    assert!(has_current_balances(&slot, generation));
+    assert!(!has_current_balances(&slot, other));
+    assert!(!has_current_balances(&None, generation));
+}
+
+#[test]
 fn data_ops_reset_clears_inflight_and_error() {
     let mut ops = DataOps {
         list_rev: 2,
