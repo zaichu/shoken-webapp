@@ -7,6 +7,10 @@ import {
   mutualFundsFixture,
 } from './__fixtures__/receipts-print';
 
+function csvFixture(name: string): string {
+  return path.resolve(test.info().project.testDir, '__fixtures__/csv', name);
+}
+
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
   email: 'test@example.com',
@@ -286,8 +290,43 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   await page.getByRole('tab', { name: '国内株式' }).click();
   await expect(page.getByTestId('list-load-error')).toBeVisible();
   await expect(rail).toBeVisible();
-  await expect(rail.getByTestId('csv-file-input')).toBeEnabled();
+  const fileInput = rail.getByTestId('csv-file-input');
+  await expect(fileInput).toBeEnabled();
   await expect(rail.getByTestId('search-card')).toBeVisible();
+
+  // 失敗タブで CSV プレビューが出ると main stage も描画されるが、
+  // 表示で強制 open のレールと食い違う開閉トグルは出さない
+  await page.route(/\/api\/v1\/domestic-stock-import-validations$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 1,
+        valid_rows: 1,
+        errors: [],
+        rows: [
+          {
+            trade_date: '2026-01-20',
+            settlement_date: '2026-01-23',
+            security_code: '9104',
+            security_name: '商船三井',
+            account: '特定',
+            shares: 50,
+            asked_price: 5200,
+            proceeds: 260000,
+            purchase_price: 4800,
+            realized_profit_and_loss: 20000,
+            taxes: 4063,
+            realized_profit_and_loss_after_tax: 15937,
+          },
+        ],
+      }),
+    }),
+  );
+  await fileInput.setInputFiles(csvFixture('domesticstock-base.csv'));
+  await expect(page.getByText('1件 追加で保存されます')).toBeVisible();
+  await expect(page.getByTestId('receipt-preview-banner')).toBeVisible();
+  await expect(page.getByTestId('receipt-utility-toggle')).toHaveCount(0);
 
   // 戻るとユーザーの決定(畳み)が残り、トグルで開閉できる
   await page.getByRole('tab', { name: '配当金' }).click();

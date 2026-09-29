@@ -21,6 +21,8 @@ pub(crate) fn ReceiptsMainContent(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     data: ReceiptTabData,
+    // 取得失敗タブではレールが表示上強制的に開くため、開閉状態と齟齬するトグルは出さない
+    rail_toggle: bool,
 ) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
@@ -72,12 +74,16 @@ pub(crate) fn ReceiptsMainContent(
         });
     }
     view! {
-        <UtilityRailToggle
-            store=store
-            tab=tab
-            filtered=filtered
-            total=Signal::derive(move || display_rows.get().len())
-        />
+        {rail_toggle.then(|| {
+            view! {
+                <UtilityRailToggle
+                    store=store
+                    tab=tab
+                    filtered=filtered
+                    total=Signal::derive(move || display_rows.get().len())
+                />
+            }
+        })}
         {move || {
             let display = display_rows.get();
             if display.is_empty() {

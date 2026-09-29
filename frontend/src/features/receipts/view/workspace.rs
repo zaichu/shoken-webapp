@@ -193,8 +193,15 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 {move || match panel_state.get() {
                     TabState::Loading => view! { <ListSkeleton /> }.into_any(),
                     TabState::Ready(data) => {
-                        view! { <ReceiptsMainContent store=main_store tab=tab data=data /> }
-                            .into_any()
+                        view! {
+                            <ReceiptsMainContent
+                                store=main_store
+                                tab=tab
+                                data=data
+                                rail_toggle=true
+                            />
+                        }
+                        .into_any()
                     }
                     TabState::Failed(message) => {
                         let retry_store = main_store;
@@ -205,6 +212,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                                         store=main_store
                                         tab=tab
                                         data=empty_tab_data()
+                                        rail_toggle=false
                                     />
                                 </div>
                             }
