@@ -81,7 +81,12 @@ pub(crate) fn PortfolioSummary(
             percentage,
         })
         .collect();
-    let composition_items = chart_items.clone();
+    // 帯・凡例は構成比を持つ行だけ。取得額0の行はカードには出すが帯には置かない
+    let composition_items: Vec<ChartItem> = chart_items
+        .iter()
+        .filter(|item| item.percentage.is_some())
+        .cloned()
+        .collect();
     let composition_percentages: Vec<Option<f64>> = composition_items
         .iter()
         .map(|item| item.percentage)
@@ -174,11 +179,6 @@ pub(crate) fn PortfolioSummary(
         }
         .into_any()
     });
-
-    if total_purchase_amount == 0.0 {
-        show_all.set(false);
-        return ().into_any();
-    }
 
     view! {
         <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">

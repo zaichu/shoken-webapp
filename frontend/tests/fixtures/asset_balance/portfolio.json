@@ -23,24 +23,34 @@
       "expected_percentages": [50, 12.5, 12.5, 12.5, 12.5]
     },
     {
-      "name": "excludes_zero_purchase",
+      "name": "zero_purchase_rows_sort_last_without_percentage",
       "items": [
         { "id": "zero_1", "purchase": 0 },
         { "id": "kept", "purchase": 100000 },
         { "id": "zero_2", "purchase": 0 },
         { "id": "zero_3", "purchase": 0 }
       ],
-      "expected_ids": ["kept"],
-      "expected_percentages": [100]
+      "expected_ids": ["kept", "zero_1", "zero_2", "zero_3"],
+      "expected_percentages": [100, null, null, null]
     },
     {
-      "name": "zero_purchase_rows_are_excluded",
+      "name": "zero_purchase_sorts_after_valued_rows",
+      "items": [
+        { "id": "pos", "purchase": 100000 },
+        { "id": "zero", "purchase": 0 },
+        { "id": "neg", "purchase": -300000 }
+      ],
+      "expected_ids": ["neg", "pos", "zero"],
+      "expected_percentages": [75, 25, null]
+    },
+    {
+      "name": "all_zero_purchase_rows_keep_input_order",
       "items": [
         { "id": "b", "purchase": 0 },
         { "id": "a", "purchase": 0 }
       ],
-      "expected_ids": [],
-      "expected_percentages": []
+      "expected_ids": ["b", "a"],
+      "expected_percentages": [null, null]
     },
     {
       "name": "empty_items",
@@ -206,7 +216,7 @@
       ]
     },
     {
-      "name": "zero_purchase_21_items_are_excluded",
+      "name": "zero_purchase_21_items_still_list",
       "items": [
         { "id": "z01", "purchase": 0 },
         { "id": "z02", "purchase": 0 },
@@ -233,17 +243,24 @@
       "expectations": [
         {
           "show_all": false,
-          "visible_ids": [],
+          "visible_ids": [
+            "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
+            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20"
+          ],
           "others": null,
-          "toggle_label": null,
-          "grid_class": "grid grid-cols-1 gap-3"
+          "toggle_label": "残り1銘柄を表示（全21）",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         },
         {
           "show_all": true,
-          "visible_ids": [],
+          "visible_ids": [
+            "z01", "z02", "z03", "z04", "z05", "z06", "z07", "z08", "z09", "z10",
+            "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20",
+            "z21"
+          ],
           "others": null,
-          "toggle_label": null,
-          "grid_class": "grid grid-cols-1 gap-3"
+          "toggle_label": "上位20件のみ表示",
+          "grid_class": "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         }
       ]
     },

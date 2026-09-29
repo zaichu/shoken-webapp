@@ -351,7 +351,7 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
 }
 
 #[test]
-fn show_all_resets_when_summary_stops_drawing_the_chart() {
+fn show_all_resets_only_when_summary_has_no_rows() {
     let owner = Owner::new();
     owner.with(|| {
         let dividends = RwSignal::new(DividendMaps::default());
@@ -378,19 +378,17 @@ fn show_all_resets_when_summary_stops_drawing_the_chart() {
         assert!(!show_all.get_untracked());
 
         show_all.set(true);
+        // 取得額0でも行がある限りサマリーと保有カードは描くので show_all は維持される
         let mut zero = balance_row(9999);
         zero.total_purchase_amount = rust_decimal_macros::dec!(0);
         let _ = summary_view(vec![holding_view(&zero)]);
-        assert!(!show_all.get_untracked());
+        assert!(show_all.get_untracked());
 
         let _ = summary_view(views);
-        assert!(!show_all.get_untracked());
+        assert!(show_all.get_untracked());
         let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
-        assert_eq!(display.visible_count, 20);
-        assert_eq!(
-            display.toggle_label.as_deref(),
-            Some("残り1銘柄を表示（全21）")
-        );
+        assert_eq!(display.visible_count, 21);
+        assert_eq!(display.toggle_label.as_deref(), Some("上位20件のみ表示"));
     });
 }
 

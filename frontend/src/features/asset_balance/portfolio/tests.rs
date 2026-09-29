@@ -84,7 +84,7 @@ fn assert_percentage(actual: Option<f64>, expected: &Option<f64>, case: &str, in
 #[test]
 fn shared_order_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.order_cases.len(), 6);
+    assert_eq!(fixture.order_cases.len(), 7);
     for case in &fixture.order_cases {
         let plan = plan_for(&case.items);
         assert_eq!(

@@ -6,8 +6,8 @@ use std::cmp::Ordering;
 /// デフォルト表示件数。
 pub const TOP_ITEMS: usize = 20;
 
-/// チャートの並び結果。`order` は表示順に並んだ入力インデックス、
-/// `percentages` は同じ並びの未丸め構成比(分母0で算出不可は `None`)。
+/// チャートの並び結果。`order` は表示順に並んだ全入力のインデックス、
+/// `percentages` は同じ並びの未丸め構成比(取得額0・分母0で算出不可は `None`)。
 #[derive(Clone, Debug)]
 pub struct ChartPlan {
     pub order: Vec<usize>,
@@ -15,21 +15,32 @@ pub struct ChartPlan {
 }
 
 /// チャートの並びを求める。`values` は各行の取得総額。
-/// 構成比は取得額の絶対値で出すため、取得額が 0 の行は帯に置けず除外する。
+/// `order` は全行を含む(保有カードは構成比を持たない行も表示するため)。
+/// 構成比は取得額の絶対値で出し、取得額 0 の行は分母に入らないため `None` とし、
+/// `order` では `Some` の行より後ろに置く。
 ///
 /// 取得額降順→構成比降順の二段の安定ソートを踏む。構成比が `None` 同士の
-/// 比較は「等しい」扱いで入力順を保つため、合計が0以下でも同じ手順にする。
+/// 比較は「等しい」扱いで入力順を保つ。
 pub fn chart_plan(values: &[f64]) -> ChartPlan {
-    let mut order: Vec<usize> = (0..values.len())
-        .filter(|&index| values[index] != 0.0)
-        .collect();
+    let mut order: Vec<usize> = (0..values.len()).collect();
     order.sort_by(|&a, &b| values[b].total_cmp(&values[a]));
-    let kept_values: Vec<f64> = order.iter().map(|&index| values[index]).collect();
-    let percentages = chart_percentages(&kept_values);
-    let mut paired: Vec<(usize, Option<f64>)> = order.into_iter().zip(percentages).collect();
+    let all_percentages = chart_percentages(values);
+    let mut paired: Vec<(usize, Option<f64>)> = order
+        .into_iter()
+        .map(|index| {
+            let percentage = all_percentages
+                .get(index)
+                .copied()
+                .flatten()
+                .filter(|_| values[index] != 0.0);
+            (index, percentage)
+        })
+        .collect();
     paired.sort_by(|a, b| match (b.1, a.1) {
         (Some(rhs), Some(lhs)) => rhs.total_cmp(&lhs),
-        _ => Ordering::Equal,
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
     });
     let (order, percentages) = paired.into_iter().unzip();
     ChartPlan { order, percentages }

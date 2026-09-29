@@ -38,9 +38,17 @@ function jsonResponse(body: unknown, status = 200) {
   };
 }
 
-async function setupAssetBalanceMocks(page: Page) {
+async function setupAssetBalanceMocks(
+  page: Page,
+  holdings: ReturnType<typeof holding>[] = HOLDINGS,
+) {
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill(jsonResponse(MOCK_USER)),
+  );
+
+  const totalPurchase = holdings.reduce(
+    (sum, h) => sum + h.total_purchase_amount,
+    0,
   );
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
@@ -49,17 +57,17 @@ async function setupAssetBalanceMocks(page: Page) {
     }
     return route.fulfill(
       jsonResponse({
-        data: HOLDINGS,
-        total: HOLDINGS.length,
+        data: holdings,
+        total: holdings.length,
         page: 1,
         per_page: 1000,
         summary: {
-          total_purchase_amount: 72110000,
-          total_market_value: 72120000,
+          total_purchase_amount: totalPurchase,
+          total_market_value: totalPurchase,
           total_daily_change: 0,
         },
         facets: {
-          securities: HOLDINGS.map((h) => ({
+          securities: holdings.map((h) => ({
             value: h.security_code,
             label: h.security_name,
             count: 1,
@@ -169,4 +177,34 @@ test('390px の保有カードは銘柄コードが銘柄名の左に並ぶ', as
   expect(codeBox).not.toBeNull();
   expect(nameBox).not.toBeNull();
   expect(codeBox!.x).toBeLessThan(nameBox!.x);
+});
+
+test('取得額が0の銘柄も保有カードに残り、帯と凡例からは外れる', async ({
+  page,
+}) => {
+  const gifted = { ...holding(2, 0), security_name: '贈与銘柄' };
+  await setupAssetBalanceMocks(page, [holding(1, 100_000), gifted]);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/assetbalance');
+
+  // 保有数は2銘柄のまま、カードも2枚出る
+  await expect(page.getByTestId('portfolio-kpi-grid')).toContainText('2');
+  await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(2);
+  const giftedCard = page
+    .getByTestId('portfolio-card-identity')
+    .filter({ hasText: '贈与銘柄' });
+  await expect(giftedCard).toHaveCount(1);
+
+  // 0円銘柄のカードは構成比を算出不可として出す(有価額のカードは 100.0% 側)
+  await expect(page.getByText('構成比 —')).toHaveCount(1);
+
+  // 帯グラフと凡例には取得額を持つ1銘柄だけが出る
+  const composition = page.getByTestId('portfolio-composition');
+  await expect(
+    composition.locator('div[aria-hidden="true"] > div'),
+  ).toHaveCount(1);
+  const legend = composition.locator('ul > li');
+  await expect(legend).toHaveCount(1);
+  await expect(legend.first()).toContainText('銘柄01');
+  await expect(legend.first()).toContainText('100.0%');
 });
