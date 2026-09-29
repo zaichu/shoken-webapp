@@ -1,6 +1,6 @@
 //! 資産管理の構成比チャートの並びと表示計画の純粋ロジック。
 
-use crate::features::asset_balance::model::{chart_percentages, should_include_chart_item};
+use crate::features::asset_balance::model::chart_percentages;
 use std::cmp::Ordering;
 
 /// デフォルト表示件数。
@@ -14,20 +14,18 @@ pub struct ChartPlan {
     pub percentages: Vec<Option<f64>>,
 }
 
-/// チャートの並びを求める。`values`(取得総額)と `markets`(評価額)は同じ長さで、
-/// インデックスが同じ要素どうし対応する。
+/// チャートの並びを求める。`values` は各行の取得総額。
+/// 構成比は取得額の絶対値で出すため、取得額が 0 の行は帯に置けず除外する。
 ///
 /// 取得額降順→構成比降順の二段の安定ソートを踏む。構成比が `None` 同士の
 /// 比較は「等しい」扱いで入力順を保つため、合計が0以下でも同じ手順にする。
-pub fn chart_plan(values: &[f64], markets: &[Option<f64>]) -> ChartPlan {
-    debug_assert_eq!(values.len(), markets.len());
+pub fn chart_plan(values: &[f64]) -> ChartPlan {
     let mut order: Vec<usize> = (0..values.len())
-        .filter(|&index| should_include_chart_item(Some(values[index]), markets[index]))
+        .filter(|&index| values[index] != 0.0)
         .collect();
     order.sort_by(|&a, &b| values[b].total_cmp(&values[a]));
     let kept_values: Vec<f64> = order.iter().map(|&index| values[index]).collect();
-    let kept_markets: Vec<Option<f64>> = order.iter().map(|&index| markets[index]).collect();
-    let percentages = chart_percentages(&kept_values, &kept_markets);
+    let percentages = chart_percentages(&kept_values);
     let mut paired: Vec<(usize, Option<f64>)> = order.into_iter().zip(percentages).collect();
     paired.sort_by(|a, b| match (b.1, a.1) {
         (Some(rhs), Some(lhs)) => rhs.total_cmp(&lhs),

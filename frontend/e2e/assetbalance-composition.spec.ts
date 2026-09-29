@@ -7,7 +7,7 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-function holding(index: number, purchase: number, market?: number) {
+function holding(index: number, purchase: number) {
   return {
     id: `asset-balance-${index}`,
     created_at: '2026-01-01T00:00:00Z',
@@ -20,8 +20,6 @@ function holding(index: number, purchase: number, market?: number) {
     total_purchase_amount: purchase,
     current_price: 100,
     daily_change: 0,
-    market_value: market ?? purchase,
-    profit_loss_rate: 0,
   };
 }
 
@@ -29,7 +27,7 @@ function holding(index: number, purchase: number, market?: number) {
 const HOLDINGS = [
   holding(1, 70_000_000),
   ...Array.from({ length: 20 }, (_, i) => holding(i + 2, (20 - i) * 10_000)),
-  holding(22, -10_000, 10_000),
+  holding(22, -10_000),
 ];
 
 function jsonResponse(body: unknown, status = 200) {
@@ -122,6 +120,16 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   });
   await expect(twentiethCard).toHaveCount(1);
   await expect(twentiethCard).toContainText('銘柄20');
+
+  // カード内の構成比バーも同じ位置トークンを使う
+  const firstBar = firstCard.getByTestId('portfolio-card-composition-bar');
+  await expect(firstBar).toHaveClass(/bg-holding-1\b/);
+  const twentiethBar = twentiethCard.getByTestId('portfolio-card-composition-bar');
+  await expect(twentiethBar).toHaveClass(/bg-holding-20\b/);
+
+  // 銘柄コードは flush バッジ(左余白なし)でカード左端に揃う
+  const code = firstCard.getByTestId('portfolio-card-code');
+  await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
 });
 
 test('保有カードの取得総額は8桁の金額でも省略されない', async ({ page }) => {
@@ -145,15 +153,16 @@ test('390px の保有カードは銘柄コードが銘柄名の左に並ぶ', as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
 
-  const card = page.getByTestId('portfolio-valuation-card').first();
+  const card = page.getByTestId('portfolio-holding-card').first();
   await expect(card).toHaveClass(/border-l-holding-1\b/);
 
-  const code = card.getByTestId('portfolio-valuation-card-code');
+  const code = card.getByTestId('portfolio-holding-card-code');
   await expect(code).toBeVisible();
+  await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
   const firstChildTestId = await code
     .locator('xpath=..')
     .evaluate((el) => el.firstElementChild?.getAttribute('data-testid'));
-  expect(firstChildTestId).toBe('portfolio-valuation-card-code');
+  expect(firstChildTestId).toBe('portfolio-holding-card-code');
 
   const codeBox = await code.boundingBox();
   const nameBox = await card.getByText('銘柄01').boundingBox();

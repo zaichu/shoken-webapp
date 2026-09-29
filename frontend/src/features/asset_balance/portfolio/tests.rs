@@ -7,7 +7,6 @@ const PERCENTAGE_TOLERANCE: f64 = 1e-9;
 struct FixtureItem {
     id: String,
     purchase: f64,
-    market: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -56,8 +55,7 @@ fn fixture() -> Fixture {
 
 fn plan_for(items: &[FixtureItem]) -> ChartPlan {
     let values: Vec<f64> = items.iter().map(|item| item.purchase).collect();
-    let markets: Vec<Option<f64>> = items.iter().map(|item| item.market).collect();
-    chart_plan(&values, &markets)
+    chart_plan(&values)
 }
 
 fn sorted_ids<'a>(items: &'a [FixtureItem], plan: &ChartPlan) -> Vec<&'a str> {

@@ -3,12 +3,10 @@ use super::palette::holding_bar_class;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
     dec_to_f64, format_currency, format_fixed_percent, format_percentage_value,
-    format_valuation_amount, format_valuation_rate, valuation_tone,
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
-    calculate_portfolio_kpi, summarize_valuation_with_summary, total_purchase_amount, KpiHolding,
-    SummaryOverride, ValuationItem, ValuationSummary,
+    calculate_portfolio_kpi, total_purchase_amount, KpiHolding,
 };
 use crate::features::asset_balance::portfolio::{chart_display, chart_plan};
 use crate::features::dividend_per_share::DividendMaps;
@@ -24,41 +22,6 @@ use leptos::prelude::*;
 pub(crate) struct ChartItem {
     pub(crate) view: HoldingView,
     pub(crate) percentage: Option<f64>,
-}
-
-pub(crate) fn valuation_summary_override(
-    views: &[HoldingView],
-    summary: Option<&AssetBalanceSummary>,
-) -> Option<SummaryOverride> {
-    summary
-        .map(|summary| SummaryOverride {
-            total_purchase_amount: summary.total_purchase_amount,
-            total_market_value: summary.total_market_value,
-        })
-        .or_else(|| {
-            SummaryOverride::sum(
-                views
-                    .iter()
-                    .map(|view| (view.market_dec, view.purchase_dec)),
-            )
-        })
-}
-
-pub(crate) fn portfolio_valuation(
-    views: &[HoldingView],
-    summary: Option<&AssetBalanceSummary>,
-) -> ValuationSummary {
-    let valuation_items: Vec<ValuationItem> = views
-        .iter()
-        .map(|view| ValuationItem {
-            market_value: Some(view.market),
-            total_purchase_amount: Some(view.purchase),
-        })
-        .collect();
-    summarize_valuation_with_summary(
-        &valuation_items,
-        valuation_summary_override(views, summary).as_ref(),
-    )
 }
 
 #[component]
@@ -90,8 +53,6 @@ pub(crate) fn PortfolioSummary(
         }
         .into_any();
     }
-    let valuation = portfolio_valuation(&views, summary.as_ref());
-    let (valuation_class, valuation_negative) = valuation_tone(valuation.amount);
     let kpi_holdings: Vec<KpiHolding> = views
         .iter()
         .map(|view| KpiHolding {
@@ -110,8 +71,7 @@ pub(crate) fn PortfolioSummary(
 
     let display_count = views.len();
     let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
-    let chart_markets: Vec<Option<f64>> = views.iter().map(|view| Some(view.market)).collect();
-    let plan = chart_plan(&chart_values, &chart_markets);
+    let plan = chart_plan(&chart_values);
     let chart_items: Vec<ChartItem> = plan
         .order
         .iter()
@@ -215,8 +175,7 @@ pub(crate) fn PortfolioSummary(
         .into_any()
     });
 
-    let market_value = valuation.market_value;
-    if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
+    if total_purchase_amount == 0.0 {
         show_all.set(false);
         return ().into_any();
     }
@@ -247,52 +206,6 @@ pub(crate) fn PortfolioSummary(
                 >
                     "資産サマリー"
                 </SectionHeader>
-                <div class="mt-4" data-testid="portfolio-valuation-summary">
-                    <p class="text-sm font-medium text-text-muted">"保有資産の評価額"</p>
-                    <Amount
-                        block=true
-                        text=market_value.map_or("—".to_string(), format_currency)
-                        class="mt-1 text-3xl font-black text-ink"
-                    />
-                    <p
-                        class=format!("mt-2 text-sm font-bold {valuation_class}")
-                        data-negative=valuation_negative
-                    >
-                        "評価損益 "
-                        <Amount
-                            text=match valuation.amount {
-                                None => "—".to_string(),
-                                Some(amount) => {
-                                    match valuation.rate {
-                                        None => {
-                                            format!(
-                                                "{}（算出不可）",
-                                                format_valuation_amount(Some(amount)),
-                                            )
-                                        }
-                                        Some(rate) => {
-                                            format!(
-                                                "{}（{}）",
-                                                format_valuation_amount(Some(amount)),
-                                                format_valuation_rate(Some(rate), 1),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        />
-                    </p>
-                    <p class="mt-1 text-xs text-text-subtle">"取込データ時点"</p>
-                    {valuation
-                        .incomplete
-                        .then(|| {
-                            view! {
-                                <p class="mt-1 text-xs text-accent-deep">
-                                    "一部の銘柄の評価額が不足しているため、合計を算出できません"
-                                </p>
-                            }
-                        })}
-                </div>
                 <div
                     class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
                     data-testid="portfolio-kpi-grid"

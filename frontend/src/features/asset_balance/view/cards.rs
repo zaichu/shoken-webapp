@@ -1,15 +1,10 @@
 use super::palette::{holding_band_class, holding_bar_class};
 use super::summary::ChartItem;
-use crate::features::asset_balance::format::{
-    format_currency, format_fixed_percent, format_valuation_amount, format_valuation_rate,
-    valuation_tone,
-};
+use crate::features::asset_balance::format::{format_currency, format_fixed_percent};
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
-use crate::features::asset_balance::model::{
-    calculate_valuation_from_decimal, format_number_value,
-};
+use crate::features::asset_balance::model::format_number_value;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::badge::CodeBadge;
@@ -17,35 +12,6 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::SecurityCodeLink;
 use leptos::prelude::*;
-
-struct ValuationDisplay {
-    market: String,
-    profit_loss: String,
-    class: &'static str,
-    negative: Option<&'static str>,
-}
-
-fn valuation_display(item: &ChartItem) -> ValuationDisplay {
-    let valuation = calculate_valuation_from_decimal(item.view.market_dec, item.view.purchase_dec);
-    let (class, negative) = valuation_tone(valuation.amount);
-    let profit_loss = match valuation.amount {
-        None => "—".to_string(),
-        Some(amount) => match valuation.rate {
-            None => format!("{}（算出不可）", format_valuation_amount(Some(amount))),
-            Some(rate) => format!(
-                "{}（{}）",
-                format_valuation_amount(Some(amount)),
-                format_valuation_rate(Some(rate), 1),
-            ),
-        },
-    };
-    ValuationDisplay {
-        market: format_currency(item.view.market),
-        profit_loss,
-        class,
-        negative,
-    }
-}
 
 #[component]
 pub(crate) fn HoldingCard(
@@ -55,7 +21,6 @@ pub(crate) fn HoldingCard(
 ) -> impl IntoView {
     let band_class = holding_band_class(index);
     let bar_class = holding_bar_class(index);
-    let valuation = valuation_display(&item);
     let code = item.view.code.clone();
     let shares = item.view.shares;
     let average_price = item.view.average_price;
@@ -92,31 +57,12 @@ pub(crate) fn HoldingCard(
                 </div>
             </div>
 
-            <div class="mt-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1" data-testid="portfolio-card-valuation">
-                <div>
-                    <p class="text-xs font-medium text-text-subtle">"評価額"</p>
-                    <Amount
-                        block=true
-                        text=valuation.market
-                        class="whitespace-nowrap text-lg font-bold text-ink"
-                    />
-                </div>
-                <div class="ml-auto text-right">
-                    <p class="text-xs font-medium text-text-subtle">"評価損益"</p>
-                    <Amount
-                        block=true
-                        text=valuation.profit_loss
-                        class=format!("whitespace-nowrap text-sm font-bold {}", valuation.class)
-                        negative=valuation.negative.is_some()
-                    />
-                </div>
-            </div>
-
             <div class="mt-2.5 flex items-center gap-2">
                 <div class="h-2 flex-1 rounded-full bg-surface-raised">
                     <div
                         class=format!("h-full rounded-full transition-all duration-300 {bar_class}")
                         style=format!("width: {bar_width}")
+                        data-testid="portfolio-card-composition-bar"
                     />
                 </div>
                 <span class="shrink-0 text-xs font-medium tabular-nums text-text-subtle">
@@ -157,7 +103,7 @@ pub(crate) fn HoldingCard(
                         {format!("{}株", format_number_value(item.view.shares))}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-t border-border-subtle/80 border-border-faint px-2 py-2 text-xs text-text-muted">
+                <div class="min-w-0 border-l border-t border-l-border-subtle/80 border-t-border-faint px-2 py-2 text-xs text-text-muted">
                     <p class="truncate text-xs font-medium text-text-subtle">"1株配当"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.per_share.is_some()))
@@ -175,7 +121,7 @@ pub(crate) fn HoldingCard(
                         {move || dividend.with(format_dividend_annual)}
                     </p>
                 </div>
-                <div class="min-w-0 border-l border-t border-border-subtle/80 border-border-faint px-2 py-2 text-xs text-text-muted">
+                <div class="min-w-0 border-l border-t border-l-border-subtle/80 border-t-border-faint px-2 py-2 text-xs text-text-muted">
                     <p class="truncate text-xs font-medium text-text-subtle">"配当利回り"</p>
                     <p
                         class=move || dividend_class(dividend.with(|d| d.yield_value.is_some()))
@@ -190,19 +136,14 @@ pub(crate) fn HoldingCard(
 }
 
 #[component]
-pub(crate) fn HoldingValuationCard(
+pub(crate) fn HoldingMobileCard(
     item: ChartItem,
     index: usize,
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
-    let ValuationDisplay {
-        market: market_display,
-        profit_loss,
-        class: valuation_class,
-        negative: valuation_negative,
-    } = valuation_display(&item);
+    let purchase_display = format_currency(item.view.purchase);
     let current_price_display = format_currency(item.view.current_price);
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
@@ -214,7 +155,7 @@ pub(crate) fn HoldingValuationCard(
         <Card
             variant=CardVariant::Holding
             class=format!("border-l-4 {band_class} sm:hidden")
-            testid="portfolio-valuation-card"
+            testid="portfolio-holding-card"
         >
             <DisclosureToggle
                 style=DisclosureStyle::AssetCard
@@ -223,27 +164,19 @@ pub(crate) fn HoldingValuationCard(
                 on_toggle=move || open.update(|value| *value = !*value)
             >
                 <span class="flex min-w-0 items-center gap-2">
-                    <CodeBadge flush=true testid="portfolio-valuation-card-code">
+                    <CodeBadge flush=true testid="portfolio-holding-card-code">
                         {code_text}
                     </CodeBadge>
                     <span class="min-w-0 flex-1 truncate text-base font-semibold text-text">
                         {name_text}
                     </span>
                 </span>
-                <span class="mt-2 flex items-baseline justify-between gap-2">
-                    <span class="shrink-0 text-xs font-medium text-text-subtle">"評価額"</span>
-                    <Amount
-                        class="truncate text-base font-bold text-text"
-                        text=market_display
-                    />
-                </span>
                 <span class="mt-2 flex items-center justify-between gap-2">
-                    <span class="shrink-0 text-xs font-medium text-text-subtle">"評価損益"</span>
+                    <span class="shrink-0 text-xs font-medium text-text-subtle">"取得総額"</span>
                     <span class="flex min-w-0 items-center gap-1">
                         <Amount
-                            class=format!("truncate text-sm font-bold {valuation_class}")
-                            negative=valuation_negative.is_some()
-                            text=profit_loss
+                            class="truncate text-base font-bold text-text"
+                            text=purchase_display
                         />
                         <span aria-hidden="true" class="shrink-0 text-xs text-text-faint">
                             {move || if open.get() { "▴" } else { "▾" }}

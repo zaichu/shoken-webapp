@@ -88,7 +88,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         <PageHeader
             title="資産管理"
             eyebrow="Portfolio"
-            description="保有している銘柄の一覧と評価額を確認できます。"
+            description="保有している銘柄の一覧と取得額の内訳を確認できます。"
         />
         <div
             class="mt-2"

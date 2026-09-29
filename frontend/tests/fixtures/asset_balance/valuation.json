@@ -55,69 +55,6 @@
       "expected": { "amount": 0, "rate": null }
     }
   ],
-  "summary_cases": [
-    {
-      "name": "weighted_total_not_average",
-      "items": [
-        { "market_value": 200, "total_purchase_amount": 100 },
-        { "market_value": 900, "total_purchase_amount": 900 }
-      ],
-      "expected": { "marketValue": 1100, "amount": 100, "rate": 10, "incomplete": false }
-    },
-    {
-      "name": "same_rate_holdings",
-      "items": [
-        { "market_value": 110, "total_purchase_amount": 100 },
-        { "market_value": 220, "total_purchase_amount": 200 }
-      ],
-      "expected": { "marketValue": 330, "amount": 30, "rate": 10, "incomplete": false }
-    },
-    {
-      "name": "incomplete_null_market",
-      "items": [
-        { "market_value": 100, "total_purchase_amount": 80 },
-        { "market_value": null, "total_purchase_amount": 20 }
-      ],
-      "expected": { "marketValue": null, "amount": null, "rate": null, "incomplete": true }
-    },
-    {
-      "name": "incomplete_dash_market",
-      "items": [
-        { "market_value": "-", "total_purchase_amount": 100 },
-        { "market_value": 200, "total_purchase_amount": 100 }
-      ],
-      "expected": { "marketValue": null, "amount": null, "rate": null, "incomplete": true }
-    },
-    {
-      "name": "zero_purchase_total",
-      "items": [
-        { "market_value": 100000, "total_purchase_amount": 0 },
-        { "market_value": 50000, "total_purchase_amount": 0 }
-      ],
-      "expected": { "marketValue": 150000, "amount": 150000, "rate": null, "incomplete": false }
-    },
-    {
-      "name": "empty_items",
-      "items": [],
-      "expected": { "marketValue": 0, "amount": 0, "rate": null, "incomplete": false }
-    },
-    {
-      "name": "comma_strings",
-      "items": [
-        { "market_value": "260,000", "total_purchase_amount": "250,000" },
-        { "market_value": "650,000", "total_purchase_amount": "600,000" }
-      ],
-      "expected": { "marketValue": 910000, "amount": 60000, "rate": 7.0588235294117645, "incomplete": false }
-    },
-    {
-      "name": "loss_total",
-      "items": [
-        { "market_value": 90000, "total_purchase_amount": 100000 },
-        { "market_value": 40000, "total_purchase_amount": 50000 }
-      ],
-      "expected": { "marketValue": 130000, "amount": -20000, "rate": -13.333333333333334, "incomplete": false }
-    }
-  ],
   "composition_cases": [
     {
       "name": "two_holdings",

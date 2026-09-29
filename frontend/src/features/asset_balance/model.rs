@@ -1,12 +1,8 @@
-//! 資産管理の一覧・評価・構成比・KPI の純粋ロジック。
+//! 資産管理の一覧・構成比・KPI と、ホームの評価損益表示の純粋ロジック。
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use std::collections::HashMap;
-
-fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
-    Decimal::from_str_exact(&value.to_string()).ok()
-}
 
 fn valuation_parts(
     market_dec: Option<Decimal>,
@@ -165,161 +161,13 @@ pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> V
     }
 }
 
-/// `summarizeValuation` への入力1件。
-#[derive(Clone, Debug)]
-pub struct ValuationItem {
-    pub market_value: Option<f64>,
-    pub total_purchase_amount: Option<f64>,
-}
-
-/// 複数銘柄の合計。`valuation.ts` の `summarizeValuation` に対応する。
-/// 率は合計金額から計算し、単純平均しない。
-#[derive(Clone, Debug, PartialEq)]
-pub struct ValuationSummary {
-    pub market_value: Option<f64>,
-    pub amount: Option<f64>,
-    pub rate: Option<f64>,
-    pub incomplete: bool,
-}
-
-pub fn summarize_valuation(items: &[ValuationItem]) -> ValuationSummary {
-    let mut market_dec = Decimal::ZERO;
-    let mut purchase_dec = Decimal::ZERO;
-    let mut market_f64 = 0.0;
-    let mut purchase_f64 = 0.0;
-    let mut exact = true;
-    for item in items {
-        let (Some(market), Some(purchase)) = (item.market_value, item.total_purchase_amount) else {
-            return ValuationSummary {
-                market_value: None,
-                amount: None,
-                rate: None,
-                incomplete: true,
-            };
-        };
-        market_f64 += market;
-        purchase_f64 += purchase;
-        if exact {
-            exact = match (f64_to_decimal_exact(market), f64_to_decimal_exact(purchase)) {
-                (Some(market), Some(purchase)) => match (
-                    market_dec.checked_add(market),
-                    purchase_dec.checked_add(purchase),
-                ) {
-                    (Some(market), Some(purchase)) => {
-                        market_dec = market;
-                        purchase_dec = purchase;
-                        true
-                    }
-                    _ => false,
-                },
-                _ => false,
-            };
-        }
-    }
-    let (market_dec, purchase_dec) = if exact {
-        (Some(market_dec), Some(purchase_dec))
-    } else {
-        (None, None)
-    };
-    let market_total = market_dec
-        .and_then(|value| value.to_f64())
-        .unwrap_or(market_f64);
-    let purchase_total = purchase_dec
-        .and_then(|value| value.to_f64())
-        .unwrap_or(purchase_f64);
-    let (amount, rate) = valuation_parts(market_dec, purchase_dec, market_total, purchase_total);
-    ValuationSummary {
-        market_value: Some(market_total),
-        amount: Some(amount),
-        rate,
-        incomplete: false,
-    }
-}
-
-/// API summary による上書き入力。
-#[derive(Clone, Debug)]
-pub struct SummaryOverride {
-    pub total_purchase_amount: Decimal,
-    pub total_market_value: Decimal,
-}
-
-impl SummaryOverride {
-    pub fn sum(items: impl IntoIterator<Item = (Decimal, Decimal)>) -> Option<Self> {
-        items.into_iter().try_fold(
-            Self {
-                total_purchase_amount: Decimal::ZERO,
-                total_market_value: Decimal::ZERO,
-            },
-            |total, (market, purchase)| {
-                Some(Self {
-                    total_purchase_amount: total.total_purchase_amount.checked_add(purchase)?,
-                    total_market_value: total.total_market_value.checked_add(market)?,
-                })
-            },
-        )
-    }
-}
-
-/// 評価損益の集計。
-/// summary がある場合は検索条件全体の集計を優先し、なければ表示中データから集計する。
-/// summary の欠損、または明細側の欠損がある場合は不完全として金額・率を表示しない。
-pub fn summarize_valuation_with_summary(
-    items: &[ValuationItem],
-    summary: Option<&SummaryOverride>,
-) -> ValuationSummary {
-    let detail = summarize_valuation(items);
-    let Some(summary) = summary else {
-        return detail;
-    };
-    if detail.incomplete {
-        return ValuationSummary {
-            market_value: None,
-            amount: None,
-            rate: None,
-            incomplete: true,
-        };
-    }
-    let purchase = summary.total_purchase_amount;
-    let market = summary.total_market_value;
-    let (amount, rate) = valuation_parts(
-        Some(market),
-        Some(purchase),
-        market.to_f64().unwrap_or(0.0),
-        purchase.to_f64().unwrap_or(0.0),
-    );
-    ValuationSummary {
-        market_value: market.to_f64(),
-        amount: Some(amount),
-        rate,
-        incomplete: false,
-    }
-}
-
-/// チャート表示の除外条件。取得総額が正の銘柄は残し、そうでなければ
-/// 評価額を持つ銘柄（欠損・0円以外）だけ残す。
-pub fn should_include_chart_item(purchase: Option<f64>, market: Option<f64>) -> bool {
-    if let Some(purchase) = purchase {
-        if purchase > 0.0 {
-            return true;
-        }
-    }
-    matches!(market, Some(market) if market != 0.0)
-}
-
 /// チャート用の未丸めパーセンテージ（`|item.value| / Σ|values| * 100`）。
-/// 分母が 0 の場合は算出不可として `None` を返す。
-/// 評価額を持つ銘柄が1つもない空表示条件では空ベクターを返す。
+/// 分母が 0 の場合は空ベクターを返す。
 /// 取得額にマイナスが混ざっても帯グラフの幅が 0〜100% に収まるよう絶対値で出す。
-pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<Option<f64>> {
+pub fn chart_percentages(values: &[f64]) -> Vec<Option<f64>> {
     let total: f64 = values.iter().map(|value| value.abs()).sum();
     if total == 0.0 {
-        let has_valuation = market_values
-            .iter()
-            .any(|market| matches!(market, Some(value) if *value != 0.0));
-        if !has_valuation {
-            return Vec::new();
-        }
-        return values.iter().map(|_| None).collect();
+        return Vec::new();
     }
     values
         .iter()

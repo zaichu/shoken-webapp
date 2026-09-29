@@ -25,12 +25,6 @@ pub struct AssetBalanceCsvRow {
     pub total_purchase_amount: Decimal,
     #[serde(default)]
     pub current_price: Decimal,
-    #[serde(default)]
-    pub daily_change: Decimal,
-    #[serde(default)]
-    pub market_value: Decimal,
-    #[serde(default)]
-    pub profit_loss_rate: Decimal,
 }
 
 /// 一覧行と CSV プレビュー行を束ねる。プレビュー行は id・タイムスタンプを持たないため
@@ -46,7 +40,6 @@ pub(crate) trait AssetBalanceRowData {
     fn average_purchase_price(&self) -> Decimal;
     fn total_purchase_amount(&self) -> Decimal;
     fn current_price(&self) -> Decimal;
-    fn market_value(&self) -> Decimal;
 }
 
 impl AssetBalanceRowData for AssetBalance {
@@ -68,9 +61,6 @@ impl AssetBalanceRowData for AssetBalance {
     fn current_price(&self) -> Decimal {
         self.current_price
     }
-    fn market_value(&self) -> Decimal {
-        self.market_value
-    }
 }
 
 impl AssetBalanceRowData for AssetBalanceCsvRow {
@@ -91,9 +81,6 @@ impl AssetBalanceRowData for AssetBalanceCsvRow {
     }
     fn current_price(&self) -> Decimal {
         self.current_price
-    }
-    fn market_value(&self) -> Decimal {
-        self.market_value
     }
 }
 
@@ -132,12 +119,6 @@ impl AssetBalanceRowData for AssetBalanceRow {
         match self {
             Self::Saved(row) => row.current_price(),
             Self::Preview(row) => row.current_price(),
-        }
-    }
-    fn market_value(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.market_value(),
-            Self::Preview(row) => row.market_value(),
         }
     }
 }
