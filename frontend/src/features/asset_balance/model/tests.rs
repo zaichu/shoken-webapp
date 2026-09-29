@@ -564,6 +564,9 @@ fn chart_percentages_match_component_conditions() {
             Some(600000.0 / total * 100.0),
         ]
     );
+    // 取得額にマイナスが混ざっても帯の幅が負や 100% 超にならないよう絶対値で割る
+    let mixed = chart_percentages(&[-100000.0, 300000.0], &[Some(1.0), Some(1.0)]);
+    assert_eq!(mixed, vec![Some(25.0), Some(75.0)]);
 }
 
 #[test]
@@ -738,14 +741,14 @@ proptest::proptest! {
     #[test]
     fn prop_chart_percentages(
         items in proptest::collection::vec(
-            (0.0f64..1e6f64, proptest::option::of(0.0f64..1e6f64)),
+            (-1e6f64..1e6f64, proptest::option::of(0.0f64..1e6f64)),
             0..8usize
         ),
     ) {
         let values: Vec<f64> = items.iter().map(|item| item.0).collect();
         let markets: Vec<Option<f64>> = items.iter().map(|item| item.1).collect();
         let result = chart_percentages(&values, &markets);
-        let total: f64 = values.iter().sum();
+        let total: f64 = values.iter().map(|v| v.abs()).sum();
         if total == 0.0 {
             let has_valuation = markets
                 .iter()
@@ -756,9 +759,13 @@ proptest::proptest! {
                 proptest::prop_assert!(result.is_empty());
             }
         } else {
+            let in_range = result
+                .iter()
+                .all(|p| matches!(p, Some(v) if (0.0..=100.0).contains(v)));
             let expected: Vec<Option<f64>> =
-                values.iter().map(|v| Some(*v / total * 100.0)).collect();
+                values.iter().map(|v| Some(v.abs() / total * 100.0)).collect();
             proptest::prop_assert_eq!(result, expected);
+            proptest::prop_assert!(in_range);
         }
     }
 

@@ -10,7 +10,7 @@ use crate::features::asset_balance::model::{
     calculate_portfolio_kpi, summarize_valuation_with_summary, total_purchase_amount, KpiHolding,
     SummaryOverride, ValuationItem, ValuationSummary,
 };
-use crate::features::asset_balance::portfolio::chart_plan;
+use crate::features::asset_balance::portfolio::{chart_display, chart_plan};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
@@ -121,8 +121,99 @@ pub(crate) fn PortfolioSummary(
             percentage,
         })
         .collect();
-    // 帯グラフは同じ並びのクローンを使う(view! のクロージャに move されるため)
     let composition_items = chart_items.clone();
+    let composition_percentages: Vec<Option<f64>> = composition_items
+        .iter()
+        .map(|item| item.percentage)
+        .collect();
+    let composition_total = composition_items.len();
+    let has_composition = composition_items
+        .iter()
+        .any(|item| item.percentage.is_some());
+    let composition = has_composition.then(move || {
+        view! {
+            <div class="mt-4 border-t border-ink/10 pt-4" data-testid="portfolio-composition">
+                <p class="mb-2 text-xs font-medium text-text-muted">"構成比"</p>
+                {move || {
+                    let display = chart_display(
+                        composition_total,
+                        &composition_percentages,
+                        show_all.get(),
+                    );
+                    view! {
+                        <div
+                            class="flex h-3 overflow-hidden rounded-full bg-fill"
+                            aria-hidden="true"
+                        >
+                            {composition_items
+                                .iter()
+                                .take(display.visible_count)
+                                .enumerate()
+                                .filter_map(|(index, item)| {
+                                    item.percentage.map(|percentage| {
+                                        view! {
+                                            <div
+                                                class=format!("h-full {}", holding_bar_class(index))
+                                                style=format!("width: {}%", percentage.min(100.0))
+                                            />
+                                        }
+                                    })
+                                })
+                                .collect_view()}
+                            {display.others.as_ref().map(|others| {
+                                view! {
+                                    <div
+                                        class="h-full bg-fill-strong"
+                                        style=format!("width: {}%", others.percentage.min(100.0))
+                                    />
+                                }
+                            })}
+                        </div>
+                        <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            {composition_items
+                                .iter()
+                                .take(display.visible_count)
+                                .enumerate()
+                                .map(|(index, item)| {
+                                    view! {
+                                        <li class="flex min-w-0 items-center gap-1.5">
+                                            <span
+                                                class=format!("h-2.5 w-2.5 shrink-0 rounded-sm {}", holding_bar_class(index))
+                                                aria-hidden="true"
+                                            />
+                                            <span class="text-text">{item.view.name.clone()}</span>
+                                            <span class="shrink-0 tabular-nums text-text-subtle">
+                                                {item.percentage.map_or("—".to_string(), |percentage| {
+                                                    format_fixed_percent(percentage, 1)
+                                                })}
+                                            </span>
+                                        </li>
+                                    }
+                                })
+                                .collect_view()}
+                            {display.others.as_ref().map(|others| {
+                                view! {
+                                    <li class="flex min-w-0 items-center gap-1.5">
+                                        <span
+                                            class="h-2.5 w-2.5 shrink-0 rounded-sm bg-fill-strong"
+                                            aria-hidden="true"
+                                        />
+                                        <span class="text-text">
+                                            {format!("その他 {}銘柄", others.count)}
+                                        </span>
+                                        <span class="shrink-0 tabular-nums text-text-subtle">
+                                            {format_fixed_percent(others.percentage, 1)}
+                                        </span>
+                                    </li>
+                                }
+                            })}
+                        </ul>
+                    }
+                }}
+            </div>
+        }
+        .into_any()
+    });
 
     let market_value = valuation.market_value;
     if total_purchase_amount == 0.0 && matches!(market_value, None | Some(0.0)) {
@@ -254,60 +345,7 @@ pub(crate) fn PortfolioSummary(
                         </p>
                     </Card>
                 </div>
-                {composition_items
-                    .iter()
-                    .any(|item| item.percentage.is_some())
-                    .then(|| {
-                        view! {
-                            <div
-                                class="mt-4 border-t border-ink/10 pt-4"
-                                data-testid="portfolio-composition"
-                            >
-                                <p class="mb-2 text-xs font-medium text-text-muted">"構成比"</p>
-                                <div
-                                    class="flex h-3 overflow-hidden rounded-full bg-fill"
-                                    aria-hidden="true"
-                                >
-                                    {composition_items
-                                        .iter()
-                                        .enumerate()
-                                        .filter_map(|(index, item)| {
-                                            item.percentage.map(|percentage| {
-                                                view! {
-                                                    <div
-                                                        class=format!("h-full {}", holding_bar_class(index))
-                                                        style=format!("width: {}%", percentage.min(100.0))
-                                                    />
-                                                }
-                                            })
-                                        })
-                                        .collect_view()}
-                                </div>
-                                <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                                    {composition_items
-                                        .iter()
-                                        .enumerate()
-                                        .map(|(index, item)| {
-                                            view! {
-                                                <li class="flex min-w-0 items-center gap-1.5">
-                                                    <span
-                                                        class=format!("h-2.5 w-2.5 shrink-0 rounded-sm {}", holding_bar_class(index))
-                                                        aria-hidden="true"
-                                                    />
-                                                    <span class="text-text">{item.view.name.clone()}</span>
-                                                    <span class="shrink-0 tabular-nums text-text-subtle">
-                                                        {item.percentage.map_or("—".to_string(), |percentage| {
-                                                            format_fixed_percent(percentage, 1)
-                                                        })}
-                                                    </span>
-                                                </li>
-                                            }
-                                        })
-                                        .collect_view()}
-                                </ul>
-                            </div>
-                        }
-                    })}
+                {composition}
             </Card>
 
             <div data-testid="portfolio-pie-chart">

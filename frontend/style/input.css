@@ -93,6 +93,16 @@
   --color-holding-8: var(--color-orange-600);
   --color-holding-9: var(--color-cyan-600);
   --color-holding-10: var(--color-fuchsia-600);
+  --color-holding-11: var(--color-emerald-500);
+  --color-holding-12: var(--color-sky-500);
+  --color-holding-13: var(--color-purple-600);
+  --color-holding-14: var(--color-yellow-500);
+  --color-holding-15: var(--color-stone-500);
+  --color-holding-16: var(--color-green-600);
+  --color-holding-17: var(--color-cyan-400);
+  --color-holding-18: var(--color-indigo-400);
+  --color-holding-19: var(--color-orange-400);
+  --color-holding-20: var(--color-violet-400);
 
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);

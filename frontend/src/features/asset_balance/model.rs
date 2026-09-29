@@ -306,11 +306,12 @@ pub fn should_include_chart_item(purchase: Option<f64>, market: Option<f64>) -> 
     matches!(market, Some(market) if market != 0.0)
 }
 
-/// チャート用の未丸めパーセンテージ（`item.value / total * 100`）。
+/// チャート用の未丸めパーセンテージ（`|item.value| / Σ|values| * 100`）。
 /// 分母が 0 の場合は算出不可として `None` を返す。
 /// 評価額を持つ銘柄が1つもない空表示条件では空ベクターを返す。
+/// 取得額にマイナスが混ざっても帯グラフの幅が 0〜100% に収まるよう絶対値で出す。
 pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<Option<f64>> {
-    let total: f64 = values.iter().sum();
+    let total: f64 = values.iter().map(|value| value.abs()).sum();
     if total == 0.0 {
         let has_valuation = market_values
             .iter()
@@ -322,7 +323,7 @@ pub fn chart_percentages(values: &[f64], market_values: &[Option<f64>]) -> Vec<O
     }
     values
         .iter()
-        .map(|value| Some(*value / total * 100.0))
+        .map(|value| Some(value.abs() / total * 100.0))
         .collect()
 }
 
