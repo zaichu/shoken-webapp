@@ -275,15 +275,15 @@ fn table_column_widths_match_headers_and_follow_column_order() {
     let headers = table_headers(ReceiptsTab::DomesticStock);
     let widths = table_column_widths(ReceiptsTab::DomesticStock);
     let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
-    assert_eq!(displayed[0], ("約定日", "9.5ch"));
-    assert_eq!(displayed[1], ("銘柄コード", "7ch"));
-    assert_eq!(displayed[2], ("口座", "11ch"));
+    assert_eq!(displayed[0], ("約定日", "12.2ch"));
+    assert_eq!(displayed[1], ("銘柄コード", "13.5ch"));
+    assert_eq!(displayed[2], ("口座", "9ch"));
     assert_eq!(displayed[3], ("銘柄名", ""));
 }
 
-// 「表示項目は極力削らない」方針: 配当金の数量は lg(1024px)から出す。
-// 国内株式・投資信託は金額列が多く銘柄名も長いため、xl で数量まで出すと
-// 名前が2行に収まらなくなり、2xl からにとどめる
+// 「表示項目は極力削らない」方針: 数量はできるだけ早い帯から出す。
+// 配当金は列が少なく md(768px)帯でも入るため Md。国内株式・投資信託は金額列が多く
+// md 帯で数量まで出すと銘柄名が潰れるため Wide(レールを畳んだ lg・xl から)にとどめる
 #[test]
 fn quantity_column_tiers_match_width_budget() {
     let index_of = |tab: ReceiptsTab| {
@@ -297,7 +297,7 @@ fn quantity_column_tiers_match_width_budget() {
         ColumnTier::Md
     );
     for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
-        assert_eq!(table_column_tiers(tab)[index_of(tab)], ColumnTier::Wider);
+        assert_eq!(table_column_tiers(tab)[index_of(tab)], ColumnTier::Wide);
     }
 }
 

@@ -119,7 +119,18 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
 const TABLE_SPEC = {
   dividend: {
     tabName: '配当金',
-    widths: ['9.5ch', '10ch', '9ch', '7ch', '', '10ch', '4.5ch', '10ch', '10ch', '10ch'],
+    widths: [
+      '12.2ch',
+      '9ch',
+      '9ch',
+      '13.5ch',
+      '',
+      '12.5ch',
+      '9ch',
+      '13.8ch',
+      '13.8ch',
+      '13.8ch',
+    ],
     aligns: [
       'left',
       'left',
@@ -135,7 +146,19 @@ const TABLE_SPEC = {
   },
   domesticstock: {
     tabName: '国内株式',
-    widths: ['9.5ch', '7ch', '', '11ch', '9ch', '10ch', '10ch', '10ch', '11ch', '10ch', '11ch'],
+    widths: [
+      '12.2ch',
+      '13.5ch',
+      '',
+      '9ch',
+      '9ch',
+      '12.5ch',
+      '12.5ch',
+      '12.5ch',
+      '14.5ch',
+      '13.8ch',
+      '14.5ch',
+    ],
     aligns: [
       'left',
       'center',
@@ -152,7 +175,18 @@ const TABLE_SPEC = {
   },
   mutualfund: {
     tabName: '投資信託',
-    widths: ['9.5ch', '', '11ch', '9ch', '10ch', '10ch', '10ch', '11ch', '10ch', '11ch'],
+    widths: [
+      '12.2ch',
+      '',
+      '9ch',
+      '9ch',
+      '12.5ch',
+      '12.5ch',
+      '12.5ch',
+      '14.5ch',
+      '13.8ch',
+      '14.5ch',
+    ],
     aligns: [
       'left',
       'left',
@@ -231,6 +265,15 @@ async function expectAssetDataLoaded(page: Page) {
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
+}
+
+// データがあると右レールは畳まれた状態で始まるので、レール内の UI に触れる前に開く
+async function openReceiptUtilityRail(page: Page) {
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  if (await toggle.isVisible()) {
+    await toggle.click();
+    await expect(page.getByTestId('receipt-utility-rail')).toBeVisible();
+  }
 }
 
 async function selectReceiptTab(page: Page, slug: ReceiptTabSlug) {
@@ -535,22 +578,23 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/receipts');
   await selectReceiptTab(page, 'domesticstock');
+  await openReceiptUtilityRail(page);
   await page
     .getByTestId('search-card')
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
   const reordered = [
-    '9.5ch',
-    '7ch',
-    '11ch',
+    '12.2ch',
+    '13.5ch',
+    '9ch',
     '',
     '9ch',
-    '10ch',
-    '10ch',
-    '10ch',
-    '11ch',
-    '10ch',
-    '11ch',
+    '12.5ch',
+    '12.5ch',
+    '12.5ch',
+    '14.5ch',
+    '13.8ch',
+    '14.5ch',
   ];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');

@@ -54,35 +54,70 @@ const PRINTABLE_A4_VIEWPORTS = [
   { name: 'landscape', width: 1047, height: 718 },
 ] as const;
 
-// narrow は lg(1024px)で出す列、wide は xl(1280px)で追加される列。
-// 配当金の数量は lg から出す。国内株式・投資信託は列が多く銘柄名も長いため、
-// xl で数量まで出すと名前が2行に収まらず、2xl からにとどめる
+// 列は帯(画面幅×レール開閉)で段階表示する。core は常に表示、md は md 帯と lg 畳み・
+// xl 以降、wide は lg 畳み・xl 以降、wider は xl 畳み・1650px 以降で表示する
 const RECEIPT_TABS = [
   {
     label: '配当金',
     slug: 'dividend',
     count: DIVIDENDS.length,
     nameHeader: '銘柄名',
-    narrow: ['入金日', '銘柄コード', '銘柄名', '数量', '配当金', '税額', '受取額'],
-    wide: ['口座', '単価'],
+    core: ['入金日', '銘柄名', '配当金', '税額', '受取額'],
+    md: ['数量'],
+    wide: ['銘柄コード'],
+    wider: ['商品', '口座', '単価'],
   },
   {
     label: '国内株式',
     slug: 'domesticstock',
     count: DOMESTIC_STOCKS.length,
     nameHeader: '銘柄名',
-    narrow: ['約定日', '銘柄コード', '銘柄名', '損益', '税額', '税引後'],
-    wide: ['売却単価', '売却額'],
+    core: ['約定日', '銘柄名', '損益', '税額', '税引後'],
+    md: [] as string[],
+    wide: ['銘柄コード', '数量'],
+    wider: ['口座', '売却単価', '売却額', '取得価額'],
   },
   {
     label: '投資信託',
     slug: 'mutualfund',
     count: MUTUAL_FUNDS.length,
     nameHeader: 'ファンド名',
-    narrow: ['約定日', 'ファンド名', '解約額', '実現損益', '税額', '税引損益'],
-    wide: ['解約単価', '取得価額'],
+    core: ['約定日', 'ファンド名', '実現損益', '税額', '税引損益'],
+    md: [] as string[],
+    wide: ['数量', '解約額'],
+    wider: ['口座', '解約単価', '取得価額'],
   },
-] as const;
+];
+
+type ReceiptTabSpec = (typeof RECEIPT_TABS)[number];
+
+// width × レール開閉で見える見出し集合を返す
+function expectedHeaders(tab: ReceiptTabSpec, width: number, collapsed: boolean) {
+  let headers: readonly string[];
+  if (width < 768) {
+    headers = tab.core;
+  } else if (width < 1024) {
+    headers = [...tab.core, ...tab.md];
+  } else if (width < 1280) {
+    headers = collapsed ? [...tab.core, ...tab.md, ...tab.wide] : tab.core;
+  } else if (width < 1650) {
+    headers = collapsed
+      ? [...tab.core, ...tab.md, ...tab.wide, ...tab.wider]
+      : [...tab.core, ...tab.md, ...tab.wide];
+  } else {
+    headers = [...tab.core, ...tab.md, ...tab.wide, ...tab.wider];
+  }
+  return [...headers].sort();
+}
+
+// データがあるとレールは畳まれた状態で始まるので、レール内の UI に触れる前に開く
+async function openUtilityRail(page: Page) {
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  if (await toggle.isVisible()) {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
+}
 
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
@@ -165,6 +200,93 @@ test('390px ではモバイル表示を維持する(カード表示・CSV折り�
   await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
 });
 
+test('データがあるとレールは畳んだ状態で始まり、開閉で表がページ幅いっぱいに広がる', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gotoReceipts(page);
+
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  const rail = page.getByTestId('receipt-utility-rail');
+  const table = page.getByRole('table');
+
+  // 初期状態: 畳み。aria-expanded/aria-controls がレールと結びついている
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  const controls = await toggle.getAttribute('aria-controls');
+  expect(controls).toBe('receipt-utility-rail-dividend');
+  await expect(page.locator(`#${controls}`)).toBeHidden();
+  await expect(rail).toBeHidden();
+
+  const collapsedWidth = (await table.boundingBox())!.width;
+
+  // キーボード(Enter)で開ける
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail).toBeVisible();
+  const openWidth = (await table.boundingBox())!.width;
+  expect(collapsedWidth - openWidth, '畳むと表がレール分だけ広い').toBeGreaterThan(300);
+
+  // キーボード(Space)でも畳める。開閉の状態は localStorage に保存しない
+  const storedBefore = await page.evaluate(() => JSON.stringify(localStorage));
+  await toggle.focus();
+  await page.keyboard.press(' ');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toBeHidden();
+  const storedAfter = await page.evaluate(() => JSON.stringify(localStorage));
+  expect(storedAfter).toBe(storedBefore);
+});
+
+test('0 件のタブではレールは開いた状態で始まり、データのあるタブでは畳む', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // 配当金だけ 0 件にする
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated([]))),
+  );
+  await page.goto('/receipts');
+  await expect(page.getByText('データがありません')).toBeVisible();
+
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  const rail = page.getByTestId('receipt-utility-rail');
+  // 0 件なので開いた状態で始まる(CSV 取り込みにすぐ触れる)
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail).toBeVisible();
+  await expect(rail.getByRole('button', { name: /ファイルを選択/ })).toBeVisible();
+
+  // データのある国内株式へ切り替えると畳んだ状態になる
+  await page.getByRole('tab', { name: '国内株式' }).click();
+  await expect(page.getByTestId('tab-count-domesticstock')).toHaveText(
+    String(DOMESTIC_STOCKS.length),
+  );
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toBeHidden();
+});
+
+test('レールを畳んでいても絞り込み中は件数が表の上に出る', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gotoReceipts(page);
+
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  // 初期状態は畳み。絞り込んでいないので件数バッジは出ない
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText(/絞り込み中/)).toHaveCount(0);
+
+  // レールを開いて口座で絞り込み、畳み直しても件数が残る
+  await openUtilityRail(page);
+  await page
+    .getByTestId('search-card')
+    .getByRole('button', { name: 'SBI証券', exact: true })
+    .click();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(
+    page.getByTestId('receipt-utility-toggle-bar').getByText(/絞り込み中 \d+ \/ 39 件/),
+  ).toBeVisible();
+});
+
 test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px で20remに広がる', async ({ page }) => {
   await page.setViewportSize({ width: 1023, height: 900 });
   await gotoReceipts(page);
@@ -178,7 +300,9 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
   expect(railBox!.y).toBeLessThan(mainBox!.y);
   await shoot(page, 'leptos-962-1023');
 
+  // データがあるので lg 以上では畳まれた状態で始まる。レールを開いて2カラムを確かめる
   await page.setViewportSize({ width: 1024, height: 900 });
+  await openUtilityRail(page);
   railBox = await rail.boundingBox();
   mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
@@ -207,8 +331,10 @@ test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px �
   expect(railBox!.width).toBeLessThanOrEqual(330);
 });
 
-test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2行まで表示する', async ({ page }) => {
-  // 金額は 8 桁(¥12,345,678)・損益は負の 8 桁まで切れないことを固定する
+test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄名は2行まで表示する', async ({
+  page,
+}) => {
+  // 金額は 9 桁(¥111,111,102)・損益は負の 9 桁・コードは 10 文字まで切れないことを固定する
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
@@ -216,11 +342,12 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
           DIVIDENDS.map((row) => ({
             ...row,
             account: '特定・一般',
-            unit_price: '12345678',
-            shares: '1950',
-            dividends_before_tax: '12345678',
-            taxes: '12345678',
-            net_amount_received: '12345678',
+            security_code: '1234567890',
+            unit_price: '111111102',
+            shares: '12345',
+            dividends_before_tax: '111111102',
+            taxes: '111111102',
+            net_amount_received: '111111102',
           })),
         ),
       ),
@@ -233,13 +360,14 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
           DOMESTIC_STOCKS.map((row) => ({
             ...row,
             account: '特定・一般',
-            shares: 1950,
-            asked_price: 12345678,
-            proceeds: 12345678,
-            purchase_price: 12345678,
-            realized_profit_and_loss: -12345678,
-            taxes: 12345678,
-            realized_profit_and_loss_after_tax: -12345678,
+            security_code: '1234567890',
+            shares: 12345,
+            asked_price: 111111102,
+            proceeds: 111111102,
+            purchase_price: 111111102,
+            realized_profit_and_loss: -111111102,
+            taxes: 111111102,
+            realized_profit_and_loss_after_tax: -111111102,
           })),
         ),
       ),
@@ -252,24 +380,29 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
           MUTUAL_FUNDS.map((row) => ({
             ...row,
             account: '特定・一般',
-            shares: '1950',
-            cancellation_unit_price_yen: '12345678',
-            cancellation_amount_yen: '12345678',
-            average_acquisition_price_yen: '12345678',
-            realized_profit_and_loss: '-12345678',
-            taxes: '12345678',
-            realized_profit_and_loss_after_tax: '-12345678',
+            shares: '12345',
+            cancellation_unit_price_yen: '111111102',
+            cancellation_amount_yen: '111111102',
+            average_acquisition_price_yen: '111111102',
+            realized_profit_and_loss: '-111111102',
+            taxes: '111111102',
+            realized_profit_and_loss_after_tax: '-111111102',
           })),
         ),
       ),
     ),
   );
 
-  for (const width of [1024, 1280, 1440]) {
+  for (const width of [768, 1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/receipts');
 
-    for (const tab of RECEIPT_TABS) {
+    for (const collapsed of [true, false]) {
+      // lg 未満ではレールの開閉は出ない(上段に積まれる)ので開いた状態の検査は lg 以上だけ
+      if (!collapsed && width < 1024) continue;
+      if (!collapsed) await openUtilityRail(page);
+
+      for (const tab of RECEIPT_TABS) {
       await page.getByRole('tab', { name: tab.label }).click();
       await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
 
@@ -373,36 +506,39 @@ test('1024px・1280px・1440pxで表示セルがはみ出さず、銘柄名は2�
         };
       }, { nameHeader: tab.nameHeader, width });
 
-      expect(metrics.overflows, `${width}px ${tab.label}`).toEqual([]);
-      expect(metrics.headerClips, `${width}px ${tab.label}`).toEqual([]);
-      const expectedHeaders = [
-        ...tab.narrow,
-        ...(width >= 1280 ? tab.wide : []),
-      ].sort();
+      const state = `${width}px ${tab.label} ${collapsed ? '畳み' : '開き'}`;
+      expect(metrics.overflows, state).toEqual([]);
+      expect(metrics.headerClips, state).toEqual([]);
       expect(
         [...metrics.visibleHeaders].sort(),
-        `${width}px ${tab.label} の表示列`,
-      ).toEqual(expectedHeaders);
+        `${state} の表示列`,
+      ).toEqual(expectedHeaders(tab, width, collapsed));
       if (metrics.copyDeltas.length > 0) {
         expect(
           Math.min(...metrics.copyDeltas),
-          `${width}px ${tab.label} のコピー範囲は文字幅のみ`,
+          `${state} のコピー範囲は文字幅のみ`,
         ).toBeGreaterThan(4);
       }
       expect(metrics.nameTitle).toBe(metrics.nameText);
-      expect(metrics.nameClientWidth, `${width}px ${tab.label}`).toBeGreaterThanOrEqual(80);
+      expect(metrics.nameClientWidth, state).toBeGreaterThanOrEqual(80);
       expect(metrics.nameOverflow).toBe('hidden');
       expect(metrics.nameLineClamp).toBe('2');
       expect(metrics.nameWhiteSpace).toBe('normal');
-      expect(metrics.namelessClips, `${width}px ${tab.label}`).toEqual([]);
-      if (width >= 1280) {
-        expect(metrics.clampedNames, `${width}px ${tab.label}`).toEqual([]);
+      expect(metrics.namelessClips, state).toEqual([]);
+      // 畳み時は全列を出す要件上、1280px では銘柄名が2行に収まらず切り詰められる
+      // (title に全文あり)。クランプを禁じるのは列を絞った開いた状態に限る
+      if (width >= 1280 && !collapsed) {
+        expect(metrics.clampedNames, state).toEqual([]);
       }
-      expect(metrics.tableScrollWidth, `${width}px ${tab.label}`).toBeLessThanOrEqual(
+      expect(metrics.tableScrollWidth, state).toBeLessThanOrEqual(
         metrics.tableClientWidth,
       );
       expect(metrics.pageOverflows).toBe(false);
-      await shoot(page, `receipts-after-${tab.slug}-${width}`);
+      await shoot(
+        page,
+        `receipts-after-${tab.slug}-${width}${collapsed ? '' : '-open'}`,
+      );
+    }
     }
   }
 });
@@ -419,8 +555,10 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
     );
   expect(domOrder).toEqual(['receipt-utility-rail', 'receipt-main-stage']);
 
+  // データがあるので畳まれた状態で始まる。開くと右レールが出る
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
+  await openUtilityRail(page);
   const railBox = await rail.boundingBox();
   const mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
@@ -631,6 +769,7 @@ test('640px 以上で年ピッカーの選択肢がレール下端を超えて�
   for (const width of [768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await gotoReceipts(page);
+    await openUtilityRail(page);
 
     const trigger = page.getByRole('button', { name: '年を選択' });
     await trigger.click();

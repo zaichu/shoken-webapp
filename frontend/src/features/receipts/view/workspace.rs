@@ -1,5 +1,6 @@
 use super::main_content::ReceiptsMainContent;
 use super::search_card::ReceiptsSearchCard;
+use super::TAB_IDS;
 use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
@@ -17,24 +18,55 @@ pub(crate) fn empty_tab_data() -> ReceiptTabData {
     }
 }
 
+/// 開閉トグル(表の上)から aria-controls で参照する aside の id
+pub(crate) fn utility_rail_id(tab: ReceiptsTab) -> String {
+    format!("receipt-utility-rail-{}", TAB_IDS[tab as usize])
+}
+
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store;
     let preview_store = store;
     let loading_store = store;
-    let rail_store = store;
     let main_store = store;
     let alert_store = store;
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
+    // レールの初期状態はタブごとに最初のデータ到着で一度だけ決める
+    // (データあり→畳む、0件→開く)。初期化済み判定は store 側なので
+    // refetch などでこの workspace が作り直されても巻き戻らない
+    let rail_store = store;
+    Effect::new(move |_| {
+        if let TabState::Ready(data) = rail_store.tab_state(tab) {
+            rail_store.init_utility_rail(tab, !data.rows.is_empty());
+        }
+    });
+    let rail_open = store.utility_rail_open;
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div
-            class="workspace-grid print:block"
+            class=move || {
+                if rail_open.get() {
+                    "workspace-grid print:block"
+                } else {
+                    "workspace-grid rail-collapsed print:block"
+                }
+            }
             data-testid="receipt-workspace"
         >
-            <aside class="order-1 lg:order-2 print:hidden" data-testid="receipt-utility-rail">
+            // 畳むのは PC(lg 以上)だけ。それより狭い帯ではレールは上段に積まれ、別の開閉が担う
+            <aside
+                id=utility_rail_id(tab)
+                class=move || {
+                    if rail_open.get() {
+                        "order-1 lg:order-2 print:hidden"
+                    } else {
+                        "order-1 lg:order-2 lg:hidden print:hidden"
+                    }
+                }
+                data-testid="receipt-utility-rail"
+            >
                 // スマホでは帯と別カードの積み上げを維持するため枠は sm 以上だけにする
                 // 年ピッカーのドロップダウンを切らないよう overflow は掛けない。
                 // backdrop-blur が作る stack context に listbox が閉じ込められるため、1カラム幅でも表より前面に出す

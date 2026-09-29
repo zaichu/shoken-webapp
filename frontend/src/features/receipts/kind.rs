@@ -713,13 +713,16 @@ impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
     }
 }
 
-/// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は lg・xl・2xl に置く
+/// 非 Core の列は画面帯とレール開閉で段階的に出す(input.css の .receipt-tier-* /
+/// .rail-collapsed と対になる)。lg でレールを開いている帯が最も狭い
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub(crate) enum ColumnTier {
     Core,
-    /// sm の1カラムでは隠し、右レールと並ぶ lg から出す
+    /// md から出す。lg でレールを開いているときだけ隠し、畳むと lg から出る
     Md,
+    /// xl から出す。レールを畳むと lg から
     Wide,
+    /// レールを開いたままでは全列が入らない帯があるため 1650px から。畳むと xl から
     Wider,
 }
 
@@ -727,9 +730,9 @@ impl ColumnTier {
     pub(crate) fn class(self) -> &'static str {
         match self {
             ColumnTier::Core => "",
-            ColumnTier::Md => " hidden lg:table-cell print:table-cell",
-            ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
-            ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
+            ColumnTier::Md => " receipt-tier-md",
+            ColumnTier::Wide => " receipt-tier-wide",
+            ColumnTier::Wider => " receipt-tier-wider",
         }
     }
 }
@@ -942,15 +945,15 @@ impl ReceiptKind for DividendKind {
         "受取額",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9.5ch", "10ch", "9ch", "7ch", "", "10ch", "4.5ch", "10ch", "10ch", "10ch",
+        "12.2ch", "9ch", "9ch", "13.5ch", "", "12.5ch", "9ch", "13.8ch", "13.8ch", "13.8ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wider,
         ColumnTier::Wide,
         ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Md,
         ColumnTier::Core,
         ColumnTier::Core,
@@ -1091,16 +1094,17 @@ impl ReceiptKind for DomesticStockKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9.5ch", "7ch", "", "11ch", "9ch", "10ch", "10ch", "10ch", "11ch", "10ch", "11ch",
+        "12.2ch", "13.5ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "13.8ch",
+        "14.5ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
-        ColumnTier::Core,
+        ColumnTier::Wide,
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wide,
         ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Wider,
         ColumnTier::Core,
         ColumnTier::Core,
@@ -1217,16 +1221,16 @@ impl ReceiptKind for MutualFundKind {
         "税引損益",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9.5ch", "", "11ch", "9ch", "10ch", "10ch", "10ch", "11ch", "10ch", "11ch",
+        "12.2ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "13.8ch", "14.5ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wide,
         ColumnTier::Wider,
         ColumnTier::Wide,
-        ColumnTier::Core,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,

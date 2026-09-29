@@ -87,6 +87,9 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 search: RwSignal::new(ReceiptSearch::default()),
                 expanded: RwSignal::new(HashSet::new()),
                 mobile_summary_expanded: RwSignal::new(false),
+                utility_rail_open: RwSignal::new(true),
+                utility_rail_decided: RwSignal::new(false),
+                utility_rail_initialized: RwSignal::new(HashSet::new()),
                 expanded_epoch: RwSignal::new(None),
                 visited: RwSignal::new(HashSet::from([tab])),
                 cache,
@@ -121,6 +124,9 @@ fn expanded_state_is_cleared_on_generation_change() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initialized: RwSignal::new(HashSet::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -158,6 +164,9 @@ fn expanded_state_survives_ensure_in_same_generation() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initialized: RwSignal::new(HashSet::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -175,6 +184,49 @@ fn expanded_state_survives_ensure_in_same_generation() {
 
         assert!(store.expanded.with_untracked(|set| set.contains("g0")));
         assert!(store.mobile_summary_expanded.get_untracked());
+    });
+}
+
+#[test]
+fn utility_rail_init_runs_once_per_tab_and_toggle_wins() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let tab = ReceiptsTab::Dividend;
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(tab),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initialized: RwSignal::new(HashSet::new()),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([tab])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+        };
+
+        // データあり→畳む、0件→開く。同じタブの再評価(refetch)では巻き戻らない
+        store.init_utility_rail(ReceiptsTab::Dividend, true);
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::Dividend, false);
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::DomesticStock, false);
+        assert!(store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::DomesticStock, true);
+        assert!(store.utility_rail_open.get_untracked());
+
+        // トグル済みなら以後の初期化は無視される
+        store.toggle_utility_rail();
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::MutualFund, false);
+        assert!(!store.utility_rail_open.get_untracked());
     });
 }
 

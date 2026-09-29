@@ -175,6 +175,10 @@
     @apply grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem];
   }
 
+  .workspace-grid.rail-collapsed {
+    @apply lg:grid-cols-1;
+  }
+
   .page-surface {
     @apply relative flex-1 overflow-hidden rounded-panel border border-ink/10 bg-surface/90 p-6 shadow-page backdrop-blur-sm;
   }
@@ -356,7 +360,7 @@
 /* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
    維持するため、@layer の外に置く(層なしは utilities 層より強い)。 */
 .receipt-table {
-  @apply w-full table-fixed print:table-auto print:[&_th]:whitespace-normal print:[&_td]:whitespace-normal border-collapse text-left text-cell leading-5 sm:text-cell-md [&_th]:border [&_th]:border-border-subtle [&_td]:border [&_td]:border-border-subtle print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-0 [&_td]:py-1.5 [&_td]:px-0 sm:[&_th]:py-2 sm:[&_td]:py-2 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-border-faint [&_tbody_th]:border-b [&_tbody_th]:border-border-faint;
+  @apply w-full table-fixed print:table-auto print:[&_th]:whitespace-normal print:[&_td]:whitespace-normal border-collapse text-left text-cell leading-5 [&_th]:border [&_th]:border-border-subtle [&_td]:border [&_td]:border-border-subtle print:[&_th]:border-black print:[&_td]:border-black [&_th]:py-1.5 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 sm:[&_th]:py-2 sm:[&_th]:px-2.5 sm:[&_td]:py-2 sm:[&_td]:px-2.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:overflow-hidden [&_td]:overflow-hidden [&_th]:text-ellipsis [&_td]:text-ellipsis [&_tbody_td]:border-b [&_tbody_td]:border-border-faint [&_tbody_th]:border-b [&_tbody_th]:border-border-faint;
 }
 
 .receipt-instrument-cell .copyable-name {
@@ -369,6 +373,95 @@
 
 .receipt-instrument-cell .copy-icon {
   @apply mt-0.5 shrink-0;
+}
+
+/* 列の表示段階。lg でレールを開いている帯だけ幅が最も厳しいため Md はそこだけ隠す。
+   右レールを畳んだ分だけ表が広がるので Wide・Wider は畳み時に一段早い帯から出す。
+   Wider は開いたままでも全列が入る 1650px から出す */
+.receipt-tier-md {
+  @apply hidden md:table-cell lg:hidden xl:table-cell print:table-cell;
+}
+
+.rail-collapsed .receipt-tier-md {
+  @apply lg:table-cell;
+}
+
+.receipt-tier-wide {
+  @apply hidden xl:table-cell print:table-cell;
+}
+
+.rail-collapsed .receipt-tier-wide {
+  @apply lg:table-cell;
+}
+
+.receipt-tier-wider {
+  @apply hidden print:table-cell;
+}
+
+.rail-collapsed .receipt-tier-wider {
+  @apply xl:table-cell;
+}
+
+@media (min-width: 1650px) {
+  .receipt-tier-wider {
+    display: table-cell;
+  }
+}
+
+/* 表の中ではコードバッジを詰める(等幅数字に 0.16em の字間は要らない) */
+.receipt-table .code-badge {
+  @apply px-1 tracking-normal;
+}
+
+/* グループ見出し行の colspan は帯(画面幅×レール開閉)ごとに切り替える */
+.receipt-span-sm {
+  @apply md:hidden print:hidden;
+}
+
+.receipt-span-mid {
+  @apply hidden md:table-cell lg:hidden print:hidden;
+}
+
+.receipt-span-lg-open {
+  @apply hidden lg:table-cell xl:hidden print:hidden;
+}
+
+.rail-collapsed .receipt-span-lg-open {
+  @apply lg:hidden;
+}
+
+.receipt-span-lg-collapsed {
+  @apply hidden print:hidden;
+}
+
+.rail-collapsed .receipt-span-lg-collapsed {
+  @apply lg:table-cell xl:hidden;
+}
+
+.receipt-span-xl-open {
+  @apply hidden xl:table-cell print:hidden;
+}
+
+.rail-collapsed .receipt-span-xl-open {
+  @apply xl:hidden;
+}
+
+.receipt-span-all {
+  @apply hidden print:table-cell;
+}
+
+.rail-collapsed .receipt-span-all {
+  @apply xl:table-cell;
+}
+
+@media (min-width: 1650px) {
+  .receipt-span-xl-open {
+    display: none;
+  }
+
+  .receipt-span-all {
+    display: table-cell;
+  }
 }
 
 @media print {
@@ -402,7 +495,6 @@
     white-space: nowrap;
   }
 
-  /* 印刷では銘柄名の2行クランプを外して全文を折り返す */
   .receipt-instrument-cell .copyable-name > span {
     display: inline;
     overflow: visible;
