@@ -5,9 +5,7 @@ use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::ReceiptsPage;
 use crate::features::stock_search::SearchPage;
 use crate::session::provide_session;
-use crate::ui::elements::{
-    current_location, current_path, CurrentPath, Loading, SiteFooter, SiteHeader,
-};
+use crate::ui::elements::{current_location, CurrentPath, Loading, SiteFooter, SiteHeader};
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -186,8 +184,9 @@ pub fn App() -> impl IntoView {
     on_cleanup(move || drop(on_popstate));
 
     let session = provide_session();
+    // route だけを見ると不明パス同士の遷移(NotFound→NotFound)で再発火しないため path を追跡する
     Effect::new(move |_| {
-        if route.get() == Route::NotFound && current_path() != "/404" {
+        if route.get() == Route::NotFound && pathname_of(&path.get()) != "/404" {
             navigate(path, "/404", true);
         }
     });

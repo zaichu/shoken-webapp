@@ -354,6 +354,10 @@ impl ReceiptsStore {
                 // 削除前に出た裏再取得の遅れ応答が消した行を復活させないよう取得を失効させる
                 self.fetch_rev
                     .update(|map| bump_fetch_rev(map, generation, tab));
+                // 空になった一覧の上に直前の再取得エラーが残るのを防ぐ
+                self.refresh_error.update(|map| {
+                    map.remove(&(generation, tab));
+                });
                 // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
                 self.cache.update(|map| {
                     if let Some(entry) = map.get_mut(&(generation, tab)) {
