@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',

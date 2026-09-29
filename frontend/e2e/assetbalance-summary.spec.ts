@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -67,7 +68,7 @@ async function setupAssetBalanceMocks(page: Page) {
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({

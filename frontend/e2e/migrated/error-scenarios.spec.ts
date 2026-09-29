@@ -5,7 +5,8 @@
  * 失敗系・境界系の UI 挙動を検証する。
  * Leptos の開発サーバーで実行する。
  */
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 import * as path from 'path';
 const FIXTURE_DIR = path.resolve(process.cwd(), 'e2e/__fixtures__/csv');
 

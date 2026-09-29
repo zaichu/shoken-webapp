@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 
 /**
  * スマホ表示レビュー用のスクリーンショット取得。

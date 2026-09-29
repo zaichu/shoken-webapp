@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -114,7 +115,7 @@ async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SON
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({
