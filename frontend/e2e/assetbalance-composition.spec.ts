@@ -92,7 +92,6 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   const composition = page.getByTestId('portfolio-composition');
   await expect(composition).toBeVisible();
 
-  // 帯は上位20色+その他(グレー)の21セグメント
   const segments = composition.locator('div[aria-hidden="true"] > div');
   await expect(segments).toHaveCount(21);
   await expect(segments.nth(0)).toHaveClass(/bg-holding-1\b/);
@@ -100,7 +99,6 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   await expect(segments.nth(20)).toHaveClass(/bg-fill-strong/);
   await expect(segments.nth(0)).toHaveAttribute('style', /^width: 97\.0/);
 
-  // 凡例も同じ並び・同じ色対応で、帯の割合と一致する
   const legend = composition.locator('ul > li');
   await expect(legend).toHaveCount(21);
   await expect(legend.nth(0)).toContainText('銘柄01');
@@ -117,7 +115,6 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
     legend.nth(20).locator('span').first(),
   ).toHaveClass(/bg-fill-strong/);
 
-  // 保有カードの左端の帯色は並び位置のトークンと一致する
   const firstCard = page.locator('div.border-l-holding-1').filter({
     has: page.getByTestId('portfolio-card-identity'),
   });
@@ -129,15 +126,27 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   await expect(twentiethCard).toHaveCount(1);
   await expect(twentiethCard).toContainText('銘柄20');
 
-  // カード内の構成比バーも同じ位置トークンを使う
   const firstBar = firstCard.getByTestId('portfolio-card-composition-bar');
   await expect(firstBar).toHaveClass(/bg-holding-1\b/);
   const twentiethBar = twentiethCard.getByTestId('portfolio-card-composition-bar');
   await expect(twentiethBar).toHaveClass(/bg-holding-20\b/);
 
-  // 銘柄コードは flush バッジ(左余白なし)でカード左端に揃う
   const code = firstCard.getByTestId('portfolio-card-code');
   await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
+  const flushStyle = await code.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      paddingLeft: style.paddingLeft,
+      letterSpacing: style.letterSpacing,
+    };
+  });
+  expect(flushStyle.paddingLeft).toBe('0px');
+  expect(['normal', '0px']).toContain(flushStyle.letterSpacing);
+  const codeBox = await code.boundingBox();
+  const nameBox = await firstCard.getByText('銘柄01').boundingBox();
+  expect(codeBox).not.toBeNull();
+  expect(nameBox).not.toBeNull();
+  expect(codeBox!.x).toBeLessThan(nameBox!.x);
 });
 
 test('保有カードの取得総額は8桁の金額でも省略されない', async ({ page }) => {
@@ -167,6 +176,15 @@ test('390px の保有カードは銘柄コードが銘柄名の左に並ぶ', as
   const code = card.getByTestId('portfolio-holding-card-code');
   await expect(code).toBeVisible();
   await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
+  const flushStyle = await code.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      paddingLeft: style.paddingLeft,
+      letterSpacing: style.letterSpacing,
+    };
+  });
+  expect(flushStyle.paddingLeft).toBe('0px');
+  expect(['normal', '0px']).toContain(flushStyle.letterSpacing);
   const firstChildTestId = await code
     .locator('xpath=..')
     .evaluate((el) => el.firstElementChild?.getAttribute('data-testid'));
@@ -187,7 +205,6 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/assetbalance');
 
-  // 保有数は2銘柄のまま、カードも2枚出る
   await expect(page.getByTestId('portfolio-kpi-grid')).toContainText('2');
   await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(2);
   const giftedCard = page
@@ -195,12 +212,10 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
     .filter({ hasText: '贈与銘柄' });
   await expect(giftedCard).toHaveCount(1);
 
-  // 0円銘柄のカードは構成比を算出不可として出し、バー幅は 0%(有価額のカードは 100.0% 側)
   await expect(page.getByText('構成比 —')).toHaveCount(1);
   const giftedBar = page.getByTestId('portfolio-card-composition-bar').nth(1);
   await expect(giftedBar).toHaveAttribute('style', 'width: 0%');
 
-  // 帯グラフと凡例には取得額を持つ1銘柄だけが出る
   const composition = page.getByTestId('portfolio-composition');
   await expect(
     composition.locator('div[aria-hidden="true"] > div'),
@@ -222,13 +237,11 @@ test('0円銘柄を含む21+1件ではカード一覧と帯・凡例の「その
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/assetbalance');
 
-  // 帯・凡例の「その他」は構成比のある折りたたみ分だけを数える
   const composition = page.getByTestId('portfolio-composition');
   const legend = composition.locator('ul > li');
   await expect(legend).toHaveCount(21);
   await expect(legend.nth(20)).toContainText('その他 1銘柄');
 
-  // カード一覧側の「その他」も同じ1銘柄。0円銘柄は折りたたまず常に出す
   const grid = page.getByTestId('portfolio-items-grid');
   await expect(grid.getByText('その他 1銘柄')).toHaveCount(1);
   await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(21);
