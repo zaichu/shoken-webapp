@@ -209,6 +209,38 @@
     @apply flex flex-wrap items-center gap-3;
   }
 
+  .mobile-toolbar {
+    @apply flex items-center gap-2 rounded-xl border border-border-subtle bg-surface p-1 sm:hidden;
+  }
+
+  .mobile-toolbar-trigger,
+  .mobile-toolbar-menu {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2 text-sm font-semibold text-text-soft hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+
+  .mobile-toolbar-trigger[aria-expanded="true"],
+  .mobile-toolbar-menu[aria-expanded="true"] {
+    @apply bg-surface-raised text-ink;
+  }
+
+  .mobile-toolbar-menu {
+    @apply ml-auto;
+  }
+
+  .toolbar-search-card {
+    @apply px-4 py-4;
+  }
+
+  .security-details-link {
+    @apply inline-flex min-h-11 items-center text-info underline underline-offset-2 hover:text-info-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+
+  @media (width < 40rem) {
+    .toolbar-search-card[data-expanded="false"] {
+      display: none;
+    }
+  }
+
   .status-message {
     @apply my-4 flex flex-col items-center gap-2;
   }
@@ -226,7 +258,7 @@
   }
 
   .collapsible-card {
-    @apply mb-3 rounded-xl border border-ink/10 bg-surface/95 px-4 py-3 shadow-elevation-1 max-sm:px-3 max-sm:py-0;
+    @apply mb-3 rounded-xl border border-ink/10 bg-surface/95 px-4 py-3 shadow-elevation-1 max-sm:px-3;
   }
 
   .empty-state {

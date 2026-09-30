@@ -231,20 +231,15 @@ pub(crate) fn ReceiptTable(
                                                     .map(|(class, span)| {
                                                         view! {
                                                             <td
-                                                                colspan=*span
+                                                                colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
                                                                     "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-2 border-border-xstrong{top}{class}"
                                                                 )
                                                             >
                                                                 <span class="text-sm font-medium">{group.label.clone()}</span>
-                                                                {(count >= 2)
-                                                                    .then(|| {
-                                                                        view! {
-                                                                            <span class="ml-2 text-xs font-medium text-text-muted">
-                                                                                {format!("{count}件")}
-                                                                            </span>
-                                                                        }
-                                                                    })}
+                                                                <span class="ml-2 text-xs font-medium text-text-muted">
+                                                                    {format!("{count}件")}
+                                                                </span>
                                                             </td>
                                                         }
                                                     })

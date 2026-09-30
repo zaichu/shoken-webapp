@@ -234,6 +234,31 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   ).toBeVisible();
 }
 
+async function expectReceiptsErrorLayout(page: Page, width: number) {
+  const rail = page.getByTestId('receipt-utility-rail');
+  const main = page.getByTestId('receipt-main-stage');
+  const alert = main.getByRole('alert');
+  await expect(alert).toBeVisible();
+  await expect(alert).not.toBeEmpty();
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  const searchCard = rail.getByTestId('search-card-compact');
+  if (width < 640) {
+    const toggle = rail.getByTestId('receipt-search-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(searchCard).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(searchCard).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(searchCard).toBeHidden();
+  } else {
+    await expect(searchCard).toBeVisible();
+  }
+  await expect(main.getByTestId('receipt-card')).toHaveCount(0);
+}
+
 test.beforeEach(async ({ context }) => {
   await mockApi(context);
 });
@@ -294,13 +319,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await mockReceiptFetchErrors(page);
     await page.goto('/receipts');
-    const main = page.getByTestId('receipt-main-stage');
-    const alert = main.getByRole('alert');
-    await expect(alert).toBeVisible();
-    await expect(alert).not.toBeEmpty();
-    await expect(page.getByRole('alert')).toHaveCount(1);
-    await expect(page.getByTestId('receipt-utility-rail').getByTestId('search-card-compact')).toBeVisible();
-    await expect(main.getByTestId('receipt-card')).toHaveCount(0);
+    await expectReceiptsErrorLayout(page, width);
     await expectNoPageOverflow(page, width);
   });
 

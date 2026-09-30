@@ -295,8 +295,9 @@ test('見出しが年月でないグループではカードの日付を年付�
   await expect(card).toBeVisible();
   // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
   await expect(card.getByText('03/01', { exact: true })).toBeVisible();
+  await expect(cardList.getByText('1件', { exact: true })).toBeVisible();
 
-  await page.getByTestId('search-card-header').click();
+  await page.getByTestId('receipt-search-toggle').click();
   await page.locator('#securities-search').selectOption('7203');
   await expect(
     cardList.getByRole('button', { name: /トヨタ自動車 1件 税引後 ¥2,391/ }),
@@ -305,6 +306,45 @@ test('見出しが年月でないグループではカードの日付を年付�
   // 見出しが銘柄名に変わると年が分からなくなるので YYYY/MM/DD で出す
   await expect(card.getByText('2024/03/01', { exact: true })).toBeVisible();
   await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+});
+
+test('国内株式は1件日の小計を省き、複数件日は税額を含む集計を残す', async ({ page }) => {
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([
+        DOMESTIC,
+        { ...DOMESTIC, id: 'second', trade_date: '2024-02-02' },
+        { ...DOMESTIC, id: 'third', trade_date: '2024-02-02' },
+      ])),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: /国内株式/ }).click();
+  const list = page.getByTestId('receipt-card-list');
+  await expect(list.getByTestId('receipt-card')).toHaveCount(3);
+  const groups = list.getByTestId('receipt-card-group');
+  const single = groups.filter({ hasText: '2024年2月1日' });
+  await expect(single.getByText('1件', { exact: true })).toBeVisible();
+  await expect(single.locator('[aria-expanded]')).toHaveCount(0);
+  const multiple = groups.filter({ hasText: '2024年2月2日' });
+  const toggle = multiple.getByRole('button', { name: /2024年2月2日 2件 税引後/ });
+  await toggle.click();
+  await expect(multiple.getByRole('region').getByText('税額', { exact: true })).toBeVisible();
+  const profit = multiple.getByRole('region').locator('dl > div')
+    .filter({ has: page.getByText('実現損益', { exact: true }) }).locator('dd');
+  await expect(profit).toHaveText('¥10,000');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const table = page.getByRole('table');
+  const singleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月1日' });
+  await expect(singleHeading.locator('td:visible')).toHaveCount(1);
+  await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
+  const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
+  await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
+    '¥10,000', '¥0', '¥10,000',
+  ]);
 });
 
 test('長い口座名は省略せず折り返して全文を出す', async ({ page }) => {

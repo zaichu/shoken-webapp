@@ -6,6 +6,13 @@ use crate::ui::csv_preview::CsvPreviewNotice;
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum CsvRailLayout {
+    #[default]
+    Rail,
+    Toolbar,
+}
+
 #[component]
 pub fn CsvActionRail(
     input_id: &'static str,
@@ -26,9 +33,12 @@ pub fn CsvActionRail(
     toggle_testid: &'static str,
     body_id: String,
     section_class: &'static str,
+    #[prop(optional_no_strip)] expanded: Option<RwSignal<bool>>,
+    #[prop(optional)] layout: CsvRailLayout,
 ) -> impl IntoView {
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
-    let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
+    let csv_expanded =
+        expanded.unwrap_or_else(|| RwSignal::new(save_result.get_untracked().is_some()));
     // プレビュー通知と保存ボタンは折り畳み内にある。未完了プレビューがあるのに
     // 畳まれていると保存導線が見えないため、通知が出たら展開して始める
     Effect::new(move |_| {
@@ -48,6 +58,7 @@ pub fn CsvActionRail(
 
     view! {
         <div>
+            {(layout == CsvRailLayout::Rail).then(|| view! {
             <div class="bg-surface-sunken/60 px-5 sm:hidden">
                 <DisclosureToggle
                     style=DisclosureStyle::Rail
@@ -60,6 +71,7 @@ pub fn CsvActionRail(
                     <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
                 </DisclosureToggle>
             </div>
+            })}
             <div
                 id=csv_body_id
                 role="region"

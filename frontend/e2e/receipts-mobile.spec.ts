@@ -253,14 +253,51 @@ test('矢印キーとHome/Endでタブを移動しフォーカスも追従する
   await expect(dividend).toHaveAttribute('aria-selected', 'true');
 });
 
-test('集計は主要指標のみ常時表示しタップで全項目を開く', async ({ page }) => {
+test('検索・集計・CSVは同じツールバーからキーボードで開閉できる', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+  const toolbar = page.getByTestId('receipt-mobile-toolbar');
+  await expect(toolbar).toBeVisible();
+  const search = toolbar.getByTestId('receipt-search-toggle');
+  const summary = toolbar.getByTestId('receipt-summary-compact-toggle');
+  const csv = toolbar.getByTestId('receipt-csv-toggle');
+  const buttons = [search, summary, csv];
+  for (const button of buttons) {
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    const id = await button.getAttribute('aria-controls');
+    await expect(page.locator(`[id="${id}"]`)).toBeAttached();
+  }
+  const boxes = await Promise.all(buttons.map((button) => button.boundingBox()));
+  expect(boxes.every((box) => box !== null)).toBe(true);
+  expect(Math.max(...boxes.map((box) => box!.y))).toBeLessThan(
+    Math.min(...boxes.map((box) => box!.y + box!.height)),
+  );
+  await expect(page.locator('#search-options-body')).toBeHidden();
+  await expect(page.getByRole('region', { name: '集計情報', exact: true })).toBeHidden();
+  await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeHidden();
+  for (const button of buttons) {
+    for (let step = 0; step < 50 && !(await button.evaluate((el) => el === document.activeElement)); step++) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(button).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    const id = await button.getAttribute('aria-controls');
+    await expect(page.locator(`[id="${id}"]`)).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator(`[id="${id}"]`)).toBeHidden();
+  }
+});
+
+test('集計はツールバーから全項目を開く', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAttribute('aria-label', /税引後 ¥4,782/);
+  await expect(toggle).toHaveAttribute('aria-label', '集計情報');
   await expect(page.getByTestId('receipt-summary-desktop')).toBeHidden();
 
   await toggle.click();
@@ -358,7 +395,7 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
   const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
   await summaryToggle.click();
 
-  await page.getByTestId('search-card-header').click();
+  await page.getByTestId('receipt-search-toggle').click();
   await page.locator('#securities-search').selectOption('9432');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
 
