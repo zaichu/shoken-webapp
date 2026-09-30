@@ -46,6 +46,19 @@ fn fail_preview_clears_busy_and_keeps_file() {
 }
 
 #[test]
+fn has_preview_rows_requires_non_empty_rows() {
+    let mut state = CsvTabState::<String>::default();
+    assert!(!state.has_preview_rows());
+    state.preview = Some(CsvPreview::default());
+    assert!(!state.has_preview_rows(), "有効行0件のプレビューは扱わない");
+    state.preview = Some(CsvPreview {
+        rows: vec!["row".to_string()],
+        ..Default::default()
+    });
+    assert!(state.has_preview_rows());
+}
+
+#[test]
 fn upload_response_deserializes() {
     let response: CsvUploadResponse =
         serde_json::from_str(r#"{"inserted":2,"skipped":1,"errors":[{"row":5,"message":"重複"}]}"#)

@@ -480,6 +480,28 @@ pub fn Loading() -> impl IntoView {
 }
 
 #[component]
+pub fn LoadingStrip(#[prop(into)] text: Signal<String>) -> impl IntoView {
+    view! {
+        <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
+            <div class="flex items-center gap-2 text-text-muted">
+                <Spinner size=SpinnerSize::Sm class=""/>
+                <p class="text-sm">{move || text.get()}</p>
+            </div>
+        </section>
+    }
+}
+
+#[component]
+pub fn Skeleton(#[prop(into, optional)] class: Signal<String>) -> impl IntoView {
+    view! {
+        <div
+            class=move || format!("animate-pulse rounded bg-fill {}", class.get())
+            aria-hidden="true"
+        ></div>
+    }
+}
+
+#[component]
 pub fn ListLoadError(
     message: String,
     on_retry: impl Fn() + Send + Sync + 'static,
@@ -503,23 +525,60 @@ pub fn ListLoadError(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListSkeletonVariant {
+    Cards,
+    Table,
+}
+
 #[component]
-pub fn ListSkeleton() -> impl IntoView {
+pub fn ListSkeleton(variant: ListSkeletonVariant) -> impl IntoView {
+    let body = match variant {
+        ListSkeletonVariant::Cards => view! {
+            {(0..3)
+                .map(|_| {
+                    view! {
+                        <div class="grid gap-2 rounded-lg border border-border-subtle p-4">
+                            <div class="h-4 w-1/3 rounded bg-fill"></div>
+                            <div class="h-6 w-1/2 rounded bg-fill"></div>
+                            <div class="h-4 w-2/3 rounded bg-fill"></div>
+                        </div>
+                    }
+                })
+                .collect_view()}
+        }
+        .into_any(),
+        ListSkeletonVariant::Table => view! {
+            {(0..2)
+                .map(|_| {
+                    view! {
+                        <div class="grid gap-2">
+                            <div class="h-4 w-32 rounded bg-fill"></div>
+                            <div class="grid gap-2 rounded-lg border border-border-subtle p-4">
+                                {(0..4)
+                                    .map(|_| {
+                                        view! {
+                                            <div class="skeleton-table-row">
+                                                <div class="h-4 rounded bg-fill"></div>
+                                                <div class="h-4 rounded bg-fill max-sm:hidden"></div>
+                                                <div class="h-4 rounded bg-fill"></div>
+                                            </div>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        </div>
+                    }
+                })
+                .collect_view()}
+        }
+        .into_any(),
+    };
     view! {
         <Card variant=CardVariant::Panel class="p-4" role="status" testid="list-skeleton">
             <span class="sr-only">"データを読み込んでいます..."</span>
             <div class="grid animate-pulse gap-4" aria-hidden="true">
-                {(0..3)
-                    .map(|_| {
-                        view! {
-                            <div class="grid gap-2 rounded-lg border border-border-subtle p-4">
-                                <div class="h-4 w-1/3 rounded bg-fill"></div>
-                                <div class="h-6 w-1/2 rounded bg-fill"></div>
-                                <div class="h-4 w-2/3 rounded bg-fill"></div>
-                            </div>
-                        }
-                    })
-                    .collect_view()}
+                {body}
             </div>
         </Card>
     }

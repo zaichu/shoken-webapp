@@ -4,6 +4,7 @@ use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
 use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::elements::{Alert, AlertVariant};
 use crate::ui::security_link::try_copy_to_clipboard;
 use leptos::prelude::*;
 
@@ -20,13 +21,8 @@ pub(crate) fn AssetBalanceRailExtras(
     view! {
         {warning.map(|text| {
             view! {
-                <div class="px-5 py-4" role="status" aria-live="polite">
-                    <div
-                        class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text shadow-sm"
-                        role="alert"
-                    >
-                        {text}
-                    </div>
+                <div class="px-5 py-4">
+                    <Alert variant=AlertVariant::Warning>{text}</Alert>
                 </div>
             }
         })}

@@ -40,7 +40,7 @@ impl CsvSource for AssetBalanceCsvStore {
     }
 
     fn input_disabled(&self) -> bool {
-        self.csv_busy() || self.list_loading()
+        self.csv_input_disabled()
     }
 
     fn save_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {

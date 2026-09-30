@@ -1,7 +1,7 @@
 use super::workspace::ReceiptWorkspace;
 use super::TAB_IDS;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::elements::{ListSkeleton, Loading};
+use crate::ui::elements::{ListSkeleton, ListSkeletonVariant, Loading};
 use crate::ui::tabs::TabButton;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -119,7 +119,7 @@ pub(crate) fn TabPanel(
                     return ().into_any();
                 }
                 if loading {
-                    return view! { <ListSkeleton /> }.into_any();
+                    return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
                 if !store.is_authenticated() {
                     return view! { <Loading /> }.into_any();
