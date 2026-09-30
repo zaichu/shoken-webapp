@@ -37,14 +37,8 @@ pub enum CardVariant {
     Sunken,
     /// カード内の集計ストリップ(grid 等は class で)
     Strip,
-    /// 検索ヒントの薄い箱
-    Hint,
-    /// 破線の箱(ホームの CSV 案内)
-    Dashed,
     /// 破線の小さい箱(保有内訳の「その他」)
     DashedCompact,
-    /// ホームの手順ステップ
-    Step,
     /// ホームの概要タイル
     Tile,
     /// グループのラベル行(開閉なし)
@@ -66,7 +60,9 @@ impl CardVariant {
             Self::Summary => {
                 "rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-summary-card"
             }
-            Self::Soft => "overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card",
+            Self::Soft => {
+                "overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card"
+            }
             Self::Item => "rounded-lg border border-border-strong bg-surface",
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",
             Self::Holding => "rounded-lg border border-ink/10 bg-surface shadow-sm",
@@ -76,18 +72,11 @@ impl CardVariant {
             }
             Self::Sunken => "rounded-lg bg-surface-sunken px-4 py-3",
             Self::Strip => "overflow-hidden rounded-md bg-surface-sunken",
-            Self::Hint => "rounded-xl border border-ink/10 bg-surface-sunken/80 p-4",
-            Self::Dashed => {
-                "rounded-xl border border-dashed border-border-strong bg-surface-raised/70 px-4 py-4"
-            }
             Self::DashedCompact => {
                 "rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3"
             }
-            Self::Step => "rounded-lg border border-ink/10 bg-surface/75 px-3 py-3",
             Self::Tile => "rounded-xl border border-ink/10 bg-surface px-4 py-4 shadow-sm",
-            Self::GroupLabel => {
-                "flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2"
-            }
+            Self::GroupLabel => "flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2",
         };
         class.to_string()
     }
