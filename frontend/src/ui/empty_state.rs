@@ -65,9 +65,9 @@ pub fn EmptyState(
                 }
             })}
             {if as_h1 {
-                view! { <h1 class="text-2xl font-black text-ink">{title.clone()}</h1> }.into_any()
+                view! { <h1 class="text-balance text-2xl font-black text-ink">{title.clone()}</h1> }.into_any()
             } else {
-                view! { <h3 class="text-base font-black text-ink">{title.clone()}</h3> }.into_any()
+                view! { <h3 class="text-balance text-base font-black text-ink">{title.clone()}</h3> }.into_any()
             }}
             <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">{description}</p>
             {children.map(|children| children())}

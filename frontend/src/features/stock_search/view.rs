@@ -86,13 +86,11 @@ pub(crate) fn SearchPage() -> impl IntoView {
                 } else if not_found {
                     view! {
                         <EmptySearch title="該当する銘柄が見つかりませんでした" />
-                        <SearchHints />
                     }
                         .into_any()
                 } else if !is_loading {
                     view! {
                         <EmptySearch title="銘柄を検索" />
-                        <SearchHints />
                     }
                         .into_any()
                 } else {
@@ -180,21 +178,13 @@ fn EmptySearch(title: &'static str) -> impl IntoView {
             title=title
             description=description
             icon=EmptyStateIcon::Search
-        />
-    }
-}
-
-#[component]
-fn SearchHints() -> impl IntoView {
-    view! {
-        <Card variant=CardVariant::Hint class="mt-6">
-            <h3 class="mb-2 text-sm font-black text-text">"検索のヒント"</h3>
-            <ul class="space-y-1 text-sm font-medium text-text-muted">
+        >
+            <ul class="mt-4 space-y-1 text-sm font-medium text-text-muted">
                 <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
                 <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
                 <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
             </ul>
-        </Card>
+        </EmptyState>
     }
 }
 
@@ -257,7 +247,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
 #[component]
 fn StockInfoLinks(code: String) -> impl IntoView {
     view! {
-        <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {STOCK_LINKS
                 .iter()
                 .map(|(name, template)| {
