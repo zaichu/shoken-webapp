@@ -143,6 +143,15 @@ fn fund_options_merge_names_differing_only_by_width() {
 }
 
 #[test]
+fn promoted_column_matches_full_width_query() {
+    let rows = dividends();
+    assert_eq!(
+        promoted_column(ReceiptsTab::Dividend, &rows, "ｎｉｓａ"),
+        Some(2)
+    );
+}
+
+#[test]
 fn whitespace_returns_all_three_tabs() {
     for (tab, rows) in [
         (ReceiptsTab::Dividend, dividends()),

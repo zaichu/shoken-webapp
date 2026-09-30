@@ -292,7 +292,7 @@ pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Op
     if query.is_empty() {
         return None;
     }
-    let query = query.to_lowercase();
+    let query = normalize_display_name(query).to_lowercase();
     tab.reorder_rules()
         .iter()
         .find(|rule| rows.iter().any(|row| (rule.matches)(row, &query)))
