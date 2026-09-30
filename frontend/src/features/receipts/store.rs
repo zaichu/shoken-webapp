@@ -95,6 +95,14 @@ impl ReceiptsStore {
             self.search.set(ReceiptSearch::default());
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
+            // タブ切替時に、初期化済みかつ未操作ならそのタブの初期状態へ戻す
+            if !self.utility_rail_decided.get_untracked() {
+                self.utility_rail_initials.with_untracked(|initials| {
+                    if let Some(&open) = initials.get(&tab) {
+                        self.utility_rail_open.set(open);
+                    }
+                });
+            }
         }
         self.visited.update(|visited| {
             visited.insert(tab);

@@ -545,7 +545,9 @@
   .receipt-table .receipt-span-mid,
   .receipt-table .receipt-span-lg-open,
   .receipt-table .receipt-span-lg-collapsed,
-  .receipt-table .receipt-span-xl-open {
+  .receipt-table .receipt-span-xl-open,
+  .receipt-table .rail-collapsed .receipt-span-lg-collapsed,
+  .receipt-table .rail-collapsed .receipt-span-xl-open {
     display: none !important;
   }
 
