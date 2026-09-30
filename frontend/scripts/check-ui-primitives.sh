@@ -59,20 +59,140 @@ check() {
   emit_check "$label" "${filtered%$'\n'}"
 }
 
+# タグ内の文字列と RSX 属性式の括弧を追跡し、属性値中の > を終端と誤認しない。
+# タグ外では Rust の文字列・raw string・文字リテラル・行末コメントを読み飛ばし、
+# それらに含まれるタグ風テキストを誤検知しない。
+extract_class_tags() {
+  awk '
+    # Rust の文字リテラル(例: ( の3文字、\n の4文字)なら終端位置を返す。
+    # ライフタイム(a のように閉じクォートを持たない)は -1 を返す。
+    function char_lit_end(text, i,    n1, n3) {
+      n1 = substr(text, i + 1, 1)
+      if (n1 == "\\" && substr(text, i + 3, 1) == "\047") return i + 3
+      if (substr(text, i + 2, 1) == "\047") return i + 2
+      return -1
+    }
+
+    function start_tag() {
+      in_tag = 1
+      tag = "<"
+      quote = ""
+      escaped = 0
+      paren = 0
+      bracket = 0
+      brace = 0
+    }
+
+    function finish_tag() {
+      if (tag ~ /class/) {
+        print tag
+      }
+      in_tag = 0
+      tag = ""
+    }
+
+    /^[[:space:]]*(\/\/|\/\*|\*)/ { next }
+
+    {
+      text = $0 " "
+      for (i = 1; i <= length(text); i++) {
+        char = substr(text, i, 1)
+        next_char = substr(text, i + 1, 1)
+
+        if (!in_tag) {
+          # 文字列リテラル "...": 中身とエスケープを読み飛ばす
+          if (char == "\"") {
+            j = i + 1
+            while (j <= length(text)) {
+              c2 = substr(text, j, 1)
+              if (c2 == "\\") { j += 2; continue }
+              if (c2 == "\"") break
+              j++
+            }
+            i = j
+            continue
+          }
+          # raw string r"..." / r#"..."# / br"..." / br#"..."#:
+          # 開始側の # の数と同じ閉端を探す。raw string では \ はエスケープに
+          # ならないので通常文字列と分けて扱う。r の直前が識別子文字の場合
+          # (関数名の末尾等)は raw string ではないが、br の b はバイト列接頭辞
+          if (char == "r" && match(substr(text, i + 1), /^#*"/)) {
+            pred = substr(text, i - 1, 1)
+            is_raw = (i == 1 || pred ~ /[^[:alnum:]_]/)
+            if (!is_raw && pred == "b" \
+              && (i == 2 || substr(text, i - 2, 1) ~ /[^[:alnum:]_]/))
+              is_raw = 1
+            if (is_raw) {
+              closer = "\"" substr(text, i + 1, RLENGTH - 1)
+              j = index(substr(text, i + 1 + RLENGTH), closer)
+              if (j > 0) i = i + 2 * RLENGTH + j - 1
+              continue
+            }
+          }
+          # 文字リテラル(ライフタイムは除く): 中の記号を構文と誤認しない
+          if (char == "\047") {
+            e = char_lit_end(text, i)
+            if (e > 0) { i = e; continue }
+          }
+          # // 以降は行末コメント
+          if (char == "/" && next_char == "/") break
+          if (char == "<" && next_char ~ /[[:alpha:]\/]/) {
+            start_tag()
+          }
+          continue
+        }
+
+        tag = tag char
+        if (quote != "") {
+          if (escaped) {
+            escaped = 0
+          } else if (char == "\\") {
+            escaped = 1
+          } else if (char == quote) {
+            quote = ""
+          }
+        } else if (char == "\"") {
+          quote = char
+        } else if (char == "\047" && char_lit_end(text, i) > 0) {
+          # 属性式中の文字リテラル(例: ()は括弧カウントを増やさない
+          tag = tag substr(text, i + 1, char_lit_end(text, i) - i)
+          i = char_lit_end(text, i)
+        } else if (char == "(") {
+          paren++
+        } else if (char == ")" && paren > 0) {
+          paren--
+        } else if (char == "[") {
+          bracket++
+        } else if (char == "]" && bracket > 0) {
+          bracket--
+        } else if (char == "{") {
+          brace++
+        } else if (char == "}" && brace > 0) {
+          brace--
+        } else if (char == ">" && paren == 0 && bracket == 0 && brace == 0) {
+          finish_tag()
+        }
+      }
+    }
+  ' "$@"
+}
+
 # カードに相当するユーティリティの組み合わせ(角丸・枠・面の直書きは Card の variant にする)。
-# タグは複数行にまたがり得るのでファイルを1行に潰して <...> 単位で切り出し、
-# class="..."(改行を含む)と class:xxx の両方の指定を同じタグ内の組み合わせとして見る
+# border-none / border-x はカード全体の枠ではないため除外し、完全な border トークンだけを見る。
+# bg-surface-2 のような別トークンは除外し、bg-surface と opacity 修飾だけを同じ面として扱う。
 check_card_like() {
   local label="$1" file tag hits=""
+  local border_pattern='(^|[^[:alnum:]_-])border([^[:alnum:]_/-]|$)'
+  local surface_pattern='(^|[^[:alnum:]_-])bg-surface(/[[:alnum:]_.-]+)?([^[:alnum:]_/-]|$)'
   shift
   for file in "$@"; do
     while IFS= read -r tag; do
       if grep -qE 'rounded-(lg|xl|2xl)' <<<"$tag" \
-        && grep -q 'border' <<<"$tag" \
-        && grep -q 'bg-surface' <<<"$tag"; then
+        && grep -qE "$border_pattern" <<<"$tag" \
+        && grep -qE "$surface_pattern" <<<"$tag"; then
         hits+="${file}: $(printf '%.120s' "$tag")"$'\n'
       fi
-    done < <(grep -vE '^[[:space:]]*(//|/\*|\*)' "$file" | tr '\n' ' ' | grep -oE '<[^>]*class[^>]*>' || true)
+    done < <(extract_class_tags "$file")
   done
   emit_check "$label" "${hits%$'\n'}"
 }
@@ -108,7 +228,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

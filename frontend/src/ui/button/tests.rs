@@ -18,8 +18,8 @@ fn sized_variants_compose_base_variant_and_size() {
             "border border-border-strong bg-surface text-text-soft hover:border-border-bold hover:bg-surface-sunken px-2 py-1 text-xs max-sm:min-h-11",
         ),
         (
-            ButtonVariant::Danger(ButtonSize::Fill),
-            "border border-negative text-negative hover:bg-negative hover:text-text-inverse h-11 w-full px-3 text-sm max-sm:min-h-11",
+            ButtonVariant::DangerSolid(ButtonSize::Fill),
+            "border border-negative bg-negative text-text-inverse shadow-sm hover:border-negative-strong hover:bg-negative-strong h-11 w-full px-3 text-sm max-sm:min-h-11",
         ),
         (
             ButtonVariant::Header(ButtonSize::Sm),
@@ -37,8 +37,12 @@ fn sized_variants_compose_base_variant_and_size() {
 
 #[test]
 fn standalone_variants_do_not_take_size() {
-    let cases: [(ButtonVariant, &str); 9] = [
+    let cases: [(ButtonVariant, &str); 10] = [
         (ButtonVariant::Ghost, "text-sm text-text-deep hover:underline"),
+        (
+            ButtonVariant::DangerGhost,
+            "inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-semibold text-negative transition-colors hover:bg-negative-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-negative/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11",
+        ),
         (ButtonVariant::Quiet, "chart-toggle-button"),
         (ButtonVariant::Prompt, "review-prompt-button"),
         (ButtonVariant::Login, "login-button"),
@@ -91,23 +95,11 @@ fn button_size_classes() {
 
 #[test]
 fn icon_button_variant_classes() {
-    assert_eq!(
-        IconButtonVariant::Boxed.class(),
-        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
-    );
     assert_eq!(IconButtonVariant::Close.class(), "modal-close-button");
 }
 
 #[test]
 fn icon_button_classes_appends_extra_class() {
-    assert_eq!(
-        icon_button_classes(IconButtonVariant::Boxed, ""),
-        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
-    );
-    assert_eq!(
-        icon_button_classes(IconButtonVariant::Boxed, "no-print"),
-        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11 no-print"
-    );
     assert_eq!(
         icon_button_classes(IconButtonVariant::Close, "mt-1"),
         "modal-close-button mt-1"

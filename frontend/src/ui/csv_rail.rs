@@ -114,7 +114,7 @@ pub fn CsvActionRail(
                             // 保存後にボタンがカーソルの下へせり上がらないよう、区切り線の下の最後に置く
                             <div class="border-t border-border-subtle pt-3">
                                 <Button
-                                    variant=ButtonVariant::Danger(ButtonSize::Fill)
+                                    variant=ButtonVariant::DangerGhost
                                     class="no-print"
                                     disabled=move || delete_disabled.get()
                                     aria_disabled=move || delete_disabled.get()
@@ -156,60 +156,64 @@ fn CsvFileInput(
     };
     let label_class = move || {
         if disabled.get() {
-            "flex min-h-20 items-center justify-between gap-3 rounded-note border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
+            "flex min-h-20 items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
         } else {
-            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-note border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
+            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
         }
     };
     view! {
-        <div class="space-y-2.5">
-            <label data-testid="csv-file-trigger" class=label_class for=input_id>
-                // ラベル内に置かないと focus-within が発火せず、見えるファイル選択枠にフォーカス枠が出ない
-                <input
-                    id=input_id
-                    data-testid="csv-file-input"
-                    type="file"
-                    accept=".csv"
-                    class="sr-only"
-                    on:change=on_change
-                    disabled=move || disabled.get()
-                    aria-label="CSVファイルを選択"
-                />
-                <div class="flex min-w-0 items-center gap-3">
-                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface text-text-muted shadow-sm">
-                        <svg
-                            class="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"
-                            />
-                        </svg>
-                    </span>
-                    <div class="min-w-0">
-                        <p class="whitespace-nowrap text-sm font-semibold text-text">"CSVファイルを選択"</p>
-                    </div>
-                </div>
-                <Badge variant=BadgeVariant::File>
-                    "参照"
-                </Badge>
-            </label>
+        <label data-testid="csv-file-trigger" class=label_class for=input_id>
+            // ラベル内に置かないと focus-within が発火せず、見えるファイル選択枠にフォーカス枠が出ない
             <input
-                type="text"
-                class="csv-file-input"
-                readonly
-                placeholder="ファイル未選択"
-                prop:value=move || selected_file_name.get()
+                id=input_id
+                data-testid="csv-file-input"
+                type="file"
+                accept=".csv"
+                class="sr-only"
+                on:change=on_change
                 disabled=move || disabled.get()
-                aria-label="選択されたファイル名"
+                aria-label="CSVファイルを選択"
+                // 入力の値は同じファイルの再選択のために消すので、読み上げは表示中のファイル名へ逃がす
+                aria-describedby=format!("{input_id}-filename")
             />
-        </div>
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-text-muted shadow-sm">
+                    <svg
+                        class="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="1.8"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"
+                        />
+                    </svg>
+                </span>
+                <div class="min-w-0">
+                    <p class="whitespace-nowrap text-sm font-semibold text-text">"CSVファイルを選択"</p>
+                    <p
+                        id=format!("{input_id}-filename")
+                        class="truncate text-xs font-medium text-text-muted"
+                    >
+                        {move || {
+                            let name = selected_file_name.get();
+                            if name.is_empty() {
+                                "ファイル未選択".to_string()
+                            } else {
+                                name
+                            }
+                        }}
+                    </p>
+                </div>
+            </div>
+            <Badge variant=BadgeVariant::File>
+                "参照"
+            </Badge>
+        </label>
     }
 }
 

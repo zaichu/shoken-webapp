@@ -14,7 +14,7 @@ use axum::{
     response::{IntoResponse, Json},
 };
 use axum_extra::extract::{cookie::Cookie, CookieJar};
-use hmac::{Hmac, Mac};
+use hmac::{digest::KeyInit, Hmac, Mac};
 use sha2::Sha256;
 
 const ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME: &str = "account_delete_confirmation";
