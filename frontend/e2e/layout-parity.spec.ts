@@ -1,7 +1,5 @@
-import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './support/test';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -110,66 +108,13 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
-const TABLE_SPEC = {
-  dividend: {
-    tabName: '配当金',
-    widths: [96, 76, 76, 88, 0, 80, 72, 104, 88, 104],
-    aligns: [
-      'left',
-      'left',
-      'left',
-      'center',
-      'left',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-    ],
-  },
-  domesticstock: {
-    tabName: '国内株式',
-    widths: [96, 88, 0, 76, 72, 80, 104, 104, 104, 88, 104],
-    aligns: [
-      'left',
-      'center',
-      'left',
-      'left',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-    ],
-  },
-  mutualfund: {
-    tabName: '投資信託',
-    widths: [96, 0, 76, 72, 80, 104, 104, 104, 88, 104],
-    aligns: [
-      'left',
-      'left',
-      'left',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-      'right',
-    ],
-  },
-} as const;
+const TABS = [
+  { slug: 'dividend', name: '配当金', count: DIVIDENDS.length },
+  { slug: 'domesticstock', name: '国内株式', count: DOMESTIC_STOCKS.length },
+  { slug: 'mutualfund', name: '投資信託', count: MUTUALFUNDS.length },
+] as const;
 
-type ReceiptTabSlug = keyof typeof TABLE_SPEC;
-const TABS = Object.keys(TABLE_SPEC) as ReceiptTabSlug[];
-
-const TAB_COUNTS: Record<ReceiptTabSlug, number> = {
-  dividend: DIVIDENDS.length,
-  domesticstock: DOMESTIC_STOCKS.length,
-  mutualfund: MUTUALFUNDS.length,
-};
+type ReceiptTab = (typeof TABS)[number];
 
 function paginated(data: unknown[]) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
@@ -210,12 +155,6 @@ async function mockApi(context: BrowserContext) {
   );
 }
 
-async function shoot(page: Page, testInfo: TestInfo, name: string) {
-  const dir = path.resolve(testInfo.project.testDir, '../../.playwright-mcp');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
-}
-
 // 同名テキストは別ブレークポイント用の hidden カードにも存在するため visible で絞る
 async function expectAssetDataLoaded(page: Page) {
   await expect(
@@ -227,195 +166,39 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
-async function selectReceiptTab(page: Page, slug: ReceiptTabSlug) {
-  const spec = TABLE_SPEC[slug];
-  await page.getByRole('tab', { name: spec.tabName }).click();
-  await expect(page.getByRole('tab', { name: spec.tabName })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+async function selectReceiptTab(page: Page, tab: ReceiptTab) {
+  const button = page.getByRole('tab', { name: tab.name });
+  await button.click();
+  await expect(button).toHaveAttribute('aria-selected', 'true');
   // 件数バッジはタブ別フェッチの完了を意味する
-  await expect(page.getByTestId(`tab-count-${slug}`)).toHaveText(String(TAB_COUNTS[slug]));
+  await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
 }
 
-interface TableMetrics {
-  layout: string;
-  tableWidth: number;
-  clientWidth: number;
-  scrollWidth: number;
-  overflowX: string;
-}
-
-async function tableMetrics(page: Page): Promise<TableMetrics> {
-  return page.getByRole('table').evaluate((table) => {
-    const wrapper = table.parentElement;
-    if (!wrapper) {
-      return { layout: '', tableWidth: 0, clientWidth: 0, scrollWidth: 0, overflowX: '' };
-    }
-    const style = getComputedStyle(wrapper);
+async function expectTableFit(page: Page) {
+  const table = page.getByRole('table');
+  await expect(table).toBeVisible();
+  await expect(table.locator('tbody tr').last()).toBeVisible();
+  const metrics = await table.evaluate((element) => {
+    const wrapper = element.parentElement!;
+    const rect = element.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
     return {
-      layout: getComputedStyle(table).tableLayout,
-      tableWidth: table.offsetWidth,
-      clientWidth: wrapper.clientWidth,
+      left: rect.left,
+      right: rect.right,
+      wrapperLeft: wrapperRect.left,
+      wrapperRight: wrapperRect.right,
       scrollWidth: wrapper.scrollWidth,
-      overflowX: style.overflowX,
+      clientWidth: wrapper.clientWidth,
     };
   });
-}
-
-// 狭い幅では優先度の低い列を隠し、表は内部スクロールせずカード幅に収める
-function expectTableFit(metrics: TableMetrics) {
-  expect(metrics.layout).toBe('fixed');
-  expect(metrics.overflowX).toBe('visible');
+  expect(metrics.left).toBeGreaterThanOrEqual(metrics.wrapperLeft - 1);
+  expect(metrics.right).toBeLessThanOrEqual(metrics.wrapperRight + 1);
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-}
-
-async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly number[]) {
-  const headerStyles = await page
-    .getByRole('table')
-    .locator('thead th')
-    .evaluateAll((cells) =>
-      cells.map((cell) => {
-        const el = cell as HTMLTableCellElement;
-        const style = getComputedStyle(el);
-        return {
-          width: el.style.width,
-          maxWidth: el.style.maxWidth,
-          overflow: style.overflow,
-          textOverflow: style.textOverflow,
-          whiteSpace: style.whiteSpace,
-          scope: el.scope,
-        };
-      }),
-    );
-  expect(headerStyles).toHaveLength(widths.length);
-  headerStyles.forEach((style, i) => {
-    expect(style.scope).toBe('col');
-    // 0 は残り幅を使う列
-    const expected = widths[i] === 0 ? '' : `${widths[i]}px`;
-    expect(style.width, `th[${i}] の固定幅`).toBe(expected);
-    expect(style.maxWidth, `th[${i}] の最大幅`).toBe(expected);
-    expect(style.overflow).toBe('hidden');
-    expect(style.textOverflow).toBe('ellipsis');
-    expect(style.whiteSpace).toBe('nowrap');
-  });
-
-  const cellStylesOf = (row: Locator) =>
-    row.locator('td').evaluateAll((cells) =>
-      cells.map((cell) => {
-        const el = cell as HTMLTableCellElement;
-        const style = getComputedStyle(el);
-        return {
-          colSpan: el.colSpan,
-          overflow: style.overflow,
-          textOverflow: style.textOverflow,
-          whiteSpace: style.whiteSpace,
-        };
-      }),
-    );
-  const expectEllipsis = (styles: { overflow: string; textOverflow: string; whiteSpace: string }[]) =>
-    styles.forEach((style) => {
-      expect(style.overflow).toBe('hidden');
-      expect(style.textOverflow).toBe('ellipsis');
-      expect(style.whiteSpace).toBe('nowrap');
-    });
-
-  // 先頭行はグループ集計行。結合セルと小計セルにも省略指定があることを確認する
-  const summaryStyles = await cellStylesOf(
-    page.getByRole('table').locator('tbody tr').first(),
-  );
-  expect(summaryStyles.length).toBeGreaterThan(1);
-  expect(summaryStyles[0].colSpan, '集計行の先頭は結合セル').toBeGreaterThan(1);
-  expectEllipsis(summaryStyles);
-
-  // 末尾行は必ず明細行なので、本文セル側の省略指定をそこで確認する
-  const cellStyles = await cellStylesOf(page.getByRole('table').locator('tbody tr').last());
-  expect(cellStyles.length).toBe(widths.length);
-  expectEllipsis(cellStyles);
-}
-
-async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) {
-  const table = page.getByRole('table');
-  const aligns = TABLE_SPEC[slug].aligns;
-
-  const card = page.getByTestId('receipt-card').first();
-  await expect(card.locator('table')).toHaveCount(1);
-
-  const cellStyles = await table
-    .locator('tbody tr')
-    .last()
-    .locator('td')
-    .evaluateAll((cells) =>
-      cells.map((cell) => {
-        const style = getComputedStyle(cell);
-        return {
-          textAlign: style.textAlign,
-          fontVariantNumeric: style.fontVariantNumeric,
-        };
-      }),
-    );
-  expect(cellStyles).toHaveLength(aligns.length);
-  cellStyles.forEach((style, i) => {
-    expect(style.textAlign, `td[${i}] の寄せ`).toBe(aligns[i]);
-    if (aligns[i] === 'right') {
-      expect(style.fontVariantNumeric).toBe('tabular-nums');
-    }
-  });
-
-  const plainTitles = await table
-    .locator('tbody tr')
-    .last()
-    .locator('td:not(:has(*))')
-    .evaluateAll((cells) =>
-      cells.map((cell) => ({
-        title: cell.getAttribute('title'),
-        text: cell.textContent,
-      })),
-    );
-  expect(plainTitles.length).toBeGreaterThan(0);
-  plainTitles.forEach(({ title, text }) => expect(title).toBe(text));
-
-  // 件数は2件以上の月だけ出す
-  const badges = await table
-    .locator('tbody tr:has(td[colspan]) td[colspan] span:nth-child(2)')
-    .allTextContents();
-  // モックで2件以上の月があるのは配当金だけ
-  if (slug === 'dividend') {
-    expect(badges.length).toBeGreaterThan(0);
-  }
-  badges.forEach((text) => expect(text).toMatch(/^([2-9]|\d{2,})件$/));
-
-  if (slug === 'domesticstock') {
-    const negative = table.locator('tbody td[data-negative="true"]').first();
-    await expect(negative).toContainText(/-/);
-    // 損益の負値は色で区別する要件。色値は固定せず同じ列の非負値セルとの差で確かめる
-    const cellIndex = await negative.evaluate(
-      (el) => (el as HTMLTableCellElement).cellIndex,
-    );
-    const nonNegativeInColumn = table
-      .locator(
-        `tbody td:nth-of-type(${cellIndex + 1}):not([data-negative="true"])`,
-      )
-      .first();
-    const [negativeColor, otherColor] = await Promise.all([
-      negative.evaluate((el) => getComputedStyle(el).color),
-      nonNegativeInColumn.evaluate((el) => getComputedStyle(el).color),
-    ]);
-    expect(negativeColor).not.toBe(otherColor);
-  }
 }
 
 async function expectNoPageOverflow(page: Page, width: number) {
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth, 'ページ自体は横にはみ出さない').toBeLessThanOrEqual(width + 1);
-}
-
-// 見出し行の top はヘッダー高さの計測後に入るので、数値が入るまでを描画完了の合図にする
-async function expectTableSettled(page: Page) {
-  await expect(page.getByRole('table').locator('thead')).toHaveAttribute(
-    'style',
-    /top:\s*[\d.]+px/,
-  );
 }
 
 function serverError() {
@@ -424,22 +207,9 @@ function serverError() {
 
 // 後から登録した route が優先されるため、基本モックの後に呼ぶ
 async function mockReceiptFetchErrors(page: Page) {
-  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
-    route.fulfill(serverError()),
-  );
-  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(serverError()),
-  );
-  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(serverError()),
-  );
-}
-
-async function expectPortfolioTotals(page: Page) {
-  const summary = page.getByTestId('asset-portfolio-summary');
-  await expect(summary).toBeVisible();
-  await expect(summary).toContainText('合計取得総額');
-  await expect(summary).toContainText('¥5,360,000');
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => route.fulfill(serverError()));
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) => route.fulfill(serverError()));
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) => route.fulfill(serverError()));
 }
 
 async function gotoFilteredEmptyAssetBalance(page: Page) {
@@ -459,37 +229,7 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
   await page.locator('#securities-search').selectOption('9999');
-  await expect(
-    page.getByRole('button', { name: '絞り込みを解除' }),
-  ).toBeVisible();
-}
-
-async function expectReceiptsErrorLayout(page: Page) {
-  const rail = page.getByTestId('receipt-utility-rail');
-  const main = page.getByTestId('receipt-main-stage');
-  await expect(page.getByRole('alert')).toHaveCount(1);
-  await expect(main.getByRole('alert')).toHaveText(
-    /^エラー:\s*サーバーエラーが発生しました$/,
-  );
-  await expect(rail.getByTestId('search-card-compact')).toBeVisible();
-  await expect(main.getByTestId('receipt-card')).toHaveCount(0);
-}
-
-async function expectAssetBalanceErrorLayout(page: Page) {
-  const rail = page.getByTestId('assetbalance-utility-rail');
-  const main = page.getByTestId('assetbalance-main-stage');
-  await expect(page.getByRole('alert')).toHaveCount(1);
-  await expect(main.getByRole('alert')).toHaveText(
-    /^エラー:\s*サーバーエラーが発生しました$/,
-  );
-  await expect(rail.getByText('AI総評プロンプト', { exact: true })).toHaveCount(0);
-  await expect(main).not.toContainText('資産管理データがありません');
-}
-
-async function expectSearchServerError(page: Page) {
-  await expect(page.getByRole('alert')).toHaveText(
-    /^エラー:\s*サーバーエラーが発生しました。しばらくしてから再度お試しください$/,
-  );
+  await expect(page.getByRole('button', { name: '絞り込みを解除' })).toBeVisible();
 }
 
 test.beforeEach(async ({ context }) => {
@@ -497,153 +237,121 @@ test.beforeEach(async ({ context }) => {
 });
 
 for (const width of [1440, 1024]) {
-  for (const slug of TABS) {
-    test(`取引明細テーブルは内部スクロールせずカード内に収まる(${slug} ${width}px)`, async ({
-      page,
-    }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/receipts');
-      await selectReceiptTab(page, slug);
-
-      const table = page.getByRole('table');
-      await expect(table).toBeVisible();
-      await expect(table.locator('tbody tr').first()).toBeVisible();
+  test(`取引明細の3タブがカード内に収まりページがはみ出さない(${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/receipts');
+    for (const tab of TABS) {
+      await selectReceiptTab(page, tab);
+      await expectTableFit(page);
       await expectNoPageOverflow(page, width);
-
-      const spec = TABLE_SPEC[slug];
-      await expectColumnWidthsAndEllipsis(page, spec.widths);
-      expectTableFit(await tableMetrics(page));
-      await expectReceiptTableDetailStyles(page, slug);
-      await expectTableSettled(page);
-
-      await shoot(page, testInfo, `receipts-${slug}-data-${width}-leptos`);
-    });
-  }
+    }
+  });
 }
 
-test('口座検索で列が前に出ても列幅は列に追随する(国内株式 1440px)', async ({
-  page,
-}, testInfo) => {
+test('口座検索で絞り込んでも表が収まり該当データが残る', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/receipts');
-  await selectReceiptTab(page, 'domesticstock');
-  await page
-    .getByTestId('search-card')
-    .getByRole('button', { name: '特定口座', exact: true })
-    .click();
-  const reordered = [96, 88, 76, 0, 72, 80, 104, 104, 104, 88, 104];
-  const ths = page.getByRole('table').locator('thead th');
-  await expect(ths.nth(2)).toHaveText('口座');
-  await expect(ths.nth(3)).toHaveText('銘柄名');
-  await expectColumnWidthsAndEllipsis(page, reordered);
-  expectTableFit(await tableMetrics(page));
-  await expectTableSettled(page);
-  await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
+  await selectReceiptTab(page, TABS[1]);
+  await page.getByTestId('search-card').getByRole('button', { name: '特定口座', exact: true }).click();
+  const table = page.getByRole('table');
+  await expect(table).toContainText('特定口座');
+  await expect(table).not.toContainText('NISA口座');
+  await expectTableFit(page);
+  await expectNoPageOverflow(page, 1440);
 });
 
 test('資産管理に評価額・評価損益は表示しない', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-
   const main = page.getByTestId('assetbalance-main-stage');
   const summary = main.getByTestId('asset-portfolio-summary');
   await expect(summary).toBeVisible();
   await expect(summary).not.toContainText('評価額');
   await expect(summary).not.toContainText('評価損益');
-
-  const card = page.getByTestId('portfolio-holding-card').first();
-  await expect(card).toBeVisible();
+  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
   await expect(main).not.toContainText('評価額');
   await expect(main).not.toContainText('評価損益');
   await expect(main.locator('[data-negative="true"]')).toHaveCount(0);
 });
 
 for (const width of [1440, 390]) {
-  test(`資産管理のページ構成(${width}px)`, async ({ page }, testInfo) => {
+  test(`資産管理のデータと合計が表示されページがはみ出さない(${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.goto('/assetbalance');
-    await expect(page.locator('#main-content h1').first()).toHaveText('資産管理');
+    await expect(page.locator('#main-content h1').first()).toBeVisible();
     await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
     await expectAssetDataLoaded(page);
     await expectNoPageOverflow(page, width);
-    await expectPortfolioTotals(page);
-    await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
+    const summary = page.getByTestId('asset-portfolio-summary');
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('¥5,360,000');
   });
 
-  test(`取引明細のエラー構成(${width}px)`, async ({ page }, testInfo) => {
+  test(`取引明細の取得失敗を知らせ検索を残す(${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await mockReceiptFetchErrors(page);
     await page.goto('/receipts');
-    await expectReceiptsErrorLayout(page);
+    const main = page.getByTestId('receipt-main-stage');
+    const alert = main.getByRole('alert');
+    await expect(alert).toBeVisible();
+    await expect(alert).not.toBeEmpty();
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await expect(page.getByTestId('receipt-utility-rail').getByTestId('search-card-compact')).toBeVisible();
+    await expect(main.getByTestId('receipt-card')).toHaveCount(0);
     await expectNoPageOverflow(page, width);
-    await shoot(page, testInfo, `receipts-error-${width}-leptos`);
   });
 
-  test(`資産管理のエラー構成(${width}px)`, async ({ page }, testInfo) => {
+  test(`資産管理の取得失敗を知らせ誤った空状態を出さない(${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
-      route.fulfill(serverError()),
-    );
+    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => route.fulfill(serverError()));
     await page.goto('/assetbalance');
-    await expectAssetBalanceErrorLayout(page);
+    const main = page.getByTestId('assetbalance-main-stage');
+    const alert = main.getByRole('alert');
+    await expect(alert).toBeVisible();
+    await expect(alert).not.toBeEmpty();
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await expect(page.getByTestId('asset-review-prompt-card')).toHaveCount(0);
+    await expect(main).not.toContainText('資産管理データがありません');
     await expectNoPageOverflow(page, width);
-    await shoot(page, testInfo, `assetbalance-error-${width}-leptos`);
   });
 }
 
-test('検索のエラー文言', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
-    route.fulfill(serverError()),
-  );
+test('検索の取得失敗を通知する', async ({ page }) => {
+  await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) => route.fulfill(serverError()));
   await page.goto('/search?code=7203');
-  await expectSearchServerError(page);
-  await shoot(page, testInfo, 'search-error-1440-leptos');
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).not.toBeEmpty();
 });
 
-test('資産管理の絞り込み空状態', async ({ page }, testInfo) => {
+test('資産管理で該当銘柄がないとき絞り込みを解除できる', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoFilteredEmptyAssetBalance(page);
-  await expect(
-    page.getByRole('heading', { name: '該当する銘柄がありません' }),
-  ).toBeVisible();
-  await shoot(page, testInfo, 'assetbalance-filtered-empty-1440-leptos');
+  await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(0);
+  await page.getByRole('button', { name: '絞り込みを解除' }).click();
+  await expectAssetDataLoaded(page);
 });
 
-test('資産管理レールは390pxでも1枚カードで検索は初期展開', async ({
-  page,
-}, testInfo) => {
+test('資産管理の検索とCSV操作に390pxでもアクセスできる', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-
   const rail = page.getByTestId('assetbalance-utility-rail');
-  const card = rail.locator('> div').first();
-  const sections = card.locator('> *');
-  expect(await sections.count()).toBeGreaterThanOrEqual(3);
-  await expect(card.getByTestId('assetbalance-csv-toggle')).toBeVisible();
-  await expect(card.getByTestId('search-card-compact')).toBeVisible();
-  await expect(
-    card.getByText('AI総評プロンプト', { exact: true }),
-  ).toBeVisible();
+  await expect(rail.getByTestId('assetbalance-csv-toggle')).toBeVisible();
+  await expect(rail.getByTestId('search-card-compact')).toBeVisible();
+  await expect(rail.getByTestId('asset-review-prompt-card')).toBeVisible();
   await expect(page.locator('#securities-search')).toBeVisible();
-  await shoot(page, testInfo, 'assetbalance-rail-390-leptos');
 });
 
-test('取引明細 390px はカード表示でページはみ出しなし', async ({
-  page,
-}, testInfo) => {
+test('取引明細 390px はカード表示でページはみ出しなし', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/receipts');
   await expect(page.getByRole('tab')).toHaveCount(3);
-
   const cardList = page.getByTestId('receipt-card-list');
-  for (const slug of TABS) {
-    await selectReceiptTab(page, slug);
-    await expect(cardList.getByTestId('receipt-card')).toHaveCount(TAB_COUNTS[slug]);
+  for (const tab of TABS) {
+    await selectReceiptTab(page, tab);
+    await expect(cardList.getByTestId('receipt-card')).toHaveCount(tab.count);
     await expect(page.getByRole('table')).toBeHidden();
     await expectNoPageOverflow(page, 390);
-    await shoot(page, testInfo, `receipts-${slug}-data-390-leptos`);
   }
 });

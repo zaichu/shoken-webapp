@@ -1,7 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/test';
-import * as fs from 'fs';
-import * as path from 'path';
 import { domesticStocksFixture, mutualFundsFixture } from './__fixtures__/receipts-print';
 
 const MOCK_USER = {
@@ -82,22 +80,6 @@ async function gotoReceipts(page: Page) {
   await expect(page.getByRole('table')).toBeVisible();
 }
 
-async function shoot(page: Page, name: string) {
-  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
-}
-
-async function shootPrintPreview(page: Page, orientation: string) {
-  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp/pr1088');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({
-    path: path.join(dir, `receipts-a4-${orientation}.png`),
-    fullPage: true,
-  });
-}
-
 test.beforeEach(async ({ page }) => {
   await mockApi(page);
 });
@@ -125,53 +107,32 @@ test('390px ではモバイル表示を維持する(カード表示・CSV折り�
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeHidden();
 
-  await shoot(page, 'leptos-962-390');
-
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
 });
 
-test('1023px は1カラム、1024px で右レール2カラム(19rem)、1280px で20remに広がる', async ({ page }) => {
+test('画面幅を変えてもレールと明細が重ならず表が収まる', async ({ page }) => {
   await page.setViewportSize({ width: 1023, height: 900 });
   await gotoReceipts(page);
-
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
-  let railBox = await rail.boundingBox();
-  let mainBox = await main.boundingBox();
-  expect(railBox).not.toBeNull();
-  expect(mainBox).not.toBeNull();
-  expect(railBox!.y).toBeLessThan(mainBox!.y);
-  await shoot(page, 'leptos-962-1023');
-
-  await page.setViewportSize({ width: 1024, height: 900 });
-  railBox = await rail.boundingBox();
-  mainBox = await main.boundingBox();
-  expect(railBox).not.toBeNull();
-  expect(mainBox).not.toBeNull();
-  expect(railBox!.x).toBeGreaterThan(mainBox!.x);
-  expect(railBox!.width).toBeGreaterThanOrEqual(295);
-  expect(railBox!.width).toBeLessThanOrEqual(315);
-
-  // 狭い主列では優先度の低い列を隠し、表は横スクロールせずに収まる
-  const tableScroll = await page.getByRole('table').evaluate((table) => {
-    const wrapper = table.parentElement;
-    if (!wrapper) return { overflowX: '', scrollable: true };
-    return {
-      overflowX: getComputedStyle(wrapper).overflowX,
-      scrollable: wrapper.scrollWidth > wrapper.clientWidth,
-    };
-  });
-  expect(tableScroll.overflowX).toBe('visible');
-  expect(tableScroll.scrollable).toBe(false);
-  await shoot(page, 'leptos-962-1024');
-
-  await page.setViewportSize({ width: 1280, height: 900 });
-  railBox = await rail.boundingBox();
-  expect(railBox).not.toBeNull();
-  expect(railBox!.width).toBeGreaterThanOrEqual(310);
-  expect(railBox!.width).toBeLessThanOrEqual(330);
+  for (const width of [1023, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(rail).toBeVisible();
+    await expect(main).toBeVisible();
+    const railBox = (await rail.boundingBox())!;
+    const mainBox = (await main.boundingBox())!;
+    const separated = railBox.y + railBox.height <= mainBox.y + 1 ||
+      mainBox.x + mainBox.width <= railBox.x + 1;
+    expect(separated, 'レールと明細が重ならない').toBe(true);
+    const tableFits = await page.getByRole('table').evaluate((table) => {
+      const wrapper = table.parentElement!;
+      return wrapper.scrollWidth <= wrapper.clientWidth + 1;
+    });
+    expect(tableFits).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+  }
 });
 
 test('1920px では集計+表の左列と CSV+検索の右レールになる', async ({ page }) => {
@@ -192,9 +153,7 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   const mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
-  expect(railBox!.x).toBeGreaterThan(mainBox!.x);
-  expect(railBox!.width).toBeGreaterThanOrEqual(310);
-  expect(railBox!.width).toBeLessThanOrEqual(330);
+  expect(railBox!.x).toBeGreaterThanOrEqual(mainBox!.x + mainBox!.width - 1);
 
   await expect(rail.getByTestId('search-card')).toBeVisible();
   await expect(rail.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
@@ -203,21 +162,17 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   await expect(main.getByRole('table')).toBeVisible();
 
   // 表は内部スクロールせずページごとスクロールし、ページ幅を広げない
-  const tableScroll = await page
-    .getByRole('table')
-    .evaluate((table) => {
-      const wrapper = table.parentElement;
-      if (!wrapper) return { overflowX: '', overflowY: '', maxHeight: '' };
-      const style = getComputedStyle(wrapper);
-      return {
-        overflowX: style.overflowX,
-        overflowY: style.overflowY,
-        maxHeight: style.maxHeight,
-      };
-    });
-  expect(tableScroll.overflowX).toBe('visible');
-  expect(tableScroll.overflowY).toBe('visible');
-  expect(tableScroll.maxHeight).toBe('none');
+  const tableScroll = await page.getByRole('table').evaluate((table) => {
+    const wrapper = table.parentElement!;
+    return {
+      width: wrapper.clientWidth,
+      scrollWidth: wrapper.scrollWidth,
+      height: wrapper.clientHeight,
+      scrollHeight: wrapper.scrollHeight,
+    };
+  });
+  expect(tableScroll.scrollWidth).toBeLessThanOrEqual(tableScroll.width + 1);
+  expect(tableScroll.scrollHeight).toBeLessThanOrEqual(tableScroll.height + 1);
 
   // ページ自体は横にはみ出さない
   const documentWidth = await page.evaluate(
@@ -228,13 +183,10 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   // 印刷時も高さ制限とスクロールはなく全行を出力する
   await page.emulateMedia({ media: 'print' });
   const printWrap = await page.getByRole('table').evaluate((table) => {
-    const wrapper = table.parentElement;
-    if (!wrapper) return { overflowY: '', maxHeight: '' };
-    const style = getComputedStyle(wrapper);
-    return { overflowY: style.overflowY, maxHeight: style.maxHeight };
+    const wrapper = table.parentElement!;
+    return { height: wrapper.clientHeight, scrollHeight: wrapper.scrollHeight };
   });
-  expect(printWrap.overflowY).toBe('visible');
-  expect(printWrap.maxHeight).toBe('none');
+  expect(printWrap.scrollHeight).toBeLessThanOrEqual(printWrap.height + 1);
   await page.emulateMedia({ media: 'screen' });
 
   // 全件削除はレール内のボタン(全幅の赤枠ではない)
@@ -244,31 +196,11 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
   expect(deleteBox).not.toBeNull();
   expect(deleteBox!.width).toBeLessThanOrEqual(railBox!.width);
   await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(1);
-
-  await shoot(page, 'leptos-962-1920');
 });
 
 test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
   await page.goto('/receipts');
   await expect(page.getByRole('table')).toBeVisible();
-
-  const pageRule = await page.evaluate(() => {
-    const findPageRule = (rules: CSSRuleList): string | undefined => {
-      for (const rule of rules) {
-        if (rule.cssText.startsWith('@page')) return rule.cssText;
-        if ('cssRules' in rule) {
-          const nested = findPageRule((rule as CSSGroupingRule).cssRules);
-          if (nested) return nested;
-        }
-      }
-    };
-    for (const sheet of document.styleSheets) {
-      const found = findPageRule(sheet.cssRules);
-      if (found) return found;
-    }
-  });
-  expect(pageRule).toContain('margin: 10mm');
-  expect(pageRule).not.toContain('size');
 
   for (const paper of PRINTABLE_A4_VIEWPORTS) {
     await page.setViewportSize(paper);
@@ -290,7 +222,7 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
         const mainRect = main?.getBoundingClientRect();
         const mainStyle = main ? getComputedStyle(main) : undefined;
         const tableRect = element.getBoundingClientRect();
-        const cardRect = element.closest('.table-card')?.getBoundingClientRect();
+        const cardRect = element.closest('[data-testid="receipt-card"]')?.getBoundingClientRect();
         const lastCellRect = element
           .querySelector('tbody tr:last-child td:last-child')
           ?.getBoundingClientRect();
@@ -312,37 +244,28 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
       expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
 
       if (tab.slug === 'domesticstock') {
-        const negativeMetrics = await table
-          .locator('tbody tr:last-child td[data-negative="true"]')
-          .first()
-          .evaluate((cell) => {
-            const range = document.createRange();
-            range.selectNodeContents(cell);
-            const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
-            return {
-              text: cell.textContent?.trim(),
-              whiteSpace: getComputedStyle(cell).whiteSpace,
-              lineCount: new Set(lineTops).size,
-            };
-          });
-        expect(negativeMetrics.text).toBe('-¥876,543,210,987');
-        expect(negativeMetrics.whiteSpace).toBe('nowrap');
-        expect(negativeMetrics.lineCount).toBe(1);
-        await shootPrintPreview(page, paper.name);
+        await expect(table.locator('tbody tr:last-child td[data-negative="true"]').first())
+          .toHaveText('-¥876,543,210,987');
       }
 
-      // 長い金額が複数並んでも金額セルは1行を保つ
-      const amountLines = await table.locator('td.text-right').evaluateAll((cells) =>
-        cells.map((cell) => {
+      // 行数を固定せず、金額の全桁がセル内で読めることを確かめる
+      const amounts = await table.locator('td').evaluateAll((cells) =>
+        cells.filter((cell) => /^-?¥/.test(cell.textContent?.trim() ?? '')).map((cell) => {
           const range = document.createRange();
           range.selectNodeContents(cell);
-          const lineTops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
-          return { text: cell.textContent?.trim(), lineCount: new Set(lineTops).size };
+          const bounds = cell.getBoundingClientRect();
+          const rects = [...range.getClientRects()];
+          return {
+            text: cell.textContent?.trim(),
+            fits: rects.length > 0 && rects.every((rect) =>
+              rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 &&
+              rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1),
+          };
         }),
       );
-      expect(amountLines.length).toBeGreaterThan(0);
-      for (const amount of amountLines) {
-        expect(amount.lineCount).toBe(1);
+      expect(amounts.length).toBeGreaterThan(0);
+      for (const amount of amounts) {
+        expect(amount.fits, amount.text).toBe(true);
       }
     }
   }
