@@ -112,11 +112,14 @@ extract_class_tags() {
             i = j
             continue
           }
-          # raw string r"..." / r#"..."#: 開始側の # の数と同じ閉端を探す
-          if (char == "r" && match(substr(text, i + 1), /^#+"/)) {
+          # raw string r"..." / r#"..."#: 開始側の # の数と同じ閉端を探す。
+          # raw string では \ はエスケープにならないので通常文字列と分けて扱う。
+          # r の直前が識別子文字の場合(関数名の末尾等)は raw string ではない
+          if (char == "r" && (i == 1 || substr(text, i - 1, 1) ~ /[^[:alnum:]_]/) \
+            && match(substr(text, i + 1), /^#*"/)) {
             closer = "\"" substr(text, i + 1, RLENGTH - 1)
             j = index(substr(text, i + 1 + RLENGTH), closer)
-            if (j > 0) i = i + RLENGTH + j + RLENGTH - 2
+            if (j > 0) i = i + 2 * RLENGTH + j - 1
             continue
           }
           # 文字リテラル(ライフタイムは除く): 中の記号を構文と誤認しない
@@ -218,7 +221,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

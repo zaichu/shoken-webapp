@@ -9,6 +9,7 @@ view! { <div class="rounded-xl border-none bg-surface boundary-border-none">"枠
 view! { <div class="rounded-xl border-x bg-surface boundary-border-x">"横枠"</div> }
 view! { <div class="rounded-xl border bg-surface-2 boundary-surface-2">"別の面"</div> }
 let example = r#"<div title="1 > 0" class="rounded-xl border bg-surface">"#;
+let plain_raw = r"<div class=not-a-tag> は raw string の中身";
 let doc2 = "<div class=\"rounded-xl border bg-surface\">文字列中の例</div>";
 let lit = '>'; // 文字リテラル中の > はタグ終端ではない
 let x = 1; // <div class="rounded-xl border bg-surface"> は行末コメント
