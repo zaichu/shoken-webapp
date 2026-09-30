@@ -452,7 +452,7 @@
 }
 
 .rail-collapsed .receipt-span-lg-collapsed {
-  @apply lg:table-cell xl:hidden;
+  @apply lg:table-cell xl:hidden print:hidden;
 }
 
 .receipt-span-xl-open {

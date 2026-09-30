@@ -73,9 +73,9 @@ impl ReceiptsStore {
         self.utility_rail_open.update(|open| *open = !*open);
     }
 
-    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で決めて記憶し、
-    /// ユーザーがトグルするまではタブ表示のたびにその値へ戻す。
-    /// 戻ったタブが直前のタブの開閉状態を引き継がないようにするため
+    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で一度だけ決めて記憶し、
+    /// ユーザーがトグルするまではタブ表示・再取得のたびにその値へ戻す。
+    /// 直前のタブの開閉状態を引き継がないため、タブ別の初期値を保持する。
     pub(crate) fn init_utility_rail(&self, tab: ReceiptsTab, has_rows: bool) {
         if self.utility_rail_decided.get_untracked() {
             return;
@@ -85,7 +85,7 @@ impl ReceiptsStore {
             .with_untracked(|initials| initials.get(&tab).copied())
             .unwrap_or(!has_rows);
         self.utility_rail_initials.update(|initials| {
-            initials.insert(tab, open);
+            initials.entry(tab).or_insert(open);
         });
         self.utility_rail_open.set(open);
     }

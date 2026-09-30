@@ -1117,8 +1117,8 @@ impl ReceiptKind for DomesticStockKind {
         ColumnTier::Wider,
         ColumnTier::Wide,
         ColumnTier::Wide,
-        ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Core,
+        ColumnTier::Core,
         ColumnTier::Core,
     ];
     const COLUMN_ALIGNS: &'static [&'static str] = &[
@@ -1239,10 +1239,10 @@ impl ReceiptKind for MutualFundKind {
         ColumnTier::Core,
         ColumnTier::Wider,
         ColumnTier::Wide,
-        ColumnTier::Wider,
+        ColumnTier::Wide,
         ColumnTier::Wide,
         ColumnTier::Wider,
-        ColumnTier::Wider,
+        ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,
     ];
