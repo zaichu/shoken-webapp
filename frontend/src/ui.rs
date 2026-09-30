@@ -5,6 +5,7 @@ pub(crate) mod card;
 pub(crate) mod choice;
 pub(crate) mod collapsible_search_card;
 pub(crate) mod confirm_modal;
+pub(crate) mod csv_preview;
 pub(crate) mod csv_rail;
 pub(crate) mod csv_section;
 pub(crate) mod disclosure;

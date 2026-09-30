@@ -709,6 +709,15 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(
       page.getByRole('button', { name: '2件 全件置換で保存' }),
     ).toBeEnabled();
+    // プレビュー中は帯と件数通知が出る。通知は保存ボタンの直上に置く
+    await expect(page.getByTestId('csv-preview-banner')).toBeVisible();
+    const previewNotice = page.getByTestId('csv-preview-notice');
+    await expect(previewNotice).toContainText('2件 全件置換で保存されます');
+    const noticeBox = await previewNotice.boundingBox();
+    const saveBox = await page
+      .getByRole('button', { name: '2件 全件置換で保存' })
+      .boundingBox();
+    expect(noticeBox!.y).toBeLessThan(saveBox!.y);
     // プレビュー行が一覧に出る
     await expect(card(page, 'INPEX')).toBeVisible();
     await expect(card(page, '任天堂')).toBeVisible();

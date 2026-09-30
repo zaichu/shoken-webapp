@@ -174,10 +174,16 @@ impl ReceiptsStore {
         self.csv_state(tab).busy()
     }
 
+    // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
+    pub fn csv_input_disabled(&self, tab: ReceiptsTab) -> bool {
+        !self.is_authenticated()
+            || self.auth_loading()
+            || self.csv_busy(tab)
+            || self.any_tab_fetching()
+    }
+
     pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
-        self.csv_state(tab)
-            .preview
-            .is_some_and(|preview| !preview.rows.is_empty())
+        self.csv_state(tab).has_preview_rows()
     }
 
     pub fn any_tab_fetching(&self) -> bool {

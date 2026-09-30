@@ -3,6 +3,8 @@
 /// <div class="rounded-xl border border-ink/10 bg-surface"> のようなカード直書きも禁止
 let doc = "<button> と <select> は ui/ の部品を使う";
 let note = "aria-expanded は部品が付ける";
+// role="alert" や animate-pulse も状態部品が付けるので直書きしない
+view! { <p role="status" class="text-xs">"読み込み中"</p> }
 view! { <div class="rounded-xl border-none bg-surface boundary-border-none">"枠なし"</div> }
 view! { <div class="rounded-xl border-x bg-surface boundary-border-x">"横枠"</div> }
 view! { <div class="rounded-xl border bg-surface-2 boundary-surface-2">"別の面"</div> }

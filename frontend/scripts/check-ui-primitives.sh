@@ -12,9 +12,12 @@ cd "$SCRIPT_DIR/.."
 # features/ では <button> / <select> を直書きしない(ui/ の部品を使う)
 RAW_ELEMENT='<button|<select'
 # カード・空状態・開閉・ボタン・バッジのコンポーネントクラスの直書き
-PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|feature-card|rail-panel|empty-state|summary-section-header|collapsible-trigger|rail-toggle|receipt-card-trigger|group-card-trigger|search-submit|chart-toggle-button|review-prompt-button|login-button|copyable-name|modal-close-button|filter-chip|filter-badge|code-badge|file-chip)'
+PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|feature-card|rail-panel|empty-state|summary-section-header|collapsible-trigger|rail-toggle|receipt-card-trigger|group-card-trigger|search-submit|chart-toggle-button|review-prompt-button|login-button|copyable-name|modal-close-button|filter-chip|filter-badge|code-badge|file-chip|skeleton-table-row)'
 # 開閉トリガーは DisclosureToggle(または Button/FieldTrigger の aria_expanded)を使う
 RAW_DISCLOSURE='aria-expanded'
+# 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
+# role="alert"・animate-pulse は部品が持つ属性なので features/ では直書きしない
+STATE_MARKUP='role="alert"|animate-pulse'
 
 # 許可リスト: "ファイルパス:行" 形式。部品で表せない正当な直書きだけを理由付きで列挙する
 # (カード相当の組み合わせはタグ単位で検出するため行番号を出さず、許可リストは適用できない)
@@ -189,6 +192,7 @@ if [ "$#" -gt 0 ]; then
   check "部品クラスの直書き(自己テスト)" "$PRIMITIVE_CLASS" "" "$@"
   check_card_like "カード相当のクラス組み合わせ(自己テスト)" "$@"
   check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" strip "$@"
+  check "状態表示の直書き(自己テスト)" "$STATE_MARKUP" "" "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
@@ -197,6 +201,7 @@ check "要素の直書き(src/features/**/*.rs)" "$RAW_ELEMENT" strip "${FEATURE
 check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "" "${FEATURE_FILES[@]}"
 check_card_like "カード相当のクラス組み合わせ(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" strip "${FEATURE_FILES[@]}"
+check "状態表示の直書き(src/features/**/*.rs)" "$STATE_MARKUP" "" "${FEATURE_FILES[@]}"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -213,7 +218,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'aria-expanded'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

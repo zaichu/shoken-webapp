@@ -8,8 +8,12 @@ use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfoli
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::csv_preview::CsvPreviewBanner;
+use crate::ui::csv_section::click_csv_input;
+use crate::ui::elements::LoadingStrip;
+use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::prelude::*;
 
 #[component]
@@ -18,6 +22,7 @@ pub(crate) fn AssetBalanceMainContent(
     rows: Vec<AssetBalanceRow>,
     summary: Option<AssetBalanceSummary>,
     has_csv_file: bool,
+    csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
@@ -26,12 +31,16 @@ pub(crate) fn AssetBalanceMainContent(
 ) -> impl IntoView {
     if state.previewing {
         show_all.set(false);
-        return view! { <CsvStatusMessage text="CSVファイルを解析しています..." /> }.into_any();
+        return view! {
+            <LoadingStrip text="CSVファイルを解析しています...".to_string() />
+        }
+        .into_any();
     }
     let total_count = rows.len();
     let status = csv_status_text(&state);
+    let preview_active = state.has_preview_rows();
     view! {
-        {status.map(|text| view! { <CsvStatusMessage text=text /> })}
+        {status.map(|text| view! { <LoadingStrip text=text.to_string() /> })}
         {move || {
             let query = search_query.get();
             if rows.is_empty() && query.is_empty() {
@@ -42,7 +51,21 @@ pub(crate) fn AssetBalanceMainContent(
                             <EmptyState
                                 title="資産管理データがありません"
                                 description="CSVファイルをインポートするか、データを登録してください。"
-                            />
+                                icon=EmptyStateIcon::Tray
+                            >
+                                <div class="mt-4">
+                                    <Button
+                                        variant=ButtonVariant::Primary(ButtonSize::Md)
+                                        disabled=move || csv_input_disabled.get()
+                                        aria_disabled=move || csv_input_disabled.get()
+                                        on_click=move |_| {
+                                            click_csv_input("csv-file-input-assetbalance")
+                                        }
+                                    >
+                                        "CSVを取り込む"
+                                    </Button>
+                                </div>
+                            </EmptyState>
                         </div>
                     </Card>
                 }
@@ -57,6 +80,11 @@ pub(crate) fn AssetBalanceMainContent(
                 has_csv_file,
             );
             view! {
+                {preview_active.then(|| {
+                    view! {
+                        <CsvPreviewBanner description="一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
+                    }
+                })}
                 <PortfolioSummary
                     views=views
                     total_count=total_count
@@ -73,36 +101,4 @@ pub(crate) fn AssetBalanceMainContent(
         }}
     }
     .into_any()
-}
-
-#[component]
-pub(crate) fn CsvStatusMessage(text: &'static str) -> impl IntoView {
-    view! {
-        <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
-            <div class="flex items-center gap-2 text-text-muted">
-                <svg
-                    class="animate-spin h-4 w-4"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-                    <circle
-                        class="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                    />
-                    <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                </svg>
-                <p class="text-sm">{text}</p>
-            </div>
-        </section>
-    }
 }
