@@ -127,9 +127,9 @@ const TABLE_SPEC = {
       '',
       '12.5ch',
       '9ch',
-      '13.8ch',
-      '13.8ch',
-      '13.8ch',
+      '14.5ch',
+      '14.5ch',
+      '14.5ch',
     ],
     aligns: [
       'left',
@@ -156,7 +156,7 @@ const TABLE_SPEC = {
       '12.5ch',
       '12.5ch',
       '14.5ch',
-      '13.8ch',
+      '14.5ch',
       '14.5ch',
     ],
     aligns: [
@@ -184,7 +184,7 @@ const TABLE_SPEC = {
       '12.5ch',
       '12.5ch',
       '14.5ch',
-      '13.8ch',
+      '14.5ch',
       '14.5ch',
     ],
     aligns: [
@@ -350,23 +350,61 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly string
   });
 
   const cellStylesOf = (row: Locator) =>
-    row.locator('td').evaluateAll((cells) =>
-      cells.map((cell) => {
+    row.locator('td').evaluateAll((cells) => {
+      let colStart = 0;
+      const results = [];
+      for (const cell of cells) {
         const el = cell as HTMLTableCellElement;
         const style = getComputedStyle(el);
-        return {
+        const visible = style.display !== 'none';
+        const entry = {
+          colIndex: 0,
           colSpan: el.colSpan,
+          text: el.textContent?.trim().slice(0, 24),
+          right: el.classList.contains('text-right'),
           overflow: style.overflow,
           textOverflow: style.textOverflow,
           whiteSpace: style.whiteSpace,
+          overflowWrap: style.overflowWrap,
         };
-      }),
-    );
-  const expectEllipsis = (styles: { overflow: string; textOverflow: string; whiteSpace: string }[]) =>
+        // 帯別結合セル(receipt-span-*)は同じ列範囲の重複で帯ごとに colspan が
+        // 違うので、表示中の variant の幅だけを列位置として進める
+        if ((el.getAttribute('class') ?? '').includes('receipt-span-')) {
+          if (visible) colStart = el.colSpan;
+          results.push(entry);
+          continue;
+        }
+        // tier で非表示の列も実列を占めるので列位置は常に進める
+        entry.colIndex = colStart;
+        colStart += el.colSpan;
+        results.push(entry);
+      }
+      return results;
+    });
+  // 金額・数量(text-right)は桁数に上限がないため省略せず折り返す。
+  // それ以外の列は固定幅で nowrap + ellipsis に留める。
+  // 集計行の結合セルは帯ごとに colspan が変わるので、セル自身の text-right
+  // で分岐する(論理列 index では判定しない)
+  const expectCellStyles = (
+    styles: {
+      colIndex: number;
+      right: boolean;
+      overflow: string;
+      textOverflow: string;
+      whiteSpace: string;
+      overflowWrap: string;
+    }[],
+  ) =>
     styles.forEach((style) => {
-      expect(style.overflow).toBe('hidden');
-      expect(style.textOverflow).toBe('ellipsis');
-      expect(style.whiteSpace).toBe('nowrap');
+      const label = `col=${style.colIndex} text=${style.text}`;
+      expect(style.overflow, label).toBe('hidden');
+      if (style.right) {
+        expect(style.whiteSpace, label).toBe('normal');
+        expect(style.overflowWrap, label).toBe('anywhere');
+      } else {
+        expect(style.textOverflow, label).toBe('ellipsis');
+        expect(style.whiteSpace, label).toBe('nowrap');
+      }
     });
 
   // 先頭行はグループ集計行。結合セルと小計セルにも省略指定があることを確認する
@@ -375,12 +413,12 @@ async function expectColumnWidthsAndEllipsis(page: Page, widths: readonly string
   );
   expect(summaryStyles.length).toBeGreaterThan(1);
   expect(summaryStyles[0].colSpan, '集計行の先頭は結合セル').toBeGreaterThan(1);
-  expectEllipsis(summaryStyles);
+  expectCellStyles(summaryStyles);
 
   // 末尾行は必ず明細行なので、本文セル側の省略指定をそこで確認する
   const cellStyles = await cellStylesOf(page.getByRole('table').locator('tbody tr').last());
   expect(cellStyles.length).toBe(widths.length);
-  expectEllipsis(cellStyles);
+  expectCellStyles(cellStyles);
 }
 
 async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) {
@@ -593,7 +631,7 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     '12.5ch',
     '12.5ch',
     '14.5ch',
-    '13.8ch',
+    '14.5ch',
     '14.5ch',
   ];
   const ths = page.getByRole('table').locator('thead th');

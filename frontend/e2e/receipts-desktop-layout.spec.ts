@@ -409,8 +409,9 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
   page,
 }) => {
   // 金額は 7 桁(¥1,234,567)・負の 7 桁(-¥1,234,567)と 9 桁(¥111,111,102)を交互に混ぜ、
-  // コードは 10 文字まで切れないことを固定する。同日の行は集計行で合算され、
-  // 損益は -111,111,102 + -12,345,687 = -¥123,456,789(負 9 桁の境界)にもなる
+  // コードは 10 文字まで切れないことを固定する。集計行は合算で桁数に上限がないため、
+  // 国内株式は同日の損失合算で -¥12,345,678,901(負 11 桁、損失なので税引後も同額)、
+  // 投資信託は月次合算で ¥1,999,999,998(10桁)を出す。金額セルは省略せず折り返すことを固定する
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
@@ -441,9 +442,11 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             asked_price: i % 2 === 0 ? 111111102 : 1234567,
             proceeds: i % 2 === 0 ? 111111102 : 1234567,
             purchase_price: i % 2 === 0 ? 111111102 : 1234567,
-            realized_profit_and_loss: i % 2 === 0 ? -111111102 : -12345687,
+            realized_profit_and_loss:
+              i % 2 === 0 ? -9999999999 : -2345678902,
             taxes: i % 2 === 0 ? 111111102 : 1234567,
-            realized_profit_and_loss_after_tax: i % 2 === 0 ? -111111102 : -1234567,
+            realized_profit_and_loss_after_tax:
+              i % 2 === 0 ? -9999999999 : -2345678902,
           })),
         ),
       ),
@@ -460,9 +463,10 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             cancellation_unit_price_yen: i % 2 === 0 ? '111111102' : '1234567',
             cancellation_amount_yen: i % 2 === 0 ? '111111102' : '1234567',
             average_acquisition_price_yen: i % 2 === 0 ? '111111102' : '1234567',
-            realized_profit_and_loss: i % 2 === 0 ? '-111111102' : '-12345687',
+            realized_profit_and_loss: '999999999',
             taxes: i % 2 === 0 ? '111111102' : '1234567',
-            realized_profit_and_loss_after_tax: i % 2 === 0 ? '-111111102' : '-1234567',
+            realized_profit_and_loss_after_tax:
+              i % 2 === 0 ? '-9999999999' : '-2345678902',
           })),
         ),
       ),
@@ -614,12 +618,23 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
       }, { nameHeader: tab.nameHeader, width });
 
       const state = `${width}px ${tab.label} ${collapsed ? '畳み' : '開き'}`;
-      // 同日分・月分を合算した集計行に9桁の境界値があること。はみ出し検査が
-      // この値で空振りしないよう存在を固定する
-      const boundarySum = tab.slug === 'dividend' ? '¥123,456,789' : '-¥123,456,789';
-      await expect(
-        page.getByRole('cell', { name: boundarySum }).first(),
-      ).toBeVisible();
+      // 同日分・月分を合算した集計行に桁溢れの境界値があること。はみ出し検査が
+      // 空振りしないよう存在を固定し、省略されず全桁が表示されていることを確かめる
+      const boundarySums: Record<string, string[]> = {
+        dividend: ['¥123,456,789'],
+        domesticstock: ['-¥12,345,678,901'],
+        mutualfund: ['¥1,999,999,998', '-¥12,345,678,901'],
+      };
+      for (const sum of boundarySums[tab.slug]) {
+        const cell = page.getByRole('cell', { name: sum }).first();
+        await expect(cell, `${state} の集計 ${sum}`).toBeVisible();
+        const clipped = await cell.evaluate(
+          (el) =>
+            el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1,
+        );
+        expect(clipped, `${state} の集計 ${sum} は全桁表示`).toBe(false);
+      }
       expect(metrics.overflows, state).toEqual([]);
       // 隣の列の内容とくっつかないよう、セル間に 4px 以上の見た目の間隔があること
       expect(metrics.minContentGap, `${state} の隣接セル間隔`).toBeGreaterThanOrEqual(4);
