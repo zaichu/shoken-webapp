@@ -30,6 +30,10 @@ pub(crate) fn is_negative_text(value: &str) -> bool {
     valid && normalized.parse::<f64>().is_ok_and(|n| n < 0.0)
 }
 
+pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
+    is_profit_label(tab, label) && is_negative_text(value)
+}
+
 // グループ見出しに年月があるため、カード先頭の日付は年を落として MM/DD にする
 pub(crate) fn short_date(formatted: &str) -> &str {
     match formatted.split_once('/') {
@@ -91,7 +95,7 @@ pub(crate) fn card_detail_value(
                 .map(|cell| cell_text(cell).to_string())
                 .unwrap_or_default();
             CardDetailValue::Text {
-                negative: is_profit_label(tab, label) && is_negative_text(&text),
+                negative: is_negative_labeled_value(tab, label, &text),
                 text,
             }
         }
@@ -304,7 +308,7 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
-    let primary_negative = is_profit_label(tab, primary_label) && is_negative_text(&primary_value);
+    let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_value);
     let primary_value_class = if primary_negative {
         "text-sm font-semibold tabular-nums text-negative-vivid"
     } else {
@@ -369,8 +373,8 @@ pub(crate) fn MobileCardGroup(
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
-                                                let negative = is_profit_label(tab, label)
-                                                    && is_negative_text(value);
+                                                let negative =
+                                                    is_negative_labeled_value(tab, label, value);
                                                 let value_class = if negative {
                                                     "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative"
                                                 } else {

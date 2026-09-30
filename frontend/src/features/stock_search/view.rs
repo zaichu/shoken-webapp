@@ -163,13 +163,17 @@ fn SearchForm(
     }
 }
 
-#[component]
-fn EmptySearch(title: &'static str) -> impl IntoView {
-    let description = if title == "銘柄を検索" {
+fn empty_search_description(title: &str) -> &'static str {
+    if title == "銘柄を検索" {
         "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
     } else {
         "銘柄コードまたは銘柄名を確認してください。"
-    };
+    }
+}
+
+#[component]
+fn EmptySearch(title: &'static str) -> impl IntoView {
+    let description = empty_search_description(title);
     view! {
         <EmptyState
             class="py-10"

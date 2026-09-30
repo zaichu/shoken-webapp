@@ -392,6 +392,30 @@ fn dividend_subtotal_is_not_profit() {
 }
 
 #[test]
+fn negative_labeled_value_requires_profit_label_and_negative_text() {
+    assert!(is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税引後",
+        "-¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税引後",
+        "¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税額",
+        "-¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::Dividend,
+        "税引後",
+        "-¥1,234"
+    ));
+}
+
+#[test]
 fn card_details_link_security_code_and_copy_name() {
     let rows = dividends();
     let cells = rows[0].cells();
