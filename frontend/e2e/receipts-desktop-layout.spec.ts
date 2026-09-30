@@ -928,7 +928,7 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
         // クランプ解除が効いていれば、2行を超える名前も省略されず全行が描画される
         const longFund = nameMetrics.find((name) => name.text === LONG_FUND_NAME);
         expect(longFund, '長いファンド名が印刷 DOM にある').toBeTruthy();
-        expect(longFund?.lineCount).toBeGreaterThanOrEqual(2);
+        expect(longFund?.lineCount).toBeGreaterThan(2);
       }
     }
   }
