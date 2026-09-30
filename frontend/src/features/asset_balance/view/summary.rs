@@ -217,7 +217,6 @@ pub(crate) fn PortfolioSummary(
                             text=format_currency(total_purchase_amount)
                             class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep"
                         />
-                        <p class="mt-1 text-xs text-text-subtle">"CSV取込時点の価格"</p>
                     </Card>
                     <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"年間配当金額"</p>
