@@ -57,8 +57,19 @@ check() {
 }
 
 # タグ内の文字列と RSX 属性式の括弧を追跡し、属性値中の > を終端と誤認しない。
+# タグ外では Rust の文字列・raw string・文字リテラル・行末コメントを読み飛ばし、
+# それらに含まれるタグ風テキストを誤検知しない。
 extract_class_tags() {
   awk '
+    # Rust の文字リテラル(例: ( の3文字、\n の4文字)なら終端位置を返す。
+    # ライフタイム(a のように閉じクォートを持たない)は -1 を返す。
+    function char_lit_end(text, i,    n1, n3) {
+      n1 = substr(text, i + 1, 1)
+      if (n1 == "\\" && substr(text, i + 3, 1) == "\047") return i + 3
+      if (substr(text, i + 2, 1) == "\047") return i + 2
+      return -1
+    }
+
     function start_tag() {
       in_tag = 1
       tag = "<"
@@ -86,6 +97,32 @@ extract_class_tags() {
         next_char = substr(text, i + 1, 1)
 
         if (!in_tag) {
+          # 文字列リテラル "...": 中身とエスケープを読み飛ばす
+          if (char == "\"") {
+            j = i + 1
+            while (j <= length(text)) {
+              c2 = substr(text, j, 1)
+              if (c2 == "\\") { j += 2; continue }
+              if (c2 == "\"") break
+              j++
+            }
+            i = j
+            continue
+          }
+          # raw string r"..." / r#"..."#: 開始側の # の数と同じ閉端を探す
+          if (char == "r" && match(substr(text, i + 1), /^#+"/)) {
+            closer = "\"" substr(text, i + 1, RLENGTH - 1)
+            j = index(substr(text, i + 1 + RLENGTH), closer)
+            if (j > 0) i = i + RLENGTH + j + RLENGTH - 2
+            continue
+          }
+          # 文字リテラル(ライフタイムは除く): 中の記号を構文と誤認しない
+          if (char == "\047") {
+            e = char_lit_end(text, i)
+            if (e > 0) { i = e; continue }
+          }
+          # // 以降は行末コメント
+          if (char == "/" && next_char == "/") break
           if (char == "<" && next_char ~ /[[:alpha:]\/]/) {
             start_tag()
           }
@@ -103,6 +140,10 @@ extract_class_tags() {
           }
         } else if (char == "\"") {
           quote = char
+        } else if (char == "\047" && char_lit_end(text, i) > 0) {
+          # 属性式中の文字リテラル(例: ()は括弧カウントを増やさない
+          tag = tag substr(text, i + 1, char_lit_end(text, i) - i)
+          i = char_lit_end(text, i)
         } else if (char == "(") {
           paren++
         } else if (char == ")" && paren > 0) {
@@ -172,7 +213,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'aria-expanded'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'aria-expanded'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

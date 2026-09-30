@@ -15,4 +15,6 @@ view! { <div class="p-4" class:rounded-lg=cond class:border=cond class:bg-surfac
 view! { <div data-label="利益 > 損失" class="rounded-xl border bg-surface string-chevron">"カード"</div> }
 view! { <div on:click=move |_| set_open.update(|open| *open = count > 0) class="rounded-xl border bg-surface event-chevron">"カード"</div> }
 view! { <div class=move || match tone { Tone::Card => "rounded-xl border bg-surface dynamic-card", _ => "plain" }>"カード"</div> }
+view! { <div data-label=move || '(' class="rounded-xl border bg-surface char-lit-open">"カード"</div> }
+view! { <div data-x='>' class="rounded-xl border bg-surface char-lit-close">"カード"</div> }
 view! { <button type="button" aria-expanded="false" aria-controls="x" class="y">"開閉"</button> }
