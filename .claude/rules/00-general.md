@@ -17,7 +17,7 @@
 ## 開発フロー（標準）
 
 ### 役割分担・標準フロー
-- 役割の割り当てと責務は `docs/agent-roles.md` を正本とする
+- 役割の共通運用規則の正本は agent-config の `common/AGENTS.md`（`~/.claude/CLAUDE.md` に配布）。`docs/agent-roles.md` はプロジェクト固有の割り当てを補う資料とする
 - 委譲の手順・依頼テンプレート・受け取り時の検証は `agent-delegation` skill を正本とする
 
 ### タスク管理ルール
