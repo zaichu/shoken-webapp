@@ -116,13 +116,16 @@ function expectedHeaders(tab: ReceiptTabSpec, width: number, collapsed: boolean)
   return [...headers].sort();
 }
 
-// データがあるとレールは畳まれた状態で始まるので、レール内の UI に触れる前に開く
+// データがあるとレールは畳まれた状態で始まるので、レール内の UI に触れる前に開く。
+// lg 未満はトグルが出ずレールが常に上段に積まれるため、その帯では何もしない
 async function openUtilityRail(page: Page) {
+  if ((page.viewportSize()?.width ?? 0) < 1024) return;
   const toggle = page.getByTestId('receipt-utility-toggle');
-  if (await toggle.isVisible()) {
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
     await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 function paginated(data: unknown[]) {
@@ -501,7 +504,9 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 
   for (const width of [768, 1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/receipts');
+    // 一覧が出るまで待つ。開閉トグルは一覧の描画と同じ，所以才_ready の前に探すと
+    // 見つからず開けないまま「開いた状態」を検査してしまう
+    await gotoReceipts(page);
 
     for (const collapsed of [true, false]) {
       // lg 未満ではレールの開閉は出ない(上段に積まれる)ので開いた状態の検査は lg 以上だけ
