@@ -1,5 +1,6 @@
 use crate::api::dto::SearchFacets;
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
+use crate::features::asset_balance::model::normalize_display_name;
 use crate::support::list_search::support::create_search_options;
 use crate::support::list_search::{filter_by_config, FilterConfig, SearchOption};
 
@@ -34,7 +35,7 @@ pub fn asset_balance_search_options(
                 .iter()
                 .map(|option| SearchOption {
                     value: option.value.clone(),
-                    label: option.label.clone(),
+                    label: normalize_display_name(&option.label),
                 })
                 .collect();
         }
@@ -46,6 +47,12 @@ pub fn asset_balance_search_options(
         true,
         None,
     )
+    .into_iter()
+    .map(|mut option| {
+        option.label = normalize_display_name(&option.label);
+        option
+    })
+    .collect()
 }
 
 pub fn clear_search_query() -> String {

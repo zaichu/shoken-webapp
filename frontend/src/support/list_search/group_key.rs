@@ -64,7 +64,8 @@ pub fn derive_security_code_from_query<T>(
     let tokens = parse_search_tokens(query);
     if let Some(item) = data.iter().find(|item| {
         tokens.iter().any(|t| {
-            code_getter(item).to_lowercase() == *t || name_getter(item).to_lowercase() == *t
+            code_getter(item).to_lowercase() == *t
+                || shared::normalize::normalize_display_name(name_getter(item)).to_lowercase() == *t
         })
     }) {
         return code_getter(item).to_string();

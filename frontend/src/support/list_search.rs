@@ -2,6 +2,7 @@ pub(crate) mod group_key;
 pub(crate) mod support;
 
 use rust_decimal::Decimal;
+use shared::normalize::normalize_display_name;
 use std::collections::HashSet;
 
 type StringFieldFn<T> = fn(&T) -> &str;
@@ -67,7 +68,8 @@ fn parse_quoted_token(query: &str, mut index: usize) -> Option<(String, usize)> 
 }
 
 fn normalize_search_token(raw_token: &str) -> Option<String> {
-    let token = raw_token
+    // 表示名は半角化して出すので、入力側も揃えてから比較する
+    let token = normalize_display_name(raw_token)
         .replace(r#"\""#, "\"")
         .trim_matches(is_js_whitespace)
         .to_lowercase();
@@ -216,7 +218,7 @@ fn matches_date_range(date: &str, query: &str) -> bool {
 fn matches_token<T>(item: &T, token: &str, config: &FilterConfig<T>) -> bool {
     if let Some(string_fields) = &config.string_fields {
         for getter in string_fields {
-            if getter(item).to_lowercase() == token {
+            if normalize_display_name(getter(item)).to_lowercase() == token {
                 return true;
             }
         }
@@ -224,7 +226,10 @@ fn matches_token<T>(item: &T, token: &str, config: &FilterConfig<T>) -> bool {
 
     if let Some(partial_string_fields) = &config.partial_string_fields {
         for getter in partial_string_fields {
-            if getter(item).to_lowercase().contains(token) {
+            if normalize_display_name(getter(item))
+                .to_lowercase()
+                .contains(token)
+            {
                 return true;
             }
         }

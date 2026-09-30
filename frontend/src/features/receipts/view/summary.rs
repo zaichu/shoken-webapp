@@ -65,7 +65,7 @@ fn KpiGrid(
                     let negative = matches!(tone, StatTone::Loss);
                     let value = format_currency(value);
                     view! {
-                        <Card variant=CardVariant::StatSmall(tone)>
+                        <Card variant=CardVariant::StatSmall>
                             <p class="mb-1 text-xs font-medium text-text-muted">{label}</p>
                             <Amount
                                 block=true
