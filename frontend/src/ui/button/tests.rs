@@ -20,12 +20,11 @@ fn button_classes_preserves_variant_and_extra_input() {
 
 #[test]
 fn icon_button_classes_preserves_variant_and_extra_input() {
-    for variant in [IconButtonVariant::Close] {
-        let base = icon_button_classes(variant, "");
-        assert_eq!(base, variant.class());
-        assert_eq!(
-            icon_button_classes(variant, "custom-icon"),
-            format!("{base} custom-icon")
-        );
-    }
+    let variant = IconButtonVariant::Close;
+    let base = icon_button_classes(variant, "");
+    assert_eq!(base, variant.class());
+    assert_eq!(
+        icon_button_classes(variant, "custom-icon"),
+        format!("{base} custom-icon")
+    );
 }
