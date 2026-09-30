@@ -133,7 +133,7 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         return ().into_any();
                     };
                     view! {
-                        <div class="mb-4">
+                        <div class="mb-4 no-print">
                             <Alert variant=AlertVariant::Danger>
                                 <strong>"エラー:"</strong>
                                 " "
