@@ -87,7 +87,7 @@ test('取引明細の検索カードは 390px では初期折り畳みでトグ�
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
 
-  const header = page.getByTestId('search-card-header');
+  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   const body = page.locator('#search-options-body');
   await expect(header).toBeVisible();
   await expect(header).toHaveAttribute('aria-expanded', 'false');
@@ -97,10 +97,7 @@ test('取引明細の検索カードは 390px では初期折り畳みでトグ�
   await expect(header).toHaveAttribute('aria-expanded', 'true');
   await expect(body).toBeVisible();
 
-  const chevron = page.getByTestId('search-card-chevron-toggle');
-  await expect(chevron).toHaveAttribute('aria-hidden', 'true');
-  await expect(chevron).toHaveAttribute('tabindex', '-1');
-  await chevron.click();
+  await header.click();
   await expect(header).toHaveAttribute('aria-expanded', 'false');
   await expect(body).toBeHidden();
 });
@@ -112,7 +109,7 @@ test('取引明細の検索カードは 640px 以上で初期展開', async ({ p
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
 
-  await expect(page.getByTestId('search-card-header')).toHaveAttribute(
+  await expect(page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible')).toHaveAttribute(
     'aria-expanded',
     'true',
   );
@@ -126,7 +123,7 @@ test('資産管理の検索カードは 390px でも初期展開でトグルで�
   await page.goto('/assetbalance');
   await page.waitForLoadState('networkidle');
 
-  const header = page.getByTestId('search-card-header');
+  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   const body = page.locator('#search-options-body');
   await expect(header).toBeVisible();
   await expect(header).toHaveAttribute('aria-expanded', 'true');
@@ -144,7 +141,7 @@ test('資産管理の検索カードは 640px 以上で初期展開', async ({ p
   await page.goto('/assetbalance');
   await page.waitForLoadState('networkidle');
 
-  await expect(page.getByTestId('search-card-header')).toHaveAttribute(
+  await expect(page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible')).toHaveAttribute(
     'aria-expanded',
     'true',
   );
@@ -158,7 +155,7 @@ test('絞り込み中は折り畳み状態で適用中バッジが出てクリ�
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
 
-  const header = page.getByTestId('search-card-header');
+  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   await header.click();
   await page.getByLabel('銘柄').selectOption('7203');
   await header.click();
@@ -168,9 +165,11 @@ test('絞り込み中は折り畳み状態で適用中バッジが出てクリ�
     'aria-label',
     '検索オプション 開く（絞り込み適用中）',
   );
-  const clearButton = page.getByTestId('search-clear-button');
-  await expect(clearButton).toHaveAttribute('aria-hidden', 'false');
+  await header.click();
+  const clearButton = page.getByTestId('receipt-search-clear-button');
+  await expect(clearButton).toBeEnabled();
   await clearButton.click();
+  await header.click();
   await expect(header).not.toContainText('適用中');
   await expect(header).toHaveAttribute('aria-label', '検索オプション 開く');
 });
@@ -182,7 +181,7 @@ test('検索カードを閉じると年ピッカーも閉じる', async ({ page 
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
 
-  const header = page.getByTestId('search-card-header');
+  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   await header.click();
 
   const picker = page.getByLabel('年を選択');

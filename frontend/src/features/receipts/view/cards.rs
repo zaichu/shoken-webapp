@@ -291,14 +291,9 @@ pub(crate) fn MobileCardGroup(
             <section data-testid="receipt-card-group">
                 <Card variant=CardVariant::GroupLabel>
                     <span class="text-sm font-semibold text-text-soft">{label}</span>
-                    {(count >= 2)
-                        .then(|| {
-                            view! {
-                                <span class="ml-2 text-xs font-medium text-text-muted">
-                                    {format!("{count}件")}
-                                </span>
-                            }
-                        })}
+                    <span class="ml-2 text-xs font-medium text-text-muted">
+                        {format!("{count}件")}
+                    </span>
                 </Card>
                 {card_list}
             </section>
@@ -333,14 +328,9 @@ pub(crate) fn MobileCardGroup(
                 >
                     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
                         {label}
-                        {(count >= 2)
-                            .then(|| {
-                                view! {
-                                    <span class="ml-2 text-xs font-medium text-text-muted">
-                                        {format!("{count}件")}
-                                    </span>
-                                }
-                            })}
+                        <span class="ml-2 text-xs font-medium text-text-muted">
+                            {format!("{count}件")}
+                        </span>
                     </span>
                     <span
                         class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"

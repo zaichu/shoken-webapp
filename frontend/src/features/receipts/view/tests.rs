@@ -156,7 +156,29 @@ fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
     let rows = domestic();
     let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "7203");
     assert_eq!(groups[0].label, "2024年3月1日");
-    assert_eq!(groups[0].summary, ["¥1,000", "¥203", "¥797"]);
+    assert!(groups[0].summary.is_empty());
+}
+
+#[test]
+fn domestic_daily_summary_remains_for_multiple_rows_only() {
+    let mut rows = domestic();
+    let mut second = match &rows[0] {
+        Saved(ReceiptItem::DomesticStock(row)) => row.clone(),
+        _ => unreachable!(),
+    };
+    second.id = "second".to_string().into();
+    rows.push(Saved(ReceiptItem::DomesticStock(second.clone())));
+    second.id = "next-day".to_string().into();
+    second.trade_date = "2024-03-02".into();
+    rows.push(Saved(ReceiptItem::DomesticStock(second)));
+    let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "");
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].label, "2024年3月2日");
+    assert_eq!(groups[0].rows.len(), 1);
+    assert!(groups[0].summary.is_empty());
+    assert_eq!(groups[1].label, "2024年3月1日");
+    assert_eq!(groups[1].rows.len(), 2);
+    assert_eq!(groups[1].summary, ["¥2,000", "¥406", "¥1,594"]);
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {

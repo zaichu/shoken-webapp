@@ -38,10 +38,18 @@ fn has_font_weight_class(class: &str) -> bool {
     })
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum SecurityLinkVariant {
+    #[default]
+    Code,
+    Details,
+}
+
 #[component]
 pub(crate) fn SecurityCodeLink(
     #[prop(into)] value: String,
     #[prop(optional)] class: Option<String>,
+    #[prop(optional)] variant: SecurityLinkVariant,
 ) -> impl IntoView {
     let code = normalize_security_code(&value);
     if code.is_empty() {
@@ -52,12 +60,20 @@ pub(crate) fn SecurityCodeLink(
     }
     let href = format!("/search?code={}", urlencoding::encode(&code));
     let has_weight = class.as_deref().is_some_and(has_font_weight_class);
+    let label = match variant {
+        SecurityLinkVariant::Code => code.clone(),
+        SecurityLinkVariant::Details => format!("{code} の銘柄情報を見る"),
+    };
+    let base = match variant {
+        SecurityLinkVariant::Code => "security-code-link",
+        SecurityLinkVariant::Details => "security-details-link",
+    };
     let classes = format!(
-        "security-code-link{}{}",
+        "{base}{}{}",
         if has_weight { "" } else { " font-bold" },
         class.map(|extra| format!(" {extra}")).unwrap_or_default(),
     );
-    view! { <a href=href class=classes data-search=code>{code.clone()}</a> }.into_any()
+    view! { <a href=href class=classes data-search=code>{label}</a> }.into_any()
 }
 
 fn display_text(value: &str) -> String {

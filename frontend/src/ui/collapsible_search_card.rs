@@ -12,9 +12,18 @@ pub fn is_narrow_viewport() -> bool {
         .is_some_and(|query| query.matches())
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum SearchCardLayout {
+    #[default]
+    Card,
+    Toolbar,
+}
+
 #[component]
 pub fn CollapsibleSearchCard(
     #[prop(default = true)] initial_expanded: bool,
+    #[prop(optional)] expanded: Option<RwSignal<bool>>,
+    #[prop(optional)] layout: SearchCardLayout,
     #[prop(into)] has_active_search: Signal<bool>,
     #[prop(into)] is_default_state: Signal<bool>,
     on_clear: impl Fn() + Clone + 'static,
@@ -23,19 +32,26 @@ pub fn CollapsibleSearchCard(
 ) -> impl IntoView {
     // 展開状態は UI 表示のみの内部 state。initial_expanded は初期値としてのみ使い、
     // ユーザー操作後に親から上書きしない
-    let expanded = RwSignal::new(initial_expanded);
-    let toggle = move || {
-        expanded.update(|open| {
-            *open = !*open;
-            if let Some(on_expand_toggle) = on_expand_toggle {
-                on_expand_toggle.run((*open,));
-            }
-        });
+    let expanded = expanded.unwrap_or_else(|| RwSignal::new(initial_expanded));
+    Effect::new(move |_| {
+        let open = expanded.get();
+        if let Some(on_expand_toggle) = on_expand_toggle {
+            on_expand_toggle.run((open,));
+        }
+    });
+    let toggle = move || expanded.update(|open| *open = !*open);
+    let section_class = match layout {
+        SearchCardLayout::Card => "px-4 py-4",
+        SearchCardLayout::Toolbar => "toolbar-search-card",
+    };
+    let header_class = match layout {
+        SearchCardLayout::Card => "flex items-center justify-between gap-2",
+        SearchCardLayout::Toolbar => "hidden sm:flex items-center justify-between gap-2",
     };
 
     view! {
-        <section class="px-4 py-4" data-testid="search-card-compact">
-            <div class="flex items-center justify-between gap-2">
+        <section class=section_class data-expanded=move || expanded.get().to_string() data-testid="search-card-compact">
+            <div class=header_class>
                 <DisclosureToggle
                     style=DisclosureStyle::SearchCard
                     expanded=Signal::derive(move || expanded.get())
@@ -129,17 +145,22 @@ pub fn CollapsibleSearchCard(
                     </IconButton>
                 </div>
             </div>
-            {move || {
-                expanded
-                    .get()
-                    .then(|| {
-                        view! {
-                            <div id="search-options-body" class="pt-4">
-                                {children()}
-                            </div>
-                        }
-                    })
-            }}
+            <div id="search-options-body" hidden=move || !expanded.get() class="pt-4">
+                {move || expanded.get().then(|| children())}
+                {(layout == SearchCardLayout::Toolbar).then(|| view! {
+                    <div class="mt-3 sm:hidden">
+                        <Button
+                            variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
+                            aria_label="検索条件をクリア"
+                            testid="receipt-search-clear-button"
+                            disabled=move || is_default_state.get()
+                            on_click=move |_| on_clear()
+                        >
+                            "解除"
+                        </Button>
+                    </div>
+                })}
+            </div>
         </section>
     }
 }

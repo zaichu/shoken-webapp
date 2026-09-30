@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn disclosure_style_classes() {
     let cases: [(DisclosureStyle, &str); 6] = [
-        (DisclosureStyle::Collapsible, "collapsible-trigger"),
+        (DisclosureStyle::Toolbar, "mobile-toolbar-trigger"),
         (DisclosureStyle::Rail, "rail-toggle"),
         (DisclosureStyle::GroupCard, "group-card-trigger"),
         (

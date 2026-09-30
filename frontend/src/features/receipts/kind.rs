@@ -1170,19 +1170,25 @@ impl ReceiptKind for DomesticStockKind {
             .into_iter()
             .map(|day| {
                 let date = day.filter;
-                TableGroup {
-                    key: date.clone(),
-                    label: group_label(&date),
-                    summary: vec![
+                let rows: Vec<_> = sorted
+                    .iter()
+                    .filter(|row| row.date() == date)
+                    .map(row_tuple)
+                    .collect();
+                let summary = if rows.len() > 1 {
+                    vec![
                         format_currency(day.total_realized_profit_and_loss),
                         format_currency(day.total_taxes),
                         format_currency(day.total_realized_profit_and_loss_after_tax),
-                    ],
-                    rows: sorted
-                        .iter()
-                        .filter(|row| row.date() == date)
-                        .map(row_tuple)
-                        .collect(),
+                    ]
+                } else {
+                    vec![]
+                };
+                TableGroup {
+                    key: date.clone(),
+                    label: group_label(&date),
+                    summary,
+                    rows,
                 }
             })
             .collect()

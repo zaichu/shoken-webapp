@@ -11,5 +11,6 @@ pub(crate) mod csv_section;
 pub(crate) mod disclosure;
 pub(crate) mod elements;
 pub(crate) mod empty_state;
+pub(crate) mod mobile_toolbar;
 pub(crate) mod security_link;
 pub(crate) mod tabs;
