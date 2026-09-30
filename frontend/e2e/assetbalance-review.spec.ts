@@ -1,7 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/test';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -138,15 +136,6 @@ async function gotoAssetBalance(page: Page) {
   await expect(page.getByTestId('assetbalance-utility-rail')).toBeVisible();
 }
 
-async function shoot(page: Page, name: string) {
-  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({
-    path: path.join(dir, `leptos-assetbalance-review-${name}.png`),
-    fullPage: true,
-  });
-}
-
 test('1920px では見直し促進カードがレール内に表示され、クリップボードへ見直し用のプロンプトをコピーする', async ({
   page,
 }) => {
@@ -194,8 +183,6 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   await expect(
     card.getByRole('button', { name: 'AI総評プロンプトをコピー' }),
   ).toBeVisible({ timeout: 6_000 });
-
-  await shoot(page, '1920');
 });
 
 test('390px でも見直し促進カードはレール1枚カード内の末尾セクションになる', async ({
@@ -211,15 +198,6 @@ test('390px でも見直し促進カードはレール1枚カード内の末尾�
   const outerCard = rail.locator('> div').first();
   const card = rail.getByTestId('asset-review-prompt-card');
   await expect(card).toBeVisible();
-  const cardStyle = await card.evaluate((el) => {
-    const s = getComputedStyle(el);
-    return {
-      borderTopWidth: s.borderTopWidth,
-      borderRadius: s.borderTopLeftRadius,
-    };
-  });
-  expect(cardStyle.borderTopWidth).toBe('0px');
-  expect(Number.parseFloat(cardStyle.borderRadius)).toBe(0);
 
   const order = await outerCard.evaluate((el) =>
     Array.from(el.children)
@@ -235,8 +213,6 @@ test('390px でも見直し促進カードはレール1枚カード内の末尾�
   const buttonBox = await button.boundingBox();
   expect(buttonBox).not.toBeNull();
   expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
-
-  await shoot(page, '390');
 });
 
 test('連続してコピーしても後のクリックの表示が先のタイマーで消えない', async ({

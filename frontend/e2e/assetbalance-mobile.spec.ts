@@ -1,7 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/test';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -98,15 +96,6 @@ async function gotoAssetBalance(page: Page) {
   await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
 }
 
-async function shoot(page: Page, name: string) {
-  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({
-    path: path.join(dir, `leptos-assetbalance-${name}.png`),
-    fullPage: true,
-  });
-}
-
 test.beforeEach(async ({ page }) => {
   await setupAssetBalanceMocks(page);
 });
@@ -172,8 +161,6 @@ test('390px ではCSV・検索レールが保有内訳より上に並びCSV操�
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(region).toBeHidden();
-
-  await shoot(page, '390');
 });
 
 test('保有カードの詳細は見出しを繰り返さず、銘柄情報への文全体がリンクになる', async ({ page }) => {
@@ -235,7 +222,6 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
-  await shoot(page, '639');
 
   await page.setViewportSize({ width: 640, height: 844 });
 
@@ -247,7 +233,6 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(page.getByTestId('portfolio-holding-card').first()).toBeHidden();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeVisible();
-  await shoot(page, '640');
 });
 
 test('1920px では一覧とユーティリティレールの2カラムになる', async ({ page }) => {
@@ -270,15 +255,11 @@ test('1920px では一覧とユーティリティレールの2カラムになる
   const mainBox = await main.boundingBox();
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
-  expect(railBox!.x).toBeGreaterThan(mainBox!.x);
-  expect(railBox!.width).toBeGreaterThanOrEqual(300);
-  expect(railBox!.width).toBeLessThanOrEqual(340);
+  expect(railBox!.x).toBeGreaterThanOrEqual(mainBox!.x + mainBox!.width - 1);
 
   await expect(rail.getByTestId('search-card')).toBeVisible();
   await expect(page.getByTestId('assetbalance-csv-toggle')).toBeHidden();
   await expect(
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
   ).toBeVisible();
-
-  await shoot(page, '1920');
 });

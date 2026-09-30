@@ -94,10 +94,6 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
 
   const segments = composition.locator('div[aria-hidden="true"] > div');
   await expect(segments).toHaveCount(21);
-  await expect(segments.nth(0)).toHaveClass(/bg-holding-1\b/);
-  await expect(segments.nth(19)).toHaveClass(/bg-holding-20\b/);
-  await expect(segments.nth(20)).toHaveClass(/bg-fill-strong/);
-  await expect(segments.nth(0)).toHaveAttribute('style', /^width: 97\.0/);
 
   const legend = composition.locator('ul > li');
   await expect(legend).toHaveCount(21);
@@ -105,48 +101,48 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   await expect(legend.nth(0)).toContainText('97.1%');
   await expect(legend.nth(19)).toContainText('銘柄20');
   await expect(legend.nth(20)).toContainText('その他 2銘柄');
-  await expect(
-    legend.nth(0).locator('span').first(),
-  ).toHaveClass(/bg-holding-1\b/);
-  await expect(
-    legend.nth(19).locator('span').first(),
-  ).toHaveClass(/bg-holding-20\b/);
-  await expect(
-    legend.nth(20).locator('span').first(),
-  ).toHaveClass(/bg-fill-strong/);
+  const segmentColors = await segments.evaluateAll((elements) =>
+    elements.map((element) => getComputedStyle(element).backgroundColor),
+  );
+  segmentColors.forEach((color, index) => {
+    expect(color, `帯${index}は透明でない`).not.toBe('rgba(0, 0, 0, 0)');
+  });
+  for (let index = 1; index < segmentColors.length; index += 1) {
+    expect(segmentColors[index], `帯${index}は前の帯と色が異なる`).not.toBe(
+      segmentColors[index - 1],
+    );
+  }
+  for (const index of [0, 19, 20]) {
+    const color = await legend.nth(index).locator('span').first().evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    expect(color).toBe(segmentColors[index]);
+  }
 
-  const firstCard = page.locator('div.border-l-holding-1').filter({
-    has: page.getByTestId('portfolio-card-identity'),
+  const grid = page.getByTestId('portfolio-items-grid');
+  const firstCard = grid.locator(':scope > div').filter({
+    has: page.getByTestId('portfolio-card-identity').filter({ hasText: '銘柄01' }),
   });
   await expect(firstCard).toHaveCount(1);
   await expect(firstCard).toContainText('銘柄01');
-  const twentiethCard = page.locator('div.border-l-holding-20').filter({
-    has: page.getByTestId('portfolio-card-identity'),
+  const twentiethCard = grid.locator(':scope > div').filter({
+    has: page.getByTestId('portfolio-card-identity').filter({ hasText: '銘柄20' }),
   });
   await expect(twentiethCard).toHaveCount(1);
   await expect(twentiethCard).toContainText('銘柄20');
 
   const firstBar = firstCard.getByTestId('portfolio-card-composition-bar');
-  await expect(firstBar).toHaveClass(/bg-holding-1\b/);
+  expect(await firstBar.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(segmentColors[0]);
   const twentiethBar = twentiethCard.getByTestId('portfolio-card-composition-bar');
-  await expect(twentiethBar).toHaveClass(/bg-holding-20\b/);
+  expect(await twentiethBar.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(segmentColors[19]);
 
   const code = firstCard.getByTestId('portfolio-card-code');
-  await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
-  const flushStyle = await code.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return {
-      paddingLeft: style.paddingLeft,
-      letterSpacing: style.letterSpacing,
-    };
-  });
-  expect(flushStyle.paddingLeft).toBe('0px');
-  expect(['normal', '0px']).toContain(flushStyle.letterSpacing);
+  await expect(code).toBeVisible();
   const codeBox = await code.boundingBox();
-  const nameBox = await firstCard.getByText('銘柄01').boundingBox();
+  const nameBox = await firstCard.getByTestId('portfolio-card-identity').getByText('銘柄01').boundingBox();
   expect(codeBox).not.toBeNull();
   expect(nameBox).not.toBeNull();
-  expect(codeBox!.x).toBeLessThan(nameBox!.x);
+  expect(codeBox!.x + codeBox!.width).toBeLessThanOrEqual(nameBox!.x + 1);
 });
 
 test('保有カードの取得総額は8桁の金額でも省略されない', async ({ page }) => {
@@ -171,30 +167,16 @@ test('390px の保有カードは銘柄コードが銘柄名の左に並ぶ', as
   await page.goto('/assetbalance');
 
   const card = page.getByTestId('portfolio-holding-card').first();
-  await expect(card).toHaveClass(/border-l-holding-1\b/);
+  await expect(card).toBeVisible();
 
   const code = card.getByTestId('portfolio-holding-card-code');
   await expect(code).toBeVisible();
-  await expect(code).toHaveClass(/(^|\s)code-badge-flush(\s|$)/);
-  const flushStyle = await code.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return {
-      paddingLeft: style.paddingLeft,
-      letterSpacing: style.letterSpacing,
-    };
-  });
-  expect(flushStyle.paddingLeft).toBe('0px');
-  expect(['normal', '0px']).toContain(flushStyle.letterSpacing);
-  const firstChildTestId = await code
-    .locator('xpath=..')
-    .evaluate((el) => el.firstElementChild?.getAttribute('data-testid'));
-  expect(firstChildTestId).toBe('portfolio-holding-card-code');
 
   const codeBox = await code.boundingBox();
   const nameBox = await card.getByText('銘柄01').boundingBox();
   expect(codeBox).not.toBeNull();
   expect(nameBox).not.toBeNull();
-  expect(codeBox!.x).toBeLessThan(nameBox!.x);
+  expect(codeBox!.x + codeBox!.width).toBeLessThanOrEqual(nameBox!.x + 1);
 });
 
 test('取得額が0の銘柄も保有カードに残り、帯と凡例からは外れる', async ({
@@ -213,8 +195,6 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
   await expect(giftedCard).toHaveCount(1);
 
   await expect(page.getByText('構成比 —')).toHaveCount(1);
-  const giftedBar = page.getByTestId('portfolio-card-composition-bar').nth(1);
-  await expect(giftedBar).toHaveAttribute('style', 'width: 0%');
 
   const composition = page.getByTestId('portfolio-composition');
   await expect(

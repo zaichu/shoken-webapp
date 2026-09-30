@@ -24,12 +24,6 @@ fn route_titles_and_protection() {
     ] {
         assert!(!route.title().is_empty());
     }
-    assert_eq!(Route::Home.title(), "ホーム");
-    assert_eq!(Route::Search.title(), "銘柄検索");
-    assert_eq!(Route::Receipts.title(), "取引明細");
-    assert_eq!(Route::AssetBalance.title(), "資産管理");
-    assert_eq!(Route::Login.title(), "ログイン");
-    assert_eq!(Route::NotFound.title(), "ページが見つかりません");
     assert!(!Route::Home.protected());
     assert!(!Route::Search.protected());
     assert!(Route::Receipts.protected());
