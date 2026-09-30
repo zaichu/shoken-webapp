@@ -149,6 +149,8 @@ fn promoted_column_matches_full_width_query() {
         promoted_column(ReceiptsTab::Dividend, &rows, "ｎｉｓａ"),
         Some(2)
     );
+    let order = column_order(ReceiptsTab::Dividend, &rows, "ｎｉｓａ");
+    assert_eq!(&order[..2], &[0, 2]);
 }
 
 #[test]
