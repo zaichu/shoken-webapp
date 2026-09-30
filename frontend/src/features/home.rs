@@ -63,11 +63,8 @@ const STATUS_ITEMS: &[StatusItem] = &[
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <div class="page-surface space-y-7">
+        <div class="space-y-7">
             <div>
-                <p class="mb-2 text-eyebrow font-black uppercase tracking-display text-accent-deep">
-                    "Portfolio Desk"
-                </p>
                 <h1 class="text-3xl font-black leading-tight tracking-normal text-ink sm:text-4xl">
                     "証券Web"
                 </h1>
@@ -109,7 +106,7 @@ pub fn HomePage() -> impl IntoView {
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-eyebrow font-black uppercase tracking-caption text-text-subtle">
+                                <span class="text-xs font-bold text-text-muted">
                                     {*sub}
                                 </span>
                             </div>
@@ -137,6 +134,7 @@ pub fn HomePage() -> impl IntoView {
                     })
                     .collect_view()}
             </div>
+
         </div>
     }
 }

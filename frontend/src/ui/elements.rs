@@ -123,14 +123,9 @@ pub fn SiteHeader() -> impl IntoView {
                             <span class="header-logo">
                                 "証"
                             </span>
-                            // スマホでは副題とサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
-                            <span class="max-sm:hidden">
-                                <span class="block text-eyebrow font-bold uppercase tracking-display text-accent-on-dark/90">
-                                    "Portfolio Desk"
-                                </span>
-                                <span class="block text-xl font-black leading-tight tracking-normal">
-                                    "証券Web"
-                                </span>
+                            // スマホではサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
+                            <span class="block text-xl font-black leading-tight tracking-normal max-sm:hidden">
+                                "証券Web"
                             </span>
                         </a>
                     </div>
@@ -345,7 +340,7 @@ fn UserMenu(
                         </li>
                         <li
                             role="none"
-                            class="px-3 py-2 text-xs font-bold uppercase tracking-badge text-text-quiet"
+                            class="px-3 py-2 text-xs font-bold text-text-quiet"
                         >
                             "危険な操作"
                         </li>
@@ -427,18 +422,11 @@ pub fn Alert(variant: AlertVariant, children: Children) -> impl IntoView {
 }
 
 #[component]
-pub fn PageHeader(
-    title: &'static str,
-    eyebrow: &'static str,
-    description: &'static str,
-) -> impl IntoView {
+pub fn PageHeader(title: &'static str, description: &'static str) -> impl IntoView {
     view! {
         <div class="mb-5 max-sm:mb-2">
             <div class="flex flex-col gap-3 border-l-4 border-accent-bright pl-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="mb-1 text-eyebrow font-bold uppercase tracking-eyebrow text-text-subtle max-sm:hidden">
-                        {eyebrow}
-                    </p>
                     <h1 class="text-2xl font-black leading-tight tracking-normal text-ink max-sm:text-lg">
                         {title}
                     </h1>

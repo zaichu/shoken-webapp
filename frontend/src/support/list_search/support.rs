@@ -1,5 +1,6 @@
 use crate::support::list_search::{is_valid_iso_date, SearchOption};
 use rust_decimal::Decimal;
+use shared::normalize::normalize_display_name;
 use std::collections::HashMap;
 
 pub struct ColumnReorderRule<T> {
@@ -15,7 +16,7 @@ pub fn reorder_columns_by_search<T>(
     fixed: usize,
 ) -> Vec<usize> {
     if !query.is_empty() {
-        let query = query.to_lowercase();
+        let query = normalize_display_name(query).to_lowercase();
         for rule in rules {
             if data.iter().any(|row| (rule.matches)(row, &query)) && base.contains(&rule.column_key)
             {

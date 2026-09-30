@@ -6,6 +6,7 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::elements::{Alert, AlertVariant, ListLoadError, PageHeader, Spinner, SpinnerSize};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::prelude::*;
+use shared::normalize::normalize_display_name;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
     (
@@ -52,10 +53,9 @@ pub(crate) fn SearchPage() -> impl IntoView {
     };
 
     view! {
-        <div class="page-surface">
+        <div>
             <PageHeader
                 title="銘柄検索"
-                eyebrow="Search"
                 description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
             />
             <SearchForm
@@ -186,18 +186,13 @@ fn StockInfo(stock: Stock) -> impl IntoView {
     ];
     let code = stock.code.clone();
     let code_badge = code.clone();
-    let name = stock.name.clone();
+    let name = normalize_display_name(&stock.name);
     view! {
         <div>
             <Card variant=CardVariant::Panel class="mb-4 overflow-hidden">
                 <div class="border-b border-ink/10 bg-ink px-5 py-4 text-text-inverse">
-                    <div class="flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p class="text-eyebrow font-black uppercase tracking-eyebrow text-accent-on-dark">
-                                "Security"
-                            </p>
-                            <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
-                        </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="text-xl font-black leading-tight">{name}</h2>
                         <CodeBadge>{code_badge}</CodeBadge>
                     </div>
                 </div>
@@ -213,7 +208,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                                 };
                                 view! {
                                     <div class="bg-surface px-4 py-3">
-                                        <dt class="text-eyebrow font-black uppercase tracking-badge text-text-subtle">
+                                        <dt class="text-xs font-medium text-text-muted">
                                             {label}
                                         </dt>
                                         <dd class="mt-1 font-bold text-text-deep">{display}</dd>
