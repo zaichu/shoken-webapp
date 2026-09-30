@@ -1778,8 +1778,6 @@
           "total_purchase_amount",
           "current_price",
           "daily_change",
-          "market_value",
-          "profit_loss_rate",
           "created_at",
           "updated_at"
         ],
@@ -1807,14 +1805,6 @@
           "id": {
             "type": "string",
             "format": "uuid"
-          },
-          "market_value": {
-            "type": "number",
-            "format": "double"
-          },
-          "profit_loss_rate": {
-            "type": "number",
-            "format": "double"
           },
           "security_code": {
             "type": "string"
@@ -2513,8 +2503,6 @@
                 "total_purchase_amount",
                 "current_price",
                 "daily_change",
-                "market_value",
-                "profit_loss_rate",
                 "created_at",
                 "updated_at"
               ],
@@ -2542,14 +2530,6 @@
                 "id": {
                   "type": "string",
                   "format": "uuid"
-                },
-                "market_value": {
-                  "type": "number",
-                  "format": "double"
-                },
-                "profit_loss_rate": {
-                  "type": "number",
-                  "format": "double"
                 },
                 "security_code": {
                   "type": "string"

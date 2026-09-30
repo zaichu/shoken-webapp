@@ -19,8 +19,6 @@ const TOYOTA = {
   total_purchase_amount: 250000,
   current_price: 2600,
   daily_change: 50,
-  market_value: 260000,
-  profit_loss_rate: 4.0,
 };
 
 const SONY = {
@@ -35,8 +33,6 @@ const SONY = {
   total_purchase_amount: 150000,
   current_price: 3200,
   daily_change: -20,
-  market_value: 160000,
-  profit_loss_rate: 6.67,
 };
 
 // 行の合計と一致しない値にし、絞り込み中に API の summary が誤用されると検出できるようにする
@@ -94,20 +90,17 @@ test('絞り込み中のKPIはAPIのsummaryではなく表示行の合計にな�
 
   const kpi = page.getByTestId('portfolio-kpi-strip');
 
-  // 評価額ブロックは 640px 未満のみ可視のため、幅を問わず DOM 上の値で検証する
   await expect(kpi).toContainText('¥123,456,789');
-  await expect(kpi).toContainText('¥987,654,321');
+  // API summary の評価額はサマリーに使われない(評価額表示自体がない)
+  await expect(kpi).not.toContainText('¥987,654,321');
 
   await page.getByLabel('銘柄').selectOption('6758');
 
   await expect(page.getByText('絞り込み中: 1/2件')).toBeVisible();
   await expect(kpi).toContainText('¥150,000');
-  await expect(kpi).toContainText('¥160,000');
   await expect(kpi).not.toContainText('¥123,456,789');
-  await expect(kpi).not.toContainText('¥987,654,321');
 
   await page.getByRole('button', { name: '検索条件をクリア' }).click();
 
   await expect(kpi).toContainText('¥123,456,789');
-  await expect(kpi).toContainText('¥987,654,321');
 });

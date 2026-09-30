@@ -377,8 +377,6 @@ fn other_endpoints_deserialize_numbers() {
                 "total_purchase_amount": 500050,
                 "current_price": 6000,
                 "daily_change": 100.25,
-                "market_value": 600000,
-                "profit_loss_rate": 20.5,
                 "created_at": "2024-01-15T01:23:45Z",
                 "updated_at": "2024-01-16T01:23:45Z"
             }],
@@ -394,8 +392,7 @@ fn other_endpoints_deserialize_numbers() {
     )
     .expect("asset-balances");
     let balance = balances.data.first().expect("one row");
-    assert_eq!(balance.market_value, dec!(600000));
-    assert_eq!(balance.profit_loss_rate, dec!(20.5));
+    assert_eq!(balance.security_name, "任天堂");
     assert_eq!(
         balances
             .summary

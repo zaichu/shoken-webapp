@@ -1,5 +1,4 @@
 use super::*;
-use rust_decimal_macros::dec;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -29,6 +28,10 @@ fn to_finite_amount(value: &Value) -> Option<f64> {
         }
         _ => None,
     }
+}
+
+fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
+    Decimal::from_str_exact(&value.to_string()).ok()
 }
 
 fn calculate_valuation(market_value: Option<f64>, purchase_amount: Option<f64>) -> ValuationResult {
@@ -74,7 +77,6 @@ fn composition_percentages(values: &[f64]) -> Vec<f64> {
 #[derive(Deserialize)]
 struct FixtureDocument {
     valuation_cases: Vec<ValuationCase>,
-    summary_cases: Vec<SummaryCase>,
     composition_cases: Vec<CompositionCase>,
     kpi_cases: Vec<KpiCase>,
 }
@@ -91,28 +93,6 @@ struct ValuationCase {
 struct AmountRate {
     amount: Value,
     rate: Value,
-}
-
-#[derive(Deserialize)]
-struct SummaryCase {
-    name: String,
-    items: Vec<SummaryItem>,
-    expected: SummaryExpected,
-}
-
-#[derive(Deserialize)]
-struct SummaryItem {
-    market_value: Value,
-    total_purchase_amount: Value,
-}
-
-#[derive(Deserialize)]
-struct SummaryExpected {
-    #[serde(rename = "marketValue")]
-    market_value: Value,
-    amount: Value,
-    rate: Value,
-    incomplete: bool,
 }
 
 #[derive(Deserialize)]
@@ -198,36 +178,6 @@ fn shared_valuation_cases_match() {
 }
 
 #[test]
-fn shared_summary_cases_match() {
-    let fixture = fixture();
-    assert_eq!(fixture.summary_cases.len(), 8);
-    for case in &fixture.summary_cases {
-        let items: Vec<ValuationItem> = case
-            .items
-            .iter()
-            .map(|item| ValuationItem {
-                market_value: to_finite_amount(&item.market_value),
-                total_purchase_amount: to_finite_amount(&item.total_purchase_amount),
-            })
-            .collect();
-        let summary = summarize_valuation(&items);
-        assert_eq!(
-            summary.incomplete, case.expected.incomplete,
-            "{} incomplete",
-            case.name
-        );
-        assert_optional_amount(
-            summary.market_value,
-            &case.expected.market_value,
-            &case.name,
-            "marketValue",
-        );
-        assert_optional_amount(summary.amount, &case.expected.amount, &case.name, "amount");
-        assert_optional_rate(summary.rate, &case.expected.rate, &case.name, "rate");
-    }
-}
-
-#[test]
 fn shared_composition_cases_match() {
     let fixture = fixture();
     assert_eq!(fixture.composition_cases.len(), 7);
@@ -298,19 +248,6 @@ fn shared_kpi_cases_match() {
     }
 }
 
-fn summary_items() -> Vec<ValuationItem> {
-    vec![
-        ValuationItem {
-            market_value: Some(260000.0),
-            total_purchase_amount: Some(250000.0),
-        },
-        ValuationItem {
-            market_value: Some(650000.0),
-            total_purchase_amount: Some(600000.0),
-        },
-    ]
-}
-
 fn kpi_holdings() -> Vec<KpiHolding> {
     vec![
         KpiHolding {
@@ -328,121 +265,6 @@ fn kpi_holdings() -> Vec<KpiHolding> {
 
 fn full_dividends() -> HashMap<String, f64> {
     HashMap::from([("7203".to_string(), 50.0), ("6758".to_string(), 240.0)])
-}
-
-#[test]
-fn summary_override_matches_component_cases() {
-    let no_summary = summarize_valuation_with_summary(&summary_items(), None);
-    assert_eq!(no_summary.market_value, Some(910000.0));
-    assert_eq!(no_summary.amount, Some(60000.0));
-    assert!(!no_summary.incomplete);
-
-    let small = SummaryOverride {
-        total_purchase_amount: dec!(1000),
-        total_market_value: dec!(1100),
-    };
-    let prioritized = summarize_valuation_with_summary(&summary_items(), Some(&small));
-    assert_eq!(prioritized.market_value, Some(1100.0));
-    assert_eq!(prioritized.amount, Some(100.0));
-    assert_optional_rate(prioritized.rate, &json!(10.0), "summary", "rate");
-    assert!(!prioritized.incomplete);
-
-    let large = SummaryOverride {
-        total_purchase_amount: dec!(1234567),
-        total_market_value: dec!(1300000),
-    };
-    let reviewed = summarize_valuation_with_summary(&summary_items(), Some(&large));
-    assert_eq!(reviewed.market_value, Some(1300000.0));
-    assert_eq!(reviewed.amount, Some(65433.0));
-    assert_optional_rate(reviewed.rate, &json!(5.300076869056115), "summary", "rate");
-    assert!(!reviewed.incomplete);
-}
-
-#[test]
-fn summary_override_incomplete_detail_is_incomplete() {
-    let incomplete_items = vec![ValuationItem {
-        market_value: None,
-        total_purchase_amount: Some(20.0),
-    }];
-    let large = SummaryOverride {
-        total_purchase_amount: dec!(1234567),
-        total_market_value: dec!(1300000),
-    };
-    let propagated = summarize_valuation_with_summary(&incomplete_items, Some(&large));
-    assert!(propagated.incomplete);
-    assert_eq!(propagated.market_value, None);
-}
-
-#[test]
-fn summarize_valuation_totals_are_exact() {
-    let items = vec![
-        ValuationItem {
-            market_value: Some(1100.10),
-            total_purchase_amount: Some(1000.05),
-        },
-        ValuationItem {
-            market_value: Some(2200.20),
-            total_purchase_amount: Some(2000.15),
-        },
-    ];
-    let summary = summarize_valuation(&items);
-    assert_eq!(summary.market_value, Some(3300.30));
-    assert_eq!(summary.amount, Some(300.10));
-    assert!(!summary.incomplete);
-
-    let items = vec![
-        ValuationItem {
-            market_value: Some(1000000.1),
-            total_purchase_amount: Some(999999.95),
-        },
-        ValuationItem {
-            market_value: Some(2000000.2),
-            total_purchase_amount: Some(1999999.95),
-        },
-    ];
-    let summary = summarize_valuation(&items);
-    assert_eq!(summary.amount, Some(0.4));
-
-    let totals = SummaryOverride::sum([
-        (dec!(1100.10), dec!(1000.05)),
-        (dec!(2200.20), dec!(2000.15)),
-    ])
-    .expect("totals fit in Decimal");
-    assert_eq!(
-        (totals.total_market_value, totals.total_purchase_amount),
-        (dec!(3300.30), dec!(3000.20))
-    );
-    assert!(SummaryOverride::sum([(Decimal::MAX, dec!(0)), (Decimal::MAX, dec!(0))]).is_none());
-
-    let summary = summarize_valuation(&[]);
-    assert_eq!(summary.amount, Some(0.0));
-    assert_eq!(summary.market_value, Some(0.0));
-}
-
-#[test]
-fn summarize_valuation_overflow_falls_back_to_f64() {
-    let items: Vec<ValuationItem> = (0..8)
-        .map(|_| ValuationItem {
-            market_value: Some(1e28),
-            total_purchase_amount: Some(0.0),
-        })
-        .collect();
-    let summary = summarize_valuation(&items);
-    assert!(!summary.incomplete);
-    assert_eq!(summary.market_value, Some(8e28));
-    assert_eq!(summary.amount, Some(8e28));
-    assert_eq!(summary.rate, None);
-
-    let items = vec![ValuationItem {
-        market_value: Some(1e30),
-        total_purchase_amount: Some(1e29),
-    }];
-    let summary = summarize_valuation(&items);
-    assert!(!summary.incomplete);
-    assert_eq!(summary.market_value, Some(1e30));
-    assert_eq!(summary.amount, Some(9e29));
-    let rate = summary.rate.expect("nonzero purchase must produce a rate");
-    assert!((rate - 900.0).abs() < 1e-6);
 }
 
 #[test]
@@ -539,22 +361,10 @@ fn huge_values_do_not_panic() {
 }
 
 #[test]
-fn chart_filter_matches_component_conditions() {
-    assert!(should_include_chart_item(Some(1.0), None));
-    assert!(should_include_chart_item(Some(250000.0), Some(260000.0)));
-    assert!(!should_include_chart_item(Some(0.0), Some(0.0)));
-    assert!(!should_include_chart_item(Some(0.0), None));
-    assert!(!should_include_chart_item(None, None));
-    assert!(should_include_chart_item(Some(0.0), Some(100000.0)));
-    assert!(should_include_chart_item(None, Some(50000.0)));
-}
-
-#[test]
 fn chart_percentages_match_component_conditions() {
-    assert!(chart_percentages(&[], &[]).is_empty());
-    assert!(chart_percentages(&[0.0, 0.0], &[Some(0.0), Some(0.0)]).is_empty());
-    assert_eq!(chart_percentages(&[0.0], &[Some(50000.0)]), vec![None]);
-    let percentages = chart_percentages(&[250000.0, 600000.0], &[Some(1.0), Some(1.0)]);
+    assert!(chart_percentages(&[]).is_empty());
+    assert!(chart_percentages(&[0.0, 0.0]).is_empty());
+    let percentages = chart_percentages(&[250000.0, 600000.0]);
     assert_eq!(percentages.len(), 2);
     let total = 850000.0;
     assert_eq!(
@@ -564,6 +374,9 @@ fn chart_percentages_match_component_conditions() {
             Some(600000.0 / total * 100.0),
         ]
     );
+    // 取得額にマイナスが混ざっても帯の幅が負や 100% 超にならないよう絶対値で割る
+    let mixed = chart_percentages(&[-100000.0, 300000.0]);
+    assert_eq!(mixed, vec![Some(25.0), Some(75.0)]);
 }
 
 #[test]
@@ -726,39 +539,21 @@ proptest::proptest! {
     }
 
     #[test]
-    fn prop_should_include_chart_item(
-        purchase in proptest::option::of(-1e6f64..1e6f64),
-        market in proptest::option::of(-1e6f64..1e6f64),
-    ) {
-        let expected = matches!(purchase, Some(p) if p > 0.0)
-            || matches!(market, Some(m) if m != 0.0);
-        proptest::prop_assert_eq!(should_include_chart_item(purchase, market), expected);
-    }
-
-    #[test]
     fn prop_chart_percentages(
-        items in proptest::collection::vec(
-            (0.0f64..1e6f64, proptest::option::of(0.0f64..1e6f64)),
-            0..8usize
-        ),
+        values in proptest::collection::vec(-1e6f64..1e6f64, 0..8usize),
     ) {
-        let values: Vec<f64> = items.iter().map(|item| item.0).collect();
-        let markets: Vec<Option<f64>> = items.iter().map(|item| item.1).collect();
-        let result = chart_percentages(&values, &markets);
-        let total: f64 = values.iter().sum();
+        let result = chart_percentages(&values);
+        let total: f64 = values.iter().map(|v| v.abs()).sum();
         if total == 0.0 {
-            let has_valuation = markets
-                .iter()
-                .any(|market| matches!(market, Some(v) if *v != 0.0));
-            if has_valuation {
-                proptest::prop_assert_eq!(result, vec![None; values.len()]);
-            } else {
-                proptest::prop_assert!(result.is_empty());
-            }
+            proptest::prop_assert!(result.is_empty());
         } else {
+            let in_range = result
+                .iter()
+                .all(|p| matches!(p, Some(v) if (0.0..=100.0).contains(v)));
             let expected: Vec<Option<f64>> =
-                values.iter().map(|v| Some(*v / total * 100.0)).collect();
+                values.iter().map(|v| Some(v.abs() / total * 100.0)).collect();
             proptest::prop_assert_eq!(result, expected);
+            proptest::prop_assert!(in_range);
         }
     }
 

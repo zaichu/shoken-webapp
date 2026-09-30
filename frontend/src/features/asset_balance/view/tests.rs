@@ -1,8 +1,6 @@
 mod integration;
 
-use super::summary::{
-    portfolio_valuation, valuation_summary_override, PortfolioSummary, PortfolioSummaryProps,
-};
+use super::summary::{PortfolioSummary, PortfolioSummaryProps};
 use crate::api::dto::AssetBalanceSummary;
 use crate::api::ApiError;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
@@ -211,11 +209,9 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let mut toyota = balance_row(7203);
         toyota.security_name = "トヨタ自動車".to_string();
         toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
-        toyota.market_value = rust_decimal_macros::dec!(110000);
         let mut sony = balance_row(6758);
         sony.security_name = "ソニーグループ".to_string();
         sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
-        sony.market_value = rust_decimal_macros::dec!(180000);
         let loaded = LoadedAssetBalances {
             total: 2,
             rows: vec![toyota, sony],
@@ -245,20 +241,6 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         assert!(filtered.summary.is_none());
 
         // PortfolioSummary と同じ手順で画面に出る金額を計算する
-        let summary_override =
-            valuation_summary_override(&filtered.views, filtered.summary.as_ref())
-                .expect("filtered totals fit in Decimal");
-        assert_eq!(
-            (
-                summary_override.total_market_value,
-                summary_override.total_purchase_amount
-            ),
-            (
-                rust_decimal_macros::dec!(110000),
-                rust_decimal_macros::dec!(100000)
-            )
-        );
-        let valuation = portfolio_valuation(&filtered.views, filtered.summary.as_ref());
         let kpi_holdings: Vec<KpiHolding> = filtered
             .views
             .iter()
@@ -281,9 +263,6 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
         });
 
-        assert_eq!(valuation.market_value, Some(110000.0));
-        assert_eq!(valuation.amount, Some(10000.0));
-        assert_eq!(valuation.rate, Some(10.0));
         assert_eq!(format_currency(total_purchase), "¥100,000");
         kpi.with(|kpi| {
             assert_eq!(kpi.total_purchase_amount, 100000.0);
@@ -311,11 +290,9 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let mut first = balance_row(7203);
         first.security_name = "Decimal 検証対象 A".to_string();
         first.total_purchase_amount = rust_decimal_macros::dec!(1000.05);
-        first.market_value = rust_decimal_macros::dec!(1100.10);
         let mut second = balance_row(6758);
         second.security_name = "Decimal 検証対象 B".to_string();
         second.total_purchase_amount = rust_decimal_macros::dec!(2000.15);
-        second.market_value = rust_decimal_macros::dec!(2200.20);
         let decimal_rows = vec![first, second];
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
         let decimal_saved: Vec<AssetBalanceRow> =
@@ -330,27 +307,17 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         );
         assert_eq!(decimal_filtered.views.len(), 2);
         assert!(decimal_filtered.summary.is_none());
-        let decimal_override =
-            valuation_summary_override(&decimal_filtered.views, decimal_filtered.summary.as_ref())
-                .expect("filtered totals fit in Decimal");
-        assert_eq!(
-            (
-                decimal_override.total_market_value,
-                decimal_override.total_purchase_amount
-            ),
-            (
-                rust_decimal_macros::dec!(3300.30),
-                rust_decimal_macros::dec!(3000.20)
-            )
-        );
-        let decimal_valuation =
-            portfolio_valuation(&decimal_filtered.views, decimal_filtered.summary.as_ref());
-        assert_eq!(decimal_valuation.market_value, Some(3300.3));
-        assert_eq!(decimal_valuation.amount, Some(300.1));
-        assert_eq!(
-            format_currency(decimal_valuation.market_value.unwrap()),
-            "¥3,300.3"
-        );
+        let decimal_holdings: Vec<KpiHolding> = decimal_filtered
+            .views
+            .iter()
+            .map(|view| KpiHolding {
+                security_code: view.code.clone(),
+                shares: view.shares,
+                total_purchase_amount: view.purchase,
+            })
+            .collect();
+        let decimal_total = total_purchase_amount(&decimal_holdings, None);
+        assert_eq!(format_currency(decimal_total), "¥3,000.2");
     });
 }
 
@@ -363,7 +330,6 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         let mut saved = balance_row(7203);
         saved.security_name = "保存済みトヨタ".to_string();
         saved.total_purchase_amount = rust_decimal_macros::dec!(999999);
-        saved.market_value = rust_decimal_macros::dec!(888888);
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&saved)));
 
@@ -371,7 +337,6 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
             security_code: "7203".to_string(),
             security_name: "CSVトヨタ".to_string(),
             total_purchase_amount: rust_decimal_macros::dec!(100),
-            market_value: rust_decimal_macros::dec!(200),
             ..AssetBalanceCsvRow::default()
         };
         let rows = vec![AssetBalanceRow::Preview(preview)];
@@ -381,16 +346,12 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "7203");
         assert_eq!(filtered.views[0].name, "CSVトヨタ");
-        assert_eq!(
-            filtered.views[0].purchase_dec,
-            rust_decimal_macros::dec!(100)
-        );
-        assert_eq!(filtered.views[0].market_dec, rust_decimal_macros::dec!(200));
+        assert_eq!(filtered.views[0].purchase, 100.0);
     });
 }
 
 #[test]
-fn show_all_resets_when_summary_stops_drawing_the_chart() {
+fn show_all_resets_only_when_summary_has_no_rows() {
     let owner = Owner::new();
     owner.with(|| {
         let dividends = RwSignal::new(DividendMaps::default());
@@ -417,20 +378,17 @@ fn show_all_resets_when_summary_stops_drawing_the_chart() {
         assert!(!show_all.get_untracked());
 
         show_all.set(true);
+        // 取得額0でも行がある限りサマリーと保有カードは描くので show_all は維持される
         let mut zero = balance_row(9999);
         zero.total_purchase_amount = rust_decimal_macros::dec!(0);
-        zero.market_value = rust_decimal_macros::dec!(0);
         let _ = summary_view(vec![holding_view(&zero)]);
-        assert!(!show_all.get_untracked());
+        assert!(show_all.get_untracked());
 
         let _ = summary_view(views);
-        assert!(!show_all.get_untracked());
+        assert!(show_all.get_untracked());
         let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
-        assert_eq!(display.visible_count, 20);
-        assert_eq!(
-            display.toggle_label.as_deref(),
-            Some("残り1銘柄を表示（全21）")
-        );
+        assert_eq!(display.visible_count, 21);
+        assert_eq!(display.toggle_label.as_deref(), Some("上位20件のみ表示"));
     });
 }
 

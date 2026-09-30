@@ -40,9 +40,6 @@ fn preview_response_maps_to_asset_balance_rows() {
     assert_eq!(row.average_purchase_price, dec!(2500));
     assert_eq!(row.total_purchase_amount, dec!(250000));
     assert_eq!(row.current_price, dec!(2600));
-    assert_eq!(row.daily_change, dec!(50));
-    assert_eq!(row.market_value, dec!(260000));
-    assert_eq!(row.profit_loss_rate, dec!(4.0));
 }
 
 #[test]
@@ -56,7 +53,6 @@ fn preview_row_with_missing_fields_falls_back() {
     assert_eq!(preview.rows[0], AssetBalanceCsvRow::default());
     assert_eq!(preview.rows[1].security_name, "ソニーグループ");
     assert_eq!(preview.rows[1].shares, dec!(0));
-    assert_eq!(preview.rows[1].market_value, dec!(0));
 }
 
 #[test]

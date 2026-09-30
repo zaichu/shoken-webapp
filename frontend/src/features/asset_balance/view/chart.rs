@@ -1,4 +1,4 @@
-use super::cards::{HoldingCard, HoldingValuationCard};
+use super::cards::{HoldingCard, HoldingMobileCard};
 use super::summary::ChartItem;
 use crate::features::asset_balance::format::format_fixed_percent;
 use crate::features::asset_balance::portfolio::chart_display;
@@ -26,7 +26,10 @@ pub(crate) fn ChartList(
                     .clone()
                     .into_iter()
                     .enumerate()
-                    .filter(|(index, _)| *index < display.with(|d| d.visible_count))
+                    .filter(|(index, item)| {
+                        *index < display.with(|d| d.visible_count)
+                            || item.percentage.is_none()
+                    })
                     .map(|(index, item)| {
                         view! {
                             <div>
@@ -35,7 +38,7 @@ pub(crate) fn ChartList(
                                     index=index
                                     dividends=dividends
                                 />
-                                <HoldingValuationCard item=item dividends=dividends />
+                                <HoldingMobileCard item=item index=index dividends=dividends />
                             </div>
                         }
                     })

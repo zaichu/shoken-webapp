@@ -95,7 +95,7 @@ impl Search for AssetBalanceDomain {
 
     const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
         executing_shares, average_purchase_price, total_purchase_amount, current_price, \
-        daily_change, market_value, profit_loss_rate, created_at, updated_at";
+        daily_change, created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
 
     /// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
