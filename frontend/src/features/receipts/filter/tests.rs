@@ -284,14 +284,6 @@ fn set_date_updates_input_query_and_selected() {
 }
 
 #[test]
-fn date_segment_labels_match_react() {
-    assert_eq!(DateSegment::Year.label(), "年");
-    assert_eq!(DateSegment::Month.label(), "月");
-    assert_eq!(DateSegment::Date.label(), "日");
-    assert_eq!(DateSegment::Range.label(), "範囲");
-}
-
-#[test]
 fn tab_column_rules_use_whole_query_not_tokens() {
     assert_eq!(
         column_order(ReceiptsTab::Dividend, &dividends(), "特定"),

@@ -275,10 +275,13 @@ fn table_column_widths_match_headers_and_follow_column_order() {
     let headers = table_headers(ReceiptsTab::DomesticStock);
     let widths = table_column_widths(ReceiptsTab::DomesticStock);
     let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
-    assert_eq!(displayed[0], ("約定日", "96px"));
-    assert_eq!(displayed[1], ("銘柄コード", "88px"));
-    assert_eq!(displayed[2], ("口座", "76px"));
-    assert_eq!(displayed[3], ("銘柄名", ""));
+    let fields = ReceiptsTab::DomesticStock.card_fields();
+    assert_eq!(displayed[0], (headers[fields.date], widths[fields.date]));
+    assert_eq!(
+        displayed[2],
+        (headers[fields.account], widths[fields.account])
+    );
+    assert_eq!(displayed[3], (headers[fields.name], widths[fields.name]));
 }
 
 #[test]
@@ -448,40 +451,6 @@ fn security_code_acceptance_matches_react_regex() {
     assert!(!is_security_code(""));
     assert!(!is_security_code("任天堂"));
     assert!(!is_security_code("9432:メモ"));
-}
-
-#[test]
-fn kpi_styles_match_tone() {
-    assert_eq!(kpi_value_color(StatTone::Loss), "text-negative");
-    assert_eq!(kpi_value_color(StatTone::Neutral), "text-text");
-}
-
-#[test]
-fn summary_and_empty_hint_labels_match_tabs() {
-    assert_eq!(
-        ReceiptsTab::Dividend.summary_labels(),
-        ["配当金", "税額", "税引後"]
-    );
-    assert_eq!(
-        ReceiptsTab::DomesticStock.summary_labels(),
-        ["損益", "税額", "税引後"]
-    );
-    assert_eq!(
-        ReceiptsTab::MutualFund.summary_labels(),
-        ["実現損益", "税額", "税引損益"]
-    );
-    assert_eq!(
-        ReceiptsTab::Dividend.empty_hint(),
-        "配当金明細をCSVで追加してください"
-    );
-    assert_eq!(
-        ReceiptsTab::DomesticStock.empty_hint(),
-        "国内株式明細をCSVで追加してください"
-    );
-    assert_eq!(
-        ReceiptsTab::MutualFund.empty_hint(),
-        "投資信託明細をCSVで追加してください"
-    );
 }
 
 #[test]

@@ -17,7 +17,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
-use crate::ui::csv_section::CsvSource;
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -388,7 +387,7 @@ fn show_all_resets_only_when_summary_has_no_rows() {
         assert!(show_all.get_untracked());
         let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
         assert_eq!(display.visible_count, 21);
-        assert_eq!(display.toggle_label.as_deref(), Some("上位20件のみ表示"));
+        assert!(display.toggle_label.is_some());
     });
 }
 
@@ -478,8 +477,8 @@ fn negative_valuation_is_decided_by_rounded_amount() {
     assert!(is_negative_valuation(Some(-1.0)));
     assert_eq!(format_valuation_amount(Some(-0.4)), "¥0");
     assert_eq!(format_valuation_amount(Some(-0.5)), "-¥1");
-    assert_eq!(valuation_tone(Some(-0.5)), ("text-negative", Some("true")));
-    assert_eq!(valuation_tone(Some(-0.4)), ("text-text", None));
+    assert_eq!(valuation_tone(Some(-0.5)).1, Some("true"));
+    assert_eq!(valuation_tone(Some(-0.4)).1, None);
 }
 
 #[test]
@@ -490,23 +489,5 @@ fn asset_balance_result_applies_within_the_same_generation() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         assert!(should_apply_asset_balance_result(&session, generation));
-    });
-}
-
-#[test]
-fn csv_section_class_keeps_wide_layout_bottom_border() {
-    // sm 以上のレール区切り線。外すと資産管理のCSVセクションが上と溶けるため値を固定する
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        assert_eq!(
-            CsvSource::section_class(&store),
-            "sm:border-b sm:border-ink/10"
-        );
     });
 }

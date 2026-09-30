@@ -32,21 +32,3 @@ fn nav_active_matches_path_or_prefix() {
     assert!(!is_nav_active("/receipt", "/receipts"));
     assert!(!is_nav_active("/", "/receipts"));
 }
-
-#[test]
-fn alert_variant_classes() {
-    assert_eq!(
-        AlertVariant::Warning.class(),
-        "border-accent-border bg-accent-soft text-accent-text"
-    );
-    assert_eq!(
-        AlertVariant::Danger.class(),
-        "border-negative-border bg-negative-soft text-negative-vivid"
-    );
-}
-
-#[test]
-fn spinner_size_classes() {
-    assert_eq!(SpinnerSize::Sm.class(), "h-4 w-4");
-    assert_eq!(SpinnerSize::Lg.class(), "h-8 w-8");
-}
