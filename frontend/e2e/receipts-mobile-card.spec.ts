@@ -272,7 +272,7 @@ test('マイナスの損益は符号を保ち負値として区別される', as
       .locator('dd');
 
   for (const [label, value] of [
-    ['損益', '-¥5,000'],
+    ['実現損益', '-¥5,000'],
     ['税引後', '-¥3,985'],
   ] as const) {
     const amount = ddFor(label).locator('span[data-negative="true"]');

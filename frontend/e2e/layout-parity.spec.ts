@@ -229,7 +229,9 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
   await page.locator('#securities-search').selectOption('9999');
-  await expect(page.getByRole('button', { name: '絞り込みを解除' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: '絞り込みを解除' }),
+  ).toBeVisible();
 }
 
 test.beforeEach(async ({ context }) => {

@@ -290,6 +290,7 @@ fn card_row_data_matches_react_card_fields() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
+        ReceiptsTab::Dividend,
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
@@ -311,7 +312,8 @@ fn card_row_data_matches_react_card_fields() {
         .all(|detail| !["入金日", "口座", "銘柄名"].contains(&detail.label.as_str())));
     assert!(card.details.iter().all(|detail| match &detail.value {
         CardDetailValue::Text { text, negative } => {
-            *negative == (is_profit_label(&detail.label) && is_negative_text(text))
+            *negative
+                == (is_profit_label(ReceiptsTab::Dividend, &detail.label) && is_negative_text(text))
         }
         CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
     }));
@@ -323,6 +325,7 @@ fn card_date_keeps_year_when_group_is_not_year_month() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
+        ReceiptsTab::Dividend,
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
@@ -343,7 +346,14 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(&cells, table_headers(tab), &order, tab.card_fields(), false)
+    card_row_data(
+        tab,
+        &cells,
+        table_headers(tab),
+        &order,
+        tab.card_fields(),
+        false,
+    )
 }
 
 #[test]
@@ -359,7 +369,7 @@ fn negative_tax_and_dividend_stay_neutral() {
         ReceiptsTab::DomesticStock,
         Saved(ReceiptItem::DomesticStock(stock)),
     );
-    assert!(detail_negative(&card, "損益"));
+    assert!(detail_negative(&card, "実現損益"));
     assert!(!detail_negative(&card, "税額"));
 
     let mut dividend = match dividends().remove(0) {
@@ -373,15 +383,39 @@ fn negative_tax_and_dividend_stay_neutral() {
         Saved(ReceiptItem::Dividend(dividend)),
     );
     assert!(!detail_negative(&card, "税額"));
-    assert!(!detail_negative(&card, "受取額"));
+    assert!(!detail_negative(&card, "税引後"));
 }
 
 #[test]
 fn dividend_subtotal_is_not_profit() {
-    assert!(!summary_is_profit(ReceiptsTab::Dividend, "税引後"));
-    assert!(summary_is_profit(ReceiptsTab::DomesticStock, "税引後"));
-    assert!(summary_is_profit(ReceiptsTab::MutualFund, "税引損益"));
-    assert!(!summary_is_profit(ReceiptsTab::DomesticStock, "税額"));
+    assert!(!is_profit_label(ReceiptsTab::Dividend, "税引後"));
+    assert!(is_profit_label(ReceiptsTab::DomesticStock, "税引後"));
+    assert!(is_profit_label(ReceiptsTab::MutualFund, "税引後"));
+    assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
+}
+
+#[test]
+fn negative_labeled_value_requires_profit_label_and_negative_text() {
+    assert!(is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税引後",
+        "-¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税引後",
+        "¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税額",
+        "-¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::Dividend,
+        "税引後",
+        "-¥1,234"
+    ));
 }
 
 #[test]
@@ -390,6 +424,7 @@ fn card_details_link_security_code_and_copy_name() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
+        ReceiptsTab::Dividend,
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,
@@ -415,6 +450,7 @@ fn card_details_link_security_code_and_copy_name() {
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
+        ReceiptsTab::MutualFund,
         &cells,
         table_headers(ReceiptsTab::MutualFund),
         &order,
@@ -538,6 +574,7 @@ fn card_row_data_details_follow_column_reorder() {
     assert_eq!(order[1], 2);
     let cells = rows[0].cells();
     let card = card_row_data(
+        ReceiptsTab::Dividend,
         &cells,
         table_headers(ReceiptsTab::Dividend),
         &order,

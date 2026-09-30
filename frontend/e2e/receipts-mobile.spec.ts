@@ -193,7 +193,7 @@ test('カードは開閉せず見出しと全項目を最初から表示する',
 
   // 見出しと重複しない残り全項目を、表の列順で2列の格子に出す
   const grid = card.locator('dl');
-  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '受取額'];
+  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '税引後'];
   await expect(grid.locator('dt')).toHaveCount(labels.length);
   for (const label of labels) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
@@ -260,7 +260,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAttribute('aria-label', /配当金\(税引\) ¥4,782/);
+  await expect(toggle).toHaveAttribute('aria-label', /税引後 ¥4,782/);
   await expect(page.getByTestId('receipt-summary-desktop')).toBeHidden();
 
   await toggle.click();
@@ -268,7 +268,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const region = page.getByRole('region', { name: '集計情報' });
   await expect(region).toBeVisible();
   await expect(region.getByText('配当金', { exact: true })).toBeVisible();
-  await expect(region.getByText('配当金(税引)', { exact: true })).toBeVisible();
+  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -295,7 +295,7 @@ test('国内株式タブでも全項目が見え、銘柄リンクとコピー�
     '売却単価',
     '売却額',
     '取得価額',
-    '損益',
+    '実現損益',
     '税額',
     '税引後',
   ]) {
@@ -332,7 +332,7 @@ test('投資信託タブでも全項目が見え、ファンド名をコピー�
     '取得価額',
     '実現損益',
     '税額',
-    '税引損益',
+    '税引後',
   ]) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
   }

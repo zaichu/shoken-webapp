@@ -384,7 +384,7 @@ pub fn SiteFooter() -> impl IntoView {
                         }
                     })
                     .collect_view()}
-                <span>"© 2026 shoken-webapp"</span>
+                <span>"© 2026 証券Web"</span>
             </div>
         </footer>
     }
