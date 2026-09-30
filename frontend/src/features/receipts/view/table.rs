@@ -1,6 +1,5 @@
 use super::cards::{
-    card_row_data, is_negative_text, is_profit_label, summary_is_profit, CardRowData,
-    MobileCardGroup,
+    card_row_data, is_negative_text, is_profit_label, CardRowData, MobileCardGroup,
 };
 use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
@@ -97,7 +96,7 @@ pub(crate) fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(_, _, cells)| card_row_data(cells, headers, &order, fields, full_date))
+                .map(|(_, _, cells)| card_row_data(tab, cells, headers, &order, fields, full_date))
                 .collect();
             (
                 group_index,
@@ -235,20 +234,15 @@ pub(crate) fn ReceiptTable(
                                                     .map(|(class, span)| {
                                                         view! {
                                                             <td
-                                                                colspan=*span
+                                                                colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
                                                                     "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-2 border-border-xstrong{top}{class}"
                                                                 )
                                                             >
                                                                 <span class="text-sm font-medium">{group.label.clone()}</span>
-                                                                {(count >= 2)
-                                                                    .then(|| {
-                                                                        view! {
-                                                                            <span class="ml-2 text-xs font-medium text-text-muted">
-                                                                                {format!("{count}件")}
-                                                                            </span>
-                                                                        }
-                                                                    })}
+                                                                <span class="ml-2 text-xs font-medium text-text-muted">
+                                                                    {format!("{count}件")}
+                                                                </span>
                                                             </td>
                                                         }
                                                     })
@@ -258,7 +252,7 @@ pub(crate) fn ReceiptTable(
                                                     .iter()
                                                     .zip(labels.iter())
                                                     .map(|(value, label)| {
-                                                        let negative = summary_is_profit(tab, label)
+                                                        let negative = is_profit_label(tab, label)
                                                             && is_negative_text(value);
                                                         view! {
                                                             <td
@@ -317,15 +311,10 @@ pub(crate) fn ReceiptTable(
                                                                             .into_any()
                                                                         }
                                                                         ReceiptCell::Text(value) => {
-                                                                            let negative =
-                                                                                is_profit_label(
-                                                                                    table_headers(
-                                                                                        tab,
-                                                                                    )
-                                                                                    [order[col_index]],
-                                                                                ) && is_negative_text(
-                                                                                &value,
-                                                                            );
+                                                                            let negative = is_profit_label(
+                                                                                tab,
+                                                                                table_headers(tab)[order[col_index]],
+                                                                            ) && is_negative_text(&value);
                                                                             let title = value.clone();
                                                                             view! {
                                                                                 <td

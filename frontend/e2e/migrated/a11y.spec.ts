@@ -447,8 +447,8 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
-    await openReceiptRail(page);
-    const header = page.locator('[data-testid="search-card-header"]').first();
+await openReceiptRail(page);
+    const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
     if ((await header.getAttribute('aria-expanded')) === 'false') {
       await header.click();
       await page.waitForTimeout(300);
@@ -459,7 +459,7 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
     // 検索カードは行がある時だけ描画される。空・取得失敗だと header が無くスキャンが黙って飛ばされる
-    const assetHeader = page.locator('[data-testid="search-card-header"]').first();
+    const assetHeader = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
     await expect(assetHeader).toBeVisible({ timeout: 10000 });
     if ((await assetHeader.getAttribute('aria-expanded')) === 'false') {
       await assetHeader.click();
@@ -528,7 +528,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.keyboard.press('Space');
   await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
 
-  const header = page.locator('[data-testid="search-card-header"]').first();
+  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
   await tabTo(page, header);
   await expect(header).toBeFocused();
   const before = await header.getAttribute('aria-expanded');

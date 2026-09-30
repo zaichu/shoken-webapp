@@ -34,7 +34,7 @@
 
 ## エージェント運用
 
-- どのエージェントがどの役割（実装/設計/統合）を担うかの唯一の正本は `docs/agent-roles.md`
+- 役割（実装/設計/統合）の共通規則の正本は agent-config の `common/AGENTS.md`（`~/.claude/CLAUDE.md` に配布）。プロジェクト固有の割り当ては `docs/agent-roles.md` で補う
 - 委譲の手順・依頼テンプレート・受け取り時の検証は `agent-delegation` skill（全プロジェクト共通）
 - 複数エージェントが同時に動き得る場合の重複防止・git状態分離は `parallel-agent-coordination` skill
   - **実装を委譲する前（spawn/依頼プロンプトを渡す前）に、必ず対象Issueへ着手を宣言する**

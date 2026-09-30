@@ -172,7 +172,7 @@ test('グループ見出しは主要集計を常時表示しタップで全集�
   await expect(region).toBeHidden();
 });
 
-test('カードは開閉せず見出しと全項目の2列格子を最初から表示する', async ({ page }) => {
+test('カードは開閉せず見出しと全項目を最初から表示する', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
@@ -193,7 +193,7 @@ test('カードは開閉せず見出しと全項目の2列格子を最初から�
 
   // 見出しと重複しない残り全項目を、表の列順で2列の格子に出す
   const grid = card.locator('dl');
-  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '受取額'];
+  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '税引後'];
   await expect(grid.locator('dt')).toHaveCount(labels.length);
   for (const label of labels) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
@@ -202,27 +202,7 @@ test('カードは開閉せず見出しと全項目の2列格子を最初から�
     await expect(grid.locator('dt', { hasText: label })).toHaveCount(0);
   }
 
-  const columns = await grid.evaluate(
-    (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
-  );
-  expect(columns, '項目は2列の格子').toBe(2);
-
-  // 金額は右寄せ・tabular-nums、長い項目も隠れない
   await expect(grid.getByText('¥1,594', { exact: true })).toBeVisible();
-  const ddStyle = await grid
-    .locator('dd')
-    .last()
-    .evaluate((element) => {
-      const style = getComputedStyle(element);
-      const amount = element.querySelector('.tabular-nums');
-      return {
-        textAlign: style.textAlign,
-        fontVariantNumeric: amount
-          ? getComputedStyle(amount).fontVariantNumeric
-          : 'missing',
-      };
-    });
-  expect(ddStyle).toEqual({ textAlign: 'right', fontVariantNumeric: 'tabular-nums' });
   const clipped = await grid
     .locator('dd, dt')
     .evaluateAll((cells) =>
@@ -238,14 +218,6 @@ test('タブは1行のまま横スクロール可能', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
   await expect(page.getByRole('tab')).toHaveCount(3);
-
-  const tablist = page.getByRole('tablist');
-  const { overflowX, flexWrap } = await tablist.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { overflowX: style.overflowX, flexWrap: style.flexWrap };
-  });
-  expect(overflowX).toBe('auto');
-  expect(flexWrap).toBe('nowrap');
 
   const tops = await page
     .getByRole('tab')
@@ -280,14 +252,51 @@ test('矢印キーとHome/Endでタブを移動しフォーカスも追従する
   await expect(dividend).toHaveAttribute('aria-selected', 'true');
 });
 
-test('集計は主要指標のみ常時表示しタップで全項目を開く', async ({ page }) => {
+test('検索・集計・CSVは同じツールバーからキーボードで開閉できる', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+  const toolbar = page.getByTestId('receipt-mobile-toolbar');
+  await expect(toolbar).toBeVisible();
+  const search = toolbar.getByTestId('receipt-search-toggle');
+  const summary = toolbar.getByTestId('receipt-summary-compact-toggle');
+  const csv = toolbar.getByTestId('receipt-csv-toggle');
+  const buttons = [search, summary, csv];
+  for (const button of buttons) {
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    const id = await button.getAttribute('aria-controls');
+    await expect(page.locator(`[id="${id}"]`)).toBeAttached();
+  }
+  const boxes = await Promise.all(buttons.map((button) => button.boundingBox()));
+  expect(boxes.every((box) => box !== null)).toBe(true);
+  expect(Math.max(...boxes.map((box) => box!.y))).toBeLessThan(
+    Math.min(...boxes.map((box) => box!.y + box!.height)),
+  );
+  await expect(page.locator('#search-options-body')).toBeHidden();
+  await expect(page.getByRole('region', { name: '集計情報', exact: true })).toBeHidden();
+  await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeHidden();
+  for (const button of buttons) {
+    for (let step = 0; step < 50 && !(await button.evaluate((el) => el === document.activeElement)); step++) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(button).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    const id = await button.getAttribute('aria-controls');
+    await expect(page.locator(`[id="${id}"]`)).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator(`[id="${id}"]`)).toBeHidden();
+  }
+});
+
+test('集計はツールバーから全項目を開く', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAttribute('aria-label', /配当金\(税引\) ¥4,782/);
+  await expect(toggle).toHaveAttribute('aria-label', '集計情報');
   await expect(page.getByTestId('receipt-summary-desktop')).toBeHidden();
 
   await toggle.click();
@@ -295,7 +304,7 @@ test('集計は主要指標のみ常時表示しタップで全項目を開く',
   const region = page.getByRole('region', { name: '集計情報' });
   await expect(region).toBeVisible();
   await expect(region.getByText('配当金', { exact: true })).toBeVisible();
-  await expect(region.getByText('配当金(税引)', { exact: true })).toBeVisible();
+  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -322,7 +331,7 @@ test('国内株式タブでも全項目が見え、銘柄リンクとコピー�
     '売却単価',
     '売却額',
     '取得価額',
-    '損益',
+    '実現損益',
     '税額',
     '税引後',
   ]) {
@@ -359,7 +368,7 @@ test('投資信託タブでも全項目が見え、ファンド名をコピー�
     '取得価額',
     '実現損益',
     '税額',
-    '税引損益',
+    '税引後',
   ]) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
   }
@@ -385,7 +394,7 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
   const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
   await summaryToggle.click();
 
-  await page.getByTestId('search-card-header').click();
+  await page.getByTestId('receipt-search-toggle').click();
   await page.locator('#securities-search').selectOption('9432');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
 

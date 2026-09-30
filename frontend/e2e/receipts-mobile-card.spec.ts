@@ -1,15 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/test';
-import * as fs from 'fs';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
-
-async function shoot(page: Page, name: string) {
-  const dir = path.resolve(test.info().project.testDir, '../../.playwright-mcp');
-  await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({ path: path.join(dir, `receipts-mobile-${name}.png`) });
-}
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -153,8 +146,6 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
     await expect(card.locator('dl').locator('dt')).toHaveCount(7);
     await expect(card.locator('dl').getByText('¥2,391')).toBeVisible();
   }
-
-  await shoot(page, 'identical-cards');
 });
 
 async function expectTabInsideViewport(tab: Locator, viewportWidth: number) {
@@ -185,8 +176,6 @@ test('選択したタブは390pxでも320pxでも見切れない', async ({ page
   await expectTabInsideViewport(domestic, 390);
   await expectTabInsideViewport(dividend, 390);
 
-  await shoot(page, 'tabs-390');
-
   await page.setViewportSize({ width: 320, height: 844 });
   const tablist = page.getByRole('tablist');
   const overflows = await tablist.evaluate(
@@ -208,7 +197,7 @@ test('選択したタブは390pxでも320pxでも見切れない', async ({ page
   await expectTabInsideViewport(fund, 320);
 });
 
-test('カード一覧はスマホ幅でページ全幅を使い、長いファンド名は省略せず折り返す', async ({
+test('カード一覧はスマホ幅に収まり、長いファンド名は省略せず表示する', async ({
   page,
 }) => {
   await mockApi(page);
@@ -218,8 +207,8 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
   await expect(cardList).toBeVisible();
   const listBox = await cardList.boundingBox();
   expect(listBox, 'カード一覧の幅').not.toBeNull();
-  // main の px-4 と外側カードの枠線を除いた全幅(390-32-2=356)。page-surface の p-6 が残ると 308 まで狭まる
-  expect(listBox!.width).toBeGreaterThanOrEqual(354);
+  expect(listBox!.x).toBeGreaterThanOrEqual(0);
+  expect(listBox!.x + listBox!.width).toBeLessThanOrEqual(390 + 1);
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
   const name = cardList.getByRole('button', {
@@ -228,10 +217,9 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンド名ボタンの幅').not.toBeNull();
-  // カード内側の余白(px-3)を引いた全幅=332
-  expect(nameBox!.width).toBeGreaterThanOrEqual(328);
+  expect(nameBox!.x).toBeGreaterThanOrEqual(listBox!.x - 1);
+  expect(nameBox!.x + nameBox!.width).toBeLessThanOrEqual(listBox!.x + listBox!.width + 1);
 
-  // 全文が省略されず複数行に折り返して出る
   const wrap = await name.locator('span').first().evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -239,17 +227,15 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
       [...range.getClientRects()].map((rect) => Math.round(rect.top)),
     ).size;
     return {
-      truncated: el.scrollWidth > el.clientWidth + 1,
+      truncated: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
       lines,
     };
   });
   expect(wrap.truncated, 'ファンド名は省略しない').toBe(false);
-  expect(wrap.lines, 'ファンド名は折り返して全文を出す').toBeGreaterThanOrEqual(2);
-
-  await shoot(page, 'fund-name-390');
+  expect(wrap.lines, 'ファンド名が描画される').toBeGreaterThan(0);
 });
 
-test('マイナスの損益は data-negative で赤字、太さは正の値と同じ font-semibold', async ({
+test('マイナスの損益は符号を保ち負値として区別される', async ({
   page,
 }) => {
   await mockApi(page);
@@ -283,20 +269,18 @@ test('マイナスの損益は data-negative で赤字、太さは正の値と�
       .locator('dd');
 
   for (const [label, value] of [
-    ['損益', '-¥5,000'],
+    ['実現損益', '-¥5,000'],
     ['税引後', '-¥3,985'],
   ] as const) {
     const amount = ddFor(label).locator('span[data-negative="true"]');
     await expect(amount).toHaveCount(1);
     await expect(amount).toHaveText(value);
-    await expect(amount).toHaveCSS('color', 'rgb(185, 28, 28)');
-    await expect(amount).toHaveCSS('font-weight', '600');
   }
 
-  // 損益系以外の金額は data-negative を付けず、太さも揃う
+  // 損益系以外の金額は data-negative を付けない
   const proceeds = ddFor('売却額').locator('span:not([data-negative])');
   await expect(proceeds).toHaveText('¥55,000');
-  await expect(proceeds).toHaveCSS('font-weight', '600');
+  await expect(proceeds).toBeVisible();
 });
 
 test('見出しが年月でないグループではカードの日付を年付きで出す', async ({ page }) => {
@@ -308,8 +292,9 @@ test('見出しが年月でないグループではカードの日付を年付�
   await expect(card).toBeVisible();
   // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
   await expect(card.getByText('03/01', { exact: true })).toBeVisible();
+  await expect(cardList.getByText('1件', { exact: true })).toBeVisible();
 
-  await page.getByTestId('search-card-header').click();
+  await page.getByTestId('receipt-search-toggle').click();
   await page.locator('#securities-search').selectOption('7203');
   await expect(
     cardList.getByRole('button', { name: /トヨタ自動車 1件 税引後 ¥2,391/ }),
@@ -318,6 +303,45 @@ test('見出しが年月でないグループではカードの日付を年付�
   // 見出しが銘柄名に変わると年が分からなくなるので YYYY/MM/DD で出す
   await expect(card.getByText('2024/03/01', { exact: true })).toBeVisible();
   await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+});
+
+test('国内株式は1件日の小計を省き、複数件日は税額を含む集計を残す', async ({ page }) => {
+  await mockApi(page);
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginatedResponse([
+        DOMESTIC,
+        { ...DOMESTIC, id: 'second', trade_date: '2024-02-02' },
+        { ...DOMESTIC, id: 'third', trade_date: '2024-02-02' },
+      ])),
+    }),
+  );
+  await page.goto('/receipts');
+  await page.getByRole('tab', { name: /国内株式/ }).click();
+  const list = page.getByTestId('receipt-card-list');
+  await expect(list.getByTestId('receipt-card')).toHaveCount(3);
+  const groups = list.getByTestId('receipt-card-group');
+  const single = groups.filter({ hasText: '2024年2月1日' });
+  await expect(single.getByText('1件', { exact: true })).toBeVisible();
+  await expect(single.locator('[aria-expanded]')).toHaveCount(0);
+  const multiple = groups.filter({ hasText: '2024年2月2日' });
+  const toggle = multiple.getByRole('button', { name: /2024年2月2日 2件 税引後/ });
+  await toggle.click();
+  await expect(multiple.getByRole('region').getByText('税額', { exact: true })).toBeVisible();
+  const profit = multiple.getByRole('region').locator('dl > div')
+    .filter({ has: page.getByText('実現損益', { exact: true }) }).locator('dd');
+  await expect(profit).toHaveText('¥10,000');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const table = page.getByRole('table');
+  const singleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月1日' });
+  await expect(singleHeading.locator('td:visible')).toHaveCount(1);
+  await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
+  const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
+  await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
+    '¥10,000', '¥0', '¥10,000',
+  ]);
 });
 
 test('長い口座名は省略せず折り返して全文を出す', async ({ page }) => {

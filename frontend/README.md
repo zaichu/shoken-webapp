@@ -90,8 +90,8 @@ src/
 | --- | --- | --- |
 | `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton は Close |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
-| `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Table・Rail・Collapsible・Feature(href で `<a>`)・Summary・Item・Group・Holding・Stat・Sunken・Strip・Hint・Dashed・Step・Tile・GroupLabel など |
-| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Collapsible・Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
+| `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Login・Table・Collapsible・Feature(href で `<a>`)・Rail・Shell・Summary・Soft・Item・Group・Holding・Stat・StatSmall・Sunken・Strip・DashedCompact・Tile・GroupLabel など |
+| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Toolbar・ToolbarMenu・Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
 | `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・Info・Positive・Neutral・Muted・Warn・File など |
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
@@ -103,7 +103,23 @@ src/
 - 金額は `¥16,574`、マイナスは `-¥16,574`。プラスに符号なし、通常フォントに `tabular-nums`(`font-mono`不可)。欠損は `—`
 - 色はマイナスの損益と危険な操作のみ赤系。`data-negative="true"` を付ける値と削除系 UI は `text-negative`(`#b91c1c`)、属性を持たず赤字だけにする箇所(明細の金額・集計値など)は `text-negative-vivid`(Tailwind の赤パレット相当)。税額・配当・利回りは色なし
 - 書式は `shared::format` に集約。`features/asset_balance/format.rs` は f64 を Decimal に直して渡すだけで、持つのは円単位の丸めと、Decimal に収まらない金額・率の表示のみ
-- 税引後の見出しは、配当が集計 `配当金(税引)`・月の見出し `税引後`・列 `受取額`、国内株式が `実現損益(税引)`・`税引後`、投資信託が `実現損益(税引)`・`税引損益`
+- 税引後の表現は `税引後` に統一する。税引前の実現損益は `実現損益`、配当の税引前は `配当金` と表記する
+
+### 用語対応表
+
+ユーザーに見える表示文字列の統一先。コード内の識別子・型名は変えない。
+
+| 概念 | 統一する表記 | 旧表記(置き換え済み) |
+| --- | --- | --- |
+| 税引後の金額・損益 | `税引後` | `配当金(税引)` `実現損益(税引)` `税引損益` `受取額` `受取金額` |
+| 今年の税引後配当 | `今年の税引後配当金` | `今年の配当金(税引)` |
+| 税引前の実現損益(取引明細) | `実現損益` | `損益` |
+| 税引前の配当(取引明細) | `配当金` | — |
+| 節見出し(集計) | `集計情報` | `資産サマリー` |
+| 配当利回り(ポートフォリオ) | `配当利回り（年間）` | `配当利回り` |
+
+- `損益` は `評価損益`(ホーム・資産管理の未実現損益)などの複合語でのみ使う。取引明細の実現損益は `実現損益` と表記する
+- 配当タブの `税引後` は受取額であり損益ではないため、負数でも赤色にしない
 
 ## デプロイ
 

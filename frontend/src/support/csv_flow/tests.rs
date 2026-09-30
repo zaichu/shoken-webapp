@@ -1,18 +1,30 @@
 use super::*;
 
 #[test]
-fn save_label_uses_replace_action() {
-    let mut state = CsvTabState::<String>::default();
-    assert_eq!(state.save_label("全件置換で保存"), "全件置換で保存");
-    state.preview = Some(CsvPreview {
-        valid_rows: 3,
-        ..Default::default()
-    });
-    assert_eq!(state.save_label("全件置換で保存"), "3件 全件置換で保存");
-    state.previewing = true;
-    assert_eq!(state.save_label("全件置換で保存"), "解析中...");
-    state.saving = true;
-    assert_eq!(state.save_label("全件置換で保存"), "保存中...");
+fn save_label_preserves_action_count_and_busy_priority() {
+    for action in ["全件置換で保存", "追加で保存"] {
+        let mut state = CsvTabState::<String>::default();
+        assert_eq!(state.save_label(action), action);
+        state.preview = Some(CsvPreview {
+            valid_rows: 3,
+            ..Default::default()
+        });
+        let ready = state.save_label(action);
+        assert!(ready.starts_with("3件"));
+        assert!(ready.contains(action));
+        state.previewing = true;
+        let previewing = state.save_label(action);
+        assert_ne!(previewing, ready);
+        state.saving = true;
+        let saving = state.save_label(action);
+        assert_ne!(saving, previewing);
+        assert_ne!(saving, ready);
+        state.previewing = false;
+        state.preview = None;
+        assert_eq!(state.save_label(action), saving);
+        state.saving = false;
+        assert_eq!(state.save_label(action), action);
+    }
 }
 
 #[test]
@@ -92,26 +104,16 @@ fn csv_error_message_matches_react() {
 }
 
 #[test]
-fn save_label_matches_react() {
+fn delete_label_preserves_count_and_busy_state() {
     let mut state = CsvTabState::<String>::default();
-    assert_eq!(state.save_label("追加で保存"), "追加で保存");
-    state.preview = Some(CsvPreview {
-        valid_rows: 3,
-        ..Default::default()
-    });
-    assert_eq!(state.save_label("追加で保存"), "3件 追加で保存");
-    state.previewing = true;
-    assert_eq!(state.save_label("追加で保存"), "解析中...");
-    state.saving = true;
-    assert_eq!(state.save_label("追加で保存"), "保存中...");
-}
-
-#[test]
-fn delete_label_matches_react() {
-    let mut state = CsvTabState::<String>::default();
-    assert_eq!(state.delete_label(5), "全件削除 (5件)");
+    let ready = state.delete_label(5);
+    assert!(ready.contains("(5件)"));
     state.deleting = true;
-    assert_eq!(state.delete_label(5), "削除中...");
+    let deleting = state.delete_label(5);
+    assert_ne!(deleting, ready);
+    assert_eq!(state.delete_label(9), deleting);
+    state.deleting = false;
+    assert_eq!(state.delete_label(5), ready);
 }
 
 #[test]

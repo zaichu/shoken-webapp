@@ -947,7 +947,7 @@ impl ReceiptKind for DividendKind {
         "数量",
         "配当金",
         "税額",
-        "受取額",
+        "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
         "12.2ch", "9ch", "9ch", "13.5ch", "", "12.5ch", "9ch", "14.5ch", "14.5ch", "14.5ch",
@@ -974,7 +974,7 @@ impl ReceiptKind for DividendKind {
     };
     const SUMMARY_LABELS: [&'static str; 3] = ["配当金", "税額", "税引後"];
     const HEADER_ITEMS: [(&'static str, bool); 3] =
-        [("配当金", false), ("税額", false), ("配当金(税引)", false)];
+        [("配当金", false), ("税額", false), ("税引後", false)];
     const EMPTY_HINT: &'static str = "配当金明細をCSVで追加してください";
     const CSV_INPUT_ID: &'static str = "csv-file-input-dividend";
     const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] = &[
@@ -1101,7 +1101,7 @@ impl ReceiptKind for DomesticStockKind {
         "売却単価",
         "売却額",
         "取得価額",
-        "損益",
+        "実現損益",
         "税額",
         "税引後",
     ];
@@ -1131,12 +1131,9 @@ impl ReceiptKind for DomesticStockKind {
         date: 0,
         account: 3,
     };
-    const SUMMARY_LABELS: [&'static str; 3] = ["損益", "税額", "税引後"];
-    const HEADER_ITEMS: [(&'static str, bool); 3] = [
-        ("実現損益", true),
-        ("税額", false),
-        ("実現損益(税引)", true),
-    ];
+    const SUMMARY_LABELS: [&'static str; 3] = ["実現損益", "税額", "税引後"];
+    const HEADER_ITEMS: [(&'static str, bool); 3] =
+        [("実現損益", true), ("税額", false), ("税引後", true)];
     const EMPTY_HINT: &'static str = "国内株式明細をCSVで追加してください";
     const CSV_INPUT_ID: &'static str = "csv-file-input-domesticstock";
     const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] =
@@ -1189,19 +1186,25 @@ impl ReceiptKind for DomesticStockKind {
             .into_iter()
             .map(|day| {
                 let date = day.filter;
-                TableGroup {
-                    key: date.clone(),
-                    label: group_label(&date),
-                    summary: vec![
+                let rows: Vec<_> = sorted
+                    .iter()
+                    .filter(|row| row.date() == date)
+                    .map(row_tuple)
+                    .collect();
+                let summary = if rows.len() > 1 {
+                    vec![
                         format_currency(day.total_realized_profit_and_loss),
                         format_currency(day.total_taxes),
                         format_currency(day.total_realized_profit_and_loss_after_tax),
-                    ],
-                    rows: sorted
-                        .iter()
-                        .filter(|row| row.date() == date)
-                        .map(row_tuple)
-                        .collect(),
+                    ]
+                } else {
+                    vec![]
+                };
+                TableGroup {
+                    key: date.clone(),
+                    label: group_label(&date),
+                    summary,
+                    rows,
                 }
             })
             .collect()
@@ -1230,7 +1233,7 @@ impl ReceiptKind for MutualFundKind {
         "取得価額",
         "実現損益",
         "税額",
-        "税引損益",
+        "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
         "12.2ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "14.5ch", "14.5ch",
@@ -1255,12 +1258,9 @@ impl ReceiptKind for MutualFundKind {
         date: 0,
         account: 2,
     };
-    const SUMMARY_LABELS: [&'static str; 3] = ["実現損益", "税額", "税引損益"];
-    const HEADER_ITEMS: [(&'static str, bool); 3] = [
-        ("実現損益", true),
-        ("税額", false),
-        ("実現損益(税引)", true),
-    ];
+    const SUMMARY_LABELS: [&'static str; 3] = ["実現損益", "税額", "税引後"];
+    const HEADER_ITEMS: [(&'static str, bool); 3] =
+        [("実現損益", true), ("税額", false), ("税引後", true)];
     const EMPTY_HINT: &'static str = "投資信託明細をCSVで追加してください";
     const CSV_INPUT_ID: &'static str = "csv-file-input-mutualfund";
     const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] =
