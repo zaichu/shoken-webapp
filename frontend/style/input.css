@@ -546,8 +546,12 @@
   .receipt-table .receipt-span-lg-open,
   .receipt-table .receipt-span-lg-collapsed,
   .receipt-table .receipt-span-xl-open,
-  .receipt-table .rail-collapsed .receipt-span-lg-collapsed,
-  .receipt-table .rail-collapsed .receipt-span-xl-open {
+  .rail-collapsed .receipt-table .receipt-span-sm,
+  .rail-collapsed .receipt-table .receipt-span-mid,
+  .rail-collapsed .receipt-table .receipt-span-lg-open,
+  .rail-collapsed .receipt-table .receipt-span-lg-collapsed,
+  .rail-collapsed .receipt-table .receipt-span-xl-open,
+  .rail-collapsed .receipt-table .receipt-span-all {
     display: none !important;
   }
 

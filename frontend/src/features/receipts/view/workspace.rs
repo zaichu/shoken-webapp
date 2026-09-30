@@ -34,7 +34,6 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
-    // refetch などで workspace が作り直されても、初期開閉は store 側の記憶が担う
     let rail_store = store;
     Effect::new(move |_| {
         if let TabState::Ready(data) = rail_store.tab_state(tab) {
