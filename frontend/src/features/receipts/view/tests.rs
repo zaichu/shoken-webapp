@@ -124,7 +124,7 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432 2024");
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432 2024");
     assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0].label, "ＮＴＴ");
+    assert_eq!(groups[0].label, "NTT");
     assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432");
     let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432");
@@ -534,7 +534,16 @@ fn latest_name_uses_newest_settlement_per_code() {
     same_date.security_name = "別名".into();
     rows.push(Saved(ReceiptItem::Dividend(same_date)));
     let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "9432");
-    assert_eq!(groups[0].label, "ＮＴＴ");
+    assert_eq!(groups[0].label, "NTT");
+}
+
+#[test]
+fn cells_normalize_full_width_security_names() {
+    let rows = dividends();
+    assert!(rows[1].cells().iter().any(|cell| matches!(
+        cell,
+        ReceiptCell::InstrumentName { name, .. } if name == "NTT"
+    )));
 }
 
 #[test]

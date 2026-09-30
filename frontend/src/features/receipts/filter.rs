@@ -252,7 +252,13 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
             ReceiptRow::name,
             true,
             Some(ReceiptRow::date),
-        ),
+        )
+        .into_iter()
+        .map(|mut option| {
+            option.label = shared::normalize::normalize_display_name(&option.label);
+            option
+        })
+        .collect(),
         products: if tab.product_category() {
             to_options(get_unique_values(&sorted, ReceiptRow::product))
         } else {

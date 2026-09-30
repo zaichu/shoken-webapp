@@ -162,6 +162,17 @@
       "expected": [
         { "value": "4568", "label": "4568: プレビュー銘柄" }
       ]
+    },
+    {
+      "name": "full_width_name_normalized_in_label",
+      "data": [
+        { "id": "kddi", "security_code": "9433", "security_name": "ＫＤＤＩ" }
+      ],
+      "facets": null,
+      "has_csv_file": false,
+      "expected": [
+        { "value": "9433", "label": "9433: KDDI" }
+      ]
     }
   ]
 }

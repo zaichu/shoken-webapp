@@ -98,7 +98,7 @@ fn shared_filter_cases_match() {
 #[test]
 fn shared_suggest_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.suggest_cases.len(), 3);
+    assert_eq!(fixture.suggest_cases.len(), 4);
     for case in &fixture.suggest_cases {
         let data = balances(&case.data);
         let actual = asset_balance_search_options(&data, case.facets.as_ref(), case.has_csv_file);

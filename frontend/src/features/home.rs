@@ -8,7 +8,7 @@ use crate::features::asset_balance::{
 };
 use crate::session::{use_session, Generation, SessionStore};
 use crate::ui::amount::Amount;
-use crate::ui::card::{Card, CardVariant};
+use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::cell::RefCell;
@@ -55,11 +55,8 @@ const FLOW_STEPS: &[(&str, &str)] = &[
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <div class="page-surface space-y-7">
+        <div class="space-y-7">
             <div>
-                <p class="mb-2 text-eyebrow font-black uppercase tracking-display text-accent-deep">
-                    "Portfolio Desk"
-                </p>
                 <h1 class="text-3xl font-black leading-tight tracking-normal text-ink sm:text-4xl">
                     "証券Web"
                 </h1>
@@ -93,7 +90,7 @@ pub fn HomePage() -> impl IntoView {
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-eyebrow font-black uppercase tracking-caption text-text-subtle">
+                                <span class="text-xs font-bold text-text-subtle">
                                     {*sub}
                                 </span>
                             </div>
@@ -123,14 +120,16 @@ pub fn HomePage() -> impl IntoView {
             </div>
 
             <section class="border-t border-ink/10 pt-5">
-                <h2 class="text-sm font-black text-ink">"データ確認フロー"</h2>
+                <SectionHeader variant=SectionHeaderVariant::Divider>
+                    "データ確認フロー"
+                </SectionHeader>
                 <div class="mt-3 grid gap-2 sm:grid-cols-3">
                     {FLOW_STEPS
                         .iter()
                         .map(|(step, text)| {
                             view! {
                                 <Card variant=CardVariant::Step>
-                                    <span class="text-eyebrow font-black uppercase tracking-caption text-accent-deep">
+                                    <span class="text-xs font-black tabular-nums text-accent-deep">
                                         {*step}
                                     </span>
                                     <p class="mt-1 text-sm font-bold text-text">{*text}</p>

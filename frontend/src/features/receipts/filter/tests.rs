@@ -117,7 +117,7 @@ fn categories_use_latest_name_sorted_dates_and_react_tab_fields() {
             .iter()
             .map(|o| o.label.as_str())
             .collect::<Vec<_>>(),
-        ["7203: トヨタ自動車", "9432: ＮＴＴ"]
+        ["7203: トヨタ自動車", "9432: NTT"]
     );
     assert_eq!(result.products[0].value, "国内株式");
     assert_eq!(
