@@ -173,6 +173,8 @@ fn CsvFileInput(
                 on:change=on_change
                 disabled=move || disabled.get()
                 aria-label="CSVファイルを選択"
+                // 入力の値は同じファイルの再選択のために消すので、読み上げは表示中のファイル名へ逃がす
+                aria-describedby=format!("{input_id}-filename")
             />
             <div class="flex min-w-0 items-center gap-3">
                 <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-text-muted shadow-sm">
@@ -193,7 +195,10 @@ fn CsvFileInput(
                 </span>
                 <div class="min-w-0">
                     <p class="whitespace-nowrap text-sm font-semibold text-text">"CSVファイルを選択"</p>
-                    <p class="truncate text-xs font-medium text-text-muted">
+                    <p
+                        id=format!("{input_id}-filename")
+                        class="truncate text-xs font-medium text-text-muted"
+                    >
                         {move || {
                             let name = selected_file_name.get();
                             if name.is_empty() {
