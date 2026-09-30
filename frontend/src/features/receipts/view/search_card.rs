@@ -58,7 +58,7 @@ pub(crate) fn ReceiptsSearchCard(
                     clear_picker.set(false);
                     clear_search.update(|state| state.clear(has_years()));
                 }
-                on_expand_toggle=Callback::new(move |(open,): (bool,)| {
+                on_expanded_change=Callback::new(move |(open,): (bool,)| {
                     if !open {
                         collapse_picker.set(false);
                     }

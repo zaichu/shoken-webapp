@@ -27,16 +27,17 @@ pub fn CollapsibleSearchCard(
     #[prop(into)] has_active_search: Signal<bool>,
     #[prop(into)] is_default_state: Signal<bool>,
     on_clear: impl Fn() + Clone + 'static,
-    #[prop(optional)] on_expand_toggle: Option<Callback<(bool,)>>,
+    #[prop(optional)] on_expanded_change: Option<Callback<(bool,)>>,
     children: ChildrenFn,
 ) -> impl IntoView {
-    // 展開状態は UI 表示のみの内部 state。initial_expanded は初期値としてのみ使い、
-    // ユーザー操作後に親から上書きしない
+    // expanded を渡すと親が開閉状態を所有する(ツールバー等から直接切り替える)。
+    // 渡さない場合は内部 state として持ち、initial_expanded は初期値としてのみ使う
     let expanded = expanded.unwrap_or_else(|| RwSignal::new(initial_expanded));
+    // 初期値の通知も兼ねるためマウント時にも発火する
     Effect::new(move |_| {
         let open = expanded.get();
-        if let Some(on_expand_toggle) = on_expand_toggle {
-            on_expand_toggle.run((open,));
+        if let Some(on_expanded_change) = on_expanded_change {
+            on_expanded_change.run((open,));
         }
     });
     let toggle = move || expanded.update(|open| *open = !*open);
