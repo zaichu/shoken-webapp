@@ -623,11 +623,43 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
         const namelessClips = clampedNames.filter((cell) => cell.title !== cell.text);
         const wrapper = table.parentElement;
 
+        // 集計行は「見出しの結合セル + 末尾 3 列の集計セル」で組む。合計列を
+        // 段階表示すると結合セルの幅が合わなくなり、値が別の列の下に出るため
+        // 末尾 3 列が同じ見出しの下に来ているかを位置で確かめる
+        const summaryRow = bodyRows[0];
+        const visibleHeadersInOrder = headers.filter(
+          (header) => getComputedStyle(header).display !== 'none',
+        );
+        const summaryCells = Array.from(summaryRow?.cells ?? []).filter(
+          (cell) => getComputedStyle(cell).display !== 'none',
+        );
+        const isSpanCell = (cell: HTMLTableCellElement) =>
+          (cell.getAttribute('class') ?? '').includes('receipt-span-');
+        const leftOf = (cell: HTMLTableCellElement) => Math.round(cell.getBoundingClientRect().left);
+        const subtotals = summaryCells.filter((cell) => !isSpanCell(cell));
+        const spanCells = summaryCells.filter((cell) => isSpanCell(cell));
+        const summaryMisaligned = [
+          ...(spanCells.length === 1
+            ? []
+            : [`帯ごとの結合セルが ${spanCells.length} 本出ている`]),
+          ...(subtotals.length === 3
+            ? []
+            : [`集計セルが ${subtotals.length} 本ある`]),
+          ...subtotals.flatMap((cell, index) => {
+            const header = visibleHeadersInOrder[visibleHeadersInOrder.length - 3 + index];
+            if (!header) return [`${cell.textContent?.trim()} に対応する見出しが無い`];
+            return leftOf(cell) === leftOf(header)
+              ? []
+              : [`${cell.textContent?.trim()} が ${header.textContent?.trim()} の下にない`];
+          }),
+        ];
+
         return {
           overflows,
           wrappedSmall,
           minContentGap,
           headerClips,
+          summaryMisaligned,
           visibleHeaders: headers
             .filter((header) => getComputedStyle(header).display !== 'none')
             .map((header) => header.textContent?.trim()),
@@ -673,6 +705,8 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
       // 隣の列の内容とくっつかないよう、セル間に 4px 以上の見た目の間隔があること
       expect(metrics.minContentGap, `${state} の隣接セル間隔`).toBeGreaterThanOrEqual(4);
       expect(metrics.headerClips, state).toEqual([]);
+      // 集計の 3 値は末尾 3 列の真下に来る。段階表示がこの前提を崩さないこと
+      expect(metrics.summaryMisaligned, `${state} の集計列の対応`).toEqual([]);
       expect(
         [...metrics.visibleHeaders].sort(),
         `${state} の表示列`,
