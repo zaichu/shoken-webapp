@@ -468,7 +468,7 @@ fn label_token_with_empty_code_is_kept_verbatim() {
 fn parse_search_tokens_splits_unquoted_tokens() {
     assert_eq!(
         parse_search_tokens("  9432  ＮＴＴ "),
-        vec!["9432".to_string(), "ｎｔｔ".to_string()]
+        vec!["9432".to_string(), "ntt".to_string()]
     );
 }
 

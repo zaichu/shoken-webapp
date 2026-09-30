@@ -12,8 +12,10 @@ pub enum ButtonVariant {
     Secondary(ButtonSize),
     /// 文字色を落とした副ボタン(絞り込みの解除など)
     SecondarySoft(ButtonSize),
-    /// 赤枠の危険操作
-    Danger(ButtonSize),
+    /// 赤塗りの危険確定ボタン(確認モーダル)
+    DangerSolid(ButtonSize),
+    /// 文字だけの静かな危険操作(格下げした削除導線)
+    DangerGhost,
     /// サイトヘッダーの反転ボタン(ログイン・メニュー)
     Header(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
@@ -69,10 +71,13 @@ impl ButtonVariant {
                 "border border-border-strong bg-surface text-text-soft hover:border-border-bold hover:bg-surface-sunken",
                 size,
             ),
-            Self::Danger(size) => sized(
-                "border border-negative text-negative hover:bg-negative hover:text-text-inverse",
+            Self::DangerSolid(size) => sized(
+                "border border-negative bg-negative text-text-inverse shadow-sm hover:border-negative-strong hover:bg-negative-strong",
                 size,
             ),
+            Self::DangerGhost => {
+                "inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-semibold text-negative transition-colors hover:bg-negative-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-negative/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11".to_string()
+            }
             Self::Header(size) => sized(
                 "no-print border border-text-inverse/70 text-text-inverse hover:bg-surface hover:text-ink",
                 size,
@@ -176,8 +181,6 @@ pub fn LinkButton(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IconButtonVariant {
-    /// 枠線の正方形(検索カードの山形など)
-    Boxed,
     /// モーダルの閉じる
     Close,
 }
@@ -185,9 +188,6 @@ pub enum IconButtonVariant {
 impl IconButtonVariant {
     fn class(self) -> &'static str {
         match self {
-            Self::Boxed => {
-                "flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-text-soft max-sm:h-11 max-sm:w-11"
-            }
             Self::Close => "modal-close-button",
         }
     }

@@ -5,7 +5,7 @@ fn button_classes_preserves_variant_and_extra_input() {
     for variant in [
         ButtonVariant::Primary(ButtonSize::Md),
         ButtonVariant::Secondary(ButtonSize::Xs),
-        ButtonVariant::Danger(ButtonSize::Fill),
+        ButtonVariant::DangerSolid(ButtonSize::Fill),
         ButtonVariant::Quiet,
         ButtonVariant::CopyName,
     ] {
@@ -20,7 +20,7 @@ fn button_classes_preserves_variant_and_extra_input() {
 
 #[test]
 fn icon_button_classes_preserves_variant_and_extra_input() {
-    for variant in [IconButtonVariant::Boxed, IconButtonVariant::Close] {
+    for variant in [IconButtonVariant::Close] {
         let base = icon_button_classes(variant, "");
         assert_eq!(base, variant.class());
         assert_eq!(
