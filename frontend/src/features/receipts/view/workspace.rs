@@ -25,6 +25,10 @@ pub(crate) fn utility_rail_id(tab: ReceiptsTab) -> String {
     format!("receipt-utility-rail-{}", TAB_IDS[tab as usize])
 }
 
+pub(crate) fn rail_shown(open: bool, state: &TabState) -> bool {
+    open || matches!(state, TabState::Failed(_) | TabState::Loading)
+}
+
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store;
@@ -36,16 +40,11 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     let panel_state = Memo::new(move |_| store.tab_state(tab));
     let rail_store = store;
     Effect::new(move |_| {
-        if let TabState::Ready(data) = rail_store.tab_state(tab) {
-            rail_store.init_utility_rail(tab, !data.rows.is_empty());
-        }
+        rail_store.init_utility_rail_from_state(tab, rail_store.tab_state(tab));
     });
     // 取得失敗・読み込み中のタブには開閉トグルを出していないので、畳んでいると
     // CSV 取り込み・検索に届かなくなる。ユーザーの開閉状態自体は変えず、表示時だけ開く
-    let rail_visible = move || {
-        store.utility_rail_open.get()
-            || matches!(panel_state.get(), TabState::Failed(_) | TabState::Loading)
-    };
+    let rail_visible = move || rail_shown(store.utility_rail_open.get(), &panel_state.get());
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div

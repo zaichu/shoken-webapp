@@ -189,8 +189,7 @@ fn UtilityRailToggle(
     #[prop(into)] total: Signal<usize>,
 ) -> impl IntoView {
     let rail_open = store.utility_rail_open;
-    let search = store.search;
-    let filtering = Signal::derive(move || !search.with(|state| state.is_default()));
+    let badge_store = store;
     view! {
         <div class="hidden lg:block no-print">
             <Card variant=CardVariant::Collapsible testid="receipt-utility-toggle-bar">
@@ -212,7 +211,7 @@ fn UtilityRailToggle(
                     <span class="flex min-w-0 items-center gap-2">
                         <span class="text-sm font-bold text-text">"取り込み・検索"</span>
                         {move || {
-                            (!rail_open.get() && filtering.get()).then(|| {
+                            badge_store.utility_filter_badge_visible().then(|| {
                                 view! {
                                     <Badge variant=BadgeVariant::Accent>
                                         {format!(

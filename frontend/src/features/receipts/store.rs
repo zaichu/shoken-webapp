@@ -90,6 +90,19 @@ impl ReceiptsStore {
         self.utility_rail_open.set(open);
     }
 
+    /// 取得できたタブでのみ初期値を決める。取得失敗・読み込み中は開閉トグルを
+    /// 出さないので、その時候の開閉はユーザーの決定をそのまま残す
+    pub(crate) fn init_utility_rail_from_state(&self, tab: ReceiptsTab, state: TabState) {
+        if let TabState::Ready(data) = state {
+            self.init_utility_rail(tab, !data.rows.is_empty());
+        }
+    }
+
+    /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
+    pub fn utility_filter_badge_visible(&self) -> bool {
+        !self.utility_rail_open.get() && !self.search.get().is_default()
+    }
+
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
@@ -97,11 +110,12 @@ impl ReceiptsStore {
             self.mobile_summary_expanded.set(false);
             // タブ切替時に、初期化済みかつ未操作ならそのタブの初期状態へ戻す
             if !self.utility_rail_decided.get_untracked() {
-                self.utility_rail_initials.with_untracked(|initials| {
-                    if let Some(&open) = initials.get(&tab) {
-                        self.utility_rail_open.set(open);
-                    }
-                });
+                let initial = self
+                    .utility_rail_initials
+                    .with_untracked(|initials| initials.get(&tab).copied());
+                if let Some(open) = initial {
+                    self.utility_rail_open.set(open);
+                }
             }
         }
         self.visited.update(|visited| {
