@@ -40,10 +40,12 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
             rail_store.init_utility_rail(tab, !data.rows.is_empty());
         }
     });
-    // 取得失敗のタブには開閉トグルを出していないので、畳んでいると
+    // 取得失敗・読み込み中のタブには開閉トグルを出していないので、畳んでいると
     // CSV 取り込み・検索に届かなくなる。ユーザーの開閉状態自体は変えず、表示時だけ開く
-    let rail_visible =
-        move || store.utility_rail_open.get() || matches!(panel_state.get(), TabState::Failed(_));
+    let rail_visible = move || {
+        store.utility_rail_open.get()
+            || matches!(panel_state.get(), TabState::Failed(_) | TabState::Loading)
+    };
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div

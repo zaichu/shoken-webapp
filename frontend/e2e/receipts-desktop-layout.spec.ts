@@ -410,7 +410,7 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 }) => {
   // 金額は 7 桁(¥1,234,567)・負の 7 桁(-¥1,234,567)と 9 桁(¥111,111,102)を交互に混ぜ、
   // コードは 10 文字まで切れないことを固定する。同日の行は集計行で合算され、
-  // 単行より大きい金額(¥222,222,204 など)にもなる
+  // 損益は -111,111,102 + -12,345,687 = -¥123,456,789(負 9 桁の境界)にもなる
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
@@ -421,9 +421,9 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             security_code: '1234567890',
             unit_price: i % 2 === 0 ? '111111102' : '1234567',
             shares: '12345',
-            dividends_before_tax: i % 2 === 0 ? '111111102' : '1234567',
-            taxes: i % 2 === 0 ? '111111102' : '1234567',
-            net_amount_received: i % 2 === 0 ? '111111102' : '1234567',
+            dividends_before_tax: i % 2 === 0 ? '111111102' : '123456789',
+            taxes: i % 2 === 0 ? '111111102' : '123456789',
+            net_amount_received: i % 2 === 0 ? '111111102' : '123456789',
           })),
         ),
       ),
@@ -441,7 +441,7 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             asked_price: i % 2 === 0 ? 111111102 : 1234567,
             proceeds: i % 2 === 0 ? 111111102 : 1234567,
             purchase_price: i % 2 === 0 ? 111111102 : 1234567,
-            realized_profit_and_loss: i % 2 === 0 ? -111111102 : -1234567,
+            realized_profit_and_loss: i % 2 === 0 ? -111111102 : -12345687,
             taxes: i % 2 === 0 ? 111111102 : 1234567,
             realized_profit_and_loss_after_tax: i % 2 === 0 ? -111111102 : -1234567,
           })),
@@ -460,7 +460,7 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
             cancellation_unit_price_yen: i % 2 === 0 ? '111111102' : '1234567',
             cancellation_amount_yen: i % 2 === 0 ? '111111102' : '1234567',
             average_acquisition_price_yen: i % 2 === 0 ? '111111102' : '1234567',
-            realized_profit_and_loss: i % 2 === 0 ? '-111111102' : '-1234567',
+            realized_profit_and_loss: i % 2 === 0 ? '-111111102' : '-12345687',
             taxes: i % 2 === 0 ? '111111102' : '1234567',
             realized_profit_and_loss_after_tax: i % 2 === 0 ? '-111111102' : '-1234567',
           })),
@@ -614,6 +614,12 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
       }, { nameHeader: tab.nameHeader, width });
 
       const state = `${width}px ${tab.label} ${collapsed ? '畳み' : '開き'}`;
+      // 同日分・月分を合算した集計行に9桁の境界値があること。はみ出し検査が
+      // この値で空振りしないよう存在を固定する
+      const boundarySum = tab.slug === 'dividend' ? '¥123,456,789' : '-¥123,456,789';
+      await expect(
+        page.getByRole('cell', { name: boundarySum }).first(),
+      ).toBeVisible();
       expect(metrics.overflows, state).toEqual([]);
       // 隣の列の内容とくっつかないよう、セル間に 4px 以上の見た目の間隔があること
       expect(metrics.minContentGap, `${state} の隣接セル間隔`).toBeGreaterThanOrEqual(4);
@@ -629,7 +635,11 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
         ).toBeGreaterThan(4);
       }
       expect(metrics.nameTitle).toBe(metrics.nameText);
-      expect(metrics.nameClientWidth, state).toBeGreaterThanOrEqual(80);
+      // 1280px で全列を出す畳み状態だけ、集計列(-¥123,456,789 まで切れない幅)の
+      // 帳尻で銘柄名は 70px 台まで譲る(title に全文・2行クランプは維持)
+      expect(metrics.nameClientWidth, state).toBeGreaterThanOrEqual(
+        collapsed && width === 1280 ? 70 : 80,
+      );
       expect(metrics.nameOverflow).toBe('hidden');
       expect(metrics.nameLineClamp).toBe('2');
       expect(metrics.nameWhiteSpace).toBe('normal');
