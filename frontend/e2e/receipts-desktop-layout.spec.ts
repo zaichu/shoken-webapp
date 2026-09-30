@@ -411,7 +411,67 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
   // 金額は 7 桁(¥1,234,567)・負の 7 桁(-¥1,234,567)と 9 桁(¥111,111,102)を交互に混ぜ、
   // コードは 10 文字まで切れないことを固定する。集計行は合算で桁数に上限がないため、
   // 国内株式は同日の損失合算で -¥12,345,678,901(負 11 桁、損失なので税引後も同額)、
-  // 投資信託は月次合算で ¥1,999,999,998(10桁)を出す。金額セルは省略せず折り返すことを固定する
+  // 投資信託は月次合算で ¥1,999,999,998(10桁)を出す。金額セルは省略せず折り返すことを固定する。
+  // 加えて別日のペアで集計 -¥123,456,789(負 9 桁)も残し、9 桁以下の金額・集計は
+  // 1行に収まること(列幅の方針が効いていること)を行数で固定する
+  const domesticRows = [
+    ...DOMESTIC_STOCKS.map((row, i) => ({
+      ...row,
+      account: '特定・一般',
+      security_code: '1234567890',
+      shares: 12345,
+      asked_price: i % 2 === 0 ? 111111102 : 1234567,
+      proceeds: i % 2 === 0 ? 111111102 : 1234567,
+      purchase_price: i % 2 === 0 ? 111111102 : 1234567,
+      realized_profit_and_loss: i % 2 === 0 ? -9999999999 : -2345678902,
+      taxes: i % 2 === 0 ? 111111102 : 1234567,
+      realized_profit_and_loss_after_tax:
+        i % 2 === 0 ? -9999999999 : -2345678902,
+    })),
+    ...[0, 1].map((i) => ({
+      ...DOMESTIC_STOCKS[i],
+      id: `domestic-small-${i}`,
+      trade_date: '2024-03-02',
+      settlement_date: '2024-03-05',
+      account: '特定・一般',
+      security_code: '1234567890',
+      shares: 12345,
+      asked_price: 111111102,
+      proceeds: 111111102,
+      purchase_price: 111111102,
+      realized_profit_and_loss: i === 0 ? -111111102 : -12345687,
+      taxes: 111111102,
+      realized_profit_and_loss_after_tax: i === 0 ? -111111102 : -12345687,
+    })),
+  ];
+  const mutualRows = [
+    ...MUTUAL_FUNDS.map((row, i) => ({
+      ...row,
+      account: '特定・一般',
+      shares: '12345',
+      cancellation_unit_price_yen: i % 2 === 0 ? '111111102' : '1234567',
+      cancellation_amount_yen: i % 2 === 0 ? '111111102' : '1234567',
+      average_acquisition_price_yen: i % 2 === 0 ? '111111102' : '1234567',
+      realized_profit_and_loss: '999999999',
+      taxes: i % 2 === 0 ? '111111102' : '1234567',
+      realized_profit_and_loss_after_tax:
+        i % 2 === 0 ? '-9999999999' : '-2345678902',
+    })),
+    ...[0, 1].map((i) => ({
+      ...MUTUAL_FUNDS[i],
+      id: `mutual-fund-small-${i}`,
+      trade_date: '2024-04-01',
+      settlement_date: '2024-04-04',
+      account: '特定・一般',
+      shares: '12345',
+      cancellation_unit_price_yen: '111111102',
+      cancellation_amount_yen: '111111102',
+      average_acquisition_price_yen: '111111102',
+      realized_profit_and_loss: i === 0 ? '-111111102' : '-12345687',
+      taxes: '111111102',
+      realized_profit_and_loss_after_tax: i === 0 ? '-111111102' : '-12345687',
+    })),
+  ];
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(
       json(
@@ -431,46 +491,10 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
     ),
   );
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(
-      json(
-        paginated(
-          DOMESTIC_STOCKS.map((row, i) => ({
-            ...row,
-            account: '特定・一般',
-            security_code: '1234567890',
-            shares: 12345,
-            asked_price: i % 2 === 0 ? 111111102 : 1234567,
-            proceeds: i % 2 === 0 ? 111111102 : 1234567,
-            purchase_price: i % 2 === 0 ? 111111102 : 1234567,
-            realized_profit_and_loss:
-              i % 2 === 0 ? -9999999999 : -2345678902,
-            taxes: i % 2 === 0 ? 111111102 : 1234567,
-            realized_profit_and_loss_after_tax:
-              i % 2 === 0 ? -9999999999 : -2345678902,
-          })),
-        ),
-      ),
-    ),
+    route.fulfill(json(paginated(domesticRows))),
   );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(
-      json(
-        paginated(
-          MUTUAL_FUNDS.map((row, i) => ({
-            ...row,
-            account: '特定・一般',
-            shares: '12345',
-            cancellation_unit_price_yen: i % 2 === 0 ? '111111102' : '1234567',
-            cancellation_amount_yen: i % 2 === 0 ? '111111102' : '1234567',
-            average_acquisition_price_yen: i % 2 === 0 ? '111111102' : '1234567',
-            realized_profit_and_loss: '999999999',
-            taxes: i % 2 === 0 ? '111111102' : '1234567',
-            realized_profit_and_loss_after_tax:
-              i % 2 === 0 ? '-9999999999' : '-2345678902',
-          })),
-        ),
-      ),
-    ),
+    route.fulfill(json(paginated(mutualRows))),
   );
 
   for (const width of [768, 1024, 1280, 1440]) {
@@ -482,9 +506,14 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
       if (!collapsed && width < 1024) continue;
       if (!collapsed) await openUtilityRail(page);
 
+      const counts: Record<string, number> = {
+        dividend: DIVIDENDS.length,
+        domesticstock: domesticRows.length,
+        mutualfund: mutualRows.length,
+      };
       for (const tab of RECEIPT_TABS) {
       await page.getByRole('tab', { name: tab.label }).click();
-      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(counts[tab.slug]));
 
       const metrics = await page.getByRole('table').evaluate((table, { nameHeader, width }) => {
         const headers = Array.from(table.tHead?.rows[0]?.cells ?? []);
@@ -514,6 +543,38 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
                 title: cell.getAttribute('title'),
                 clientWidth: cell.clientWidth,
                 scrollWidth: cell.scrollWidth,
+              },
+            ];
+          });
+        });
+        // 金額・数量(text-right)は折り返せるので scrollWidth では桁溢れを検出できない。
+        // 9桁以下の値(明細・集計とも)が1行に収まることを行数で固定し、
+        // 10桁以上だけが折り返す境界とする
+        const wrappedSmall = bodyRows.flatMap((row) => {
+          const isDataRow = row.cells.length === headers.length;
+          return Array.from(row.cells).flatMap((cell, index) => {
+            const style = getComputedStyle(cell);
+            if (
+              style.display === 'none' ||
+              !cell.classList.contains('text-right')
+            ) {
+              return [];
+            }
+            const digits = (cell.textContent?.match(/\d/g) ?? []).length;
+            if (digits > 9) return [];
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const lines = new Set(
+              [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+            ).size;
+            if (lines <= 1) return [];
+            return [
+              {
+                header: isDataRow
+                  ? headers[index]?.textContent?.trim()
+                  : `集計行の${index}列目`,
+                text: cell.textContent?.trim(),
+                lines,
               },
             ];
           });
@@ -595,6 +656,7 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
 
         return {
           overflows,
+          wrappedSmall,
           minContentGap,
           headerClips,
           visibleHeaders: headers
@@ -622,8 +684,8 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
       // 空振りしないよう存在を固定し、省略されず全桁が表示されていることを確かめる
       const boundarySums: Record<string, string[]> = {
         dividend: ['¥123,456,789'],
-        domesticstock: ['-¥12,345,678,901'],
-        mutualfund: ['¥1,999,999,998', '-¥12,345,678,901'],
+        domesticstock: ['-¥12,345,678,901', '-¥123,456,789'],
+        mutualfund: ['¥1,999,999,998', '-¥12,345,678,901', '-¥123,456,789'],
       };
       for (const sum of boundarySums[tab.slug]) {
         const cell = page.getByRole('cell', { name: sum }).first();
@@ -636,6 +698,9 @@ test('768px〜1440px・レール開閉で表示セルがはみ出さず、銘柄
         expect(clipped, `${state} の集計 ${sum} は全桁表示`).toBe(false);
       }
       expect(metrics.overflows, state).toEqual([]);
+      // 金額セルは折り返せるため scrollWidth では桁溢れを検出できない。
+      // 9桁以下の金額・集計は1行に収まることを固定し、10桁以上だけが折り返す境界にする
+      expect(metrics.wrappedSmall, state).toEqual([]);
       // 隣の列の内容とくっつかないよう、セル間に 4px 以上の見た目の間隔があること
       expect(metrics.minContentGap, `${state} の隣接セル間隔`).toBeGreaterThanOrEqual(4);
       expect(metrics.headerClips, state).toEqual([]);
