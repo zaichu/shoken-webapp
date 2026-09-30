@@ -194,7 +194,7 @@ impl CsvSource for ReceiptCsvSource {
     }
 
     fn input_disabled(&self) -> bool {
-        self.store.auth_loading() || self.store.csv_busy(self.tab) || self.store.any_tab_fetching()
+        self.store.csv_input_disabled(self.tab)
     }
 
     fn db_count(&self) -> usize {

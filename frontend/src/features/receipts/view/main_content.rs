@@ -33,6 +33,9 @@ pub(crate) fn ReceiptsMainContent(
     });
     let preview_store = store;
     let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
+    let csv_store = store;
+    // CTA は隠しファイル入力を押すだけなので、入力が disabled の間はこちらも止める
+    let csv_input_disabled = Memo::new(move |_| csv_store.csv_input_disabled(tab));
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
     // 配当タブの銘柄コード検索時に DividendInfo を出すための取得状態。
@@ -86,6 +89,8 @@ pub(crate) fn ReceiptsMainContent(
                                 <div class="mt-4">
                                     <Button
                                         variant=ButtonVariant::Primary(ButtonSize::Md)
+                                        disabled=move || csv_input_disabled.get()
+                                        aria_disabled=move || csv_input_disabled.get()
                                         on_click=move |_| click_csv_input(tab.csv_input_id())
                                     >
                                         "CSVを取り込む"

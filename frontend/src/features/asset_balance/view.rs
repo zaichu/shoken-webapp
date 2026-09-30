@@ -123,6 +123,8 @@ pub fn AssetBalancePage() -> impl IntoView {
     let alert_ops = data_ops;
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
+    let disabled_csv = csv_store;
+    let csv_input_disabled = Memo::new(move |_| disabled_csv.csv_input_disabled());
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
     // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
@@ -257,6 +259,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                     rows=resolved.rows
                                                     summary=resolved.summary
                                                     has_csv_file=resolved.has_csv_file
+                                                    csv_input_disabled=csv_input_disabled
                                                     search_query=search_query
                                                     dividends=dividends
                                                     show_all=show_all
@@ -282,6 +285,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         rows=resolved.rows
                                         summary=resolved.summary
                                         has_csv_file=resolved.has_csv_file
+                                        csv_input_disabled=csv_input_disabled
                                         search_query=search_query
                                         dividends=dividends
                                         show_all=show_all

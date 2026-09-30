@@ -15,3 +15,20 @@ fn preview_notice_text_uses_save_action() {
         "0件 追加で保存されます"
     );
 }
+
+#[test]
+fn preview_notice_only_for_selected_settled_file() {
+    assert!(should_show_preview_notice(true, true, false));
+    for (authenticated, has_file, previewing) in [
+        (false, true, false),
+        (true, false, false),
+        (true, true, true),
+        (false, false, false),
+    ] {
+        assert!(!should_show_preview_notice(
+            authenticated,
+            has_file,
+            previewing
+        ));
+    }
+}

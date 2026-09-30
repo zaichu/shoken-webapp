@@ -1,9 +1,36 @@
 use super::*;
 
 #[test]
-fn save_result_heading_splits_success_and_partial_failure() {
-    assert_eq!(save_result_heading(false), "保存しました");
-    assert_eq!(save_result_heading(true), "一部の行を保存できませんでした");
+fn save_result_heading_splits_success_partial_and_full_failure() {
+    let clean = CsvUploadResponse {
+        inserted: 1,
+        skipped: 0,
+        errors: vec![],
+    };
+    assert_eq!(save_result_heading(&clean), "保存しました");
+
+    let partial = CsvUploadResponse {
+        inserted: 2,
+        skipped: 0,
+        errors: vec![CsvRowError {
+            row: 4,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+    assert_eq!(
+        save_result_heading(&partial),
+        "一部の行を保存できませんでした"
+    );
+
+    let rejected = CsvUploadResponse {
+        inserted: 0,
+        skipped: 1,
+        errors: vec![CsvRowError {
+            row: 2,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+    assert_eq!(save_result_heading(&rejected), "保存できませんでした");
 }
 
 #[test]

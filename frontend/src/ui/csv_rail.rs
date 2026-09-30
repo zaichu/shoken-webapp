@@ -29,6 +29,13 @@ pub fn CsvActionRail(
 ) -> impl IntoView {
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
     let csv_expanded = RwSignal::new(save_result.get_untracked().is_some());
+    // プレビュー通知と保存ボタンは折り畳み内にある。未完了プレビューがあるのに
+    // 畳まれていると保存導線が見えないため、通知が出たら展開して始める
+    Effect::new(move |_| {
+        if preview_notice.get().is_some() {
+            csv_expanded.set(true);
+        }
+    });
     let csv_body_id = body_id;
     let section_class = format!("space-y-3 bg-surface-sunken/60 px-5 py-5 {section_class}");
     let body_class = move || {
@@ -206,12 +213,14 @@ fn CsvFileInput(
     }
 }
 
-// 成功と一部失敗を見出しで分ける(件数の有無だけでは区別しにくいため)
-pub(crate) fn save_result_heading(has_errors: bool) -> &'static str {
-    if has_errors {
-        "一部の行を保存できませんでした"
-    } else {
+// 成功・一部失敗・全行失敗を見出しで分ける(件数の有無だけでは区別しにくいため)
+pub(crate) fn save_result_heading(result: &CsvUploadResponse) -> &'static str {
+    if result.errors.is_empty() {
         "保存しました"
+    } else if result.inserted == 0 {
+        "保存できませんでした"
+    } else {
+        "一部の行を保存できませんでした"
     }
 }
 
@@ -242,7 +251,7 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
     } else {
         "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong"
     };
-    let heading = save_result_heading(has_errors);
+    let heading = save_result_heading(&result);
     let line = save_result_line(&result, mode_label);
     view! {
         <section

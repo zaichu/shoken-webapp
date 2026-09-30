@@ -22,6 +22,7 @@ pub(crate) fn AssetBalanceMainContent(
     rows: Vec<AssetBalanceRow>,
     summary: Option<AssetBalanceSummary>,
     has_csv_file: bool,
+    csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
@@ -37,10 +38,7 @@ pub(crate) fn AssetBalanceMainContent(
     }
     let total_count = rows.len();
     let status = csv_status_text(&state);
-    let preview_active = state
-        .preview
-        .as_ref()
-        .is_some_and(|preview| !preview.rows.is_empty());
+    let preview_active = state.has_preview_rows();
     view! {
         {status.map(|text| view! { <LoadingStrip text=text.to_string() /> })}
         {move || {
@@ -58,6 +56,8 @@ pub(crate) fn AssetBalanceMainContent(
                                 <div class="mt-4">
                                     <Button
                                         variant=ButtonVariant::Primary(ButtonSize::Md)
+                                        disabled=move || csv_input_disabled.get()
+                                        aria_disabled=move || csv_input_disabled.get()
                                         on_click=move |_| {
                                             click_csv_input("csv-file-input-assetbalance")
                                         }

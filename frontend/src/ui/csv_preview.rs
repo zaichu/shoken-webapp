@@ -6,6 +6,15 @@ pub fn preview_notice_text(valid_rows: usize, save_action: &str) -> String {
     format!("{valid_rows}件 {save_action}されます")
 }
 
+// 未認証・ファイル未選択・解析中は通知を出さない(画面に残った古いプレビューを誤表示しない)
+pub(crate) fn should_show_preview_notice(
+    authenticated: bool,
+    has_file: bool,
+    previewing: bool,
+) -> bool {
+    authenticated && has_file && !previewing
+}
+
 // 未保存データで描画中であることを、行の見た目が登録済みと同じでも分かるように帯で示す。
 // 読み上げはレールのプレビュー通知(role="status")が担うため、帯自体は見た目だけにする
 #[component]

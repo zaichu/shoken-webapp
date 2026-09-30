@@ -1,6 +1,6 @@
 use super::csv_rail::CsvActionRail;
 use crate::support::csv_flow::CsvTabState;
-use crate::ui::csv_preview::preview_notice_text;
+use crate::ui::csv_preview::{preview_notice_text, should_show_preview_notice};
 use leptos::prelude::*;
 
 /// CSV 取り込み・削除欄が要求するデータソース。
@@ -21,6 +21,8 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
 
     fn csv_state(&self) -> CsvTabState<Self::Row>;
     fn is_authenticated(&self) -> bool;
+    // 未認証・取得中・CSV 処理中など、ファイル選択を受け付けられない状態の判定。
+    // 空状態の取り込み CTA とも同じ条件にするため認証も含める
     fn input_disabled(&self) -> bool;
     fn save_disabled(&self, state: &CsvTabState<Self::Row>) -> bool {
         state.busy()
@@ -49,8 +51,7 @@ pub fn click_csv_input(input_id: &str) {
 #[component]
 pub fn CsvSection<S: CsvSource>(source: S) -> impl IntoView {
     let selected_file_name = Memo::new(move |_| source.csv_state().file_name.unwrap_or_default());
-    let file_input_disabled =
-        Memo::new(move |_| source.input_disabled() || !source.is_authenticated());
+    let file_input_disabled = Memo::new(move |_| source.input_disabled());
     let has_csv_file =
         Memo::new(move |_| source.is_authenticated() && source.csv_state().file_name.is_some());
     let save_label = Memo::new(move |_| source.csv_state().save_label(source.save_action()));
@@ -62,15 +63,20 @@ pub fn CsvSection<S: CsvSource>(source: S) -> impl IntoView {
     // 何件をどう保存するかは保存ボタンの直前に置き、押す直前の目に入るようにする
     let preview_notice = Memo::new(move |_| {
         let state = source.csv_state();
-        if !(source.is_authenticated() && state.file_name.is_some() && !state.previewing) {
-            return None;
+        if should_show_preview_notice(
+            source.is_authenticated(),
+            state.file_name.is_some(),
+            state.previewing,
+        ) {
+            state.preview.map(|preview| {
+                (
+                    preview_notice_text(preview.valid_rows, source.save_action()),
+                    preview.errors,
+                )
+            })
+        } else {
+            None
         }
-        state.preview.map(|preview| {
-            (
-                preview_notice_text(preview.valid_rows, source.save_action()),
-                preview.errors,
-            )
-        })
     });
 
     view! {
