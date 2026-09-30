@@ -447,7 +447,7 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
-await openReceiptRail(page);
+    await openReceiptRail(page);
     const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
     if ((await header.getAttribute('aria-expanded')) === 'false') {
       await header.click();
