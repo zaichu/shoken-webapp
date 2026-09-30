@@ -3,8 +3,8 @@ use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::prelude::*;
 
 const RELATED_LINKS: &[(&str, &str)] = &[
-    ("/", "ホーム"),
     ("/search", "銘柄検索"),
+    ("/assetbalance", "資産管理"),
     ("/receipts", "取引明細"),
 ];
 
@@ -28,7 +28,7 @@ pub fn NotFoundPage() -> impl IntoView {
                                 .iter()
                                 .map(|(to, label)| {
                                     view! {
-                                        <a href={*to} class="text-base text-text-deep hover:underline">
+                                        <a href={*to} class="security-code-link text-base">
                                             {*label}
                                         </a>
                                     }

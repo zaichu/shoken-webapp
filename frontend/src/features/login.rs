@@ -8,7 +8,16 @@ use leptos::prelude::*;
 pub fn LoginPage() -> impl IntoView {
     let session = use_session();
     view! {
-        <div class="mx-auto flex max-w-md flex-col items-center py-12">
+        <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-col items-center justify-center py-12">
+            <div class="mb-6 flex flex-col items-center text-center">
+                <span class="header-logo" aria-hidden="true">"証"</span>
+                <p class="mt-3 text-xl font-black leading-tight tracking-normal text-ink">
+                    "証券Web"
+                </p>
+                <p class="mt-1 text-sm font-medium text-text-muted">
+                    "資産、配当、取引明細をひとつの作業面で確認します。"
+                </p>
+            </div>
             {move || {
                 let login = move |_| {
                     session.login();
