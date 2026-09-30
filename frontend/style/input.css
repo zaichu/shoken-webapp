@@ -550,8 +550,7 @@
   .rail-collapsed .receipt-table .receipt-span-mid,
   .rail-collapsed .receipt-table .receipt-span-lg-open,
   .rail-collapsed .receipt-table .receipt-span-lg-collapsed,
-  .rail-collapsed .receipt-table .receipt-span-xl-open,
-  .rail-collapsed .receipt-table .receipt-span-all {
+  .rail-collapsed .receipt-table .receipt-span-xl-open {
     display: none !important;
   }
 
