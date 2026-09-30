@@ -57,6 +57,7 @@ const MUTUAL_FUNDS = mutualFundsFixture(MOCK_USER.id);
 const PRINTABLE_A4_VIEWPORTS = [
   { name: 'portrait', width: 718, height: 1047 },
   { name: 'landscape', width: 1047, height: 718 },
+  { name: 'desktop-preview', width: 1280, height: 900 },
 ] as const;
 
 // 列は帯(画面幅×レール開閉)で段階表示する。core は常に表示、md は md 帯と lg 畳み・
@@ -79,8 +80,8 @@ const RECEIPT_TABS = [
     nameHeader: '銘柄名',
     core: ['約定日', '銘柄名', '損益', '税額', '税引後'],
     md: [] as string[],
-    wide: ['銘柄コード', '数量', '売却単価'],
-    wider: ['口座', '売却額', '取得価額'],
+    wide: ['銘柄コード', '数量'],
+    wider: ['口座', '売却単価', '売却額', '取得価額'],
   },
   {
     label: '投資信託',
@@ -89,8 +90,8 @@ const RECEIPT_TABS = [
     nameHeader: 'ファンド名',
     core: ['約定日', 'ファンド名', '実現損益', '税額', '税引損益'],
     md: [] as string[],
-    wide: ['数量', '解約額', '解約単価'],
-    wider: ['口座', '取得価額'],
+    wide: ['数量', '解約額'],
+    wider: ['口座', '解約単価', '取得価額'],
   },
 ];
 
@@ -990,7 +991,7 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
         expect(name.overflow, `${tab.label} ${name.text}`).toBe('visible');
         expect(name.clipped, `${tab.label} ${name.text}`).toBe(false);
       }
-      if (tab.slug === 'mutualfund') {
+      if (tab.slug === 'mutualfund' && paper.name !== 'desktop-preview') {
         // クランプ解除が効いていれば、2行を超える名前も省略されず全行が描画される
         const longFund = nameMetrics.find((name) => name.text === LONG_FUND_NAME);
         expect(longFund, '長いファンド名が印刷 DOM にある').toBeTruthy();

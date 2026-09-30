@@ -1106,17 +1106,18 @@ impl ReceiptKind for DomesticStockKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12.2ch", "13.5ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "16ch", "16ch", "16ch",
+        "12.2ch", "13.5ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "14.5ch",
+        "14.5ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Wide,
         ColumnTier::Core,
-        ColumnTier::Wide,
-        ColumnTier::Wide,
         ColumnTier::Wider,
         ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
+        ColumnTier::Wider,
+        ColumnTier::Wider,
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,
@@ -1232,14 +1233,14 @@ impl ReceiptKind for MutualFundKind {
         "税引損益",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12.2ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "16ch", "16ch", "16ch",
+        "12.2ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "14.5ch", "14.5ch",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Wider,
         ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Wide,
         ColumnTier::Wider,
         ColumnTier::Core,
