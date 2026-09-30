@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use rust_decimal::Decimal;
 use serde::de::DeserializeOwned;
+use shared::normalize::normalize_display_name;
 use shared::summary::{domestic_daily, domestic_total, DomesticDailyRow};
 use shared::tax::SPECIFIC_ACCOUNT_KEYWORD;
 
@@ -122,7 +123,7 @@ impl ReceiptRowData for Dividend {
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::SecurityCode(self.security_code.clone()),
             ReceiptCell::InstrumentName {
-                name: self.security_name.clone(),
+                name: normalize_display_name(&self.security_name),
                 code: Some(self.security_code.clone()),
             },
             ReceiptCell::Text(format_currency(self.unit_price)),
@@ -186,7 +187,7 @@ impl ReceiptRowData for DomesticStock {
             ReceiptCell::Text(format_date(&self.trade_date)),
             ReceiptCell::SecurityCode(self.security_code.to_string()),
             ReceiptCell::InstrumentName {
-                name: self.security_name.clone(),
+                name: normalize_display_name(&self.security_name),
                 code: Some(self.security_code.to_string()),
             },
             ReceiptCell::Text(self.account.to_string()),
@@ -256,7 +257,7 @@ impl ReceiptRowData for Mutualfund {
         vec![
             ReceiptCell::Text(format_date(&self.trade_date)),
             ReceiptCell::InstrumentName {
-                name: self.fund_name.clone(),
+                name: normalize_display_name(&self.fund_name),
                 code: None,
             },
             ReceiptCell::Text(self.account.to_string()),
@@ -322,7 +323,7 @@ impl ReceiptRowData for DividendCsvRow {
             ReceiptCell::Text(self.account.clone()),
             ReceiptCell::SecurityCode(self.security_code.clone()),
             ReceiptCell::InstrumentName {
-                name: self.security_name.clone(),
+                name: normalize_display_name(&self.security_name),
                 code: Some(self.security_code.clone()),
             },
             ReceiptCell::Text(format_currency(self.unit_price)),
@@ -383,7 +384,7 @@ impl ReceiptRowData for DomesticStockCsvRow {
             ReceiptCell::Text(format_date(&self.trade_date)),
             ReceiptCell::SecurityCode(self.security_code.clone()),
             ReceiptCell::InstrumentName {
-                name: self.security_name.clone(),
+                name: normalize_display_name(&self.security_name),
                 code: Some(self.security_code.clone()),
             },
             ReceiptCell::Text(self.account.clone()),
@@ -450,7 +451,7 @@ impl ReceiptRowData for MutualfundCsvRow {
         vec![
             ReceiptCell::Text(format_date(&self.trade_date)),
             ReceiptCell::InstrumentName {
-                name: self.fund_name.clone(),
+                name: normalize_display_name(&self.fund_name),
                 code: None,
             },
             ReceiptCell::Text(self.account.clone()),
@@ -766,7 +767,7 @@ pub(crate) fn is_date_group_key(key: &str) -> bool {
 
 pub(crate) fn group_label(key: &str) -> String {
     if !is_date_group_key(key) {
-        return key.to_string();
+        return normalize_display_name(key);
     }
     let parts: Vec<_> = key.split('-').collect();
     match parts.as_slice() {
@@ -781,11 +782,15 @@ pub(crate) fn group_label(key: &str) -> String {
 }
 
 fn product_matches(row: &ReceiptRow, query: &str) -> bool {
-    row.product().to_lowercase().contains(query)
+    normalize_display_name(row.product())
+        .to_lowercase()
+        .contains(query)
 }
 
 fn account_matches(row: &ReceiptRow, query: &str) -> bool {
-    row.account().to_lowercase().contains(query)
+    normalize_display_name(row.account())
+        .to_lowercase()
+        .contains(query)
 }
 
 // `search_amount` の列番号から fn ポインタの配列を作る
@@ -1043,24 +1048,31 @@ impl ReceiptKind for DividendKind {
             }
         }
         let security_key = |row: &ReceiptRow| {
-            latest
+            let name = latest
                 .get(row.code())
-                .map_or_else(|| row.name().to_string(), |(_, name)| (*name).to_string())
+                .map_or_else(|| row.name().to_string(), |(_, name)| (*name).to_string());
+            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名が別コード間で分かれないようにする
+            normalize_display_name(&name)
         };
         let rules = [
             GroupKeyRule {
                 test: |row: &ReceiptRow, token| {
-                    row.code().to_lowercase() == token || row.name().to_lowercase() == token
+                    row.code().to_lowercase() == token
+                        || normalize_display_name(row.name()).to_lowercase() == token
                 },
                 key_fn: &security_key,
             },
             GroupKeyRule {
-                test: |row: &ReceiptRow, token| row.product().to_lowercase() == token,
-                key_fn: &|row: &ReceiptRow| row.product().to_string(),
+                test: |row: &ReceiptRow, token| {
+                    normalize_display_name(row.product()).to_lowercase() == token
+                },
+                key_fn: &|row: &ReceiptRow| normalize_display_name(row.product()),
             },
             GroupKeyRule {
-                test: |row: &ReceiptRow, token| row.account().to_lowercase() == token,
-                key_fn: &|row: &ReceiptRow| row.account().to_string(),
+                test: |row: &ReceiptRow, token| {
+                    normalize_display_name(row.account()).to_lowercase() == token
+                },
+                key_fn: &|row: &ReceiptRow| normalize_display_name(row.account()),
             },
         ];
         let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
@@ -1293,8 +1305,13 @@ impl ReceiptKind for MutualFundKind {
     fn table_groups(rows: &[ReceiptRow], _all_rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
         let sorted = sorted_rows(rows);
         let rules = [GroupKeyRule {
-            test: |row: &ReceiptRow, token| row.name().to_lowercase().contains(token),
-            key_fn: &|row: &ReceiptRow| row.name().to_string(),
+            test: |row: &ReceiptRow, token| {
+                normalize_display_name(row.name())
+                    .to_lowercase()
+                    .contains(token)
+            },
+            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名をまとめる
+            key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
         }];
         let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
         summarize_groups(&sorted, key)
@@ -1451,3 +1468,6 @@ async fn load_tab<K: ReceiptKind>() -> Result<ReceiptTabData, ApiError> {
         truncated: page.truncated,
     })
 }
+
+#[cfg(test)]
+mod tests;

@@ -3,6 +3,8 @@ use crate::support::list_search::support::{create_search_options, reorder_column
 use crate::support::list_search::{
     create_year_options, filter_by_config, get_unique_values, is_js_whitespace, SearchOption,
 };
+use shared::normalize::normalize_display_name;
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SearchKey {
@@ -246,13 +248,25 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
             .collect()
     };
     SearchCategories {
-        securities: create_search_options(
-            &sorted,
-            ReceiptRow::code,
-            ReceiptRow::name,
-            true,
-            Some(ReceiptRow::date),
-        ),
+        securities: {
+            let mut seen = HashSet::new();
+            create_search_options(
+                &sorted,
+                ReceiptRow::code,
+                ReceiptRow::name,
+                true,
+                Some(ReceiptRow::date),
+            )
+            .into_iter()
+            .map(|mut option| {
+                option.label = normalize_display_name(&option.label);
+                option.value = normalize_display_name(&option.value);
+                option
+            })
+            // 全角・半角だけ違う名前は同じ選択肢にまとめる(絞り込み・グループ化も正規化後の値で一致する)
+            .filter(|option| seen.insert(option.value.clone()))
+            .collect()
+        },
         products: if tab.product_category() {
             to_options(get_unique_values(&sorted, ReceiptRow::product))
         } else {
@@ -278,7 +292,7 @@ pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Op
     if query.is_empty() {
         return None;
     }
-    let query = query.to_lowercase();
+    let query = normalize_display_name(query).to_lowercase();
     tab.reorder_rules()
         .iter()
         .find(|rule| rows.iter().any(|row| (rule.matches)(row, &query)))
