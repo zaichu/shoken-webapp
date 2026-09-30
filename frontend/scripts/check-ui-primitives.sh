@@ -112,15 +112,22 @@ extract_class_tags() {
             i = j
             continue
           }
-          # raw string r"..." / r#"..."#: 開始側の # の数と同じ閉端を探す。
-          # raw string では \ はエスケープにならないので通常文字列と分けて扱う。
-          # r の直前が識別子文字の場合(関数名の末尾等)は raw string ではない
-          if (char == "r" && (i == 1 || substr(text, i - 1, 1) ~ /[^[:alnum:]_]/) \
-            && match(substr(text, i + 1), /^#*"/)) {
-            closer = "\"" substr(text, i + 1, RLENGTH - 1)
-            j = index(substr(text, i + 1 + RLENGTH), closer)
-            if (j > 0) i = i + 2 * RLENGTH + j - 1
-            continue
+          # raw string r"..." / r#"..."# / br"..." / br#"..."#:
+          # 開始側の # の数と同じ閉端を探す。raw string では \ はエスケープに
+          # ならないので通常文字列と分けて扱う。r の直前が識別子文字の場合
+          # (関数名の末尾等)は raw string ではないが、br の b はバイト列接頭辞
+          if (char == "r" && match(substr(text, i + 1), /^#*"/)) {
+            pred = substr(text, i - 1, 1)
+            is_raw = (i == 1 || pred ~ /[^[:alnum:]_]/)
+            if (!is_raw && pred == "b" \
+              && (i == 2 || substr(text, i - 2, 1) ~ /[^[:alnum:]_]/))
+              is_raw = 1
+            if (is_raw) {
+              closer = "\"" substr(text, i + 1, RLENGTH - 1)
+              j = index(substr(text, i + 1 + RLENGTH), closer)
+              if (j > 0) i = i + 2 * RLENGTH + j - 1
+              continue
+            }
           }
           # 文字リテラル(ライフタイムは除く): 中の記号を構文と誤認しない
           if (char == "\047") {
