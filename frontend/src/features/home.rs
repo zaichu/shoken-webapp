@@ -16,39 +16,48 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::future::Future;
 
-const STATUS_ITEMS: &[(&str, &str, &str, Option<&str>, &str, &str)] = &[
-    (
-        "銘柄検索",
-        "検索",
-        "銘柄コードまたは銘柄名を入力して株式情報を検索できます。",
-        Some("/search"),
-        "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-        "h-5 w-5 text-ink",
-    ),
-    (
-        "資産管理",
-        "一覧確認",
-        "保有している銘柄の一覧と取得額の内訳を確認できます。",
-        Some("/assetbalance"),
-        "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-        "h-5 w-5 text-ink",
-    ),
-    (
-        "取引明細",
-        "明細確認",
-        "配当金・国内株式・投資信託の取引明細を管理します。",
-        Some("/receipts"),
-        "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        "h-5 w-5 text-ink",
-    ),
-    (
-        "CSV取込",
-        "CSV反映",
-        "各ページから取込可能",
-        None,
-        "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
-        "h-5 w-5 text-ink",
-    ),
+struct StatusItem {
+    label: &'static str,
+    sub: &'static str,
+    description: &'static str,
+    to: Option<&'static str>,
+    icon_d: &'static str,
+    icon_class: &'static str,
+}
+
+const STATUS_ITEMS: &[StatusItem] = &[
+    StatusItem {
+        label: "銘柄検索",
+        sub: "検索",
+        description: "銘柄コードまたは銘柄名を入力して株式情報を検索できます。",
+        to: Some("/search"),
+        icon_d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+        icon_class: "h-5 w-5 text-ink",
+    },
+    StatusItem {
+        label: "資産管理",
+        sub: "一覧確認",
+        description: "保有している銘柄の一覧と取得額の内訳を確認できます。",
+        to: Some("/assetbalance"),
+        icon_d: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+        icon_class: "h-5 w-5 text-ink",
+    },
+    StatusItem {
+        label: "取引明細",
+        sub: "明細確認",
+        description: "配当金・国内株式・投資信託の取引明細を管理します。",
+        to: Some("/receipts"),
+        icon_d: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        icon_class: "h-5 w-5 text-ink",
+    },
+    StatusItem {
+        label: "CSV取込",
+        sub: "CSV反映",
+        description: "各ページから取込可能",
+        to: None,
+        icon_d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
+        icon_class: "h-5 w-5 text-ink",
+    },
 ];
 
 #[component]
@@ -72,7 +81,15 @@ pub fn HomePage() -> impl IntoView {
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {STATUS_ITEMS
                     .iter()
-                    .map(|(label, sub, description, to, icon_d, icon_class)| {
+                    .map(|item| {
+                        let StatusItem {
+                            label,
+                            sub,
+                            description,
+                            to,
+                            icon_d,
+                            icon_class,
+                        } = item;
                         let inner = view! {
                             <div class="flex items-start justify-between gap-3">
                                 <span class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-ink/10 bg-surface shadow-sm">
