@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn card_variant_classes() {
-    let cases: [(CardVariant, &str); 22] = [
+    let cases: [(CardVariant, &str); 19] = [
         (CardVariant::Panel, "panel-card"),
         (CardVariant::Login, "login-card"),
         (CardVariant::Table, "table-card"),
@@ -50,20 +50,8 @@ fn card_variant_classes() {
             "overflow-hidden rounded-md bg-surface-sunken",
         ),
         (
-            CardVariant::Hint,
-            "rounded-xl border border-ink/10 bg-surface-sunken/80 p-4",
-        ),
-        (
-            CardVariant::Dashed,
-            "rounded-xl border border-dashed border-border-strong bg-surface-raised/70 px-4 py-4",
-        ),
-        (
             CardVariant::DashedCompact,
             "rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3",
-        ),
-        (
-            CardVariant::Step,
-            "rounded-lg border border-ink/10 bg-surface/75 px-3 py-3",
         ),
         (
             CardVariant::Tile,
@@ -81,7 +69,7 @@ fn card_variant_classes() {
 
 #[test]
 fn section_tag_is_only_collapsible_and_summary() {
-    let cases: [(CardVariant, bool); 22] = [
+    let cases: [(CardVariant, bool); 19] = [
         (CardVariant::Panel, false),
         (CardVariant::Login, false),
         (CardVariant::Table, false),
@@ -98,10 +86,7 @@ fn section_tag_is_only_collapsible_and_summary() {
         (CardVariant::StatSmall, false),
         (CardVariant::Sunken, false),
         (CardVariant::Strip, false),
-        (CardVariant::Hint, false),
-        (CardVariant::Dashed, false),
         (CardVariant::DashedCompact, false),
-        (CardVariant::Step, false),
         (CardVariant::Tile, false),
         (CardVariant::GroupLabel, false),
     ];
