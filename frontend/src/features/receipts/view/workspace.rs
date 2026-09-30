@@ -77,69 +77,6 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 <div class="workspace-rail">
                     <ReceiptsCsvSection store=csv_store tab=tab />
                     {move || {
-                        // 裏再取得の失敗は一覧を消さず、エラーだけ知らせる
-                        let Some(message) = alert_store
-                            .csv_state(tab)
-                            .error
-                            .or_else(|| alert_store.refresh_error(tab))
-                        else {
-                            return ().into_any();
-                        };
-                        view! {
-                            <section class="px-5 py-4">
-                                <Alert variant=AlertVariant::Danger>
-                                    <strong>"エラー:"</strong>
-                                    " "
-                                    {message}
-                                </Alert>
-                            </section>
-                        }
-                            .into_any()
-                    }}
-                    {move || {
-                        let state = preview_store.csv_state(tab);
-                        let authenticated = preview_store.is_authenticated();
-                        let has_file = state.file_name.is_some();
-                        let previewing = state.previewing;
-                        let Some(preview) = state
-                            .preview
-                            .filter(|_| authenticated && has_file && !previewing)
-                        else {
-                            return ().into_any();
-                        };
-                        let has_errors = !preview.errors.is_empty();
-                        let alert_class = if has_errors {
-                            "border-accent-border bg-accent-soft text-accent-text"
-                        } else {
-                            "border-info-border bg-info-soft text-info-deep"
-                        };
-                        view! {
-                            <section class="px-5 py-4" role="status" aria-live="polite">
-                                <div class=format!(
-                                    "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {alert_class}"
-                                )>
-                                    <p>
-                                        <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
-                                        {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
-                                        <span class="ml-2 text-xs">"（保存モード: 追加）"</span>
-                                    </p>
-                                    {has_errors.then(|| {
-                                        view! {
-                                            <ul class="mt-2 list-disc list-inside text-sm space-y-1">
-                                                {preview
-                                                    .errors
-                                                    .iter()
-                                                    .map(|error| view! { <li>{row_error_text(error)}</li> })
-                                                    .collect_view()}
-                                            </ul>
-                                        }
-                                    })}
-                                </div>
-                            </section>
-                        }
-                            .into_any()
-                    }}
-                    {move || {
                         let auth_loading = loading_store.auth_loading();
                         let fetching = loading_store.any_tab_fetching();
                         if !auth_loading && !fetching {
@@ -186,6 +123,26 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 </div>
             </aside>
             <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
+                // 裏再取得・CSV の失敗は一覧を消さずに知らせる。レールが畳まれても見えるよう表の上に出す
+                {move || {
+                    let Some(message) = alert_store
+                        .csv_state(tab)
+                        .error
+                        .or_else(|| alert_store.refresh_error(tab))
+                    else {
+                        return ().into_any();
+                    };
+                    view! {
+                        <div class="mb-4">
+                            <Alert variant=AlertVariant::Danger>
+                                <strong>"エラー:"</strong>
+                                " "
+                                {message}
+                            </Alert>
+                        </div>
+                    }
+                        .into_any()
+                }}
                 // レールを畳んでも見えるよう、件数上限の警告は表の上(レールの外)に出す
                 {move || match panel_state.get() {
                     TabState::Ready(data) if data.truncated => {
