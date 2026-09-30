@@ -90,7 +90,7 @@ pub fn HomePage() -> impl IntoView {
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-eyebrow font-bold text-text-subtle">
+                                <span class="text-eyebrow font-bold text-text-muted">
                                     {*sub}
                                 </span>
                             </div>
@@ -109,7 +109,7 @@ pub fn HomePage() -> impl IntoView {
                                 view! {
                                     <Card variant=CardVariant::Dashed>
                                         {inner}
-                                        <p class="mt-2 text-xs font-medium text-text-subtle">"各ページから取込可能"</p>
+                                        <p class="mt-2 text-xs font-medium text-text-muted">"各ページから取込可能"</p>
                                     </Card>
                                 }
                                     .into_any()
