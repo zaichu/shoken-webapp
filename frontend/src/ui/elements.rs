@@ -87,6 +87,19 @@ pub fn SiteHeader() -> impl IntoView {
     let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
     let deleting_memo = Memo::new(move |_| deleting.get());
+    // ナビにホーム項目は置かず、ロゴがホームへのリンクを担う
+    let home_active = move || {
+        path.get()
+            .split(['?', '#'])
+            .next()
+            .is_some_and(|pathname| pathname == "/")
+    };
+    let on_login_page = move || {
+        path.get()
+            .split(['?', '#'])
+            .next()
+            .is_some_and(|pathname| pathname == "/login")
+    };
     Effect::new(move |_| {
         if delete_confirm_open.get() {
             delete_error.set(None);
@@ -99,7 +112,13 @@ pub fn SiteHeader() -> impl IntoView {
                     <div class="flex items-center justify-between gap-4">
                         <a
                             href="/"
-                            class="group inline-flex items-center gap-3 text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center"
+                            class=move || {
+                                format!(
+                                    "group inline-flex items-center gap-3 rounded-md text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center{}",
+                                    if home_active() { " shadow-edge-accent" } else { "" }
+                                )
+                            }
+                            aria-current=move || home_active().then_some("page")
                         >
                             <span class="header-logo">
                                 "証"
@@ -158,6 +177,8 @@ pub fn SiteHeader() -> impl IntoView {
                                     />
                                 }
                                     .into_any()
+                            } else if on_login_page() {
+                                ().into_any()
                             } else {
                                 view! {
                                     <Button
