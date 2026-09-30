@@ -24,6 +24,37 @@ pub(crate) fn empty_tab_data() -> ReceiptTabData {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WorkspaceTools {
+    pub(crate) search: bool,
+    pub(crate) summary: bool,
+}
+
+pub(crate) fn initial_search_expanded(narrow_viewport: bool) -> bool {
+    !narrow_viewport
+}
+
+pub(crate) fn workspace_tools(
+    state: &TabState,
+    search_default: bool,
+    has_preview: bool,
+) -> WorkspaceTools {
+    match state {
+        TabState::Ready(data) => WorkspaceTools {
+            search: !data.rows.is_empty() || !search_default || has_preview,
+            summary: !data.rows.is_empty() || has_preview,
+        },
+        TabState::Failed(_) => WorkspaceTools {
+            search: true,
+            summary: has_preview,
+        },
+        _ => WorkspaceTools {
+            search: false,
+            summary: false,
+        },
+    }
+}
+
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store;
@@ -34,22 +65,17 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
     // cache は全タブ共有の1 signal なので、他タブの取得進捗でも評価自体は走る。
     // memo で実際にこのタブの状態が変わった時だけビューを再生成させる
     let panel_state = Memo::new(move |_| store.tab_state(tab));
-    let search_expanded = RwSignal::new(!is_narrow_viewport());
+    let search_expanded = RwSignal::new(initial_search_expanded(is_narrow_viewport()));
     let csv_expanded = RwSignal::new(store.csv_state(tab).import_result.is_some());
-    let has_search = Memo::new(move |_| match panel_state.get() {
-        TabState::Ready(data) => {
-            !data.rows.is_empty()
-                || !store.search.with(|s| s.is_default())
-                || store.has_csv_preview(tab)
-        }
-        TabState::Failed(_) => true,
-        _ => false,
+    let tools = Memo::new(move |_| {
+        workspace_tools(
+            &panel_state.get(),
+            store.search.with(|s| s.is_default()),
+            store.has_csv_preview(tab),
+        )
     });
-    let has_summary = Memo::new(move |_| match panel_state.get() {
-        TabState::Ready(data) => !data.rows.is_empty() || store.has_csv_preview(tab),
-        TabState::Failed(_) => store.has_csv_preview(tab),
-        _ => false,
-    });
+    let has_search = Memo::new(move |_| tools.get().search);
+    let has_summary = Memo::new(move |_| tools.get().summary);
     view! {
         // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
         <div

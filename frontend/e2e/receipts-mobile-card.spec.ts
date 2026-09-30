@@ -346,14 +346,18 @@ test('国内株式は1件日の小計を省き、複数件日は税額を含む�
   const toggle = multiple.getByRole('button', { name: /2024年2月2日 2件 税引後/ });
   await toggle.click();
   await expect(multiple.getByRole('region').getByText('税額', { exact: true })).toBeVisible();
-  await expect(multiple.getByRole('region').getByText('¥10,000', { exact: true })).toBeVisible();
+  const profit = multiple.getByRole('region').locator('dl > div')
+    .filter({ has: page.getByText('損益', { exact: true }) }).locator('dd');
+  await expect(profit).toHaveText('¥10,000');
   await page.setViewportSize({ width: 1280, height: 900 });
   const table = page.getByRole('table');
   const singleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月1日' });
   await expect(singleHeading.locator('td:visible')).toHaveCount(1);
   await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
   const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
-  await expect(multipleHeading.getByText('¥10,000', { exact: true })).toBeVisible();
+  await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
+    '¥10,000', '¥0', '¥10,000',
+  ]);
 });
 
 test('長い口座名は省略せず折り返して全文を出す', async ({ page }) => {

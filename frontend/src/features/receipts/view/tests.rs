@@ -4,6 +4,7 @@ use super::pickers::*;
 use super::summary::*;
 use super::table::*;
 use super::tabs::*;
+use super::workspace::{initial_search_expanded, workspace_tools, WorkspaceTools};
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
@@ -12,12 +13,60 @@ use crate::features::receipts::filter::{
 };
 use crate::features::receipts::kind::{group_label, is_date_group_key};
 use crate::features::receipts::{
-    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
+    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab, TabState,
 };
 use crate::support::row::Row::Saved;
 use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+
+#[test]
+fn workspace_search_starts_collapsed_only_on_mobile() {
+    assert!(!initial_search_expanded(true));
+    assert!(initial_search_expanded(false));
+}
+
+#[test]
+fn workspace_tools_follow_loading_error_empty_search_and_preview_states() {
+    for state in [
+        TabState::Loading,
+        TabState::Failed("取得失敗".into()),
+        TabState::Ready(super::workspace::empty_tab_data()),
+        TabState::Ready(ReceiptTabData {
+            rows: dividends(),
+            summary: None,
+            truncated: false,
+        }),
+    ] {
+        for search_default in [false, true] {
+            for has_preview in [false, true] {
+                let expected = match &state {
+                    TabState::Loading => WorkspaceTools {
+                        search: false,
+                        summary: false,
+                    },
+                    TabState::Failed(_) => WorkspaceTools {
+                        search: true,
+                        summary: has_preview,
+                    },
+                    TabState::Ready(data) if data.rows.is_empty() => WorkspaceTools {
+                        search: !search_default || has_preview,
+                        summary: has_preview,
+                    },
+                    _ => WorkspaceTools {
+                        search: true,
+                        summary: true,
+                    },
+                };
+                assert_eq!(
+                    workspace_tools(&state, search_default, has_preview),
+                    expected,
+                    "state={state:?}, search_default={search_default}, has_preview={has_preview}"
+                );
+            }
+        }
+    }
+}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
