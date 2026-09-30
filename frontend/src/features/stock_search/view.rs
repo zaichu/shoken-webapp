@@ -2,7 +2,7 @@ use super::use_stock_search;
 use crate::api::dto::Stock;
 use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::card::{Card, CardVariant};
+use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
 use crate::ui::elements::{Alert, AlertVariant, PageHeader, Spinner, SpinnerSize};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
@@ -52,10 +52,9 @@ pub(crate) fn SearchPage() -> impl IntoView {
     };
 
     view! {
-        <div class="page-surface">
+        <div>
             <PageHeader
                 title="銘柄検索"
-                eyebrow="Search"
                 description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
             />
             <SearchForm
@@ -188,8 +187,10 @@ fn EmptySearch() -> impl IntoView {
 fn SearchHints() -> impl IntoView {
     view! {
         <Card variant=CardVariant::Hint class="mt-6">
-            <h3 class="mb-2 text-sm font-black text-text">"検索のヒント"</h3>
-            <ul class="space-y-1 text-sm font-medium text-text-muted">
+            <SectionHeader variant=SectionHeaderVariant::Divider>
+                "検索のヒント"
+            </SectionHeader>
+            <ul class="mt-3 space-y-1 text-sm font-medium text-text-muted">
                 <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
                 <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
                 <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
@@ -221,9 +222,6 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                 <div class="border-b border-ink/10 bg-ink px-5 py-4 text-text-inverse">
                     <div class="flex flex-wrap items-end justify-between gap-3">
                         <div>
-                            <p class="text-eyebrow font-black uppercase tracking-eyebrow text-accent-on-dark">
-                                "Security"
-                            </p>
                             <h2 class="mt-1 text-xl font-black leading-tight">{name}</h2>
                         </div>
                         <CodeBadge>{code_badge}</CodeBadge>
@@ -241,7 +239,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                                 };
                                 view! {
                                     <div class="bg-surface px-4 py-3">
-                                        <dt class="text-eyebrow font-black uppercase tracking-badge text-text-subtle">
+                                        <dt class="text-eyebrow font-bold text-text-subtle">
                                             {label}
                                         </dt>
                                         <dd class="mt-1 font-bold text-text-deep">{display}</dd>

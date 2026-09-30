@@ -124,10 +124,6 @@
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
   --text-cell-md: 0.8125rem;
-  --tracking-badge: 0.16em;
-  --tracking-caption: 0.18em;
-  --tracking-eyebrow: 0.22em;
-  --tracking-display: 0.28em;
 
   --container-wide: 1680px;
   --container-form: 25rem;
@@ -196,15 +192,6 @@
 @layer components {
   .workspace-grid {
     @apply grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem];
-  }
-
-  .page-surface {
-    @apply relative flex-1 overflow-hidden rounded-panel border border-ink/10 bg-surface/90 p-6 shadow-page backdrop-blur-sm;
-  }
-
-  .page-surface::before {
-    content: "";
-    @apply pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ink via-accent-bright to-gain;
   }
 
   .form-input-container {
@@ -300,7 +287,7 @@
   }
 
   .code-badge {
-    @apply inline-flex shrink-0 items-center rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold tracking-badge text-info;
+    @apply inline-flex shrink-0 items-center rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-info;
   }
 
   .code-badge-flush {
@@ -344,7 +331,7 @@
   }
 
   .receipts-tab-list {
-    @apply flex flex-wrap gap-1.5 rounded-xl border border-ink/10 bg-surface/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto;
+    @apply flex w-fit max-w-full flex-wrap gap-1.5 rounded-xl border border-ink/10 bg-surface/70 p-1 shadow-sm max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto;
   }
 
   .copyable-name {

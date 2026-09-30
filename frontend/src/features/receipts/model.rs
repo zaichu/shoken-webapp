@@ -1,6 +1,6 @@
 pub use shared::domain::DividendSummary as DividendTotals;
 pub use shared::format::{format_currency, format_number};
-pub use shared::normalize::normalize_security_code;
+pub use shared::normalize::{normalize_display_name, normalize_security_code};
 
 fn valid_iso_date(value: &str) -> bool {
     let bytes = value.as_bytes();

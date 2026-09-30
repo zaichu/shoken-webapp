@@ -215,10 +215,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">
-                        "平均取得価格"
-                        {move || asset().is_some().then(AssetBadge)}
-                    </p>
+                    <p class="text-xs font-medium text-text-muted mb-1">"平均取得価格"</p>
                     <p
                         class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
@@ -232,10 +229,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     }}
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">
-                        "保有数量(株)"
-                        {move || asset().is_some().then(AssetBadge)}
-                    </p>
+                    <p class="text-xs font-medium text-text-muted mb-1">"保有数量(株)"</p>
                     <p
                         class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
@@ -338,6 +332,7 @@ pub(crate) fn DividendSummarySection(
                                 }
                             })}
                         <span class="text-sm font-black text-ink">"集計情報"</span>
+                        {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </span>
                 </DisclosureToggle>
                 {move || {
@@ -362,8 +357,9 @@ pub(crate) fn DividendSummarySection(
                     testid="receipt-header"
                     on_toggle=move || expanded.update(|open| *open = !*open)
                 >
-                    <div>
+                    <div class="flex items-center">
                         <h2 class="text-sm font-black text-ink">{title}</h2>
+                        {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </div>
                     <span
                         class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-soft"

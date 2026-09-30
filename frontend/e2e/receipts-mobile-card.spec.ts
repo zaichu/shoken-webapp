@@ -218,7 +218,7 @@ test('カード一覧はスマホ幅でページ全幅を使い、長いファ�
   await expect(cardList).toBeVisible();
   const listBox = await cardList.boundingBox();
   expect(listBox, 'カード一覧の幅').not.toBeNull();
-  // main の px-4 と外側カードの枠線を除いた全幅(390-32-2=356)。page-surface の p-6 が残ると 308 まで狭まる
+  // main の px-4 と外側カードの枠線を除いた全幅(390-32-2=356)
   expect(listBox!.width).toBeGreaterThanOrEqual(354);
 
   await page.getByRole('tab', { name: /投資信託/ }).click();

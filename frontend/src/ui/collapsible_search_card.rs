@@ -69,9 +69,6 @@ pub fn CollapsibleSearchCard(
                         </svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-micro font-black uppercase tracking-caption text-text-subtle">
-                            "Filter"
-                        </p>
                         <h5 class="whitespace-nowrap text-sm font-black text-ink">
                             "検索オプション"
                         </h5>

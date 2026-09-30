@@ -79,7 +79,7 @@ pub(crate) fn card_detail_value(
             let display = if trimmed.is_empty() {
                 "—".to_string()
             } else {
-                trimmed.to_string()
+                crate::features::receipts::model::normalize_display_name(trimmed)
             };
             let copy = code
                 .as_deref()

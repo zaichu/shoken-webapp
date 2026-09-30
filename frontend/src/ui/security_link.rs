@@ -1,6 +1,6 @@
 use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
-use shared::normalize::normalize_security_code;
+use shared::normalize::{normalize_display_name, normalize_security_code};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 
@@ -65,7 +65,7 @@ fn display_text(value: &str) -> String {
     if text.is_empty() {
         "—".to_string()
     } else {
-        text.to_string()
+        normalize_display_name(text)
     }
 }
 
