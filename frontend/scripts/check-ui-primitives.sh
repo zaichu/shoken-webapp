@@ -56,20 +56,89 @@ check() {
   emit_check "$label" "${filtered%$'\n'}"
 }
 
+# タグ内の文字列と RSX 属性式の括弧を追跡し、属性値中の > を終端と誤認しない。
+extract_class_tags() {
+  awk '
+    function start_tag() {
+      in_tag = 1
+      tag = "<"
+      quote = ""
+      escaped = 0
+      paren = 0
+      bracket = 0
+      brace = 0
+    }
+
+    function finish_tag() {
+      if (tag ~ /class/) {
+        print tag
+      }
+      in_tag = 0
+      tag = ""
+    }
+
+    /^[[:space:]]*(\/\/|\/\*|\*)/ { next }
+
+    {
+      text = $0 " "
+      for (i = 1; i <= length(text); i++) {
+        char = substr(text, i, 1)
+        next_char = substr(text, i + 1, 1)
+
+        if (!in_tag) {
+          if (char == "<" && next_char ~ /[[:alpha:]\/]/) {
+            start_tag()
+          }
+          continue
+        }
+
+        tag = tag char
+        if (quote != "") {
+          if (escaped) {
+            escaped = 0
+          } else if (char == "\\") {
+            escaped = 1
+          } else if (char == quote) {
+            quote = ""
+          }
+        } else if (char == "\"") {
+          quote = char
+        } else if (char == "(") {
+          paren++
+        } else if (char == ")" && paren > 0) {
+          paren--
+        } else if (char == "[") {
+          bracket++
+        } else if (char == "]" && bracket > 0) {
+          bracket--
+        } else if (char == "{") {
+          brace++
+        } else if (char == "}" && brace > 0) {
+          brace--
+        } else if (char == ">" && paren == 0 && bracket == 0 && brace == 0) {
+          finish_tag()
+        }
+      }
+    }
+  ' "$@"
+}
+
 # カードに相当するユーティリティの組み合わせ(角丸・枠・面の直書きは Card の variant にする)。
-# タグは複数行にまたがり得るのでファイルを1行に潰して <...> 単位で切り出し、
-# class="..."(改行を含む)と class:xxx の両方の指定を同じタグ内の組み合わせとして見る
+# border-none / border-x はカード全体の枠ではないため除外し、完全な border トークンだけを見る。
+# bg-surface-2 のような別トークンは除外し、bg-surface と opacity 修飾だけを同じ面として扱う。
 check_card_like() {
   local label="$1" file tag hits=""
+  local border_pattern='(^|[^[:alnum:]_-])border([^[:alnum:]_/-]|$)'
+  local surface_pattern='(^|[^[:alnum:]_-])bg-surface(/[[:alnum:]_.-]+)?([^[:alnum:]_/-]|$)'
   shift
   for file in "$@"; do
     while IFS= read -r tag; do
       if grep -qE 'rounded-(lg|xl|2xl)' <<<"$tag" \
-        && grep -q 'border' <<<"$tag" \
-        && grep -q 'bg-surface' <<<"$tag"; then
+        && grep -qE "$border_pattern" <<<"$tag" \
+        && grep -qE "$surface_pattern" <<<"$tag"; then
         hits+="${file}: $(printf '%.120s' "$tag")"$'\n'
       fi
-    done < <(grep -vE '^[[:space:]]*(//|/\*|\*)' "$file" | tr '\n' ' ' | grep -oE '<[^>]*class[^>]*>' || true)
+    done < <(extract_class_tags "$file")
   done
   emit_check "$label" "${hits%$'\n'}"
 }
@@ -103,7 +172,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'aria-expanded'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'aria-expanded'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

@@ -3,3 +3,6 @@
 /// <div class="rounded-xl border border-ink/10 bg-surface"> のようなカード直書きも禁止
 let doc = "<button> と <select> は ui/ の部品を使う";
 let note = "aria-expanded は部品が付ける";
+view! { <div class="rounded-xl border-none bg-surface boundary-border-none">"枠なし"</div> }
+view! { <div class="rounded-xl border-x bg-surface boundary-border-x">"横枠"</div> }
+view! { <div class="rounded-xl border bg-surface-2 boundary-surface-2">"別の面"</div> }
