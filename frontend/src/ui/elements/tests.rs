@@ -10,6 +10,7 @@ fn initials_from_two_word_name() {
 fn initials_from_single_word_name() {
     assert_eq!(get_initials(Some("Taro"), None), "TA");
     assert_eq!(get_initials(Some("taro"), None), "TA");
+    assert_eq!(get_initials(Some("田中太郎"), None), "田中");
 }
 
 #[test]
