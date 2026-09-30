@@ -10,7 +10,7 @@ use crate::ui::amount::Amount;
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
-use crate::ui::security_link::SecurityCodeLink;
+use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use leptos::prelude::*;
 
 #[component]
@@ -167,7 +167,7 @@ pub(crate) fn HoldingMobileCard(
                     <CodeBadge flush=true testid="portfolio-holding-card-code">
                         {code_text}
                     </CodeBadge>
-                    <span class="min-w-0 flex-1 truncate text-base font-semibold text-text">
+                    <span class="min-w-0 flex-1 break-words text-base font-semibold text-text">
                         {name_text}
                     </span>
                 </span>
@@ -197,18 +197,6 @@ pub(crate) fn HoldingMobileCard(
                         view! {
                             <div id=detail_id.clone() class="border-t border-ink/10 px-3.5 py-3">
                                 <dl class="space-y-1.5 text-xs text-text-muted">
-                                    <div class="flex items-start justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"銘柄名"</dt>
-                                        <dd class="min-w-0 break-words text-right font-semibold text-text">
-                                            {item.view.name.clone()}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"取得総額"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-text">
-                                            {format_currency(item.view.purchase)}
-                                        </dd>
-                                    </div>
                                     <div class="flex items-center justify-between gap-2">
                                         <dt class="shrink-0 font-medium text-text-subtle">"取得単価"</dt>
                                         <dd class="truncate font-semibold tabular-nums text-text">
@@ -255,9 +243,9 @@ pub(crate) fn HoldingMobileCard(
                                 <p class="mt-2.5 border-t border-border-faint pt-2.5 text-xs">
                                     <SecurityCodeLink
                                         value=item.view.code.clone()
+                                        variant=SecurityLinkVariant::Details
                                         class="text-xs".to_string()
                                     />
-                                    <span class="ml-1 text-text-subtle">"の銘柄情報を見る"</span>
                                 </p>
                             </div>
                         }

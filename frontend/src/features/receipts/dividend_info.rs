@@ -312,47 +312,19 @@ pub(crate) fn DividendSummarySection(
     };
     let totals_mobile = totals.clone();
     view! {
-        <Card variant=CardVariant::Collapsible testid="receipt-summary-strip">
-            <div class="sm:hidden" data-testid="receipt-summary-compact">
-                <DisclosureToggle
-                    style=DisclosureStyle::Collapsible
-                    expanded=Signal::derive(move || mobile_expanded.get())
-                    controls="receipt-summary-mobile-body".to_string()
-                    aria_label=Signal::derive(move || {
-                        if store.asset_balance.get().is_some() {
-                            format!("{title} 保有銘柄")
-                        } else {
-                            title.to_string()
-                        }
-                    })
-                    testid="receipt-summary-compact-toggle"
-                    hint=true
-                    on_toggle=move || mobile_expanded.update(|open| *open = !*open)
-                >
-                    <span class="flex min-w-0 items-center gap-2">
-                        {preview
-                            .then(|| {
-                                view! {
-                                    <Badge variant=BadgeVariant::AccentFlat>"プレビュー"</Badge>
-                                }
-                            })}
-                        <span class="text-sm font-black text-ink">"集計情報"</span>
-                        {move || store.asset_balance.get().is_some().then(AssetBadge)}
-                    </span>
-                </DisclosureToggle>
-                {move || {
-                    mobile_expanded.get().then(|| {
-                        view! {
-                            <div
-                                id="receipt-summary-mobile-body"
-                                role="region"
-                                class="border-t border-ink/10 py-3"
-                            >
-                                <DividendInfo store=store totals=totals_mobile.clone() />
-                            </div>
-                        }
-                    })
-                }}
+        <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {
+            if mobile_expanded.get() { "" } else { "max-sm:hidden" }.to_string()
+        })>
+            <div
+                id="receipt-summary-mobile-body"
+                role="region"
+                aria-label=title
+                class="sm:hidden"
+                hidden=move || !mobile_expanded.get()
+            >
+                {move || mobile_expanded.get().then(|| view! {
+                    <DividendInfo store=store totals=totals_mobile.clone() />
+                })}
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
                 <DisclosureToggle

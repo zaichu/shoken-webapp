@@ -4,6 +4,7 @@ use super::pickers::*;
 use super::summary::*;
 use super::table::*;
 use super::tabs::*;
+use super::workspace::{initial_search_expanded, workspace_tools, WorkspaceTools};
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
@@ -12,12 +13,60 @@ use crate::features::receipts::filter::{
 };
 use crate::features::receipts::kind::{group_label, is_date_group_key};
 use crate::features::receipts::{
-    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
+    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab, TabState,
 };
 use crate::support::row::Row::Saved;
 use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+
+#[test]
+fn workspace_search_starts_collapsed_only_on_mobile() {
+    assert!(!initial_search_expanded(true));
+    assert!(initial_search_expanded(false));
+}
+
+#[test]
+fn workspace_tools_follow_loading_error_empty_search_and_preview_states() {
+    for state in [
+        TabState::Loading,
+        TabState::Failed("取得失敗".into()),
+        TabState::Ready(super::workspace::empty_tab_data()),
+        TabState::Ready(ReceiptTabData {
+            rows: dividends(),
+            summary: None,
+            truncated: false,
+        }),
+    ] {
+        for search_default in [false, true] {
+            for has_preview in [false, true] {
+                let expected = match &state {
+                    TabState::Loading => WorkspaceTools {
+                        search: false,
+                        summary: false,
+                    },
+                    TabState::Failed(_) => WorkspaceTools {
+                        search: true,
+                        summary: has_preview,
+                    },
+                    TabState::Ready(data) if data.rows.is_empty() => WorkspaceTools {
+                        search: !search_default || has_preview,
+                        summary: has_preview,
+                    },
+                    _ => WorkspaceTools {
+                        search: true,
+                        summary: true,
+                    },
+                };
+                assert_eq!(
+                    workspace_tools(&state, search_default, has_preview),
+                    expected,
+                    "state={state:?}, search_default={search_default}, has_preview={has_preview}"
+                );
+            }
+        }
+    }
+}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
@@ -156,7 +205,29 @@ fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
     let rows = domestic();
     let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "7203");
     assert_eq!(groups[0].label, "2024年3月1日");
-    assert_eq!(groups[0].summary, ["¥1,000", "¥203", "¥797"]);
+    assert!(groups[0].summary.is_empty());
+}
+
+#[test]
+fn domestic_daily_summary_remains_for_multiple_rows_only() {
+    let mut rows = domestic();
+    let mut second = match &rows[0] {
+        Saved(ReceiptItem::DomesticStock(row)) => row.clone(),
+        _ => unreachable!(),
+    };
+    second.id = "second".to_string().into();
+    rows.push(Saved(ReceiptItem::DomesticStock(second.clone())));
+    second.id = "next-day".to_string().into();
+    second.trade_date = "2024-03-02".into();
+    rows.push(Saved(ReceiptItem::DomesticStock(second)));
+    let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "");
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].label, "2024年3月2日");
+    assert_eq!(groups[0].rows.len(), 1);
+    assert!(groups[0].summary.is_empty());
+    assert_eq!(groups[1].label, "2024年3月1日");
+    assert_eq!(groups[1].rows.len(), 2);
+    assert_eq!(groups[1].summary, ["¥2,000", "¥406", "¥1,594"]);
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {

@@ -2,7 +2,7 @@ use super::pickers::{DatePeriod, SecurityDropdown, ToggleCategory, YearDropdown}
 use crate::features::receipts::filter::{search_categories, DateSegment, ReceiptSearch, SearchKey};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::support::row::Row;
-use crate::ui::collapsible_search_card::{is_narrow_viewport, CollapsibleSearchCard};
+use crate::ui::collapsible_search_card::{CollapsibleSearchCard, SearchCardLayout};
 use leptos::prelude::*;
 
 #[component]
@@ -10,6 +10,7 @@ pub(crate) fn ReceiptsSearchCard(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     data: ReceiptTabData,
+    expanded: RwSignal<bool>,
 ) -> impl IntoView {
     let search = store.search;
     let display_store = store;
@@ -39,13 +40,14 @@ pub(crate) fn ReceiptsSearchCard(
     let collapse_picker = year_picker_open;
     view! {
         <section
-            class="search-card-mobile"
+            class="min-w-0"
             role="search"
             aria-label="取引明細の検索"
             data-testid="search-card"
         >
             <CollapsibleSearchCard
-                initial_expanded=!is_narrow_viewport()
+                expanded=expanded
+                layout=SearchCardLayout::Toolbar
                 has_active_search=Signal::derive(move || {
                     !search.with(|state| state.is_default())
                 })
@@ -56,7 +58,7 @@ pub(crate) fn ReceiptsSearchCard(
                     clear_picker.set(false);
                     clear_search.update(|state| state.clear(has_years()));
                 }
-                on_expand_toggle=Callback::new(move |(open,): (bool,)| {
+                on_expanded_change=Callback::new(move |(open,): (bool,)| {
                     if !open {
                         collapse_picker.set(false);
                     }

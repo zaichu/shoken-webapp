@@ -49,7 +49,7 @@ pub fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisclosureStyle {
     /// 帯の中の開閉
-    Collapsible,
+    Toolbar,
     /// レールの開閉
     Rail,
     /// グループ見出し
@@ -60,14 +60,16 @@ pub enum DisclosureStyle {
     AssetCard,
     /// 検索オプションの見出し
     SearchCard,
+    ToolbarMenu,
 }
 
 impl DisclosureStyle {
     fn class(self) -> &'static str {
         match self {
-            Self::Collapsible => "collapsible-trigger",
+            Self::Toolbar => "mobile-toolbar-trigger",
             Self::Rail => "rail-toggle",
             Self::GroupCard => "group-card-trigger",
+            Self::ToolbarMenu => "mobile-toolbar-menu",
             Self::HeaderFlat => {
                 "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left"
             }
@@ -115,7 +117,18 @@ pub fn DisclosureToggle(
             data-testid=testid
             on:click=move |_| on_toggle()
         >
-            {children()}
+            {if style == DisclosureStyle::ToolbarMenu {
+                view! {
+                    <span class="sr-only">{children()}</span>
+                    <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="5" cy="12" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="19" cy="12" r="2" />
+                    </svg>
+                }.into_any()
+            } else {
+                children().into_any()
+            }}
             {hint.then(|| view! { <DisclosureHint expanded=expanded /> })}
         </button>
     }

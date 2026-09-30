@@ -375,15 +375,14 @@ async function expectReceiptTableDetailStyles(page: Page, slug: ReceiptTabSlug) 
   expect(plainTitles.length).toBeGreaterThan(0);
   plainTitles.forEach(({ title, text }) => expect(title).toBe(text));
 
-  // 件数は2件以上の月だけ出す
-  const badges = await table
-    .locator('tbody tr:has(td[colspan]) td[colspan] span:nth-child(2)')
-    .allTextContents();
-  // モックで2件以上の月があるのは配当金だけ
-  if (slug === 'dividend') {
-    expect(badges.length).toBeGreaterThan(0);
-  }
-  badges.forEach((text) => expect(text).toMatch(/^([2-9]|\d{2,})件$/));
+  // 非表示のブレークポイント用セルを数えると同じグループを重複検査してしまう
+  const headings = table.locator('tbody tr:has(td[colspan]) td[colspan]:visible');
+  const badges = headings.locator('span:nth-child(2)');
+  await expect(badges).toHaveCount(await headings.count());
+  // 0件のグループは描画されないため、件数が正であることも確認する
+  const counts = await badges.allTextContents();
+  expect(counts.length).toBeGreaterThan(0);
+  counts.forEach((text) => expect(text).toMatch(/^[1-9]\d*件$/));
 
   if (slug === 'domesticstock') {
     const negative = table.locator('tbody td[data-negative="true"]').first();
@@ -464,14 +463,28 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   ).toBeVisible();
 }
 
-async function expectReceiptsErrorLayout(page: Page) {
+async function expectReceiptsErrorLayout(page: Page, width: number) {
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
   await expect(page.getByRole('alert')).toHaveCount(1);
   await expect(main.getByRole('alert')).toHaveText(
     /^エラー:\s*サーバーエラーが発生しました$/,
   );
-  await expect(rail.getByTestId('search-card-compact')).toBeVisible();
+  const searchCard = rail.getByTestId('search-card-compact');
+  if (width < 640) {
+    const toggle = rail.getByTestId('receipt-search-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(searchCard).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(searchCard).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(searchCard).toBeHidden();
+  } else {
+    await expect(searchCard).toBeVisible();
+  }
   await expect(main.getByTestId('receipt-card')).toHaveCount(0);
 }
 
@@ -575,7 +588,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await mockReceiptFetchErrors(page);
     await page.goto('/receipts');
-    await expectReceiptsErrorLayout(page);
+    await expectReceiptsErrorLayout(page, width);
     await expectNoPageOverflow(page, width);
     await shoot(page, testInfo, `receipts-error-${width}-leptos`);
   });

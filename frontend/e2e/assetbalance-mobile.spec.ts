@@ -176,6 +176,22 @@ test('390px ではCSV・検索レールが保有内訳より上に並びCSV操�
   await shoot(page, '390');
 });
 
+test('保有カードの詳細は見出しを繰り返さず、銘柄情報への文全体がリンクになる', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAssetBalance(page);
+  const card = page.getByTestId('portfolio-holding-card').first();
+  await card.getByRole('button').click();
+  await expect(card.locator('dt').filter({ hasText: /^銘柄名$/ })).toHaveCount(0);
+  await expect(card.locator('dt').filter({ hasText: /^取得総額$/ })).toHaveCount(0);
+  await expect(card.getByText('トヨタ自動車', { exact: true })).toHaveCount(1);
+  await expect(card.getByText('¥250,000', { exact: true })).toHaveCount(1);
+  const link = card.getByRole('link', { name: /7203.*の銘柄情報を見る/ });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', '/search?code=7203');
+  await expect(card.getByText('評価額', { exact: true })).toHaveCount(0);
+  await expect(card.getByText('評価損益', { exact: true })).toHaveCount(0);
+});
+
 test('一覧に無い銘柄を選ぶとフィルタ済み空状態と解除ボタンが出る', async ({
   page,
 }) => {
