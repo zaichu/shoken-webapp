@@ -20,7 +20,9 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{use_session, SessionStore};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::elements::{ListLoadError, ListSkeleton, PageHeader};
+use crate::ui::elements::{
+    Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant, PageHeader,
+};
 use csv_section::AssetBalanceCsvSection;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
@@ -122,6 +124,8 @@ pub fn AssetBalancePage() -> impl IntoView {
     let alert_ops = data_ops;
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
+    let disabled_csv = csv_store;
+    let csv_input_disabled = Memo::new(move |_| disabled_csv.csv_input_disabled());
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
     // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
@@ -195,15 +199,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 .map(|message| {
                                     view! {
                                         <div class="px-5 py-4">
-                                            <div
-                                                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
-                                                role="alert"
-                                                aria-live="assertive"
-                                            >
+                                            <Alert variant=AlertVariant::Danger>
                                                 <strong>"エラー:"</strong>
                                                 " "
                                                 {message}
-                                            </div>
+                                            </Alert>
                                         </div>
                                     }
                                 })
@@ -246,7 +246,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                         match (resolved, list_error) {
                             (None, _) => {
                                 show_all.set(false);
-                                view! { <ListSkeleton /> }.into_any()
+                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                    .into_any()
                             }
                             (Some(resolved), Some(message)) => {
                                 let preview = (state.previewing || !resolved.rows.is_empty())
@@ -258,6 +259,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                     rows=resolved.rows
                                                     summary=resolved.summary
                                                     has_csv_file=resolved.has_csv_file
+                                                    csv_input_disabled=csv_input_disabled
                                                     search_query=search_query
                                                     dividends=dividends
                                                     show_all=show_all
@@ -283,6 +285,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         rows=resolved.rows
                                         summary=resolved.summary
                                         has_csv_file=resolved.has_csv_file
+                                        csv_input_disabled=csv_input_disabled
                                         search_query=search_query
                                         dividends=dividends
                                         show_all=show_all

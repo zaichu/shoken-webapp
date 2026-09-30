@@ -361,6 +361,46 @@ fn csv_store_accessors_reflect_session_and_slots() {
 }
 
 #[test]
+fn csv_input_disabled_blocks_unauth_busy_and_loading() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let generation = session.generation.get_untracked();
+        let loaded = LoadedAssetBalances {
+            rows: vec![],
+            total: 0,
+            summary: None,
+            facets: None,
+            truncated: false,
+        };
+        let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((generation, Ok(loaded))));
+        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+
+        assert!(store.csv_input_disabled(), "未認証では選べない");
+        session.user.set(Some(user("alice")));
+        assert!(
+            !store.csv_input_disabled(),
+            "一覧済み・CSV 未処理なら選べる"
+        );
+
+        let loading_store = csv_store(
+            &session,
+            RwSignal::new(None),
+            RwSignal::new(DividendMaps::default()),
+        );
+        assert!(
+            loading_store.csv_input_disabled(),
+            "一覧未取得(list_loading)では選べない"
+        );
+
+        store.update_csv(generation, |state| {
+            state.previewing = true;
+        });
+        assert!(store.csv_input_disabled(), "CSV 処理中は選べない");
+    });
+}
+
+#[test]
 fn db_count_ignores_stale_generation_balances() {
     let owner = Owner::new();
     owner.with(|| {

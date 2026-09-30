@@ -13,10 +13,7 @@ use crate::support::row::Row;
 use leptos::prelude::*;
 
 pub(crate) fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
-    state
-        .preview
-        .as_ref()
-        .is_some_and(|preview| !preview.rows.is_empty())
+    state.has_preview_rows()
 }
 
 // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
@@ -60,6 +57,11 @@ impl AssetBalanceCsvStore {
 
     pub(crate) fn csv_busy(&self) -> bool {
         self.csv_state().busy()
+    }
+
+    // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
+    pub(crate) fn csv_input_disabled(&self) -> bool {
+        !self.is_authenticated() || self.csv_busy() || self.list_loading()
     }
 
     pub(crate) fn is_authenticated(&self) -> bool {

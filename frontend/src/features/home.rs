@@ -9,6 +9,7 @@ use crate::features::asset_balance::{
 use crate::session::{use_session, Generation, SessionStore};
 use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
+use crate::ui::elements::Skeleton;
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::cell::RefCell;
@@ -487,13 +488,7 @@ fn OverviewTile(
         <Card variant=CardVariant::Tile>
             <p class="text-sm font-medium text-text-muted">{label}</p>
             {if busy {
-                view! {
-                    <div
-                        class="mt-2 h-7 w-32 animate-pulse rounded bg-fill"
-                        aria-hidden="true"
-                    ></div>
-                }
-                    .into_any()
+                view! { <Skeleton class="mt-2 h-7 w-32" /> }.into_any()
             } else {
                 view! {
                     <p

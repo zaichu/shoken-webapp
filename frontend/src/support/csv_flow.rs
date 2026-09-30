@@ -66,6 +66,12 @@ impl<R> CsvTabState<R> {
         self.previewing || self.saving || self.deleting
     }
 
+    pub fn has_preview_rows(&self) -> bool {
+        self.preview
+            .as_ref()
+            .is_some_and(|preview| !preview.rows.is_empty())
+    }
+
     pub fn begin_preview(&mut self, file_name: String) -> bool {
         if self.busy() {
             return false;
