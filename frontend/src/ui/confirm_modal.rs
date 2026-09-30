@@ -54,7 +54,7 @@ fn trap_focus(event: &web_sys::KeyboardEvent) {
 pub fn ConfirmDeleteModal(
     title: String,
     description: String,
-    item_count: usize,
+    #[prop(optional)] item_count: Option<usize>,
     confirm_label: &'static str,
     loading: Memo<bool>,
     #[prop(optional)] error: Option<RwSignal<Option<String>>>,
@@ -118,11 +118,16 @@ pub fn ConfirmDeleteModal(
                     </div>
                     <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
-                        <p class="mt-2 text-sm text-text-quiet">
-                            "対象: "
-                            <strong class="text-negative">{item_count}"件"</strong>
-                            "のデータ"
-                        </p>
+                        {item_count.map(|count| {
+                            view! {
+                                <p class="mt-2 text-sm text-text-quiet">
+                                    "対象: "
+                                    <strong class="text-negative">{count}"件"</strong>
+                                    "のデータ"
+                                </p>
+                            }
+                                .into_any()
+                        })}
                         <p class="mt-3 rounded-md bg-negative/10 px-3 py-2 text-sm text-negative">
                             <strong>"⚠ この操作は取り消せません。"</strong>
                             "削除されたデータは復元できません。"

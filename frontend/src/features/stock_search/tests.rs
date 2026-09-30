@@ -64,7 +64,7 @@ fn stock(code: &str) -> Stock {
     }
 }
 
-fn search_with(value: Option<Result<Stock, String>>) -> Action<String, Result<Stock, String>> {
+fn search_with(value: Option<Result<Stock, ApiError>>) -> Action<String, Result<Stock, ApiError>> {
     Action::new_local_with_value(value, |query: &String| {
         let query = query.clone();
         async move { Ok(stock(&query)) }
@@ -100,14 +100,31 @@ fn stock_data_and_error_message_follow_result_and_generation() {
 
         let err = StockSearch {
             stock_code: RwSignal::new(String::new()),
-            search: search_with(Some(Err("取得失敗".to_string()))),
+            search: search_with(Some(Err(ApiError::Http {
+                status: 400,
+                server_message: Some("取得失敗".to_string()),
+            }))),
             has_invalid_code_param: false,
             fetch_generation: RwSignal::new(generation),
             session,
         };
         assert!(err.stock_data().is_none());
         assert_eq!(err.error_message().as_deref(), Some("取得失敗"));
+        assert!(!err.is_not_found());
         err.fetch_generation.set(generation.next());
         assert!(err.error_message().is_none());
+
+        let not_found = StockSearch {
+            stock_code: RwSignal::new(String::new()),
+            search: search_with(Some(Err(ApiError::http(404)))),
+            has_invalid_code_param: false,
+            fetch_generation: RwSignal::new(generation),
+            session,
+        };
+        assert!(not_found.stock_data().is_none());
+        assert!(not_found.error_message().is_none());
+        assert!(not_found.is_not_found());
+        not_found.fetch_generation.set(generation.next());
+        assert!(!not_found.is_not_found());
     });
 }

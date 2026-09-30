@@ -46,7 +46,7 @@ test('ユーザーメニューが外側クリックと Escape で閉じる', asy
 
   await trigger.click();
   await expect(menu).toBeVisible();
-  await page.getByText('© 2026 shoken-webapp').click();
+  await page.getByText('© 2026 証券Web').click();
   await expect(menu).toHaveCount(0);
 
   await trigger.click();

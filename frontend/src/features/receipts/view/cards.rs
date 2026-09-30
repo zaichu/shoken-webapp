@@ -8,13 +8,9 @@ use crate::ui::security_link::copy_to_clipboard;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
-pub(crate) fn is_profit_label(label: &str) -> bool {
-    matches!(label, "損益" | "実現損益" | "税引後" | "税引損益")
-}
-
-// 配当の月の小計は国内株式と同じ「税引後」だが、損益ではないので色を付けない
-pub(crate) fn summary_is_profit(tab: ReceiptsTab, label: &str) -> bool {
-    tab != ReceiptsTab::Dividend && is_profit_label(label)
+// 配当の税引後(受取額)は損益ではないので色を付けない
+pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
+    tab != ReceiptsTab::Dividend && matches!(label, "実現損益" | "税引後")
 }
 
 pub(crate) fn is_negative_text(value: &str) -> bool {
@@ -68,6 +64,7 @@ pub(crate) fn is_security_code(value: &str) -> bool {
 }
 
 pub(crate) fn card_detail_value(
+    tab: ReceiptsTab,
     label: &str,
     index: usize,
     cells: &[ReceiptCell],
@@ -94,7 +91,7 @@ pub(crate) fn card_detail_value(
                 .map(|cell| cell_text(cell).to_string())
                 .unwrap_or_default();
             CardDetailValue::Text {
-                negative: is_profit_label(label) && is_negative_text(&text),
+                negative: is_profit_label(tab, label) && is_negative_text(&text),
                 text,
             }
         }
@@ -110,6 +107,7 @@ pub(crate) fn cell_text(cell: &ReceiptCell) -> &str {
 
 // 見出しの銘柄名・日付・口座とは重複させず、残りの列を表の列順で全部出す
 pub(crate) fn card_row_data(
+    tab: ReceiptsTab,
     cells: &[ReceiptCell],
     headers: &[&'static str],
     order: &[usize],
@@ -125,7 +123,7 @@ pub(crate) fn card_row_data(
     };
     let header_fields = [fields.name, fields.date, fields.account];
     CardRowData {
-        name: card_detail_value(headers[fields.name], fields.name, cells),
+        name: card_detail_value(tab, headers[fields.name], fields.name, cells),
         date: {
             let date = text(fields.date);
             if full_date {
@@ -140,7 +138,7 @@ pub(crate) fn card_row_data(
             .filter(|index| !header_fields.contains(index))
             .map(|&i| CardDetail {
                 label: headers[i].to_string(),
-                value: card_detail_value(headers[i], i, cells),
+                value: card_detail_value(tab, headers[i], i, cells),
             })
             .collect(),
     }
@@ -306,8 +304,7 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
-    let primary_negative =
-        summary_is_profit(tab, primary_label) && is_negative_text(&primary_value);
+    let primary_negative = is_profit_label(tab, primary_label) && is_negative_text(&primary_value);
     let primary_value_class = if primary_negative {
         "text-sm font-semibold tabular-nums text-negative-vivid"
     } else {
@@ -372,7 +369,7 @@ pub(crate) fn MobileCardGroup(
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
-                                                let negative = summary_is_profit(tab, label)
+                                                let negative = is_profit_label(tab, label)
                                                     && is_negative_text(value);
                                                 let value_class = if negative {
                                                     "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative"

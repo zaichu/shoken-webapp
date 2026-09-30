@@ -204,7 +204,7 @@ pub(crate) fn PortfolioSummary(
                     }
                     .into_any()
                 >
-                    "資産サマリー"
+                    "集計情報"
                 </SectionHeader>
                 <div
                     class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
@@ -217,6 +217,7 @@ pub(crate) fn PortfolioSummary(
                             text=format_currency(total_purchase_amount)
                             class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep"
                         />
+                        <p class="mt-1 text-xs text-text-subtle">"CSV取込時点の価格"</p>
                     </Card>
                     <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"年間配当金額"</p>
@@ -233,7 +234,7 @@ pub(crate) fn PortfolioSummary(
                         />
                     </Card>
                     <Card variant=CardVariant::Stat>
-                        <p class="mb-1 text-xs font-medium text-text-muted">"配当利回り"</p>
+                        <p class="mb-1 text-xs font-medium text-text-muted">"配当利回り（年間）"</p>
                         <Amount
                             block=true
                             text=Signal::derive(move || {
@@ -245,6 +246,7 @@ pub(crate) fn PortfolioSummary(
                             class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink"
                             testid="portfolio-dividend-yield"
                         />
+                        <p class="mt-1 text-xs text-text-subtle">"年間配当金額 ÷ 合計取得総額"</p>
                     </Card>
                     <Card variant=CardVariant::Stat>
                         <p class="mb-1 text-xs font-medium text-text-muted">"保有銘柄数"</p>
