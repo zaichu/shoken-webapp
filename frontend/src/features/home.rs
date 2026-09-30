@@ -465,7 +465,7 @@ fn OverviewTiles(
                 negative=profit_negative
                 note=profit_rate
             />
-            <OverviewTile label="今年の配当金(税引)" value=dividend busy=dividend_busy />
+            <OverviewTile label="今年の税引後配当金" value=dividend busy=dividend_busy />
         </div>
     }
 }
