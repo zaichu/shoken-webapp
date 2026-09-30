@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/test';
+import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
 

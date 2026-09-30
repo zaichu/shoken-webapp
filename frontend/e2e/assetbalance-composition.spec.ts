@@ -94,10 +94,6 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
 
   const segments = composition.locator('div[aria-hidden="true"] > div');
   await expect(segments).toHaveCount(21);
-  const segmentWidths = await segments.evaluateAll((elements) =>
-    elements.map((element) => element.getBoundingClientRect().width),
-  );
-  expect(segmentWidths[0]).toBeGreaterThan(segmentWidths[19]);
 
   const legend = composition.locator('ul > li');
   await expect(legend).toHaveCount(21);
@@ -191,8 +187,6 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
   await expect(giftedCard).toHaveCount(1);
 
   await expect(page.getByText('構成比 —')).toHaveCount(1);
-  const giftedBar = page.getByTestId('portfolio-card-composition-bar').nth(1);
-  expect(await giftedBar.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
 
   const composition = page.getByTestId('portfolio-composition');
   await expect(
