@@ -202,7 +202,6 @@ test('カードは開閉せず見出しと全項目を最初から表示する',
     await expect(grid.locator('dt', { hasText: label })).toHaveCount(0);
   }
 
-  // 長い項目も隠れないことを確かめる
   await expect(grid.getByText('¥1,594', { exact: true })).toBeVisible();
   const clipped = await grid
     .locator('dd, dt')

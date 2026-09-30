@@ -248,7 +248,6 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
           .toHaveText('-¥876,543,210,987');
       }
 
-      // 金額の全桁がセル内で読めることを確かめる
       const amounts = await table.locator('td').evaluateAll((cells) =>
         cells.filter((cell) => /^-?¥/.test(cell.textContent?.trim() ?? '')).map((cell) => {
           const range = document.createRange();
