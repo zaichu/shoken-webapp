@@ -42,7 +42,6 @@ pub fn ReceiptsPage() -> impl IntoView {
     view! {
         <PageHeader
             title="取引明細"
-            eyebrow="Transactions"
             description="配当金・国内株式・投資信託の取引明細を管理します。"
         />
         <nav class="mb-2 no-print" aria-label="取引明細タブ">

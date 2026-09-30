@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn card_variant_classes() {
-    let cases: [(CardVariant, &str); 23] = [
+    let cases: [(CardVariant, &str); 22] = [
         (CardVariant::Panel, "panel-card"),
         (CardVariant::Login, "login-card"),
         (CardVariant::Table, "table-card"),
@@ -38,12 +38,8 @@ fn card_variant_classes() {
             "rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm",
         ),
         (
-            CardVariant::StatSmall(StatTone::Neutral),
-            "rounded-lg border px-3.5 py-3 border-border-subtle bg-surface",
-        ),
-        (
-            CardVariant::StatSmall(StatTone::Loss),
-            "rounded-lg border px-3.5 py-3 border-negative-tint-border bg-negative-tint",
+            CardVariant::StatSmall,
+            "rounded-lg border border-border-subtle bg-surface px-3.5 py-3",
         ),
         (
             CardVariant::Sunken,
@@ -99,7 +95,7 @@ fn section_tag_is_only_collapsible_and_summary() {
         (CardVariant::Group, false),
         (CardVariant::Holding, false),
         (CardVariant::Stat, false),
-        (CardVariant::StatSmall(StatTone::Neutral), false),
+        (CardVariant::StatSmall, false),
         (CardVariant::Sunken, false),
         (CardVariant::Strip, false),
         (CardVariant::Hint, false),

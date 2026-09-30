@@ -11,7 +11,7 @@ use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
@@ -186,7 +186,7 @@ impl DividendInfoStore {
 
 #[component]
 fn AssetBadge() -> impl IntoView {
-    view! { <Badge variant=BadgeVariant::Positive class="ml-1">"保有銘柄"</Badge> }
+    view! { <Badge variant=BadgeVariant::Positive>"保有銘柄"</Badge> }
 }
 
 #[component]
@@ -215,10 +215,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">
-                        "平均取得価格"
-                        {move || asset().is_some().then(AssetBadge)}
-                    </p>
+                    <p class="text-xs font-medium text-text-muted mb-1">"平均取得価格"</p>
                     <p
                         class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
@@ -232,10 +229,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     }}
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">
-                        "保有数量(株)"
-                        {move || asset().is_some().then(AssetBadge)}
-                    </p>
+                    <p class="text-xs font-medium text-text-muted mb-1">"保有数量(株)"</p>
                     <p
                         class="text-2xl font-bold tabular-nums text-text-deep"
                         title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
@@ -316,7 +310,6 @@ pub(crate) fn DividendSummarySection(
     } else {
         "集計情報"
     };
-    let open_label = |open: bool| if open { "閉じる" } else { "開く" };
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {
@@ -339,21 +332,13 @@ pub(crate) fn DividendSummarySection(
                     expanded=Signal::derive(move || expanded.get())
                     controls="receipt-summary-body".to_string()
                     testid="receipt-header"
+                    hint=true
                     on_toggle=move || expanded.update(|open| *open = !*open)
                 >
-                    <div>
+                    <div class="flex items-center gap-2">
                         <h2 class="text-sm font-black text-ink">{title}</h2>
+                        {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </div>
-                    <span
-                        class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-soft"
-                        aria-hidden="true"
-                    >
-                        <span class="text-xs font-semibold">{move || open_label(expanded.get())}</span>
-                        <ChevronIcon
-                            expanded=Signal::derive(move || expanded.get())
-                            class="w-4 h-4 text-text-subtle transition-transform duration-200"
-                        />
-                    </span>
                 </DisclosureToggle>
                 <div id="receipt-summary-body" hidden=move || !expanded.get() class="pt-3">
                     <DividendInfo store=store totals=totals.clone() />

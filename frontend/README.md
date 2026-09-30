@@ -88,7 +88,7 @@ src/
 
 | 部品 | 役割 | 主な variant |
 | --- | --- | --- |
-| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`Danger(ButtonSize)`・`Header(ButtonSize)`。それ以外は Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton は Boxed・Close |
+| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton は Close |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
 | `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Table・Rail・Collapsible・Feature(href で `<a>`)・Summary・Item・Group・Holding・Stat・Sunken・Strip・Hint・Dashed・Step・Tile・GroupLabel など |
 | `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Toolbar・ToolbarMenu・Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |

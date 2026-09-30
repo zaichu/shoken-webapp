@@ -9,7 +9,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
+use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use leptos::prelude::*;
 
@@ -178,9 +178,10 @@ pub(crate) fn HoldingMobileCard(
                             class="truncate text-base font-bold text-text"
                             text=purchase_display
                         />
-                        <span aria-hidden="true" class="shrink-0 text-xs text-text-faint">
-                            {move || if open.get() { "▴" } else { "▾" }}
-                        </span>
+                        <ChevronIcon
+                            expanded=Signal::derive(move || open.get())
+                            class="h-4 w-4 shrink-0 text-text-subtle transition-transform duration-200"
+                        />
                     </span>
                 </span>
             </DisclosureToggle>

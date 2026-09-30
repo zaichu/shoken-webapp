@@ -1008,7 +1008,7 @@
       ]
     },
     {
-      "name": "full_width_digits_are_distinct",
+      "name": "full_width_digits_match_half_width_code",
       "data": [
         {
           "id": "1234",
@@ -1041,7 +1041,9 @@
           "code"
         ]
       },
-      "expected_ids": []
+      "expected_ids": [
+        "1234"
+      ]
     },
     {
       "name": "full_width_and_separator",
@@ -1378,7 +1380,7 @@
       ]
     },
     {
-      "name": "full_width_name",
+      "name": "full_width_name_matches_both_widths",
       "data": [
         {
           "id": "full",
@@ -1404,7 +1406,8 @@
         ]
       },
       "expected_ids": [
-        "full"
+        "full",
+        "half"
       ]
     },
     {

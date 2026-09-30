@@ -75,7 +75,7 @@ impl DisclosureStyle {
             }
             Self::AssetCard => "block min-h-11 w-full px-3.5 py-4 text-left",
             Self::SearchCard => {
-                "flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11"
+                "flex w-full min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11"
             }
         }
     }
