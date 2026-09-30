@@ -197,7 +197,9 @@ test('CSV プレビュー完了後に保存ボタンが活性化する', async (
   await selectCsvFile(page);
 
   await expect.poll(mocks.getPreviewRequestCount).toBe(1);
-  await expect(page.getByLabel('選択されたファイル名')).toHaveValue('assetbalance-base.csv');
+  await expect(page.getByTestId('csv-file-trigger')).toContainText(
+    'assetbalance-base.csv',
+  );
   await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
 });
 

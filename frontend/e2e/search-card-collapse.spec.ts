@@ -97,10 +97,7 @@ test('取引明細の検索カードは 390px では初期折り畳みでトグ�
   await expect(header).toHaveAttribute('aria-expanded', 'true');
   await expect(body).toBeVisible();
 
-  const chevron = page.getByTestId('search-card-chevron-toggle');
-  await expect(chevron).toHaveAttribute('aria-hidden', 'true');
-  await expect(chevron).toHaveAttribute('tabindex', '-1');
-  await chevron.click();
+  await header.click();
   await expect(header).toHaveAttribute('aria-expanded', 'false');
   await expect(body).toBeHidden();
 });

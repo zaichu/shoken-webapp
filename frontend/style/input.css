@@ -354,10 +354,6 @@
     @apply absolute z-10 grid w-full grid-cols-3 gap-1 rounded-b-md border border-t-0 border-border-strong bg-surface px-2 pb-2 pt-1.5 max-h-72 overflow-y-auto;
   }
 
-  .csv-file-input {
-    @apply w-full rounded-field border border-border-subtle bg-surface px-3.5 py-2.5 text-sm text-text-muted shadow-sm disabled:cursor-not-allowed disabled:bg-surface-raised;
-  }
-
   .table-frame {
     @apply relative w-full rounded-lg border border-ink/10 bg-surface;
   }

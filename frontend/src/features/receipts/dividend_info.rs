@@ -11,7 +11,7 @@ use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
@@ -310,7 +310,6 @@ pub(crate) fn DividendSummarySection(
     } else {
         "集計情報"
     };
-    let open_label = |open: bool| if open { "閉じる" } else { "開く" };
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip">
@@ -361,22 +360,13 @@ pub(crate) fn DividendSummarySection(
                     expanded=Signal::derive(move || expanded.get())
                     controls="receipt-summary-body".to_string()
                     testid="receipt-header"
+                    hint=true
                     on_toggle=move || expanded.update(|open| *open = !*open)
                 >
                     <div class="flex items-center gap-2">
                         <h2 class="text-sm font-black text-ink">{title}</h2>
                         {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </div>
-                    <span
-                        class="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-text-soft"
-                        aria-hidden="true"
-                    >
-                        <span class="text-xs font-semibold">{move || open_label(expanded.get())}</span>
-                        <ChevronIcon
-                            expanded=Signal::derive(move || expanded.get())
-                            class="w-4 h-4 text-text-subtle transition-transform duration-200"
-                        />
-                    </span>
                 </DisclosureToggle>
                 <div id="receipt-summary-body" hidden=move || !expanded.get() class="pt-3">
                     <DividendInfo store=store totals=totals.clone() />

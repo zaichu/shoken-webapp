@@ -16,7 +16,7 @@ fn disclosure_style_classes() {
         ),
         (
             DisclosureStyle::SearchCard,
-            "flex min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11",
+            "flex w-full min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11",
         ),
     ];
     for (style, expected) in cases {
