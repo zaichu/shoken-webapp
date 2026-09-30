@@ -534,7 +534,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       .click();
 
     const alert = page
-      .getByTestId('receipt-utility-rail')
+      .getByTestId('receipt-main-stage')
       .getByRole('alert');
     await expect(alert).toHaveText(
       /^エラー:\s*CSVファイル（\.csv）のみアップロードできます$/,
