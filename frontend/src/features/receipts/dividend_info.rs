@@ -276,7 +276,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"受取金額 (累積利回り)"</p>
+                    <p class="text-xs font-medium text-text-muted mb-1">"税引後 (累積利回り)"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_currency(totals.total_net_amount_received)}
                         {move || {

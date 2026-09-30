@@ -139,7 +139,7 @@ test('390px ではCSV・検索レールが保有内訳より上に並びCSV操�
   );
   expect(railOrder).toEqual(['search-card', 'asset-review-prompt-card']);
 
-  // main 内は資産サマリー → 保有内訳
+  // main 内は集計情報 → 保有内訳
   const summary = page.getByTestId('asset-portfolio-summary');
   const firstCard = page.getByTestId('portfolio-holding-card').first();
   const summaryBox = await summary.boundingBox();

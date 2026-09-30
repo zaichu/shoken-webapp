@@ -2,7 +2,7 @@ mod view;
 
 pub(crate) use view::SearchPage;
 
-use crate::api::{fetch_stock, Stock};
+use crate::api::{fetch_stock, ApiError, Stock};
 use crate::session::{use_session, Generation};
 use leptos::prelude::*;
 
@@ -16,7 +16,7 @@ fn should_apply_search_result(
 #[derive(Clone, Copy)]
 pub struct StockSearch {
     pub stock_code: RwSignal<String>,
-    pub search: Action<String, Result<Stock, String>>,
+    pub search: Action<String, Result<Stock, ApiError>>,
     pub has_invalid_code_param: bool,
     fetch_generation: RwSignal<Generation>,
     session: crate::session::SessionStore,
@@ -34,7 +34,23 @@ impl StockSearch {
         if !should_apply_search_result(&self.session, self.fetch_generation.get()) {
             return None;
         }
-        self.search.value().get().and_then(|result| result.err())
+        self.search
+            .value()
+            .get()
+            .and_then(|result| result.err())
+            .filter(|error| !is_not_found(error))
+            .map(|error| error.message())
+    }
+
+    pub fn is_not_found(&self) -> bool {
+        if !should_apply_search_result(&self.session, self.fetch_generation.get()) {
+            return false;
+        }
+        self.search
+            .value()
+            .get()
+            .and_then(|result| result.err())
+            .is_some_and(|error| is_not_found(&error))
     }
 
     pub fn search_by_code(&self, code: String) {
@@ -45,6 +61,10 @@ impl StockSearch {
     }
 }
 
+fn is_not_found(error: &ApiError) -> bool {
+    matches!(error, ApiError::Http { status: 404, .. })
+}
+
 pub fn use_stock_search() -> StockSearch {
     let (initial, has_invalid_code_param) = read_code_param();
     let session = use_session();
@@ -52,12 +72,7 @@ pub fn use_stock_search() -> StockSearch {
     let fetch_generation = RwSignal::new(session.generation.get_untracked());
     let search = Action::new_unsync(move |query: &String| {
         let query = query.clone();
-        async move {
-            match fetch_stock(&query).await {
-                Ok(stock) => Ok(stock),
-                Err(error) => Err(error.user_message()),
-            }
-        }
+        async move { fetch_stock(&query).await }
     });
     let stock_search = StockSearch {
         stock_code,

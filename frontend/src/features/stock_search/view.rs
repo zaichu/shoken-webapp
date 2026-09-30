@@ -69,6 +69,7 @@ pub(crate) fn SearchPage() -> impl IntoView {
             {move || {
                 let data = stock_search.stock_data();
                 let error = stock_search.error_message();
+                let not_found = stock_search.is_not_found();
                 let is_loading = loading.get();
                 if let Some(message) = error {
                     view! {
@@ -82,8 +83,16 @@ pub(crate) fn SearchPage() -> impl IntoView {
                         .into_any()
                 } else if let Some(stock) = data {
                     view! { <StockInfo stock=stock /> }.into_any()
+                } else if not_found {
+                    view! {
+                        <EmptySearch title="該当する銘柄が見つかりませんでした" />
+                    }
+                        .into_any()
                 } else if !is_loading {
-                    view! { <EmptySearch /> }.into_any()
+                    view! {
+                        <EmptySearch title="銘柄を検索" />
+                    }
+                        .into_any()
                 } else {
                     ().into_any()
                 }
@@ -152,13 +161,22 @@ fn SearchForm(
     }
 }
 
+fn empty_search_description(title: &str) -> &'static str {
+    if title == "銘柄を検索" {
+        "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+    } else {
+        "銘柄コードまたは銘柄名を確認してください。"
+    }
+}
+
 #[component]
-fn EmptySearch() -> impl IntoView {
+fn EmptySearch(title: &'static str) -> impl IntoView {
+    let description = empty_search_description(title);
     view! {
         <EmptyState
             class="py-10"
-            title="銘柄を検索"
-            description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+            title=title
+            description=description
             icon=EmptyStateIcon::Search
         >
             <ul class="mt-4 space-y-1 text-sm font-medium text-text-muted">

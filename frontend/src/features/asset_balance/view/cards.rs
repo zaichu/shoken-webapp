@@ -210,7 +210,7 @@ pub(crate) fn HoldingMobileCard(
                                         </dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"現在値"</dt>
+                                        <dt class="shrink-0 font-medium text-text-subtle">"現在値（CSV取込時点）"</dt>
                                         <dd class="truncate font-semibold tabular-nums text-text">
                                             {current_price_display.clone()}
                                         </dd>

@@ -501,7 +501,7 @@ async function expectAssetBalanceErrorLayout(page: Page) {
 
 async function expectSearchServerError(page: Page) {
   await expect(page.getByRole('alert')).toHaveText(
-    /^エラー:\s*サーバーエラーが発生しました。しばらくしてから再度お試しください$/,
+    /^エラー:\s*サーバーエラーが発生しました$/,
   );
 }
 
