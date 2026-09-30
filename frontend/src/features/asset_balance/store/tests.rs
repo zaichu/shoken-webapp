@@ -148,7 +148,6 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
 
         let mut replaced = balance_row(7203);
         replaced.shares = rust_decimal_macros::dec!(200);
-        replaced.market_value = rust_decimal_macros::dec!(520000);
         apply_loaded_asset_balances(
             generation,
             LoadedAssetBalances {

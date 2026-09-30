@@ -205,7 +205,7 @@ test('390px でも見直し促進カードはレール1枚カード内の末尾�
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
+  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
 
   const rail = page.getByTestId('assetbalance-utility-rail');
   const outerCard = rail.locator('> div').first();

@@ -7,7 +7,6 @@ const PERCENTAGE_TOLERANCE: f64 = 1e-9;
 struct FixtureItem {
     id: String,
     purchase: f64,
-    market: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -56,8 +55,7 @@ fn fixture() -> Fixture {
 
 fn plan_for(items: &[FixtureItem]) -> ChartPlan {
     let values: Vec<f64> = items.iter().map(|item| item.purchase).collect();
-    let markets: Vec<Option<f64>> = items.iter().map(|item| item.market).collect();
-    chart_plan(&values, &markets)
+    chart_plan(&values)
 }
 
 fn sorted_ids<'a>(items: &'a [FixtureItem], plan: &ChartPlan) -> Vec<&'a str> {
@@ -86,7 +84,7 @@ fn assert_percentage(actual: Option<f64>, expected: &Option<f64>, case: &str, in
 #[test]
 fn shared_order_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.order_cases.len(), 6);
+    assert_eq!(fixture.order_cases.len(), 7);
     for case in &fixture.order_cases {
         let plan = plan_for(&case.items);
         assert_eq!(
@@ -115,7 +113,7 @@ fn shared_order_cases_match() {
 #[test]
 fn shared_display_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.display_cases.len(), 7);
+    assert_eq!(fixture.display_cases.len(), 8);
     for case in &fixture.display_cases {
         let plan = plan_for(&case.items);
         for expectation in &case.expectations {
@@ -124,8 +122,12 @@ fn shared_display_cases_match() {
             let visible: Vec<&str> = plan
                 .order
                 .iter()
-                .take(display.visible_count)
-                .map(|&index| case.items[index].id.as_str())
+                .zip(&plan.percentages)
+                .enumerate()
+                .filter(|(position, (_, percentage))| {
+                    *position < display.visible_count || percentage.is_none()
+                })
+                .map(|(_, (&index, _))| case.items[index].id.as_str())
                 .collect();
             assert_eq!(visible, expectation.visible_ids, "{label} visible_ids");
             match (&display.others, &expectation.others) {

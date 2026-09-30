@@ -181,8 +181,6 @@ fn investment_amount_is_price_times_shares() {
         total_purchase_amount: dec!(250_000),
         current_price: dec!(2600),
         daily_change: dec!(50),
-        market_value: dec!(260_000),
-        profit_loss_rate: dec!(4),
         created_at: String::new(),
         updated_at: String::new(),
     };
