@@ -149,9 +149,9 @@ const TABLE_SPEC = {
       '12.5ch',
       '12.5ch',
       '12.5ch',
-      '14.5ch',
-      '14.5ch',
-      '14.5ch',
+      '16ch',
+      '16ch',
+      '16ch',
     ],
     aligns: [
       'left',
@@ -177,9 +177,9 @@ const TABLE_SPEC = {
       '12.5ch',
       '12.5ch',
       '12.5ch',
-      '14.5ch',
-      '14.5ch',
-      '14.5ch',
+      '16ch',
+      '16ch',
+      '16ch',
     ],
     aligns: [
       'left',
@@ -622,9 +622,9 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
     '12.5ch',
     '12.5ch',
     '12.5ch',
-    '14.5ch',
-    '14.5ch',
-    '14.5ch',
+    '16ch',
+    '16ch',
+    '16ch',
   ];
   const ths = page.getByRole('table').locator('thead th');
   await expect(ths.nth(2)).toHaveText('口座');
