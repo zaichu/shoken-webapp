@@ -216,6 +216,10 @@ impl DataOps {
         self.poll_rev == rev
     }
 
+    pub(crate) fn list_fetch_in_flight(&self) -> bool {
+        !self.inflight.is_empty()
+    }
+
     pub(crate) fn invalidate(&mut self) {
         self.list_rev += 1;
         self.poll_rev += 1;
@@ -226,6 +230,10 @@ impl DataOps {
         self.inflight.clear();
         self.refresh_error = None;
     }
+}
+
+pub(crate) fn has_current_balances(slot: &BalanceSlot, generation: Generation) -> bool {
+    matches!(slot, Some((cached, _)) if *cached == generation)
 }
 
 // 取得成功時は lookup の seed と配当取得の開始までここでまとめて行う

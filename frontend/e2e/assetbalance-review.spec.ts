@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -114,7 +115,7 @@ async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SON
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({
@@ -204,7 +205,7 @@ test('390px でも見直し促進カードはレール1枚カード内の末尾�
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
+  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
 
   const rail = page.getByTestId('assetbalance-utility-rail');
   const outerCard = rail.locator('> div').first();

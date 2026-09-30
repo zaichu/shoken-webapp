@@ -1,5 +1,6 @@
 /target
 /dist
+/dist-e2e
 /dist-release
 /dist-vercel
 /node_modules

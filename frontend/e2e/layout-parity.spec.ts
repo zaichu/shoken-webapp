@@ -1,11 +1,5 @@
-import {
-  expect,
-  test,
-  type BrowserContext,
-  type Locator,
-  type Page,
-  type TestInfo,
-} from '@playwright/test';
+import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -522,13 +516,11 @@ async function mockReceiptFetchErrors(page: Page) {
   );
 }
 
-async function expectPortfolioValuationTotals(page: Page) {
-  const summary = page.getByTestId('portfolio-valuation-summary');
+async function expectPortfolioTotals(page: Page) {
+  const summary = page.getByTestId('asset-portfolio-summary');
   await expect(summary).toBeVisible();
-  await expect(summary).toContainText('保有資産の評価額');
-  await expect(summary).toContainText('¥5,580,000');
-  await expect(summary).toContainText('評価損益 ¥220,000（4.1%）');
-  await expect(summary).toContainText('取込データ時点');
+  await expect(summary).toContainText('合計取得総額');
+  await expect(summary).toContainText('¥5,360,000');
 }
 
 async function gotoFilteredEmptyAssetBalance(page: Page) {
@@ -643,31 +635,22 @@ test('口座検索で列が前に出ても列幅は列に追随する(国内株�
   await shoot(page, testInfo, 'receipts-domesticstock-search-1440-leptos');
 });
 
-test('資産管理の負の評価損益は赤字としてマークされる', async ({ page }) => {
+test('資産管理に評価額・評価損益は表示しない', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const lossAsset = {
-    ...ASSET_BALANCES[0],
-    total_purchase_amount: 270000,
-    market_value: 260000,
-  };
-  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
-    route.fulfill(json(paginated([lossAsset]))),
-  );
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
 
-  const summaryLoss = page
-    .getByTestId('portfolio-valuation-summary')
-    .locator('[data-negative="true"]');
-  await expect(summaryLoss).toHaveText('評価損益 -¥10,000（-3.7%）');
-  await expect(summaryLoss).toHaveClass(/(^|\s)text-negative(\s|$)/);
+  const main = page.getByTestId('assetbalance-main-stage');
+  const summary = main.getByTestId('asset-portfolio-summary');
+  await expect(summary).toBeVisible();
+  await expect(summary).not.toContainText('評価額');
+  await expect(summary).not.toContainText('評価損益');
 
-  const cardLoss = page
-    .getByTestId('portfolio-valuation-card')
-    .first()
-    .locator('[data-negative="true"]');
-  await expect(cardLoss).toHaveText('-¥10,000（-3.7%）');
-  await expect(cardLoss).toHaveClass(/(^|\s)text-negative(\s|$)/);
+  const card = page.getByTestId('portfolio-holding-card').first();
+  await expect(card).toBeVisible();
+  await expect(main).not.toContainText('評価額');
+  await expect(main).not.toContainText('評価損益');
+  await expect(main.locator('[data-negative="true"]')).toHaveCount(0);
 });
 
 for (const width of [1440, 390]) {
@@ -678,7 +661,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
     await expectAssetDataLoaded(page);
     await expectNoPageOverflow(page, width);
-    await expectPortfolioValuationTotals(page);
+    await expectPortfolioTotals(page);
     await shoot(page, testInfo, `assetbalance-data-${width}-leptos`);
   });
 

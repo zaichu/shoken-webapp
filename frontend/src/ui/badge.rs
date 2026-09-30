@@ -74,18 +74,24 @@ pub fn Badge(
 
 #[component]
 pub fn CodeBadge(
+    #[prop(optional)] flush: bool,
     #[prop(into, optional)] class: Signal<String>,
     #[prop(optional)] testid: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
+    let base = if flush {
+        "code-badge-flush"
+    } else {
+        "code-badge"
+    };
     view! {
         <span
             class=move || {
                 let extra = class.get();
                 if extra.is_empty() {
-                    "code-badge".to_string()
+                    base.to_string()
                 } else {
-                    format!("code-badge {extra}")
+                    format!("{base} {extra}")
                 }
             }
             data-testid=testid

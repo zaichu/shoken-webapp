@@ -148,7 +148,6 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
 
         let mut replaced = balance_row(7203);
         replaced.shares = rust_decimal_macros::dec!(200);
-        replaced.market_value = rust_decimal_macros::dec!(520000);
         apply_loaded_asset_balances(
             generation,
             LoadedAssetBalances {
@@ -455,6 +454,25 @@ fn begin_file_preview_stops_old_poll_and_clears_dividends() {
             .with_untracked(|ops| ops.is_current_poll(old_poll_rev)));
         assert!(dividends.get_untracked().per_share.is_empty());
     });
+}
+
+#[test]
+fn has_current_balances_only_matches_same_generation() {
+    let generation = Generation::new(1);
+    let other = Generation::new(2);
+    let slot: BalanceSlot = Some((
+        generation,
+        Ok(LoadedAssetBalances {
+            rows: vec![balance_row(7203)],
+            total: 1,
+            summary: None,
+            facets: None,
+            truncated: false,
+        }),
+    ));
+    assert!(has_current_balances(&slot, generation));
+    assert!(!has_current_balances(&slot, other));
+    assert!(!has_current_balances(&None, generation));
 }
 
 #[test]

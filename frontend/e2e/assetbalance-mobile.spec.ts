@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -20,8 +21,6 @@ const TOYOTA = {
   total_purchase_amount: 250000,
   current_price: 2600,
   daily_change: 50,
-  market_value: 260000,
-  profit_loss_rate: 4.0,
 };
 
 const SONY = {
@@ -36,8 +35,6 @@ const SONY = {
   total_purchase_amount: 150000,
   current_price: 3200,
   daily_change: -20,
-  market_value: 160000,
-  profit_loss_rate: 6.67,
 };
 
 const NTT = {
@@ -52,8 +49,6 @@ const NTT = {
   total_purchase_amount: 30000,
   current_price: 160,
   daily_change: 1,
-  market_value: 32000,
-  profit_loss_rate: 6.67,
 };
 
 const FACETS = {
@@ -79,7 +74,7 @@ async function setupAssetBalanceMocks(page: Page) {
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     const data = [TOYOTA, SONY, NTT];
     return route.fulfill(
@@ -145,8 +140,8 @@ test('390px ではCSV・検索レールが保有内訳より上に並びCSV操�
   expect(railOrder).toEqual(['search-card', 'asset-review-prompt-card']);
 
   // main 内は資産サマリー → 保有内訳
-  const summary = page.getByTestId('portfolio-valuation-summary');
-  const firstCard = page.getByTestId('portfolio-valuation-card').first();
+  const summary = page.getByTestId('asset-portfolio-summary');
+  const firstCard = page.getByTestId('portfolio-holding-card').first();
   const summaryBox = await summary.boundingBox();
   const cardBox = await firstCard.boundingBox();
   expect(summaryBox).not.toBeNull();
@@ -187,7 +182,7 @@ test('一覧に無い銘柄を選ぶとフィルタ済み空状態と解除ボ�
   await page.unroute(/\/api\/v1\/asset-balances(?:\?.*)?$/);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
-      return route.fallback();
+      return route.abort();
     }
     return route.fulfill(
       jsonResponse({
@@ -220,9 +215,9 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await expect(
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
   ).toBeHidden();
-  await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
+  await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(page.getByTestId('portfolio-valuation-card').first()).toBeVisible();
+  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
   await shoot(page, '639');
 
@@ -232,9 +227,9 @@ test('639px ではモバイル表示、640px でPC表示に切り替わる', asy
   await expect(
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
   ).toBeVisible();
-  await expect(page.getByTestId('portfolio-valuation-summary')).toBeVisible();
+  await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(page.getByTestId('portfolio-valuation-card').first()).toBeHidden();
+  await expect(page.getByTestId('portfolio-holding-card').first()).toBeHidden();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeVisible();
   await shoot(page, '640');
 });

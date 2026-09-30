@@ -33,8 +33,8 @@ jobs:
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
 
-  ci:
-    name: Check, build, and E2E
+  build:
+    name: Check and build
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
@@ -96,9 +96,8 @@ jobs:
       - name: Run Clippy (host)
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Build release bundle
-        # trunk 0.21.4 は NO_COLOR=1 を予期しない引数として解釈するため解除する。
-        run: env -u NO_COLOR trunk build --release --dist dist-release
+      - name: Build frontend bundle
+        run: env -u NO_COLOR trunk build --release --dist dist-e2e
 
       - name: Report compressed asset sizes
         run: |
@@ -107,13 +106,71 @@ jobs:
             echo
             echo "| Asset | Gzip size (bytes) |"
             echo "| --- | ---: |"
-            find dist-release -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.css' \) -print0 \
+            find dist-e2e -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.css' \) -print0 \
               | sort -z \
               | while IFS= read -r -d '' asset; do
                   size=$(gzip -c "$asset" | wc -c)
-                  printf '| `%s` | %s |\n' "${asset#dist-release/}" "$size"
+                  printf '| `%s` | %s |\n' "${asset#dist-e2e/}" "$size"
                 done
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # 本番 origin を埋めるのは vercel 配信検証用だけにする。E2E 用は API origin が
+      # 空のまま(trunk serve と同じ同一オリジン)の dist を渡し、モック外の通信を外に出さない
+      - name: Prepare Vercel delivery bundle
+        run: |
+          cp -r dist-e2e dist-release
+          node scripts/prepare-vercel-dist.mjs dist-release
+
+      - name: Upload E2E dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: e2e-dist
+          path: frontend/dist-e2e
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload Vercel dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: vercel-dist
+          path: frontend/dist-release
+          retention-days: 1
+          if-no-files-found: error
+
+  e2e:
+    name: E2E (shard ${{ matrix.shard }}/3)
+    needs: [changes, build]
+    if: needs.build.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      LEPTOS_E2E_DIST_DIR: dist-e2e
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup frontend dependencies
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0 https://github.com/actions/setup-node/releases/tag/v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Download E2E dist artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7 https://github.com/actions/download-artifact/releases/tag/v7
+        with:
+          name: e2e-dist
+          path: frontend/dist-e2e
 
       - name: Restore Playwright browsers cache
         id: playwright-browsers
@@ -129,7 +186,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
           restore-keys: |
             ${{ runner.os }}-apt-playwright-ubuntu24.04-
 
@@ -139,30 +196,114 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y -o Dir::Cache::Archives=$HOME/apt-packages xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
 
-      - name: Save APT packages cache
-        if: github.ref == 'refs/heads/main' && steps.apt-packages.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
-        with:
-          path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('frontend/package-lock.json') }}
-
       - name: Install Playwright browser
         if: steps.playwright-browsers.outputs.cache-hit != 'true'
         run: npx playwright install chromium
 
+      # キャッシュの保存はこのジョブに一本化する(複数ジョブの同時保存はキー競合で失敗する)
+      - name: Save APT packages cache
+        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.apt-packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: ~/apt-packages
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
+
       - name: Save Playwright browsers cache
-        if: github.ref == 'refs/heads/main' && steps.playwright-browsers.outputs.cache-hit != 'true'
+        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright-browsers.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
 
-      # E2E の serve は test-results/dist-* を使い、dist-release/ のリリース成果物と混在させない。
-      - name: Run existing E2E tests
-        run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts
+      - name: Run E2E tests
+        run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts --shard=${{ matrix.shard }}/3
 
-      - name: Build Vercel verification bundle
-        run: env -u NO_COLOR VERCEL_DIST_DIR=dist-vercel bash scripts/vercel-build.sh
+  e2e-vercel:
+    name: E2E (Vercel delivery)
+    needs: [changes, build]
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERCEL_DIST_DIR: dist-release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup frontend dependencies
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0 https://github.com/actions/setup-node/releases/tag/v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Download Vercel dist artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7 https://github.com/actions/download-artifact/releases/tag/v7
+        with:
+          name: vercel-dist
+          path: frontend/dist-release
+
+      - name: Restore Playwright browsers cache
+        id: playwright-browsers
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Restore APT packages cache
+        id: apt-packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: ~/apt-packages
+          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
+          restore-keys: |
+            ${{ runner.os }}-apt-playwright-ubuntu24.04-
+
+      - name: Install APT packages (Playwright deps)
+        run: |
+          mkdir -p ~/apt-packages/partial
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::Archives=$HOME/apt-packages xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
+
+      - name: Install Playwright browser
+        if: steps.playwright-browsers.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Run Vercel delivery E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.vercel.config.ts
+
+  ci:
+    name: Check, build, and E2E
+    needs: [changes, build, e2e, e2e-vercel]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          E2E_VERCEL_RESULT: ${{ needs['e2e-vercel'].result }}
+        run: |
+          ok=true
+          report() {
+            echo "$1: $2"
+            if [ "$2" != "success" ]; then ok=false; fi
+          }
+          report changes "$CHANGES_RESULT"
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] || [ "$FRONTEND_CHANGED" = "true" ]; then
+            report build "$BUILD_RESULT"
+            report e2e "$E2E_RESULT"
+            report e2e-vercel "$E2E_VERCEL_RESULT"
+          fi
+          $ok || { echo "::error::required jobs did not succeed"; exit 1; }

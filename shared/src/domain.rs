@@ -209,10 +209,6 @@ pub struct AssetBalance {
     pub current_price: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub daily_change: Decimal,
-    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
-    pub market_value: Decimal,
-    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
-    pub profit_loss_rate: Decimal,
     #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
     #[cfg(not(feature = "typed"))]

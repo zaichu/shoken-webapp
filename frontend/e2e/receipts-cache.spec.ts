@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
+import { expect, test } from './support/test';
 
 const USER_A = {
   id: '00000000-0000-0000-0000-000000000002',

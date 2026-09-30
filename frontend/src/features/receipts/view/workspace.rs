@@ -76,7 +76,12 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 <div class="workspace-rail">
                     <ReceiptsCsvSection store=csv_store tab=tab />
                     {move || {
-                        let Some(message) = alert_store.csv_state(tab).error else {
+                        // 裏再取得の失敗は一覧を消さず、エラーだけ知らせる
+                        let Some(message) = alert_store
+                            .csv_state(tab)
+                            .error
+                            .or_else(|| alert_store.refresh_error(tab))
+                        else {
                             return ().into_any();
                         };
                         view! {

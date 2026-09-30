@@ -2,14 +2,18 @@ mod csv;
 mod fetch;
 mod search;
 
-use super::store::should_apply_fetch_result;
+use super::store::{
+    bump_fetch_rev, is_current_fetch, settle_tab_result, should_apply_fetch_result,
+};
 use super::*;
 use crate::api::ApiError;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use leptos::prelude::*;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 fn user(id: &str) -> crate::api::dto::SessionUser {
     crate::api::dto::SessionUser {
@@ -96,6 +100,8 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 fetch,
                 csv: RwSignal::new(HashMap::new()),
                 csv_files: RwSignal::new(HashMap::new()),
+                refresh_error: RwSignal::new(HashMap::new()),
+                fetch_rev: RwSignal::new(HashMap::new()),
             };
 
             let ensure_result =
@@ -107,6 +113,294 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 Some(TabState::Failed(_))
             ));
         }
+    });
+}
+
+#[test]
+fn revisit_refetches_only_visited_settled_tabs() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let record = Rc::clone(&calls);
+        let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+            record.borrow_mut().push((*generation, *tab));
+            async {}
+        });
+        let ready = TabState::Ready(ReceiptTabData {
+            rows: Vec::new(),
+            summary: None,
+            truncated: false,
+        });
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([
+                ReceiptsTab::Dividend,
+                ReceiptsTab::DomesticStock,
+                ReceiptsTab::MutualFund,
+            ])),
+            cache: RwSignal::new(HashMap::from([
+                ((generation, ReceiptsTab::Dividend), ready),
+                ((generation, ReceiptsTab::DomesticStock), TabState::Loading),
+                (
+                    (generation, ReceiptsTab::MutualFund),
+                    TabState::Failed("x".to_string()),
+                ),
+            ])),
+            fetch,
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        store.revisit();
+
+        let dispatched = calls.borrow().clone();
+        assert!(
+            dispatched.contains(&(generation, ReceiptsTab::Dividend)),
+            "取得済みの訪問タブは裏で取り直す"
+        );
+        assert!(
+            dispatched.contains(&(generation, ReceiptsTab::MutualFund)),
+            "失敗済みも再取得の対象"
+        );
+        assert!(
+            !dispatched.contains(&(generation, ReceiptsTab::DomesticStock)),
+            "取得中のタブは重複させない"
+        );
+    });
+}
+
+#[test]
+fn revisit_skips_unauthenticated_and_unvisited() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let record = Rc::clone(&calls);
+        let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+            record.borrow_mut().push((*generation, *tab));
+            async {}
+        });
+        let session = SessionStore::new();
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([ReceiptsTab::Dividend])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch,
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        store.revisit();
+        assert!(calls.borrow().is_empty(), "未ログインでは何も取り直さない");
+
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let ready = || {
+            TabState::Ready(ReceiptTabData {
+                rows: Vec::new(),
+                summary: None,
+                truncated: false,
+            })
+        };
+        store.cache.set(HashMap::from([
+            ((generation, ReceiptsTab::Dividend), ready()),
+            ((generation, ReceiptsTab::MutualFund), ready()),
+        ]));
+        store.revisit();
+        assert_eq!(
+            calls.borrow().clone(),
+            vec![(generation, ReceiptsTab::Dividend)],
+            "取得中でない訪問済みタブだけを取り直す(未訪問の MutualFund は触らない)"
+        );
+    });
+}
+
+#[test]
+fn settle_tab_result_keeps_ready_on_refresh_failure() {
+    // Ok は常に Ready で書く
+    assert!(matches!(
+        settle_tab_result(
+            true,
+            Ok(ReceiptTabData {
+                rows: Vec::new(),
+                summary: None,
+                truncated: false,
+            })
+        ),
+        Ok(TabState::Ready(_))
+    ));
+    // 表示済みがある裏再取得の失敗は一覧を消さずエラーを返す
+    assert_eq!(
+        settle_tab_result(true, Err(ApiError::http(500))),
+        Err(ApiError::http(500).message())
+    );
+    // 初回取得(表示済みなし)の失敗は従来どおり Failed にする
+    assert!(matches!(
+        settle_tab_result(false, Err(ApiError::http(500))),
+        Ok(TabState::Failed(_))
+    ));
+}
+
+#[test]
+fn delete_success_expires_inflight_revisit_fetch() {
+    let mut fetch_rev: HashMap<(Generation, ReceiptsTab), u64> = HashMap::new();
+    let generation = Generation::new(1);
+    let tab = ReceiptsTab::Dividend;
+    // 再訪で出した GET(rev=1)がまだ応答を返していない状態を再現する
+    bump_fetch_rev(&mut fetch_rev, generation, tab);
+    let inflight_rev = 1;
+    assert!(is_current_fetch(&fetch_rev, generation, tab, inflight_rev));
+    // 全件削除が成功すると取得が失効する
+    bump_fetch_rev(&mut fetch_rev, generation, tab);
+    assert!(!is_current_fetch(&fetch_rev, generation, tab, inflight_rev));
+    assert!(is_current_fetch(&fetch_rev, generation, tab, 2));
+}
+
+#[test]
+fn revisit_does_not_dispatch_while_fetch_pending() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let record = Rc::clone(&calls);
+        // 応答が返らないままの取得を再現する
+        let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+            record.borrow_mut().push((*generation, *tab));
+            std::future::pending()
+        });
+        let ready = || {
+            TabState::Ready(ReceiptTabData {
+                rows: Vec::new(),
+                summary: None,
+                truncated: false,
+            })
+        };
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([
+                ReceiptsTab::Dividend,
+                ReceiptsTab::MutualFund,
+            ])),
+            cache: RwSignal::new(HashMap::from([
+                ((generation, ReceiptsTab::Dividend), ready()),
+                ((generation, ReceiptsTab::MutualFund), ready()),
+            ])),
+            fetch,
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        store.revisit();
+        store.revisit();
+
+        assert_eq!(
+            calls.borrow().len(),
+            2,
+            "応答待ちの往復では同じ要求を重ねない(1周目の2タブだけ)"
+        );
+    });
+}
+
+#[test]
+fn generation_change_resets_search_tab_and_visited() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let old_generation = session.generation.get_untracked();
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let record = Rc::clone(&calls);
+        let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+            record.borrow_mut().push((*generation, *tab));
+            std::future::pending()
+        });
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::MutualFund),
+            search: RwSignal::new(ReceiptSearch {
+                query: "7203".to_string(),
+                ..Default::default()
+            }),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([
+                ReceiptsTab::Dividend,
+                ReceiptsTab::MutualFund,
+            ])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch,
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::from([(
+                (old_generation, ReceiptsTab::Dividend),
+                "古いエラー".to_string(),
+            )])),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+        // 前ユーザーの世代で状態を作る
+        store.ensure(ReceiptsTab::MutualFund);
+        let alice_calls = calls.borrow().len();
+
+        session.mark_unauthenticated();
+        session.user.set(Some(user("bob")));
+        store.ensure(ReceiptsTab::MutualFund);
+
+        assert_eq!(
+            store.search.with_untracked(|search| search.query.clone()),
+            "",
+            "前ユーザーの検索語は持ち越さない"
+        );
+        assert_eq!(
+            store.active_tab.get_untracked(),
+            ReceiptsTab::Dividend,
+            "前ユーザーの選択タブは持ち越さない"
+        );
+        assert_eq!(
+            store.visited.with_untracked(|visited| visited.clone()),
+            HashSet::from([ReceiptsTab::Dividend]),
+            "前ユーザーの訪問済みは持ち越さない"
+        );
+        assert!(
+            store.refresh_error.with_untracked(|map| map.is_empty()),
+            "前ユーザーの裏再取得エラーは残さない"
+        );
+        let bob_generation = session.generation.get_untracked();
+        let bob_calls: Vec<(Generation, ReceiptsTab)> = calls.borrow()[alice_calls..].to_vec();
+        assert_eq!(
+            bob_calls,
+            vec![(bob_generation, ReceiptsTab::Dividend)],
+            "前ユーザー選択のタブは新しい世代では取らない"
+        );
     });
 }
 
@@ -133,6 +427,8 @@ fn expanded_state_is_cleared_on_generation_change() {
             fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
         };
 
         store.ensure(tab);
@@ -180,6 +476,8 @@ fn expanded_state_survives_ensure_in_same_generation() {
             fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
         };
 
         store.ensure(tab);

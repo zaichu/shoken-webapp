@@ -14,8 +14,14 @@ exclude_re = [
     "src/ui/confirm_modal\\.rs",
     "src/ui/collapsible_search_card\\.rs",
     "current_path",
+    "current_location",
     "replace_location",
     "redirect_to",
+    "navigate",
+    "focus_main",
+    "scroll_to_top",
+    # web_sys::Element 前提のラッパー。判定本体の spa_href_parts は単体テストで固定済み
+    "spa_href",
     "read_query_value",
     "read_code_param",
     "copy_to_clipboard",
@@ -25,7 +31,7 @@ exclude_re = [
     "scroll_tab_into_view",
     "card_detail_view",
     # コンポーネント(view 描画)内部の条件・算術。E2E 領域(末尾が関数名の記述に限定)
-    "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|PageHeader|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
+    "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|PageHeader|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|HomeOverview|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
     # HTTP 通信・web_sys::AbortController/FormData 前提
     # fetch_pages / fetch_dividend_batch は executor 注入でテスト可能なため除外しない
     "fetch_stock",
@@ -50,7 +56,15 @@ exclude_re = [
     "DividendInfoStore::poll_dividend",
     "load_asset_balances",
     "use_receipts_data",
+    "build_receipts_store",
     "use_stock_search",
+    # spawn_local/Effect 境界。判定本体(begin/finish/settle_summary)は単体テストで固定済み
+    "load_summary",
+    "load_home_summaries",
+    "use_home_overview",
+    "build_home_overview",
+    "use_asset_balance_state",
+    "build_asset_balance_state",
     # セッションストアの非同期/ウィンドウ遷移
     "SessionStore::(check|logout|delete_account|login)",
     "session_invalidated",

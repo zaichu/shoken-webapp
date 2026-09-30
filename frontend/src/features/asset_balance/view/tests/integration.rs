@@ -22,8 +22,6 @@ fn balance(id: usize) -> AssetBalance {
         total_purchase_amount: rust_decimal_macros::dec!(250000),
         current_price: rust_decimal_macros::dec!(2600),
         daily_change: rust_decimal_macros::dec!(50),
-        market_value: rust_decimal_macros::dec!(260000),
-        profit_loss_rate: rust_decimal_macros::dec!(4),
         created_at: String::new(),
         updated_at: String::new(),
     }

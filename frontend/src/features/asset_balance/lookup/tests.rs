@@ -12,8 +12,6 @@ fn row(code: &str) -> AssetBalance {
         total_purchase_amount: dec!(250000),
         current_price: dec!(2600),
         daily_change: dec!(50),
-        market_value: dec!(260000),
-        profit_loss_rate: dec!(4),
         created_at: String::new(),
         updated_at: String::new(),
     }

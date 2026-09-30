@@ -40,6 +40,8 @@ fn test_store(
         fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
         csv: RwSignal::new(csv),
         csv_files: RwSignal::new(HashMap::new()),
+        refresh_error: RwSignal::new(HashMap::new()),
+        fetch_rev: RwSignal::new(HashMap::new()),
     }
 }
 

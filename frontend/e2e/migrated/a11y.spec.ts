@@ -1,4 +1,5 @@
-import { test, expect, type Locator, type Page, type Browser } from '@playwright/test';
+import type { Browser, Locator, Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 

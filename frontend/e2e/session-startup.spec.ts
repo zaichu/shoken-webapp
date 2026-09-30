@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 
 const ALICE = {
   id: '00000000-0000-0000-0000-0000000000a1',

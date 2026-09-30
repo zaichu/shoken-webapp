@@ -19,8 +19,6 @@ fn make_asset(
         total_purchase_amount: Decimal::ZERO,
         current_price: Decimal::ZERO,
         daily_change: Decimal::ZERO,
-        market_value: Decimal::ZERO,
-        profit_loss_rate: Decimal::ZERO,
         created_at: "2026-01-01T00:00:00Z".to_string(),
         updated_at: "2026-01-01T00:00:00Z".to_string(),
     })
