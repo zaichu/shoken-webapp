@@ -19,7 +19,9 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{use_session, SessionStore};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::elements::{ListLoadError, ListSkeleton, PageHeader};
+use crate::ui::elements::{
+    Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant, PageHeader,
+};
 use csv_section::AssetBalanceCsvSection;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
@@ -195,15 +197,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 .map(|message| {
                                     view! {
                                         <div class="px-5 py-4">
-                                            <div
-                                                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
-                                                role="alert"
-                                                aria-live="assertive"
-                                            >
+                                            <Alert variant=AlertVariant::Danger>
                                                 <strong>"エラー:"</strong>
                                                 " "
                                                 {message}
-                                            </div>
+                                            </Alert>
                                         </div>
                                     }
                                 })
@@ -246,7 +244,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                         match (resolved, list_error) {
                             (None, _) => {
                                 show_all.set(false);
-                                view! { <ListSkeleton /> }.into_any()
+                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                    .into_any()
                             }
                             (Some(resolved), Some(message)) => {
                                 let preview = (state.previewing || !resolved.rows.is_empty())

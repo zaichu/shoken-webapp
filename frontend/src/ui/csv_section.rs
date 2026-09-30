@@ -1,5 +1,6 @@
 use super::csv_rail::CsvActionRail;
 use crate::support::csv_flow::CsvTabState;
+use crate::ui::csv_preview::preview_notice_text;
 use leptos::prelude::*;
 
 /// CSV 取り込み・削除欄が要求するデータソース。
@@ -34,6 +35,17 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn open_delete_confirm(&self);
 }
 
+// 空状態の「CSVを取り込む」から隠しファイル入力のファイル選択を開く
+pub fn click_csv_input(input_id: &str) {
+    use wasm_bindgen::JsCast;
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    if let Some(element) = document.get_element_by_id(input_id) {
+        element.unchecked_ref::<web_sys::HtmlElement>().click();
+    }
+}
+
 #[component]
 pub fn CsvSection<S: CsvSource>(source: S) -> impl IntoView {
     let selected_file_name = Memo::new(move |_| source.csv_state().file_name.unwrap_or_default());
@@ -47,6 +59,19 @@ pub fn CsvSection<S: CsvSource>(source: S) -> impl IntoView {
     let delete_label = Memo::new(move |_| source.csv_state().delete_label(source.db_count()));
     let delete_disabled = Memo::new(move |_| source.delete_disabled(&source.csv_state()));
     let save_result = Memo::new(move |_| source.csv_state().import_result);
+    // 何件をどう保存するかは保存ボタンの直前に置き、押す直前の目に入るようにする
+    let preview_notice = Memo::new(move |_| {
+        let state = source.csv_state();
+        if !(source.is_authenticated() && state.file_name.is_some() && !state.previewing) {
+            return None;
+        }
+        state.preview.map(|preview| {
+            (
+                preview_notice_text(preview.valid_rows, source.save_action()),
+                preview.errors,
+            )
+        })
+    });
 
     view! {
         <CsvActionRail
@@ -63,6 +88,7 @@ pub fn CsvSection<S: CsvSource>(source: S) -> impl IntoView {
             on_delete_request=move || source.open_delete_confirm()
             delete_disabled=delete_disabled
             save_result=save_result
+            preview_notice=preview_notice
             mode_label=source.mode_label()
             toggle_testid=source.toggle_testid()
             body_id=source.body_id()

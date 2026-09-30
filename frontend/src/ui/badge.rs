@@ -11,12 +11,6 @@ pub enum BadgeVariant {
     Info,
     /// 保有銘柄の緑
     Positive,
-    /// CSV 保存結果の丸いバッジ
-    Neutral,
-    /// 保存結果の補助バッジ
-    Muted,
-    /// 保存結果の注意バッジ
-    Warn,
     /// ファイル選択の参照チップ
     File,
 }
@@ -33,15 +27,6 @@ impl BadgeVariant {
             }
             Self::Positive => {
                 "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive"
-            }
-            Self::Neutral => {
-                "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-soft"
-            }
-            Self::Muted => {
-                "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-medium text-text-muted"
-            }
-            Self::Warn => {
-                "inline-flex items-center rounded-full border border-accent-border bg-surface px-2.5 py-1 text-xs font-medium text-accent-deep"
             }
             Self::File => "file-chip",
         }

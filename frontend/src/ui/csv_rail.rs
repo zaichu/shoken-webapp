@@ -1,7 +1,8 @@
-use crate::api::dto::CsvUploadResponse;
+use crate::api::dto::{CsvRowError, CsvUploadResponse};
 use crate::support::csv_flow::{row_error_text, CsvUploadResponseExt};
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::csv_preview::CsvPreviewNotice;
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
@@ -20,6 +21,7 @@ pub fn CsvActionRail(
     on_delete_request: impl Fn() + Clone + Send + Sync + 'static,
     delete_disabled: Memo<bool>,
     save_result: Memo<Option<CsvUploadResponse>>,
+    preview_notice: Memo<Option<(String, Vec<CsvRowError>)>>,
     mode_label: &'static str,
     toggle_testid: &'static str,
     body_id: String,
@@ -69,6 +71,11 @@ pub fn CsvActionRail(
                     selected_file_name=selected_file_name
                     disabled=file_input_disabled
                 />
+                {move || {
+                    preview_notice
+                        .get()
+                        .map(|(text, errors)| view! { <CsvPreviewNotice text=text errors=errors /> })
+                }}
                 {move || {
                     if has_csv_file.get() {
                         let on_save = on_save.clone();
@@ -199,6 +206,29 @@ fn CsvFileInput(
     }
 }
 
+// 成功と一部失敗を見出しで分ける(件数の有無だけでは区別しにくいため)
+pub(crate) fn save_result_heading(has_errors: bool) -> &'static str {
+    if has_errors {
+        "一部の行を保存できませんでした"
+    } else {
+        "保存しました"
+    }
+}
+
+// 件数はバッジの集合ではなく一文で伝える
+pub(crate) fn save_result_line(result: &CsvUploadResponse, mode_label: &str) -> String {
+    [
+        Some(result.inserted_text()),
+        Some(mode_label.to_string()),
+        result.skipped_text(),
+        result.error_count_text(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join("・")
+}
+
 #[component]
 fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> impl IntoView {
     let has_errors = !result.errors.is_empty();
@@ -212,9 +242,8 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
     } else {
         "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong"
     };
-    let inserted_text = Signal::stored(result.inserted_text());
-    let skipped_text = result.skipped_text();
-    let error_count_text = result.error_count_text();
+    let heading = save_result_heading(has_errors);
+    let line = save_result_line(&result, mode_label);
     view! {
         <section
             class=section_class
@@ -234,19 +263,8 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     </svg>
                 </span>
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-text">"保存しました"</p>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                        <Badge variant=BadgeVariant::Neutral>{inserted_text}</Badge>
-                        <Badge variant=BadgeVariant::Muted>{mode_label}</Badge>
-                        {skipped_text.map(|text| {
-                            let text = Signal::stored(text);
-                            view! { <Badge variant=BadgeVariant::Muted>{text}</Badge> }
-                        })}
-                        {error_count_text.map(|text| {
-                            let text = Signal::stored(text);
-                            view! { <Badge variant=BadgeVariant::Warn>{text}</Badge> }
-                        })}
-                    </div>
+                    <p class="text-sm font-semibold text-text">{heading}</p>
+                    <p class="mt-1 text-sm text-text-soft">{line}</p>
                     {has_errors.then(|| {
                         view! {
                             <details class="mt-3 rounded-2xl border border-accent-border/80 bg-surface/80 px-3 py-2">
@@ -268,3 +286,6 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
         </section>
     }
 }
+
+#[cfg(test)]
+mod tests;

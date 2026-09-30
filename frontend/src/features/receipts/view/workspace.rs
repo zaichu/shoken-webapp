@@ -4,9 +4,11 @@ use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::support::csv_flow::{row_error_text, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::ui::csv_section::{CsvSection, CsvSource};
-use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner, SpinnerSize};
+use crate::ui::elements::{
+    Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant, LoadingStrip,
+};
 use leptos::prelude::*;
 
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
@@ -20,7 +22,6 @@ pub(crate) fn empty_tab_data() -> ReceiptTabData {
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store;
-    let preview_store = store;
     let loading_store = store;
     let rail_store = store;
     let main_store = store;
@@ -51,15 +52,11 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         };
                         view! {
                             <section class="px-5 py-4">
-                                <div
-                                    class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
-                                    role="alert"
-                                    aria-live="assertive"
-                                >
+                                <Alert variant=AlertVariant::Danger>
                                     <strong>"エラー:"</strong>
                                     " "
                                     {message}
-                                </div>
+                                </Alert>
                             </section>
                         }
                             .into_any()
@@ -68,10 +65,10 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         match panel_state.get() {
                             TabState::Ready(data) if data.truncated => {
                                 view! {
-                                    <section class="px-5 py-4" role="status" aria-live="polite">
-                                        <div class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text">
+                                    <section class="px-5 py-4">
+                                        <Alert variant=AlertVariant::Warning>
                                             {truncated_list_warning()}
-                                        </div>
+                                        </Alert>
                                     </section>
                                 }
                                     .into_any()
@@ -80,73 +77,36 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         }
                     }}
                     {move || {
-                        let state = preview_store.csv_state(tab);
-                        let authenticated = preview_store.is_authenticated();
-                        let has_file = state.file_name.is_some();
-                        let previewing = state.previewing;
-                        let Some(preview) = state
-                            .preview
-                            .filter(|_| authenticated && has_file && !previewing)
-                        else {
-                            return ().into_any();
-                        };
-                        let has_errors = !preview.errors.is_empty();
-                        let alert_class = if has_errors {
-                            "border-accent-border bg-accent-soft text-accent-text"
-                        } else {
-                            "border-info-border bg-info-soft text-info-deep"
-                        };
-                        view! {
-                            <section class="px-5 py-4" role="status" aria-live="polite">
-                                <div class=format!(
-                                    "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {alert_class}"
-                                )>
-                                    <p>
-                                        <strong>{format!("{}件 追加で保存されます", preview.valid_rows)}</strong>
-                                        {has_errors.then(|| format!(" / {}件エラー", preview.errors.len()))}
-                                        <span class="ml-2 text-xs">"（保存モード: 追加）"</span>
-                                    </p>
-                                    {has_errors.then(|| {
-                                        view! {
-                                            <ul class="mt-2 list-disc list-inside text-sm space-y-1">
-                                                {preview
-                                                    .errors
-                                                    .iter()
-                                                    .map(|error| view! { <li>{row_error_text(error)}</li> })
-                                                    .collect_view()}
-                                            </ul>
-                                        }
-                                    })}
-                                </div>
-                            </section>
-                        }
-                            .into_any()
-                    }}
-                    {move || {
                         let auth_loading = loading_store.auth_loading();
                         let fetching = loading_store.any_tab_fetching();
                         if !auth_loading && !fetching {
                             return ().into_any();
                         }
                         view! {
-                            <div aria-live="polite" aria-atomic="true">
-                                <section class="px-5 py-4" role="status">
-                                    <div class="flex items-center gap-2 text-text-muted">
-                                        <Spinner size=SpinnerSize::Sm class="" />
-                                        <p class="text-sm">
-                                            {auth_loading.then_some("認証状態を確認しています...")}
-                                            {fetching.then_some("データを読み込んでいます...")}
-                                        </p>
-                                    </div>
-                                </section>
-                            </div>
+                            <LoadingStrip text=Signal::derive(move || {
+                                if loading_store.auth_loading() {
+                                    "認証状態を確認しています..."
+                                } else {
+                                    "データを読み込んでいます..."
+                                }
+                                .to_string()
+                            }) />
                         }
                             .into_any()
                     }}
                     {move || match panel_state.get() {
                         TabState::Ready(data) => {
-                            view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
-                                .into_any()
+                            // 絞り込み対象がないのに検索オプションを出さない(適用中なら解除できるよう残す)。
+                            // プレビュー中は取り込み行が絞り込み対象になるためカードを残す
+                            if data.rows.is_empty()
+                                && rail_store.search.with(|search| search.is_default())
+                                && !rail_store.has_csv_preview(tab)
+                            {
+                                ().into_any()
+                            } else {
+                                view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
+                                    .into_any()
+                            }
                         }
                         TabState::Failed(_) => {
                             view! {
@@ -164,7 +124,9 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
             </aside>
             <div class="min-w-0 order-2 lg:order-1" data-testid="receipt-main-stage">
                 {move || match panel_state.get() {
-                    TabState::Loading => view! { <ListSkeleton /> }.into_any(),
+                    TabState::Loading => {
+                        view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any()
+                    }
                     TabState::Ready(data) => {
                         view! { <ReceiptsMainContent store=main_store tab=tab data=data /> }
                             .into_any()

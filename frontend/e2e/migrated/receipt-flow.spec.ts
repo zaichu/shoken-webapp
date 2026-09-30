@@ -110,6 +110,10 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   await expect(
     page.getByTestId('receipts-workspace').getByText('データがありません'),
   ).toBeVisible();
+  // 絞り込み対象がないので検索オプションは出さない
+  await expect(page.getByTestId('search-card')).toHaveCount(0);
+  // EmptyState の CTA からファイル選択を開ける
+  await expect(page.getByRole('button', { name: 'CSVを取り込む' })).toBeVisible();
 });
 
 test('配当金データが1件あるとき行が表示される', async ({ page }) => {

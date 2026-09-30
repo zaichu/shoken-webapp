@@ -63,3 +63,40 @@ test('検索フォームに文字を入力できる', async ({ page }) => {
 
   await expect(searchInput).toHaveValue('任天堂');
 });
+
+test('検索の取得が失敗したとき再読み込みで再取得できる', async ({ page }) => {
+  await page.route(ROUTES.authMe, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_USER),
+    }),
+  );
+  // 500 はクライアント側で1回リトライされるので、初回 dispatch は2リクエスト分を失敗させる
+  let stockCalls = 0;
+  await page.route(ROUTES.stock, (route) => {
+    stockCalls += 1;
+    if (stockCalls <= 2) {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'server error' }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STOCK),
+    });
+  });
+
+  await page.goto('/search?code=7974');
+
+  const error = page.getByTestId('list-load-error');
+  await expect(error).toBeVisible();
+  await expect(error.getByRole('alert')).toContainText('エラー:');
+
+  await page.getByRole('button', { name: '再読み込み' }).click();
+  await expect(page.getByText('任天堂')).toBeVisible();
+  expect(stockCalls).toBe(3);
+});
