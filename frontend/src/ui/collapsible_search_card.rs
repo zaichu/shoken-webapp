@@ -1,5 +1,5 @@
 use crate::ui::badge::{Badge, BadgeVariant};
-use crate::ui::button::{Button, ButtonSize, ButtonVariant, IconButton, IconButtonVariant};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
@@ -35,7 +35,7 @@ pub fn CollapsibleSearchCard(
 
     view! {
         <section class="px-4 py-4" data-testid="search-card-compact">
-            <div class="flex items-center justify-between gap-2">
+            <div class="relative">
                 <DisclosureToggle
                     style=DisclosureStyle::SearchCard
                     expanded=Signal::derive(move || expanded.get())
@@ -85,49 +85,37 @@ pub fn CollapsibleSearchCard(
                             })
                         }}
                     </div>
+                    <ChevronIcon
+                        expanded=Signal::derive(move || expanded.get())
+                        class="ml-auto h-4 w-4 shrink-0 self-center text-text-subtle transition-transform duration-200"
+                    />
                 </DisclosureToggle>
-                <div class="flex shrink-0 items-center gap-1.5">
-                    <Button
-                        variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
-                        class=Signal::derive(move || {
-                            format!(
-                                "no-print whitespace-nowrap transition-opacity{}",
-                                if is_default_state.get() {
-                                    " opacity-0 pointer-events-none"
-                                } else {
-                                    ""
-                                },
-                            )
-                        })
-                        aria_label="検索条件をクリア".to_string()
-                        aria_hidden=move || is_default_state.get()
-                        tabindex=move || {
-                            if is_default_state.get() { "-1" } else { "0" }
-                        }
-                        testid="search-clear-button"
-                        on_click={
-                            let on_clear = on_clear.clone();
-                            move |event| {
-                                event.stop_propagation();
-                                on_clear()
-                            }
-                        }
-                    >
-                        "解除"
-                    </Button>
-                    <IconButton
-                        variant=IconButtonVariant::Boxed
-                        on_click=move |_| toggle()
-                        aria_hidden=true
-                        tabindex="-1"
-                        testid="search-card-chevron-toggle"
-                    >
-                        <ChevronIcon
-                            expanded=Signal::derive(move || expanded.get())
-                            class="h-4 w-4 text-text-subtle transition-transform duration-200"
-                        />
-                    </IconButton>
-                </div>
+                // 行全体をトリガーにするため、解除だけトリガーの手前に重ねて置く
+                <Button
+                    variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
+                    class=Signal::derive(move || {
+                        format!(
+                            "absolute right-9 top-1/2 -translate-y-1/2 no-print whitespace-nowrap transition-opacity{}",
+                            if is_default_state.get() {
+                                " opacity-0 pointer-events-none"
+                            } else {
+                                ""
+                            },
+                        )
+                    })
+                    aria_label="検索条件をクリア".to_string()
+                    aria_hidden=move || is_default_state.get()
+                    tabindex=move || {
+                        if is_default_state.get() { "-1" } else { "0" }
+                    }
+                    testid="search-clear-button"
+                    on_click=move |event| {
+                        event.stop_propagation();
+                        on_clear()
+                    }
+                >
+                    "解除"
+                </Button>
             </div>
             {move || {
                 expanded

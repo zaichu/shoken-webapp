@@ -54,7 +54,7 @@ fn trap_focus(event: &web_sys::KeyboardEvent) {
 pub fn ConfirmDeleteModal(
     title: String,
     description: String,
-    item_count: usize,
+    #[prop(into, optional)] item_count: Option<usize>,
     confirm_label: &'static str,
     loading: Memo<bool>,
     #[prop(optional)] error: Option<RwSignal<Option<String>>>,
@@ -118,15 +118,36 @@ pub fn ConfirmDeleteModal(
                     </div>
                     <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
-                        <p class="mt-2 text-sm text-text-quiet">
-                            "対象: "
-                            <strong class="text-negative">{item_count}"件"</strong>
-                            "のデータ"
-                        </p>
-                        <p class="mt-3 rounded-md bg-negative/10 px-3 py-2 text-sm text-negative">
-                            <strong>"⚠ この操作は取り消せません。"</strong>
-                            "削除されたデータは復元できません。"
-                        </p>
+                        {item_count
+                            .map(|count| {
+                                view! {
+                                    <p class="mt-2 text-sm text-text-quiet">
+                                        "対象: "
+                                        <strong class="text-negative">{count}"件"</strong>
+                                        "のデータ"
+                                    </p>
+                                }
+                            })}
+                        <div class="mt-3 flex items-start gap-2 rounded-md bg-negative/10 px-3 py-2 text-sm text-negative">
+                            <svg
+                                class="mt-0.5 h-4 w-4 shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                                />
+                            </svg>
+                            <p>
+                                <strong>"この操作は取り消せません。"</strong>
+                                "削除されたデータは復元できません。"
+                            </p>
+                        </div>
                         {move || {
                             error
                                 .and_then(|error| error.get())
@@ -152,7 +173,7 @@ pub fn ConfirmDeleteModal(
                             "キャンセル"
                         </Button>
                         <Button
-                            variant=ButtonVariant::Danger(ButtonSize::Sm)
+                            variant=ButtonVariant::DangerSolid(ButtonSize::Md)
                             class="no-print"
                             disabled=move || loading.get()
                             on_click=move |_| on_confirm()

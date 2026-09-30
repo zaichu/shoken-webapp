@@ -376,7 +376,6 @@ pub(crate) fn DatePeriod(
                 {move || {
                     segments
                         .into_iter()
-                        .filter(|segment| has_years() || *segment != DateSegment::Year)
                         .map(|segment| {
                             let click_search = search;
                             let click_picker = year_picker_open;
@@ -385,6 +384,9 @@ pub(crate) fn DatePeriod(
                                     variant=ChipVariant::Segment
                                     selected=Signal::derive(move || {
                                         search.with(|state| visible_date_segment(state, has_years()) == segment)
+                                    })
+                                    disabled=Signal::derive(move || {
+                                        !has_years() && segment == DateSegment::Year
                                     })
                                     on_click=move |_| {
                                         click_picker.set(false);

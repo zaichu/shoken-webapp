@@ -183,7 +183,6 @@ pub fn SiteHeader() -> impl IntoView {
                     title="アカウント削除の確認".to_string()
                     description="アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。"
                         .to_string()
-                    item_count=1
                     confirm_label="削除する"
                     loading=deleting_memo
                     error=delete_error

@@ -5,7 +5,7 @@ fn chip_variant_classes() {
     let cases: [(ChipVariant, &str, &str); 3] = [
         (
             ChipVariant::Filter,
-            "rounded border border-accent-bright bg-accent-soft px-3 py-1.5 text-sm font-bold text-accent-text",
+            "rounded border border-ink bg-ink px-3 py-1.5 text-sm font-bold text-text-inverse",
             "rounded border border-border-strong bg-surface px-3 py-1.5 text-sm text-text-soft",
         ),
         (
@@ -21,6 +21,21 @@ fn chip_variant_classes() {
             variant.unselected_class(),
             unselected,
             "{variant:?} unselected"
+        );
+    }
+}
+
+#[test]
+fn chip_segment_disabled_class() {
+    assert_eq!(
+        ChipVariant::Segment.disabled_class(),
+        "flex-1 cursor-not-allowed rounded bg-surface-raised px-2 py-1 text-xs font-semibold text-text-faint"
+    );
+    for variant in [ChipVariant::Filter, ChipVariant::Pill] {
+        assert_eq!(
+            variant.disabled_class(),
+            variant.unselected_class(),
+            "{variant:?} disabled"
         );
     }
 }
