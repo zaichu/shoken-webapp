@@ -776,11 +776,15 @@ pub(crate) fn group_label(key: &str) -> String {
 }
 
 fn product_matches(row: &ReceiptRow, query: &str) -> bool {
-    row.product().to_lowercase().contains(query)
+    normalize_display_name(row.product())
+        .to_lowercase()
+        .contains(query)
 }
 
 fn account_matches(row: &ReceiptRow, query: &str) -> bool {
-    row.account().to_lowercase().contains(query)
+    normalize_display_name(row.account())
+        .to_lowercase()
+        .contains(query)
 }
 
 // `search_amount` の列番号から fn ポインタの配列を作る
@@ -1041,23 +1045,28 @@ impl ReceiptKind for DividendKind {
             let name = latest
                 .get(row.code())
                 .map_or_else(|| row.name().to_string(), |(_, name)| (*name).to_string());
-            // キー側も表示用に揃え、「ＮＴＴ」と「NTT」が別グループに分かれないようにする
+            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名が別コード間で分かれないようにする
             normalize_display_name(&name)
         };
         let rules = [
             GroupKeyRule {
                 test: |row: &ReceiptRow, token| {
-                    row.code().to_lowercase() == token || row.name().to_lowercase() == token
+                    row.code().to_lowercase() == token
+                        || normalize_display_name(row.name()).to_lowercase() == token
                 },
                 key_fn: &security_key,
             },
             GroupKeyRule {
-                test: |row: &ReceiptRow, token| row.product().to_lowercase() == token,
-                key_fn: &|row: &ReceiptRow| row.product().to_string(),
+                test: |row: &ReceiptRow, token| {
+                    normalize_display_name(row.product()).to_lowercase() == token
+                },
+                key_fn: &|row: &ReceiptRow| normalize_display_name(row.product()),
             },
             GroupKeyRule {
-                test: |row: &ReceiptRow, token| row.account().to_lowercase() == token,
-                key_fn: &|row: &ReceiptRow| row.account().to_string(),
+                test: |row: &ReceiptRow, token| {
+                    normalize_display_name(row.account()).to_lowercase() == token
+                },
+                key_fn: &|row: &ReceiptRow| normalize_display_name(row.account()),
             },
         ];
         let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
@@ -1289,8 +1298,12 @@ impl ReceiptKind for MutualFundKind {
     fn table_groups(rows: &[ReceiptRow], _all_rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
         let sorted = sorted_rows(rows);
         let rules = [GroupKeyRule {
-            test: |row: &ReceiptRow, token| row.name().to_lowercase().contains(token),
-            // キー側も表示用に揃え、全角・半角の違いで同じファンドが分かれないようにする
+            test: |row: &ReceiptRow, token| {
+                normalize_display_name(row.name())
+                    .to_lowercase()
+                    .contains(token)
+            },
+            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名をまとめる
             key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
         }];
         let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);

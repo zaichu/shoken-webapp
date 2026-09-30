@@ -319,7 +319,13 @@ pub(crate) fn DividendSummarySection(
                     style=DisclosureStyle::Collapsible
                     expanded=Signal::derive(move || mobile_expanded.get())
                     controls="receipt-summary-mobile-body".to_string()
-                    aria_label=title.to_string()
+                    aria_label=Signal::derive(move || {
+                        if store.asset_balance.get().is_some() {
+                            format!("{title} 保有銘柄")
+                        } else {
+                            title.to_string()
+                        }
+                    })
                     testid="receipt-summary-compact-toggle"
                     hint=true
                     on_toggle=move || mobile_expanded.update(|open| *open = !*open)

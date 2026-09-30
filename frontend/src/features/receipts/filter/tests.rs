@@ -98,6 +98,51 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
     }
 }
 #[test]
+fn full_width_names_match_half_width_query() {
+    let rows = dividends();
+    assert_eq!(
+        filter_receipts(ReceiptsTab::Dividend, &rows, "NTT"),
+        rows[1..2]
+    );
+    assert_eq!(
+        filter_receipts(ReceiptsTab::Dividend, &rows, "ＮＴＴ"),
+        rows[1..2]
+    );
+}
+
+#[test]
+fn fund_options_merge_names_differing_only_by_width() {
+    let mut rows = funds();
+    let mut twin = match &rows[0] {
+        Saved(ReceiptItem::MutualFund(row)) => row.clone(),
+        _ => panic!("fund row"),
+    };
+    twin.id = "fund2".to_string().into();
+    twin.fund_name = "Ａｌｐｈａ Ｆｕｎｄ Ａ".into();
+    rows.push(Saved(ReceiptItem::MutualFund(twin)));
+    let categories = search_categories(ReceiptsTab::MutualFund, &rows);
+    assert_eq!(
+        categories
+            .securities
+            .iter()
+            .map(|option| (option.value.as_str(), option.label.as_str()))
+            .collect::<Vec<_>>(),
+        [("Alpha Fund A", "Alpha Fund A")]
+    );
+    let query = "\"Alpha Fund A\"";
+    assert_eq!(
+        filter_receipts(ReceiptsTab::MutualFund, &rows, query).len(),
+        2
+    );
+    assert_eq!(
+        ReceiptsTab::MutualFund
+            .table_groups(&rows, &rows, query)
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn whitespace_returns_all_three_tabs() {
     for (tab, rows) in [
         (ReceiptsTab::Dividend, dividends()),

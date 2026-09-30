@@ -84,7 +84,7 @@ impl FilterCase {
 #[test]
 fn shared_filter_cases_match() {
     let fixture = fixture();
-    assert_eq!(fixture.filter_cases.len(), 12);
+    assert_eq!(fixture.filter_cases.len(), 14);
     for case in &fixture.filter_cases {
         let data = balances(&case.data);
         let actual: Vec<_> = filter_asset_balances(&data, &case.query)

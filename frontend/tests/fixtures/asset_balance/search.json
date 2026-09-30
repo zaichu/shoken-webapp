@@ -119,6 +119,24 @@
       ],
       "query": "9999",
       "expected_ids": []
+    },
+    {
+      "name": "full_width_name_matches_half_width_query",
+      "data": [
+        { "id": "inpex", "security_code": "1605", "security_name": "ＩＮＰＥＸ" },
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" }
+      ],
+      "query": "INPEX",
+      "expected_ids": ["inpex"]
+    },
+    {
+      "name": "half_width_query_matches_full_width_name",
+      "data": [
+        { "id": "kddi", "security_code": "9433", "security_name": "KDDI" },
+        { "id": "toyota", "security_code": "7203", "security_name": "トヨタ自動車" }
+      ],
+      "query": "ｋｄｄｉ",
+      "expected_ids": ["kddi"]
     }
   ],
   "suggest_cases": [
