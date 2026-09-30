@@ -207,7 +207,7 @@ test('カード一覧はスマホ幅に収まり、長いファンド名は省�
   await expect(cardList).toBeVisible();
   const listBox = await cardList.boundingBox();
   expect(listBox, 'カード一覧の幅').not.toBeNull();
-  // ページ幅を超えないことを確かめ、余白の値には依存しない
+  // ページ幅を超えないことを確かめる
   expect(listBox!.x).toBeGreaterThanOrEqual(0);
   expect(listBox!.x + listBox!.width).toBeLessThanOrEqual(390 + 1);
 
@@ -218,11 +218,11 @@ test('カード一覧はスマホ幅に収まり、長いファンド名は省�
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンド名ボタンの幅').not.toBeNull();
-  // ボタンがカード内に収まることを確かめ、余白の値には依存しない
+  // ボタンがカード内に収まることを確かめる
   expect(nameBox!.x).toBeGreaterThanOrEqual(listBox!.x - 1);
   expect(nameBox!.x + nameBox!.width).toBeLessThanOrEqual(listBox!.x + listBox!.width + 1);
 
-  // 行数を固定せず、全文が省略されていないことを確かめる
+  // 全文が省略されていないことを確かめる
   const wrap = await name.locator('span').first().evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);

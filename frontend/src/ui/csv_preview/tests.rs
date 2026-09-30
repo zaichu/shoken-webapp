@@ -5,7 +5,7 @@ fn preview_notice_text_uses_save_action() {
     for (count, action) in [(5, "追加で保存"), (9, "全件置換で保存"), (0, "追加で保存")]
     {
         let notice = preview_notice_text(count, action);
-        assert!(notice.contains(&count.to_string()));
+        assert!(notice.starts_with(&format!("{count}件")));
         assert!(notice.contains(action));
     }
 }

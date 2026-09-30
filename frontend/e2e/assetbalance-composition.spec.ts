@@ -104,6 +104,14 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
   const segmentColors = await segments.evaluateAll((elements) =>
     elements.map((element) => getComputedStyle(element).backgroundColor),
   );
+  segmentColors.forEach((color, index) => {
+    expect(color, `帯${index}は透明でない`).not.toBe('rgba(0, 0, 0, 0)');
+  });
+  for (let index = 1; index < segmentColors.length; index += 1) {
+    expect(segmentColors[index], `帯${index}は前の帯と色が異なる`).not.toBe(
+      segmentColors[index - 1],
+    );
+  }
   for (const index of [0, 19, 20]) {
     const color = await legend.nth(index).locator('span').first().evaluate(
       (element) => getComputedStyle(element).backgroundColor,

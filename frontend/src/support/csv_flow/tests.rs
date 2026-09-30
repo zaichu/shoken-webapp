@@ -10,7 +10,7 @@ fn save_label_preserves_action_count_and_busy_priority() {
             ..Default::default()
         });
         let ready = state.save_label(action);
-        assert!(ready.contains('3'));
+        assert!(ready.starts_with("3件"));
         assert!(ready.contains(action));
         state.previewing = true;
         let previewing = state.save_label(action);
@@ -107,7 +107,7 @@ fn csv_error_message_matches_react() {
 fn delete_label_preserves_count_and_busy_state() {
     let mut state = CsvTabState::<String>::default();
     let ready = state.delete_label(5);
-    assert!(ready.contains('5'));
+    assert!(ready.contains("(5件)"));
     state.deleting = true;
     let deleting = state.delete_label(5);
     assert_ne!(deleting, ready);
