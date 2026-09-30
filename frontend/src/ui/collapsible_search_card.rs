@@ -30,8 +30,6 @@ pub fn CollapsibleSearchCard(
     #[prop(optional)] on_expanded_change: Option<Callback<(bool,)>>,
     children: ChildrenFn,
 ) -> impl IntoView {
-    // expanded を渡すと親が開閉状態を所有する(ツールバー等から直接切り替える)。
-    // 渡さない場合は内部 state として持ち、initial_expanded は初期値としてのみ使う
     let expanded = expanded.unwrap_or_else(|| RwSignal::new(initial_expanded));
     // 初期値の通知も兼ねるためマウント時にも発火する
     Effect::new(move |_| {
